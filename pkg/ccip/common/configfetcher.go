@@ -5,12 +5,13 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
