@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
@@ -64,13 +65,16 @@ func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFm
 
 func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
 	tlbs := make(map[uint64]interface{})
+	// Jetton contract types
 	maps.Copy(tlbs, wallet.TLBs)
 	maps.Copy(tlbs, minter.TLBs)
+	// CCIP contract types
 	maps.Copy(tlbs, router.TLBs)
 	maps.Copy(tlbs, onramp.TLBs)
 	maps.Copy(tlbs, feequoter.TLBs)
 	maps.Copy(tlbs, ccipsendexecutor.TLBs)
-	// TODO: AC contract TLBs
+	// MCMS contract types
+	maps.Copy(tlbs, rbac.TLBs)
 	maps.Copy(tlbs, mcms.TLBs)
 	maps.Copy(tlbs, timelock.TLBs)
 
@@ -82,6 +86,7 @@ func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
 	registerDecoder(t, offramp.NewDecoder(tlbs))
 	registerDecoder(t, feequoter.NewDecoder(tlbs))
 	registerDecoder(t, ccipsendexecutor.NewDecoder(tlbs))
+	registerDecoder(t, rbac.NewDecoder(tlbs))
 	registerDecoder(t, mcms.NewDecoder(tlbs))
 	registerDecoder(t, timelock.NewDecoder(tlbs))
 	return t
