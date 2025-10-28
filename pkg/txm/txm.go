@@ -88,7 +88,7 @@ func (t *Txm) GetClient(ctx context.Context) (tracetracking.SignedAPIClient, err
 
 func (t *Txm) Start(ctx context.Context) error {
 	return t.starter.StartOnce("Txm", func() error {
-		t.done.Add(3) // waitgroup: broadcast loop, confirm loop, and cleanup loop
+		t.done.Add(3) // wait group: broadcast loop, confirm loop, and cleanup loop
 		go t.broadcastLoop()
 		go t.confirmLoop()
 		go t.cleanupLoop()
@@ -268,15 +268,13 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	// Save receivedMessage into tx
 	tx.ReceivedMessage = *receivedMessage
 
-	// Determine tx expiration.
-	expirationTimestampMs := uint64(time.Now().UnixMilli()) + uint64(t.config.SendRetryDelay.Duration().Milliseconds()) //nolint:gosec // ignoring G115 overflow conversion
-
 	walletAddr := client.Wallet.Address().String()
 	txStore := t.accountStore.GetTxStore(walletAddr)
 	if txStore == nil {
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
+	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
