@@ -11,7 +11,7 @@ struct (0x38ede915) MerkleRoot_Validate {
     gasOverride: coins?,
 }
 
-struct (0x0123) MerkleRoot_MarkState {
+struct (0x01234567) MerkleRoot_MarkState {
     messageId: uint256,
     state: ExecutionState
 }

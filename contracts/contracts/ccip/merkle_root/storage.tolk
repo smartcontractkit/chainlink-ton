@@ -7,7 +7,7 @@ import "../offramp/types";
 
 struct MerkleRoot_Storage {
     root: uint256;
-    owner: address; // 267 (could we avoid storing owner if we can derive our own address to confirm ownership?)
+    owner: address;
     timestamp: uint64;
     expectedMessages: uint16;
     messageStates: map<uint256, ExecutionState>; // messageId -> state

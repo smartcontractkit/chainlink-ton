@@ -132,15 +132,15 @@ fun _bouncedCCIPReceive(execId: uint192, sender: address) {
 
 fun markStateOnRoot(root: address, messageId: uint256, state: ExecutionState) {
     val markState= createMessage({
-        bounce: true,
-        value: ton("0"),
+        bounce: false,
+        value: ton("0.05"),
         dest: root,
         body: MerkleRoot_MarkState {
             messageId,
             state,
         },
     });
-    // markState.send(SEND_MODE_REGULAR);
+    markState.send(SEND_MODE_REGULAR);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
