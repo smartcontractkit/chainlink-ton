@@ -4,18 +4,13 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"runtime"
-	"sync"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/sync/errgroup"
-
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 const (
@@ -253,35 +248,4 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 
 func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
 	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c.FromResult)
-}
-
-// FetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.
-func FetchSrcChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]SourceChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, offRampAddr, ccipcommon.DestChainsGetter)
-	if err != nil {
-		return nil, err
-	}
-
-	var eg errgroup.Group
-	eg.SetLimit(runtime.NumCPU())
-	var lock sync.Mutex
-	output := make(map[uint64]SourceChainConfig)
-	chainSelectors := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
-
-	for _, dest := range chainSelectors {
-		eg.Go(func() error {
-			var cfg SourceChainConfig
-			opts := []interface{}{dest}
-			if err = cfg.FetchResult(ctx, client, block, offRampAddr, opts); err != nil {
-				return err
-			}
-
-			lock.Lock()
-			output[dest] = cfg
-			lock.Unlock()
-			return nil
-		})
-	}
-
-	return output, eg.Wait()
 }

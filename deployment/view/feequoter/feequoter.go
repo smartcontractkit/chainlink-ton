@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
@@ -32,7 +33,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, fee
 		return nil, fmt.Errorf("failed to parse StaticConfig: %w", err)
 	}
 
-	destConfigs, err := feequoter.FetchDestChainConfigs(ctx, c.Client, block, feeQuoter)
+	destConfigs, err := ccipcommon.FetchFeeQuoterDestChainConfigs(ctx, c.Client, block, feeQuoter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}

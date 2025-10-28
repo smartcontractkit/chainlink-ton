@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -162,7 +163,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	}
 
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
-	sourceConfigsGot, err := offramp.FetchSrcChainConfig(ctx, a.client, block, addr)
+	sourceConfigsGot, err := common.FetchOffRampSrcChainConfig(ctx, a.client, block, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}

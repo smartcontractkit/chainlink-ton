@@ -3,18 +3,13 @@ package feequoter
 import (
 	"context"
 	"math/big"
-	"runtime"
-	"sync"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/sync/errgroup"
-
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Fee Quoter opcodes
@@ -314,39 +309,4 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 
 func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
 	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
-}
-
-// FetchDestChainConfigs fetches all destination chain configurations from the fee quoter contract
-func FetchDestChainConfigs(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, feeQuoter, ccipcommon.DestChainsGetter)
-	if err != nil {
-		return nil, err
-	}
-
-	selectorSlice := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
-	eg, egCtx := errgroup.WithContext(ctx)
-
-	var lock sync.Mutex
-	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]DestChainConfig)
-	for _, dest := range selectorSlice {
-		eg.Go(func() error {
-			result, err = client.RunGetMethod(egCtx, block, feeQuoter, ccipcommon.DestChainConfigGetter, dest) // New variables per goroutine
-			if err != nil {
-				return err
-			}
-			var cfg DestChainConfig
-			if err = cfg.FromResult(result); err != nil {
-				return err
-			}
-
-			lock.Lock()
-			output[dest] = cfg
-			lock.Unlock()
-
-			return nil
-		})
-	}
-
-	return output, eg.Wait()
 }

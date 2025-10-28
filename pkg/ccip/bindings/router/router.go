@@ -1,21 +1,13 @@
 package router
 
 import (
-	"context"
-	"fmt"
 	"math/big"
-	"runtime"
-	"sync"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/common"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/sync/errgroup"
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const (
@@ -28,7 +20,7 @@ const (
 	ErrorUnknownMessage      tvm.ExitCode = tvm.ExitCode(0x1002)
 )
 
-const onRampGetter = "onRamp"
+const OnRampGetter = "onRamp"
 
 type Storage struct {
 	ID      uint32                  `tlb:"## 32"`
@@ -63,46 +55,4 @@ type CCIPSend struct {
 	TokenAmounts      ccipcommon.SnakeRef[TokenAmount] `tlb:"^"`
 	FeeToken          *address.Address                 `tlb:"addr"`
 	ExtraArgs         *cell.Cell                       `tlb:"^"`
-}
-
-// FetchOnRampAddresses retrieves the on-ramp addresses for all destination chains from the router contract.
-func FetchOnRampAddresses(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) (map[uint64]*address.Address, error) {
-	result, err := client.RunGetMethod(ctx, block, routerAddr, ccipcommon.DestChainsGetter)
-	if err != nil {
-		return nil, err
-	}
-
-	selectorSlice := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
-
-	var lock sync.Mutex
-	eg, egCtx := errgroup.WithContext(ctx)
-	eg.SetLimit(runtime.NumCPU())
-	onRampAddrMap := make(map[uint64]*address.Address)
-	for _, dest := range selectorSlice {
-		eg.Go(func() error {
-			result, err := client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
-			if err != nil {
-				return fmt.Errorf("error getting onrampAddr: %w", err)
-			}
-
-			var onRampSlice *cell.Slice
-			var onRampAddr *address.Address
-			onRampSlice, err = result.Slice(0)
-			if err != nil {
-				return err
-			}
-
-			onRampAddr, err = onRampSlice.LoadAddr()
-			if err != nil {
-				return fmt.Errorf("failed to load onramp address: %w", err)
-			}
-
-			lock.Lock()
-			onRampAddrMap[dest] = onRampAddr
-			lock.Unlock()
-			return nil
-		})
-	}
-
-	return onRampAddrMap, eg.Wait()
 }
