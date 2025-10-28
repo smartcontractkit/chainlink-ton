@@ -9,7 +9,7 @@ import (
 const (
 	VersionGetter                   = "typeAndVersion"
 	DestChainsGetter                = "destChainSelectors"
-	SourceChainsGetter		= "sourceChainSelectors"
+	SourceChainsGetter              = "sourceChainSelectors"
 	DestChainConfigGetter           = "destChainConfig"
 	SrcChainConfigGetter            = "sourceChainConfig"
 	ConfigGetter                    = "config"
