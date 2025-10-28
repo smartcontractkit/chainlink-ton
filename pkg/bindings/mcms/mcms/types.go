@@ -16,14 +16,6 @@ import (
 
 // --- Messages - incoming ---
 
-// Top up contract with TON coins.
-// Contract might receive/hold TON as part of the maintenance process.
-type TopUp struct {
-	_ tlb.Magic `tlb:"#5f427bb3"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change request.
-	QueryID uint64 `tlb:"## 64"`
-}
-
 // Sets a new expiring root.
 //
 // @param root is the new expiring root.

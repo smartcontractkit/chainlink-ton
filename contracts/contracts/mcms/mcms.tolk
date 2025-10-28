@@ -34,14 +34,6 @@ const CONTRACT_VERSION = "0.0.3";
 
 // --- Messages - incoming ---
 
-/// Top up contract with TON coins.
-///
-/// @dev Contract might receive/hold TON as part of the maintenance process.
-struct (0x5f427bb3) MCMS_TopUp {
-    /// Query ID of the change request.
-    queryId: uint64;
-}
-
 /// Sets a new expiring root.
 ///
 /// @param root is the new expiring root.
@@ -164,7 +156,6 @@ struct (0xf275742f) MCMS_TransferOracleRole {
 
 /// @dev Union of all incoming messages.
 type MCMS_InMessage =
-    | MCMS_TopUp
     | MCMS_SetRoot
     | MCMS_Execute
     | MCMS_SetConfig
@@ -1309,9 +1300,6 @@ fun MCMS<T>.getOracle(self): address {
 fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice) {
     val msg = lazy MCMS_InMessage.fromSlice(msgBody);
     match (msg) {
-        MCMS_TopUp => {
-            // Top up the contract balance, no action needed
-        }
         MCMS_SetRoot => {
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
                 Iterator<uint256>.new(msg.metadataProof), msg.signatures, msg.opFinalizationTimeout);
@@ -1340,6 +1328,9 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         else => {
             val _msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
+
+            // TODO: allow empty top up
+            // @dev Contract might receive/hold TON as part of the maintenance process.
 
             // If the message was not handled:
             //  - ignore all other messages, empty or not empty

@@ -61,7 +61,6 @@ describe('MCMS', () => {
 
   it('should compute crc32 opcodes', async () => {
     // In opcodes
-    expect(mcms.opcodes.in.TopUp).toBe(0x5f427bb3)
     expect(mcms.opcodes.in.SetRoot).toBe(0xe7fabde3)
     expect(mcms.opcodes.in.Execute).toBe(0x9b9ce96a)
     expect(mcms.opcodes.in.SetConfig).toBe(0x89277f4b)
