@@ -167,8 +167,6 @@ fun _notifyInProgress(msg: OffRamp_NotifyInProgress, sender: address) {
     });
 }
 
-
-
 // Sent by the receiver to confirm successful receipt of the message,
 // ReceiveExecutor must further validate that the sender is the intended receiver
 fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
