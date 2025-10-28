@@ -40,7 +40,7 @@ describe('Receiver', () => {
       // Use a library reference
       let data: ReceiverStorage = {
         id: generateSecureRandomId(),
-        offramp: deployer.address,
+        router: deployer.address,
       }
 
       receiver = blockchain.openContract(Receiver.createFromConfig(data, code))

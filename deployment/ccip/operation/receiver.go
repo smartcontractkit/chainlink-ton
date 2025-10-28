@@ -17,7 +17,7 @@ import (
 type DeployReceiverInput struct {
 	ID             uint32
 	ContractPath   string
-	OffRampAddress *address.Address
+	RouterAddress *address.Address
 	Coins          string
 }
 
@@ -44,7 +44,7 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 
 	storage := receiver.Storage{
 		ID:      in.ID,
-		OffRamp: in.OffRampAddress,
+		Router: in.RouterAddress,
 	}
 
 	initData, err := tlb.ToCell(storage)
