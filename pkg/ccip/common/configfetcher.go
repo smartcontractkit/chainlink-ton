@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -14,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/common"
 )
 
 const (
@@ -37,7 +37,7 @@ func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped
 		return nil, err
 	}
 
-	chainSelectors := common.ParseExecutionResultForChainSelectors(result.AsTuple())
+	chainSelectors := parser.ParseLispTuple(result.AsTuple())
 
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
@@ -69,7 +69,7 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 		return nil, err
 	}
 
-	selectorSlice := common.ParseExecutionResultForChainSelectors(result.AsTuple())
+	selectorSlice := parser.ParseLispTuple(result.AsTuple())
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	var lock sync.Mutex
@@ -105,7 +105,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 	eg.SetLimit(runtime.NumCPU())
 	var lock sync.Mutex
 	output := make(map[uint64]offramp.SourceChainConfig)
-	chainSelectors := common.ParseExecutionResultForChainSelectors(result.AsTuple())
+	chainSelectors := parser.ParseLispTuple(result.AsTuple())
 
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
@@ -132,7 +132,7 @@ func FetchRouterOnRampAddresses(ctx context.Context, client ton.APIClientWrapped
 		return nil, err
 	}
 
-	selectorSlice := common.ParseExecutionResultForChainSelectors(result.AsTuple())
+	selectorSlice := parser.ParseLispTuple(result.AsTuple())
 
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)

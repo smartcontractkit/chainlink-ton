@@ -1,11 +1,9 @@
-package common
+package parser
 
-import (
-	"math/big"
-)
+import "math/big"
 
-// ParseExecutionResultForChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.
-func ParseExecutionResultForChainSelectors(tuple []any) []uint64 {
+// ParseLispTuple parses the result of a get method call that returns a Lisp-style list of uint64 selectors.
+func ParseLispTuple(tuple []any) []uint64 {
 	if len(tuple) == 0 {
 		return nil
 	}

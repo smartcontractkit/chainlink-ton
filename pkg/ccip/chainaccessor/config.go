@@ -10,7 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
+	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
