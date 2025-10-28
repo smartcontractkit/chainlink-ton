@@ -3,7 +3,6 @@ import "storage"
 import "errors"
 import "../onramp/messages"
 import "../onramp/types"
-import "../common/types"
 import "../common/messages"
 import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
@@ -39,7 +38,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onBouncedMessage(in: InMessageBounced) {
+fun onBouncedMessage(_: InMessageBounced) {
 }
 
 fun onSetRamps(msg: Router_SetRamps, sender: address) {

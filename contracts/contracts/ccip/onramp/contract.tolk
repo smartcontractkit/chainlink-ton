@@ -77,12 +77,13 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val msg = payload.msg.load();
 
-    // validate allowlist
+    // Ensure the destination chain exists
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
 
     // ccipSend must be forwarded from the router
     assert(destChainConfig.router == sender, Error.Unauthorized);
 
+    // validate allowlist
     if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
         assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
