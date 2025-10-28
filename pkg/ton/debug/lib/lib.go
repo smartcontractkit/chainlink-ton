@@ -177,7 +177,6 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 	case *cell.Cell:
 		typeName, decoded, err := DecodeTLBStructToJSON(t, tlbs)
 		if err != nil {
-			// return "", nil, fmt.Errorf("FAILED: %w", err)
 			return "Cell", t, nil // fallback if not a known struct
 		}
 
@@ -241,13 +240,13 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 }
 
 // IsNil checks if a value is nil or if it's a reference type with a nil underlying value.
-//   - vendoring form github:samber/lo
+// Notice: vendoring github:samber/lo
 func IsNil(x any) bool {
 	if x == nil {
 		return true
 	}
 	v := reflect.ValueOf(x)
-	switch v.Kind() { //nolint:exhaustive
+	switch v.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
 		return v.IsNil()
 	default:
@@ -285,7 +284,7 @@ func NewTLBMap(types []interface{}) (map[uint64]interface{}, error) {
 	return tlbs, nil
 }
 
-// Notice: func extracted from tonutils-go tlb package
+// Notice: vendoring github:xssnick/tonutils-go tlb package
 func loadMagic(tag string) (uint64, error) {
 	var sz, base int
 	if strings.HasPrefix(tag, "#") { //nolint:gocritic // vendored from tonutils-go
