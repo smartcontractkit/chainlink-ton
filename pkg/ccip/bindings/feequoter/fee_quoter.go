@@ -6,13 +6,14 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -44,14 +45,14 @@ const (
 )
 
 type Storage struct {
-	ID                           uint32              `tlb:"## 32"`
-	Ownable                      common.Ownable2Step `tlb:"."`
-	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
-	LinkToken                    *address.Address    `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64              `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
+	ID                           uint32                  `tlb:"## 32"`
+	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
+	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
+	LinkToken                    *address.Address        `tlb:"addr"`
+	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary        `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary        `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
 }
 
 type DestChainConfig struct {
@@ -250,15 +251,15 @@ type MessageValidated struct {
 }
 
 type UpdatePrices struct {
-	_           tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
-	TokenPrices common.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices   common.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	_           tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	TokenPrices ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices   ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                          `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                   `tlb:"dict 267"`
-	Remove common.SnakeData[*address.Address] `tlb:"^"`
+	_      tlb.Magic                              `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	Add    *cell.Dictionary                       `tlb:"dict 267"`
+	Remove ccipcommon.SnakeData[*address.Address] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
@@ -274,8 +275,8 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	_       tlb.Magic                                   `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
+	Updates ccipcommon.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
 // binding types that supports FetchResult interface with rpc client
@@ -312,12 +313,12 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
 }
 
 // FetchDestChainConfigs fetches all destination chain configurations from the fee quoter contract
 func FetchDestChainConfigs(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, feeQuoter, common.DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, feeQuoter, ccipcommon.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +331,7 @@ func FetchDestChainConfigs(ctx context.Context, client ton.APIClientWrapped, blo
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err = client.RunGetMethod(egCtx, block, feeQuoter, common.DestChainConfigGetter, dest) // New variables per goroutine
+			result, err = client.RunGetMethod(egCtx, block, feeQuoter, ccipcommon.DestChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}

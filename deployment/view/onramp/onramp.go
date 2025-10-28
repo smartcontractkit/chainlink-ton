@@ -5,11 +5,12 @@ import (
 	"fmt"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 )
 
@@ -23,7 +24,7 @@ type View struct {
 
 // FetchView generates a view of the on-ramp contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address, srcSelector uint64) (*View, error) {
-	var typeVersion common.TypeAndVersion
+	var typeVersion ccipcommon.TypeAndVersion
 	if err := typeVersion.FetchResult(ctx, c.Client, block, onRampAddr, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
@@ -33,7 +34,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onR
 		return nil, fmt.Errorf("failed to parse DynamicConfig: %w", err)
 	}
 
-	destChainConfig, err := onramp.FetchDestChainConfig(ctx, c.Client, block, onRampAddr)
+	destChainConfig, err := common.FetchOnRampDestChainConfig(ctx, c.Client, block, onRampAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config: %w", err)
 	}

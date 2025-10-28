@@ -7,13 +7,14 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -30,9 +31,9 @@ const (
 const onRampGetter = "onRamp"
 
 type Storage struct {
-	ID      uint32              `tlb:"## 32"`
-	Ownable common.Ownable2Step `tlb:"."`
-	OnRamps *cell.Dictionary    `tlb:"dict 64"`
+	ID      uint32                  `tlb:"## 32"`
+	Ownable ccipcommon.Ownable2Step `tlb:"."`
+	OnRamps *cell.Dictionary        `tlb:"dict 64"`
 }
 
 // DestChainSelector is a wrapper uint64 to support SnakeData encoding.
@@ -41,10 +42,10 @@ type DestChainSelector struct {
 }
 
 type SetRamps struct {
-	_                  tlb.Magic                           `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
-	QueryID            uint64                              `tlb:"## 64"`
-	DestChainSelectors common.SnakeData[DestChainSelector] `tlb:"^"`
-	OnRamps            *address.Address                    `tlb:"addr"`
+	_                  tlb.Magic                               `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
+	QueryID            uint64                                  `tlb:"## 64"`
+	DestChainSelectors ccipcommon.SnakeData[DestChainSelector] `tlb:"^"`
+	OnRamps            *address.Address                        `tlb:"addr"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
@@ -54,19 +55,19 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64                       `tlb:"## 64"`
-	DestChainSelector uint64                       `tlb:"## 64"`
-	Receiver          common.CrossChainAddress     `tlb:"."`
-	Data              common.SnakeBytes            `tlb:"^"`
-	TokenAmounts      common.SnakeRef[TokenAmount] `tlb:"^"`
-	FeeToken          *address.Address             `tlb:"addr"`
-	ExtraArgs         *cell.Cell                   `tlb:"^"`
+	_                 tlb.Magic                        `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                           `tlb:"## 64"`
+	DestChainSelector uint64                           `tlb:"## 64"`
+	Receiver          ccipcommon.CrossChainAddress     `tlb:"."`
+	Data              ccipcommon.SnakeBytes            `tlb:"^"`
+	TokenAmounts      ccipcommon.SnakeRef[TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address                 `tlb:"addr"`
+	ExtraArgs         *cell.Cell                       `tlb:"^"`
 }
 
 // FetchOnRampAddresses retrieves the on-ramp addresses for all destination chains from the router contract.
 func FetchOnRampAddresses(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) (map[uint64]*address.Address, error) {
-	result, err := client.RunGetMethod(ctx, block, routerAddr, common.DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, routerAddr, ccipcommon.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}

@@ -3,18 +3,13 @@ package onramp
 import (
 	context2 "context"
 	"math/big"
-	"runtime"
-	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/net/context"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 const (
@@ -234,36 +229,4 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 
 func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
 	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
-}
-
-// FetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
-func FetchDestChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, onRampAddr, common.DestChainsGetter)
-	if err != nil {
-		return nil, err
-	}
-
-	chainSelectors := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
-
-	var lock sync.Mutex
-	eg, egCtx := errgroup.WithContext(ctx)
-	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]DestChainConfig)
-	for _, dest := range chainSelectors {
-		eg.Go(func() error {
-			var cfg DestChainConfig
-			opts := []interface{}{dest}
-			if err = cfg.FetchResult(egCtx, client, block, onRampAddr, opts); err != nil {
-				return err
-			}
-
-			lock.Lock()
-			output[dest] = cfg
-			lock.Unlock()
-
-			return nil
-		})
-	}
-
-	return output, eg.Wait()
 }
