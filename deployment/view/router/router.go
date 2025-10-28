@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
@@ -42,29 +43,32 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, rou
 
 	selectorSlice := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
-	var onrampSlice *cell.Slice
-	var onRampAddr *address.Address
-	var eg errgroup.Group
+	var lock sync.Mutex
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, dest := range selectorSlice {
-		// On-chain returns *big.Int for selector values, convert to uint64
 		eg.Go(func() error {
-			result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
+			result, err := c.Client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
 			if err != nil {
-				return fmt.Errorf("error getting onrampAddr: %v", err)
+				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}
-			onrampSlice, err = result.Slice(0)
+
+			var onRampSlice *cell.Slice
+			var onRampAddr *address.Address
+			onRampSlice, err = result.Slice(0)
 			if err != nil {
 				return err
 			}
 
-			onRampAddr, err = onrampSlice.LoadAddr()
+			onRampAddr, err = onRampSlice.LoadAddr()
 			if err != nil {
 				return fmt.Errorf("failed to load onramp address: %w", err)
 			}
 
+			lock.Lock()
 			onRampAddrMap[dest] = onRampAddr
+			lock.Unlock()
 			return nil
 		})
 	}

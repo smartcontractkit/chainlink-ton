@@ -2,40 +2,25 @@ package offramp
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"runtime"
 	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 )
 
 type View struct {
 	view.MetaData
-	LatestPriceSequenceNumber uint64                       `json:"latestPriceSequenceNumber,omitempty"`
-	Config                    Config                       `json:"Config,omitempty"`
-	SourceChainConfigs        map[uint64]SourceChainConfig `json:"sourceChainConfigs,omitempty"`
-}
-
-type SourceChainConfig struct {
-	Router                    string `json:"router,omitempty"`
-	IsEnabled                 bool   `json:"isEnabled,omitempty"`
-	MinSeqNr                  uint64 `json:"minSeqNr,omitempty"`
-	IsRMNVerificationDisabled bool   `json:"isRMNVerificationDisabled,omitempty"`
-	OnRamp                    string `json:"onRamp,omitempty"`
-}
-
-type Config struct {
-	FeeQuoter                               string `json:"feeQuoter,omitempty"`
-	ChainSelector                           uint64 `json:"chainSelector,omitempty"`
-	PermissionlessExecutionThresholdSeconds uint32 `json:"permissionlessExecutionThresholdSeconds,omitempty"`
+	LatestPriceSequenceNumber uint64                               `json:"latestPriceSequenceNumber,omitempty"`
+	Config                    offramp.Config                       `json:"Config,omitempty"`
+	SourceChainConfigs        map[uint64]offramp.SourceChainConfig `json:"sourceChainConfigs,omitempty"`
 }
 
 // FetchView generates a view of the offramp contract at the specified block.
@@ -43,7 +28,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.VersionGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
 	if err = typeVersion.FromResult(result); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
@@ -52,7 +37,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 	var offRampConfig offramp.Config
 	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, view.ConfigGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting offRamp config: %v", err)
+		return nil, fmt.Errorf("error getting offRamp config: %w", err)
 	}
 
 	if err = offRampConfig.FromResult(result); err != nil {
@@ -61,7 +46,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 
 	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, view.LatestPriceSequenceNumberGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %v", err)
+		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %w", err)
 	}
 
 	latestSeqNumInt, err := result.Int(0)
@@ -81,17 +66,13 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 			Version:      typeVersion.Version,
 		},
 		LatestPriceSequenceNumber: latestSeqNumInt.Uint64(),
-		Config: Config{
-			ChainSelector:                           offRampConfig.ChainSelector,
-			FeeQuoter:                               offRampConfig.FeeQuoterAddress.String(),
-			PermissionlessExecutionThresholdSeconds: offRampConfig.PermissionlessExecutionThresholdSeconds,
-		},
-		SourceChainConfigs: sourceChainConfigs,
+		Config:                    offRampConfig,
+		SourceChainConfigs:        sourceChainConfigs,
 	}, nil
 }
 
 // fetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.
-func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]SourceChainConfig, error) {
+func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]offramp.SourceChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
@@ -100,7 +81,7 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
 	var lock sync.Mutex
-	output := make(map[uint64]SourceChainConfig)
+	output := make(map[uint64]offramp.SourceChainConfig)
 	chainSelectors := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
 	for _, dest := range chainSelectors {
@@ -114,19 +95,8 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 				return err
 			}
 
-			var onRampAddr string
-			if cfg.OnRamp != nil {
-				onRampAddr = hex.EncodeToString(cfg.OnRamp) // note the OnRamp is a cross-chain address that's not necessarily hex encoded
-			}
-
 			lock.Lock()
-			output[dest] = SourceChainConfig{
-				Router:                    cfg.Router.String(),
-				IsEnabled:                 cfg.IsEnabled,
-				MinSeqNr:                  cfg.MinSeqNr,
-				IsRMNVerificationDisabled: cfg.IsRMNVerificationDisabled,
-				OnRamp:                    onRampAddr,
-			}
+			output[dest] = cfg
 			lock.Unlock()
 			return nil
 		})
