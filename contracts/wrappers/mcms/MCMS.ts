@@ -98,7 +98,7 @@ export type TransferOracleRole = {
 
 // @dev Union of all (input) messages.
 export type InMessage =
-  | SetRoot
+  | SetRoot // <br>
   | Execute
   | SetConfig
   | SubmitErrorReport

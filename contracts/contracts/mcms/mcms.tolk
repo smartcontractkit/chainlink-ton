@@ -1329,7 +1329,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             val _msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
 
-            // TODO: allow empty top up
+            // Notice: allow empty message (top up)
             // @dev Contract might receive/hold TON as part of the maintenance process.
 
             // If the message was not handled:

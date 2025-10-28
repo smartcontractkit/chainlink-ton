@@ -1310,7 +1310,7 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
                 self.data.rbac = rbac.data.toCell();
             }
 
-            // TODO: allow empty top up
+            // Notice: allow empty message (top up)
             // @dev Contract might receive/hold TON as part of the maintenance process.
 
             // If the message was not handled:
