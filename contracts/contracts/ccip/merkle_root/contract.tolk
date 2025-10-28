@@ -37,7 +37,6 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun _markState(msg: MerkleRoot_MarkState, sender: address) {
-    // TODO: maybe this needs to come from the receive_executor since we don't know what the root was
     var st = MerkleRoot_Storage.load();
 
     // only offramp owned message is allowed

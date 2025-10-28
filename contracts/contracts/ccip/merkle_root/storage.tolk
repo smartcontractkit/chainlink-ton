@@ -1,10 +1,5 @@
 import "../offramp/types";
 
-// cases:
-// execution failed, and root was committed
-// well actually, a root must always exist!
-// so the only case is where a root was committed but message was left unexecuted
-
 struct MerkleRoot_Storage {
     root: uint256;
     owner: address;
