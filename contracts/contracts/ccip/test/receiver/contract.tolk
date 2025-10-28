@@ -10,7 +10,7 @@ import "../../../lib/receiver/types";
 import "../../../lib/utils";
 import "../../router/messages"
 
-const CONTRACT_VERSION = "0.0.2";
+const CONTRACT_VERSION = "0.0.3";
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
