@@ -159,7 +159,7 @@ func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64
 
 func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	chains := make(map[uint64]CCIPChainState)
-	for chainSelector, _ := range e.BlockChains.TonChains() {
+	for chainSelector := range e.BlockChains.TonChains() {
 		chainState, err := LoadOnchainStateUsingDataStore(e.DataStore, chainSelector)
 		if err != nil {
 			return chains, err
