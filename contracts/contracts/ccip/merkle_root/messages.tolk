@@ -4,7 +4,7 @@ import "../receive_executor/types"
 type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_MarkState;
 
 //crc32('MerkleRoot_Validate')
-struct (0x38ede91) MerkleRoot_Validate {
+struct (0x38ede915) MerkleRoot_Validate {
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,
     metadataHash: uint256,
