@@ -164,7 +164,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	}
 
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
-	sourceConfigsGot, err := common.FetchOffRampSrcChainConfig(ctx, a.client, block, addr)
+	sourceConfigsGot, err := configfetcher.FetchOffRampSrcChainConfig(ctx, a.client, block, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
