@@ -50,6 +50,12 @@ type Storage struct {
 	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
 }
 
+type USDPerUnitGas struct {
+	ExecutionGasPrice        *big.Int `tlb:"## 112"`
+	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	Timestamp                uint64   `tlb:"## 64"`
+}
+
 type DestChainConfig struct {
 	IsEnabled                         bool   `tlb:"bool"`
 	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
@@ -70,12 +76,6 @@ type DestChainConfig struct {
 	GasMultiplierWeiPerEth            uint64 `tlb:"## 64"`
 	GasPriceStalenessThreshold        uint32 `tlb:"## 32"`
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
-}
-
-type USDPerUnitGas struct {
-	ExecutionGasPrice        *big.Int `tlb:"## 112"`
-	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
-	Timestamp                uint64   `tlb:"## 64"`
 }
 
 func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
@@ -180,6 +180,10 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
 	}
 	return nil
+}
+
+func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c.FromResult)
 }
 
 type TokenTransferFeeConfig struct {

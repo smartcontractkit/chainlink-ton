@@ -66,12 +66,9 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 	output := make(map[uint64]feequoter.DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err = client.RunGetMethod(egCtx, block, feeQuoter, ccipcommon.DestChainConfigGetter, dest) // New variables per goroutine
-			if err != nil {
-				return err
-			}
 			var cfg feequoter.DestChainConfig
-			if err = cfg.FromResult(result); err != nil {
+			opts := []interface{}{dest}
+			if err = cfg.FetchResult(egCtx, client, block, feeQuoter, opts); err != nil {
 				return err
 			}
 
