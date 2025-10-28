@@ -34,7 +34,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onR
 		return nil, fmt.Errorf("failed to parse DynamicConfig: %w", err)
 	}
 
-	destChainConfig, err := common.FetchOnRampDestChainConfig(ctx, c.Client, block, onRampAddr)
+	destChainConfig, err := configfetcher.FetchOnRampDestChainConfig(ctx, c.Client, block, onRampAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config: %w", err)
 	}

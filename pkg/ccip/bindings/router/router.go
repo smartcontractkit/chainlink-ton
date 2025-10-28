@@ -21,8 +21,6 @@ const (
 	ErrorUnknownMessage      tvm.ExitCode = tvm.ExitCode(0x1002)
 )
 
-const OnRampGetter = "onRamp"
-
 type Storage struct {
 	ID      uint32                  `tlb:"## 32"`
 	Ownable ccipcommon.Ownable2Step `tlb:"."`

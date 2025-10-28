@@ -32,43 +32,8 @@ const (
 const (
 	DestChainConfigGetter = "destChainConfig"
 	VersionGetter         = "typeAndVersion"
-	DestChainsGetter      = "destChainSelectors"
 	SrcChainConfigGetter  = "sourceChainConfig"
 )
-
-// ConfigFetcher is an interface for fetching and parsing contract configurations.
-type ConfigFetcher interface {
-	// FetchResult fetches the configuration from the contract at the specified block and address.
-	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error
-	// FromResult parses the configuration from the execution result.
-	FromResult(result *ton.ExecutionResult) error
-}
-
-// FetchResultHelper is a generic helper function to fetch and parse contract configurations.
-func FetchResultHelper(
-	ctx context.Context,
-	client ton.APIClientWrapped,
-	block *ton.BlockIDExt,
-	contractAddr *address.Address,
-	method string,
-	opts []interface{},
-	fromResult func(*ton.ExecutionResult) error,
-) error {
-	var result *ton.ExecutionResult
-	var err error
-	if opts == nil {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
-	} else {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
-	}
-	if err != nil {
-		return fmt.Errorf("error getting %s: %w", method, err)
-	}
-	if err = fromResult(result); err != nil {
-		return fmt.Errorf("failed to parse %s: %w", method, err)
-	}
-	return nil
-}
 
 // WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
 type WrappedAddress struct {
@@ -496,4 +461,30 @@ func NewDummyCell() (*cell.Cell, error) {
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+// FetchResultHelper is a generic helper function to fetch and parse contract configurations.
+func FetchResultHelper(
+	ctx context.Context,
+	client ton.APIClientWrapped,
+	block *ton.BlockIDExt,
+	contractAddr *address.Address,
+	method string,
+	opts []interface{},
+	fromResult func(*ton.ExecutionResult) error,
+) error {
+	var result *ton.ExecutionResult
+	var err error
+	if opts == nil {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
+	} else {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
+	}
+	if err != nil {
+		return fmt.Errorf("error getting %s: %w", method, err)
+	}
+	if err = fromResult(result); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", method, err)
+	}
+	return nil
 }

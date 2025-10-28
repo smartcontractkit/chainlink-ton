@@ -1,7 +1,6 @@
-package common
+package configfetcher
 
 import (
-	context2 "context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -12,22 +11,33 @@ import (
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/common"
 )
 
+const (
+	DestChainsGetter = "destChainSelectors"
+	OnRampGetter     = "onRamp"
+)
+
+// ConfigFetcher is an interface for fetching and parsing contract configurations.
+type ConfigFetcher interface {
+	// FetchResult fetches the configuration from the contract at the specified block and address.
+	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error
+	// FromResult parses the configuration from the execution result.
+	FromResult(result *ton.ExecutionResult) error
+}
+
 // FetchOnRampDestChainConfig retrieves destination chain configurations from the on-ramp contract.
 func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]onramp.DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, onRampAddr, ccipcommon.DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, onRampAddr, DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	chainSelectors := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+	chainSelectors := common.ParseExecutionResultForChainSelectors(result.AsTuple())
 
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
@@ -54,12 +64,12 @@ func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped
 
 // FetchFeeQuoterDestChainConfigs fetches all destination chain configurations from the fee quoter contract
 func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]feequoter.DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, feeQuoter, ccipcommon.DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, feeQuoter, DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	selectorSlice := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+	selectorSlice := common.ParseExecutionResultForChainSelectors(result.AsTuple())
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	var lock sync.Mutex
@@ -86,7 +96,7 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 
 // FetchOffRampSrcChainConfig retrieves source chain configurations from the off-ramp contract.
 func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]offramp.SourceChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, offRampAddr, ccipcommon.DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, offRampAddr, DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +105,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 	eg.SetLimit(runtime.NumCPU())
 	var lock sync.Mutex
 	output := make(map[uint64]offramp.SourceChainConfig)
-	chainSelectors := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+	chainSelectors := common.ParseExecutionResultForChainSelectors(result.AsTuple())
 
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
@@ -116,13 +126,13 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 }
 
 // FetchRouterOnRampAddresses retrieves the on-ramp addresses for all destination chains from the router contract.
-func FetchRouterOnRampAddresses(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) (map[uint64]*address.Address, error) {
-	result, err := client.RunGetMethod(ctx, block, routerAddr, ccipcommon.DestChainsGetter)
+func FetchRouterOnRampAddresses(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) (map[uint64]*address.Address, error) {
+	result, err := client.RunGetMethod(ctx, block, routerAddr, DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	selectorSlice := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+	selectorSlice := common.ParseExecutionResultForChainSelectors(result.AsTuple())
 
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
@@ -130,7 +140,7 @@ func FetchRouterOnRampAddresses(ctx context2.Context, client ton.APIClientWrappe
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err := client.RunGetMethod(egCtx, block, routerAddr, router.OnRampGetter, dest) // New variables per goroutine
+			result, err := client.RunGetMethod(egCtx, block, routerAddr, OnRampGetter, dest) // New variables per goroutine
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
@@ -25,7 +25,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, rou
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
-	addresses, err := ccipcommon.FetchRouterOnRampAddresses(ctx, c.Client, block, routerAddr)
+	addresses, err := configfetcher.FetchRouterOnRampAddresses(ctx, c.Client, block, routerAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch onRamp addresses: %w", err)
 	}
