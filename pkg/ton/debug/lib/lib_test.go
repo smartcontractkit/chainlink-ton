@@ -18,6 +18,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// gotMap = map[Op:map[ChainID:-14 Data:te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31],
+// want     map[Op:map[ChainID:-14 Data:te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31]
+
 type Foo struct {
 	_   tlb.Magic  `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
 	Any *cell.Cell `tlb:"^"`
@@ -131,27 +134,27 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			},
 			expectErr: false,
 		},
-		// {
-		// 	name:      "Unknown opcode",
-		// 	cell:      cell.BeginCell().MustStoreBigInt(big.NewInt(42), 32).EndCell(), // not matching any TLB
-		// 	wantType:  "",
-		// 	wantMap:   nil,
-		// 	expectErr: true,
-		// },
-		// {
-		// 	name:      "Nil cell",
-		// 	cell:      nil,
-		// 	wantType:  "",
-		// 	wantMap:   nil,
-		// 	expectErr: true,
-		// },
-		// {
-		// 	name:      "Empty cell",
-		// 	cell:      cell.BeginCell().EndCell(),
-		// 	wantType:  "",
-		// 	wantMap:   nil,
-		// 	expectErr: true,
-		// },
+		{
+			name:      "Unknown opcode",
+			cell:      cell.BeginCell().MustStoreBigInt(big.NewInt(42), 32).EndCell(), // not matching any TLB
+			wantType:  "Cell",
+			wantMap:   nil,
+			expectErr: false,
+		},
+		{
+			name:      "Nil cell",
+			cell:      nil,
+			wantType:  "<nil>",
+			wantMap:   nil,
+			expectErr: false,
+		},
+		{
+			name:      "Empty cell",
+			cell:      cell.BeginCell().EndCell(),
+			wantType:  "Cell",
+			wantMap:   nil,
+			expectErr: false,
+		},
 		{
 			name:     "Decode Foo with unknown Any",
 			cell:     mustToCell(Foo{Any: cell.BeginCell().MustStoreBigInt(big.NewInt(1), 32).EndCell()}), // not matching any TLB
@@ -270,7 +273,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 						"Delay":       float64(10000),
 					},
 				},
-				"Proof": []any{},
+				"Proof": nil,
 			},
 		},
 	}
@@ -279,6 +282,10 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotType, norm, err := DecodeTLBValToJSON(tt.cell, TLBs)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON")
+
+			if tt.wantMap == nil {
+				return // value is not a map
+			}
 
 			var gotMap map[string]interface{}
 			rawBytes, err := json.Marshal(norm)
@@ -372,7 +379,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 						"Delay":       float64(10000),
 					},
 				},
-				"Proof": []any{},
+				"Proof": nil,
 			},
 		},
 		{
@@ -425,7 +432,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 						"Delay":       float64(10000),
 					},
 				},
-				"Proof": []any{},
+				"Proof": nil,
 			},
 		},
 		{
@@ -450,7 +457,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 					"Value":    "1500000000",
 					"Data":     "te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m",
 				},
-				"Proof": []any{},
+				"Proof": nil,
 			},
 		},
 	}

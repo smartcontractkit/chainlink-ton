@@ -93,9 +93,12 @@ func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64
 }
 
 func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
-	switch t := v.(type) {
-	case nil:
+	// Checks if a value is nil or if it's a reference type with a nil underlying value.
+	if IsNil(v) {
 		return "", nil, errors.New("can't decode nil as struct")
+	}
+
+	switch t := v.(type) {
 	case *cell.Cell:
 		// Try to decode *cell.Cell as one of the TLBs type by reading the opcode
 		r := t.BeginParse()
@@ -165,9 +168,12 @@ func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, 
 }
 
 func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, interface{}, error) {
+	// Checks if a value is nil or if it's a reference type with a nil underlying value.
+	if IsNil(v) {
+		return "<nil>", v, nil
+	}
+
 	switch t := v.(type) {
-	case nil:
-		return "<nil>", nil, nil
 	case *cell.Cell:
 		typeName, decoded, err := DecodeTLBStructToJSON(t, tlbs)
 		if err != nil {
@@ -231,6 +237,21 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 		default:
 			return rv.Type().Name(), t, nil
 		}
+	}
+}
+
+// IsNil checks if a value is nil or if it's a reference type with a nil underlying value.
+//   - vendoring form github:samber/lo
+func IsNil(x any) bool {
+	if x == nil {
+		return true
+	}
+	v := reflect.ValueOf(x)
+	switch v.Kind() { //nolint:exhaustive
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.UnsafePointer, reflect.Interface, reflect.Slice:
+		return v.IsNil()
+	default:
+		return false
 	}
 }
 
