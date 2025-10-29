@@ -25,14 +25,15 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Receiver_CCIPReceive => {
             // Standard for every receiver to implement:
-            // - Check CCIPReceive only comes from offRamp/ router
+            // - Check CCIPReceive only comes from  router
             // - Send CCIPReceiveConfirm to msg.callback
-            assert(in.senderAddress == Storage.load().offRamp, Error.Unauthorized);
+            assert(in.senderAddress == Storage.load().router, Error.Unauthorized);
 
             val receiveConfirm = createMessage({
                 bounce: true,
                 value: ton("0.05"), //TODO how much do we need to send
                 dest: in.senderAddress,
+                // Send confirm to router with execId to safely finalize message
                 body: Router_CCIPReceiveConfirm {
                     execId: msg.execId,
                 }
@@ -55,9 +56,9 @@ get fun getId(): uint32 {
     return st.id;
 }
 
-get fun getOfframpAddress(): address {
+get fun getRouter(): address {
     val st = lazy Storage.load();
-    return st.offRamp;
+    return st.router;
 }
 
 get fun typeAndVersion(): (slice, slice) {
