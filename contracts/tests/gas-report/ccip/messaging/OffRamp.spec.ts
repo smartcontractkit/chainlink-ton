@@ -94,7 +94,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
   // Helper function to test commit and execute flow with different merkle root counts
   async function testCommitAndExecute(merkleRootCount: number): Promise<void> {
     const maxPayload = createMaxPayload()
-    const maxExtraArgs = createExtraArgs()
 
     // Step 1: Create test message
     const testMessage: Any2TVMRampMessage = {
