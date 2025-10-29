@@ -1,14 +1,10 @@
 import { keccak256 } from '@ethersproject/keccak256'
-import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../src/utils'
+import { uint8ArrayToBigInt } from '../../../../src/utils'
 import { beginCell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
 const INTERNAL_DOMAIN_SEPARATOR_BIGINT =
   0x0000000000000000000000000000000000000000000000000000000000000001n
-
-// Leaf domain separator (0x00...00), represented as a 256-bit BigInt (0n)
-const LEAF_DOMAIN_SEPARATOR_BIGINT =
-  0x0000000000000000000000000000000000000000000000000000000000000000n
 
 const MAX_NUM_HASHES = 256
 
@@ -222,14 +218,6 @@ export class MerkleHelper {
   }
 
   /**
-   * Convenience method to hash leaf data and create a tree
-   */
-  public createTreeFromData(leafData: (string | Uint8Array)[]): MerkleTree {
-    const hashedLeaves = leafData.map((data) => this.hashLeafData(data))
-    return this.createTree(hashedLeaves)
-  }
-
-  /**
    * Validates a merkle multi proof using the new sourceFlags format
    */
   public verifyMultiProof(leaves: bigint[], proof: Proof): bigint {
@@ -355,20 +343,6 @@ export class MerkleHelper {
    */
   private hashPair(a: bigint, b: bigint): bigint {
     return a < b ? this.hashInternalNode(a, b) : this.hashInternalNode(b, a)
-  }
-
-  /**
-   * Helper to hash initial raw data into a 256-bit leaf hash.
-   */
-  public hashLeafData(data: string | Uint8Array): bigint {
-    const dataBytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
-    const separatorBytes = bigIntToUint8Array(LEAF_DOMAIN_SEPARATOR_BIGINT)
-
-    const combinedBytes = new Uint8Array(separatorBytes.length + dataBytes.length)
-    combinedBytes.set(separatorBytes, 0)
-    combinedBytes.set(dataBytes, separatorBytes.length)
-
-    return uint8ArrayToBigInt(Buffer.from(keccak256(data).slice(2), 'hex'))
   }
 
   public packBools(flags: boolean[]): bigint {
