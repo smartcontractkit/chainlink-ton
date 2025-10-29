@@ -223,10 +223,8 @@ func (c *AccountStore) CleanupAll(currentTimeMs uint64) (finalized, expired int)
 	totalFinalized := 0
 	totalExpired := 0
 	for _, txStore := range c.store {
-		finalized := txStore.cleanupFinalized()
-		expired := txStore.cleanupExpired(currentTimeMs)
-		totalFinalized += finalized
-		totalExpired += expired
+		totalFinalized += txStore.cleanupFinalized()
+		totalExpired += txStore.cleanupExpired(currentTimeMs)
 	}
 	return totalFinalized, totalExpired
 }
