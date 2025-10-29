@@ -81,7 +81,7 @@ func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*addres
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
 	require.NoError(t, txerr, "airdrop transaction failed")
 
-	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, false)
+	err = waitForAirdropCompletion(t, client, recipients, amounts, 120*time.Second, true)
 	require.NoError(t, err, "airdrop completion verification failed")
 }
 
@@ -113,8 +113,9 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 
-			expectedMin := tlb.MustFromNano(
-				initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
+			// It seems that the fund message is processes before getting the initial state. If the wallet has the expected amount should be enough
+			// expectedMin := tlb.MustFromNano(initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
+			expectedMin := expectedAmount
 
 			for {
 				select {

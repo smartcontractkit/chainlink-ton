@@ -47,3 +47,24 @@ func StringOrDefault(val, def string) string {
 	}
 	return val
 }
+
+// RedactAddress redacts an address, showing only first 6 and last 4 characters
+// Examples:
+//   - "EQDtF...74p4q2" -> "EQDtF...4q2"
+//   - "0xabcdef123456789" -> "0xabcd...6789"
+func RedactAddress(addr string) string {
+	if addr == "" || addr == "N/A" {
+		return addr
+	}
+
+	// For TON addresses (typically start with EQ or UQ and are ~48 chars)
+	// For EVM addresses (0x followed by 40 hex chars)
+	if len(addr) <= 10 {
+		return addr // too short to redact meaningfully
+	}
+
+	// Show first 6 chars and last 4 chars
+	prefix := addr[:6]
+	suffix := addr[len(addr)-4:]
+	return prefix + "..." + suffix
+}

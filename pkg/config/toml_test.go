@@ -23,6 +23,7 @@ NetworkName = 'testnet'
 [TransactionManager]
 BroadcastChanSize = 200
 SendRetryDelay = '5s'
+CleanupIntervalMins = 15
 
 [LogPoller]
 PollPeriod = '10s'
@@ -45,6 +46,7 @@ URL = 'http://localhost:8081'
 		require.NotNil(t, cfg.TransactionManager)
 		assert.Equal(t, uint(200), cfg.TransactionManager.BroadcastChanSize)
 		assert.Equal(t, 5*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
+		assert.Equal(t, uint(15), cfg.TransactionManager.CleanupIntervalMins)
 
 		require.NotNil(t, cfg.LogPoller)
 		assert.Equal(t, uint32(50), cfg.LogPoller.PageSize)
@@ -100,6 +102,7 @@ URL = 'http://localhost:8081'
 
 		// Missing fields get zero values (Aptos behavior)
 		assert.Equal(t, uint(0), cfg.TransactionManager.ConfirmPollSecs)
+		assert.Equal(t, uint(0), cfg.TransactionManager.CleanupIntervalMins)
 		assert.Nil(t, cfg.TransactionManager.SendRetryDelay)
 		assert.False(t, cfg.TransactionManager.StickyNodeContextEnabled)
 	})

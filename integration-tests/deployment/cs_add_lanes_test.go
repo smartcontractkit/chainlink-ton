@@ -168,7 +168,7 @@ func TestAddLanes(t *testing.T) {
 		routerView, exit := generatedView.Router[routerAddr.String()]
 		require.True(t, exit, "onRamp view not found")
 		require.Equal(t, routerAddr, *routerView.Address)
-		onRampForEVMChain, ok := routerView.OnRampAddr[evmSelector]
+		onRampForEVMChain, ok := routerView.OnRampAddresses[evmSelector]
 		require.True(t, ok, "router does not have evm configured as destination chain")
 		require.Equal(t, onRampAddr, *onRampForEVMChain)
 
