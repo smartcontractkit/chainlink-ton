@@ -280,7 +280,7 @@ func DecodeTLBStructKeys(v interface{}, tlbs map[uint64]interface{}) ([]string, 
 			return nil, fmt.Errorf("unable to decode as JSON map - not a structure: type=%T; val=%v", t, rv)
 		}
 
-		out := make([]string, rv.NumField())
+		out := []string{}
 		rt := rv.Type()
 		for i := 0; i < rv.NumField(); i++ {
 			sf := rt.Field(i)
@@ -294,6 +294,10 @@ func DecodeTLBStructKeys(v interface{}, tlbs map[uint64]interface{}) ([]string, 
 			jsonTag := sf.Tag.Get("json")
 			if jsonTag != "" {
 				k = strings.Split(jsonTag, ",")[0] // parse json tag options (key)
+			}
+
+			if k == "" {
+				continue
 			}
 
 			out = append(out, k)
