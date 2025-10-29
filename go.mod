@@ -1,8 +1,6 @@
 module github.com/smartcontractkit/chainlink-ton
 
-go 1.24.5
-
-toolchain go1.24.6
+go 1.25.3
 
 require github.com/hashicorp/go-plugin v1.6.3
 
@@ -22,6 +20,8 @@ require (
 	github.com/xssnick/tonutils-go v1.14.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
+	golang.org/x/net v0.42.0
+	golang.org/x/sync v0.16.0
 )
 
 require (
