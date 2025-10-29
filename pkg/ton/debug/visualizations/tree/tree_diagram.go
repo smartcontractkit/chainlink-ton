@@ -7,8 +7,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	tt "github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
@@ -75,12 +73,12 @@ func (v *visualization) ToString() string {
 	return v.Root.ToString()
 }
 
-func (v *visualization) NewActor(address string, contractType deployment.ContractType, name string) {
+func (v *visualization) NewActor(address string, contractType string, name string) {
 	if _, exists := v.Actors[address]; !exists {
 		if name != "" {
 			v.Actors[address] = name
 		} else {
-			v.Actors[address] = contractType.String()
+			v.Actors[address] = contractType
 		}
 	}
 }

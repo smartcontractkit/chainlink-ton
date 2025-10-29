@@ -4,8 +4,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -18,16 +16,16 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 type decoder struct {
 	tlbsCtx map[uint64]interface{}
 
-	contractType cldf.ContractType
+	contractType string
 }
 
-func NewDecoder(tlbsCtx map[uint64]interface{}, t cldf.ContractType) lib.ContractDecoder {
+func NewDecoder(tlbsCtx map[uint64]interface{}, t string) lib.ContractDecoder {
 	return &decoder{tlbsCtx: tlbsCtx, contractType: t}
 }
 
 // ContractType implements lib.ContractDecoder.
-func (d *decoder) ContractType() cldf.ContractType {
-	return cldf.ContractType("com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet")
+func (d *decoder) ContractType() string {
+	return "com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet"
 }
 
 // EventInfo implements lib.ContractDecoder.

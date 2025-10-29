@@ -4,8 +4,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
@@ -25,8 +23,8 @@ func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 
-func (d *decoder) ContractType() cldf.ContractType {
-	return cldf.ContractType("com.chainlink.ton.ccip.Router")
+func (d *decoder) ContractType() string {
+	return "com.chainlink.ton.ccip.Router"
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {

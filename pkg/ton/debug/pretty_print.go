@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"maps"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/feequoter"
@@ -29,13 +29,18 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+type TypeAndVersion struct {
+	Type    string         `json:"Type"`
+	Version semver.Version `json:"Version"`
+}
+
 type DebuggerEnvironment struct {
-	existingAddresses map[string]cldf.TypeAndVersion
-	contracts         map[cldf.ContractType]lib.ContractDecoder
+	existingAddresses map[string]TypeAndVersion
+	contracts         map[string]lib.ContractDecoder
 	writerFactory     func(DebuggerEnvironment) lib.DebuggerVisualization
 }
 
-func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvironment {
+func NewDebuggerTreeTrace(addresses map[string]TypeAndVersion) DebuggerEnvironment {
 	return DebuggerEnvironment{
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
@@ -49,7 +54,7 @@ func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvi
 	}
 }
 
-func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFmt sequence.OutputFmt) DebuggerEnvironment {
+func NewDebuggerSequenceTrace(addresses map[string]TypeAndVersion, outputFmt sequence.OutputFmt) DebuggerEnvironment {
 	return DebuggerEnvironment{
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
@@ -63,7 +68,7 @@ func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFm
 	}
 }
 
-func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
+func defaultDecoders() map[string]lib.ContractDecoder {
 	tlbs := make(map[uint64]interface{})
 	// Jetton contract types
 	maps.Copy(tlbs, wallet.TLBs)
@@ -78,7 +83,7 @@ func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
 	maps.Copy(tlbs, mcms.TLBs)
 	maps.Copy(tlbs, timelock.TLBs)
 
-	t := make(map[cldf.ContractType]lib.ContractDecoder)
+	t := make(map[string]lib.ContractDecoder)
 	registerDecoder(t, wallet.NewDecoder(tlbs))
 	registerDecoder(t, minter.NewDecoder(tlbs))
 	registerDecoder(t, router.NewDecoder(tlbs))
@@ -92,7 +97,7 @@ func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
 	return t
 }
 
-func registerDecoder(t map[cldf.ContractType]lib.ContractDecoder, decoder lib.ContractDecoder) {
+func registerDecoder(t map[string]lib.ContractDecoder, decoder lib.ContractDecoder) {
 	t[decoder.ContractType()] = decoder
 }
 

@@ -12,8 +12,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -47,7 +45,7 @@ func (e *UnknownMessageError) Error() string {
 }
 
 type ContractDecoder interface {
-	ContractType() cldf.ContractType
+	ContractType() string
 	InternalMessageInfo(body *cell.Cell) (MessageInfo, error)
 	ExternalMessageInfo(body *cell.Cell) (MessageInfo, error)
 	EventInfo(dstAddr *address.Address, msg *cell.Cell) (MessageInfo, error)
@@ -71,7 +69,7 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 }
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}, tlbsCtx map[uint64]interface{}) (MessageInfo, error) {
+func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs map[uint64]interface{}, tlbsCtx map[uint64]interface{}) (MessageInfo, error) {
 	typeName, norm, err := DecodeTLBValToJSON(msg, tlbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)

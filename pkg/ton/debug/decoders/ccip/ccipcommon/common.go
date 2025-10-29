@@ -4,8 +4,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -20,8 +18,8 @@ func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
 }
 
 // ContractType implements lib.ContractDecoder.
-func (d *decoder) ContractType() cldf.ContractType {
-	return cldf.ContractType("com.chainlink.ton.ccip")
+func (d *decoder) ContractType() string {
+	return "com.chainlink.ton.ccip"
 }
 
 // EventInfo implements lib.ContractDecoder.
