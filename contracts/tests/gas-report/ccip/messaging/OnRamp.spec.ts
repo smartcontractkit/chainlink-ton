@@ -1,4 +1,10 @@
-import { Blockchain, SandboxContract, TreasuryContract, fetchConfig, printTransactionFees } from '@ton/sandbox'
+import {
+  Blockchain,
+  SandboxContract,
+  TreasuryContract,
+  fetchConfig,
+  printTransactionFees,
+} from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../../../wrappers/ccip/Router'
@@ -205,4 +211,3 @@ describe('CCIP OnRamp Gas Estimation', () => {
     printTransactionFees(result.transactions)
   })
 })
-

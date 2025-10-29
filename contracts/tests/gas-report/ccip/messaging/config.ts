@@ -12,14 +12,14 @@ export function createMaxPayload(): Cell {
   // Snake data automatically chains cells when data doesn't fit in one cell
   const data = Buffer.alloc(MAX_DATA_PAYLOAD_SIZE, 0xff)
   const chunks: Buffer[] = []
-  
+
   // TON cells can store max 1023 bits (127 bytes + 7 bits)
   // Use 127 bytes per chunk - asSnakeData will handle overflow automatically
   const MAX_BYTES_PER_CELL = 127
   for (let i = 0; i < data.length; i += MAX_BYTES_PER_CELL) {
     chunks.push(data.subarray(i, Math.min(i + MAX_BYTES_PER_CELL, data.length)))
   }
-  
+
   return asSnakeData(chunks, (chunk: Buffer) => beginCell().storeBuffer(chunk))
 }
 
@@ -33,4 +33,3 @@ export function createExtraArgs(): Cell {
     })
     .asCell()
 }
-

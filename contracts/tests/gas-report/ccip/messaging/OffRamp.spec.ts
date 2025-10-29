@@ -1,4 +1,10 @@
-import { Blockchain, SandboxContract, TreasuryContract, fetchConfig, printTransactionFees } from '@ton/sandbox'
+import {
+  Blockchain,
+  SandboxContract,
+  TreasuryContract,
+  fetchConfig,
+  printTransactionFees,
+} from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../../../wrappers/ccip/Router'
@@ -31,7 +37,12 @@ import {
   ReportContext,
 } from '../../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { KeyPair, sha256_sync } from '@ton/crypto'
-import { CHAINSEL_TON, CHAINSEL_EVM_TEST, EVM_SENDER_ADDRESS_TEST, EVM_ONRAMP_ADDRESS_TEST } from '../../constants'
+import {
+  CHAINSEL_TON,
+  CHAINSEL_EVM_TEST,
+  EVM_SENDER_ADDRESS_TEST,
+  EVM_ONRAMP_ADDRESS_TEST,
+} from '../../constants'
 import { createMaxPayload, createExtraArgs, MESSAGE_COUNT_IN_COMMIT } from './config'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import { getMetadataHash, generateMessageId, createSignatures } from './helpers'
@@ -244,17 +255,20 @@ describe('CCIP OffRamp Gas Estimation', () => {
       })
 
       // Setup source chain config
-      const sourceChainConfigResult = await offRamp.sendUpdateSourceChainConfig(deployer.getSender(), {
-        value: toNano('0.5'),
-        sourceChainSelector: CHAINSEL_EVM_TEST,
-        config: {
-          router: ROUTER_ADDRESS_TEST,
-          isEnabled: true,
-          minSeqNr: 1n,
-          isRMNVerificationDisabled: false,
-          onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+      const sourceChainConfigResult = await offRamp.sendUpdateSourceChainConfig(
+        deployer.getSender(),
+        {
+          value: toNano('0.5'),
+          sourceChainSelector: CHAINSEL_EVM_TEST,
+          config: {
+            router: ROUTER_ADDRESS_TEST,
+            isEnabled: true,
+            minSeqNr: 1n,
+            isRMNVerificationDisabled: false,
+            onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+          },
         },
-      })
+      )
       expect(sourceChainConfigResult.transactions).toHaveTransaction({
         to: offRamp.address,
         success: true,
@@ -264,7 +278,9 @@ describe('CCIP OffRamp Gas Estimation', () => {
     // Deploy ExampleReceiver
     {
       const receiverCode = await compile('ccip.test.receiver')
-      receiver = blockchain.openContract(Receiver.createFromConfig({ id: 0, offramp: offRamp.address }, receiverCode))
+      receiver = blockchain.openContract(
+        Receiver.createFromConfig({ id: 0, offramp: offRamp.address }, receiverCode),
+      )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('1'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -283,7 +299,10 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const ccipSendMessage: rt.CCIPSend = {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST,
-      receiver: Buffer.from('1234567890123456789012345678901234567890123456789012345678901234', 'hex'),
+      receiver: Buffer.from(
+        '1234567890123456789012345678901234567890123456789012345678901234',
+        'hex',
+      ),
       data: maxPayload,
       tokenAmounts: [],
       feeToken: ZERO_ADDRESS,
@@ -450,4 +469,3 @@ describe('CCIP OffRamp Gas Estimation', () => {
     printTransactionFees(executeResult.transactions)
   })
 })
-

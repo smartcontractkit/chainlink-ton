@@ -12,7 +12,7 @@ export function nanoToTON(nano: bigint): string {
 export function printFlowSummary(txs: BlockchainTransaction[]): void {
   const totalFees = calculateTotalFees(txs)
   const totalTransactions = txs.length
-  
+
   console.log(`Total Transactions: ${totalTransactions}`)
   console.log(`Total Fees: ${nanoToTON(totalFees)} TON (${totalFees.toLocaleString()} nanotons)`)
 }

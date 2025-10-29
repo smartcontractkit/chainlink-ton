@@ -35,19 +35,19 @@ import '@ton/test-utils'
 
 describe('Your Test Suite', () => {
   let blockchain: Blockchain
-  
+
   beforeAll(async () => {
     // Use testnet config for accurate fee calculation
     const config = await fetchConfig('testnet')
     blockchain = await Blockchain.create({ config })
-    
+
     // Setup contracts...
   })
 
   it('should measure gas usage', async () => {
     // Execute your transactions
     const result = await contract.send(...)
-    
+
     // Print transaction fees
     console.log('\n=== YOUR FLOW TRANSACTION FEES ===')
     printTransactionFees(result.transactions)
@@ -63,18 +63,18 @@ The `@ton/sandbox` provides `printTransactionFees()` function that displays deta
 
 ### What is Displayed
 
-| Column | Description |
-|--------|-------------|
-| `op` | Operation code (hex) or 'N/A' for external messages |
-| `valueIn` | TON amount received in the transaction |
-| `valueOut` | TON amount sent out in the transaction |
-| `totalFees` | Total fees paid (compute + forward + action) |
-| `inForwardFee` | Forward fee paid for incoming message |
-| `outForwardFee` | Sum of forward fees for outgoing messages |
-| `outActions` | Number of outgoing actions |
-| `computeFee` | Gas used × gas_price (400 nanotons/unit) |
-| `exitCode` | VM exit code (0 = success) |
-| `actionCode` | Action phase result code |
+| Column          | Description                                         |
+| --------------- | --------------------------------------------------- |
+| `op`            | Operation code (hex) or 'N/A' for external messages |
+| `valueIn`       | TON amount received in the transaction              |
+| `valueOut`      | TON amount sent out in the transaction              |
+| `totalFees`     | Total fees paid (compute + forward + action)        |
+| `inForwardFee`  | Forward fee paid for incoming message               |
+| `outForwardFee` | Sum of forward fees for outgoing messages           |
+| `outActions`    | Number of outgoing actions                          |
+| `computeFee`    | Gas used × gas_price (400 nanotons/unit)            |
+| `exitCode`      | VM exit code (0 = success)                          |
+| `actionCode`    | Action phase result code                            |
 
 ### Key Points
 
@@ -108,4 +108,3 @@ TON fee constants from testnet config:
 - [TON Mainnet Config](https://tonviewer.com/config)
 - [TON Testnet Config](https://testnet.tonviewer.com/config)
 - [@ton/sandbox Metrics API](https://github.com/ton-org/sandbox)
-

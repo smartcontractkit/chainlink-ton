@@ -54,4 +54,3 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
 export function createSignatures(signerList: KeyPair[], hash: Buffer): SignatureEd25519[] {
   return signerList.map((signer) => createSignature(signer, hash))
 }
-
