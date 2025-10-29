@@ -22,7 +22,7 @@ import "../receive_executor/storage"
 import "../router/messages"
 import "../../lib/receiver/types"
 
-const CONTRACT_VERSION = "0.0.10";
+const CONTRACT_VERSION = "0.0.11";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {

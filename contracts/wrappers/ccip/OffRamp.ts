@@ -25,6 +25,51 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'
 
+export const Opcodes = {
+  commit: crc32('OffRamp_Commit'),
+  execute: crc32('OffRamp_Execute'),
+  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
+  dispatchValidated: crc32('OffRamp_DispatchValidated'),
+  ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
+}
+
+export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
+export const MERKLE_ROOT_FACILITY_ID = 479
+export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
+
+export const OFFRAMP_CONTRACT_VERSION = '0.0.11'
+
+export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
+export const OFFRAMP_FACILITY_ID = 84
+export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
+
+export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
+export const RECEIVE_EXECUTOR_FACILITY_ID = 338
+export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
+
+export enum OffRampError {
+  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
+  SourceChainNotEnabled,
+  EmptyExecutionReport,
+  InvalidMessageDestChainSelector,
+  SourceChainSelectorMismatch,
+  InvalidOnRampUpdate,
+}
+
+export enum MerkleRootError {
+  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
+  NotOwner,
+}
+
+export enum ReceiveExecutorError {
+  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
+  UpdatingStateOfNonExecutedMessage,
+  NotificationFromInvalidReceiver,
+  Unauthorized, //TODO maybe use Ownable2Step or similar
+}
+
+
+
 export type OffRampStorage = {
   id: bigint
   ownable: ownable2step.Data
@@ -193,50 +238,6 @@ export const builder = {
 }
 
 export abstract class Params {}
-
-export const Opcodes = {
-  commit: crc32('OffRamp_Commit'),
-  execute: crc32('OffRamp_Execute'),
-  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
-  dispatchValidated: crc32('OffRamp_DispatchValidated'),
-  ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
-}
-
-export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
-export const MERKLE_ROOT_FACILITY_ID = 479
-export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
-
-export const OFFRAMP_CONTRACT_VERSION = '0.0.11'
-
-export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
-export const OFFRAMP_FACILITY_ID = 84
-export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
-
-export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
-export const RECEIVE_EXECUTOR_FACILITY_ID = 338
-export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
-
-export enum OffRampError {
-  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
-  SourceChainNotEnabled,
-  EmptyExecutionReport,
-  InvalidMessageDestChainSelector,
-  SourceChainSelectorMismatch,
-  InvalidOnRampUpdate,
-}
-
-export enum MerkleRootError {
-  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
-  NotOwner,
-}
-
-export enum ReceiveExecutorError {
-  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
-  UpdatingStateOfNonExecutedMessage,
-  NotificationFromInvalidReceiver,
-  Unauthorized, //TODO maybe use Ownable2Step or similar
-}
-
 export class OffRamp
   extends OCR3Base
   implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
