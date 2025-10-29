@@ -374,4 +374,13 @@ export class MerkleHelper {
 
     return uint8ArrayToBigInt(this.hash(combinedBytes))
   }
+
+  public packBools(flags: boolean[]): bigint {
+    if (flags.length > 256) throw new Error('max 256')
+    let bitmap = 0n
+    for (let i = 0; i < flags.length; i++) {
+      if (flags[i]) bitmap |= 1n << BigInt(i)
+    }
+    return bitmap
+  }
 }

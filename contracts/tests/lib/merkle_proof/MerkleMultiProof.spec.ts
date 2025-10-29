@@ -10,6 +10,7 @@ import '@ton/test-utils'
 import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
 import { compile } from '@ton/blueprint'
 import { asSnakeDataUint } from '../../../src/utils'
+import { TestVector, testVectors } from './TestVectors'
 
 describe('MerkleMultiProofTests', () => {
   let blockchain: Blockchain
@@ -68,6 +69,31 @@ describe('MerkleMultiProofTests', () => {
     expect(await calculator.getRoot()).toBe(1337n)
   })
 
+  it('Test Vectors', async () => {
+    for (const vector of testVectors) {
+      const leafHashes = vector.proofLeaves.map((hex) => {
+        return BigInt('0x' + hex)
+      })
+      const proofHashes = vector.proofHashes.map((hex) => {
+        return BigInt('0x' + hex)
+      })
+      let result = await calculator.sendMerkleRoot(
+        deployer.getSender(),
+        toNano('0.5'),
+        asSnakeDataUint(leafHashes, 256),
+        asSnakeDataUint(proofHashes, 256),
+        merkleHelper.packBools(vector.proofFlags),
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: calculator.address,
+        success: true,
+      })
+      expect((await calculator.getRoot()).toString(16)).toBe(vector.expectedRoot)
+    }
+  })
+
+  /*
   it('Spec Sync', async () => {
     let leaves = [
       0xa20c0244af79697a4ef4e2378c9d5d14cbd49ddab3427b12594c7cfa67a7f240n,
@@ -167,4 +193,5 @@ describe('MerkleMultiProofTests', () => {
 
     expect(await calculator.getRoot()).toBe(expectedRoot)
   })
+*/
 })
