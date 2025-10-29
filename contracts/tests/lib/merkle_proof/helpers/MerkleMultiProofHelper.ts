@@ -1,3 +1,4 @@
+import { keccak256 } from '@ethersproject/keccak256'
 import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../src/utils'
 import { beginCell } from '@ton/core'
 
@@ -28,15 +29,13 @@ interface SingleLayerProof {
 }
 
 export class MerkleTree {
-  private hash: HashFunction
   private layers: bigint[][] = []
 
-  constructor(hashFunction: HashFunction, leafHashes: bigint[]) {
+  constructor(leafHashes: bigint[]) {
     if (leafHashes.length === 0) {
       throw new LeavesCannotBeEmpty()
     }
 
-    this.hash = hashFunction
     this.buildTree(leafHashes)
   }
 
@@ -193,23 +192,20 @@ export class MerkleTree {
       .storeUint(left, 256)
       .storeUint(right, 256)
       .endCell()
+      .beginParse()
+      .loadBuffer(32 * 3)
 
-    return uint8ArrayToBigInt(data.hash())
+    const bytes = Buffer.from(keccak256(data).slice(2), 'hex')
+    return uint8ArrayToBigInt(bytes)
   }
 }
 
 export class MerkleHelper {
-  private hash: HashFunction
-
-  constructor(hashFunction: HashFunction) {
-    this.hash = hashFunction
-  }
-
   /**
    * Creates a new Merkle tree from leaf hashes
    */
   public createTree(leafHashes: bigint[]): MerkleTree {
-    return new MerkleTree(this.hash, leafHashes)
+    return new MerkleTree(leafHashes)
   }
 
   /**
@@ -372,7 +368,7 @@ export class MerkleHelper {
     combinedBytes.set(separatorBytes, 0)
     combinedBytes.set(dataBytes, separatorBytes.length)
 
-    return uint8ArrayToBigInt(this.hash(combinedBytes))
+    return uint8ArrayToBigInt(Buffer.from(keccak256(data).slice(2), 'hex'))
   }
 
   public packBools(flags: boolean[]): bigint {
