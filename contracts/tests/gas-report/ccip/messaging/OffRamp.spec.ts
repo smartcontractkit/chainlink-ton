@@ -2,7 +2,6 @@ import {
   Blockchain,
   SandboxContract,
   TreasuryContract,
-  fetchConfig,
   printTransactionFees,
   createMetricStore,
   makeSnapshotMetric,
@@ -181,7 +180,21 @@ describe('CCIP OffRamp Gas Estimation', () => {
       label: `OffRamp Commit Phase (${merkleRootCount} roots)`,
     })
 
-    const commitFlowAnalysis = analyzeSnapshot(commitSnapshot)
+    // Create address to name mapping
+    const addressMap: Record<string, string> = {
+      [transmitters[0].address.toString()]: 'Transmitter',
+      [offRamp.address.toString()]: 'OffRamp',
+      [feeQuoter.address.toString()]: 'FeeQuoter',
+    }
+
+    // Add MerkleRoot addresses
+    merkleRootDeployments.forEach((tx, idx) => {
+      if (tx.inMessage?.info.type === 'internal' && tx.inMessage.info.dest instanceof Address) {
+        addressMap[tx.inMessage.info.dest.toString()] = `MerkleRoot-${idx + 1}`
+      }
+    })
+
+    const commitFlowAnalysis = analyzeSnapshot(commitSnapshot, addressMap, commitResult)
     printFlowAnalysis(commitFlowAnalysis)
 
     console.log('\n=== COMMIT RAW TRANSACTION FEES (for debugging) ===')
@@ -252,7 +265,10 @@ describe('CCIP OffRamp Gas Estimation', () => {
       label: `OffRamp Execute Phase (${merkleRootCount} roots)`,
     })
 
-    const executeFlowAnalysis = analyzeSnapshot(executeSnapshot)
+    // Reuse address map (add receiver if needed)
+    addressMap[receiver.address.toString()] = 'Receiver'
+
+    const executeFlowAnalysis = analyzeSnapshot(executeSnapshot, addressMap, executeResult)
     printFlowAnalysis(executeFlowAnalysis)
 
     console.log('\n=== EXECUTE RAW TRANSACTION FEES (for debugging) ===')
@@ -260,9 +276,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
   }
 
   beforeAll(async () => {
-    // Use testnet config for accurate forward fee calculation
-    const config = await fetchConfig('testnet')
-    blockchain = await Blockchain.create({ config })
+    // Use default config (mainnet) to avoid rate limiting
+    blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 

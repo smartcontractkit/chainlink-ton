@@ -2,7 +2,6 @@ import {
   Blockchain,
   SandboxContract,
   TreasuryContract,
-  fetchConfig,
   printTransactionFees,
   createMetricStore,
   makeSnapshotMetric,
@@ -55,9 +54,8 @@ describe('CCIP OnRamp Gas Estimation', () => {
   })
 
   beforeAll(async () => {
-    // Use testnet config for accurate forward fee calculation
-    const config = await fetchConfig('testnet')
-    blockchain = await Blockchain.create({ config })
+    // Use default config (mainnet) to avoid rate limiting
+    blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 
@@ -228,7 +226,16 @@ describe('CCIP OnRamp Gas Estimation', () => {
       label: 'OnRamp Flow',
     })
 
-    const flowAnalysis = analyzeSnapshot(snapshot)
+    // Create address to name mapping
+    const addressMap: Record<string, string> = {
+      [sender.address.toString()]: 'Sender',
+      [router.address.toString()]: 'Router',
+      [onRamp.address.toString()]: 'OnRamp',
+      [feeQuoter.address.toString()]: 'FeeQuoter',
+      [executorAddress.toString()]: 'Executor',
+    }
+
+    const flowAnalysis = analyzeSnapshot(snapshot, addressMap, result)
     printFlowAnalysis(flowAnalysis)
 
     // Also print raw transaction fees for comparison
