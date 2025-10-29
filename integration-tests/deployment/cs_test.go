@@ -212,10 +212,10 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
-	getOfframpAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getOfframpAddress")
+	getRouterAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getRouterAddress")
 	require.NoError(t, err)
-	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
-	require.Equal(t, routerAddr.String(), shouldBeOffRampAddress.String())
+	shouldBeRouterAddress := getRouterAddressResponse.MustSlice(0).MustLoadAddr()
+	require.Equal(t, routerAddr.String(), shouldBeRouterAddress.String())
 	// </Verify receiver address>
 
 	// <Verify timelock address>
