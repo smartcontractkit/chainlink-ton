@@ -20,7 +20,6 @@ import { CCIPSend, TokenAmount } from './Router'
 import {
   Any2TVMMessage,
   builder as OffRampBuilder,
-  CCIPReceiveConfirm,
   CrossChainAddress,
   OffRamp,
 } from './OffRamp'
@@ -86,8 +85,8 @@ export class Receiver implements Contract {
     return stack.readNumber()
   }
 
-  async getOffRampAddress(provider: ContractProvider): Promise<Address> {
-    const { stack } = await provider.get('getOfframpAddress', [])
+  async getRouterAddress(provider: ContractProvider): Promise<Address> {
+    const { stack } = await provider.get('getRouterAddress', [])
     return stack.readAddress()
   }
 

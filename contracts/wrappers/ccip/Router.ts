@@ -45,6 +45,7 @@ export abstract class Opcodes {
   static setRamps = 0x10000001
   static ccipSend = 0x00000001
   static updateOffRamps = 0x00000005
+  static ccipReceiveConfirm = 0x00000006
 }
 
 export type Ramp = {
@@ -302,6 +303,10 @@ export const ExtraArgsOpcodes = {
   svmV1: 0x1f3b3aba,
 }
 
+export type CCIPReceiveConfirm = {
+  rootId: bigint
+}
+
 export const builder = {
   data: (() => {
     const contractData: CellCodec<Storage> = {
@@ -389,9 +394,26 @@ export const builder = {
           }
         },
       }
+      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
+        encode: (confirm: CCIPReceiveConfirm): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(confirm.rootId, 224)
+        },
+        load: (src: Slice): CCIPReceiveConfirm => {
+          // TODO We can check that the opcode matches
+          src.skip(32)
+
+          return {
+            rootId: src.loadUintBig(224),
+          }
+        },
+      }
+
 
       return {
         ccipSend,
+        ccipReceiveConfirm,
       }
     })(),
   },

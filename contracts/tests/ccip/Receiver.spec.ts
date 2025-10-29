@@ -13,6 +13,7 @@ import {
   RECEIVER_ERROR_CODE,
 } from '../../wrappers/ccip/Receiver'
 import { builder as OffRampBuilder } from '../../wrappers/ccip/OffRamp'
+import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 
@@ -61,12 +62,12 @@ describe('Receiver', () => {
 
   it('should have the right storage', async () => {
     const id = await receiver.getId()
-    const offrampAddress = await receiver.getOffRampAddress()
+    const routerAddress = await receiver.getRouterAddress()
     const facilityId = await receiver.getFacilityId()
     const errorCode = await receiver.getErrorCode(0)
 
     expect(id).toBeDefined()
-    expect(offrampAddress.toString()).toEqual(deployer.address.toString())
+    expect(routerAddress.toString()).toEqual(deployer.address.toString())
     expect(facilityId).toEqual(RECEIVER_FACILITY_ID)
     expect(errorCode).toEqual(RECEIVER_ERROR_CODE)
   })
@@ -97,7 +98,7 @@ describe('Receiver', () => {
       to: deployer.address,
       success: true,
       deploy: false,
-      body: OffRampBuilder.message.in.ccipReceiveConfirm
+      body: rt.builder.message.in.ccipReceiveConfirm
         .encode({ rootId: ccipReceive.rootId })
         .endCell(),
     })

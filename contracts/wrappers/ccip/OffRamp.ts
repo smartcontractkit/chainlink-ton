@@ -104,9 +104,6 @@ export type Any2TVMMessage = {
   data: Cell
 }
 
-export type CCIPReceiveConfirm = {
-  rootId: bigint
-}
 
 export type MerkleRoot = {
   sourceChainSelector: bigint
@@ -191,24 +188,8 @@ export const builder = {
   })(),
   message: {
     in: (() => {
-      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
-        encode: (confirm: CCIPReceiveConfirm): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.ccipReceiveConfirm, 32)
-            .storeUint(confirm.rootId, 224)
-        },
-        load: (src: Slice): CCIPReceiveConfirm => {
-          // TODO We can check that the opcode matches
-          src.skip(32)
-
-          return {
-            rootId: src.loadUintBig(224),
-          }
-        },
-      }
 
       return {
-        ccipReceiveConfirm,
       }
     })(),
   },

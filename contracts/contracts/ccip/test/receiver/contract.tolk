@@ -56,7 +56,7 @@ get fun getId(): uint32 {
     return st.id;
 }
 
-get fun getRouter(): address {
+get fun getRouterAddress(): address {
     val st = lazy Storage.load();
     return st.router;
 }
