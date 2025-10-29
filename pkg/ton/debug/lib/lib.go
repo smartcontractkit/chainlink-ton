@@ -90,6 +90,38 @@ func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs map[uint64]interface{
 	return NewMessageInfo(name, norm)
 }
 
+func DecodeTLBCellToAny(c *cell.Cell, tlbs map[uint64]interface{}) (any, error) {
+	if c == nil {
+		return nil, errors.New("can't decode nil as cell")
+	}
+
+	// Try to decode *cell.Cell as one of the TLBs type by reading the opcode
+	r := c.BeginParse()
+	if r.BitsLeft() == 0 {
+		return nil, &UnknownMessageError{}
+	}
+	opCode, err := r.PreloadUInt(32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to preload opcode: %w", err)
+	}
+
+	i, ok := tlbs[opCode]
+	if !ok {
+		return nil, &UnknownMessageError{}
+	}
+
+	// Create new instance of the candidate type
+	rt := reflect.TypeOf(i)
+	inst := reflect.New(rt).Interface() // pointer to zero value
+
+	// Attempt decode - replace tlb.FromCell with the actual decode API you have
+	if err = tlb.LoadFromCell(inst, r); err != nil {
+		return nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
+	}
+
+	return inst, nil
+}
+
 func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
 	// Checks if a value is nil or if it's a reference type with a nil underlying value.
 	if IsNil(v) {
@@ -98,28 +130,9 @@ func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, 
 
 	switch t := v.(type) {
 	case *cell.Cell:
-		// Try to decode *cell.Cell as one of the TLBs type by reading the opcode
-		r := t.BeginParse()
-		if r.BitsLeft() == 0 {
-			return "", nil, &UnknownMessageError{}
-		}
-		opCode, err := r.PreloadUInt(32)
+		inst, err := DecodeTLBCellToAny(t, tlbs)
 		if err != nil {
-			return "", nil, fmt.Errorf("failed to preload opcode: %w", err)
-		}
-
-		i, ok := tlbs[opCode]
-		if !ok {
-			return "", nil, &UnknownMessageError{}
-		}
-
-		// Create new instance of the candidate type
-		rt := reflect.TypeOf(i)
-		inst := reflect.New(rt).Interface() // pointer to zero value
-
-		// Attempt decode - replace tlb.FromCell with the actual decode API you have
-		if err = tlb.LoadFromCell(inst, r); err != nil {
-			return "", nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
+			return "", nil, fmt.Errorf("failed to decode cell to struct type (any): %w", err)
 		}
 
 		// Now decode loaded struct (internal *cell.Cell) fields recursively
@@ -234,6 +247,58 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 		default:
 			return rv.Type().Name(), t, nil
 		}
+	}
+}
+
+// Returns ordered keys based TL-B annotated struct type
+func DecodeTLBStructKeys(v interface{}, tlbs map[uint64]interface{}) ([]string, error) {
+	// Checks if a value is nil or if it's a reference type with a nil underlying value.
+	if IsNil(v) {
+		return nil, errors.New("can't decode nil as struct")
+	}
+
+	switch t := v.(type) {
+	case *cell.Cell:
+		inst, err := DecodeTLBCellToAny(t, tlbs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode cell to struct type (any): %w", err)
+		}
+
+		// Now decode loaded struct (internal *cell.Cell) fields recursively
+		return DecodeTLBStructKeys(inst, tlbs)
+	default:
+		// Iterate over the fields of the struct (reflect)
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		}
+		if !rv.IsValid() {
+			return nil, fmt.Errorf("failed to decode TLB struct - not valid value: type=%T; val=%v", t, rv)
+		}
+
+		if rv.Kind() != reflect.Struct {
+			return nil, fmt.Errorf("unable to decode as JSON map - not a structure: type=%T; val=%v", t, rv)
+		}
+
+		out := make([]string, rv.NumField())
+		rt := rv.Type()
+		for i := 0; i < rv.NumField(); i++ {
+			sf := rt.Field(i)
+			// skip unexported fields (e.g. the magic field)
+			if sf.PkgPath != "" {
+				continue
+			}
+
+			// check the json tag to determine the expected key
+			k := sf.Name
+			jsonTag := sf.Tag.Get("json")
+			if jsonTag != "" {
+				k = strings.Split(jsonTag, ",")[0] // parse json tag options (key)
+			}
+
+			out = append(out, k)
+		}
+		return out, nil
 	}
 }
 
