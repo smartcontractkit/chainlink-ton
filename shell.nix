@@ -9,8 +9,8 @@ pkgs.mkShell {
       # nix tooling
       alejandra
 
-      # Go 1.24 + tools
-      go_1_24
+      # Go 1.25 + tools
+      go_1_25
       gopls
       delve
       golangci-lint
@@ -35,6 +35,10 @@ pkgs.mkShell {
     ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
+
+      # Required to support go build inside a nix devshell (c compiler dependency on SecTrustCopyCertificateChain/macOS 12+)
+      # https://github.com/NixOS/nixpkgs/issues/433688#issuecomment-3231551949
+      pkgs.apple-sdk_15
     ];
   shellHook = ''
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes

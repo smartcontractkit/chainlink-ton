@@ -371,12 +371,8 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", uint64(dest))
-	if err != nil {
-		return ccipocr3.FeeQuoterDestChainConfig{}, err
-	}
 	var cfg feequoter.DestChainConfig
-	if err = cfg.FromResult(result); err != nil {
+	if err = cfg.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(dest)}); err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
 	return ccipocr3.FeeQuoterDestChainConfig{

@@ -1,6 +1,7 @@
 package common //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -28,6 +29,12 @@ const (
 	DispatchNotFromMerkleRoot
 )
 
+const (
+	DestChainConfigGetter = "destChainConfig"
+	VersionGetter         = "typeAndVersion"
+	SrcChainConfigGetter  = "sourceChainConfig"
+)
+
 // WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
 type WrappedAddress struct {
 	WrappedAddress *address.Address `tlb:"addr"`
@@ -47,7 +54,7 @@ type TypeAndVersion struct {
 	Version string `tlb:"str"`
 }
 
-func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
+func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	typ, err := result.Slice(0)
 	if err != nil {
 		return err
@@ -67,12 +74,16 @@ func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 		return err
 	}
 
-	*c = TypeAndVersion{
+	*t = TypeAndVersion{
 		Type:    tStr,
 		Version: vStr,
 	}
 
 	return nil
+}
+
+func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return FetchResultHelper(ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
 }
 
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
@@ -450,4 +461,30 @@ func NewDummyCell() (*cell.Cell, error) {
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+// FetchResultHelper is a generic helper function to fetch and parse contract configurations.
+func FetchResultHelper(
+	ctx context.Context,
+	client ton.APIClientWrapped,
+	block *ton.BlockIDExt,
+	contractAddr *address.Address,
+	method string,
+	opts []interface{},
+	fromResult func(*ton.ExecutionResult) error,
+) error {
+	var result *ton.ExecutionResult
+	var err error
+	if opts == nil {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
+	} else {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
+	}
+	if err != nil {
+		return fmt.Errorf("error getting %s: %w", method, err)
+	}
+	if err = fromResult(result); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", method, err)
+	}
+	return nil
 }
