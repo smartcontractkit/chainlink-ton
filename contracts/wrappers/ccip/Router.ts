@@ -42,10 +42,11 @@ export type Storage = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static setRamps = 0x10000001
-  static ccipSend = 0x00000001
-  static updateOffRamps = 0x00000005
-  static ccipReceiveConfirm = 0x00000006
+  static setRamps = 0x20272c81
+  static ccipSend = 0x31768d95
+  static updateOffRamps = 0x234110a7
+  static ccipReceiveConfirm = 0x1e55bbf6
+  static routeMessage = 0xfc69c50b
 }
 
 export type Ramp = {

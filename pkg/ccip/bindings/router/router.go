@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	OpcodeSetRamps       = 0x10000001
-	OpcodeCCIPSend       = 0x00000001
-	OpcodeUpdateOffRamps = 0x00000005
+	OpcodeSetRamps       = 0x20272c81
+	OpcodeCCIPSend       = 0x31768d95
+	OpcodeUpdateOffRamps = 0x234110a7
 )
 
 const (
@@ -39,14 +39,14 @@ type ChainSelector struct {
 }
 
 type SetRamps struct {
-	_                  tlb.Magic                       `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
+	_                  tlb.Magic                       `tlb:"#20272c81"` //nolint:revive // Ignore opcode tag
 	QueryID            uint64                          `tlb:"## 64"`
 	DestChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
 	OnRamps            *address.Address                `tlb:"addr"`
 }
 
 type UpdateOffRamps struct {
-	_                         tlb.Magic                       `tlb:"#00000005"` //nolint:revive // Ignore opcode tag
+	_                         tlb.Magic                       `tlb:"#234110a7"` //nolint:revive // Ignore opcode tag
 	QueryID                   uint64                          `tlb:"## 64"`
 	SourceChainSelectorAdd    common.SnakeData[ChainSelector] `tlb:"^"`
 	OffRampAdd                *address.Address                `tlb:"maybe addr"`
@@ -61,7 +61,7 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
+	_                 tlb.Magic                    `tlb:"#31768d95"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                       `tlb:"## 64"`
 	DestChainSelector uint64                       `tlb:"## 64"`
 	Receiver          common.CrossChainAddress     `tlb:"."`
