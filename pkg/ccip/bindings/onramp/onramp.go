@@ -1,6 +1,7 @@
 package onramp
 
 import (
+	context2 "context"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -10,6 +11,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+)
+
+const (
+	dynamicConfigGetter = "dynamicConfig"
 )
 
 // OnRamp opcodes
@@ -58,81 +63,6 @@ type SVMExtraArgsV1 struct {
 	Accounts                 common.SnakeRef[common.SnakeBytes] `tlb:"^"`
 }
 
-// DestChainConfig represents the configuration for a destination chain in the CCIP system.
-type DestChainConfig struct {
-	Router           *address.Address `tlb:"addr"`
-	SequenceNumber   uint64           `tlb:"## 64"`
-	AllowListEnabled bool             `tlb:"bool"`
-	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
-}
-
-func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
-	routerAddressSlice, err := result.Slice(0)
-	if err != nil {
-		return err
-	}
-	routerAddress, err := routerAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	seqNum, err := result.Int(1)
-	if err != nil {
-		return err
-	}
-	allowlistEnabledInt, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(-1)) == 0
-	*c = DestChainConfig{
-		Router:           routerAddress,
-		SequenceNumber:   seqNum.Uint64(),
-		AllowListEnabled: allowlistEnabled,
-		// skip parsing allowedSenders
-	}
-	return nil
-}
-
-// DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
-type DynamicConfig struct {
-	FeeQuoter      *address.Address `tlb:"addr"`
-	FeeAggregator  *address.Address `tlb:"addr"`
-	AllowListAdmin *address.Address `tlb:"addr"`
-}
-
-func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
-	feeQuoterAddressSlice, err := result.Slice(0)
-	if err != nil {
-		return err
-	}
-	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	feeAggregatorAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-	feeAggregatorAddress, err := feeAggregatorAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	allowlistAdminAddressSlice, err := result.Slice(2)
-	if err != nil {
-		return err
-	}
-	allowlistAdminAddress, err := allowlistAdminAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	*c = DynamicConfig{
-		FeeQuoter:      feeQuoterAddress,
-		FeeAggregator:  feeAggregatorAddress,
-		AllowListAdmin: allowlistAdminAddress,
-	}
-	return nil
-}
-
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
 	ID               uint32              `tlb:"## 32"`
@@ -170,8 +100,8 @@ type UpdateAllowlist struct {
 }
 
 type UpdateAllowlists struct {
-	_       tlb.Magic                         `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateAllowlist] `tlb:"^"`
+	_       tlb.Magic                        `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
 }
 
 type WithdrawFeeTokens struct{}
@@ -215,4 +145,89 @@ type UpdateDestChainConfigsMessage struct {
 type UpdateAllowlistsMessage struct {
 	_       tlb.Magic  `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
 	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
+}
+
+// binding types that supports FetchResult interface with rpc client
+
+// DestChainConfig represents the configuration for a destination chain in the CCIP system.
+type DestChainConfig struct {
+	Router           *address.Address `tlb:"addr"`
+	SequenceNumber   uint64           `tlb:"## 64"`
+	AllowListEnabled bool             `tlb:"bool"`
+	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
+}
+
+func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+	routerAddressSlice, err := result.Slice(0)
+	if err != nil {
+		return err
+	}
+	routerAddress, err := routerAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	seqNum, err := result.Int(1)
+	if err != nil {
+		return err
+	}
+	allowlistEnabledInt, err := result.Int(2)
+	if err != nil {
+		return err
+	}
+	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(-1)) == 0
+	*c = DestChainConfig{
+		Router:           routerAddress,
+		SequenceNumber:   seqNum.Uint64(),
+		AllowListEnabled: allowlistEnabled,
+		// skip parsing allowedSenders
+	}
+	return nil
+}
+
+func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
+	return common.FetchResultHelper(ctx, client, block, contractAddr, common.DestChainConfigGetter, destChainSelector, c.FromResult)
+}
+
+// DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
+type DynamicConfig struct {
+	FeeQuoter      *address.Address `tlb:"addr"`
+	FeeAggregator  *address.Address `tlb:"addr"`
+	AllowListAdmin *address.Address `tlb:"addr"`
+}
+
+func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
+	feeQuoterAddressSlice, err := result.Slice(0)
+	if err != nil {
+		return err
+	}
+	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	feeAggregatorAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+	feeAggregatorAddress, err := feeAggregatorAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	allowlistAdminAddressSlice, err := result.Slice(2)
+	if err != nil {
+		return err
+	}
+	allowlistAdminAddress, err := allowlistAdminAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	*c = DynamicConfig{
+		FeeQuoter:      feeQuoterAddress,
+		FeeAggregator:  feeAggregatorAddress,
+		AllowListAdmin: allowlistAdminAddress,
+	}
+	return nil
+}
+
+func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
+	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
 }

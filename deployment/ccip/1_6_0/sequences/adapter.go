@@ -5,7 +5,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainSelectors "github.com/smartcontractkit/chain-selectors"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/address"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -25,40 +25,40 @@ func init() {
 
 type TonAdapter struct{}
 
-func (a *TonAdapter) GetOnRampAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	tonChains, err := tonstate.LoadOnchainState(*env)
+func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	return convertAddress(tonChains[chainSelector].OnRamp)
+	return convertAddress(tonChain.OnRamp)
 }
 
-func (a *TonAdapter) GetOffRampAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	tonChains, err := tonstate.LoadOnchainState(*env)
+func (a *TonAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	return convertAddress(tonChains[chainSelector].OffRamp)
+	return convertAddress(tonChain.OffRamp)
 }
 
-func (a *TonAdapter) GetFQAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	tonChains, err := tonstate.LoadOnchainState(*env)
+func (a *TonAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	return convertAddress(tonChains[chainSelector].FeeQuoter)
+	return convertAddress(tonChain.FeeQuoter)
 }
 
-func (a *TonAdapter) GetRouterAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	tonChains, err := tonstate.LoadOnchainState(*env)
+func (a *TonAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	return convertAddress(tonChains[chainSelector].Router)
+	return convertAddress(tonChain.Router)
 }
 
 func convertAddress(address address.Address) ([]byte, error) {
