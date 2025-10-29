@@ -77,7 +77,16 @@ export function printFlowAnalysis(flow: FlowSummary): void {
 
   console.log(`=== ${flow.label.toUpperCase()} ===`)
 
-  const headers = ['#', 'Contract', 'Method', 'Gas', 'Compute (TON)', 'Forward (TON)', 'Action (TON)', 'Total (TON)']
+  const headers = [
+    '#',
+    'Contract',
+    'Method',
+    'Gas',
+    'Compute (TON)',
+    'Forward (TON)',
+    'Action (TON)',
+    'Total (TON)',
+  ]
   console.log('\n' + formatRow(headers, COL_WIDTHS))
 
   flow.transactions.forEach((tx, idx) => {
@@ -99,9 +108,18 @@ export function printFlowAnalysis(flow: FlowSummary): void {
   const summaryItems = [
     ['Total Transactions', flow.transactions.length.toString()],
     ['Total Gas Used', `${flow.totalGasUsed.toLocaleString()} units`],
-    ['Total Compute Fee', `${nanoToTON(flow.transactions.reduce((sum, tx) => sum + tx.computeFee, 0n))} TON`],
-    ['Total Forward Fee', `${nanoToTON(flow.transactions.reduce((sum, tx) => sum + tx.forwardFee, 0n))} TON`],
-    ['Total Action Fee', `${nanoToTON(flow.transactions.reduce((sum, tx) => sum + tx.actionFee, 0n))} TON`],
+    [
+      'Total Compute Fee',
+      `${nanoToTON(flow.transactions.reduce((sum, tx) => sum + tx.computeFee, 0n))} TON`,
+    ],
+    [
+      'Total Forward Fee',
+      `${nanoToTON(flow.transactions.reduce((sum, tx) => sum + tx.forwardFee, 0n))} TON`,
+    ],
+    [
+      'Total Action Fee',
+      `${nanoToTON(flow.transactions.reduce((sum, tx) => sum + tx.actionFee, 0n))} TON`,
+    ],
     ['Total Fee', `${flow.totalFeeTON} TON (${flow.totalFee.toLocaleString()} nanotons)`],
   ]
 

@@ -2,7 +2,7 @@ import type { Config } from 'jest'
 
 // Gas report configuration for GasBaseline test
 // This config generates ccip-gas-report.json from the configured CCIP message flow test under tests/gas-report/ccip/*
-// 
+//
 // Note: The gas report is generated based on the last test executed.
 // To create separate reports for different test cases, create additional config files (e.g., ccip-gas-report-token.config.ts)
 // with different testMatch patterns and reportName values.
