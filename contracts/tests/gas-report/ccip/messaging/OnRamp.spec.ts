@@ -4,6 +4,10 @@ import {
   TreasuryContract,
   fetchConfig,
   printTransactionFees,
+  createMetricStore,
+  makeSnapshotMetric,
+  ContractDatabase,
+  resetMetricStore,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address } from '@ton/core'
 import { compile } from '@ton/blueprint'
@@ -15,7 +19,9 @@ import { ZERO_ADDRESS } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { CHAINSEL_TON, CHAINSEL_EVM_TEST, CHAIN_FAMILY_SELECTOR_EVM } from '../../constants'
 import { createMaxPayload, createExtraArgs } from './config'
-import { printFlowSummary } from '../../utils'
+import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
+import * as path from 'path'
+import * as fs from 'fs'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -24,6 +30,14 @@ const EVM_ADDRESS = Buffer.from(
 
 // Override console to remove Jest's "console.log" prefixes
 const jestConsole = console
+
+// Load contract database for metric analysis
+const contractDatabasePath = path.join(__dirname, '../../../../contract.abi.json')
+const contractDatabaseData = JSON.parse(fs.readFileSync(contractDatabasePath, 'utf8'))
+const contractDatabase = ContractDatabase.from(contractDatabaseData)
+
+// Initialize metric store
+const store = createMetricStore()
 
 describe('CCIP OnRamp Gas Estimation', () => {
   let blockchain: Blockchain
@@ -137,6 +151,9 @@ describe('CCIP OnRamp Gas Estimation', () => {
   })
 
   it('should measure message passing only', async () => {
+    // Reset metric store before measurement
+    resetMetricStore()
+
     const result = await router.sendCcipSend(sender.getSender(), {
       value: toNano('0.11'),
       body: {
@@ -205,9 +222,17 @@ describe('CCIP OnRamp Gas Estimation', () => {
       success: true,
     })
 
-    // Print fee analysis
-    console.log('\n=== ONRAMP FLOW TRANSACTION FEES ===')
-    printFlowSummary(result.transactions)
+    // Analyze with metrics API
+    const snapshot = makeSnapshotMetric(store, {
+      contractDatabase,
+      label: 'OnRamp Flow',
+    })
+
+    const flowAnalysis = analyzeSnapshot(snapshot)
+    printFlowAnalysis(flowAnalysis)
+
+    // Also print raw transaction fees for comparison
+    console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
     printTransactionFees(result.transactions)
   })
 })
