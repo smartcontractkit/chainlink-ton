@@ -1,0 +1,522 @@
+[
+  {
+    "label": "current",
+    "createdAt": "2025-10-29T01:59:27.331Z",
+    "result": {
+      "FeeQuoter": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "77"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "26804"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1643"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "77"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "26804"
+          }
+        },
+        "sendUpdateDestChainConfigs": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "77"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "26804"
+          }
+        },
+        "UpdateDestChainConfig": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "6283"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "77"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "26804"
+          }
+        },
+        "sendUpdateFeeTokens": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "77"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "26804"
+          }
+        },
+        "UpdateFeeTokens": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4738"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "77"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "26804"
+          }
+        }
+      },
+      "Router": {
+        "sendInternal": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1342"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "sendSetRamps": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "Router_SetRamps": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "3203"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "sendCcipSend": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "Router_CCIPSend": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4101"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "0x10000002": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "8525"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "0xaf3c62b3": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "7086"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "0x7496ff56": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "8371"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "0x1fa60374": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "4878"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "0xcfa6b336": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "9912"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        },
+        "notSupported": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "488"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "29"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "7814"
+          }
+        }
+      },
+      "OnRamp": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "72"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "23897"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1572"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "72"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "23897"
+          }
+        },
+        "sendUpdateDestChainConfigs": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "72"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "23897"
+          }
+        },
+        "OnRamp_UpdateDestChainConfigs": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "7153"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "72"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "23897"
+          }
+        }
+      },
+      "OffRamp": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "2014"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "sendSetOCR3Config": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "0x2b78359f": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "18982"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "sendUpdateSourceChainConfig": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "UpdateSourceChainConfig": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "8392"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "sendCommit": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "OffRamp_Commit": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "84928"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "0xba466447": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "5"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "sendExecute": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "OffRamp_Execute": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "15862"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        },
+        "0x38ede915": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "5"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "85"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "34067"
+          }
+        }
+      },
+      "Receiver": {
+        "sendDeploy": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "1937"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "2222"
+          }
+        },
+        "send": {
+          "gasUsed": {
+            "kind": "init",
+            "value": "532"
+          },
+          "cells": {
+            "kind": "init",
+            "value": "14"
+          },
+          "bits": {
+            "kind": "init",
+            "value": "2222"
+          }
+        }
+      }
+    }
+  }
+]
