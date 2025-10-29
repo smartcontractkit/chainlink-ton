@@ -104,7 +104,6 @@ export type Any2TVMMessage = {
   data: Cell
 }
 
-
 export type MerkleRoot = {
   sourceChainSelector: bigint
   onRampAddress: CrossChainAddress
@@ -188,9 +187,7 @@ export const builder = {
   })(),
   message: {
     in: (() => {
-
-      return {
-      }
+      return {}
     })(),
   },
 }

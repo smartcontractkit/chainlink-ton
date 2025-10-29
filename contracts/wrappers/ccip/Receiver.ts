@@ -17,12 +17,7 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 import { CCIPSend, TokenAmount } from './Router'
-import {
-  Any2TVMMessage,
-  builder as OffRampBuilder,
-  CrossChainAddress,
-  OffRamp,
-} from './OffRamp'
+import { Any2TVMMessage, builder as OffRampBuilder, CrossChainAddress, OffRamp } from './OffRamp'
 
 export const RECEIVER_FACILITY_ID = 346
 export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100

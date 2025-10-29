@@ -410,7 +410,6 @@ export const builder = {
         },
       }
 
-
       return {
         ccipSend,
         ccipReceiveConfirm,
