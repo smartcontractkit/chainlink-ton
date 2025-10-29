@@ -251,11 +251,9 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		}
 
 		// Cleanup
-		currentTimeMs := uint64(time.Now().UnixMilli())
-		finalizedCount, expiredCount := store.cleanupFinalizedAndExpired(currentTimeMs)
+		finalizedCount := store.cleanupFinalized()
 
 		assert.Equal(t, 5, finalizedCount)
-		assert.Equal(t, 0, expiredCount)
 
 		// Verify all finalized transactions are removed
 		for i := 0; i < 5; i++ {
@@ -288,9 +286,8 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cleanup
-		finalizedCount, expiredCount := store.cleanupFinalizedAndExpired(currentTimeMs)
+		expiredCount := store.cleanupExpired(currentTimeMs)
 
-		assert.Equal(t, 0, finalizedCount)
 		assert.Equal(t, 2, expiredCount)
 
 		// Verify expired transactions are removed
@@ -339,7 +336,8 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cleanup
-		finalizedCount, expiredCount := store.cleanupFinalizedAndExpired(currentTimeMs)
+		finalizedCount := store.cleanupFinalized()
+		expiredCount := store.cleanupExpired(currentTimeMs)
 
 		assert.Equal(t, 3, finalizedCount)
 		assert.Equal(t, 2, expiredCount)
@@ -367,7 +365,8 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		store := NewTxStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
-		finalizedCount, expiredCount := store.cleanupFinalizedAndExpired(currentTimeMs)
+		finalizedCount := store.cleanupFinalized()
+		expiredCount := store.cleanupExpired(currentTimeMs)
 
 		assert.Equal(t, 0, finalizedCount)
 		assert.Equal(t, 0, expiredCount)
@@ -385,7 +384,8 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		finalizedCount, expiredCount := store.cleanupFinalizedAndExpired(currentTimeMs)
+		finalizedCount := store.cleanupFinalized()
+		expiredCount := store.cleanupExpired(currentTimeMs)
 
 		assert.Equal(t, 0, finalizedCount)
 		assert.Equal(t, 0, expiredCount)

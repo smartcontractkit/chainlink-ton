@@ -133,10 +133,9 @@ func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.Exit
 	return tracetracking.NotFound, false, 0, tlb.ZeroCoins, false
 }
 
-// cleanupFinalizedAndExpired removes finalized transactions and expired unconfirmed transactions.
-// Returns the count of finalized and expired transactions that were removed. currentTimeMs is a Unix
-// timestamp in milliseconds.
-func (s *TxStore) cleanupFinalizedAndExpired(currentTimeMs uint64) (int, int) {
+// cleanupFinalized removes all finalized transactions.
+// Returns the count of finalized transactions that were removed.
+func (s *TxStore) cleanupFinalized() int {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -145,16 +144,26 @@ func (s *TxStore) cleanupFinalizedAndExpired(currentTimeMs uint64) (int, int) {
 	finalizedCount := len(s.finalizedTxs)
 	s.finalizedTxs = map[uint64]*FinalizedTx{}
 
+	return finalizedCount
+}
+
+// cleanupExpired removes expired unconfirmed transactions.
+// Returns the count of expired transactions that were removed. currentTimeMs is a Unix
+// timestamp in milliseconds.
+func (s *TxStore) cleanupExpired(currentTimeMs uint64) int {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	// Remove expired unconfirmed transactions
 	expiredCount := 0
 	for lt, unconfirmedTx := range s.unconfirmedTxs {
-		if unconfirmedTx.ExpirationMs < currentTimeMs {
+		if unconfirmedTx.ExpirationMs <= currentTimeMs {
 			delete(s.unconfirmedTxs, lt)
 			expiredCount++
 		}
 	}
 
-	return finalizedCount, expiredCount
+	return expiredCount
 }
 
 type AccountStore struct {
@@ -207,14 +216,15 @@ func (c *AccountStore) GetAllUnconfirmed() map[string][]*UnconfirmedTx {
 
 // CleanupAll removes finalized and expired transactions from all TxStores.
 // Returns the total count of finalized and expired transactions that were removed.
-func (c *AccountStore) CleanupAll(currentTimeMs uint64) (int, int) {
+func (c *AccountStore) CleanupAll(currentTimeMs uint64) (finalized, expired int) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
 	totalFinalized := 0
 	totalExpired := 0
 	for _, txStore := range c.store {
-		finalized, expired := txStore.cleanupFinalizedAndExpired(currentTimeMs)
+		finalized := txStore.cleanupFinalized()
+		expired := txStore.cleanupExpired(currentTimeMs)
 		totalFinalized += finalized
 		totalExpired += expired
 	}
