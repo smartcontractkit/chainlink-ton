@@ -32,12 +32,6 @@ function nanoToTON(nano: bigint): string {
   return ton.toFixed(9)
 }
 
-function extractContractName(address: string): string {
-  // Extract contract name from address (format: "ContractName (EQ...)")
-  const match = address.match(/^([^\(]+)/)
-  return match ? match[1].trim() : address
-}
-
 export function analyzeSnapshot(
   snapshot: SnapshotMetric,
   addressMap?: Record<string, string>,
