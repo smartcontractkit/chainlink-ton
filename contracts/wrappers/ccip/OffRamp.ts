@@ -68,8 +68,6 @@ export enum ReceiveExecutorError {
   Unauthorized, //TODO maybe use Ownable2Step or similar
 }
 
-
-
 export type OffRampStorage = {
   id: bigint
   ownable: ownable2step.Data
