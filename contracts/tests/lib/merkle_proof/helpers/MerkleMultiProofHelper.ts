@@ -346,7 +346,7 @@ export class MerkleHelper {
   }
 
   public packBools(flags: boolean[]): bigint {
-    if (flags.length > 256) throw new Error('max 256')
+    if (flags.length > 256) throw new Error('Maximum of 256 boolean flags allowed')
     let bitmap = 0n
     for (let i = 0; i < flags.length; i++) {
       if (flags[i]) bitmap |= 1n << BigInt(i)
