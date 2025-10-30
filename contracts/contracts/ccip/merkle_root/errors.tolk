@@ -4,5 +4,6 @@ enum Error {
     ManualExecutionNotYetEnabled;
     SkippedAlreadyExecutedMessage;
     InvalidState;
+    SeqNumOutOfBounds;
 }
 

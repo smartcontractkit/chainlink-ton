@@ -24,12 +24,10 @@ fun MerkleRoot_Storage.expectedMessages(self) {
     return self.maxMsgNr - self.minMsgNr + 1
 }
 
-// TODO: maybe even easier to treat this as bytes16 and then use skip+parse
-
 fun MerkleRoot_Storage.setMessageState(mutate self, seqNum: uint64, executionState: ExecutionState) {
-    assert(seqNum >= self.minMsgNr, ERROR_OUT_OF_BOUNDS); // Out of bounds
+    assert(seqNum >= self.minMsgNr, Error.SeqNumOutOfBounds);
     val i = seqNum - self.minMsgNr;
-    assert(i < 64, ERROR_OUT_OF_BOUNDS);
+    assert(i < 64, Error.SeqNumOutOfBounds);
 
     // Clear the 2 bits at position 'i'
     self.messageStates &= ~(0b11 << (i * 2));
@@ -38,9 +36,9 @@ fun MerkleRoot_Storage.setMessageState(mutate self, seqNum: uint64, executionSta
 }
 
 fun MerkleRoot_Storage.getMessageState(self, seqNum: uint64): ExecutionState {
-    assert(seqNum >= self.minMsgNr,ERROR_OUT_OF_BOUNDS); // Out of bounds
+    assert(seqNum >= self.minMsgNr, Error.SeqNumOutOfBounds); // Out of bounds
     val i= seqNum - self.minMsgNr;
-    assert(i < 64, ERROR_OUT_OF_BOUNDS);
+    assert(i < 64, Error.SeqNumOutOfBounds);
 
     val mask = 0b11 << (i * 2);
     val state = (self.messageStates & mask) >> (i * 2);
