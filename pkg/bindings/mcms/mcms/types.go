@@ -227,6 +227,19 @@ type SignerKey struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
 }
 
+// Length of serialized signer structure in bytes.
+const LenSignerBytes = (256 + 8 + 8) / 8
+
+// Signer information
+type Signer struct {
+	// The public key of the signer.
+	Key *big.Int `tlb:"## 256"`
+	// The index of the signer in data.config.signers
+	Index uint8 `tlb:"## 8"` // 0 <= index < MAX_NUM_SIGNERS
+	// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
+	Group uint8 `tlb:"## 8"`
+}
+
 // Signing groups are arranged in a tree. Each group is an interior node and has its own quorum.
 // Signers are the leaves of the tree. A signer/leaf node is successful iff it furnishes a valid
 // signature. A group/interior node is successful iff a quorum of its children are successful.
