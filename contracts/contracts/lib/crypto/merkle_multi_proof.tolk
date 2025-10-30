@@ -12,7 +12,7 @@ const ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH: int = 1005;
 const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
 /// @notice Maximum number of hashes that can be computed in a single Merkle root calculation.
-const MAX_NUM_HASHES: int = 128;
+const MAX_NUM_HASHES: int = 256;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
@@ -88,6 +88,9 @@ fun hashInternalNode(a: int, b: int): int {
         .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
         .storeUint(a, 256)
         .storeUint(b, 256)
-        .endCell();
-    return data.hash();
+        .endCell()
+        .beginParse();
+    return keccak256(data);
 }
+
+
