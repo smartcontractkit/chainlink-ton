@@ -18,6 +18,7 @@ import "../fee_quoter/errors"
 import "../../lib/receiver/messages"
 import "../offramp/messages"
 import "@stdlib/lisp-lists"
+import "../offramp/types"
 
 
 const CONTRACT_VERSION = "0.0.7";
@@ -134,7 +135,7 @@ fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun ccipReceiveBounced(execId: uint224, sender: address) {
+fun ccipReceiveBounced(execId: uint192, sender: address) {
     val st = Storage.load();
     val sourceChainSelector = getSourceChainSelectorFromExecId(execId);
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
@@ -223,8 +224,8 @@ fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {
     Upgradeable{ migrate, version }.upgrade(msg);
 }
 
-fun getSourceChainSelectorFromExecId(execId: uint224): uint64 {
-    var cs = beginCell().storeUint(execId, 224).endCell().beginParse();
+fun getSourceChainSelectorFromExecId(execId: uint192): uint64 {
+    var cs = beginCell().storeUint(execId, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
     return cs.loadUint(64);
 }
 

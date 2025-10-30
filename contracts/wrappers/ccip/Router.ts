@@ -22,7 +22,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
-export const ROUTER_CONTRACT_VERSION = '0.0.6'
+export const ROUTER_CONTRACT_VERSION = '0.0.7'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
@@ -399,14 +399,12 @@ export const builder = {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
             .storeUint(Opcodes.ccipReceiveConfirm, 32)
-            .storeUint(confirm.rootId, 224)
+            .storeUint(confirm.rootId, 192)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
-          // TODO We can check that the opcode matches
-          src.skip(32)
-
+            expect(src.loadUint(32)).toBe(Opcodes.ccipReceiveConfirm)
           return {
-            rootId: src.loadUintBig(224),
+            rootId: src.loadUintBig(192),
           }
         },
       }

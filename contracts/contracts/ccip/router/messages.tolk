@@ -54,11 +54,11 @@ struct (0x31768d95) Router_CCIPSend {
 //crc32("Router_RouteMessage")
 struct (0xfc69c50b) Router_RouteMessage {
     message: Cell<Any2TVMMessage>; //TODO maybe without typed cell it fits
-    execId: uint224;
+    execId: uint192;
     receiver: address;
 }
 
 //crc32("Router_CCIPReceiveConfirm")
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
-    execId: uint224;
+    execId: uint192;
 }

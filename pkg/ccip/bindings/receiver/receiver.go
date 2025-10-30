@@ -8,4 +8,5 @@ import (
 type Storage struct {
 	ID     uint32           `tlb:"## 32"`
 	Router *address.Address `tlb:"addr"`
+	RejectAll bool             `tlb:"bool"`
 }

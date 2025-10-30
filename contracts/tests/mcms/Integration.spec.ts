@@ -249,7 +249,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Set up (deploy, configure) MCMS contracts and transfer ownership to Timelock
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+      const body = Cell.EMPTY
       const r = await bind.mcmsPropose.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
       expect(r.transactions).toHaveTransaction({
@@ -291,7 +291,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+      const body = Cell.EMPTY
       const result = await bind.mcmsVeto.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -338,7 +338,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+      const body = Cell.EMPTY
       const result = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -863,7 +863,7 @@ describe('MCMS - IntegrationTest', () => {
 
       {
         // Notice: we need to add funds or test fails with 'Not enough Toncoin'
-        const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+        const body = Cell.EMPTY
         const r = await bind.mcmsPropose.sendInternal(
           acc.deployer.getSender(),
           toNano('1.00'),

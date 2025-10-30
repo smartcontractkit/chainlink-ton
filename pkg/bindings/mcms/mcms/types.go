@@ -16,14 +16,6 @@ import (
 
 // --- Messages - incoming ---
 
-// Top up contract with TON coins.
-// Contract might receive/hold TON as part of the maintenance process.
-type TopUp struct {
-	_ tlb.Magic `tlb:"#5f427bb3"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change request.
-	QueryID uint64 `tlb:"## 64"`
-}
-
 // Sets a new expiring root.
 //
 // @param root is the new expiring root.
@@ -387,12 +379,12 @@ func stringSha256_32(data string) uint32 {
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 // op. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
+var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON")
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
+var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON")
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.

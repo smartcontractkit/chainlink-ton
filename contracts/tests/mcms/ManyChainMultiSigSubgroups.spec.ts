@@ -1,4 +1,4 @@
-import { toNano, beginCell } from '@ton/core'
+import { toNano, beginCell, Cell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
@@ -98,7 +98,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     }
 
     // Deploy MCMS contract
-    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+    const body = Cell.EMPTY
     const deployResult = await bind.mcms.sendInternal(acc.deployer.getSender(), toNano('2'), body)
 
     expect(deployResult.transactions).toHaveTransaction({

@@ -42,6 +42,7 @@ describe('Receiver', () => {
       let data: ReceiverStorage = {
         id: generateSecureRandomId(),
         router: deployer.address,
+        rejectAll: false,
       }
 
       receiver = blockchain.openContract(Receiver.createFromConfig(data, code))

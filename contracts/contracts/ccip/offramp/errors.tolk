@@ -8,5 +8,3 @@ enum Error {
     SenderIsNotRouter
 }
 
-
-

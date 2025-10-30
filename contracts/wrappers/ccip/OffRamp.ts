@@ -2,7 +2,6 @@ import {
   Address,
   beginCell,
   Cell,
-  Contract,
   contractAddress,
   ContractProvider,
   Dictionary,
@@ -11,6 +10,7 @@ import {
   Slice,
   Builder,
   ContractABI,
+  Contract,
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
@@ -18,8 +18,7 @@ import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import { crc32 } from 'zlib'
-import { CellCodec, facilityId } from '../utils'
-import { CCIPReceive, ReceiverStorage } from './Receiver'
+import { CellCodec } from '../utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { Maybe } from '@ton/core/dist/utils/maybe'
@@ -28,6 +27,7 @@ import { compile } from '@ton/blueprint'
 export const Opcodes = {
   commit: crc32('OffRamp_Commit'),
   execute: crc32('OffRamp_Execute'),
+  manualExecute: crc32('OffRamp_ManuallyExecute'),
   updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
@@ -37,7 +37,7 @@ export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479
 export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
 
-export const OFFRAMP_CONTRACT_VERSION = '0.0.11'
+export const OFFRAMP_CONTRACT_VERSION = '0.0.12'
 
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
@@ -59,6 +59,8 @@ export enum OffRampError {
 export enum MerkleRootError {
   AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
   NotOwner,
+  ManualExecutionNotYetEnabled,
+  SkippedAlreadyExecutedMessage,
 }
 
 export enum ReceiveExecutorError {
@@ -359,6 +361,28 @@ export class OffRamp
     })
   }
 
+  async sendManualExecute(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      report: ExecutionReport
+      gasOverride?: bigint
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.manualExecute, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeBuilder(ExecutionReportToBuilder(opts.report))
+        .storeCoins(opts.gasOverride ?? 0)
+        .endCell(),
+    })
+  }
+
   async sendUpdateSourceChainConfig(
     provider: ContractProvider,
     via: Sender,
@@ -397,7 +421,7 @@ export class OffRamp
       body: beginCell()
         .storeUint(Opcodes.dispatchValidated, 32)
         .storeRef(Any2TVMRampMessageToBuilder(opts.message))
-        .storeUint(opts.execId, 224)
+        .storeUint(opts.execId, 192)
         .endCell(),
     })
   }

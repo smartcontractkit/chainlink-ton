@@ -297,9 +297,7 @@ describe('OffRamp - Unit Tests', () => {
       return uint8ArrayToBigInt(generateMessageId(msg, metadataHash))
     })
 
-    let merkleHelper: MerkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    let merkleHelper: MerkleHelper = new MerkleHelper()
 
     return merkleHelper.getMerkleRoot(hashedMessages)
   }
@@ -404,6 +402,24 @@ describe('OffRamp - Unit Tests', () => {
       value: toNano('0.5'),
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
+    })
+
+    if (expectSuccess) {
+      expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
+    }
+
+    return result
+  }
+
+  const manualExecuteReport = async (
+    report: ExecutionReport,
+    gasOverride: bigint | undefined = undefined,
+    expectSuccess = true,
+  ) => {
+    const result = await offRamp.sendManualExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      report,
+      gasOverride,
     })
 
     if (expectSuccess) {
@@ -530,7 +546,6 @@ describe('OffRamp - Unit Tests', () => {
       }
 
       offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
-      console.log(offRamp.address)
 
       let result = await offRamp.sendDeploy(deployer.getSender(), toNano('10000'))
       expect(result.transactions).toHaveTransaction({
@@ -584,7 +599,7 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 1, router: router.address }, code),
+        Receiver.createFromConfig({ id: 1, router: router.address, rejectAll: false }, code),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -876,7 +891,7 @@ describe('OffRamp - Unit Tests', () => {
     // There should be a failed transaction with the specific error code from offRamp to MerkleRoot
     expect(secondExecuteResult.transactions).toHaveTransaction({
       from: offRamp.address,
-      exitCode: MerkleRootError.AlreadyExecuted,
+      exitCode: MerkleRootError.SkippedAlreadyExecutedMessage,
       success: false,
     })
   })
@@ -968,7 +983,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageIdSlice = beginCell()
       .storeUint(uint8ArrayToBigInt(generateMessageId(message, metadataHash)), 256)
       .asSlice()
-    const execId = messageIdSlice.loadUintBig(224)
+    const execId = messageIdSlice.loadUintBig(192)
 
     const result = await offRamp.sendDispatchValidated(deployer.getSender(), {
       value: toNano('0.5'),
@@ -1238,7 +1253,7 @@ describe('OffRamp - Unit Tests', () => {
     let code = await compile('ccip.test.receiver')
     const wrongRouterAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-      Receiver.createFromConfig({ id: 1, router: wrongRouterAddress }, code),
+      Receiver.createFromConfig({ id: 1, router: wrongRouterAddress, rejectAll: false }, code),
     )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
 
@@ -1315,6 +1330,67 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
+  it('Manual execute: receiver fails, then succeeds', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+
+    const result = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), true)
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    const result2 = await executeReport(report)
+
+    // TODO: expect fail
+
+    const result3 = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), false)
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    //
+    const result4 = await manualExecuteReport(report, undefined, true)
+
+    expect(result4.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_SUCCESS,
+    })
+
+    assertLog(
+      result4.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
+  })
+
   it('Test facilityId matches facility name', () => {
     expect(MERKLE_ROOT_FACILITY_ID).toEqual(facilityId(crc32(MERKLE_ROOT_FACILITY_NAME)))
 
@@ -1333,9 +1409,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2],
@@ -1391,9 +1465,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2],
@@ -1449,9 +1521,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages - IMPORTANT: We create it once and reuse for both proofs
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree([messageId1, messageId2])
     const rootBytes = tree.getRoot()
@@ -1539,9 +1609,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree([messageId1, messageId2])
     const rootBytes = tree.getRoot()
@@ -1606,9 +1674,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId3 = uint8ArrayToBigInt(generateMessageId(message3, metadataHash))
 
     // Create merkle tree with all three messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2, messageId3],
@@ -1672,9 +1738,7 @@ describe('OffRamp - Unit Tests', () => {
     )
 
     // Create merkle tree with all five messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree(messageIds)
     const rootBytes = tree.getRoot()
@@ -1740,9 +1804,7 @@ describe('OffRamp - Unit Tests', () => {
     )
 
     // Create merkle tree with all five messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree(messageIds)
     const rootBytes = tree.getRoot()

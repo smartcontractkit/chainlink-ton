@@ -240,7 +240,6 @@ export class BaseTestSetup {
    * Deploy the counter contract and verify deployment
    */
   async deployCounterContract() {
-    // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
     const body = Cell.EMPTY
     const result = await this.bind.counter.sendInternal(
       this.acc.deployer.getSender(),

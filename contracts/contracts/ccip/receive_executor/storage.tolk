@@ -5,7 +5,8 @@ import "types"
 struct ReceiveExecutor_Storage {
     owner: address; // MerkleRoot contract
     message: Cell<Any2TVMRampMessage>;
-    execId: uint224;
+    root: address;
+    execId: uint192;
     state: ReceiveExecutor_MessageState = ReceiveExecutor_MessageState.Untouched;
     tokenBalance: TokenBalance = TokenBalance{};
 }

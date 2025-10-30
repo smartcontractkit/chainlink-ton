@@ -45,6 +45,7 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 	storage := receiver.Storage{
 		ID:     in.ID,
 		Router: in.RouterAddress,
+		RejectAll: false,
 	}
 
 	initData, err := tlb.ToCell(storage)

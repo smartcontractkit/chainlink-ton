@@ -29,11 +29,13 @@ export enum ReceiverError {
 export type ReceiverStorage = {
   id: number
   router: Address
+  rejectAll: boolean
 }
 
 export abstract class Params {}
 
 export abstract class Opcodes {
+  static setRejectAll = 0x00000001
   static ccipReceive = 0xb3126df1
   static ccipReceiveConfirm = 0x28f4166f
 }
@@ -75,6 +77,19 @@ export class Receiver implements Contract {
     })
   }
 
+  async sendSetRejectAll(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    rejectAll: boolean,
+  ) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell().storeUint(Opcodes.setRejectAll, 32).storeBit(rejectAll).endCell(),
+    })
+  }
+
   async getId(provider: ContractProvider): Promise<number> {
     const { stack } = await provider.get('getId', [])
     return stack.readNumber()
@@ -103,13 +118,17 @@ export const builder = {
   data: (() => {
     const contractData: CellCodec<ReceiverStorage> = {
       encode: (config: ReceiverStorage): Builder => {
-        return beginCell().storeUint(config.id, 32).storeAddress(config.router)
+        return beginCell()
+          .storeUint(config.id, 32)
+          .storeAddress(config.router)
+          .storeBit(config.rejectAll)
       },
 
       load: (src: Slice): ReceiverStorage => {
         return {
           id: src.loadUint(32),
           router: src.loadAddress(),
+          rejectAll: src.loadBoolean(),
         }
       },
     }
@@ -124,7 +143,7 @@ export const builder = {
         encode: (opts: CCIPReceive): Builder => {
           return beginCell()
             .storeUint(Opcodes.ccipReceive, 32)
-            .storeUint(opts.rootId, 224)
+            .storeUint(opts.rootId, 192)
             .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
         },
         load: function (src: Slice): CCIPReceive {
@@ -132,7 +151,7 @@ export const builder = {
           src.skip(32)
 
           return {
-            rootId: src.loadUintBig(224),
+            rootId: src.loadUintBig(192),
             message: OffRampBuilder.data.any2TVMMessage.load(src),
           }
         },
