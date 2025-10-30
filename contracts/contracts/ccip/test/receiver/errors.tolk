@@ -1,5 +1,4 @@
 enum Error {
     Unauthorized = 34600 // Facility ID * 100
-    ReceiverIsConfigureToFailGracefully
+    Rejected
 }
-

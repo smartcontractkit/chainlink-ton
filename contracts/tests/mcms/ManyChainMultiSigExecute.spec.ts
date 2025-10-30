@@ -1,4 +1,4 @@
-import { toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 import * as mcms from '../../wrappers/mcms/MCMS'
@@ -24,7 +24,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('10'),
-      mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
+      Cell.EMPTY,
     )
 
     await baseTest.recreateTestOpsNoRevertingOp()
@@ -434,11 +434,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('10'),
-      mcms.builder.message.in.topUp
-        .encode({
-          queryId: 1n,
-        })
-        .asCell(),
+      Cell.EMPTY,
     )
 
     const result = await baseTest.bind.mcms.sendInternal(

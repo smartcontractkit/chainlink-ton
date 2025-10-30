@@ -72,7 +72,7 @@ fun calculateGasFeeFor(size: int): coins {
 }
 
 /// Computes the Keccak-256 hash of the given data.
-fun keccak256(data: slice): uint256
+fun keccak256(data: builder): uint256
     asm "1 PUSHINT HASHEXT_KECCAK256";
 
 @inline

@@ -8,8 +8,8 @@ struct Storage {
 }
 
 enum ReceiverBehavior : uint8 {
-    AlwaysSuccess = 0,
-    AlwaysFailGracefully,
+    Accept = 0,
+    RejectAll
     ConsumerAllGas
 }
 

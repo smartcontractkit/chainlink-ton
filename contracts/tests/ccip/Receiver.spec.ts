@@ -59,7 +59,7 @@ describe('Receiver', () => {
           pendingOwner: null,
         },
         authorizedCaller: deployer.address,
-        behavior: 0,
+        behavior: ReceiverBehavior.Accept,
       }
 
       receiver = blockchain.openContract(Receiver.createFromConfig(data, code))
@@ -161,7 +161,7 @@ describe('Receiver', () => {
 
   it('should failed with OnlyCallableByOwner when trying to modify behavior without the owner', async () => {
     const updateBehavior: UpdateBehavior = {
-      behaviour: ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY,
+      behaviour: ReceiverBehavior.RejectAll,
     }
 
     const result = await receiver.sendUpdateBehavior(
@@ -180,7 +180,7 @@ describe('Receiver', () => {
 
   it('should always fail gracefully when updating the behavior to fail gracefully', async () => {
     const updateBehaviorToFailGracefully: UpdateBehavior = {
-      behaviour: ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY,
+      behaviour: ReceiverBehavior.RejectAll,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
@@ -200,7 +200,7 @@ describe('Receiver', () => {
     })
 
     const newBehavior = await receiver.getBehavior()
-    expect(newBehavior).toEqual(ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY)
+    expect(newBehavior).toEqual(ReceiverBehavior.RejectAll)
 
     // Send new ccipReceive expecting to bounce
     const result = await receiver.sendCCIPReceive(
@@ -220,7 +220,7 @@ describe('Receiver', () => {
 
   it('should fail consuming all gas from transaction when updating the behavior to consume all gas', async () => {
     const updateBehaviorToConsumeAllGas: UpdateBehavior = {
-      behaviour: ReceiverBehavior.CONSUME_ALL_GAS,
+      behaviour: ReceiverBehavior.ConsumeAllGas,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
@@ -240,7 +240,7 @@ describe('Receiver', () => {
     })
 
     const newBehavior = await receiver.getBehavior()
-    expect(newBehavior).toEqual(ReceiverBehavior.CONSUME_ALL_GAS)
+    expect(newBehavior).toEqual(ReceiverBehavior.ConsumeAllGas)
 
     // Send new ccipReceive expecting to run out of gas
     const result = await receiver.sendCCIPReceive(

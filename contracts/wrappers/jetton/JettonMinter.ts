@@ -252,17 +252,6 @@ export class JettonMinter implements Contract {
     })
   }
 
-  // async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = toNano('0.1')) {
-  //   await provider.internal(via, {
-  //     value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(MinterOpcodes.TOP_UP, 32)
-  //       .storeUint(0, 64) // query_id
-  //       .endCell(),
-  //   })
-  // }
-
   async sendUpgrade(
     provider: ContractProvider,
     via: Sender,

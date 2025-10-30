@@ -46,14 +46,6 @@ type Init struct {
 	OpFinalizationTimeout uint64 `tlb:"## 64"`
 }
 
-// Top up contract with TON coins.
-// Contract might receive/hold TON as part of the maintenance process.
-type TopUp struct {
-	_ tlb.Magic `tlb:"#fee62ba6"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change request.
-	QueryID uint64 `tlb:"## 64"`
-}
-
 // Schedule an operation containing a batch of transactions.
 //
 // Emits one {Timelock_CallScheduled} event per transaction in the batch.

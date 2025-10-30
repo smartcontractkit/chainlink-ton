@@ -7,5 +7,3 @@ enum Error {
     InvalidOnRampUpdate
 }
 
-
-

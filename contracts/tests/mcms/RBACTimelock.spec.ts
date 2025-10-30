@@ -100,7 +100,6 @@ describe('RBACTimelock', () => {
   it('should compute crc32 opcodes', async () => {
     // In opcodes
     expect(rbactl.opcodes.in.Init).toBe(0x4982fcfd)
-    expect(rbactl.opcodes.in.TopUp).toBe(0xfee62ba6)
     expect(rbactl.opcodes.in.ScheduleBatch).toBe(0x094718f4)
     expect(rbactl.opcodes.in.Cancel).toBe(0xaf3bf1d0)
     expect(rbactl.opcodes.in.ExecuteBatch).toBe(0x6e9bf263)

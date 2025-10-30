@@ -25,19 +25,17 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Receiver_CCIPReceive => {
             var st = lazy Storage.load();
-
-
             // Standard for every receiver to implement:
             // - Check CCIPReceive only comes from router
             // - Send CCIPReceiveConfirm to msg.callback
             assert(in.senderAddress == st.authorizedCaller, Error.Unauthorized);
 
             match (st.behaviour) {
-                ReceiverBehavior.AlwaysSuccess => {
-                    processAlwaysSuccessMessage(msg, in.senderAddress)
+                ReceiverBehavior.Accept => {
+                    processAccept(msg, in.senderAddress)
                 },
-                ReceiverBehavior.AlwaysFailGracefully => {
-                    processAlwaysFailGracefully()
+                ReceiverBehavior.RejectAll => {
+                    processRejectAll()
                 },
                 ReceiverBehavior.ConsumerAllGas => {
                     processConsumeAllGas()
@@ -57,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun processAlwaysSuccessMessage(msg: Receiver_CCIPReceive, senderAddress: address) {
+fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
     val receiveConfirm = createMessage({
         bounce: true,
         value: ton("0.05"), //TODO how much do we need to send
@@ -73,8 +71,8 @@ fun processAlwaysSuccessMessage(msg: Receiver_CCIPReceive, senderAddress: addres
     });
 }
 
-fun processAlwaysFailGracefully() {
-    throw Error.ReceiverIsConfigureToFailGracefully;
+fun processRejectAll() {
+    throw Error.Rejected;
 }
 
 // This is just for testing purposes

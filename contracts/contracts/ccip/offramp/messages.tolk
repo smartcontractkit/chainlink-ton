@@ -11,6 +11,7 @@ type OffRamp_InMessage =
     | OffRamp_Commit
     | OffRamp_Execute
     | OffRamp_ExecuteValidated
+    | OffRamp_ManuallyExecute
     | OffRamp_DispatchValidated
     | OffRamp_UpdateSourceChainConfig
     | OCR3Base_SetOCR3Config
@@ -48,6 +49,13 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     metadataHash: uint256;
 }
 
+//crc32('OffRamp_ManuallyExecute')
+struct (0xa00785cf) OffRamp_ManuallyExecute {
+    queryId: uint64;
+    report: ExecutionReport;
+    gasOverride: coins; // TODO: should this just be part of the added gas value passed into the call?
+}
+
 //Must be sent by owner
 //crc32('OffRamp_UpdateSourceChainConfig')
 struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
@@ -60,22 +68,24 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
-    execId: uint224;
+    execId: uint192;
 }
 
 //crc32('OffRamp_CCIPReceiveConfirm')
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
-    execId: uint224;
+    execId: uint192;
 }
 
 //TODO crc32('OffRamp_NotifySuccess')
 struct (0x59e56170) OffRamp_NotifySuccess {
     header: RampMessageHeader;
-    execId: uint224;
+    execId: uint192;
+    root: address;
 }
 
 //TODO crc32('OffRamp_NotifyFailure')
 struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
-    execId: uint224;
+    execId: uint192;
+    root: address;
 }

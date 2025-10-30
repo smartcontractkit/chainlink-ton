@@ -101,10 +101,11 @@ struct OffRamp_Deployables {
 }
 
 const MERKLE_ROOT_ID_SIZE = 256;
-const RECEIVE_EXECUTOR_ID_SIZE = 224;
+const RECEIVE_EXECUTOR_ID_SIZE = 192;
 
 // These have to match the EVM states
-enum ExecutionState: uint8 {
+enum ExecutionState: uint8 { // TODO: compress to uint2?
+    Untouched = 0
     InProgress = 1
     Success = 2
     Failure = 3
