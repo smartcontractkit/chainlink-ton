@@ -5,8 +5,6 @@ import "types"
 import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
-import "../merkle_root/messages"
-import "../common/types"
 
 const CONTRACT_VERSION = "0.0.2";
 
