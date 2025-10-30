@@ -1,6 +1,6 @@
-import {Blockchain, SandboxContract, TreasuryContract} from '@ton/sandbox'
-import {Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano} from '@ton/core'
-import {compile} from '@ton/blueprint'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
+import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
   CommitReport,
@@ -21,8 +21,8 @@ import {
   RECEIVE_EXECUTOR_FACILITY_NAME,
   SourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
-import {FeeQuoter} from '../../wrappers/ccip/FeeQuoter'
-import {assertLog, expectFailedTransaction, expectSuccessfulTransaction} from '../Logs'
+import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
+import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import {
   bigIntToBuffer,
@@ -32,8 +32,8 @@ import {
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
 } from '../../src/utils'
-import {KeyPair, sha256_sync} from '@ton/crypto'
-import {newWithdrawableSpec} from '../lib/funding/WithdrawableSpec'
+import { KeyPair, sha256_sync } from '@ton/crypto'
+import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import {
@@ -47,11 +47,11 @@ import {
 
 import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
-import {setupTestFeeQuoter} from './helpers/SetUp'
-import {Receiver, ReceiverBehavior} from '../../wrappers/ccip/Receiver'
-import {crc32} from 'zlib'
-import {facilityId} from '../../wrappers/utils'
-import {MerkleHelper} from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
+import { setupTestFeeQuoter } from './helpers/SetUp'
+import { Receiver, ReceiverBehavior } from '../../wrappers/ccip/Receiver'
+import { crc32 } from 'zlib'
+import { facilityId } from '../../wrappers/utils'
+import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 
@@ -558,7 +558,15 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 1, ownable: { owner: deployer.address, pendingOwner: null }, authorizedCaller: offRamp.address, behavior: ReceiverBehavior.Accept }, code),
+        Receiver.createFromConfig(
+          {
+            id: 1,
+            ownable: { owner: deployer.address, pendingOwner: null },
+            authorizedCaller: offRamp.address,
+            behavior: ReceiverBehavior.Accept,
+          },
+          code,
+        ),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -1212,7 +1220,15 @@ describe('OffRamp - Unit Tests', () => {
     let code = await compile('ccip.test.receiver')
     const wrongOffRampAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 1, ownable: { owner: deployer.address, pendingOwner: null }, authorizedCaller: wrongOffRampAddress, behavior: ReceiverBehavior.Accept }, code),
+      Receiver.createFromConfig(
+        {
+          id: 1,
+          ownable: { owner: deployer.address, pendingOwner: null },
+          authorizedCaller: wrongOffRampAddress,
+          behavior: ReceiverBehavior.Accept,
+        },
+        code,
+      ),
     )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
 
@@ -1294,7 +1310,9 @@ describe('OffRamp - Unit Tests', () => {
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
 
-    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), { behavior: ReceiverBehavior.RejectAll })
+    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.RejectAll,
+    })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,
@@ -1308,7 +1326,9 @@ describe('OffRamp - Unit Tests', () => {
       success: false,
     })
 
-    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), { behavior: ReceiverBehavior.Accept })
+    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.Accept,
+    })
     expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,

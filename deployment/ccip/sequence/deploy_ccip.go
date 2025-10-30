@@ -198,7 +198,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		AuthorizedCaller: &offRampAddress,
-		Behavior:         0,
+		Behavior:         receiver.Accept,
 	}
 
 	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, func(tonContractAddress *TONContractAddress) {
