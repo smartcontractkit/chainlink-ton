@@ -15,7 +15,7 @@ async function deployMerkleRootContract(
     minMsgNr: 0n, //todo shold be configured
     maxMsgNr: 5n, //idem
     messageStates: 0n,
-    deliveredMessageCount:0n,
+    deliveredMessageCount: 0n,
   }
 
   const contract = blockchain.openContract(mr.MerkleRoot.createFromConfig(data, code))
