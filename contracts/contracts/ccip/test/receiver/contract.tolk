@@ -4,13 +4,15 @@
 // See: .github/workflows/contracts-publish-compiled-artifacts.yml
 import "storage"
 import "errors"
+import "messages"
 
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
 import "../../../lib/utils";
 import "../../../ccip/offramp/messages";
+import "../../../lib/access/ownable_2step"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.4";
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
@@ -18,40 +20,33 @@ struct CCIPMessageReceived {
     message: Any2TVMMessage
 }
 
-struct (0x00000001) SetRejectAll {
-    rejectAll: bool;
-}
-
-type Msg = Receiver_CCIPReceive | SetRejectAll;
-
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy Receiver_InMessage.fromSlice(in.body);
     match (msg) {
         Receiver_CCIPReceive => {
+            var st = lazy Storage.load();
             // Standard for every receiver to implement:
-            // - Check CCIPReceive only comes from offRamp/ router
+            // - Check CCIPReceive only comes from router
             // - Send CCIPReceiveConfirm to msg.callback
-            val st = Storage.load();
-            assert(in.senderAddress == st.offRamp, Error.Unauthorized);
-            assert(!st.rejectAll, Error.Rejected);
-            val receiveConfirm = createMessage({
-                bounce: true,
-                value: ton("0.05"), //TODO how much do we need to send
-                dest: in.senderAddress,
-                body: OffRamp_CCIPReceiveConfirm {
-                    execId: msg.execId,
-                }
-            });
-            receiveConfirm.send(SEND_MODE_REGULAR);
+            assert(in.senderAddress == st.authorizedCaller, Error.Unauthorized);
 
-            emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
-                message: msg.message,
-            });
+            match (st.behavior) {
+                ReceiverBehavior.Accept => {
+                    processAccept(msg, in.senderAddress)
+                },
+                ReceiverBehavior.RejectAll => {
+                    processRejectAll()
+                },
+                ReceiverBehavior.ConsumeAllGas => {
+                    processConsumeAllGas()
+                }
+            }
         }
-        SetRejectAll => {
-            var st = Storage.load();
-            st.rejectAll = msg.rejectAll;
-            st.store();
+        Receiver_UpdateAuthorizedCaller => {
+            onUpdateAuthorizedCaller(msg, in.senderAddress)
+        }
+        Receiver_UpdateBehavior => {
+            onUpdateBehavior(msg, in.senderAddress)
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -60,14 +55,61 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
+    val receiveConfirm = createMessage({
+        bounce: true,
+        value: ton("0.05"), //TODO how much do we need to send
+        dest: senderAddress,
+        body: OffRamp_CCIPReceiveConfirm {
+            execId: msg.execId,
+        }
+    });
+    receiveConfirm.send(SEND_MODE_REGULAR);
+
+    emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
+        message: msg.message,
+    });
+}
+
+fun processRejectAll() {
+    throw Error.Rejected;
+}
+
+// This is just for testing purposes
+fun processConsumeAllGas() {
+    var x: int = 0;
+    while (true) { x = x + 1; }
+}
+
+fun onUpdateAuthorizedCaller(msg: Receiver_UpdateAuthorizedCaller, senderAddress: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(senderAddress);
+
+    st.authorizedCaller = msg.authorizedCaller;
+    st.store();
+}
+
+fun onUpdateBehavior(msg: Receiver_UpdateBehavior, senderAddress: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(senderAddress);
+
+    st.behavior = msg.behavior;
+    st.store();
+}
+
 get fun getId(): uint32 {
     val st = lazy Storage.load();
     return st.id;
 }
 
-get fun getOfframpAddress(): address {
+get fun getAuthorizedCaller(): address {
     val st = lazy Storage.load();
-    return st.offRamp;
+    return st.authorizedCaller;
+}
+
+get fun getBehavior(): int {
+    val st = lazy Storage.load();
+    return st.behavior as int;
 }
 
 get fun typeAndVersion(): (slice, slice) {

@@ -205,16 +205,22 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
+
 	// <Verify receiver address>
 	receiverAddr := state[chainSelector].ReceiverAddress
 	_, err = addrCodec.AddressStringToBytes(receiverAddr.String())
 	require.NoError(t, err)
 	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
-	getOfframpAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getOfframpAddress")
+	getOfframpAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getAuthorizedCaller")
 	require.NoError(t, err)
 	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
 	require.Equal(t, offRampAddr.String(), shouldBeOffRampAddress.String())
+	behaviorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getBehavior")
+	require.NoError(t, err)
+	currentBehavior, err := behaviorResponse.Int(0)
+	require.NoError(t, err)
+	require.Equal(t, 0, currentBehavior.Sign())
 	// </Verify receiver address>
 
 	// <Verify timelock address>
