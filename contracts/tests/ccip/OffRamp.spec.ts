@@ -11,7 +11,6 @@ import {
   OffRampStorage,
   RampMessageHeader,
   PriceUpdates,
-  MerkleRootError,
   MERKLE_ROOT_FACILITY_ID,
   OFFRAMP_FACILITY_NAME,
   MERKLE_ROOT_FACILITY_NAME,
@@ -21,6 +20,7 @@ import {
   RECEIVE_EXECUTOR_FACILITY_NAME,
   ReceiveExecutorError,
 } from '../../wrappers/ccip/OffRamp'
+import { MerkleRootError } from '../../wrappers/ccip/MerkleRoot'
 import { OffRamp, OffRampError } from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
