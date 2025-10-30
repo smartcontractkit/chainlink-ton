@@ -259,7 +259,7 @@ func TestDeploy(t *testing.T) {
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
 
-	t.Run("ChangesetWithErrorsCaughtByExecuteProposal", func(t *testing.T) {
+	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
 		expectedErrStr := "failed to apply changeset at index 0: transaction failed with exit code: 1000"
 		_, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 			commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
