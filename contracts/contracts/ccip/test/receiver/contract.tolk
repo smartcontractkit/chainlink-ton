@@ -61,12 +61,12 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-get fun getId(): uint32 {
+get fun id(): uint32 {
     val st = lazy Storage.load();
     return st.id;
 }
 
-get fun getRouterAddress(): address {
+get fun routerAddress(): address {
     val st = lazy Storage.load();
     return st.router;
 }

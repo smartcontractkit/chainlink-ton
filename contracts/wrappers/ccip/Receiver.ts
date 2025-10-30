@@ -91,12 +91,12 @@ export class Receiver implements Contract {
   }
 
   async getId(provider: ContractProvider): Promise<number> {
-    const { stack } = await provider.get('getId', [])
+    const { stack } = await provider.get('id', [])
     return stack.readNumber()
   }
 
   async getRouterAddress(provider: ContractProvider): Promise<Address> {
-    const { stack } = await provider.get('getRouterAddress', [])
+    const { stack } = await provider.get('routerAddress', [])
     return stack.readAddress()
   }
 

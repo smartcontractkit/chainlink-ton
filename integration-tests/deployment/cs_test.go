@@ -212,7 +212,7 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
-	getRouterAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getRouterAddress")
+	getRouterAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "routerAddress")
 	require.NoError(t, err)
 	shouldBeRouterAddress := getRouterAddressResponse.MustSlice(0).MustLoadAddr()
 	require.Equal(t, routerAddr.String(), shouldBeRouterAddress.String())
