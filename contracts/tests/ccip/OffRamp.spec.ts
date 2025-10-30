@@ -1,27 +1,26 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, beginCell, contractAddress, StateInit } from '@ton/core'
+import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
-  Any2TVMMessage,
   CommitReport,
   commitReportToBuilder,
   ExecutionReport,
-  MerkleRoot,
-  OffRampStorage,
-  RampMessageHeader,
-  PriceUpdates,
-  MerkleRootError,
   MERKLE_ROOT_FACILITY_ID,
-  OFFRAMP_FACILITY_NAME,
   MERKLE_ROOT_FACILITY_NAME,
+  MerkleRoot,
+  MerkleRootError,
+  OffRamp,
   OFFRAMP_FACILITY_ID,
-  SourceChainConfig,
+  OFFRAMP_FACILITY_NAME,
+  OffRampError,
+  OffRampStorage,
+  PriceUpdates,
+  RampMessageHeader,
   RECEIVE_EXECUTOR_FACILITY_ID,
   RECEIVE_EXECUTOR_FACILITY_NAME,
-  ReceiveExecutorError,
+  SourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
-import { OffRamp, OffRampError } from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
@@ -42,14 +41,14 @@ import {
   hashReport,
   OCR3_PLUGIN_TYPE_COMMIT,
   OCR3_PLUGIN_TYPE_EXECUTE,
+  ReportContext,
+  SignatureEd25519,
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 
 import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
-
-import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
-import { Receiver } from '../../wrappers/ccip/Receiver'
+import { Receiver, ReceiverBehavior } from '../../wrappers/ccip/Receiver'
 import { crc32 } from 'zlib'
 import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
@@ -559,7 +558,15 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 1, offramp: offRamp.address, rejectAll: false }, code),
+        Receiver.createFromConfig(
+          {
+            id: 1,
+            ownable: { owner: deployer.address, pendingOwner: null },
+            authorizedCaller: offRamp.address,
+            behavior: ReceiverBehavior.Accept,
+          },
+          code,
+        ),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -1213,7 +1220,15 @@ describe('OffRamp - Unit Tests', () => {
     let code = await compile('ccip.test.receiver')
     const wrongOffRampAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-      Receiver.createFromConfig({ id: 1, offramp: wrongOffRampAddress, rejectAll: false }, code),
+      Receiver.createFromConfig(
+        {
+          id: 1,
+          ownable: { owner: deployer.address, pendingOwner: null },
+          authorizedCaller: wrongOffRampAddress,
+          behavior: ReceiverBehavior.Accept,
+        },
+        code,
+      ),
     )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
 
@@ -1295,7 +1310,9 @@ describe('OffRamp - Unit Tests', () => {
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
 
-    const result = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), true)
+    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.RejectAll,
+    })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,
@@ -1303,11 +1320,16 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const result2 = await executeReport(report)
+    expect(result2.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: false,
+    })
 
-    // TODO: expect fail
-
-    const result3 = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), false)
-    expect(result.transactions).toHaveTransaction({
+    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.Accept,
+    })
+    expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,
       success: true,
