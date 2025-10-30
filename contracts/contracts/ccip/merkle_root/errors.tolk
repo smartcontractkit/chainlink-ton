@@ -3,5 +3,6 @@ enum Error {
     NotOwner
     ManualExecutionNotYetEnabled;
     SkippedAlreadyExecutedMessage;
+    InvalidState;
 }
 

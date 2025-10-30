@@ -42,19 +42,19 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
     // only offramp owned message is allowed
     assert(sender == st.owner, Error.NotOwner);
 
-    // TODO: validate state transitions
-    // setAndGetPrevious plus assert
-    //
     // TODO: manually executing an inProgress message if the receiver doesn't correctly ack the message can be problematic
 
-    val stateResult = st.messageStates.set(msg.messageId, msg.state);
-    // TODO: disallow duplicates
+    // validate we're transitioning states correctly: success is final
+    val previousState= st.getMessageState(msg.seqNum);
+    assert(previousState != ExecutionState.Success, Error.InvalidState);
+    st.setMessageState(msg.seqNum, msg.state);
+
     if (msg.state == ExecutionState.Success) {
         st.deliveredMessageCount += 1;
     }
     st.store();
     
-    if (st.deliveredMessageCount == st.expectedMessages) {
+    if (st.deliveredMessageCount == st.expectedMessages()) {
         // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract
         val freezeRoot = createMessage({
             bounce: true,
@@ -74,13 +74,8 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     assert(sender == st.owner, Error.NotOwner);
     val ccipMessage = msg.message.load();
 
-    var state = ExecutionState.Untouched;
     val message = lazy msg.message.load();
-    val stateResult = st.messageStates.get(message.header.messageId);
-    if (stateResult.isFound) {
-        state = stateResult.loadValue();
-    }
-
+    val state = st.getMessageState(message.header.sequenceNumber);
     assert(state == ExecutionState.Untouched || state == ExecutionState.Failure, Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null; 
@@ -100,7 +95,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
         assert(state == ExecutionState.Untouched, Error.AlreadyExecuted);
     }
 
-    st.messageStates.set(ccipMessage.header.messageId, ExecutionState.InProgress);
+    st.setMessageState(ccipMessage.header.sequenceNumber, ExecutionState.InProgress);
     st.deliveredMessageCount += 1;
     st.store();
 

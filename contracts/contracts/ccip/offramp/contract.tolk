@@ -130,13 +130,13 @@ fun _bouncedCCIPReceive(execId: uint192, sender: address) {
     receiveBounced.send(SEND_MODE_REGULAR);
 }
 
-fun markStateOnRoot(root: address, messageId: uint256, state: ExecutionState) {
+fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
         value: ton("0.05"),
         dest: root,
         body: MerkleRoot_MarkState {
-            messageId,
+            seqNum,
             state,
         },
     });
@@ -148,7 +148,7 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
     assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     // propagate state change to root
-    markStateOnRoot(msg.root, msg.header.messageId, ExecutionState.Success);
+    markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
 
     val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -164,7 +164,7 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
     assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     // propagate state change to root
-    markStateOnRoot(msg.root, msg.header.messageId, ExecutionState.Failure);
+    markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
 
     val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -315,8 +315,9 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
                         root: root.merkleRoot, 
                         owner: contract.getAddress(),
                         timestamp: blockchain.now(),
-                        expectedMessages: (root.maxSeqNr - root.minSeqNr + 1),
-                        messageStates: createEmptyMap(),
+                        minMsgNr: root.minSeqNr,
+                        maxMsgNr: root.maxSeqNr,
+                        messageStates: 0,
                     }.toCell(),
                 }
             },

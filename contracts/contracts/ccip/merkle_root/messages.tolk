@@ -12,6 +12,6 @@ struct (0x38ede915) MerkleRoot_Validate {
 }
 
 struct (0x01234567) MerkleRoot_MarkState {
-    messageId: uint256,
+    seqNum: uint64,
     state: ExecutionState
 }
