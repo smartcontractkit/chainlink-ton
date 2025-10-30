@@ -40,13 +40,13 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
     var st = MerkleRoot_Storage.load();
 
     // only offramp owned message is allowed
-    assert(sender == st.owner, Error.NotOwner);
+    assert(sender == st.owner, MerkleRoot_Error.NotOwner);
 
     // TODO: manually executing an inProgress message if the receiver doesn't correctly ack the message can be problematic
 
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
-    assert(previousState != ExecutionState.Success, Error.InvalidState);
+    assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
     st.setMessageState(msg.seqNum, msg.state);
 
     if (msg.state == ExecutionState.Success) {
@@ -71,12 +71,12 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
 fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
 
-    assert(sender == st.owner, Error.NotOwner);
+    assert(sender == st.owner, MerkleRoot_Error.NotOwner);
     val ccipMessage = msg.message.load();
 
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state == ExecutionState.Untouched || state == ExecutionState.Failure, Error.SkippedAlreadyExecutedMessage);
+    assert(state == ExecutionState.Untouched || state == ExecutionState.Failure, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null; 
     if (isManualExecute) {
@@ -85,14 +85,14 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
 
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
-        assert(isOldCommitReport || state == ExecutionState.Failure, Error.ManualExecutionNotYetEnabled);
+        assert(isOldCommitReport || state == ExecutionState.Failure, MerkleRoot_Error.ManualExecutionNotYetEnabled);
 
         if (msg.gasOverride! != 0) {
             // TODO: specify this as gas value on execution
         }
     } else {
         // DON can only execute a message once.
-        assert(state == ExecutionState.Untouched, Error.AlreadyExecuted);
+        assert(state == ExecutionState.Untouched, MerkleRoot_Error.AlreadyExecuted);
     }
 
     st.setMessageState(ccipMessage.header.sequenceNumber, ExecutionState.InProgress);

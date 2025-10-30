@@ -26,9 +26,9 @@ fun MerkleRoot_Storage.expectedMessages(self) {
 }
 
 fun MerkleRoot_Storage.setMessageState(mutate self, seqNum: uint64, executionState: ExecutionState) {
-    assert(seqNum >= self.minMsgNr, Error.SeqNumOutOfBounds);
+    assert(seqNum >= self.minMsgNr, MerkleRoot_Error.SeqNumOutOfBounds);
     val i = seqNum - self.minMsgNr;
-    assert(i < 64, Error.SeqNumOutOfBounds);
+    assert(i < 64, MerkleRoot_Error.SeqNumOutOfBounds);
 
     // Clear the 2 bits at position 'i'
     self.messageStates &= ~(0b11 << (i * 2));
@@ -37,9 +37,9 @@ fun MerkleRoot_Storage.setMessageState(mutate self, seqNum: uint64, executionSta
 }
 
 fun MerkleRoot_Storage.getMessageState(self, seqNum: uint64): ExecutionState {
-    assert(seqNum >= self.minMsgNr, Error.SeqNumOutOfBounds); // Out of bounds
+    assert(seqNum >= self.minMsgNr, MerkleRoot_Error.SeqNumOutOfBounds); // Out of bounds
     val i= seqNum - self.minMsgNr;
-    assert(i < 64, Error.SeqNumOutOfBounds);
+    assert(i < 64, MerkleRoot_Error.SeqNumOutOfBounds);
 
     val mask = 0b11 << (i * 2);
     val state = (self.messageStates & mask) >> (i * 2);
