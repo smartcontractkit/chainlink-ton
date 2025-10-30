@@ -1,10 +1,10 @@
 import "storage"
 import "../../../lib/receiver/messages"
 
-type Receiver_InMessage = Receiver_CCIPReceive | Receiver_UpdateBehaviour | Receiver_UpdateAuthorizedCaller;
+type Receiver_InMessage = Receiver_CCIPReceive | Receiver_UpdateBehavior | Receiver_UpdateAuthorizedCaller;
 
-//crc32('Receiver_UpdateBehaviour')
-struct (0x325f16fc) Receiver_UpdateBehaviour {
+//crc32('Receiver_UpdateBehavior')
+struct (0x14d52e7b) Receiver_UpdateBehavior {
     behavior: ReceiverBehavior
 }
 

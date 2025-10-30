@@ -1294,7 +1294,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
 
-    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), { behaviour: ReceiverBehavior.RejectAll })
+    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), { behavior: ReceiverBehavior.RejectAll })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,
@@ -1308,7 +1308,7 @@ describe('OffRamp - Unit Tests', () => {
       success: false,
     })
 
-    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), { behaviour: ReceiverBehavior.Accept })
+    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), { behavior: ReceiverBehavior.Accept })
     expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,

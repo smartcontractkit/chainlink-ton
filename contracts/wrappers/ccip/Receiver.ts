@@ -42,7 +42,7 @@ export abstract class Params {}
 export abstract class Opcodes {
   static ccipReceive = 0xb3126df1
   static updateAuthorizedCaller = 0xaf9950c5
-  static updateBehavior = 0x325f16fc
+  static updateBehavior = 0x14d52e7b
 }
 
 export type CCIPReceive = {
@@ -55,7 +55,7 @@ export type UpdateAuthorizedCaller = {
 }
 
 export type UpdateBehavior = {
-  behaviour: ReceiverBehavior
+  behavior: ReceiverBehavior
 }
 
 export class Receiver implements Contract {
@@ -213,14 +213,14 @@ export const builder = {
 
       const updateBehavior: CellCodec<UpdateBehavior> = {
         encode: (opts: UpdateBehavior): Builder => {
-          return beginCell().storeUint(Opcodes.updateBehavior, 32).storeUint(opts.behaviour, 8)
+          return beginCell().storeUint(Opcodes.updateBehavior, 32).storeUint(opts.behavior, 8)
         },
         load: function (src: Slice): UpdateBehavior {
           // TODO We can check that the opcode matches
           src.skip(32)
 
           return {
-            behaviour: src.loadUint(8),
+            behavior: src.loadUint(8),
           }
         },
       }

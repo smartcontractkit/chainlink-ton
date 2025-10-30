@@ -30,14 +30,14 @@ fun onInternalMessage(in: InMessage) {
             // - Send CCIPReceiveConfirm to msg.callback
             assert(in.senderAddress == st.authorizedCaller, Error.Unauthorized);
 
-            match (st.behaviour) {
+            match (st.behavior) {
                 ReceiverBehavior.Accept => {
                     processAccept(msg, in.senderAddress)
                 },
                 ReceiverBehavior.RejectAll => {
                     processRejectAll()
                 },
-                ReceiverBehavior.ConsumerAllGas => {
+                ReceiverBehavior.ConsumeAllGas => {
                     processConsumeAllGas()
                 }
             }
@@ -45,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
         Receiver_UpdateAuthorizedCaller => {
             onUpdateAuthorizedCaller(msg, in.senderAddress)
         }
-        Receiver_UpdateBehaviour => {
+        Receiver_UpdateBehavior => {
             onUpdateBehavior(msg, in.senderAddress)
         }
         else => {
@@ -89,11 +89,11 @@ fun onUpdateAuthorizedCaller(msg: Receiver_UpdateAuthorizedCaller, senderAddress
     st.store();
 }
 
-fun onUpdateBehavior(msg: Receiver_UpdateBehaviour, senderAddress: address) {
+fun onUpdateBehavior(msg: Receiver_UpdateBehavior, senderAddress: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(senderAddress);
 
-    st.behaviour = msg.behavior;
+    st.behavior = msg.behavior;
     st.store();
 }
 
@@ -109,7 +109,7 @@ get fun getAuthorizedCaller(): address {
 
 get fun getBehavior(): int {
     val st = lazy Storage.load();
-    return st.behaviour as int;
+    return st.behavior as int;
 }
 
 get fun typeAndVersion(): (slice, slice) {

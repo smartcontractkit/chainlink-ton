@@ -161,7 +161,7 @@ describe('Receiver', () => {
 
   it('should failed with OnlyCallableByOwner when trying to modify behavior without the owner', async () => {
     const updateBehavior: UpdateBehavior = {
-      behaviour: ReceiverBehavior.RejectAll,
+      behavior: ReceiverBehavior.RejectAll,
     }
 
     const result = await receiver.sendUpdateBehavior(
@@ -180,7 +180,7 @@ describe('Receiver', () => {
 
   it('should always fail gracefully when updating the behavior to fail gracefully', async () => {
     const updateBehaviorToFailGracefully: UpdateBehavior = {
-      behaviour: ReceiverBehavior.RejectAll,
+      behavior: ReceiverBehavior.RejectAll,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
@@ -220,7 +220,7 @@ describe('Receiver', () => {
 
   it('should fail consuming all gas from transaction when updating the behavior to consume all gas', async () => {
     const updateBehaviorToConsumeAllGas: UpdateBehavior = {
-      behaviour: ReceiverBehavior.ConsumeAllGas,
+      behavior: ReceiverBehavior.ConsumeAllGas,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(

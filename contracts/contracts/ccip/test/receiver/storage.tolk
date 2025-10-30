@@ -4,13 +4,13 @@ struct Storage {
     id: uint32;
     ownable: Ownable2Step;
     authorizedCaller: address; // When using the contract in CCIP, the authorized caller must be the router
-    behaviour: ReceiverBehavior;
+    behavior: ReceiverBehavior;
 }
 
 enum ReceiverBehavior : uint8 {
     Accept = 0,
     RejectAll
-    ConsumerAllGas
+    ConsumeAllGas
 }
 
 fun Storage.load(): Storage {
