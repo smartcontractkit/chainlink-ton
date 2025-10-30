@@ -194,14 +194,14 @@ export const builder = {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
             .storeUint(Opcodes.ccipReceiveConfirm, 32)
-            .storeUint(confirm.rootId, 224)
+            .storeUint(confirm.rootId, 192)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
           // TODO We can check that the opcode matches
           src.skip(32)
 
           return {
-            rootId: src.loadUintBig(224),
+            rootId: src.loadUintBig(192),
           }
         },
       }
@@ -444,7 +444,7 @@ export class OffRamp
       body: beginCell()
         .storeUint(Opcodes.dispatchValidated, 32)
         .storeRef(Any2TVMRampMessageToBuilder(opts.message))
-        .storeUint(opts.execId, 224)
+        .storeUint(opts.execId, 192)
         .endCell(),
     })
   }

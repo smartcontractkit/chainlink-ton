@@ -149,7 +149,7 @@ export const builder = {
         encode: (opts: CCIPReceive): Builder => {
           return beginCell()
             .storeUint(Opcodes.ccipReceive, 32)
-            .storeUint(opts.rootId, 224)
+            .storeUint(opts.rootId, 192)
             .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
         },
         load: function (src: Slice): CCIPReceive {
@@ -157,7 +157,7 @@ export const builder = {
           src.skip(32)
 
           return {
-            rootId: src.loadUintBig(224),
+            rootId: src.loadUintBig(192),
             message: OffRampBuilder.data.any2TVMMessage.load(src),
           }
         },

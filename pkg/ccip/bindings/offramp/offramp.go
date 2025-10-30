@@ -88,7 +88,7 @@ const CCIPReceiveOpCode = 0xb3126df1
 // CCIPReceive represents the CCIP message received on TON
 type CCIPReceive struct {
 	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
-	RootID  []byte         `tlb:"bits 224"`
+	RootID  []byte         `tlb:"bits 192"`
 	Message Any2TVMMessage `tlb:"."`
 }
 
