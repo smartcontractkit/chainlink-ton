@@ -347,8 +347,8 @@ type RootMetadata struct {
 	// int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
 	// There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
 	// bound chainid to 64 bits, but it is still unresolved.
-	ChainID  *big.Int        `tlb:"## 256"`
-	MultiSig address.Address `tlb:"addr"`
+	ChainID  *big.Int         `tlb:"## 256"`
+	MultiSig *address.Address `tlb:"addr"`
 	// opCount before adding this root
 	PreOpCount uint64 `tlb:"## 40"`
 	// opCount after executing all ops in this root
