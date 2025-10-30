@@ -278,7 +278,7 @@ export class MCMSBaseTestSetup {
    * Deploy the MCMS contract and verify deployment
    */
   async deployMCMSContract(): Promise<void> {
-    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+    const body = Cell.EMPTY
     const result = await this.bind.mcms.sendInternal(
       this.acc.deployer.getSender(),
       toNano('2'),

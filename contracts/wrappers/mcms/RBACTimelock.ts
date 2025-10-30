@@ -39,12 +39,6 @@ export type Init = {
   opFinalizationTimeout: bigint
 }
 
-// Top up contract with TON coins.
-export type TopUp = {
-  // Query ID of the change request.
-  queryId: bigint
-}
-
 // Schedule an operation containing a batch of transactions.
 export type ScheduleBatch = {
   // Query ID of the change request.
@@ -160,7 +154,6 @@ export type SubmitErrorReport = {
 // Union of all (input) messages.
 export type InMessage =
   | Init
-  | TopUp
   | ScheduleBatch
   | Cancel
   | ExecuteBatch
@@ -290,7 +283,6 @@ export type FunctionSelectorUnblocked = {
 export const opcodes = {
   in: {
     Init: crc32('Timelock_Init'),
-    TopUp: crc32('Timelock_TopUp'),
     ScheduleBatch: crc32('Timelock_ScheduleBatch'),
     Cancel: crc32('Timelock_Cancel'),
     ExecuteBatch: crc32('Timelock_ExecuteBatch'),
@@ -365,20 +357,6 @@ export const builder = {
             bypassers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             executorRoleCheckEnabled: src.loadBit(),
             opFinalizationTimeout: src.loadUintBig(64),
-          }
-        },
-      }
-
-      const topUp: CellCodec<TopUp> = {
-        encode: (msg: TopUp): Builder => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.TopUp, 32)
-            .storeUint(msg.queryId, 64)
-        },
-        load: (src: Slice): TopUp => {
-          src.skip(32) // skip opcode
-          return {
-            queryId: src.loadUintBig(64),
           }
         },
       }
@@ -563,7 +541,6 @@ export const builder = {
 
       return {
         init,
-        topUp,
         scheduleBatch,
         cancel,
         executeBatch,
@@ -841,10 +818,6 @@ export class ContractClient implements Contract {
 
   async sendInit(provider: ContractProvider, via: Sender, value: bigint, body: Init) {
     return this.sendInternal(provider, via, value, builder.message.in.init.encode(body).asCell())
-  }
-
-  async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
-    return this.sendInternal(provider, via, value, builder.message.in.topUp.encode(body).asCell())
   }
 
   async sendScheduleBatch(

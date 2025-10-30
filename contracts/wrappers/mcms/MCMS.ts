@@ -17,12 +17,6 @@ import { asSnakeData, fromSnakeData, ZERO_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { loadDict, loadMap } from '../../src/utils/dict'
 
-// @dev Top up contract with TON coins.
-export type TopUp = {
-  // Query ID of the change request.
-  queryId: bigint
-}
-
 // @dev Sets a new expiring root.
 export type SetRoot = {
   // Query ID of the change request.
@@ -104,8 +98,7 @@ export type TransferOracleRole = {
 
 // @dev Union of all (input) messages.
 export type InMessage =
-  | TopUp
-  | SetRoot
+  | SetRoot // <br>
   | Execute
   | SetConfig
   | SubmitErrorReport
@@ -137,14 +130,14 @@ export type ContractData = {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = sha256_32(
-  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP',
+  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON',
 )
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = sha256_32(
-  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA',
+  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON',
 )
 
 export const NUM_GROUPS = 32
@@ -415,7 +408,6 @@ export type Op = {
 
 export const opcodes = {
   in: {
-    TopUp: crc32('MCMS_TopUp'),
     SetRoot: crc32('MCMS_SetRoot'),
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
@@ -454,20 +446,6 @@ const rootMetadata: CellCodec<RootMetadata> = {
 export const builder = {
   message: {
     in: {
-      // Creates a new `MCMS_TopUp` message.
-      topUp: {
-        encode: (msg: TopUp): Builder => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.TopUp, 32)
-            .storeUint(msg.queryId, 64)
-        },
-        load: (src: Slice): TopUp => {
-          src.skip(32) // skip opcode
-          return {
-            queryId: src.loadUintBig(64),
-          }
-        },
-      },
       // Creates a new `MCMS_SetRoot` message.
       setRoot: {
         encode: (msg: SetRoot): Builder => {
@@ -872,10 +850,6 @@ export class ContractClient implements Contract {
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {
     await p.internal(via, { value, sendMode: SendMode.PAY_GAS_SEPARATELY, body })
-  }
-
-  async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
-    return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body).endCell())
   }
 
   async sendSetRoot(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetRoot) {
