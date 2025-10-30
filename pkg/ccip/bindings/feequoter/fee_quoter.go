@@ -1,6 +1,7 @@
 package feequoter
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -8,7 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -35,15 +36,25 @@ const (
 	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
 )
 
+const (
+	StaticConfigGetter = "staticConfig"
+)
+
 type Storage struct {
-	ID                           uint32              `tlb:"## 32"`
-	Ownable                      common.Ownable2Step `tlb:"."`
-	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
-	LinkToken                    *address.Address    `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64              `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
+	ID                           uint32                  `tlb:"## 32"`
+	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
+	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
+	LinkToken                    *address.Address        `tlb:"addr"`
+	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary        `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary        `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
+}
+
+type USDPerUnitGas struct {
+	ExecutionGasPrice        *big.Int `tlb:"## 112"`
+	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	Timestamp                uint64   `tlb:"## 64"`
 }
 
 type DestChainConfig struct {
@@ -66,12 +77,6 @@ type DestChainConfig struct {
 	GasMultiplierWeiPerEth            uint64 `tlb:"## 64"`
 	GasPriceStalenessThreshold        uint32 `tlb:"## 32"`
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
-}
-
-type USDPerUnitGas struct {
-	ExecutionGasPrice        *big.Int `tlb:"## 112"`
-	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
-	Timestamp                uint64   `tlb:"## 64"`
 }
 
 func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
@@ -178,6 +183,10 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c.FromResult)
+}
+
 type TokenTransferFeeConfig struct {
 	IsEnabled         bool   `tlb:"bool"`
 	MinFeeUsdCents    uint32 `tlb:"## 32"`
@@ -225,37 +234,6 @@ type FeeToken struct {
 	PremiumMultiplierWeiPerEth uint64 `tlb:"## 64"`
 }
 
-type StaticConfig struct {
-	MaxFeeJuelsPerMsg  *big.Int
-	LinkToken          *address.Address
-	StalenessThreshold uint32
-}
-
-func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
-	maxFeeJuelsPerMsg, err := result.Int(0)
-	if err != nil {
-		return err
-	}
-	linkTokenAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	tokenPriceStalenessThreshold, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	*c = StaticConfig{
-		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
-		LinkToken:          linkTokenAddress,
-		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-	}
-	return nil
-}
-
 // Methods
 
 // Generic wrapper for fee quoter messages with metadata
@@ -273,15 +251,15 @@ type MessageValidated struct {
 }
 
 type UpdatePrices struct {
-	_           tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
-	TokenPrices common.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices   common.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	_           tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	TokenPrices ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices   ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                          `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                   `tlb:"dict 267"`
-	Remove common.SnakeData[*address.Address] `tlb:"^"`
+	_      tlb.Magic                              `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	Add    *cell.Dictionary                       `tlb:"dict 267"`
+	Remove ccipcommon.SnakeData[*address.Address] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
@@ -297,6 +275,43 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	_       tlb.Magic                                   `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
+	Updates ccipcommon.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+}
+
+// binding types that supports FetchResult interface with rpc client
+
+type StaticConfig struct {
+	MaxFeeJuelsPerMsg  *big.Int
+	LinkToken          *address.Address
+	StalenessThreshold uint32
+}
+
+func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+	maxFeeJuelsPerMsg, err := result.Int(0)
+	if err != nil {
+		return err
+	}
+	linkTokenAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	tokenPriceStalenessThreshold, err := result.Int(2)
+	if err != nil {
+		return err
+	}
+	*s = StaticConfig{
+		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
+		LinkToken:          linkTokenAddress,
+		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
+	}
+	return nil
+}
+
+func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
 }

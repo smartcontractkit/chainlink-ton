@@ -7,7 +7,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/address"
@@ -146,24 +145,33 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return tonView, errGroup.Wait()
 }
 
+func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64) (CCIPChainState, error) {
+	addresses := dataStore.Addresses().Filter(
+		ds.AddressRefByChainSelector(chainSelector),
+	)
+	chainState, err := loadChainState(addresses)
+	if err != nil {
+		return chainState, err
+	}
+
+	return chainState, nil
+}
+
 func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	chains := make(map[uint64]CCIPChainState)
-	for chainSelector, chain := range e.BlockChains.TonChains() {
-		addresses := e.DataStore.Addresses().Filter(
-			ds.AddressRefByChainSelector(chainSelector),
-		)
-		chainState, err := loadChainState(chain, addresses)
+	for chainSelector := range e.BlockChains.TonChains() {
+		chainState, err := LoadOnchainStateUsingDataStore(e.DataStore, chainSelector)
 		if err != nil {
 			return chains, err
 		}
+
 		chains[chainSelector] = chainState
 	}
 	return chains, nil
 }
 
 // loadChainState Loads all state for a TonChain into state
-func loadChainState(chain cldf_ton.Chain, addresses []ds.AddressRef) (CCIPChainState, error) {
-	_ = chain // TODO: Use chain to access the client if needed
+func loadChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 	state := CCIPChainState{}
 
 	// Most programs upgraded in place, but some are not so we always want to

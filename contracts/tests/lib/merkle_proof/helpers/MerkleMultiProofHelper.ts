@@ -1,13 +1,10 @@
-import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../src/utils'
+import { keccak256 } from '@ethersproject/keccak256'
+import { uint8ArrayToBigInt } from '../../../../src/utils'
 import { beginCell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
 const INTERNAL_DOMAIN_SEPARATOR_BIGINT =
   0x0000000000000000000000000000000000000000000000000000000000000001n
-
-// Leaf domain separator (0x00...00), represented as a 256-bit BigInt (0n)
-const LEAF_DOMAIN_SEPARATOR_BIGINT =
-  0x0000000000000000000000000000000000000000000000000000000000000000n
 
 const MAX_NUM_HASHES = 256
 
@@ -28,15 +25,13 @@ interface SingleLayerProof {
 }
 
 export class MerkleTree {
-  private hash: HashFunction
   private layers: bigint[][] = []
 
-  constructor(hashFunction: HashFunction, leafHashes: bigint[]) {
+  constructor(leafHashes: bigint[]) {
     if (leafHashes.length === 0) {
       throw new LeavesCannotBeEmpty()
     }
 
-    this.hash = hashFunction
     this.buildTree(leafHashes)
   }
 
@@ -193,23 +188,20 @@ export class MerkleTree {
       .storeUint(left, 256)
       .storeUint(right, 256)
       .endCell()
+      .beginParse()
+      .loadBuffer(32 * 3)
 
-    return uint8ArrayToBigInt(data.hash())
+    const bytes = Buffer.from(keccak256(data).slice(2), 'hex')
+    return uint8ArrayToBigInt(bytes)
   }
 }
 
 export class MerkleHelper {
-  private hash: HashFunction
-
-  constructor(hashFunction: HashFunction) {
-    this.hash = hashFunction
-  }
-
   /**
    * Creates a new Merkle tree from leaf hashes
    */
   public createTree(leafHashes: bigint[]): MerkleTree {
-    return new MerkleTree(this.hash, leafHashes)
+    return new MerkleTree(leafHashes)
   }
 
   /**
@@ -223,14 +215,6 @@ export class MerkleHelper {
     const proof = tree.prove(indices)
     const root = tree.getRoot()
     return { tree, proof, root }
-  }
-
-  /**
-   * Convenience method to hash leaf data and create a tree
-   */
-  public createTreeFromData(leafData: (string | Uint8Array)[]): MerkleTree {
-    const hashedLeaves = leafData.map((data) => this.hashLeafData(data))
-    return this.createTree(hashedLeaves)
   }
 
   /**
@@ -361,17 +345,12 @@ export class MerkleHelper {
     return a < b ? this.hashInternalNode(a, b) : this.hashInternalNode(b, a)
   }
 
-  /**
-   * Helper to hash initial raw data into a 256-bit leaf hash.
-   */
-  public hashLeafData(data: string | Uint8Array): bigint {
-    const dataBytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
-    const separatorBytes = bigIntToUint8Array(LEAF_DOMAIN_SEPARATOR_BIGINT)
-
-    const combinedBytes = new Uint8Array(separatorBytes.length + dataBytes.length)
-    combinedBytes.set(separatorBytes, 0)
-    combinedBytes.set(dataBytes, separatorBytes.length)
-
-    return uint8ArrayToBigInt(this.hash(combinedBytes))
+  public packBools(flags: boolean[]): bigint {
+    if (flags.length > 256) throw new Error('Maximum of 256 boolean flags allowed')
+    let bitmap = 0n
+    for (let i = 0; i < flags.length; i++) {
+      if (flags[i]) bitmap |= 1n << BigInt(i)
+    }
+    return bitmap
   }
 }

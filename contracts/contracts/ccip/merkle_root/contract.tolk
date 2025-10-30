@@ -14,7 +14,7 @@ import "../common/types"
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "0.0.7";
+const CONTRACT_VERSION = "0.0.8";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {

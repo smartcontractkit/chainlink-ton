@@ -296,9 +296,7 @@ describe('OffRamp - Unit Tests', () => {
       return uint8ArrayToBigInt(generateMessageId(msg, metadataHash))
     })
 
-    let merkleHelper: MerkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    let merkleHelper: MerkleHelper = new MerkleHelper()
 
     return merkleHelper.getMerkleRoot(hashedMessages)
   }
@@ -1371,9 +1369,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2],
@@ -1429,9 +1425,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2],
@@ -1487,9 +1481,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages - IMPORTANT: We create it once and reuse for both proofs
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree([messageId1, messageId2])
     const rootBytes = tree.getRoot()
@@ -1577,9 +1569,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
     // Create merkle tree with both messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree([messageId1, messageId2])
     const rootBytes = tree.getRoot()
@@ -1644,9 +1634,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageId3 = uint8ArrayToBigInt(generateMessageId(message3, metadataHash))
 
     // Create merkle tree with all three messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2, messageId3],
@@ -1710,9 +1698,7 @@ describe('OffRamp - Unit Tests', () => {
     )
 
     // Create merkle tree with all five messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree(messageIds)
     const rootBytes = tree.getRoot()
@@ -1778,9 +1764,7 @@ describe('OffRamp - Unit Tests', () => {
     )
 
     // Create merkle tree with all five messages
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const tree = merkleHelper.createTree(messageIds)
     const rootBytes = tree.getRoot()

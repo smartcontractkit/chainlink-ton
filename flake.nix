@@ -3,20 +3,31 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # (backport) move back to nixpkgs/nixos-unstable once go1.25.3 is available
+    # https://github.com/NixOS/nixpkgs/pull/451815
+    nixpkgs-release-25-05.url = "github:NixOS/nixpkgs/release-25.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   outputs = inputs @ {
     self,
     nixpkgs,
+    nixpkgs-release-25-05,
     flake-utils,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       # Import nixpkgs with specific configuration
-      pkgs = import nixpkgs {
-        inherit system;
-      };
+      pkgsUnstable = import nixpkgs {inherit system;};
+      pkgsBackport = import nixpkgs-release-25-05 {inherit system;};
+
+      # Replace selected Go packages with latest from backport release (go1.25.3 support)
+      pkgs =
+        pkgsUnstable
+        // {
+          go_1_25 = pkgsBackport.go_1_25;
+          buildGo125Module = pkgsBackport.buildGo125Module;
+        };
 
       # The rev (git commit hash) of the current flake
       rev = self.rev or self.dirtyRev or "-";

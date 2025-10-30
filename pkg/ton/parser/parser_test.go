@@ -1,11 +1,11 @@
-package view
+package parser
 
 import (
 	"math/big"
 	"testing"
 )
 
-func TestParseExecutionResultForDestChainSelectors(t *testing.T) {
+func TestParseLispTuple(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  []any
@@ -55,7 +55,7 @@ func TestParseExecutionResultForDestChainSelectors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseExecutionResultForDestChainSelectors(tt.input)
+			got := ParseLispTuple(tt.input)
 			if len(got) != len(tt.expect) {
 				t.Errorf("expected %v, got %v", tt.expect, got)
 				return
