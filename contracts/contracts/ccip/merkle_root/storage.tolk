@@ -1,4 +1,5 @@
 import "../offramp/types";
+import "./errors"
 
 struct MerkleRoot_Storage {
     root: uint256;
