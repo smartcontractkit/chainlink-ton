@@ -11,12 +11,14 @@ import {
   CCIPReceive,
   builder as CCIPReceiveBuilder,
   RECEIVER_FACILITY_ID,
-  RECEIVER_ERROR_CODE, UpdateAuthorizedCaller, UpdateBehavior,
+  RECEIVER_ERROR_CODE,
+  UpdateAuthorizedCaller,
+  UpdateBehavior,
 } from '../../wrappers/ccip/Receiver'
 import { builder as OffRampBuilder } from '../../wrappers/ccip/OffRamp'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
-import * as ownable2step from "../../wrappers/libraries/access/Ownable2Step";
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 function generateSecureRandomId(): number {
   return Math.floor(Math.random() * 0x100000000) // 2^32
@@ -57,7 +59,7 @@ describe('Receiver', () => {
           pendingOwner: null,
         },
         authorizedCaller: deployer.address,
-        behavior: 0
+        behavior: 0,
       }
 
       receiver = blockchain.openContract(Receiver.createFromConfig(data, code))
@@ -89,7 +91,11 @@ describe('Receiver', () => {
   })
 
   it('should emit an event when calling with the right sender', async () => {
-    const result = await receiver.sendCCIPReceive(deployer.getSender(), toNano('1'), ccipReceiveSampleMessage)
+    const result = await receiver.sendCCIPReceive(
+      deployer.getSender(),
+      toNano('1'),
+      ccipReceiveSampleMessage,
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -136,13 +142,13 @@ describe('Receiver', () => {
 
   it('should failed with OnlyCallableByOwner when trying to modify authorized caller without the owner', async () => {
     const updateAuthorizedCaller: UpdateAuthorizedCaller = {
-      authorizedCaller: deployer.address
+      authorizedCaller: deployer.address,
     }
 
     const result = await receiver.sendUpdateAuthorizedCaller(
-        unauthorized.getSender(),
-        toNano('1'),
-        updateAuthorizedCaller,
+      unauthorized.getSender(),
+      toNano('1'),
+      updateAuthorizedCaller,
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -155,13 +161,13 @@ describe('Receiver', () => {
 
   it('should failed with OnlyCallableByOwner when trying to modify behavior without the owner', async () => {
     const updateBehavior: UpdateBehavior = {
-      behaviour: ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY
+      behaviour: ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY,
     }
 
     const result = await receiver.sendUpdateBehavior(
-        unauthorized.getSender(),
-        toNano('1'),
-        updateBehavior,
+      unauthorized.getSender(),
+      toNano('1'),
+      updateBehavior,
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -174,13 +180,13 @@ describe('Receiver', () => {
 
   it('should always fail gracefully when updating the behavior to fail gracefully', async () => {
     const updateBehaviorToFailGracefully: UpdateBehavior = {
-      behaviour: ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY
+      behaviour: ReceiverBehavior.ALWAYS_FAIL_GRACEFULLY,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
-        deployer.getSender(),
-        toNano('1'),
-        updateBehaviorToFailGracefully,
+      deployer.getSender(),
+      toNano('1'),
+      updateBehaviorToFailGracefully,
     )
 
     expect(updateBehaviorResult.transactions).toHaveTransaction({
@@ -188,7 +194,9 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: CCIPReceiveBuilder.message.in.updateBehavior.encode(updateBehaviorToFailGracefully).asCell(),
+      body: CCIPReceiveBuilder.message.in.updateBehavior
+        .encode(updateBehaviorToFailGracefully)
+        .asCell(),
     })
 
     const newBehavior = await receiver.getBehavior()
@@ -196,9 +204,9 @@ describe('Receiver', () => {
 
     // Send new ccipReceive expecting to bounce
     const result = await receiver.sendCCIPReceive(
-        deployer.getSender(),
-        toNano('1'),
-        ccipReceiveSampleMessage,
+      deployer.getSender(),
+      toNano('1'),
+      ccipReceiveSampleMessage,
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -212,13 +220,13 @@ describe('Receiver', () => {
 
   it('should fail consuming all gas from transaction when updating the behavior to consume all gas', async () => {
     const updateBehaviorToConsumeAllGas: UpdateBehavior = {
-      behaviour: ReceiverBehavior.CONSUME_ALL_GAS
+      behaviour: ReceiverBehavior.CONSUME_ALL_GAS,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
-        deployer.getSender(),
-        toNano('1'),
-        updateBehaviorToConsumeAllGas,
+      deployer.getSender(),
+      toNano('1'),
+      updateBehaviorToConsumeAllGas,
     )
 
     expect(updateBehaviorResult.transactions).toHaveTransaction({
@@ -226,7 +234,9 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: CCIPReceiveBuilder.message.in.updateBehavior.encode(updateBehaviorToConsumeAllGas).asCell(),
+      body: CCIPReceiveBuilder.message.in.updateBehavior
+        .encode(updateBehaviorToConsumeAllGas)
+        .asCell(),
     })
 
     const newBehavior = await receiver.getBehavior()
@@ -234,9 +244,9 @@ describe('Receiver', () => {
 
     // Send new ccipReceive expecting to run out of gas
     const result = await receiver.sendCCIPReceive(
-        deployer.getSender(),
-        toNano('1'),
-        ccipReceiveSampleMessage,
+      deployer.getSender(),
+      toNano('1'),
+      ccipReceiveSampleMessage,
     )
 
     expect(result.transactions).toHaveTransaction({

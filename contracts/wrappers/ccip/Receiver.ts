@@ -14,23 +14,20 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import {
-  Any2TVMMessage,
-  builder as OffRampBuilder,
-} from './OffRamp'
+import { Any2TVMMessage, builder as OffRampBuilder } from './OffRamp'
 
 export const RECEIVER_FACILITY_ID = 346
 export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
 
 export enum ReceiverError {
   Unauthorized = RECEIVER_ERROR_CODE,
-  ReceiverIsConfigureToFailGracefully
+  ReceiverIsConfigureToFailGracefully,
 }
 
 export enum ReceiverBehavior {
   ALWAYS_SUCCESS = 0,
   ALWAYS_FAIL_GRACEFULLY,
-  CONSUME_ALL_GAS
+  CONSUME_ALL_GAS,
 }
 
 export type ReceiverStorage = {
@@ -93,7 +90,12 @@ export class Receiver implements Contract {
     })
   }
 
-  async sendUpdateAuthorizedCaller(provider: ContractProvider, via: Sender, value: bigint, body: UpdateAuthorizedCaller) {
+  async sendUpdateAuthorizedCaller(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: UpdateAuthorizedCaller,
+  ) {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
@@ -101,7 +103,12 @@ export class Receiver implements Contract {
     })
   }
 
-  async sendUpdateBehavior(provider: ContractProvider, via: Sender, value: bigint, body: UpdateBehavior) {
+  async sendUpdateBehavior(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: UpdateBehavior,
+  ) {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
@@ -143,10 +150,10 @@ export const builder = {
     const contractData: CellCodec<ReceiverStorage> = {
       encode: (storage: ReceiverStorage): Builder => {
         return beginCell()
-            .storeUint(storage.id, 32)
-            .storeBuilder(ownable2step.builder.data.traitData.encode(storage.ownable))
-            .storeAddress(storage.authorizedCaller)
-            .storeUint(storage.behavior, 8)
+          .storeUint(storage.id, 32)
+          .storeBuilder(ownable2step.builder.data.traitData.encode(storage.ownable))
+          .storeAddress(storage.authorizedCaller)
+          .storeUint(storage.behavior, 8)
       },
 
       load: (src: Slice): ReceiverStorage => {
@@ -159,7 +166,7 @@ export const builder = {
           id,
           ownable,
           authorizedCaller,
-          behavior
+          behavior,
         }
       },
     }
@@ -191,8 +198,8 @@ export const builder = {
       const updateAuthorizedCaller: CellCodec<UpdateAuthorizedCaller> = {
         encode: (opts: UpdateAuthorizedCaller): Builder => {
           return beginCell()
-              .storeUint(Opcodes.updateAuthorizedCaller, 32)
-              .storeAddress(opts.authorizedCaller)
+            .storeUint(Opcodes.updateAuthorizedCaller, 32)
+            .storeAddress(opts.authorizedCaller)
         },
         load: function (src: Slice): UpdateAuthorizedCaller {
           // TODO We can check that the opcode matches
@@ -206,9 +213,7 @@ export const builder = {
 
       const updateBehavior: CellCodec<UpdateBehavior> = {
         encode: (opts: UpdateBehavior): Builder => {
-          return beginCell()
-              .storeUint(Opcodes.updateBehavior, 32)
-              .storeUint(opts.behaviour, 8)
+          return beginCell().storeUint(Opcodes.updateBehavior, 32).storeUint(opts.behaviour, 8)
         },
         load: function (src: Slice): UpdateBehavior {
           // TODO We can check that the opcode matches
@@ -223,7 +228,7 @@ export const builder = {
       return {
         ccipReceive,
         updateAuthorizedCaller,
-        updateBehavior
+        updateBehavior,
       }
     })(),
   },
