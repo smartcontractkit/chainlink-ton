@@ -220,7 +220,7 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	currentBehavior, err := behaviorResponse.Int(0)
 	require.NoError(t, err)
-	require.Equal(t, big.NewInt(0), *currentBehavior)
+	require.Equal(t, 0, currentBehavior.Sign())
 	// </Verify receiver address>
 
 	// <Verify timelock address>
