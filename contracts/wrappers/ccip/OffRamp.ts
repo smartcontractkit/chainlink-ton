@@ -33,10 +33,6 @@ export const Opcodes = {
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
 }
 
-export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
-export const MERKLE_ROOT_FACILITY_ID = 479
-export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
-
 export const OFFRAMP_CONTRACT_VERSION = '0.0.12'
 
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
