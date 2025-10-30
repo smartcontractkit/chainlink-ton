@@ -55,6 +55,12 @@ The process involves two main scripts:
     ./scripts/e2e/run-test.sh --core-dir /path/to/chainlink_core --test-command "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -count=1 -json"
     ```
 
+    Optional: Clean up previous test logs before running:
+
+    ```bash
+    ./scripts/e2e/run-test.sh --clean-logs --test-command "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -count=1 -json"
+    ```
+
 **Notes:**
 <!---
     TODO: Align this `.core_version` Git reference with the Chainlink version tag used for the BASE_IMAGE (e.g., `public.ecr.aws/chainlink/chainlink:vX.Y.Z-plugins`) in Docker build scripts like `scripts/build/build-image.sh`. This synchronization will ensure consistency between source-based integration tests and the plugin's runtime environment within the Docker image, removing discrepancies that could arise from using two different core dependency sources/versions.
@@ -80,6 +86,7 @@ setup-env.sh prepares the testing environment by:
 run-test.sh executes your tests by:
 
 * Validating the environment is properly configured
+* Optionally cleaning up previous test logs with `--clean-logs` flag (default: false)
 * Running the specified Go test command in the Chainlink core directory
 
 ## CI
