@@ -12,5 +12,4 @@ fun onInternalMessage(in: InMessage) {
 
     contract.setCodePostponed(payload.stateInit.code);
     contract.setData(payload.stateInit.data);
-    //TODO: emit event
 }
