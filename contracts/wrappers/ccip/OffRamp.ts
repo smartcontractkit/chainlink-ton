@@ -56,13 +56,6 @@ export enum OffRampError {
   InvalidOnRampUpdate,
 }
 
-export enum MerkleRootError {
-  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
-  NotOwner,
-  ManualExecutionNotYetEnabled,
-  SkippedAlreadyExecutedMessage,
-}
-
 export enum ReceiveExecutorError {
   StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
