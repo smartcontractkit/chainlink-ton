@@ -2,7 +2,7 @@
 const RMNREMOTE_GLOBAL_CURSE_SUBJECT =  0x01000000000000000000000000000001
 
 struct CursedSubjects {
-    data: map<uint128, bool>; // TODO: does map<_, null> work here?
+    data: map<uint128, bool>;
 }
 
 fun CursedSubjects.curse(mutate self, subject: uint128) {

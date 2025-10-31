@@ -28,7 +28,6 @@ type OffRamp_InMessage =
 //crc32('OffRamp_Commit')
 struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;
-    // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: CommitReport;
     signatures: SnakedCell<SignatureEd25519>;
@@ -37,7 +36,6 @@ struct (0x9d431905) OffRamp_Commit {
 //crc32('OffRamp_Execute')
 struct (0x27bdac33) OffRamp_Execute {
     queryId: uint64;
-    // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: ExecutionReport;
 }

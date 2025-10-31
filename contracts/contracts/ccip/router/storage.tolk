@@ -3,7 +3,7 @@ import "../../ccip/rmn_remote/lib"
 
 struct RMNRemote {
     admin: Ownable2Step;
-    cursedSubjects: CursedSubjects; // TODO: does map<_, null> work here?
+    cursedSubjects: CursedSubjects;
 }
 
 struct Storage {

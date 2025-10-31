@@ -138,6 +138,7 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
         st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
+    // TODO: emit(OnRampsSet)
 }
 
 fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
@@ -199,7 +200,6 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     });
     receiveBounced.send(SEND_MODE_REGULAR);
 }
-
 
 
 fun onSend(msg: Router_CCIPSend, sender: address) {

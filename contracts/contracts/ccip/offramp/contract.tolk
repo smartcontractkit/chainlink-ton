@@ -295,7 +295,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
-            bounce: true, // TODO: could bounce if root already exists but i don't think we shuold handle it
+            bounce: true, // TODO: could bounce if root already exists but i don't think we should handle it
             value: ton("0.5"), // TODO:
             dest: {
                 stateInit: {
