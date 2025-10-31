@@ -13,7 +13,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-const tokenPriceGetter = "tokenPrice"
+const (
+	tokenPriceGetter   = "tokenPrice"
+	StaticConfigGetter = "staticConfig"
+)
 
 // Fee Quoter opcodes
 const (
@@ -36,10 +39,6 @@ const (
 	ErrorInvalidTokenReceiver                 tvm.ExitCode = tvm.ExitCode(1007)
 	ErrorTooManySuiExtraArgsReceiverObjectIDs tvm.ExitCode = tvm.ExitCode(1008)
 	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
-)
-
-const (
-	StaticConfigGetter = "staticConfig"
 )
 
 type Storage struct {
