@@ -730,8 +730,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	}
 
 	// TODO: decode token addresses here according to chain selector
-
-	encodedTokens := make([]any, 0, len(tokens))
+	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
 	for _, token := range tokens {
 		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
 		if err2 != nil {
@@ -741,40 +740,18 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if err2 != nil {
 			return nil, fmt.Errorf("failed to ParseAddr %s for encodedTokens: %w", strAddr, err2)
 		}
-		encodedTokens = append(encodedTokens, addrParsed)
-	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrices", encodedTokens...)
-	// result is a list of TimestampedPrice
-	if err != nil {
-		return nil, err
-	}
-	results := result.AsTuple()
-	if len(tokens) != len(results) {
-		return nil, fmt.Errorf("length mismatch: expected %d prices but received %d", len(tokens), len(results))
-	}
-	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
-	for i, priceResult := range results {
-		token := tokens[i]
-		var price ccipocr3.TimestampedUnixBig
-		switch priceResult := priceResult.(type) {
-		case nil:
-			// return zero value
-			price = ccipocr3.TimestampedUnixBig{
-				Value:     big.NewInt(0),
-				Timestamp: 0,
-			}
-		case cell.Cell:
-			var timestampedPrice feequoter.TimestampedPrice
-			if err := tlb.LoadFromCell(&timestampedPrice, priceResult.BeginParse()); err != nil {
-				return nil, err
-			}
-			price = ccipocr3.TimestampedUnixBig{
-				Value:     timestampedPrice.Value,
-				Timestamp: timestampedPrice.Timestamp,
-			}
-		default:
-			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)
+
+		var tokenPrice feequoter.TimestampedPrice
+		err = tokenPrice.FetchResult(ctx, a.client, block, addr, []interface{}{cell.BeginCell().MustStoreAddr(addrParsed).EndCell().BeginParse()})
+		if err != nil {
+			return nil, fmt.Errorf("failed to FetchResult for encodedTokens: %w", err)
 		}
+
+		price := ccipocr3.TimestampedUnixBig{
+			Value:     tokenPrice.Value,
+			Timestamp: tokenPrice.Timestamp,
+		}
+
 		if !utf8.ValidString(token.String()) {
 			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
 		}

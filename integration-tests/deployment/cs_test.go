@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/ton"
-
 	chainselectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -264,6 +264,19 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
+
+	t.Run("FetchTokenPrice", func(t *testing.T) {
+		addr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99")
+		tonAddrBytes, err := addrCodec.AddressStringToBytes(addr.String())
+		require.NoError(t, err)
+		updates, err := accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
+		if err != nil {
+			return
+		}
+
+		require.NoError(t, err)
+		require.Len(t, updates, 1)
+	})
 
 	t.Run("GetConfig", func(t *testing.T) {
 		// destination

@@ -13,6 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+const tokenPriceGetter = "tokenPrice"
+
 // Fee Quoter opcodes
 const (
 	OpcodeUpdatePrices                  = 0x20000001
@@ -217,6 +219,10 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
 	}
 	return nil
+}
+
+func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p.FromResult)
 }
 
 type TokenPriceUpdate struct {
