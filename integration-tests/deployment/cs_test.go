@@ -302,6 +302,22 @@ func TestDeploy(t *testing.T) {
 		require.Equal(t, "0", feePriceUpdate[ccipocr3.ChainSelector(1)].Value.String())
 	})
 
+	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
+		expectedErrStr := "failed to apply changeset at index 0: transaction failed with exit code: 1000"
+		_, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+			commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
+				RemoteChainSels: []uint64{tonChain.Selector},
+				Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
+					operation.PluginTypeCCIPCommit: {
+						F: 0, // invalid F, F must be positive or will revert on chain with ERROR_BIG_F_MUST_BE_POSITIVE (1000)
+					},
+				},
+			}),
+		})
+		require.Error(t, err)
+		require.Equal(t, expectedErrStr, err.Error())
+	})
+
 	t.Run("GetConfig", func(t *testing.T) {
 		// destination
 		config, sourceChainConfigs, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
