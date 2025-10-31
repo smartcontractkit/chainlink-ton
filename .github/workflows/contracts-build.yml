@@ -26,6 +26,10 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+      - name: Run gas report
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn ccip-gas-report
 
   build-nixpkg:
     name: Build nix package
