@@ -142,7 +142,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     val addresses = lazy self.addresses.load();
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
-    // if (msg.fee > self.originalBalance) {
+    // if (msg.fee > self.getOriginalBalance) {
     //     self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
     //     return;
     // }
