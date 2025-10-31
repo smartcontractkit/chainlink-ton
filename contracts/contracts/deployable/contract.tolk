@@ -1,33 +1,16 @@
+import "types"
+
 // initialize the contract as a stub with stateInit = {
 //   owner: myAddr, type: "OnRamp", id: "some identifier, could also be a complex tuple"
 // }
-struct Deployable {
-    owner: address;
-    ty: cell;
-    id: cell;
-}
 
-struct Initialize {
-    data: cell;
-    code: cell;
-}
+fun onInternalMessage(in: InMessage) {
+    val st = Deployable<RemainingBitsAndRefs>.load();
+    assert(in.senderAddress == st.owner) throw ERROR_NOT_OWNER;
 
-const ERROR_NOT_OWNER: int = 0x1;
+    val payload = Deployable_Initialize.fromSlice(in.body);
 
-fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
-    var cs: slice = msgCell.beginParse();
-    val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
-
-    val st: deployable = Deployable.load();
-    val sender: address = cs.loadAddress();
-
-    assert(sender == st.owner) throw ERROR_NOT_OWNER;
-
-    val payload = Initialize.fromCell(inMsgBody);
-    inMsgBody.assertEnd();
-    contract.setCodePostponed(payload.code);
-    contract.setData(payload.data);
+    contract.setCodePostponed(payload.stateInit.code);
+    contract.setData(payload.stateInit.data);
+    //TODO: emit event
 }
