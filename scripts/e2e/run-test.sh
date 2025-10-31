@@ -92,6 +92,11 @@ if [ -z "${CL_DATABASE_URL:-}" ]; then
   exit 1
 fi
 
+# prepare test database schema
+log_info "Preparing test database schema..."
+(cd "$CHAINLINK_CORE_DIR" && go run ./core/store/cmd/preparetest)
+log_info "Test database schema prepared"
+
 # clean up previous test logs if requested
 if [ "$ARG_CLEAN_LOGS" = true ]; then
   LOGS_DIR="${CHAINLINK_CORE_DIR}/integration-tests/smoke/ccip/logs"
