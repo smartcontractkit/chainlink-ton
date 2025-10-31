@@ -39,6 +39,8 @@ const (
 	ErrorInvalidTokenReceiver                 tvm.ExitCode = tvm.ExitCode(1007)
 	ErrorTooManySuiExtraArgsReceiverObjectIDs tvm.ExitCode = tvm.ExitCode(1008)
 	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
+	ErrorTokenNotSupported                    tvm.ExitCode = tvm.ExitCode(24813)
+	ErrorUnknownDestChainSelector             tvm.ExitCode = tvm.ExitCode(24814)
 )
 
 type Storage struct {
