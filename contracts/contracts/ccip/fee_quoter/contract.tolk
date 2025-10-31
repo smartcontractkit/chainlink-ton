@@ -44,7 +44,10 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates); // TODO: pass in st.destChainConfigs instead
             st.store();
         }
-        FeeQuoter_GetValidatedFee<cell> => { handleGetValidatedFee(msg, in.senderAddress) }
+        FeeQuoter_GetValidatedFee<cell> => {
+            assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw Error.InsufficientFee;
+            handleGetValidatedFee(msg, in.senderAddress)
+        }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);

@@ -44,6 +44,7 @@ export enum FeeQuoterError {
   InvalidMsgData,
   TokenNotSupported,
   UnknownDestChainSelector,
+  InsufficientFee,
 }
 
 export type FeeQuoterStorage = {

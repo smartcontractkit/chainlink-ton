@@ -44,3 +44,11 @@ struct (0x29950BAA) FeeQuoter_UpdateDestChainConfigs {
     updates: cell; // vec<FeeQuoter_UpdateDestChainConfig>
 }
 
+// Costs associated with FeeQuoter operations
+struct FeeQuoter_Costs {}
+
+// Minimum value for calling FeeQuoter_GetValidatedFee
+@inline
+fun FeeQuoter_Costs.GetValidatedFee(): int {
+    return ton("0.05"); // TODO
+}

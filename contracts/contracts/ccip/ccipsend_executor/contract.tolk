@@ -121,14 +121,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO
+        value: FeeQuoter_Costs.GetValidatedFee(),
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee<Metadata> {
             msg: onrampSend.msg,
             metadata: onrampSend.metadata.toCell(), // TODO: must include nonce
         }
     });
-    getValidatedFeeMsg.send(SEND_MODE_REGULAR);
+    getValidatedFeeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: CCIPSendExecutor_MessageValidated<Metadata>, sender: address) {
