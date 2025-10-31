@@ -51,7 +51,7 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	},
 	state.OffRamp: {
 		CompiledVersionKey:             "OffRamp.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		SuggestedTONCoinsForDeployment: "1",
 	},
 	// Internal contracts
 	state.SendExecutor: {
