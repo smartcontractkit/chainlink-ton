@@ -267,10 +267,12 @@ func TestDeploy(t *testing.T) {
 
 	t.Run("FetchTokenPrice", func(t *testing.T) {
 		// known token address, price updated during changeset execution
+		var tonAddrBytes []byte
+		var updates map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig
 		addr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99")
-		tonAddrBytes, err := addrCodec.AddressStringToBytes(addr.String())
+		tonAddrBytes, err = addrCodec.AddressStringToBytes(addr.String())
 		require.NoError(t, err)
-		updates, err := accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
+		updates, err = accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
 		if err != nil {
 			return
 		}
@@ -292,7 +294,8 @@ func TestDeploy(t *testing.T) {
 
 	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
 		// evm chain selector
-		feePriceUpdate, err := accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
+		var feePriceUpdate map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig
+		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
 		require.NoError(t, err)
 		require.NotEqual(t, "0", feePriceUpdate[ccipocr3.ChainSelector(evmSelector)].Value.String())
 
