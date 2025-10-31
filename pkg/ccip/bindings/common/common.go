@@ -480,13 +480,10 @@ func FetchResultHelper(
 	} else {
 		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
 	}
-	
+
 	if err != nil {
 		return err
 	}
 
-	if err = fromResult(result); err != nil {
-		return err
-	}
-	return nil
+	return fromResult(result)
 }

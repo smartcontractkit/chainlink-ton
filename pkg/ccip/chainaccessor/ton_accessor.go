@@ -747,7 +747,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		err = tokenPrice.FetchResult(ctx, a.client, block, addr, []interface{}{cell.BeginCell().MustStoreAddr(addrParsed).EndCell().BeginParse()})
 		if err != nil {
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == 24813 { // nolint:errorlint // we're guaranteed to get unwrapped error here
+			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == 24813 { //nolint:errorlint // we're guaranteed to get unwrapped error here
 				// TODO remove hard coded error code for TokenNotSupported, right now common.TokenNotSupported doesn't match with on-chain
 				prices[ccipocr3.UnknownEncodedAddress(token)] = ccipocr3.TimestampedUnixBig{
 					Timestamp: 0,
