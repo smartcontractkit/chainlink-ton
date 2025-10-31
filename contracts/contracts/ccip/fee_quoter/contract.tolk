@@ -407,7 +407,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
 
         response = createMessage({
             bounce: true,
-            value: ton("0.05"), // TODO:
+            value: 0,
             dest: sender,
             body: CCIPSendExecutor_MessageValidated<cell> {
                 msg: payload.msg,
@@ -418,16 +418,16 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
     } catch (e) {
         response = createMessage({
             bounce: true,
-            value: ton("0.05"), // TODO:
+            value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidationFailed<cell> {
+            body: CCIPSendExecutor_MessageValidated<cell> {
                 msg: payload.msg,
                 metadata: payload.metadata,
-                error: e as uint256,
+                fee: feeTokenAmount,
             }
         });
     }
-    response.send(SEND_MODE_REGULAR);
+    response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // TODO: a lot of the as uint256 annotations seem to be unnecessary in this function
