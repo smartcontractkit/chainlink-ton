@@ -18,6 +18,7 @@ fun onInternalMessage(in: InMessage) {
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
             assert (in.senderAddress == this.addresses.load().onramp) throw CCIPSendExecutor_Error.Unauthorized;
+            assert (in.valueCoins >= SendExecutor_Costs.Execute(false)) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute(msg.onrampJettonWallet);
         }
         CCIPSendExecutor_MessageValidated<Metadata> => {
@@ -37,6 +38,11 @@ fun onInternalMessage(in: InMessage) {
             assert (in.body.isEmpty()) throw 0xFFFF;
         },   
     }
+}
+
+fun onBouncedMessage(in: InMessageBounced) {
+    // TODO handle bounce from
+    // - FeeQuoter_GetValidatedFee (insufficient funds)
 }
 
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {

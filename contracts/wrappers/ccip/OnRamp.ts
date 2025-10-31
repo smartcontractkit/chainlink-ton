@@ -40,6 +40,7 @@ export enum CCIPSendExecutorError {
   StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
   Unauthorized,
   InsufficientFunds,
+  InsufficientFee,
 }
 
 export type OnRampStorage = {

@@ -6,6 +6,7 @@ import "../common/messages"
 import "../onramp/messages"
 import "../router/messages"
 import "../onramp/types"
+import "../fee_quoter/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
@@ -36,5 +37,19 @@ struct (0x0f756150) CCIPSendExecutor_MessageValidationFailed<C> {
     error: uint256,
 }
 
+// Costs associated with SendExecutor operations
+struct SendExecutor_Costs {}
 
-
+// Minimum value for calling SendExecutor_GetValidatedFee
+@inline
+fun SendExecutor_Costs.Execute(tokenTransfer: bool): int {
+    var getValidatedFeeFwdFee = ton("0.05");
+    var baseFee = getValidatedFeeFwdFee += FeeQuoter_Costs.GetValidatedFee();
+    if (tokenTransfer) {
+        // TODO add extra fee for token transfer handling
+        // baseFee += getTokenPoolInfoFwdFee + TokenRegistry_Costs.GetTokenPoolInfo();
+        // baseFee += tokenTransferFwdFee + TokenPool_Costs.MaxLockTokenCost();
+        throw 0xffff;
+    }
+    return baseFee;
+}
