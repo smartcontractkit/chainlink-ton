@@ -3,7 +3,7 @@ tolk 1.1
 import "../lib/utils";
 import "../lib/access/access_control";
 
-const CONTRACT_VERSION = "0.0.2";
+const CONTRACT_VERSION = "0.0.3";
 
 /**
  * Contract module which acts as a timelocked controller with role-based
@@ -89,14 +89,6 @@ struct (0x4982fcfd) Timelock_Init {
     executorRoleCheckEnabled: bool;
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint64;
-}
-
-/// Top up contract with TON coins.
-/// Contract might receive/hold TON as part of the maintenance process.
-///
-struct (0xfee62ba6) Timelock_TopUp {
-    /// Query ID of the change request.
-    queryId: uint64;
 }
 
 /// Schedule an operation containing a batch of transactions.
@@ -276,7 +268,6 @@ struct (0xf4538b79) Timelock_SubmitErrorReport {
 /// Union of all incoming messages.
 type Timelock_InMessage =
     | Timelock_Init
-    | Timelock_TopUp
     | Timelock_ScheduleBatch
     | Timelock_Cancel
     | Timelock_ExecuteBatch
@@ -1276,10 +1267,6 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             self.init(msgSender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors,
                 msg.cancellers, msg.bypassers, msg.executorRoleCheckEnabled, msg.opFinalizationTimeout);
         }
-        Timelock_TopUp => {
-            // Top up the contract balance, no action needed, return early - no need to update storage
-            return;
-        }
         Timelock_ScheduleBatch => {
             self.scheduleBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
         }
@@ -1322,6 +1309,9 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
                 // Map from underlying trait storage to contract storage
                 self.data.rbac = rbac.data.toCell();
             }
+
+            // Notice: allow empty message (top up)
+            // @dev Contract might receive/hold TON as part of the maintenance process.
 
             // If the message was not handled:
             //  - ignore all other messages, empty or not empty

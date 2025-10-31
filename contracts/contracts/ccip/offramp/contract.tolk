@@ -20,7 +20,7 @@ import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
 
-const CONTRACT_VERSION = "0.0.11";
+const CONTRACT_VERSION = "0.0.12";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {
@@ -42,6 +42,9 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_DispatchValidated => {
             _messageReadyForDispatch(msg, in.senderAddress)
         } 
+        OffRamp_ManuallyExecute => {
+            _manually_execute(msg, in.senderAddress)
+        }
         // Sender must be owner
         OCR3Base_SetOCR3Config => { 
             _setOCR3Config(msg, in.senderAddress)
@@ -106,7 +109,7 @@ fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.Versi
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
 
-fun _bouncedCCIPReceive(execId: uint224, sender: address) {
+fun _bouncedCCIPReceive(execId: uint192, sender: address) {
     val st = Storage.load();
     val receiveBounced = createMessage({
         bounce: true,
@@ -127,9 +130,25 @@ fun _bouncedCCIPReceive(execId: uint224, sender: address) {
     receiveBounced.send(SEND_MODE_REGULAR);
 }
 
+fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
+    val markState= createMessage({
+        bounce: false,
+        value: ton("0.05"),
+        dest: root,
+        body: MerkleRoot_MarkState {
+            seqNum,
+            state,
+        },
+    });
+    markState.send(SEND_MODE_REGULAR);
+}
+
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
 fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
     assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
+
+    // propagate state change to root
+    markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
 
     val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -143,6 +162,9 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
 // Received from ReceiveExecutor after validating that the bounce message came from the correct receiver and enabling manual execute to retry
 fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
     assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
+
+    // propagate state change to root
+    markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
 
     val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -292,8 +314,10 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
                     data: MerkleRoot_Storage {
                         root: root.merkleRoot, 
                         owner: contract.getAddress(),
-                        expectedMessages: (root.maxSeqNr - root.minSeqNr + 1),
-                        validatedMessages: createEmptyMap(),
+                        timestamp: blockchain.now(),
+                        minMsgNr: root.minSeqNr,
+                        maxMsgNr: root.maxSeqNr,
+                        messageStates: 0,
                     }.toCell(),
                 }
             },
@@ -323,13 +347,36 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
     );
 }
 
-fun _execute(msg: OffRamp_Execute, sender: address) {
+fun _manually_execute(msg: OffRamp_ManuallyExecute, sender: address) {
     var st = Storage.load();
 
-    // TODO: manual execution flag
-    // TODO: check if chain was cursed by RMNRemote
-
     val report = msg.report;
+
+    // when_chain_not_forked assert
+
+    _execute_single_report(msg.report, msg.gasOverride, sender);
+
+}
+
+fun _execute(msg: OffRamp_Execute, sender: address) {
+    _execute_single_report(msg.report, null, sender);
+
+    var st = Storage.load();
+
+    st.ocr3Base.load().transmit(
+        sender,
+        OCR_PLUGIN_TYPE_EXECUTE,
+        msg.reportContext,
+        msg.report.toCell(),
+        createEmptyCell(),
+    );
+
+}
+
+fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address) {
+    var st = Storage.load();
+
+    // TODO: check if chain was cursed by RMNRemote
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
@@ -366,7 +413,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     var leafTuple: tuple = createEmptyTuple();
     leafTuple.push(message.generateMessageId(metadataHash));
 
-    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), Iterator<uint256>.new(report.proofs),report.proofFlagBits);
+    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), Iterator<uint256>.new(report.proofs), report.proofFlagBits);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
@@ -385,22 +432,15 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
          body: MerkleRoot_Validate {
             message: report.messages as Cell<Any2TVMRampMessage>,
-            metadataHash: metadataHash
+            metadataHash: metadataHash,
+            permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+            gasOverride,
          },
      });
      executeMsg.send(SEND_MODE_REGULAR);
-
-    st.ocr3Base.load().transmit(
-        sender,
-        OCR_PLUGIN_TYPE_EXECUTE,
-        msg.reportContext,
-        msg.report.toCell(),
-        createEmptyCell(),
-    );
-
 }
 
-//todo: maybe it should be chainConfigs and take an array?
+//TODO: maybe it should be chainConfigs and take an array?
 fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
@@ -450,10 +490,10 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
         state: ExecutionState.InProgress
     });
 
-    initializeExecutor(st, message, msg.metadataHash);
+    initializeExecutor(st, sender, message, msg.metadataHash);
 }
 
-fun initializeExecutor(st: Storage, message: Any2TVMRampMessage, metadataHash: uint256) {
+fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, metadataHash: uint256) {
     // Deploy executor
     val messageId = message.generateMessageId(metadataHash);
     val execIdBuilder = getOwnedReceiveExecutorContractId(messageId);
@@ -473,13 +513,14 @@ fun initializeExecutor(st: Storage, message: Any2TVMRampMessage, metadataHash: u
         bounce: true, 
         value: ton("0.5"), // TODO:
         dest: executorAddress,
-            // TODO: toShard so it's collocated 
+        // TODO: toShard so it's collocated 
         body: Deployable_Initialize {
             stateInit: {
                 code: st.deployables.load().receiveExecutorCode,
                 data: ReceiveExecutor_Storage {
                     owner: contract.getAddress(),
                     message: message.toCell(), 
+                    root: rootAddress,
                     execId: execIdValue,
                 }.toCell(),
             }

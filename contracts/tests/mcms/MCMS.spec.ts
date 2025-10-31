@@ -61,7 +61,6 @@ describe('MCMS', () => {
 
   it('should compute crc32 opcodes', async () => {
     // In opcodes
-    expect(mcms.opcodes.in.TopUp).toBe(0x5f427bb3)
     expect(mcms.opcodes.in.SetRoot).toBe(0xe7fabde3)
     expect(mcms.opcodes.in.Execute).toBe(0x9b9ce96a)
     expect(mcms.opcodes.in.SetConfig).toBe(0x89277f4b)
@@ -78,7 +77,7 @@ describe('MCMS', () => {
 
   it('should deploy', async () => {
     // Check that MCMS contract is deployed
-    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+    const body = Cell.EMPTY
     const result = await bind.mcms.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({

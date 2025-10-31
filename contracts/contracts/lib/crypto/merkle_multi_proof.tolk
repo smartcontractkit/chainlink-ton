@@ -87,9 +87,7 @@ fun hashInternalNode(a: int, b: int): int {
     var data = beginCell()
         .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
         .storeUint(a, 256)
-        .storeUint(b, 256)
-        .endCell()
-        .beginParse();
+        .storeUint(b, 256);
     return keccak256(data);
 }
 

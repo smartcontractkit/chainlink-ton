@@ -6,7 +6,6 @@ import {
   Contract,
   contractAddress,
   ContractProvider,
-  Dictionary,
   Sender,
   SendMode,
   Slice,
@@ -15,38 +14,48 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
-import { CCIPSend, TokenAmount } from './Router'
-import {
-  Any2TVMMessage,
-  builder as OffRampBuilder,
-  CCIPReceiveConfirm,
-  CrossChainAddress,
-  OffRamp,
-} from './OffRamp'
+import { Any2TVMMessage, builder as OffRampBuilder } from './OffRamp'
 
 export const RECEIVER_FACILITY_ID = 346
 export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
 
 export enum ReceiverError {
   Unauthorized = RECEIVER_ERROR_CODE,
+  ReceiverIsConfigureToFailGracefully,
+}
+
+export enum ReceiverBehavior {
+  Accept = 0,
+  RejectAll,
+  ConsumeAllGas,
 }
 
 export type ReceiverStorage = {
   id: number
-  offramp: Address
+  ownable: ownable2step.Data
+  authorizedCaller: Address
+  behavior: ReceiverBehavior
 }
 
 export abstract class Params {}
 
 export abstract class Opcodes {
   static ccipReceive = 0xb3126df1
-  static ccipReceiveConfirm = 0x28f4166f
+  static updateAuthorizedCaller = 0xaf9950c5
+  static updateBehavior = 0x14d52e7b
 }
 
 export type CCIPReceive = {
   rootId: bigint
   message: Any2TVMMessage
+}
+
+export type UpdateAuthorizedCaller = {
+  authorizedCaller: Address
+}
+
+export type UpdateBehavior = {
+  behavior: ReceiverBehavior
 }
 
 export class Receiver implements Contract {
@@ -81,14 +90,45 @@ export class Receiver implements Contract {
     })
   }
 
+  async sendUpdateAuthorizedCaller(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: UpdateAuthorizedCaller,
+  ) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.updateAuthorizedCaller.encode(body).asCell(),
+    })
+  }
+
+  async sendUpdateBehavior(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: UpdateBehavior,
+  ) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.updateBehavior.encode(body).asCell(),
+    })
+  }
+
   async getId(provider: ContractProvider): Promise<number> {
     const { stack } = await provider.get('getId', [])
     return stack.readNumber()
   }
 
-  async getOffRampAddress(provider: ContractProvider): Promise<Address> {
-    const { stack } = await provider.get('getOfframpAddress', [])
+  async getAuthorizedCaller(provider: ContractProvider): Promise<Address> {
+    const { stack } = await provider.get('getAuthorizedCaller', [])
     return stack.readAddress()
+  }
+
+  async getBehavior(provider: ContractProvider): Promise<number> {
+    const { stack } = await provider.get('getBehavior', [])
+    return stack.readNumber()
   }
 
   async getFacilityId(provider: ContractProvider): Promise<number> {
@@ -108,14 +148,25 @@ export class Receiver implements Contract {
 export const builder = {
   data: (() => {
     const contractData: CellCodec<ReceiverStorage> = {
-      encode: (config: ReceiverStorage): Builder => {
-        return beginCell().storeUint(config.id, 32).storeAddress(config.offramp)
+      encode: (storage: ReceiverStorage): Builder => {
+        return beginCell()
+          .storeUint(storage.id, 32)
+          .storeBuilder(ownable2step.builder.data.traitData.encode(storage.ownable))
+          .storeAddress(storage.authorizedCaller)
+          .storeUint(storage.behavior, 8)
       },
 
       load: (src: Slice): ReceiverStorage => {
+        const id = src.loadUint(32)
+        const ownable = ownable2step.builder.data.traitData.load(src)
+        const authorizedCaller = src.loadAddress()
+        const behavior = src.loadUint(8)
+
         return {
-          id: src.loadUint(32),
-          offramp: src.loadAddress(),
+          id,
+          ownable,
+          authorizedCaller,
+          behavior,
         }
       },
     }
@@ -130,7 +181,7 @@ export const builder = {
         encode: (opts: CCIPReceive): Builder => {
           return beginCell()
             .storeUint(Opcodes.ccipReceive, 32)
-            .storeUint(opts.rootId, 224)
+            .storeUint(opts.rootId, 192)
             .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
         },
         load: function (src: Slice): CCIPReceive {
@@ -138,14 +189,46 @@ export const builder = {
           src.skip(32)
 
           return {
-            rootId: src.loadUintBig(224),
+            rootId: src.loadUintBig(192),
             message: OffRampBuilder.data.any2TVMMessage.load(src),
+          }
+        },
+      }
+
+      const updateAuthorizedCaller: CellCodec<UpdateAuthorizedCaller> = {
+        encode: (opts: UpdateAuthorizedCaller): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.updateAuthorizedCaller, 32)
+            .storeAddress(opts.authorizedCaller)
+        },
+        load: function (src: Slice): UpdateAuthorizedCaller {
+          // TODO We can check that the opcode matches
+          src.skip(32)
+
+          return {
+            authorizedCaller: src.loadAddress(),
+          }
+        },
+      }
+
+      const updateBehavior: CellCodec<UpdateBehavior> = {
+        encode: (opts: UpdateBehavior): Builder => {
+          return beginCell().storeUint(Opcodes.updateBehavior, 32).storeUint(opts.behavior, 8)
+        },
+        load: function (src: Slice): UpdateBehavior {
+          // TODO We can check that the opcode matches
+          src.skip(32)
+
+          return {
+            behavior: src.loadUint(8),
           }
         },
       }
 
       return {
         ccipReceive,
+        updateAuthorizedCaller,
+        updateBehavior,
       }
     })(),
   },

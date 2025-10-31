@@ -6,7 +6,7 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "0.0.2";
+const CONTRACT_VERSION = "0.0.3";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);
@@ -27,12 +27,10 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-
 fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     var st = ReceiveExecutor_Storage.load();
 
     assert(sender == st.owner, Error.Unauthorized);
-    assert(st.state == ReceiveExecutor_MessageState.Untouched, Error.StateIsNotUntouched);
 
     //TODO 
 
@@ -82,6 +80,7 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
         body: OffRamp_NotifySuccess {
             header: messageHeader,
             execId: st.execId,
+            root: st.root,
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -108,6 +107,7 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
         body: OffRamp_NotifyFailure {
             header: messageHeader,
             execId: st.execId,
+            root: st.root,
         },
     });
     notifySuccess.send(SEND_MODE_REGULAR);

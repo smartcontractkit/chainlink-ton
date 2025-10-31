@@ -4,6 +4,7 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: '@ton/sandbox/jest-environment',
   modulePathIgnorePatterns: ['/node_modules/', '/dist/', '/vendor/'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/gas-report/'], // exclude gas report tests (run separately with yarn ccip-gas-report)
   reporters: [
     'default',
     [
