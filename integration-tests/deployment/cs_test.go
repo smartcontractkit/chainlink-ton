@@ -266,6 +266,7 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("FetchTokenPrice", func(t *testing.T) {
+		// known token address, price updated during changeset execution
 		addr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99")
 		tonAddrBytes, err := addrCodec.AddressStringToBytes(addr.String())
 		require.NoError(t, err)
@@ -275,7 +276,30 @@ func TestDeploy(t *testing.T) {
 		}
 
 		require.NoError(t, err)
-		require.Len(t, updates, 1)
+		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)])
+		require.Equal(t, int64(99), updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)].Value.Int64())
+
+		//random address, should return empty token price
+		addr = address.MustParseAddr("kQDpbpFeXR2DGPQcAY_Fr8b1owx_K6LbvRoz9Ct-JJv4JkPH")
+		tonAddrBytes, err = addrCodec.AddressStringToBytes(addr.String())
+		require.NoError(t, err)
+		updates, err = accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
+
+		require.NoError(t, err)
+		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)])
+		require.Equal(t, int64(0), updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)].Value.Int64())
+	})
+
+	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
+		// evm chain selector
+		feePriceUpdate, err := accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
+		require.NoError(t, err)
+		require.NotEqual(t, "0", feePriceUpdate[ccipocr3.ChainSelector(evmSelector)].Value.String())
+
+		// unknown chain selector, returns default values
+		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(1)})
+		require.NoError(t, err)
+		require.Equal(t, "0", feePriceUpdate[ccipocr3.ChainSelector(1)].Value.String())
 	})
 
 	t.Run("GetConfig", func(t *testing.T) {
