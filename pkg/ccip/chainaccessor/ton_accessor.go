@@ -263,7 +263,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1).                              // only get the last one
+		Limit(1). // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -720,6 +720,8 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	ctx context.Context,
 	tokens []ccipocr3.UnknownAddress,
 ) (map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, error) {
+	// NOTE: Currently, input tokens are mostly LINK and the native token, so batching is not implemented
+	// to keep the TON accessor simple. Batching can be added later if needed, such as for performance bottlenecks.
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return nil, err
