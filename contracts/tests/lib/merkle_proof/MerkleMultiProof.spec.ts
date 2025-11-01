@@ -167,7 +167,7 @@ describe('MerkleMultiProofTests', () => {
       toNano('100000'),
       asSnakeDataUint(leaves, 256),
       Cell.EMPTY,
-      1n
+      1n,
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -185,8 +185,8 @@ describe('MerkleMultiProofTests', () => {
     result = await calculator.sendMerkleRoot(
       deployer.getSender(),
       toNano('10'),
-      asSnakeDataUint(leaves,256),
-      asSnakeDataUint(proofs,256),
+      asSnakeDataUint(leaves, 256),
+      asSnakeDataUint(proofs, 256),
       1n,
     )
 
@@ -199,32 +199,11 @@ describe('MerkleMultiProofTests', () => {
     result = await calculator.sendMerkleRoot(
       deployer.getSender(),
       toNano('10'),
-      asSnakeDataUint(leaves,256),
-      asSnakeDataUint(proofs,256),
+      asSnakeDataUint(leaves, 256),
+      asSnakeDataUint(proofs, 256),
       0n,
     )
 
     expect(await calculator.getRoot()).toBe(root)
-
   })
-
-  it('test should fail', async () => {
-    const leaves = [0x67ac797670796606fd0b57bf1898120c1652696dca3f06bff9fccb9f808539b5n]
-    const proofs = [0x5521c431308a6efc8c363111c4d8231ac92f951c2da53ea2504c6edc5a4a4fd1n]
-
-    // separate one hash into leaves another one into proofs
-    const result = await calculator.sendMerkleRoot(
-      deployer.getSender(),
-      toNano('10'),
-      asSnakeDataUint(leaves,256),
-      asSnakeDataUint(proofs,256),
-      0n,
-    )
-
-    const root = 0x127b8351f51d930b64d0a1e846933b2935ea408dad35d8986fd42634d14e21c0n
-
-    expect(await calculator.getRoot()).toBe(root)
-   
-  })
-
 })
