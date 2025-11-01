@@ -53,7 +53,7 @@ struct (0x31768d95) Router_CCIPSend {
 
 //crc32("Router_RouteMessage")
 struct (0xfc69c50b) Router_RouteMessage {
-    message: Cell<Any2TVMMessage>; //TODO maybe without typed cell it fits
+    message: Cell<Any2TVMMessage>;
     execId: uint192;
     receiver: address;
 }

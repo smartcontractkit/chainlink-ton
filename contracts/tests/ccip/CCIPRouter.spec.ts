@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, beginCell, Slice } from '@ton/core'
+import { toNano, Address, Cell, Dictionary, beginCell, } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
@@ -11,7 +11,7 @@ import {
 import '@ton/test-utils'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
-import { generateRandomTonAddress, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
+import { generateRandomTonAddress, ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
@@ -21,7 +21,6 @@ import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
-import { chdir } from 'process'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
