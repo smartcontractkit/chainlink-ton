@@ -206,12 +206,7 @@ export class Router
       .storeUint(opts.queryId ?? 0, 64)
       .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
 
-    if (!opts.offRampAdd) {
-      bs.storeBit(false)
-    } else {
-      bs.storeBit(true)
-      bs.storeAddress(opts.offRampAdd)
-    }
+    bs.storeMaybeBuilder(opts.offRampAdd && beginCell().storeAddress(opts.offRampAdd))
     bs.storeRef(asSnakeDataUint(opts.sourceChainSelectorRemove, 64))
     if (!opts.offRampRemove) {
       bs.storeBit(false)
