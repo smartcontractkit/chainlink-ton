@@ -3,7 +3,6 @@ import "storage"
 import "errors"
 import "../onramp/messages"
 import "../onramp/types"
-import "../common/types"
 import "../common/messages"
 import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
@@ -14,7 +13,6 @@ import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
-import "../fee_quoter/errors"
 import "../../lib/receiver/messages"
 import "../offramp/messages"
 import "@stdlib/lisp-lists"
@@ -53,6 +51,8 @@ fun onInternalMessage(in: InMessage) {
 fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy Router_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
+      // We are lazy matching and only accessing the first element of the struct.
+      // The rest of the data is not a part of the bounced body so it cannot be accessed
       Receiver_CCIPReceive => { ccipReceiveBounced(msg.execId, in.senderAddress) }
     }
 }
