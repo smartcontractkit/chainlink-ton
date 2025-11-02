@@ -90,11 +90,11 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerKeys   common.SnakeData[SignerKey] `tlb:"^"`      // vec<uint256>
-	SignerGroups common.SnakeData[uint8]     `tlb:"^"`      // vec<uint8>
-	GroupQuorums *cell.Dictionary            `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents *cell.Dictionary            `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot    bool                        `tlb:"bool"`
+	SignerKeys   common.SnakeData[SignerKey]   `tlb:"^"`      // vec<uint256>
+	SignerGroups common.SnakeData[SignerGroup] `tlb:"^"`      // vec<uint8>
+	GroupQuorums *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot    bool                          `tlb:"bool"`
 }
 
 // Submit an oracle error report, which marks the current root as invalid.
@@ -225,6 +225,10 @@ type Proof struct {
 
 type SignerKey struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+type SignerGroup struct {
+	Value uint8 `tlb:"## 8"` // The value of the struct
 }
 
 // Length of serialized signer structure in bytes.
