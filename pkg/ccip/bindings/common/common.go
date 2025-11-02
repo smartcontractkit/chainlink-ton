@@ -69,7 +69,7 @@ type TypeAndVersion struct {
 	Version string `tlb:"str"`
 }
 
-func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
+func (t *TypeAndVersion) UnmarshalResult(result *ton.ExecutionResult) error {
 	typ, err := result.Slice(0)
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return FetchResultHelper(ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
+	return FetchResultHelper(ctx, client, block, contractAddr, VersionGetter, nil, t)
 }
 
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
@@ -486,7 +486,7 @@ func FetchResultHelper(
 	contractAddr *address.Address,
 	method string,
 	opts []interface{},
-	fromResult func(*ton.ExecutionResult) error,
+	v tvm.ResultUnmarshaler,
 ) error {
 	var result *ton.ExecutionResult
 	var err error
@@ -500,5 +500,5 @@ func FetchResultHelper(
 		return err
 	}
 
-	return fromResult(result)
+	return tvm.LoadFromResult(v, result)
 }

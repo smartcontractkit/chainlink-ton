@@ -30,6 +30,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var ErrNoBindings = errors.New("no bindings found")
@@ -350,7 +351,7 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	var timestampedPrice feequoter.TimestampedPrice
-	err = timestampedPrice.FromResult(result)
+	err = tvm.LoadFromResult(&timestampedPrice, result)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}

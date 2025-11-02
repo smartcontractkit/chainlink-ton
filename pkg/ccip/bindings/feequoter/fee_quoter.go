@@ -107,7 +107,7 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
-func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	isEnabledInt, err := result.Int(0)
 	if err != nil {
 		return err
@@ -206,7 +206,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c)
 }
 
 type TokenTransferFeeConfig struct {
@@ -224,7 +224,7 @@ type TimestampedPrice struct {
 }
 
 // TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
-func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
+func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 	value, err := result.Int(0)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p)
 }
 
 type TokenPriceUpdate struct {
@@ -308,7 +308,7 @@ type StaticConfig struct {
 	StalenessThreshold uint32
 }
 
-func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	maxFeeJuelsPerMsg, err := result.Int(0)
 	if err != nil {
 		return err
@@ -334,5 +334,5 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s)
 }
