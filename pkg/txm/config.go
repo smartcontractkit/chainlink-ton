@@ -50,8 +50,8 @@ func (c *Config) ApplyDefaults() {
 }
 
 func (c *Config) ValidateConfig() (err error) {
-	if c.BroadcastChanSize <= 0 {
-		err = errors.Join(config.ErrInvalid{Name: "BroadcastChanSize", Msg: "must be greater than 0"})
+	if c.BroadcastChanSize == 0 {
+		err = errors.Join(err, config.ErrInvalid{Name: "BroadcastChanSize", Msg: "must be greater than 0"})
 	}
 	return err
 }
