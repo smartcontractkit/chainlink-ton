@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -43,9 +44,13 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := receiver.Storage{
-		ID:     in.ID,
-		Router: in.RouterAddress,
-		RejectAll: false,
+		ID: in.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		AuthorizedCaller: in.RouterAddress,
+		Behavior:         receiver.Accept,
 	}
 
 	initData, err := tlb.ToCell(storage)
