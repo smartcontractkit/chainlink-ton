@@ -114,9 +114,9 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
         dest: {
             stateInit: { //the ReceiveExecutor address
                 code: st.deployables.load().deployer,
-                data: Deployable {
+                data: Deployable<ReceiveExecutorId> {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE),
+                    id: msg.execId,
                 }.toCell(), 
             },
         },
@@ -186,9 +186,9 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
         dest: {
             stateInit: {
                 code: st.deployables.load().deployer,
-                data: Deployable {
+                data: Deployable<ReceiveExecutorId> {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE),
+                    id: msg.execId,
                 }.toCell(),
             }
         },
@@ -290,8 +290,6 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
         st.sourceChainConfigs.replaceIfExists(root.sourceChainSelector, sourceChainConfig);
 
-        val rootId = getOwnedMerkleRootContractId(root.merkleRoot);
-
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: true, // TODO: could bounce if root already exists but i don't think we shuold handle it
@@ -299,9 +297,9 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
             dest: {
                 stateInit: {
                     code: st.deployables.load().deployer,
-                    data: Deployable {
+                    data: Deployable<MerkleRootId> {
                         owner: contract.getAddress(),
-                        id: rootId,
+                        id: root.merkleRoot,
                     }.toCell(),
                 },
                 // TODO: toShard so it's collocated with offramp
@@ -420,9 +418,9 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
          dest: {
              stateInit: {
                  code: st.deployables.load().deployer,
-                 data: Deployable {
+                 data: Deployable<MerkleRootId> {
                      owner: contract.getAddress(),
-                     id: getOwnedMerkleRootContractId(root),
+                     id: root,
                  }.toCell(),
              },
              // TODO: toShard so it's collocated with offramp
@@ -479,7 +477,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
 
     val message = msg.message.load();
 
-    assertSenderIsOwnedContract(st, sender, getOwnedMerkleRootContractId(msg.root));
+    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.root, MERKLE_ROOT_ID_SIZE));
 
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: message.header.sourceChainSelector,
@@ -494,15 +492,14 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
 fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, metadataHash: uint256) {
     // Deploy executor
     val messageId = message.generateMessageId(metadataHash);
-    val execIdBuilder = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
-    val execIdValue = execIdBuilder.endCell().beginParse().loadUint(RECEIVE_EXECUTOR_ID_SIZE);
+    val execId = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
 
     val executorAddress: AutoDeployAddress = {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: Deployable {
+            data: Deployable<ReceiveExecutorId> {
                 owner: contract.getAddress(),
-                id: execIdBuilder,
+                id: execId,
             }.toCell()
         }
     };
@@ -519,7 +516,7 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
                     owner: contract.getAddress(),
                     message: message.toCell(), 
                     root: rootAddress,
-                    execId: execIdValue,
+                    execId: execId,
                 }.toCell(),
             }
         },
@@ -536,7 +533,7 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
 }
 
 //TODO remove repeated
-fun getSourceChainSelectorFromExecId(execId: uint192): uint64 {
+fun getSourceChainSelectorFromExecId(execId: ReceiveExecutorId): uint64 {
     var cs = beginCell().storeUint(execId, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
     return cs.loadUint(64);
 }
@@ -546,19 +543,18 @@ fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
     return sourceChainConfig.router;
 }
 
-fun getOwnedMerkleRootContractId(root: uint256): builder {
-    return beginCell().storeUint(root, MERKLE_ROOT_ID_SIZE);
-}
-
 // ExecId is made from the sourceChainSelector + 160 bits of internal messageId
 @inline
-fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: uint64): builder {
+fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: uint64): ReceiveExecutorId {
     var cs = beginCell().storeUint(messageId, 256)
         .endCell().beginParse();
     
     return beginCell()
         .storeUint(sourceChainSelector, 64)
-        .storeUint(cs.loadUint(RECEIVE_EXECUTOR_ID_SIZE - 64), RECEIVE_EXECUTOR_ID_SIZE - 64);
+        .storeUint(cs.loadUint(RECEIVE_EXECUTOR_ID_SIZE - 64), RECEIVE_EXECUTOR_ID_SIZE - 64)
+        .endCell()
+        .beginParse()
+        .loadUint(RECEIVE_EXECUTOR_ID_SIZE);
 }
 
 @inline
