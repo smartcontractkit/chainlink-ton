@@ -10,18 +10,19 @@ import {
   Sender,
   SendMode,
   Slice,
+  TupleItem,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
+import { asSnakeData, asSnakeDataUint, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 import { CellCodec } from '../utils'
 
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
-export const ROUTER_CONTRACT_VERSION = '0.0.6'
+export const ROUTER_CONTRACT_VERSION = '0.0.7'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
@@ -32,17 +33,25 @@ export enum RouterError {
 }
 
 export type Storage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
-
   onRamps: Dictionary<bigint, Address>
+  offRamps: Dictionary<bigint, Address>
 }
 
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static setRamps = 0x10000001
-  static ccipSend = 0x00000001
+  static setRamps = 0x20272c81
+  static ccipSend = 0x31768d95
+  static updateOffRamps = 0x234110a7
+  static ccipReceiveConfirm = 0x1e55bbf6
+  static routeMessage = 0xfc69c50b
+}
+
+export type Ramp = {
+  chainSelector: bigint //64
+  address: Address
 }
 
 export class Router
@@ -63,7 +72,7 @@ export class Router
     return new Router(contractAddress(workchain, init), init)
   }
 
-  async onRamp(provider: ContractProvider, chainSelector: bigint) {
+  async getOnRamp(provider: ContractProvider, chainSelector: bigint) {
     return await provider
       .get('onRamp', [
         {
@@ -72,6 +81,51 @@ export class Router
         },
       ])
       .then((r) => r.stack.readAddress())
+  }
+
+  async getOffRamp(provider: ContractProvider, chainSelector: bigint) {
+    return await provider
+      .get('offRamp', [
+        {
+          type: 'int',
+          value: BigInt(chainSelector),
+        },
+      ])
+      .then((r) => r.stack.readAddress())
+  }
+
+  async getOnRamps(provider: ContractProvider) {
+    const result = await provider.get('onRamps', [])
+    const items = result.stack.readLispList()
+    const onRamps = items.map((t: TupleItem) => {
+      if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+        throw Error('Not a cell: ' + t.type)
+      }
+      const cs = t.cell.beginParse()
+      const ramp: Ramp = {
+        chainSelector: cs.loadUintBig(64),
+        address: cs.loadAddress(),
+      }
+      return ramp
+    })
+    return onRamps
+  }
+
+  async getOffRamps(provider: ContractProvider) {
+    const result = await provider.get('offRamps', [])
+    const items = result.stack.readLispList()
+    const offRamps = items.map((t: TupleItem) => {
+      if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+        throw Error('Not a cell: ' + t.type)
+      }
+      const cs = t.cell.beginParse()
+      const ramp: Ramp = {
+        chainSelector: cs.loadUintBig(64),
+        address: cs.loadAddress(),
+      }
+      return ramp
+    })
+    return offRamps
   }
 
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
@@ -132,6 +186,40 @@ export class Router
         .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
         .endCell(),
+    })
+  }
+
+  async sendUpdateOffRamps(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+      sourceChainSelectorAdd: bigint[]
+      offRampAdd?: Address
+      sourceChainSelectorRemove: bigint[]
+      offRampRemove?: Address
+    },
+  ) {
+    const bs = beginCell()
+      .storeUint(Opcodes.updateOffRamps, 32)
+      .storeUint(opts.queryId ?? 0, 64)
+      .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
+
+    bs.storeMaybeBuilder(opts.offRampAdd && beginCell().storeAddress(opts.offRampAdd))
+    bs.storeRef(asSnakeDataUint(opts.sourceChainSelectorRemove, 64))
+    if (!opts.offRampRemove) {
+      bs.storeBit(false)
+    } else {
+      bs.storeBit(true)
+      bs.storeAddress(opts.offRampRemove)
+    }
+    const body = bs.endCell()
+
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body,
     })
   }
 
@@ -211,6 +299,10 @@ export const ExtraArgsOpcodes = {
   svmV1: 0x1f3b3aba,
 }
 
+export type CCIPReceiveConfirm = {
+  rootId: bigint
+}
+
 export const builder = {
   data: (() => {
     const contractData: CellCodec<Storage> = {
@@ -224,13 +316,15 @@ export const builder = {
               : null,
           )
           .storeDict(config.onRamps)
+          .storeDict(config.offRamps)
       },
 
       load: (src: Slice): Storage => {
         return {
-          id: src.loadUint(32),
+          id: src.loadUintBig(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
           onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
+          offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
         }
       },
     }
@@ -296,9 +390,23 @@ export const builder = {
           }
         },
       }
+      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
+        encode: (confirm: CCIPReceiveConfirm): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(confirm.rootId, 192)
+        },
+        load: (src: Slice): CCIPReceiveConfirm => {
+          expect(src.loadUint(32)).toBe(Opcodes.ccipReceiveConfirm)
+          return {
+            rootId: src.loadUintBig(192),
+          }
+        },
+      }
 
       return {
         ccipSend,
+        ccipReceiveConfirm,
       }
     })(),
   },

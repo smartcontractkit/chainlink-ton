@@ -25,7 +25,7 @@ export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
 export const ONRAMP_FACILITY_ID = 181
 export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
 
-export const ONRAMP_CONTRACT_VERSION = '0.0.8'
+export const ONRAMP_CONTRACT_VERSION = '0.0.9'
 
 export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
 export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436

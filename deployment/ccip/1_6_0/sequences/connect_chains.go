@@ -116,6 +116,17 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 
 		// TODO update router with offramps. Let's add this functionality once vincent finishes the contract work
 
+		updateRouterOffRampsConfig, err := intoUpdateRouterOfframpsConfig(input)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router offramps config: %w", err)
+		}
+		b.Logger.Infow("Updating Router", "input", updateRouterOffRampsConfig)
+		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOfframpsOp, deps, updateRouterOffRampsConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
+		}
+		txs = append(txs, routerReport.Output...)
+
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
@@ -238,10 +249,29 @@ func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.Upda
 	}
 
 	return operation.UpdateRouterOnrampsInput{
-		onRampAddrStr: []router.DestChainSelector{
+		onRampAddrStr: []router.ChainSelector{
 			{
 				Value: input.Dest.Selector,
 			},
 		},
+	}, nil
+}
+
+func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.UpdateRouterOfframpsInput, error) {
+	addressCodec := codec.NewAddressCodec()
+	offRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OffRamp)
+	if err != nil {
+		return operation.UpdateRouterOfframpsInput{}, fmt.Errorf("failed to convert offramp address to string: %w", err)
+	}
+
+	return operation.UpdateRouterOfframpsInput{
+		OffRampAdd: map[string][]router.ChainSelector{
+			offRampAddrStr: []router.ChainSelector{
+				{
+					Value: input.Source.Selector,
+				},
+			},
+		},
+		OffRampRemove: nil,
 	}, nil
 }

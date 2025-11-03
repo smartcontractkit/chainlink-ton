@@ -14,16 +14,14 @@ type OffRamp_InMessage =
     | OffRamp_ManuallyExecute
     | OffRamp_DispatchValidated
     | OffRamp_UpdateSourceChainConfig
-    | OCR3Base_SetOCR3Config
     | OffRamp_CCIPReceiveConfirm
+    | OffRamp_CCIPReceiveBounced
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
+    | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
-    | Withdrawable_Withdraw
-    ;
-
-type OffRamp_BouncedMessage =  Receiver_CCIPReceive;
+    | Withdrawable_Withdraw;
 
 //crc32('OffRamp_Commit')
 struct (0x9d431905) OffRamp_Commit {
@@ -45,7 +43,7 @@ struct (0x27bdac33) OffRamp_Execute {
 //crc32('OffRamp_ExecuteValidated')
 struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
-    root: uint256;
+    root: MerkleRootId;
     metadataHash: uint256;
 }
 
@@ -73,19 +71,26 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 
 //crc32('OffRamp_CCIPReceiveConfirm')
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
-    execId: uint192;
+    execId: ReceiveExecutorId;
+    receiver: address;
 }
 
-//TODO crc32('OffRamp_NotifySuccess')
+//crc32("OffRamp_CCIPReceiveBounced")
+struct (0x2dcf2a43) OffRamp_CCIPReceiveBounced {
+    execId: ReceiveExecutorId;
+    receiver: address;
+}
+
+//crc32('OffRamp_NotifySuccess')
 struct (0x59e56170) OffRamp_NotifySuccess {
     header: RampMessageHeader;
-    execId: uint192;
+    execId: ReceiveExecutorId;
     root: address;
 }
 
-//TODO crc32('OffRamp_NotifyFailure')
+//crc32('OffRamp_NotifyFailure')
 struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
-    execId: uint192;
+    execId: ReceiveExecutorId;
     root: address;
 }

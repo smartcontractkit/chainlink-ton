@@ -9,7 +9,7 @@ import "messages"
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
 import "../../../lib/utils";
-import "../../../ccip/offramp/messages";
+import "../../router/messages"
 import "../../../lib/access/ownable_2step"
 
 const CONTRACT_VERSION = "0.0.4";
@@ -60,7 +60,7 @@ fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
         bounce: true,
         value: ton("0.05"), //TODO how much do we need to send
         dest: senderAddress,
-        body: OffRamp_CCIPReceiveConfirm {
+        body: Router_CCIPReceiveConfirm {
             execId: msg.execId,
         }
     });
