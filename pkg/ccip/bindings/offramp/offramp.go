@@ -58,7 +58,6 @@ type Storage struct {
 	ID                                      uint32                  `tlb:"## 32"`
 	Ownable                                 ccipcommon.Ownable2Step `tlb:"."`
 	Deployables                             Deployables             `tlb:"^"`
-	FeeQuoter                               *address.Address        `tlb:"addr"`
 	OCR3Base                                *cell.Cell              `tlb:"^"` // TODO:
 	ChainSelector                           uint64                  `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32                  `tlb:"## 32"`
@@ -68,9 +67,11 @@ type Storage struct {
 
 // Deployables holds the deployable code cells for the offRamp contract
 type Deployables struct {
-	Deployer            *cell.Cell `tlb:"^"`
-	MerkleRootCode      *cell.Cell `tlb:"^"`
-	ReceiveExecutorCode *cell.Cell `tlb:"^"`
+	FeeQuoter           *address.Address `tlb:"addr"`
+	Router              *address.Address `tlb:"addr"`
+	Deployer            *cell.Cell       `tlb:"^"`
+	MerkleRootCode      *cell.Cell       `tlb:"^"`
+	ReceiveExecutorCode *cell.Cell       `tlb:"^"`
 }
 
 // ConfigInfo represents the configuration information for OCR3

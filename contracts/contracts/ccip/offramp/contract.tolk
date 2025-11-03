@@ -476,7 +476,7 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
 fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
     var st = Storage.load();
     // Only allow updates to come through the router
-    assert(sender == st.router, ERROR_ONLY_CALLABLE_BY_OWNER);
+    assert(sender == st.deployables.load().router, ERROR_ONLY_CALLABLE_BY_OWNER);
     st.cursedSubjects = msg.cursedSubjects;
     st.store();
 }
@@ -600,7 +600,7 @@ get fun config(): Config {
     val st = lazy Storage.load();
     return {
         chainSelector: st.chainSelector,
-        feeQuoter: st.feeQuoter,
+        feeQuoter: st.deployables.load().feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
     }
 }

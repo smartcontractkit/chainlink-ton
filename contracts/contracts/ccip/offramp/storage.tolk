@@ -7,8 +7,6 @@ struct Storage {
     id: uint32;
     ownable: Ownable2Step;
     deployables: Cell<OffRamp_Deployables>;
-    feeQuoter: address;
-    router: address;
     ocr3Base: Cell<OCR3Base>
     cursedSubjects: CursedSubjects;
 

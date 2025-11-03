@@ -24,6 +24,7 @@ type DeployOffRampInput struct {
 	ID                                      uint32
 	ChainSelector                           uint64
 	FeeQuoter                               *address.Address
+	Router                                  *address.Address
 	PermissionlessExecutionThresholdSeconds uint32
 	ContractPath                            string
 	DeployerContractPath                    string
@@ -76,6 +77,8 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
+			FeeQuoter:           in.FeeQuoter,
+			Router:              in.Router,
 			Deployer:            deployerCode,
 			MerkleRootCode:      merkleRootCode,
 			ReceiveExecutorCode: receiveExecutorCode,
@@ -86,7 +89,6 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			MustStoreBoolBit(false).
 			MustStoreBoolBit(false).
 			EndCell(),
-		FeeQuoter:                               in.FeeQuoter,
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.PermissionlessExecutionThresholdSeconds,
 		SourceChainConfigs:                      nil,

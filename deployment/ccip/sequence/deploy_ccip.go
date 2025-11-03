@@ -164,6 +164,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
+			FeeQuoter:           &feeQuoterAddress,
+			Router:              &routerAddress,
 			Deployer:            tonCompiledContracts[state.Deployer].Code,
 			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
 			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,
@@ -174,7 +176,6 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			MustStoreBoolBit(false).
 			MustStoreBoolBit(false).
 			EndCell(),
-		FeeQuoter:                               &feeQuoterAddress,
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 		LatestPriceSequenceNumber: 0,
