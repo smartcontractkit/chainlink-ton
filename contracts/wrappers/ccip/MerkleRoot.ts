@@ -23,10 +23,10 @@ export const MERKLE_ROOT_FACILITY_ID = 479
 export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
 
 export enum MerkleRootError {
-  StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
-  UpdatingStateOfNonExecutedMessage,
-  NotificationFromInvalidReceiver,
+  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
   NotOwner,
+  ManualExecutionNotYetEnabled,
+  SkippedAlreadyExecutedMessage,
 }
 
 export type TokenBalance = {
@@ -37,10 +37,11 @@ export type TokenBalance = {
 export type MerkleRootStorage = {
   rootId: bigint
   owner: Address
-  state: number
-  executionState: number
-  tokenBalance: TokenBalance
-  message: or.Any2TVMMessage | null
+  timestamp: bigint //64
+  minMsgNr: bigint //64
+  maxMsgNr: bigint //64
+  messageStates: bigint // seq_num offset -> state (2 bits) //128 bitmap
+  deliveredMessageCount: bigint //16
 }
 
 export const builder = {
@@ -62,27 +63,30 @@ export const builder = {
     const contractData: CellCodec<MerkleRootStorage> = {
       encode: (data: MerkleRootStorage): Builder => {
         return beginCell()
-          .storeUint(data.rootId, 224)
+          .storeUint(data.rootId, 256)
           .storeAddress(data.owner)
-          .storeUint(data.state, 8)
-          .storeUint(data.executionState, 8)
-          .storeBuilder(tokenBalanceBuilder.encode(data.tokenBalance))
+          .storeUint(data.timestamp, 64)
+          .storeUint(data.minMsgNr, 64)
+          .storeUint(data.maxMsgNr, 64)
+          .storeUint(data.messageStates, 128)
+          .storeUint(data.deliveredMessageCount, 16)
       },
       load: (src: Slice): MerkleRootStorage => {
         const rootId = src.loadUintBig(224)
         const owner = src.loadAddress()
-        const state = src.loadUint(8)
-        const executionState = src.loadUint(8)
-        const tokenBalance = tokenBalanceBuilder.load(src)
-        const msgCell = src.loadMaybeRef()
-        const message = msgCell && or.builder.data.any2TVMMessage.load(msgCell.beginParse())
+        const timestamp = src.loadUintBig(64)
+        const minMsgNr = src.loadUintBig(64)
+        const maxMsgNr = src.loadUintBig(64)
+        const messageStates = src.loadUintBig(128)
+        const deliveredMessageCount = src.loadUintBig(16)
         return {
           rootId,
           owner,
-          state,
-          executionState,
-          tokenBalance,
-          message,
+          timestamp,
+          minMsgNr,
+          maxMsgNr,
+          messageStates,
+          deliveredMessageCount,
         }
       },
     }

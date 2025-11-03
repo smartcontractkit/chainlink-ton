@@ -15,7 +15,7 @@ import {
   UpdateAuthorizedCaller,
   UpdateBehavior,
 } from '../../wrappers/ccip/Receiver'
-import { builder as OffRampBuilder } from '../../wrappers/ccip/OffRamp'
+import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
@@ -110,7 +110,7 @@ describe('Receiver', () => {
       to: deployer.address,
       success: true,
       deploy: false,
-      body: OffRampBuilder.message.in.ccipReceiveConfirm
+      body: rt.builder.message.in.ccipReceiveConfirm
         .encode({ rootId: ccipReceiveSampleMessage.rootId })
         .endCell(),
     })

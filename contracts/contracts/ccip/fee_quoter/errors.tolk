@@ -1,6 +1,4 @@
-import "../../lib/utils"
-
-enum Error {
+enum FeeQuoter_Error {
     UnsupportedChainFamilySelector = 24800 // Facility ID * 100
     GasLimitTooHigh
     ExtraArgOutOfOrderExecutionMustBeTrue

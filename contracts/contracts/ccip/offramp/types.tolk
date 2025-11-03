@@ -103,6 +103,14 @@ struct OffRamp_Deployables {
 const MERKLE_ROOT_ID_SIZE = 256;
 const RECEIVE_EXECUTOR_ID_SIZE = 192;
 
+type ReceiveExecutorId = uint192;
+type MerkleRootId = uint256;
+
+fun ReceiveExecutorId.getSourceChainSelector(self): uint64 {
+    var cs = beginCell().storeUint(self, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
+    return cs.loadUint(64);
+}
+
 // These have to match the EVM states
 enum ExecutionState: uint8 { // TODO: compress to uint2?
     Untouched = 0
