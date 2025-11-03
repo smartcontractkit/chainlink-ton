@@ -187,7 +187,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
         value: 0, // TODO:
         dest: wallet,
         body: AskToTransferFwdPayload {
-            queryId: sendMsg.queryId,
+            queryId: sendMsg.queryID,
             jettonAmount: transferNotification.amount,
             transferRecipient: onRamp,
             sendExcessesTo: contract.getAddress(),
@@ -229,6 +229,7 @@ fun onSendACK(msg: Router_MessageSent, sender: address) {
         value: 0,
         dest: msg.sender,
         body: Router_CCIPSendACK {
+            queryID: msg.queryID,
             messageId: msg.messageId,
         }
     });

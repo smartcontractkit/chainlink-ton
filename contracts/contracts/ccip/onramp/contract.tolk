@@ -231,6 +231,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
         value: 0,
         dest: destChainConfig.router,
         body: Router_MessageSent {
+            queryID: ccipsend.queryID,
             messageId: rampMessage.header.messageId,
             destChainSelector: ccipsend.destChainSelector,
             sender: payload.metadata.sender,

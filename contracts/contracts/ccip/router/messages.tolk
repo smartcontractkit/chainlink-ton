@@ -42,9 +42,10 @@ struct (0x234110a7) Router_UpdateOffRamps {
 
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
+// Answers with Router_CCIPReceive
 //crc32("Router_CCIPSend")
 struct (0x31768d95) Router_CCIPSend {
-    queryId: uint64;
+    queryID: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;
     data: cell;
@@ -67,6 +68,7 @@ struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
 
 // 0x6513f8e1 = crc32b("Router_MessageSent")
 struct (0x6513f8e1) Router_MessageSent {
+    queryID: uint64;
     messageId: uint256;
     destChainSelector: uint64;
     sender: address;
@@ -77,5 +79,6 @@ struct (0x6513f8e1) Router_MessageSent {
 // TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
 // crc32("Router_CCIPSendACK")
 struct (0x78d0f21e) Router_CCIPSendACK {
+    queryID: uint64;
     messageId: uint256;
 }

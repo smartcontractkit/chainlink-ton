@@ -672,7 +672,8 @@ describe('Router', () => {
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {
-              return ccipSendACK.messageId != 0n
+              console.log(ccipSendACK)
+              return ccipSendACK.queryID == BigInt(ccipSend.queryID!) && ccipSendACK.messageId != 0n
             },
           })
         },
@@ -902,7 +903,7 @@ describe('Router', () => {
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {
-              return ccipSendACK.messageId != 0n
+              return ccipSendACK.queryID == BigInt(ccipSend.queryID!) && ccipSendACK.messageId != 0n
             },
           })
         },
@@ -1179,7 +1180,7 @@ function verifyBodyIsRouterMessageSent(
 function verifyBodyIsRouterCCIPSendACK(
   body: Cell | undefined,
   options: {
-    validation?: (ack: rt.MessageSent) => boolean
+    validation?: (ack: rt.CCIPSendACK) => boolean
   } = {},
 ): boolean {
   const { validation } = options

@@ -280,12 +280,14 @@ export type CCIPSend = {
 }
 
 export type MessageSent = {
+  queryID: bigint
   messageId: bigint
   destChainSelector: bigint
   sender: Address
 }
 
 export type CCIPSendACK = {
+  queryID: bigint
   messageId: bigint
 }
 
@@ -432,6 +434,7 @@ export const builder = {
         encode: (opts: MessageSent): Builder => {
           return beginCell()
             .storeUint(Opcodes.messageSent, 32)
+            .storeUint(opts.queryID, 64)
             .storeUint(opts.messageId, 256)
             .storeUint(opts.destChainSelector, 64)
             .storeAddress(opts.sender)
@@ -439,6 +442,7 @@ export const builder = {
         load: function (src: Slice): MessageSent {
           src.skip(32)
           return {
+            queryID: src.loadUintBig(64),
             messageId: src.loadUintBig(256),
             destChainSelector: src.loadUintBig(64),
             sender: src.loadAddress(),
@@ -455,11 +459,15 @@ export const builder = {
     out: (() => {
       const ccipSendACK: CellCodec<CCIPSendACK> = {
         encode: (opts: CCIPSendACK): Builder => {
-          return beginCell().storeUint(Opcodes.ccipSendACK, 32).storeUint(opts.messageId, 256)
+          return beginCell()
+            .storeUint(Opcodes.ccipSendACK, 32)
+            .storeUint(opts.queryID, 64)
+            .storeUint(opts.messageId, 256)
         },
         load: function (src: Slice): CCIPSendACK {
           src.skip(32)
           return {
+            queryID: src.loadUintBig(64),
             messageId: src.loadUintBig(256),
           }
         },
