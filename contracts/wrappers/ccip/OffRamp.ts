@@ -127,7 +127,7 @@ export type Any2TVMRampMessage = {
   sender: CrossChainAddress
   data: Cell
   receiver: Address
-  // gasLimit: bigint ,
+  gasLimit: bigint ,
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
@@ -582,6 +582,7 @@ function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
     )
     .storeRef(message.data)
     .storeAddress(message.receiver)
+    .storeCoins(message.gasLimit)
     .storeMaybeRef(message.tokenAmounts)
 }
 

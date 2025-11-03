@@ -116,7 +116,6 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
           .storeUint(message.header.messageId, 256)
           .storeAddress(message.receiver)
           .storeUint(message.header.sequenceNumber, 64)
-          // .storeCoins(message.gasLimit)
           .storeUint(message.header.nonce, 64)
           .endCell(),
       )
@@ -129,6 +128,7 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
       )
       //rest of the message
       .storeRef(message.data)
+      .storeCoins(message.gasLimit)
       .storeMaybeRef(message.tokenAmounts)
       .endCell()
       .hash()

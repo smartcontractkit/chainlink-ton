@@ -23,7 +23,13 @@ import "../router/messages"
 import "../../lib/receiver/types"
 
 const CONTRACT_VERSION = "0.0.12";
-const RESERVE = ton("1"); // TODO: set correct value
+const RESERVE = ton("5"); 
+
+// TODO: handle signals from MerkleRoot for releaseTokens
+
+// NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
+// (or init contract state with that router addr? probably what solana does)
+
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -112,7 +118,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
         bounce: true,
         value: ton("0.05"),
         dest: {
-            stateInit: { //the ReceiveExecutor address
+            stateInit: { //ReceiveExecutor address
                 code: st.deployables.load().deployer,
                 data: Deployable<ReceiveExecutorId> {
                     owner: contract.getAddress(),
@@ -199,13 +205,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     receiveConfirm.send(SEND_MODE_REGULAR);
 }
 
-// TODO: handle signals from MerkleRoot for releaseTokens
-// maybe send these and MerkleRoot_Execute straight to router
-// the payload would need the id & chainSelector so we can calculate/validate offrampAddress & that the merkle root is allowed to send for that ID
-// NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
-// (or init contract state with that router addr? probably what solana does)
 
-//TODO: This function should relay to the router
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     val st = Storage.load();
     assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
@@ -215,7 +215,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
     val routeMessage = createMessage({
         bounce: true,
-        value: ton("0.1"), //TODO use message gas limit
+        value: ton("0.1"),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -223,14 +223,15 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                 sourceChainSelector: message.header.sourceChainSelector,
                 sender: CrossChainAddress.fromCell(message.sender),
                 data: message.data
+                gasLimit: msg
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
+            gasLimit: message.gasLimit
         }
     });
 
     routeMessage.send(SEND_MODE_REGULAR);
-    //TODO send message to router_routeMessage
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {

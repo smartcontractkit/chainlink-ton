@@ -57,6 +57,7 @@ struct (0xfc69c50b) Router_RouteMessage {
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;
     receiver: address;
+    gasLimit: coins;
 }
 
 //crc32("Router_CCIPReceiveConfirm")

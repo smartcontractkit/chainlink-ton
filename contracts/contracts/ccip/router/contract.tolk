@@ -72,12 +72,11 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
 
     val messageForReceiver = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO: use the gas limit from the message
+        value: msg.gasLimit
         dest: msg.receiver,
         body: ccipReceive
     });
     messageForReceiver.send(SEND_MODE_REGULAR);
-
 }
 
 fun onSetRamps(msg: Router_SetRamps, sender: address) {
