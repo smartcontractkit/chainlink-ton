@@ -237,6 +237,18 @@ export class Router
     })
   }
 
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[]> {
+    const res = await provider.get('destChainSelectors', [])
+    const tupleItems = res.stack.readLispList()
+    const chainSelectors: bigint[] = tupleItems.map((t: TupleItem) => {
+      if (t.type != 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return chainSelectors
+  }
+
   // Withdrawable methods
   async sendWithdraw(
     provider: ContractProvider,

@@ -1,5 +1,14 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
+import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import {
+  toNano,
+  Address,
+  Cell,
+  Dictionary,
+  beginCell,
+  Message,
+  CommonMessageInfoInternal,
+  TransactionDescriptionGeneric,
+} from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
@@ -306,6 +315,21 @@ describe('Router', () => {
         })
       }
     }
+
+    // Configure onRamp on router
+    {
+      const result = await router.sendSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
+        onRamp: onRamp.address,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
   })
 
   it('update router onramps in batch', async () => {
@@ -442,22 +466,83 @@ describe('Router', () => {
     }
   })
 
-  it('onramp arbitrary message passing', async () => {
-    // Configure onRamp on router
-    {
-      const result = await router.sendSetRamps(deployer.getSender(), {
-        value: toNano('1'),
-        queryID: 0,
-        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
-        onRamp: onRamp.address,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
-        success: true,
-      })
+  it('doesnt lose balance on messageSent fees', async () => {
+    const initialRouterBalance = (await blockchain.getContract(router.address)).balance
+
+    const ccipSend: rt.CCIPSend = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
     }
 
+    const result = await onRamp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
+      value: toNano('0.05'),
+      body: {
+        messageID: 42n,
+        msg: rt.builder.message.in.ccipSend.encode(ccipSend).asCell(),
+        metadata: {
+          sender: deployer.address,
+        },
+        fee: toNano('0.01'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: router.address,
+      success: true,
+      op: rt.Opcodes.messageSent,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: deployer.address,
+      success: true,
+      op: rt.Opcodes.ccipSendACK,
+    })
+
+    const finalRouterBalance = (await blockchain.getContract(router.address)).balance
+
+    const relayTX = result.transactions.find((tx) => {
+      return (
+        tx.inMessage != null &&
+        tx.inMessage != undefined &&
+        tx.inMessage.info.src != null &&
+        tx.inMessage.info.src != undefined &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(onRamp.address) &&
+        tx.inMessage.info.dest != null &&
+        tx.inMessage.info.dest != undefined &&
+        tx.inMessage.info.dest instanceof Address &&
+        tx.inMessage.info.dest.equals(router.address) &&
+        tx.description.type === 'generic'
+      )
+    }) as BlockchainTransaction & {
+      inMessage: Message & { info: CommonMessageInfoInternal }
+      description: TransactionDescriptionGeneric
+    }
+    const rentFee = relayTX.description.storagePhase?.storageFeesCollected ?? 0n
+
+    expect(finalRouterBalance).toBe(initialRouterBalance - rentFee)
+  })
+
+  it('onramp arbitrary message passing', async () => {
     const ccipSend: rt.CCIPSend = {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -597,21 +682,6 @@ describe('Router', () => {
 
   // TODO: This test is only asserting the user interface. It should be extended to assert the actual fee payment
   it('onramp token transfer - paid with TON', async () => {
-    // Configure onRamp on router
-    {
-      const result = await router.sendSetRamps(deployer.getSender(), {
-        value: toNano('1'),
-        queryID: 0,
-        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
-        onRamp: onRamp.address,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
-        success: true,
-      })
-    }
-
     // Setup Jetton
     const { jettonMinter, provideUserWalletFor } = await setupJetton(
       blockchain,

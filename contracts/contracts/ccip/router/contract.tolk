@@ -221,8 +221,8 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
 
 fun onSendACK(msg: Router_MessageSent, sender: address) {
     val st = lazy Storage.load();
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
-    assert (sender == onRamp) throw Error.NotOnRamp;
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert (sender == onRamp) throw Router_Error.NotOnRamp;
 
     val ackMsg = createMessage({
         bounce: true,

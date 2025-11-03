@@ -77,6 +77,13 @@ export type UpdateDestChainConfig = {
   allowlistEnabled: boolean
 }
 
+export type ExecutorFinishedSuccessfully = {
+  messageID: bigint
+  msg: Cell | rt.CCIPSend
+  metadata: Metadata
+  fee: bigint
+}
+
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
     return beginCell().storeAddress(data.sender)
@@ -155,6 +162,31 @@ export const builder = {
           },
         }
       })(),
+      executorFinishedSuccessfully: ((): CellCodec<ExecutorFinishedSuccessfully> => {
+        return {
+          encode: function (data: ExecutorFinishedSuccessfully): Builder {
+            return beginCell()
+              .storeUint(Opcodes.executorFinishedSuccessfully, 32)
+              .storeUint(data.messageID, 224)
+              .storeRef(
+                data.msg instanceof Cell
+                  ? data.msg
+                  : rt.builder.message.in.ccipSend.encode(data.msg),
+              )
+              .storeBuilder(metadataCodec.encode(data.metadata))
+              .storeUint(data.fee, 64)
+          },
+          load: function (src: Slice): ExecutorFinishedSuccessfully {
+            src.skip(32)
+            return {
+              messageID: src.loadUintBig(224),
+              msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+              metadata: metadataCodec.load(src),
+              fee: src.loadUintBig(64),
+            }
+          },
+        }
+      })(),
     },
   },
 }
@@ -165,6 +197,7 @@ export abstract class Opcodes {
   static setDynamicConfig = 0x10000003
   static updateDestChainConfigs = 0x10000004
   static onrampSend = 0x10000002
+  static executorFinishedSuccessfully = 0xcfa6b336
 }
 
 export abstract class Errors {}
@@ -269,6 +302,21 @@ export class OnRamp implements Contract, withdrawable.Interface {
           ),
         )
         .endCell(),
+    })
+  }
+
+  async sendExecutorFinishedSuccessfully(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      body: ExecutorFinishedSuccessfully
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.executorFinishedSuccessfully.encode(opts.body).asCell(),
     })
   }
 
