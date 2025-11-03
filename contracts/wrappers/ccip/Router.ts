@@ -402,7 +402,7 @@ export const builder = {
             .storeUint(confirm.rootId, 192)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
-            expect(src.loadUint(32)).toBe(Opcodes.ccipReceiveConfirm)
+          expect(src.loadUint(32)).toBe(Opcodes.ccipReceiveConfirm)
           return {
             rootId: src.loadUintBig(192),
           }

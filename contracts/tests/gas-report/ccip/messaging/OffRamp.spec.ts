@@ -477,12 +477,15 @@ describe('CCIP OffRamp Gas Estimation', () => {
     {
       const receiverCode = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({
-          id: 0,
-          ownable: { owner: deployer.address, pendingOwner: null },
-          authorizedCaller: router.address,
+        Receiver.createFromConfig(
+          {
+            id: 0,
+            ownable: { owner: deployer.address, pendingOwner: null },
+            authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,
-        }, receiverCode),
+          },
+          receiverCode,
+        ),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('1'))
       expect(result.transactions).toHaveTransaction({
