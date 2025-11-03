@@ -222,12 +222,11 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                 messageId: message.header.messageId,
                 sourceChainSelector: message.header.sourceChainSelector,
                 sender: CrossChainAddress.fromCell(message.sender),
-                data: message.data
-                gasLimit: msg
+                data: message.data,
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
-            gasLimit: message.gasLimit
+            gasLimit: message.gasLimit,
         }
     });
 

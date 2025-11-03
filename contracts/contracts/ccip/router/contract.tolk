@@ -72,9 +72,9 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
 
     val messageForReceiver = createMessage({
         bounce: true,
-        value: msg.gasLimit
+        value: msg.gasLimit,
         dest: msg.receiver,
-        body: ccipReceive
+        body: ccipReceive,
     });
     messageForReceiver.send(SEND_MODE_REGULAR);
 }
