@@ -742,12 +742,12 @@ describe('OffRamp - Unit Tests', () => {
     const messageIdHash = generateMessageId(message, metadataHash)
     const messageId = uint8ArrayToBigInt(messageIdHash)
 
-    // Log the hash for copying to Go test
-    const hashHex = messageId.toString(16).padStart(64, '0')
-    console.log('Expected hash for Go test:', hashHex)
+    // Uncomment to log the hash to update Go test
+    //const hashHex = messageId.toString(16).padStart(64, '0')
+    //console.log('Expected hash for Go test:', hashHex)
 
     // Basic validation that we got a valid hash
-    expect(messageId).toBeGreaterThan(0n)
+    expect(messageId).toBe(0xeb8aad87a4ec888a0c1527a51f778a7539cf5a4084159e3e928abb6ac909a183n)
   })
 
   it('Test execute fails when root was not committed', async () => {
