@@ -3,7 +3,7 @@ import "types"
 import "../onramp/messages"
 
 struct CCIPSendExecutor<T> {
-    messageId: uint224,
+    messageID: uint224,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: Cell<T>,
@@ -13,7 +13,7 @@ fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
     val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
     assert (st.state is Cell<T>) throw CCIPSendExecutor_Error.StateNotExpected; // invalid state
     return CCIPSendExecutor<T> {
-        messageId: st.messageId,
+        messageID: st.messageId,
         onrampSend: st.onrampSend,
         addresses: st.addresses,
         state: st.state,

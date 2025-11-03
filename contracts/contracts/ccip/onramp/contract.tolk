@@ -32,6 +32,9 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
         }
+        OnRamp_ExecutorFinishedWithError => {
+            replyWithError(msg, in.senderAddress);
+        }
         OnRamp_SetDynamicConfig => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -237,8 +240,29 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
             sender: payload.metadata.sender,
         },
     });
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE); // TEST: This should be enough to keep the reserve after sending the confirmation
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
+fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
+    var st = lazy OnRamp_Storage.load();
+    // TODO validate sender is executor msg.msgId
+
+    val ccipsend: Router_CCIPSend = payload.msg.load();
+    val metadata = payload.metadata;
+
+    val errorMsg = createMessage({
+        bounce: false,
+        value: 0,
+        dest: st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector as int).router,
+        body: Router_MessageRejected {
+            queryID: ccipsend.queryID,
+            destChainSelector: ccipsend.destChainSelector,
+            sender: metadata.sender,
+            error: payload.error,
+        },
+    });
+    errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 

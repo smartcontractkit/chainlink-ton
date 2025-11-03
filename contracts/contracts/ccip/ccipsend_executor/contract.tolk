@@ -7,6 +7,7 @@ import "../onramp/messages"
 import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
+import "../onramp/errors"
 
 const CONTRACT_VERSION = "0.0.6";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
@@ -23,6 +24,10 @@ fun onInternalMessage(in: InMessage) {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             this.onMessageValidated(msg, in.senderAddress);
         }
+        CCIPSendExecutor_MessageValidationFailed<Metadata> => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+            this.onMessageValidationFailed(msg, in.senderAddress);
+        }
         Common_JettonTransferNotification => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.load();
             // TODO match refunds from TokenPool
@@ -37,7 +42,7 @@ fun onInternalMessage(in: InMessage) {
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
-        messageId: st.messageId,
+        messageID: st.messageId,
         onrampSend: onrampSend,
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
@@ -55,7 +60,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self, 
     } else {
         getValidatedFee(self.addresses.load().feeQuoter, self.onrampSend);
         val newState = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> {
-            messageId: self.messageId,
+            messageID: self.messageID,
             onrampSend: self.onrampSend,
             addresses: self.addresses,
             state: CCIPSendExecutor_State_OnGoingFeeValidation {
@@ -74,14 +79,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
         value: ton("0.05"), // TODO
         dest: self.addresses.load().onramp,
         body: OnRamp_WithdrawJettons {
-            msgId: self.messageId,
+            msgId: self.messageID,
             tokens: ccipSend.tokenAmounts,
             onrampJettonWallet: onrampJettonWallet,
         }
     });
     withdrawMsg.send(SEND_MODE_REGULAR);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons> {
-        messageId: self.messageId,
+        messageID: self.messageID,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_WaitingForJettons {
@@ -95,7 +100,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
     // TODO query token registry for token pool
     getValidatedFee(self.addresses.load().feeQuoter, self.onrampSend); // temporary
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> {
-        messageId: self.messageId,
+        messageID: self.messageID,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_OnGoingFeeValidation { // TODO change to OnGoingTokenRegistryQuery
@@ -128,7 +133,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
     if (msg.fee > contract.getOriginalBalance()) {
-        // TODO: handle insufficient funds
+        // self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
+        // return;
     }
 
     if (self.state.load().pendingJettonLock == null) {
@@ -147,10 +153,32 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
-            msgId: self.messageId,
+            msgId: self.messageID,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
             fee,
+        }
+    });
+    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);
+}
+
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: CCIPSendExecutor_MessageValidationFailed<Metadata>, sender: address) {
+    // notification must come from fee quoter
+    val addresses = lazy self.addresses.load();
+    assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
+    self.exitWithError(msg.error as uint256, sender);
+}
+
+fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, sender: address) {
+    val sendMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: self.addresses.load().onramp,
+        body: OnRamp_ExecutorFinishedWithError {
+            msgID: self.messageID,
+            msg: self.onrampSend.msg,
+            metadata: self.onrampSend.metadata,
+            error: error,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);

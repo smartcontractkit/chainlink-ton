@@ -41,6 +41,7 @@ fun onInternalMessage(in: InMessage) {
             }.withdraw(msg, in.valueCoins);
         }
         Router_MessageSent => { onSendACK(msg, in.senderAddress) }
+        Router_MessageRejected => { onSendNACK(msg, in.senderAddress) }
         Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -235,6 +236,24 @@ fun onSendACK(msg: Router_MessageSent, sender: address) {
     });
 
     ackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onSendNACK(msg: Router_MessageRejected, sender: address) {
+    val st = lazy Storage.load();
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
+    assert (sender == onRamp) throw Error.NotOnRamp;
+
+    val nackMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: msg.sender,
+        body: Router_CCIPSendNACK {
+            queryID: msg.queryID,
+            error: msg.error,
+        }
+    });
+
+    nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {

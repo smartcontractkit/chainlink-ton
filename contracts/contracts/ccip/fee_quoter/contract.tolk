@@ -398,19 +398,33 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
 
 fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
     val msg = payload.msg.load();
-    val feeTokenAmount = validatedFee(msg);
+    var response: OutMessage;
+    try {
+        val feeTokenAmount = validatedFee(msg);
 
-    val getValidatedFeeMsg = createMessage({
-        bounce: true,
-        value: ton("0.05"), // TODO:
-        dest: sender,
-        body: CCIPSendExecutor_MessageValidated<cell> {
-            msg: payload.msg,
-            metadata: payload.metadata,
-            fee: feeTokenAmount,
-        }
-    });
-    getValidatedFeeMsg.send(SEND_MODE_REGULAR);
+        response = createMessage({
+            bounce: true,
+            value: ton("0.05"), // TODO:
+            dest: sender,
+            body: CCIPSendExecutor_MessageValidated<cell> {
+                msg: payload.msg,
+                metadata: payload.metadata,
+                fee: feeTokenAmount,
+            }
+        });
+    } catch (e) {
+        response = createMessage({
+            bounce: true,
+            value: ton("0.05"), // TODO:
+            dest: sender,
+            body: CCIPSendExecutor_MessageValidationFailed<cell> {
+                msg: payload.msg,
+                metadata: payload.metadata,
+                error: e as uint256,
+            }
+        });
+    }
+    response.send(SEND_MODE_REGULAR);
 }
 
 // TODO: a lot of the as uint256 annotations seem to be unnecessary in this function

@@ -39,6 +39,7 @@ export enum OnRampError {
 export enum CCIPSendExecutorError {
   StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
   Unauthorized,
+  InsufficientFunds,
 }
 
 export type OnRampStorage = {
@@ -82,6 +83,13 @@ export type ExecutorFinishedSuccessfully = {
   msg: Cell | rt.CCIPSend
   metadata: Metadata
   fee: bigint
+}
+
+export type ExecutorFinishedWithError = {
+  messageID: bigint
+  msg: Cell | rt.CCIPSend
+  metadata: Metadata
+  error: bigint
 }
 
 const metadataCodec: CellCodec<Metadata> = {
@@ -188,6 +196,29 @@ export const builder = {
         }
       })(),
     },
+    executorFinishedWithError: ((): CellCodec<ExecutorFinishedWithError> => {
+      return {
+        encode: function (data: ExecutorFinishedWithError): Builder {
+          return beginCell()
+            .storeUint(Opcodes.executorFinishedWithError, 32)
+            .storeUint(data.messageID, 224)
+            .storeRef(
+              data.msg instanceof Cell ? data.msg : rt.builder.message.in.ccipSend.encode(data.msg),
+            )
+            .storeBuilder(metadataCodec.encode(data.metadata))
+            .storeUint(data.error, 256)
+        },
+        load: function (src: Slice): ExecutorFinishedWithError {
+          src.skip(32)
+          return {
+            messageID: src.loadUintBig(224),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            metadata: metadataCodec.load(src),
+            error: src.loadUintBig(256),
+          }
+        },
+      }
+    })(),
   },
 }
 export abstract class Params {}
@@ -198,6 +229,7 @@ export abstract class Opcodes {
   static updateDestChainConfigs = 0x10000004
   static onrampSend = 0x10000002
   static executorFinishedSuccessfully = 0xcfa6b336
+  static executorFinishedWithError = 0xc4068e21
 }
 
 export abstract class Errors {}
@@ -317,6 +349,21 @@ export class OnRamp implements Contract, withdrawable.Interface {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.executorFinishedSuccessfully.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendExecutorFinishedWithError(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      body: ExecutorFinishedWithError
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.executorFinishedWithError.encode(opts.body).asCell(),
     })
   }
 

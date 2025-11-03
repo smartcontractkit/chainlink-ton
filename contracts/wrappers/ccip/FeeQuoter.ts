@@ -331,6 +331,8 @@ export abstract class Opcodes {
   static updateFeeTokens = 0xd0984986
   static updateTransferFeeConfigs = 0xb2826316
   static updateDestChainConfig = 0x29950baa
+  static messageValidated = 0xcbc4af76
+  static messageValidationFailed = 0x0f756150
 }
 
 export type TokenPriceUpdate = {

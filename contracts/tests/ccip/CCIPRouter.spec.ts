@@ -514,7 +514,7 @@ describe('Router', () => {
       from: router.address,
       to: deployer.address,
       success: true,
-      op: rt.Opcodes.ccipSendACK,
+      op: rt.OutgoingOpcodes.ccipSendACK,
     })
 
     const finalRouterBalance = (await blockchain.getContract(router.address)).balance
@@ -668,7 +668,7 @@ describe('Router', () => {
         to: sender.address,
         deploy: false,
         success: true,
-        op: rt.Opcodes.ccipSendACK,
+        op: rt.OutgoingOpcodes.ccipSendACK,
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {
@@ -899,7 +899,7 @@ describe('Router', () => {
         to: sender.address,
         deploy: false,
         success: true,
-        op: rt.Opcodes.ccipSendACK,
+        op: rt.OutgoingOpcodes.ccipSendACK,
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {

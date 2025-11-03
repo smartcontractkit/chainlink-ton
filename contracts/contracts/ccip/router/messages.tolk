@@ -17,6 +17,7 @@ type Router_InMsg =
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     | Router_MessageSent
+    | Router_MessageRejected
     ;
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
@@ -74,6 +75,13 @@ struct (0x6513f8e1) Router_MessageSent {
     sender: address;
 }
 
+struct (0x8AE25114) Router_MessageRejected {
+    queryID: uint64;
+    destChainSelector: uint64;
+    sender: address;
+    error: uint256;
+}
+
 
 // TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
 // TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
@@ -81,4 +89,9 @@ struct (0x6513f8e1) Router_MessageSent {
 struct (0x78d0f21e) Router_CCIPSendACK {
     queryID: uint64;
     messageId: uint256;
+}
+
+struct (0x5a45d434) Router_CCIPSendNACK {
+    queryID: uint64;
+    error: uint256;
 }
