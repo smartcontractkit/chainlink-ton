@@ -9,6 +9,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -48,9 +50,10 @@ func ExecuteTransactions(context context.Context, logger logger.Logger, client *
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	for _, msg := range msg.OutgoingInternalReceivedMessages {
-		// check external messages for all marked as Success
-		logger.Infow("ReceivedMessage", "msg", msg)
+
+	if code := msg.OutcomeExitCode(); code != tvm.ExitCodeSuccess {
+		return fmt.Errorf("transaction failed with exit code: %d", code)
 	}
+
 	return nil
 }
