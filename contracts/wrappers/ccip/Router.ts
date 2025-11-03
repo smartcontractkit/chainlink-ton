@@ -47,6 +47,8 @@ export abstract class Opcodes {
   static updateOffRamps = 0x234110a7
   static ccipReceiveConfirm = 0x1e55bbf6
   static routeMessage = 0xfc69c50b
+  static messageSent = 0x6513f8e1
+  static ccipSendACK = 0x78d0f21e
 }
 
 export type Ramp = {
@@ -265,6 +267,16 @@ export type CCIPSend = {
   extraArgs: Cell
 }
 
+export type MessageSent = {
+  messageId: bigint
+  destChainSelector: bigint
+  sender: Address
+}
+
+export type CCIPSendACK = {
+  messageId: bigint
+}
+
 const tokenAmountCodec: CellCodec<TokenAmount> = {
   encode: (amount: TokenAmount): Builder => {
     return beginCell().storeCoins(amount.amount).storeAddress(amount.token)
@@ -404,9 +416,45 @@ export const builder = {
         },
       }
 
+      const messageSent: CellCodec<MessageSent> = {
+        encode: (opts: MessageSent): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.messageSent, 32)
+            .storeUint(opts.messageId, 256)
+            .storeUint(opts.destChainSelector, 64)
+            .storeAddress(opts.sender)
+        },
+        load: function (src: Slice): MessageSent {
+          src.skip(32)
+          return {
+            messageId: src.loadUintBig(256),
+            destChainSelector: src.loadUintBig(64),
+            sender: src.loadAddress(),
+          }
+        },
+      }
+
       return {
         ccipSend,
         ccipReceiveConfirm,
+        messageSent,
+      }
+    })(),
+    out: (() => {
+      const ccipSendACK: CellCodec<CCIPSendACK> = {
+        encode: (opts: CCIPSendACK): Builder => {
+          return beginCell().storeUint(Opcodes.ccipSendACK, 32).storeUint(opts.messageId, 256)
+        },
+        load: function (src: Slice): CCIPSendACK {
+          src.skip(32)
+          return {
+            messageId: src.loadUintBig(256),
+          }
+        },
+      }
+
+      return {
+        ccipSendACK,
       }
     })(),
   },

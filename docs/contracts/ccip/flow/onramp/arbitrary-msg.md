@@ -39,7 +39,7 @@ sequenceDiagram
     ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
-    OR ->> R: sendConfirmation{seqNum}<br>+ Recovered TON
+    OR ->> R: sendACK{seqNum}<br>+ Recovered TON
     end
     end
 ```

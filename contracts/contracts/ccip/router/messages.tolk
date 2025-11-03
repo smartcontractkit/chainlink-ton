@@ -16,6 +16,7 @@ type Router_InMsg =
     | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
+    | Router_MessageSent
     ;
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
@@ -62,4 +63,19 @@ struct (0xfc69c50b) Router_RouteMessage {
 //crc32("Router_CCIPReceiveConfirm")
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     execId: ReceiveExecutorId;
+}
+
+// 0x6513f8e1 = crc32b("Router_MessageSent")
+struct (0x6513f8e1) Router_MessageSent {
+    messageId: uint256;
+    destChainSelector: uint64;
+    sender: address;
+}
+
+
+// TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
+// TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
+// crc32("Router_CCIPSendACK")
+struct (0x78d0f21e) Router_CCIPSendACK {
+    messageId: uint256;
 }

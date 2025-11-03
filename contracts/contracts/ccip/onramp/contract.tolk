@@ -226,7 +226,18 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
-    // TODO: notify user
+    val confirmation = createMessage({
+        bounce: false,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_MessageSent {
+            messageId: rampMessage.header.messageId,
+            destChainSelector: ccipsend.destChainSelector,
+            sender: payload.metadata.sender,
+        },
+    });
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE); // TEST: This should be enough to keep the reserve after sending the confirmation
+    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 

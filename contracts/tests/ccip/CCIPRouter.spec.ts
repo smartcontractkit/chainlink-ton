@@ -458,25 +458,27 @@ describe('Router', () => {
       })
     }
 
+    const ccipSend: rt.CCIPSend = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+
     // router.ccipSend
     {
       const result = await router.sendCcipSend(sender.getSender(), {
         value: toNano('1'),
-        body: {
-          queryID: 1,
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: EVM_ADDRESS,
-          data: Cell.EMPTY,
-          tokenAmounts: [],
-          feeToken: TEST_TOKEN_ADDR,
-          extraArgs: rt.builder.data.extraArgs
-            .encode({
-              kind: 'generic-v2',
-              gasLimit: 100n,
-              allowOutOfOrderExecution: true,
-            })
-            .asCell(),
-        },
+        body: ccipSend,
       })
 
       const executorAddress = ((): Address => {
@@ -555,6 +557,41 @@ describe('Router', () => {
           sender: sender.address,
         },
       })
+
+      // The OnRamp sent Router_MessageSent message to the Router
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: router.address,
+        deploy: false,
+        success: true,
+        op: rt.Opcodes.messageSent,
+        body(x) {
+          return verifyBodyIsRouterMessageSent(x, {
+            validation: (messageSent) => {
+              return (
+                messageSent.destChainSelector == ccipSend.destChainSelector &&
+                messageSent.sender.equals(sender.address)
+              )
+            },
+          })
+        },
+      })
+
+      // Router sent Router_CCIPSendACK message to the sender
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: sender.address,
+        deploy: false,
+        success: true,
+        op: rt.Opcodes.ccipSendACK,
+        body(x) {
+          return verifyBodyIsRouterCCIPSendACK(x, {
+            validation: (ccipSendACK) => {
+              return ccipSendACK.messageId != 0n
+            },
+          })
+        },
+      })
     }
   })
 
@@ -586,23 +623,22 @@ describe('Router', () => {
     const senderJettonWallet = await provideUserWalletFor(sender.address)
 
     const jettonAmount = toNano('1')
-    const ccipSend = rt.builder.message.in.ccipSend
-      .encode({
-        queryID: 1,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: EVM_ADDRESS,
-        data: Cell.EMPTY,
-        tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
-        feeToken: TEST_TOKEN_ADDR,
-        extraArgs: rt.builder.data.extraArgs
-          .encode({
-            kind: 'generic-v2',
-            gasLimit: 100n,
-            allowOutOfOrderExecution: true,
-          })
-          .asCell(),
-      })
-      .asCell()
+    const ccipSend = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+    const msgPayload = rt.builder.message.in.ccipSend.encode(ccipSend).asCell()
 
     const transferMsg: jetton.AskToTransfer = {
       queryId: 0,
@@ -611,7 +647,7 @@ describe('Router', () => {
       responseDestination: sender.address,
       customPayload: null,
       forwardTonAmount: toNano('1'), // TODO This should be derived from the fee
-      forwardPayload: ccipSend,
+      forwardPayload: msgPayload,
     }
 
     // ccip send over jetton transfer
@@ -747,21 +783,58 @@ describe('Router', () => {
         success: true,
       })
 
-      // the executor called back the onRamp and self-destructed
+      // the executor called back the onRamp
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
         to: onRamp.address,
         deploy: false,
         success: true,
+        destroyed: false,
       })
 
       // assert CCIPMessageSent
+      // TODO extract messageID
       assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
         message: {
           header: {
             destChainSelector: CHAINSEL_EVM_TEST_90000001,
           },
           sender: sender.address,
+        },
+      })
+
+      // The OnRamp sent Router_MessageSent message to the Router
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: router.address,
+        deploy: false,
+        success: true,
+        op: rt.Opcodes.messageSent,
+        body(x) {
+          return verifyBodyIsRouterMessageSent(x, {
+            validation: (messageSent) => {
+              return (
+                messageSent.destChainSelector == ccipSend.destChainSelector &&
+                messageSent.sender.equals(sender.address)
+              )
+            },
+          })
+        },
+      })
+
+      // Router sent Router_CCIPSendACK message to the sender
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: sender.address,
+        deploy: false,
+        success: true,
+        op: rt.Opcodes.ccipSendACK,
+        body(x) {
+          return verifyBodyIsRouterCCIPSendACK(x, {
+            validation: (ccipSendACK) => {
+              return ccipSendACK.messageId != 0n
+            },
+          })
         },
       })
     }
@@ -1019,4 +1092,28 @@ function verifyBodyIsTransferNotificationWithFwdPayload<T>(
     jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
     validations,
   )
+}
+
+function verifyBodyIsRouterMessageSent(
+  body: Cell | undefined,
+  options: {
+    validation?: (ack: rt.MessageSent) => boolean
+  } = {},
+): boolean {
+  const { validation } = options
+  const validations = validation ? [validation] : []
+
+  return verifyBodyMessage(body, rt.builder.message.in.messageSent, validations)
+}
+
+function verifyBodyIsRouterCCIPSendACK(
+  body: Cell | undefined,
+  options: {
+    validation?: (ack: rt.MessageSent) => boolean
+  } = {},
+): boolean {
+  const { validation } = options
+  const validations = validation ? [validation] : []
+
+  return verifyBodyMessage(body, rt.builder.message.out.ccipSendACK, validations)
 }

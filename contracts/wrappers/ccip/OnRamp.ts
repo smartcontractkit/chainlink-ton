@@ -161,7 +161,7 @@ export const builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static ccipSend = 0x00000001
+  static ccipSend = 0x31768d95
   static setDynamicConfig = 0x10000003
   static updateDestChainConfigs = 0x10000004
   static onrampSend = 0x10000002
