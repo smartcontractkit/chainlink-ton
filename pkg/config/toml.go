@@ -9,6 +9,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 	relaytypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
 type TOMLConfig struct {
@@ -50,11 +53,14 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 
 func (c *TOMLConfig) SetDefaults() {
 	if c.TransactionManager == nil {
-		c.TransactionManager = DefaultConfigSet.TransactionManager
+		c.TransactionManager = &txm.Config{}
 	}
+	c.TransactionManager.ApplyDefaults()
+
 	if c.LogPoller == nil {
-		c.LogPoller = DefaultConfigSet.LogPoller
+		c.LogPoller = &logpoller.Config{}
 	}
+	c.LogPoller.ApplyDefaults()
 
 	// Set network name full defaults
 	if c.NetworkNameFull == "" {
@@ -90,6 +96,7 @@ func NodeStatus(n *Node, id string) (relaytypes.NodeStatus, error) {
 }
 
 func setFromChain(c, f *Chain) {
+	c.ClientTTL = f.ClientTTL
 	if f.TransactionManager != nil {
 		c.TransactionManager = f.TransactionManager
 	}
@@ -110,6 +117,9 @@ func (c *TOMLConfig) ValidateConfig() (err error) {
 			err = errors.Join(err, node.ValidateConfig())
 		}
 	}
+
+	err = errors.Join(c.TransactionManager.ValidateConfig())
+	err = errors.Join(c.LogPoller.ValidateConfig())
 
 	return
 }
