@@ -173,13 +173,11 @@ func (s *pgLogStore) QueryLogs(
 
 	// Convert ORM models to application models
 	logs = make([]models.Log, len(dbLogs))
-	for i, dbLog := range dbLogs {
-		var log models.Log
-		log, err = dbLog.ToLog()
+	for i := range dbLogs {
+		logs[i], err = dbLogs[i].ToLog()
 		if err != nil {
-			return nil, false, "", fmt.Errorf("failed to convert db log to model at index %d (id=%d): %w", i, dbLog.ID, err)
+			return nil, false, "", fmt.Errorf("failed to convert db log to model at index %d (id=%d): %w", i, dbLogs[i].ID, err)
 		}
-		logs[i] = log
 	}
 
 	// generate next cursor if there are more results

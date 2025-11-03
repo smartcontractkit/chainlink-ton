@@ -64,9 +64,8 @@ func (lp *service) processMessage(_ context.Context, tx *tlb.Transaction, block 
 	}
 
 	// find matching filters for the event
-	srcAddr := msg.Msg.SenderAddr()
 	filterKey := models.FilterKey{
-		Address:  srcAddr,
+		Address:  msg.Msg.SenderAddr(),
 		MsgType:  msg.MsgType,
 		EventSig: eventSig,
 	}
