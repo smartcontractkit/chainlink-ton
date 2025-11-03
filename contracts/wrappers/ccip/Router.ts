@@ -48,8 +48,8 @@ export abstract class Opcodes {
   static ccipReceiveConfirm = 0x1e55bbf6
   static routeMessage = 0xfc69c50b
   static curse = 0x10000002
-  static uncurse= 0x10000003
-  static verifyNotCursed= 0x10000004
+  static uncurse = 0x10000003
+  static verifyNotCursed = 0x10000004
 }
 
 export type Ramp = {
@@ -354,16 +354,17 @@ export const builder = {
           )
           .storeDict(config.onRamps)
           .storeDict(config.offRamps)
-          .storeRef( // RMN Remote
+          .storeRef(
+            // RMN Remote
             beginCell()
-            // default RMN admin to router owner
-            .storeAddress(config.ownable.owner)
-            .storeMaybeBuilder(
-              config.ownable.pendingOwner
-                ? beginCell().storeAddress(config.ownable.pendingOwner)
-                : null,
-            )
-            .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128)))
+              // default RMN admin to router owner
+              .storeAddress(config.ownable.owner)
+              .storeMaybeBuilder(
+                config.ownable.pendingOwner
+                  ? beginCell().storeAddress(config.ownable.pendingOwner)
+                  : null,
+              )
+              .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128))),
           )
       },
 

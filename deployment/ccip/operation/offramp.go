@@ -77,12 +77,12 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
-			FeeQuoter:           in.FeeQuoter,
 			Router:              in.Router,
 			Deployer:            deployerCode,
 			MerkleRootCode:      merkleRootCode,
 			ReceiveExecutorCode: receiveExecutorCode,
 		},
+		FeeQuoter: in.FeeQuoter,
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).

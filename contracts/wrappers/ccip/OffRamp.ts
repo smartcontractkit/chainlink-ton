@@ -164,13 +164,13 @@ export const builder = {
             )
             .storeRef(
               beginCell()
-                .storeAddress(storage.feeQuoter)
                 .storeAddress(storage.router)
                 .storeRef(storage.deployables.deployerCode)
                 .storeRef(storage.deployables.merkleRootCode)
                 .storeRef(storage.deployables.receiveExecutorCode)
                 .endCell(),
             )
+            .storeAddress(storage.feeQuoter)
             // empty OCR3Base::
             .storeRef(
               beginCell()

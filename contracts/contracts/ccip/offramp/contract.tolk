@@ -600,7 +600,7 @@ get fun config(): Config {
     val st = lazy Storage.load();
     return {
         chainSelector: st.chainSelector,
-        feeQuoter: st.deployables.load().feeQuoter,
+        feeQuoter: st.feeQuoter,
         permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
     }
 }

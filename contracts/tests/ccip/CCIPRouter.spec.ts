@@ -488,7 +488,6 @@ describe('Router', () => {
         success: false,
         exitCode: 49601, // subjectCursed
       })
-
     }
 
     // Uncurse the lane
