@@ -137,10 +137,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
     if (msg.fee > self.originalBalance) {
-        debug.printString("Insufficient funds to cover fee");
-        debug.print(msg.fee);
-        debug.print(self.originalBalance);
-        
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
         return;
     }

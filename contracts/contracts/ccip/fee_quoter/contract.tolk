@@ -44,7 +44,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates); // TODO: pass in st.destChainConfigs instead
             st.store();
         }
-        FeeQuoter_GetValidatedFee<cell> => { getValidatedFee(msg, in.senderAddress) }
+        FeeQuoter_GetValidatedFee<cell> => { handleGetValidatedFee(msg, in.senderAddress) }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -396,7 +396,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
 }
 
 
-fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
+fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {

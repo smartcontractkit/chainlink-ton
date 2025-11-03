@@ -75,7 +75,7 @@ struct (0x6513f8e1) Router_MessageSent {
     sender: address;
 }
 
-struct (0x8AE25114) Router_MessageRejected {
+struct (0x8ae25114) Router_MessageRejected {
     queryID: uint64;
     destChainSelector: uint64;
     sender: address;
