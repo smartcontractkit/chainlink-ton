@@ -39,7 +39,12 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 	dbLogs := make([]logModel, len(logs))
 	for i, log := range logs {
 		logModel := &logModel{}
-		dbLogs[i] = logModel.FromLog(log)
+		dbLog, err := logModel.FromLog(log)
+		if err != nil {
+			s.lggr.Errorw("Failed to convert log to DB model", "error", err, "txHash", log.TxHash, "address", log.Address.String())
+			return 0, fmt.Errorf("failed to convert log to DB model: %w", err)
+		}
+		dbLogs[i] = dbLog
 	}
 
 	// Build SQL and execute with transaction and batching
@@ -70,42 +75,44 @@ func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel
 func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
 	batchSize := int(batchInsertSize)
 	query := `INSERT INTO ton.log_poller_logs (
-			filter_id,
-			chain_id,
-			address,
-			event_sig,
-			data,
-			tx_hash,
-			tx_lt,
-			tx_timestamp,
-			msg_lt,
-			msg_index,
-			block_workchain,
-			block_shard,
-			block_seqno,
-			block_root_hash,
-			block_file_hash,
-			master_block_seqno,
-			created_at
-		) VALUES (
-			:filter_id,
-			:chain_id,
-			:address,
-			:event_sig,
-			:data,
-			:tx_hash,
-			:tx_lt,
-			:tx_timestamp,
-			:msg_lt,
-			:msg_index,
-			:block_workchain,
-			:block_shard,
-			:block_seqno,
-			:block_root_hash,
-			:block_file_hash,
-			:master_block_seqno,
-			NOW()
-		) ON CONFLICT (tx_hash, tx_lt, msg_index) DO NOTHING
+		filter_id,
+		chain_id,
+		address,
+		event_sig,
+		boc_header,
+		boc_payload,
+		tx_hash,
+		tx_lt,
+		tx_timestamp,
+		msg_lt,
+		msg_index,
+		block_workchain,
+		block_shard,
+		block_seqno,
+		block_root_hash,
+		block_file_hash,
+		master_block_seqno,
+		created_at
+	) VALUES (
+		:filter_id,
+		:chain_id,
+		:address,
+		:event_sig,
+		:boc_header,
+		:boc_payload,
+		:tx_hash,
+		:tx_lt,
+		:tx_timestamp,
+		:msg_lt,
+		:msg_index,
+		:block_workchain,
+		:block_shard,
+		:block_seqno,
+		:block_root_hash,
+		:block_file_hash,
+		:master_block_seqno,
+		NOW()
+	) ON CONFLICT (tx_hash, tx_lt, msg_index) DO NOTHING
 	`
 
 	var totalInserted int64

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"encoding/binary"
+	"math/big"
 	"testing"
 	"time"
 
@@ -11,6 +12,10 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
@@ -90,7 +95,8 @@ func TestLogModel_Conversion(t *testing.T) {
 
 	// Convert to database model and back
 	dbLogModel := logModel{}
-	dbLog := dbLogModel.FromLog(originalLog)
+	dbLog, err := dbLogModel.FromLog(originalLog)
+	require.NoError(t, err)
 	convertedLog, err := dbLog.ToLog()
 	require.NoError(t, err)
 
@@ -108,6 +114,225 @@ func TestLogModel_Conversion(t *testing.T) {
 	require.Equal(t, originalLog.MasterBlockSeqno, convertedLog.MasterBlockSeqno)
 	require.Equal(t, originalLog.MsgIndex, convertedLog.MsgIndex)
 
-	// Verify cell data can be read
+	// verify cell data can be read
 	require.NotNil(t, convertedLog.Data)
+
+	// verify boc split/join worked correctly
+	require.NotEmpty(t, dbLog.BocHeader)
+	require.NotEmpty(t, dbLog.BocPayload)
+}
+
+// TestCalculateBOCHeaderLen verifies dynamic header calculation is type-agnostic
+func TestCalculateBOCHeaderLen(t *testing.T) {
+	tests := []struct {
+		name      string
+		buildCell func() *cell.Cell
+	}{
+		{
+			name: "simple cell",
+			buildCell: func() *cell.Cell {
+				return cell.BeginCell().MustStoreUInt(0x12345678, 32).EndCell()
+			},
+		},
+		{
+			name: "cell with ref",
+			buildCell: func() *cell.Cell {
+				innerCell := cell.BeginCell().MustStoreUInt(0xABCD, 16).EndCell()
+				return cell.BeginCell().
+					MustStoreUInt(0x1234, 16).
+					MustStoreRef(innerCell).
+					EndCell()
+			},
+		},
+		{
+			name: "empty cell",
+			buildCell: func() *cell.Cell {
+				return cell.BeginCell().EndCell()
+			},
+		},
+		{
+			name: "large cell",
+			buildCell: func() *cell.Cell {
+				return cell.BeginCell().MustStoreSlice(make([]byte, 100), 800).EndCell()
+			},
+		},
+		{
+			name: "cell with multiple refs",
+			buildCell: func() *cell.Cell {
+				ref1 := cell.BeginCell().MustStoreUInt(0x1111, 16).EndCell()
+				ref2 := cell.BeginCell().MustStoreUInt(0x2222, 16).EndCell()
+				return cell.BeginCell().
+					MustStoreUInt(0xAAAA, 16).
+					MustStoreRef(ref1).
+					MustStoreRef(ref2).
+					EndCell()
+			},
+		},
+		{
+			name: "CCIP message sent event",
+			buildCell: func() *cell.Cell {
+				sender, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+				feeToken, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+
+				event := onramp.CCIPMessageSent{
+					Message: ocr.TVM2AnyRampMessage{
+						Header: ocr.RampMessageHeader{
+							MessageID:           make([]byte, 32),
+							SourceChainSelector: 1,
+							DestChainSelector:   2,
+							SequenceNumber:      100,
+							Nonce:               200,
+						},
+						Sender: sender,
+						Body: ocr.TVM2AnyRampMessageBody{
+							Receiver:       common.CrossChainAddress{0x01, 0x02},
+							Data:           common.SnakeBytes{0xAA, 0xBB, 0xCC},
+							ExtraArgs:      cell.BeginCell().EndCell(),
+							TokenAmounts:   cell.BeginCell().EndCell(),
+							FeeToken:       feeToken,
+							FeeTokenAmount: big.NewInt(1000000),
+						},
+						FeeValueJuels: big.NewInt(500000),
+					},
+				}
+
+				c, _ := tlb.ToCell(event)
+				return c
+			},
+		},
+		{
+			name: "CCIP execution state changed event",
+			buildCell: func() *cell.Cell {
+				event := offramp.ExecutionStateChanged{
+					SourceChainSelector: 1,
+					SequenceNumber:      100,
+					MessageID:           make([]byte, 32),
+					State:               2,
+				}
+
+				c, _ := tlb.ToCell(event)
+				return c
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalCell := tt.buildCell()
+			boc := originalCell.ToBOC()
+
+			// calculate header length dynamically
+			headerLen, err := calculateBOCHeaderLen(boc)
+			require.NoError(t, err)
+			require.Greater(t, headerLen, 0)
+			require.Less(t, headerLen, len(boc))
+
+			// verify split and join preserves data
+			header := boc[:headerLen]
+			payload := boc[headerLen:]
+
+			require.NotEmpty(t, header)
+			require.NotEmpty(t, payload)
+
+			reconstructedBOC := append(header, payload...)
+			require.Equal(t, boc, reconstructedBOC)
+
+			// verify cell reconstruction works
+			reconstructedCell, err := cell.FromBOC(reconstructedBOC)
+			require.NoError(t, err)
+			require.Equal(t, originalCell.Hash(), reconstructedCell.Hash())
+		})
+	}
+}
+
+// TestBOCPayloadByteFiltering verifies that split payload enables correct SQL byte filtering
+func TestBOCPayloadByteFiltering(t *testing.T) {
+	tests := []struct {
+		name          string
+		buildCell     func() *cell.Cell
+		expectedBytes map[int][]byte // offset -> expected bytes
+	}{
+		{
+			name: "simple uint32",
+			buildCell: func() *cell.Cell {
+				return cell.BeginCell().MustStoreUInt(0x12345678, 32).EndCell()
+			},
+			expectedBytes: map[int][]byte{
+				0: {0x12, 0x34, 0x56, 0x78}, // full uint32 at offset 0
+				1: {0x34, 0x56, 0x78},       // partial from offset 1
+			},
+		},
+		{
+			name: "CCIP execution state changed - verify field offsets",
+			buildCell: func() *cell.Cell {
+				event := offramp.ExecutionStateChanged{
+					SourceChainSelector: 0x0000000000000001,
+					SequenceNumber:      0x00000000000000FF,
+					MessageID:           make([]byte, 32),
+					State:               0x02,
+				}
+				c, _ := tlb.ToCell(event)
+				return c
+			},
+			expectedBytes: map[int][]byte{
+				0: {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, // source chain selector at offset 0
+				8: {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}, // sequence number at offset 8
+			},
+		},
+		{
+			name: "multiple uint32 values",
+			buildCell: func() *cell.Cell {
+				return cell.BeginCell().
+					MustStoreUInt(0xAABBCCDD, 32). // at offset 0
+					MustStoreUInt(0x11223344, 32). // at offset 4
+					MustStoreUInt(0xFFEEDDCC, 32). // at offset 8
+					EndCell()
+			},
+			expectedBytes: map[int][]byte{
+				0: {0xAA, 0xBB, 0xCC, 0xDD},
+				4: {0x11, 0x22, 0x33, 0x44},
+				8: {0xFF, 0xEE, 0xDD, 0xCC},
+				2: {0xCC, 0xDD, 0x11, 0x22}, // cross-boundary read
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			originalCell := tt.buildCell()
+			boc := originalCell.ToBOC()
+
+			// split using our function
+			headerLen, err := calculateBOCHeaderLen(boc)
+			require.NoError(t, err)
+
+			payload := boc[headerLen:]
+
+			// payload starts with 2-byte cell descriptor
+			// actual cell data starts at byte 2
+			cellData := payload[cellDescriptorSize:]
+
+			// verify expected bytes at each offset
+			for offset, expected := range tt.expectedBytes {
+				actual := cellData[offset : offset+len(expected)]
+				require.Equal(t, expected, actual,
+					"at offset %d: expected %x, got %x", offset, expected, actual)
+
+				// simulate SQL SUBSTRING query
+				// SQL is 1-based, and operates on boc_payload which includes descriptor
+				// so SQL offset = cell_data_offset + descriptor_size + 1
+				sqlOffset := offset + cellDescriptorSize + 1
+				sqlResult := payload[sqlOffset-1 : sqlOffset-1+len(expected)]
+				require.Equal(t, expected, sqlResult,
+					"SQL SUBSTRING(boc_payload, %d, %d) should return %x, got %x",
+					sqlOffset, len(expected), expected, sqlResult)
+			}
+
+			// verify cell reconstruction still works
+			reconstructedBOC := append(boc[:headerLen], payload...)
+			reconstructedCell, err := cell.FromBOC(reconstructedBOC)
+			require.NoError(t, err)
+			require.Equal(t, originalCell.Hash(), reconstructedCell.Hash())
+		})
+	}
 }

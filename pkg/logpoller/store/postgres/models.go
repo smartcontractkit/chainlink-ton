@@ -69,7 +69,8 @@ type logModel struct {
 	ChainID          string    `db:"chain_id"`
 	Address          string    `db:"address"`   // TON address in user-friendly format
 	EventSig         []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
-	Data             []byte    `db:"data"`
+	BocHeader        []byte    `db:"boc_header"`
+	BocPayload       []byte    `db:"boc_payload"`
 	TxHash           []byte    `db:"tx_hash"`
 	TxLT             string    `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
 	TxTimestamp      time.Time `db:"tx_timestamp"`
@@ -85,10 +86,19 @@ type logModel struct {
 }
 
 // FromLog converts a models.Log to logModel
-func (l *logModel) FromLog(log lptypes.Log) logModel {
-	var data []byte
+func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
+	var header, payload []byte
 	if log.Data != nil {
-		data = log.Data.ToBOC()
+		boc := log.Data.ToBOC()
+
+		// calculate header length dynamically based on BOC structure
+		headerLen, err := calculateBOCHeaderLen(boc)
+		if err != nil {
+			return logModel{}, fmt.Errorf("failed to calculate BOC header length for address %s: %w", log.Address.String(), err)
+		}
+
+		header = boc[:headerLen]
+		payload = boc[headerLen:]
 	}
 
 	eventSig := make([]byte, 4)
@@ -99,9 +109,10 @@ func (l *logModel) FromLog(log lptypes.Log) logModel {
 		ChainID:          log.ChainID,
 		Address:          log.Address.String(),
 		EventSig:         eventSig,
-		Data:             data,
+		BocHeader:        header,
+		BocPayload:       payload,
 		TxHash:           log.TxHash[:],
-		TxLT:             strconv.FormatUint(log.TxLT, 10), // Convert uint64 to string for NUMERIC(20,0) storage
+		TxLT:             strconv.FormatUint(log.TxLT, 10),
 		TxTimestamp:      log.TxTimestamp,
 		BlockWorkchain:   int(log.Block.Workchain),
 		BlockShard:       log.Block.Shard,
@@ -111,7 +122,7 @@ func (l *logModel) FromLog(log lptypes.Log) logModel {
 		MasterBlockSeqno: int64(log.MasterBlockSeqno),
 		MsgLT:            strconv.FormatUint(log.MsgLT, 10),
 		MsgIndex:         log.MsgIndex,
-	}
+	}, nil
 }
 
 // ToLog converts a logModel to models.Log
@@ -126,10 +137,11 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		return lptypes.Log{}, fmt.Errorf("failed to parse address %s: %w", l.Address, err)
 	}
 
-	// Convert BOC data back to cell.Cell
+	// reconstruct full BOC from header and payload
 	var cellData *cell.Cell
-	if len(l.Data) > 0 {
-		cellData, err = cell.FromBOC(l.Data)
+	if len(l.BocHeader) > 0 && len(l.BocPayload) > 0 {
+		fullBOC := append(l.BocHeader, l.BocPayload...)
+		cellData, err = cell.FromBOC(fullBOC)
 		if err != nil {
 			return lptypes.Log{}, fmt.Errorf("failed to parse cell data: %w", err)
 		}
@@ -173,4 +185,30 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		MsgLT:            msgLT,
 		MsgIndex:         l.MsgIndex,
 	}, nil
+}
+
+// cell descriptor is always 2 bytes
+const cellDescriptorSize = 2
+
+// calculateBOCHeaderLen calculates the header length of a BOC based on its structure
+// header = magic(4) + flags(1) + sizeBytes(1) + cellsNum(cellSizeBytes) + rootsNum(cellSizeBytes) +
+//
+//	completeNum(cellSizeBytes) + dataLen(sizeBytes) + rootIdx(cellSizeBytes)
+func calculateBOCHeaderLen(boc []byte) (int, error) {
+	if len(boc) < 6 {
+		return 0, fmt.Errorf("BOC too small: minimum 6 bytes required for header")
+	}
+
+	flags := boc[4]
+	cellSizeBytes := int(flags & 0x07) // last 3 bits
+	sizeBytes := int(boc[5])
+
+	// header size = fixed(6) + variable((4 × cellSizeBytes) + sizeBytes)
+	headerSize := 6 + (4 * cellSizeBytes) + sizeBytes
+
+	if len(boc) < headerSize {
+		return 0, fmt.Errorf("BOC too small for calculated header size %d, actual size %d", headerSize, len(boc))
+	}
+
+	return headerSize, nil
 }

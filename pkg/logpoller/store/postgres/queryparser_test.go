@@ -59,8 +59,8 @@ func TestBuildLogQuery_BasicQuery(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Check exact SQL structure
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC`
+	// check exact sql structure
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, boc_header, boc_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	// Check parameters
@@ -100,8 +100,8 @@ func TestBuildLogQuery_WithByteFilters(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Check exact SQL with byte filter: 4 + 1 + 14 = 19, size = 8 (filter.Size)
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND SUBSTRING(data, 19, 8) = :byte_value_0 ORDER BY address ASC, msg_lt ASC`
+	// byte filter: offset 4 + 1-based + cell descriptor 2 = 7
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, boc_header, boc_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND SUBSTRING(boc_payload, 7, 8) = :byte_value_0 ORDER BY address ASC, msg_lt ASC`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	// Check parameters
@@ -124,7 +124,7 @@ func TestBuildLogQuery_WithLimit(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check exact SQL with LIMIT (+1 for hasMore detection)
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC LIMIT 11`
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, boc_header, boc_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC LIMIT 11`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	params := args.(map[string]any)
@@ -150,7 +150,7 @@ func TestBuildLogQuery_WithSorting(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check exact SQL with ORDER BY
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_lt DESC`
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, boc_header, boc_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_lt DESC`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	params := args.(map[string]any)
@@ -177,7 +177,7 @@ func TestBuildLogQuery_WithCursor(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check exact SQL with cursor condition (PostgreSQL tuple comparison)
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (address, msg_lt) > (:cursor_address, :cursor_msg_lt) ORDER BY address ASC, msg_lt ASC LIMIT 6`
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, boc_header, boc_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (address, msg_lt) > (:cursor_address, :cursor_msg_lt) ORDER BY address ASC, msg_lt ASC LIMIT 6`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	// Check parameters include cursor values
