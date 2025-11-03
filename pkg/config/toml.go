@@ -39,6 +39,9 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 		return &TOMLConfig{}, fmt.Errorf("failed to decode config toml: %w:\n\t%s", err, rawConfig)
 	}
 
+	// Apply defaults before validation
+	cfg.SetDefaults()
+
 	if err := cfg.ValidateConfig(); err != nil {
 		return &TOMLConfig{}, fmt.Errorf("invalid ton config: %w", err)
 	}
@@ -46,8 +49,6 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 	if !cfg.IsEnabled() {
 		return &TOMLConfig{}, fmt.Errorf("cannot create new chain with ID %s: config is disabled", cfg.ChainID)
 	}
-
-	cfg.SetDefaults()
 	return &cfg, nil
 }
 
@@ -118,8 +119,8 @@ func (c *TOMLConfig) ValidateConfig() (err error) {
 		}
 	}
 
-	err = errors.Join(c.TransactionManager.ValidateConfig())
-	err = errors.Join(c.LogPoller.ValidateConfig())
+	err = errors.Join(err, c.TransactionManager.ValidateConfig())
+	err = errors.Join(err, c.LogPoller.ValidateConfig())
 
 	return
 }

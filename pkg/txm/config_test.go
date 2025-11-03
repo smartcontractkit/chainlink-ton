@@ -45,13 +45,12 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 
 	t.Run("all fields set - nothing should change", func(t *testing.T) {
 		customConfig := Config{
-			BroadcastChanSize:        999,
-			ConfirmPollInterval:      config.MustNewDuration(1 * time.Second),
-			SendRetryDelay:           config.MustNewDuration(2 * time.Second),
-			MaxSendRetryAttempts:     10,
-			TxExpiration:             config.MustNewDuration(10 * time.Minute),
-			CleanupInterval:          config.MustNewDuration(120 * time.Minute),
-			StickyNodeContextEnabled: true,
+			BroadcastChanSize:    999,
+			ConfirmPollInterval:  config.MustNewDuration(1 * time.Second),
+			SendRetryDelay:       config.MustNewDuration(2 * time.Second),
+			MaxSendRetryAttempts: 10,
+			TxExpiration:         config.MustNewDuration(10 * time.Minute),
+			CleanupInterval:      config.MustNewDuration(120 * time.Minute),
 		}
 
 		original := customConfig
@@ -64,6 +63,5 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, original.MaxSendRetryAttempts, customConfig.MaxSendRetryAttempts)
 		assert.Equal(t, original.TxExpiration, customConfig.TxExpiration)
 		assert.Equal(t, original.CleanupInterval, customConfig.CleanupInterval)
-		assert.Equal(t, original.StickyNodeContextEnabled, customConfig.StickyNodeContextEnabled)
 	})
 }
