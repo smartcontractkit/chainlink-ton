@@ -151,10 +151,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		}
 
 		rampMsg := ocr.Any2TVMRampMessage{
-			Header:   header,
-			Sender:   common.CrossChainAddress(msg.Sender),
-			Data:     common.SnakeBytes(msg.Data),
-			Receiver: tonReceiverAddr,
+			Header:       header,
+			Sender:       common.CrossChainAddress(msg.Sender),
+			Data:         common.SnakeBytes(msg.Data),
+			Receiver:     tonReceiverAddr,
 			GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal.
 			TokenAmounts: tokenAmounts,
 		}

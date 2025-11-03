@@ -110,18 +110,16 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 
 	var gasLimit *big.Int
 	var extraArgsDecodeMap map[string]any
-	if len(msg.ExtraArgs) > 0 {
-		extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
-		}
-
-		gasLimit, err = parseExtraArgsMap(extraArgsDecodeMap)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-		}
-	} else {
+	if len(msg.ExtraArgs) == 0 {
 		return [32]byte{}, fmt.Errorf("cannot hash without extra args: %w", err)
+	}
+	extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
+	}
+	gasLimit, err = parseExtraArgsMap(extraArgsDecodeMap)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 	}
 
 	// use the reference from contracts/contracts/ccip/types.tolk generateMessageId()

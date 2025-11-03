@@ -207,7 +207,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 			Data:         []byte{}, // empty cell data
 			Receiver:     rawTonAddr[:],
 			ExtraArgs:    []byte{0x2}, // will be populated by mock
-			TokenAmounts: nil, // no token amounts
+			TokenAmounts: nil,         // no token amounts
 		}
 
 		// Set messageID to 1
