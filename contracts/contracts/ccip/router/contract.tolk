@@ -240,8 +240,8 @@ fun onSendACK(msg: Router_MessageSent, sender: address) {
 
 fun onSendNACK(msg: Router_MessageRejected, sender: address) {
     val st = lazy Storage.load();
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
-    assert (sender == onRamp) throw Error.NotOnRamp;
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert (sender == onRamp) throw Router_Error.NotOnRamp;
 
     val nackMsg = createMessage({
         bounce: true,
