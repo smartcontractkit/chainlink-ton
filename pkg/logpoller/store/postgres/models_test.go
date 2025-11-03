@@ -224,7 +224,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 			// calculate header length dynamically
 			headerLen, err := calculateBOCHeaderLen(boc)
 			require.NoError(t, err)
-			require.Greater(t, headerLen, 0)
+			require.Positive(t, headerLen)
 			require.Less(t, headerLen, len(boc))
 
 			// verify split and join preserves data
@@ -234,7 +234,9 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 			require.NotEmpty(t, header)
 			require.NotEmpty(t, payload)
 
-			reconstructedBOC := append(header, payload...)
+			reconstructedBOC := make([]byte, 0, len(header)+len(payload))
+			reconstructedBOC = append(reconstructedBOC, header...)
+			reconstructedBOC = append(reconstructedBOC, payload...)
 			require.Equal(t, boc, reconstructedBOC)
 
 			// verify cell reconstruction works
@@ -329,7 +331,9 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 			}
 
 			// verify cell reconstruction still works
-			reconstructedBOC := append(boc[:headerLen], payload...)
+			reconstructedBOC := make([]byte, 0, headerLen+len(payload))
+			reconstructedBOC = append(reconstructedBOC, boc[:headerLen]...)
+			reconstructedBOC = append(reconstructedBOC, payload...)
 			reconstructedCell, err := cell.FromBOC(reconstructedBOC)
 			require.NoError(t, err)
 			require.Equal(t, originalCell.Hash(), reconstructedCell.Hash())

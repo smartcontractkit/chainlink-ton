@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -140,7 +141,9 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 	// reconstruct full BOC from header and payload
 	var cellData *cell.Cell
 	if len(l.BocHeader) > 0 && len(l.BocPayload) > 0 {
-		fullBOC := append(l.BocHeader, l.BocPayload...)
+		fullBOC := make([]byte, 0, len(l.BocHeader)+len(l.BocPayload))
+		fullBOC = append(fullBOC, l.BocHeader...)
+		fullBOC = append(fullBOC, l.BocPayload...)
 		cellData, err = cell.FromBOC(fullBOC)
 		if err != nil {
 			return lptypes.Log{}, fmt.Errorf("failed to parse cell data: %w", err)
@@ -196,7 +199,7 @@ const cellDescriptorSize = 2
 //	completeNum(cellSizeBytes) + dataLen(sizeBytes) + rootIdx(cellSizeBytes)
 func calculateBOCHeaderLen(boc []byte) (int, error) {
 	if len(boc) < 6 {
-		return 0, fmt.Errorf("BOC too small: minimum 6 bytes required for header")
+		return 0, errors.New("BOC too small: minimum 6 bytes required for header")
 	}
 
 	flags := boc[4]
