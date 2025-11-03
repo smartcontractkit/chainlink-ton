@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	DestChainsGetter = "destChainSelectors"
-	OnRampGetter     = "onRamp"
+	SourceChainsGetter = "sourceChainSelectors"
+	DestChainsGetter   = "destChainSelectors"
+	OnRampGetter       = "onRamp"
 )
 
 // ConfigFetcher is an interface for fetching and parsing contract configurations.
@@ -97,7 +98,7 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 
 // FetchOffRampSrcChainConfig retrieves source chain configurations from the off-ramp contract.
 func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]offramp.SourceChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, offRampAddr, DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, offRampAddr, SourceChainsGetter)
 	if err != nil {
 		return nil, err
 	}

@@ -210,10 +210,10 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
-	getOfframpAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getAuthorizedCaller")
+	getRouterAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getAuthorizedCaller")
 	require.NoError(t, err)
-	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
-	require.Equal(t, offRampAddr.String(), shouldBeOffRampAddress.String())
+	shouldBeRouterAddress := getRouterAddressResponse.MustSlice(0).MustLoadAddr()
+	require.Equal(t, routerAddr.String(), shouldBeRouterAddress.String())
 	behaviorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getBehavior")
 	require.NoError(t, err)
 	currentBehavior, err := behaviorResponse.Int(0)
@@ -262,6 +262,22 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
+
+	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
+		expectedErrStr := "failed to apply changeset at index 0: transaction failed with exit code: 1000"
+		_, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+			commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
+				RemoteChainSels: []uint64{tonChain.Selector},
+				Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
+					operation.PluginTypeCCIPCommit: {
+						F: 0, // invalid F, F must be positive or will revert on chain with ERROR_BIG_F_MUST_BE_POSITIVE (1000)
+					},
+				},
+			}),
+		})
+		require.Error(t, err)
+		require.Equal(t, expectedErrStr, err.Error())
+	})
 
 	t.Run("GetConfig", func(t *testing.T) {
 		// destination

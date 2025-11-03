@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, beginCell, Slice } from '@ton/core'
+import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
@@ -11,7 +11,7 @@ import {
 import '@ton/test-utils'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
-import { ZERO_ADDRESS } from '../../src/utils'
+import { generateRandomTonAddress, ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
@@ -110,9 +110,7 @@ describe('Router', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
-
     let deployerCode = await compile('Deployable')
-
     let merkleRootCodeRaw = await compile('MerkleRoot')
 
     // Populate the emulator library code
@@ -124,12 +122,13 @@ describe('Router', () => {
     // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: rt.Storage = {
-      id: 0,
+      id: 0n,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
       },
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
     router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
     // Deploy contract
@@ -309,7 +308,7 @@ describe('Router', () => {
     }
   })
 
-  it('update router ramps in batch', async () => {
+  it('update router onramps in batch', async () => {
     {
       const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
@@ -325,14 +324,121 @@ describe('Router', () => {
     }
 
     {
-      let result = await router.onRamp(
-        blockchain.provider(router.address),
-        CHAINSEL_EVM_TEST_90000001,
-      )
+      let result = await router.getOnRamp(CHAINSEL_EVM_TEST_90000001)
       expect(result).toEqual(onRamp.address)
 
-      result = await router.onRamp(blockchain.provider(router.address), CHAINSEL_EVM_TEST_90000002)
+      result = await router.getOnRamp(CHAINSEL_EVM_TEST_90000002)
       expect(result).toEqual(onRamp.address)
+    }
+
+    {
+      let result = await router.getOnRamps()
+      expect(result).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000002,
+          address: onRamp.address,
+        },
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000001,
+          address: onRamp.address,
+        },
+      ])
+    }
+  })
+
+  it('update router offramps in batch with one offRamp address', async () => {
+    const offRampAddress1 = await generateRandomTonAddress()
+    {
+      // test update method wrapper
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        offRampAdd: offRampAddress1,
+        sourceChainSelectorRemove: [],
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      //test batch getter
+      let result = await router.getOffRamps()
+      expect(result.sort()).toEqual(
+        [
+          {
+            chainSelector: CHAINSEL_EVM_TEST_90000002,
+            address: offRampAddress1,
+          },
+          {
+            chainSelector: CHAINSEL_EVM_TEST_90000001,
+            address: offRampAddress1,
+          },
+        ].sort(),
+      )
+    }
+
+    {
+      // test individual getter
+      let result = await router.getOffRamp(CHAINSEL_EVM_TEST_90000001)
+      expect(result).toEqual(offRampAddress1)
+
+      result = await router.getOffRamp(CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(offRampAddress1)
+    }
+
+    {
+      //test removing ramps wrapper
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [],
+        sourceChainSelectorRemove: [CHAINSEL_EVM_TEST_90000001],
+        offRampRemove: offRampAddress1,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      let getResult = await router.getOffRamps()
+      expect(getResult).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000002,
+          address: offRampAddress1,
+        },
+      ])
+    }
+
+    {
+      const offRampAddress2 = await generateRandomTonAddress()
+      //test adding and removing on the same call
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
+        offRampAdd: offRampAddress2,
+        sourceChainSelectorRemove: [CHAINSEL_EVM_TEST_90000002],
+        offRampRemove: offRampAddress1,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      const getResult = await router.getOffRamps()
+      expect(getResult).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000001,
+          address: offRampAddress2,
+        },
+      ])
     }
   })
 
@@ -676,12 +782,13 @@ async function deployRouterContract(
 ) {
   const code = await rt.Router.code()
   let data: rt.Storage = {
-    id: 0,
+    id: 0n,
     ownable: {
       owner: owner.address,
       pendingOwner: null,
     },
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+    offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }
 
   // TODO: use deployable to make deterministic?

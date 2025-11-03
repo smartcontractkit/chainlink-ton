@@ -25,7 +25,8 @@ type UpdateTonLanesSeqInput struct {
 	UpdateFeeQuoterPricesConfig     operation.UpdateFeeQuoterPricesInput
 	UpdateOnRampDestChainConfigs    operation.UpdateOnRampDestChainConfigsInput
 	UpdateOffRampSourcesConfig      operation.UpdateOffRampSourcesInput
-	UpdateRouterDestConfig          operation.UpdateRouterOnrampsInput
+	UpdateRouterOnrampsConfig       operation.UpdateRouterOnrampsInput
+	UpdateRouterOfframpsConfig      operation.UpdateRouterOfframpsInput
 }
 
 var UpdateTonLanesSequence = operations.NewSequence(
@@ -73,12 +74,20 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, updatePricesReport.Output...)
 
 	// update router with destination onramp versions
-	b.Logger.Infow("Updating Router", "input", in.UpdateRouterDestConfig)
-	routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOnrampsOp, deps, in.UpdateRouterDestConfig)
+	b.Logger.Infow("Updating Router onramps", "input", in.UpdateRouterOnrampsConfig)
+	routerSetOnrampsReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOnrampsOp, deps, in.UpdateRouterOnrampsConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update router: %w", err)
+		return nil, fmt.Errorf("failed to update router onramps: %w", err)
 	}
-	txs = append(txs, routerReport.Output...)
+	txs = append(txs, routerSetOnrampsReport.Output...)
+
+	// update router offramps
+	b.Logger.Infow("Updating Router offramps", "input", in.UpdateRouterOfframpsConfig)
+	routerUpdateOfframpsReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOfframpsOp, deps, in.UpdateRouterOfframpsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update router offramps: %w", err)
+	}
+	txs = append(txs, routerUpdateOfframpsReport.Output...)
 
 	return txs, nil
 }
@@ -105,7 +114,8 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 			if _, exists := updateInputsByTonChain[dest.Selector]; !exists {
 				updateInputsByTonChain[dest.Selector] = UpdateTonLanesSeqInput{}
 			}
-			setTonDestinationUpdates(lane, updateInputsByTonChain, cfg.TestRouter)
+			offrampAddress := tonChains[dest.Selector].OffRamp
+			setTonDestinationUpdates(lane, updateInputsByTonChain, cfg.TestRouter, &offrampAddress)
 		}
 	}
 
@@ -154,20 +164,20 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	// }
 
 	// update the onramp address map with the destination selector
-	if input.UpdateRouterDestConfig == nil {
-		input.UpdateRouterDestConfig = make(operation.UpdateRouterOnrampsInput)
+	if input.UpdateRouterOnrampsConfig == nil {
+		input.UpdateRouterOnrampsConfig = make(operation.UpdateRouterOnrampsInput)
 	}
 
 	rampAddress := onrampAddress.String()
-	input.UpdateRouterDestConfig[rampAddress] = append(
-		input.UpdateRouterDestConfig[rampAddress],
-		router.DestChainSelector{Value: dest.Selector},
+	input.UpdateRouterOnrampsConfig[rampAddress] = append(
+		input.UpdateRouterOnrampsConfig[rampAddress],
+		router.ChainSelector{Value: dest.Selector},
 	)
 
 	updateInputsByTonChain[source.Selector] = input
 }
 
-func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool) {
+func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, offrampAddress *address.Address) {
 	source := lane.Source
 	dest := lane.Dest
 	isEnabled := !lane.IsDisabled
@@ -184,6 +194,18 @@ func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map
 		TestRouter:                isTestRouter,
 		IsRMNVerificationDisabled: source.RMNVerificationDisabled,
 		OnRamp:                    lane.OnRamp,
+	}
+
+	rampAddress := offrampAddress.String()
+	input.UpdateRouterOfframpsConfig = operation.UpdateRouterOfframpsInput{
+		OffRampAdd: map[string][]router.ChainSelector{
+			rampAddress: []router.ChainSelector{
+				{
+					Value: source.Selector,
+				},
+			},
+		},
+		OffRampRemove: nil,
 	}
 
 	updateInputsByTonChain[dest.Selector] = input

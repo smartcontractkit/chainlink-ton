@@ -151,4 +151,59 @@ describe('MerkleMultiProofTests', () => {
 
     expect(await calculator.getRoot()).toBe(expectedRoot)
   })
+
+  it('test tree with two leaves', async () => {
+    let leaves = [
+      0x67ac797670796606fd0b57bf1898120c1652696dca3f06bff9fccb9f808539b5n,
+      0x5521c431308a6efc8c363111c4d8231ac92f951c2da53ea2504c6edc5a4a4fd1n,
+    ]
+
+    const root = merkleHelper.createTree(leaves).getRoot()
+    expect(root).toBe(0xba3a455ea84cbf420ac7f5b37b70c44d4f2f91085bddf530d9fd9d88e60da9f6n)
+
+    deployer = await blockchain.treasury('deployer')
+    let result = await calculator.sendMerkleRoot(
+      deployer.getSender(),
+      toNano('100000'),
+      asSnakeDataUint(leaves, 256),
+      Cell.EMPTY,
+      1n,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: calculator.address,
+      success: true,
+    })
+
+    expect(await calculator.getRoot()).toBe(root)
+
+    leaves = [0x5521c431308a6efc8c363111c4d8231ac92f951c2da53ea2504c6edc5a4a4fd1n]
+    let proofs = [0x67ac797670796606fd0b57bf1898120c1652696dca3f06bff9fccb9f808539b5n]
+
+    // separate one hash into leaves another one into proofs
+    result = await calculator.sendMerkleRoot(
+      deployer.getSender(),
+      toNano('10'),
+      asSnakeDataUint(leaves, 256),
+      asSnakeDataUint(proofs, 256),
+      1n,
+    )
+
+    expect(await calculator.getRoot()).toBe(root)
+
+    leaves = [0x67ac797670796606fd0b57bf1898120c1652696dca3f06bff9fccb9f808539b5n]
+    proofs = [0x5521c431308a6efc8c363111c4d8231ac92f951c2da53ea2504c6edc5a4a4fd1n]
+
+    // separate one hash into leaves another one into proofs
+    result = await calculator.sendMerkleRoot(
+      deployer.getSender(),
+      toNano('10'),
+      asSnakeDataUint(leaves, 256),
+      asSnakeDataUint(proofs, 256),
+      0n,
+    )
+
+    expect(await calculator.getRoot()).toBe(root)
+  })
 })
