@@ -104,7 +104,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
     val st = Storage.load();
-    val sourceChainSelector = getSourceChainSelectorFromExecId(msg.execId);
+    val sourceChainSelector = msg.execId.getSourceChainSelector();
     val router = getRouterFromSelector(st, sourceChainSelector);
     assert(sender == router, Error.SenderIsNotRouter);
 
@@ -176,7 +176,7 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
 // ReceiveExecutor must further validate that the sender is the intended receiver
 fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     val st = Storage.load();
-    val sourceChainSelector = getSourceChainSelectorFromExecId(msg.execId);
+    val sourceChainSelector = msg.execId.getSourceChainSelector();
     val router = getRouterFromSelector(st, sourceChainSelector);
     assert(sender == router, Error.SenderIsNotRouter);
 
@@ -530,12 +530,6 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
         body: ReceiveExecutor_InitExecute {}
     });
     initExecMsg.send(SEND_MODE_REGULAR);
-}
-
-//TODO remove repeated
-fun getSourceChainSelectorFromExecId(execId: ReceiveExecutorId): uint64 {
-    var cs = beginCell().storeUint(execId, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
-    return cs.loadUint(64);
 }
 
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {

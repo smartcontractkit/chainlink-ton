@@ -5,6 +5,7 @@ import "../../lib/funding/withdrawable.tolk";
 import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../offramp/types"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -54,11 +55,11 @@ struct (0x31768d95) Router_CCIPSend {
 //crc32("Router_RouteMessage")
 struct (0xfc69c50b) Router_RouteMessage {
     message: Cell<Any2TVMMessage>;
-    execId: uint192;
+    execId: ReceiveExecutorId;
     receiver: address;
 }
 
 //crc32("Router_CCIPReceiveConfirm")
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
-    execId: uint192;
+    execId: ReceiveExecutorId;
 }

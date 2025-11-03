@@ -119,7 +119,7 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
 
 fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     val st = lazy Storage.load();
-    val sourceChainSelector = getSourceChainSelectorFromExecId(msg.execId);
+    val sourceChainSelector = msg.execId.getSourceChainSelector();
 
     val offRamp: address = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
 
@@ -135,9 +135,9 @@ fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun ccipReceiveBounced(execId: uint192, sender: address) {
+fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val st = Storage.load();
-    val sourceChainSelector = getSourceChainSelectorFromExecId(execId);
+    val sourceChainSelector = execId.getSourceChainSelector();
     val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
 
     val receiveBounced = createMessage({
@@ -222,11 +222,6 @@ fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
     Upgradeable{ migrate, version }.upgrade(msg);
-}
-
-fun getSourceChainSelectorFromExecId(execId: uint192): uint64 {
-    var cs = beginCell().storeUint(execId, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
-    return cs.loadUint(64);
 }
 
 @method_id(1000)
