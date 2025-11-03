@@ -120,6 +120,8 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		if err != nil {
 			return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 		}
+	} else {
+		return [32]byte{}, fmt.Errorf("cannot hash without extra args: %w", err)
 	}
 
 	// use the reference from contracts/contracts/ccip/types.tolk generateMessageId()
@@ -170,6 +172,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 			MustStoreSlice(header.MessageID, 256).
 			MustStoreAddr(receiver).
 			MustStoreUInt(header.SequenceNumber, 64).
+			MustStoreBigCoins(gasLimit).
 			MustStoreUInt(header.Nonce, 64).
 			EndCell())
 
@@ -183,7 +186,6 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 
 	builder.
 		MustStoreRef(dataCell).
-		MustStoreBigCoins(gasLimit).
 		MustStoreMaybeRef(tokenCell)
 
 	hash := builder.EndCell().Hash()

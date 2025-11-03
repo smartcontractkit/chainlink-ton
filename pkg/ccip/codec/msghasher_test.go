@@ -113,7 +113,8 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		msg.ExtraArgs = nil
 
 		hash, err := hasher.Hash(ctx, msg)
-		require.NoError(t, err)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot hash without extra args")
 		assert.NotEqual(t, [32]byte{}, hash)
 	})
 
@@ -169,7 +170,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		"destgasamount": uint32(1000),
 	}, nil)
 	mockExtraDataCodec.On("DecodeExtraArgsToMap", mock.Anything).Return(map[string]any{
-		"gasLimit": big.NewInt(1000),
+		"gasLimit": big.NewInt(10000000),
 	}, nil)
 
 	lg := logger.Test(t)
@@ -205,6 +206,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 			Sender:       ccipocr3.UnknownAddress(evmSenderBytes),
 			Data:         []byte{}, // empty cell data
 			Receiver:     rawTonAddr[:],
+			ExtraArgs:    []byte{0x2}, // will be populated by mock
 			TokenAmounts: nil, // no token amounts
 		}
 
@@ -216,7 +218,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 
 		// Run the TypeScript file to get this value:
 		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "f476aa20b1af16d42c5140a39a5cea8ec37ca8353aefadf46e9793daba3bfb94"
+		expectedHashHex := "eb8aad87a4ec888a0c1527a51f778a7539cf5a4084159e3e928abb6ac909a183"
 		expectedHash, err := hex.DecodeString(expectedHashHex)
 		require.NoError(t, err)
 

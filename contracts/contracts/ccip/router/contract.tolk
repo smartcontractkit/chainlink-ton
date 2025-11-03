@@ -76,7 +76,7 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
         dest: msg.receiver,
         body: ccipReceive,
     });
-    messageForReceiver.send(SEND_MODE_REGULAR);
+    messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 fun onSetRamps(msg: Router_SetRamps, sender: address) {

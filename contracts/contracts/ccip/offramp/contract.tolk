@@ -215,7 +215,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
     val routeMessage = createMessage({
         bounce: true,
-        value: ton("0.1"),
+        value: message.gasLimit + ton("0.01"),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {

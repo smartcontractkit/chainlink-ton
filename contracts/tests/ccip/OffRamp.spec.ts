@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
+import { Address, beginCell, Cell, contractAddress, Dictionary, fromNano, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -116,6 +116,7 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
           .storeUint(message.header.messageId, 256)
           .storeAddress(message.receiver)
           .storeUint(message.header.sequenceNumber, 64)
+          .storeCoins(message.gasLimit)
           .storeUint(message.header.nonce, 64)
           .endCell(),
       )
@@ -128,7 +129,6 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
       )
       //rest of the message
       .storeRef(message.data)
-      .storeCoins(message.gasLimit)
       .storeMaybeRef(message.tokenAmounts)
       .endCell()
       .hash()
@@ -279,7 +279,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: data,
       receiver: receiverAddress,
-      // gasLimit: 10000000n,
+      gasLimit: toNano("0.1"), //I think this shuold be 0.1TON (10_000_000 nanotons)
     }
   }
 
@@ -734,7 +734,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
       data: beginCell().endCell(),
       receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
-      // gasLimit: 10000000n,
+      gasLimit: 10000000n,
       tokenAmounts: undefined,
     }
 
@@ -1187,6 +1187,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: receiver.address,
+      value: message.gasLimit,
       success: true,
     })
 
