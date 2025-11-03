@@ -191,8 +191,13 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// Receiver
 	receiverAddress := deps.CCIPOnChainState[in.ChainSelector].ReceiverAddress
 	receiverStorage := receiver.Storage{
-		ID:     in.CCIPConfig.ReceiverParams.ID,
-		Router: &routerAddress,
+		ID: in.CCIPConfig.ReceiverParams.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		AuthorizedCaller: &routerAddress,
+		Behavior:         receiver.Accept,
 	}
 
 	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, func(tonContractAddress *TONContractAddress) {

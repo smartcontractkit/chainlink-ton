@@ -4,4 +4,5 @@ build/
 temp/
 .snapshot/
 gas-report.json
+ccip-gas-report.json
 contract.abi.json

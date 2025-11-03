@@ -241,7 +241,7 @@ func setOCR3Config(b operations.Bundle, deps TonDeps, in OCR3ConfigArgs) ([][]by
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
