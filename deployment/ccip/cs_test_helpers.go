@@ -313,7 +313,7 @@ func SendTonRequest(
 			IHRDisabled: true,
 			Bounce:      false,
 			DstAddr:     &routerAddr,
-			Amount:      tlb.MustFromTON("10.0"), // TODO:
+			Amount:      tlb.MustFromTON("1.0"), // TODO:
 			Body:        ccipSendCell,
 		},
 	}
