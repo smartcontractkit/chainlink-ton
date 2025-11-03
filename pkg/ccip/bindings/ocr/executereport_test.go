@@ -116,7 +116,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageSlice,
+		Message:             rampMessageSlice,
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
 		Proofs:              common.SnakeData[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
@@ -135,6 +135,6 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	require.Len(t, decoded.Messages.TokenAmounts, 3)
+	require.Len(t, decoded.Message.TokenAmounts, 3)
 	require.Len(t, decoded.Proofs, 2)
 }

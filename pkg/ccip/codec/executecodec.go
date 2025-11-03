@@ -187,7 +187,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	// Take only the first message (contract only processes one message at a time)
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
-		Messages:            rampMessage,
+		Message:             rampMessage,
 		OffChainTokenData:   offChainTokenData,
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
@@ -224,9 +224,9 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			proofs = append(proofs, ccipocr3.Bytes32(proof.Value.Bytes()))
 		}
 
-		// Messages is a single message (not array) - contract only processes one at a time
+		// Message is a single message (not array) - contract only processes one at a time
 		messages := make([]ccipocr3.Message, 0, 1)
-		msg := tonReport.Messages
+		msg := tonReport.Message
 
 		tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(msg.TokenAmounts))
 		for _, tokenAmount := range msg.TokenAmounts {
