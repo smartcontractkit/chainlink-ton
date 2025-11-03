@@ -10,8 +10,6 @@ struct Storage {
     id: uint32;
     ownable: Ownable2Step;
 
-    offRamp: address;
-
     onRamps: map<uint64, address>; // destChainSelector -> onRamp address
     offRamps: map<uint64, address>; // sourceChainSelector -> offRamp address
 
