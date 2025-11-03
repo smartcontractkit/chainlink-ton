@@ -105,7 +105,7 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val executeMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO: calculate
+        value: 0,
         dest: AutoDeployAddress {
             stateInit: ContractState {
                 code: st.executor_code,

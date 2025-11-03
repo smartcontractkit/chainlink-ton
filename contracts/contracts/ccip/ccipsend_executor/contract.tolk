@@ -51,6 +51,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
         state: CCIPSendExecutor_State_Initialized{
             tokenRegistry: config.tokenRegistry,
         }.toCell(),
+        originalBalance: contract.getOriginalBalance(),
     };
 }
 
@@ -66,6 +67,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self, 
             state: CCIPSendExecutor_State_OnGoingFeeValidation {
                 pendingJettonLock: null,
             }.toCell(),
+            originalBalance: self.originalBalance,
         };
         newState.store();
     }
@@ -92,6 +94,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
         state: CCIPSendExecutor_State_WaitingForJettons {
             tokenRegistry: self.state.load().tokenRegistry!,
         }.toCell(),
+        originalBalance: self.originalBalance,
     };
     newState.store();
 }
@@ -110,6 +113,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
                 tokenPool: createAddressNone(), // TODO
             },
         }.toCell(),
+        originalBalance: self.originalBalance,
     };
     newState.store();
 }
@@ -132,9 +136,13 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     val addresses = lazy self.addresses.load();
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
-    if (msg.fee > contract.getOriginalBalance()) {
-        // self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
-        // return;
+    if (msg.fee > self.originalBalance) {
+        debug.printString("Insufficient funds to cover fee");
+        debug.print(msg.fee);
+        debug.print(self.originalBalance);
+        
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
+        return;
     }
 
     if (self.state.load().pendingJettonLock == null) {

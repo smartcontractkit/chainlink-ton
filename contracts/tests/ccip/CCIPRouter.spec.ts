@@ -188,7 +188,7 @@ describe('Router', () => {
           msg: {
             updates: {
               gasPricesUpdates: [],
-              tokenPricesUpdates: [{ token: TEST_TOKEN_ADDR, price: 123n }],
+              tokenPricesUpdates: [{ token: TEST_TOKEN_ADDR, price: BigInt(123e36) }],
             },
           },
         })
