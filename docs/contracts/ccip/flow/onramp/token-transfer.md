@@ -70,7 +70,7 @@ sequenceDiagram
     ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
-    OR ->> R: sendConfirmation{seqNum}<br>+ Recovered TON
+    OR ->> R: MessageSent{queryID, seqNum}<br>+ Recovered TON
     end
     end
     end
@@ -85,6 +85,6 @@ sequenceDiagram
     participant LRM as SendExecutor<br>{id}
     Note over LRM: destroy
     destroy LRM
-    LRM -->> OR: Transfer T {fwdPayload: failed{storageID: LRM.id, data:<br>CCIPSend, reason}}<br>+ TON remaining balance
-    Note over OR: Send rejectedCCIPSend{reason}<br>to the user in a Jetton transfer<br>+ excess TON
+    LRM -->> OR: Transfer T {fwdPayload:<br>messageRejected{messageId, msg, reason}}<br>+ TON remaining balance
+    Note over OR: Send CCIPSendNACK{queryID, reason}<br>to the user in a Jetton transfer<br>+ excess TON
 ```
