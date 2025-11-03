@@ -32,7 +32,7 @@ import {
   generateEd25519KeyPair,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { Receiver } from '../../../../wrappers/ccip/Receiver'
+import { Receiver, ReceiverBehavior } from '../../../../wrappers/ccip/Receiver'
 import {
   hashReport,
   OCR3_PLUGIN_TYPE_COMMIT,
@@ -312,12 +312,13 @@ describe('CCIP OffRamp Gas Estimation', () => {
     {
       let routerCode = await compile('Router')
       let data: rt.Storage = {
-        id: 0,
+        id: 0n,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
         },
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+        offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }
       router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
       const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
@@ -476,7 +477,15 @@ describe('CCIP OffRamp Gas Estimation', () => {
     {
       const receiverCode = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 0, offramp: offRamp.address }, receiverCode),
+        Receiver.createFromConfig(
+          {
+            id: 0,
+            ownable: { owner: deployer.address, pendingOwner: null },
+            authorizedCaller: router.address,
+            behavior: ReceiverBehavior.Accept,
+          },
+          receiverCode,
+        ),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('1'))
       expect(result.transactions).toHaveTransaction({

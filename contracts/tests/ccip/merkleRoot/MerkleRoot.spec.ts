@@ -11,13 +11,11 @@ async function deployMerkleRootContract(
   let data: mr.MerkleRootStorage = {
     rootId: 0n,
     owner: owner.address,
-    state: 0,
-    executionState: 0,
-    tokenBalance: {
-      amount: BigInt(0),
-      failed: false,
-    },
-    message: null,
+    timestamp: BigInt(Math.floor(Date.now() / 1000)),
+    minMsgNr: 0n, //todo shold be configured
+    maxMsgNr: 5n, //idem
+    messageStates: 0n,
+    deliveredMessageCount: 0n,
   }
 
   const contract = blockchain.openContract(mr.MerkleRoot.createFromConfig(data, code))

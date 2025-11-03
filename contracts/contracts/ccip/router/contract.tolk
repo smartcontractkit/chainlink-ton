@@ -3,7 +3,6 @@ import "storage"
 import "errors"
 import "../onramp/messages"
 import "../onramp/types"
-import "../common/types"
 import "../common/messages"
 import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
@@ -13,16 +12,26 @@ import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 import "../../lib/versioning/upgradeable"
+import "../../lib/receiver/types"
+import "../../lib/receiver/messages"
+import "../offramp/messages"
+import "@stdlib/lisp-lists"
+import "../offramp/types"
 
 
-const CONTRACT_VERSION = "0.0.6";
+const CONTRACT_VERSION = "0.0.7";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy Router_InMsg.fromSlice(in.body);
     match (msg) {
         Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
+        Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
         Router_CCIPSend => { onSend(msg, in.senderAddress) }
+        Router_RouteMessage => { 
+            routeMessage(msg, in.senderAddress)
+            }
+        Router_CCIPReceiveConfirm => { ccipReceiveConfirm(msg, in.senderAddress) }
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
@@ -40,6 +49,35 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
+    val msg = lazy Router_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    match (msg) {
+      // We are lazy matching and only accessing the first element of the struct.
+      // The rest of the data is not a part of the bounced body so it cannot be accessed
+      Receiver_CCIPReceive => { ccipReceiveBounced(msg.execId, in.senderAddress) }
+    }
+}
+
+fun routeMessage(msg: Router_RouteMessage, sender: address) {
+    val st = lazy Storage.load();
+    val message: Any2TVMMessage = msg.message.load();
+
+    val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert(sender == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
+
+
+    val ccipReceive: Receiver_CCIPReceive = {
+        execId: msg.execId,
+        message,
+    };
+
+    val messageForReceiver = createMessage({
+        bounce: true,
+        value: ton("0.05"), // TODO: use the gas limit from the message
+        dest: msg.receiver,
+        body: ccipReceive
+    });
+    messageForReceiver.send(SEND_MODE_REGULAR);
+
 }
 
 fun onSetRamps(msg: Router_SetRamps, sender: address) {
@@ -54,7 +92,67 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
     st.store();
 }
 
-// TODO: emit(OnRampsSet)
+fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
+
+    if (msg.offRampAdd != null) {
+        val offRampAdd = msg.offRampAdd!;
+        var iter = msg.sourceChainSelectorsAdd.iter();
+        while (!iter.empty()) {
+            val selector = iter.next();
+            st.offRamps.set(selector, offRampAdd);
+        }
+    }
+    if (msg.offRampRemove != null) {
+        val offRampRemove = msg.offRampRemove!;
+        var iter = msg.sourceChainSelectorsRemove.iter();
+        while (!iter.empty()) {
+            val selector = iter.next();
+            val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector as int);
+            assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
+            st.offRamps.delete(selector);
+        }
+    }
+    st.store();
+}
+
+fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
+    val st = lazy Storage.load();
+    val sourceChainSelector = msg.execId.getSourceChainSelector();
+
+    val offRamp: address = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+
+    val confirmMsg = createMessage({
+        bounce: true,
+        value: ton("0"), 
+        dest: offRamp,
+        body: OffRamp_CCIPReceiveConfirm {
+            execId: msg.execId,
+            receiver: sender,
+        },
+    });
+    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
+    val st = Storage.load();
+    val sourceChainSelector = execId.getSourceChainSelector();
+    val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+
+    val receiveBounced = createMessage({
+        bounce: true,
+        value: ton("0.05"),
+        dest: offRamp,
+        body: OffRamp_CCIPReceiveBounced {
+            execId: execId,
+            receiver: sender,
+        }
+    });
+    receiveBounced.send(SEND_MODE_REGULAR);
+}
+
+
 
 fun onSend(msg: Router_CCIPSend, sender: address) {
     ccipSend(msg, sender);
@@ -81,7 +179,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
 
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount
-    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Error.DestChainNotEnabled as int);
+    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
 
     val transferMessage = createMessage({
         bounce: true,
@@ -110,7 +208,7 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
@@ -146,7 +244,49 @@ get fun errorCode(local: uint16): uint16 {
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
-    return st.onRamps.mustGet(destChainSelector, Error.DestChainNotEnabled as int);
+    return st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled as int);
+}
+
+get fun offRamp(sourceChainSelector: uint64): address {
+    val st = lazy Storage.load();
+    return st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+}
+
+struct Ramp {
+    chainSelector: uint64
+    ramp: address
+}
+
+get fun onRamps() {
+    val st = lazy Storage.load();
+    var list: tuple? = null;
+    var r = st.onRamps.findFirst();
+    while (r.isFound) {
+        val ramp = Ramp {
+            chainSelector: r.getKey(),
+            ramp: r.loadValue(),
+        };
+        list = listPrepend(ramp.toCell(), list);
+        r = st.onRamps.iterateNext(r);
+    }
+    return list;
+}
+
+//returns lispList<OffRamp>
+get fun offRamps() {
+    val st = lazy Storage.load();
+    var list: tuple? = null;
+    var r = st.offRamps.findFirst();
+    while (r.isFound) {
+        val ramp = Ramp {
+            chainSelector: r.getKey(),
+            ramp: r.loadValue(),
+        };
+        var cs = ramp.toCell().beginParse();
+        list = listPrepend(ramp.toCell(), list);
+        r = st.offRamps.iterateNext(r);
+    }
+    return list;
 }
 
 get fun destChainSelectors(): tuple {
