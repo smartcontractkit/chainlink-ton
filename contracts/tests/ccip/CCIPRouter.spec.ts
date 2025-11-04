@@ -672,7 +672,6 @@ describe('Router', () => {
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {
-              console.log(ccipSendACK)
               return ccipSendACK.queryID == BigInt(ccipSend.queryID!) && ccipSendACK.messageId != 0n
             },
           })
