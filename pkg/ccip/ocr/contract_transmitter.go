@@ -124,7 +124,7 @@ func (c *ccipTransmitter) Transmit(
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("10"),
+		Amount:          tlb.MustFromTON("1000000"),
 		ID:              &txID,
 	}
 
