@@ -863,7 +863,6 @@ describe('Router', () => {
       })
 
       // assert CCIPMessageSent
-      // TODO extract messageID
       assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
         message: {
           header: {
