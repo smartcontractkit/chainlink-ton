@@ -28,6 +28,12 @@ struct (0xcbc4af76) CCIPSendExecutor_MessageValidated<C> {
     fee: coins
 }
 
+// crc32('CCIPSendExecutor_MessageValidationFailed')
+struct (0x0f756150)CCIPSendExecutor_MessageValidationFailed<C> {
+    msg: Cell<Router_CCIPSend>,
+    metadata: Cell<C>,
+    error: uint256,
+}
 
 
 
