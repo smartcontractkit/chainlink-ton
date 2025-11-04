@@ -964,7 +964,7 @@ describe('OffRamp - Unit Tests', () => {
     // Curse source chain
     let result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
       value: toNano('0.5'),
-      subjects: [CHAINSEL_EVM_TEST_90000001]
+      subjects: [CHAINSEL_EVM_TEST_90000001],
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -978,7 +978,7 @@ describe('OffRamp - Unit Tests', () => {
     // Uncurse source chain
     result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
       value: toNano('0.5'),
-      subjects: []
+      subjects: [],
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,

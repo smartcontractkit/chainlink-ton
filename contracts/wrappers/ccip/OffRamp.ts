@@ -52,7 +52,7 @@ export enum OffRampError {
   SourceChainSelectorMismatch,
   InvalidOnRampUpdate,
   SenderIsNotRouter,
-  SubjectCursed
+  SubjectCursed,
 }
 
 export enum ReceiveExecutorError {
@@ -404,22 +404,19 @@ export class OffRamp
     provider: ContractProvider,
     via: Sender,
     opts: {
-      value: bigint,
-      subjects: bigint[],
-    }
+      value: bigint
+      subjects: bigint[]
+    },
   ) {
     let subjects = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
     for (const subject of opts.subjects) {
-      subjects.set(subject, true);
+      subjects.set(subject, true)
     }
-   
+
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.updateCursedSubjects, 32)
-        .storeDict(subjects)
-        .endCell(),
+      body: beginCell().storeUint(Opcodes.updateCursedSubjects, 32).storeDict(subjects).endCell(),
     })
   }
 
