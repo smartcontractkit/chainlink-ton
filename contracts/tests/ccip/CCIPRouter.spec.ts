@@ -485,7 +485,7 @@ describe('Router', () => {
         to: router.address,
         deploy: false,
         success: false,
-        exitCode: 49601, // subjectCursed
+        exitCode: 49605, // subjectCursed
       })
     }
 

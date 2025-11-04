@@ -50,7 +50,7 @@ fun onInternalMessage(in: InMessage) {
                     dest: destination,
                     body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
                 });
-                sendMsg.send(SEND_MODE_REGULAR);
+                sendMsg.send(SEND_MODE_IGNORE_ERRORS);
                 entry = rmn.forwardUpdates.iterateNext(entry);
             }
         }
@@ -72,7 +72,7 @@ fun onInternalMessage(in: InMessage) {
                     dest: destination,
                     body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
                 });
-                sendMsg.send(SEND_MODE_REGULAR);
+                sendMsg.send(SEND_MODE_IGNORE_ERRORS);
                 entry = rmn.forwardUpdates.iterateNext(entry);
             }
         }
