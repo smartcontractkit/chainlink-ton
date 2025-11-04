@@ -766,7 +766,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if !utf8.ValidString(token.String()) {
 			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
 		}
-		prices[ccipocr3.UnknownEncodedAddress(token)] = price
+		prices[ccipocr3.UnknownEncodedAddress(strAddr)] = price
 	}
 	return prices, nil
 }
