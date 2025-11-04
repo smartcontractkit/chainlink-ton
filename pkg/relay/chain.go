@@ -104,13 +104,13 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 
 	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
 	signedClientProvider := commonutils.NewLazyLoadCtx(func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
-		tonClient, err := ch.GetClient(ctx)
-		if err != nil {
+		tonClient, err1 := ch.GetClient(ctx)
+		if err1 != nil {
 			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
 		}
 
-		signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
-		if err != nil {
+		signerWallet, err1 := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
+		if err1 != nil {
 			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
 		}
 
