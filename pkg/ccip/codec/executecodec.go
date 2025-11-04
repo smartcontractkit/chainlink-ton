@@ -169,7 +169,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		TokenAmounts: tokenAmounts,
 	}
 
-	if len(chainReport.Messages) > 0 && len(chainReport.OffchainTokenData) > 0 {
+	if len(chainReport.OffchainTokenData) > 0 {
 		tokenDataSlice := make([]common.SnakeBytes, len(chainReport.OffchainTokenData[0]))
 		for i, data := range chainReport.OffchainTokenData[0] {
 			tokenDataSlice[i] = data
