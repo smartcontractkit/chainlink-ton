@@ -39,7 +39,7 @@ sequenceDiagram
     ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
-    OR ->> R: sendConfirmation{seqNum}<br>+ Recovered TON
+    OR ->> R: messageSent{queryID, seqNum}<br>+ Recovered TON
     end
     end
 ```
@@ -49,9 +49,9 @@ For any bounce we catch, or when we say Reject CCIPSend, it envolves:
 ```mermaid
 sequenceDiagram
     participant OR as OnRamp
-    participant LRM as CCIPSendExecutor<br>{id}
+    participant LRM as SendExecutor<br>{id}
     Note over LRM: destroy
     destroy LRM
-    LRM ->> OR: failed{storageID: LRM.id, data:<br>CCIPSend, reason}<br>+ TON remaining balance
-    Note over OR: Send rejectedCCIPSend{reason}<br>to the user + excess TON
+    LRM ->> OR: messageRejected{queryID, messageId, msg, reason}<br>+ TON remaining balance
+    Note over OR: Send CCIPSendACK{reason}<br>to the user + excess TON
 ```
