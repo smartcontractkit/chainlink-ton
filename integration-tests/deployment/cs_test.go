@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/ton"
-
 	chainselectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -264,6 +264,46 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
+
+	t.Run("FetchTokenPrice", func(t *testing.T) {
+		// known token address, price updated during changeset execution
+		var tonAddrBytes []byte
+		var updates map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig
+		addr := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99")
+		tonAddrBytes, err = addrCodec.AddressStringToBytes(addr.String())
+		require.NoError(t, err)
+		updates, err = accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
+		if err != nil {
+			return
+		}
+
+		require.NoError(t, err)
+		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)])
+		require.Equal(t, int64(99), updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)].Value.Int64())
+
+		// random address, should return empty token price
+		addr = address.MustParseAddr("kQDpbpFeXR2DGPQcAY_Fr8b1owx_K6LbvRoz9Ct-JJv4JkPH")
+		tonAddrBytes, err = addrCodec.AddressStringToBytes(addr.String())
+		require.NoError(t, err)
+		updates, err = accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
+
+		require.NoError(t, err)
+		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)])
+		require.Equal(t, int64(0), updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)].Value.Int64())
+	})
+
+	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
+		// evm chain selector
+		var feePriceUpdate map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig
+		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
+		require.NoError(t, err)
+		require.NotEqual(t, "0", feePriceUpdate[ccipocr3.ChainSelector(evmSelector)].Value.String())
+
+		// unknown chain selector, returns default values
+		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(1)})
+		require.NoError(t, err)
+		require.Equal(t, "0", feePriceUpdate[ccipocr3.ChainSelector(1)].Value.String())
+	})
 
 	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
 		expectedErrStr := "failed to apply changeset at index 0: transaction failed with exit code: 1000"

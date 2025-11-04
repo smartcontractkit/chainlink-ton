@@ -22,7 +22,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -648,7 +647,8 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector { //nolint:errorlint // we're guaranteed to get unwrapped error here
+		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
+			// TODO revisit the common error code, right now common.UnknownDestChainSelector doesn't match with on-chain
 			prices[selector] = ccipocr3.TimestampedUnixBig{
 				Timestamp: 0,
 				Value:     big.NewInt(0),
@@ -720,6 +720,8 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	ctx context.Context,
 	tokens []ccipocr3.UnknownAddress,
 ) (map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, error) {
+	// NOTE: Currently, input tokens are mostly LINK and the native token, so batching is not implemented
+	// to keep the TON accessor simple. Batching can be added later if needed, such as for performance bottlenecks.
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return nil, err
@@ -730,8 +732,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	}
 
 	// TODO: decode token addresses here according to chain selector
-
-	encodedTokens := make([]any, 0, len(tokens))
+	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
 	for _, token := range tokens {
 		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
 		if err2 != nil {
@@ -741,40 +742,27 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if err2 != nil {
 			return nil, fmt.Errorf("failed to ParseAddr %s for encodedTokens: %w", strAddr, err2)
 		}
-		encodedTokens = append(encodedTokens, addrParsed)
-	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrices", encodedTokens...)
-	// result is a list of TimestampedPrice
-	if err != nil {
-		return nil, err
-	}
-	results := result.AsTuple()
-	if len(tokens) != len(results) {
-		return nil, fmt.Errorf("length mismatch: expected %d prices but received %d", len(tokens), len(results))
-	}
-	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
-	for i, priceResult := range results {
-		token := tokens[i]
-		var price ccipocr3.TimestampedUnixBig
-		switch priceResult := priceResult.(type) {
-		case nil:
-			// return zero value
-			price = ccipocr3.TimestampedUnixBig{
-				Value:     big.NewInt(0),
-				Timestamp: 0,
+
+		var tokenPrice feequoter.TimestampedPrice
+		err = tokenPrice.FetchResult(ctx, a.client, block, addr, []interface{}{cell.BeginCell().MustStoreAddr(addrParsed).EndCell().BeginParse()})
+		if err != nil {
+			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
+			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here
+				// TODO revisit the common error code, right now common.TokenNotSupported doesn't match with on-chain
+				prices[ccipocr3.UnknownEncodedAddress(token)] = ccipocr3.TimestampedUnixBig{
+					Timestamp: 0,
+					Value:     big.NewInt(0),
+				}
+				continue
 			}
-		case cell.Cell:
-			var timestampedPrice feequoter.TimestampedPrice
-			if err := tlb.LoadFromCell(&timestampedPrice, priceResult.BeginParse()); err != nil {
-				return nil, err
-			}
-			price = ccipocr3.TimestampedUnixBig{
-				Value:     timestampedPrice.Value,
-				Timestamp: timestampedPrice.Timestamp,
-			}
-		default:
-			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)
+			return nil, fmt.Errorf("failed to FetchResult for encodedTokens: %w", err)
 		}
+
+		price := ccipocr3.TimestampedUnixBig{
+			Value:     tokenPrice.Value,
+			Timestamp: tokenPrice.Timestamp,
+		}
+
 		if !utf8.ValidString(token.String()) {
 			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
 		}
