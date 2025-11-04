@@ -18,25 +18,33 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, DefaultConfigSet.PageSize, cfg.PageSize)
 		assert.Equal(t, DefaultConfigSet.LogPollerStartingLookback, cfg.LogPollerStartingLookback)
 		assert.Equal(t, DefaultConfigSet.BlockTime, cfg.BlockTime)
+		assert.Equal(t, DefaultConfigSet.BatchInsertSize, cfg.BatchInsertSize)
+		assert.Equal(t, DefaultConfigSet.MinBatchSize, cfg.MinBatchSize)
+		assert.Equal(t, DefaultConfigSet.SaveThreshold, cfg.SaveThreshold)
 	})
 
 	t.Run("preserves custom values and applies defaults to missing fields", func(t *testing.T) {
 		customPageSize := uint32(250)
 		customBlockTime := config.MustNewDuration(13 * time.Second)
+		customBatchInsertSize := uint32(2000)
 
 		cfg := &Config{
-			PageSize:  customPageSize,
-			BlockTime: customBlockTime,
+			PageSize:        customPageSize,
+			BlockTime:       customBlockTime,
+			BatchInsertSize: customBatchInsertSize,
 		}
 		cfg.ApplyDefaults()
 
 		// Custom values
 		assert.Equal(t, customPageSize, cfg.PageSize)
 		assert.Equal(t, customBlockTime, cfg.BlockTime)
+		assert.Equal(t, customBatchInsertSize, cfg.BatchInsertSize)
 
 		// Defaults
 		assert.Equal(t, DefaultConfigSet.PollPeriod, cfg.PollPeriod)
 		assert.Equal(t, DefaultConfigSet.LogPollerStartingLookback, cfg.LogPollerStartingLookback)
+		assert.Equal(t, DefaultConfigSet.MinBatchSize, cfg.MinBatchSize)
+		assert.Equal(t, DefaultConfigSet.SaveThreshold, cfg.SaveThreshold)
 	})
 
 	t.Run("all fields set - nothing should change", func(t *testing.T) {
@@ -45,6 +53,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 			PageSize:                  50,
 			LogPollerStartingLookback: config.MustNewDuration(48 * time.Hour),
 			BlockTime:                 config.MustNewDuration(1 * time.Second),
+			BatchInsertSize:           2000,
+			MinBatchSize:              250,
+			SaveThreshold:             4000,
 		}
 
 		original := customConfig
@@ -54,5 +65,8 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, original.PageSize, customConfig.PageSize)
 		assert.Equal(t, original.LogPollerStartingLookback, customConfig.LogPollerStartingLookback)
 		assert.Equal(t, original.BlockTime, customConfig.BlockTime)
+		assert.Equal(t, original.BatchInsertSize, customConfig.BatchInsertSize)
+		assert.Equal(t, original.MinBatchSize, customConfig.MinBatchSize)
+		assert.Equal(t, original.SaveThreshold, customConfig.SaveThreshold)
 	})
 }

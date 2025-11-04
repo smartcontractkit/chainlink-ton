@@ -43,8 +43,19 @@ var DefaultConfigSet = Config{
 	SaveThreshold:   8000, // Memory buffer size before batch saving
 }
 
-// SetDefaults sets default values for any zero-valued fields to ensure backward compatibility
-func (c *Config) SetDefaults() {
+func (c *Config) ApplyDefaults() {
+	if c.PollPeriod == nil {
+		c.PollPeriod = DefaultConfigSet.PollPeriod
+	}
+	if c.PageSize == 0 {
+		c.PageSize = DefaultConfigSet.PageSize
+	}
+	if c.LogPollerStartingLookback == nil {
+		c.LogPollerStartingLookback = DefaultConfigSet.LogPollerStartingLookback
+	}
+	if c.BlockTime == nil {
+		c.BlockTime = DefaultConfigSet.BlockTime
+	}
 	if c.BatchInsertSize == 0 {
 		c.BatchInsertSize = DefaultConfigSet.BatchInsertSize
 	}
@@ -56,8 +67,7 @@ func (c *Config) SetDefaults() {
 	}
 }
 
-// Validate validates the configuration, this runs against the default config if not set
-func (c *Config) Validate() error {
+func (c *Config) ValidateConfig() (err error) {
 	if c.PageSize == 0 {
 		return errors.New("page_size must be greater than 0")
 	}
@@ -74,24 +84,5 @@ func (c *Config) Validate() error {
 	if c.SaveThreshold == 0 {
 		return errors.New("save_threshold must be greater than 0")
 	}
-	return nil
-}
-
-func (c *Config) ApplyDefaults() {
-	if c.PollPeriod == nil {
-		c.PollPeriod = DefaultConfigSet.PollPeriod
-	}
-	if c.PageSize == 0 {
-		c.PageSize = DefaultConfigSet.PageSize
-	}
-	if c.LogPollerStartingLookback == nil {
-		c.LogPollerStartingLookback = DefaultConfigSet.LogPollerStartingLookback
-	}
-	if c.BlockTime == nil {
-		c.BlockTime = DefaultConfigSet.BlockTime
-	}
-}
-
-func (c *Config) ValidateConfig() (err error) {
 	return nil
 }

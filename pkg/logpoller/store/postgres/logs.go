@@ -38,8 +38,8 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 
 	dbLogs := make([]logModel, len(logs))
 	for i, log := range logs {
-		logModel := &logModel{}
-		dbLog, err := logModel.FromLog(log)
+		lm := &logModel{}
+		dbLog, err := lm.FromLog(log)
 		if err != nil {
 			s.lggr.Errorw("Failed to convert log to DB model", "error", err, "txHash", log.TxHash, "address", log.Address.String())
 			return 0, fmt.Errorf("failed to convert log to DB model: %w", err)
