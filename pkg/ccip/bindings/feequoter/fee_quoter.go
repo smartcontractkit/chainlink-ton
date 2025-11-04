@@ -20,13 +20,11 @@ const (
 
 // Fee Quoter opcodes
 const (
-	OpcodeUpdatePrices                     = 0x20000001
-	OpcodeUpdateFeeTokens                  = 0xD0984986
-	OpcodeUpdateTokenTransferFeeConfigs    = 0xB2826316
-	OpcodeUpdateDestChainConfigs           = 0x29950BAA
-	OpcodeFeeQuoterGetValidatedFee         = 0x7496FF56
-	OpcodeFeeQuoterMessageValidated        = 0xCBC4AF76
-	OpcodeFeeQuoterMessageValidationFailed = 0x0F756150
+	OpcodeUpdatePrices                  = 0x20000001
+	OpcodeUpdateFeeTokens               = 0xD0984986
+	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
+	OpcodeUpdateDestChainConfigs        = 0x29950BAA
+	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
