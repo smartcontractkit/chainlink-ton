@@ -262,7 +262,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1). // only get the last one
+		Limit(1).                              // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -734,7 +734,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	// TODO: decode token addresses here according to chain selector
 	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
 	for _, token := range tokens {
-		s, err2 := a.addrCodec.AddressBytesToString(token)
+		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
 		if err2 != nil {
 			return nil, fmt.Errorf("failed to AddressBytesToString for encodedTokens: %w", err2)
 		}

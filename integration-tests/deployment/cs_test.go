@@ -286,10 +286,12 @@ func TestDeploy(t *testing.T) {
 		tonAddrBytes, err = addrCodec.AddressStringToBytes(addr.String())
 		require.NoError(t, err)
 		updates, err = accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
-
 		require.NoError(t, err)
-		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(addr.String())])
-		require.Equal(t, int64(0), updates[ccipocr3.UnknownEncodedAddress(addr.String())].Value.Int64())
+		bounceableAddr, err2 := addrCodec.AddressBytesToString(tonAddrBytes)
+		require.NoError(t, err2)
+		update := updates[ccipocr3.UnknownEncodedAddress(bounceableAddr)]
+		require.NotNil(t, update)
+		require.Equal(t, int64(0), update.Value.Int64())
 	})
 
 	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
