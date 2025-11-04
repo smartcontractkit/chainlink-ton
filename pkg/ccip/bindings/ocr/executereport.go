@@ -10,7 +10,7 @@ import (
 )
 
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
-// Message: single message as cell reference (TON contract reads first message only)
+// Message: single message as cell reference
 // OffChainTokenData: vec<vec<u8>> - each token data as separate cell ref
 // Proofs: vec<bytes32> - inline 256-bit proofs using SnakeData with Proof wrapper (matches TypeScript asSnakeData)
 type ExecuteReport struct {
