@@ -116,7 +116,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.05"),
+        value: ton("0.02"),
         dest: {
             stateInit: { //ReceiveExecutor address
                 code: st.deployables.load().deployer,
@@ -136,7 +136,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
-        value: ton("0.05"),
+        value: ton("0.02"),
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
@@ -188,7 +188,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
 
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.05"), //TODO how much do we need to send
+        value: ton("0.02"), //TODO how much do we need to send
         dest: {
             stateInit: {
                 code: st.deployables.load().deployer,
@@ -215,7 +215,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + ton("0.01"),
+        value: message.gasLimit + ton("0.1"),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
