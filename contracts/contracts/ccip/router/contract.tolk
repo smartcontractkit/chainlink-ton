@@ -38,17 +38,21 @@ fun onInternalMessage(in: InMessage) {
             rmn.admin.requireOwner(in.senderAddress);
             rmn.cursedSubjects.curse(msg.subject);
             st.rmnRemote = rmn.toCell();
-            // propagate update to offramp cache
-            if (!st.offRamp.isNone()) {
+            st.store();
+
+            // propagate update to cache
+            var entry = rmn.forwardUpdates.findFirst();
+            while (entry.isFound) {
+                val destination = entry.getKey();
                 val sendMsg = createMessage({
                     bounce: false,
                     value: 0,
-                    dest: st.offRamp,
+                    dest: destination,
                     body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
                 });
                 sendMsg.send(SEND_MODE_REGULAR);
+                entry = rmn.forwardUpdates.iterateNext(entry);
             }
-            st.store();
         }
         RMNRemote_Uncurse => {
             var st = lazy Storage.load();
@@ -56,17 +60,21 @@ fun onInternalMessage(in: InMessage) {
             rmn.admin.requireOwner(in.senderAddress);
             rmn.cursedSubjects.uncurse(msg.subject);
             st.rmnRemote = rmn.toCell();
+            st.store();
+
             // propagate update to offramp cache
-            if (!st.offRamp.isNone()) {
+            var entry = rmn.forwardUpdates.findFirst();
+            while (entry.isFound) {
+                val destination = entry.getKey();
                 val sendMsg = createMessage({
                     bounce: false,
                     value: 0,
-                    dest: st.offRamp,
+                    dest: destination,
                     body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
                 });
                 sendMsg.send(SEND_MODE_REGULAR);
+                entry = rmn.forwardUpdates.iterateNext(entry);
             }
-            st.store();
         }
         RMNRemote_VerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
@@ -130,8 +138,6 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    st.offRamp = msg.offRamp;
-
     var selectors = msg.destChainSelectors.iter();
     while (!selectors.empty()) {
         val selector = selectors.next();
@@ -163,6 +169,18 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             st.offRamps.delete(selector);
         }
     }
+
+    // update RMN forwarding cache
+    var rmn = st.rmnRemote.load();
+    var forwardUpdates = createEmptyMap<address, ()>();
+    var entry = st.offRamps.findFirst(); 
+    while (entry.isFound) {
+        val ramp = entry.loadValue();
+        forwardUpdates.addIfNotExists(ramp, ());
+        entry = st.offRamps.iterateNext(entry);
+    }
+    rmn.forwardUpdates = forwardUpdates;
+    st.rmnRemote = rmn.toCell();
     st.store();
 }
 

@@ -96,6 +96,6 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
 }
 
 //crc32('OffRamp_UpdateCursedSubjects')
-struct (0x8f7d4e41) OffRamp_UpdateCursedSubjects {
+struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
     cursedSubjects: CursedSubjects
 }

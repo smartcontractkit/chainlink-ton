@@ -31,6 +31,7 @@ export const Opcodes = {
   updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
+  updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
 }
 
 export const OFFRAMP_CONTRACT_VERSION = '0.0.12'
@@ -50,6 +51,8 @@ export enum OffRampError {
   InvalidMessageDestChainSelector,
   SourceChainSelectorMismatch,
   InvalidOnRampUpdate,
+  SenderIsNotRouter,
+  SubjectCursed
 }
 
 export enum ReceiveExecutorError {
@@ -393,6 +396,29 @@ export class OffRamp
         .storeUint(opts.queryID ?? 0, 64)
         .storeUint(opts.sourceChainSelector, 64)
         .storeBuilder(sourceChainConfigToBuilder(opts.config))
+        .endCell(),
+    })
+  }
+
+  async sendUpdateCursedSubjects(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint,
+      subjects: bigint[],
+    }
+  ) {
+    let subjects = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
+    for (const subject of opts.subjects) {
+      subjects.set(subject, true);
+    }
+   
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateCursedSubjects, 32)
+        .storeDict(subjects)
         .endCell(),
     })
   }

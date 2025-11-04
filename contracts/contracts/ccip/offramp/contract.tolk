@@ -375,7 +375,9 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address) {
     var st = Storage.load();
 
-    // TODO: check if chain was cursed by RMNRemote
+    // check if chain was cursed by RMNRemote
+    val isCursed = st.cursedSubjects.isCursed(report.sourceChainSelector as uint128);
+    assert(!isCursed, Error.SubjectCursed);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);

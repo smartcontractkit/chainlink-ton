@@ -364,7 +364,8 @@ export const builder = {
                   ? beginCell().storeAddress(config.ownable.pendingOwner)
                   : null,
               )
-              .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128))),
+              .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128)))
+              .storeDict(Dictionary.empty(Dictionary.Keys.Address())),
           )
       },
 

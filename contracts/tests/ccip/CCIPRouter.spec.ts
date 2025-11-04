@@ -127,7 +127,6 @@ describe('Router', () => {
         owner: deployer.address,
         pendingOwner: null,
       },
-      offRamp: ZERO_ADDRESS,
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
@@ -852,7 +851,6 @@ async function deployRouterContract(
       owner: owner.address,
       pendingOwner: null,
     },
-    offRamp: ZERO_ADDRESS,
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }
