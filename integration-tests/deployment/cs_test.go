@@ -278,8 +278,8 @@ func TestDeploy(t *testing.T) {
 		}
 
 		require.NoError(t, err)
-		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)])
-		require.Equal(t, int64(99), updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)].Value.Int64())
+		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(addr.String())])
+		require.Equal(t, int64(99), updates[ccipocr3.UnknownEncodedAddress(addr.String())].Value.Int64())
 
 		// random address, should return empty token price
 		addr = address.MustParseAddr("kQDpbpFeXR2DGPQcAY_Fr8b1owx_K6LbvRoz9Ct-JJv4JkPH")
@@ -288,8 +288,8 @@ func TestDeploy(t *testing.T) {
 		updates, err = accessor.GetFeeQuoterTokenUpdates(ctx, []ccipocr3.UnknownAddress{tonAddrBytes})
 
 		require.NoError(t, err)
-		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)])
-		require.Equal(t, int64(0), updates[ccipocr3.UnknownEncodedAddress(tonAddrBytes)].Value.Int64())
+		require.NotNil(t, updates[ccipocr3.UnknownEncodedAddress(addr.String())])
+		require.Equal(t, int64(0), updates[ccipocr3.UnknownEncodedAddress(addr.String())].Value.Int64())
 	})
 
 	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
