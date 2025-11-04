@@ -256,7 +256,7 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
     // verify destination chain not cursed
     var rmn = st.rmnRemote.load();
     val isCursed = rmn.cursedSubjects.isCursed(msg.destChainSelector as uint128);
-    assert(!isCursed, Error.SubjectCursed as int);
+    assert(!isCursed, Router_Error.SubjectCursed as int);
 
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)

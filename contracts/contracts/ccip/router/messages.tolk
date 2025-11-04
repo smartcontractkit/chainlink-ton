@@ -69,22 +69,25 @@ struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
 }
 
 // curse/uncurse/verify uncursed (also as getter)
-struct (0x10000002) RMNRemote_Curse {
+// crc32("RMNRemote_Curse")
+struct (0x41e8c1dc) RMNRemote_Curse {
     queryId: uint64
     subject: uint128
 }
 
-struct (0x10000003) RMNRemote_Uncurse {
+// crc32("RMNRemote_Uncurse")
+struct (0x3c3f5e73) RMNRemote_Uncurse {
     queryId: uint64
     subject: uint128
 }
 
-struct (0x10000003) RMNRemote_VerifyNotCursed {
+// crc32("RMNRemote_VerifyNotCursed"
+struct (0xa6e4b7e1) RMNRemote_VerifyNotCursed {
     queryId: uint64
     subject: uint128
 }
 
-struct (0x10000004) RMNRemote_VerifyNotCursedResponse {
+struct (0x0d9368a9) RMNRemote_VerifyNotCursedResponse {
     queryId: uint64
     result: bool
 }

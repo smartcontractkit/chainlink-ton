@@ -95,7 +95,7 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     root: address;
 }
 
-// TODO: crc
-struct (0x01) OffRamp_UpdateCursedSubjects {
+//crc32('OffRamp_UpdateCursedSubjects')
+struct (0x8f7d4e41) OffRamp_UpdateCursedSubjects {
     cursedSubjects: CursedSubjects
 }
