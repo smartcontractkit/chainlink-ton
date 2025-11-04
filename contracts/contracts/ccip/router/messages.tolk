@@ -30,7 +30,6 @@ struct (0x20272c81) Router_SetRamps {
     queryId: uint64;
     destChainSelectors: SnakedCell<uint64>;
     onRamp: address;
-    offRamp: address;
 }
 
 //crc32("Router_UpdateOffRamps")
