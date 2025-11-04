@@ -35,25 +35,6 @@ func TestChain_LogPollerConfig(t *testing.T) {
 	assert.Equal(t, &logpoller.DefaultConfigSet, chain.LogPollerConfig())
 }
 
-func TestChain_ValidateConfig_BackwardCompatibility(t *testing.T) {
-	// Test backward compatibility: partial config should get defaults for missing fields
-	partialConfig := &logpoller.Config{
-		PageSize: 50,
-		// Missing BatchInsertSize, MinBatchSize, SaveThreshold (should get defaults)
-	}
-	chain := &Chain{LogPoller: partialConfig}
-
-	// Should not error - missing fields get defaults
-	err := chain.ValidateConfig()
-	require.NoError(t, err)
-
-	// Verify defaults were applied
-	assert.Equal(t, uint32(50), partialConfig.PageSize)                                        // Custom value preserved
-	assert.Equal(t, logpoller.DefaultConfigSet.BatchInsertSize, partialConfig.BatchInsertSize) // Default applied
-	assert.Equal(t, logpoller.DefaultConfigSet.MinBatchSize, partialConfig.MinBatchSize)       // Default applied
-	assert.Equal(t, logpoller.DefaultConfigSet.SaveThreshold, partialConfig.SaveThreshold)     // Default applied
-}
-
 func TestDefaultConfigSet(t *testing.T) {
 	require.NotNil(t, DefaultConfigSet.TransactionManager)
 	require.NotNil(t, DefaultConfigSet.LogPoller)

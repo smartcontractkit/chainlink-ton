@@ -70,3 +70,90 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, original.SaveThreshold, customConfig.SaveThreshold)
 	})
 }
+
+func TestConfig_ValidateConfig(t *testing.T) {
+	t.Run("valid config passes validation", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 4000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+		}
+		err := cfg.ValidateConfig()
+		assert.NoError(t, err)
+	})
+
+	t.Run("default config passes validation", func(t *testing.T) {
+		cfg := DefaultConfigSet
+		err := cfg.ValidateConfig()
+		assert.NoError(t, err)
+	})
+
+	t.Run("fails when PageSize is zero", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        0,
+			BatchInsertSize: 4000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+		}
+		err := cfg.ValidateConfig()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "page_size")
+	})
+
+	t.Run("fails when BatchInsertSize is zero", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 0,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+		}
+		err := cfg.ValidateConfig()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "batch_insert_size")
+	})
+
+	t.Run("fails when MinBatchSize is zero", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 4000,
+			MinBatchSize:    0,
+			SaveThreshold:   8000,
+		}
+		err := cfg.ValidateConfig()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "min_batch_size")
+	})
+
+	t.Run("fails when SaveThreshold is zero", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 4000,
+			MinBatchSize:    500,
+			SaveThreshold:   0,
+		}
+		err := cfg.ValidateConfig()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "save_threshold")
+	})
+
+	t.Run("fails when MinBatchSize > BatchInsertSize", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 500,
+			MinBatchSize:    1000,
+			SaveThreshold:   8000,
+		}
+		err := cfg.ValidateConfig()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "min_batch_size")
+		assert.Contains(t, err.Error(), "cannot be greater than")
+	})
+
+	t.Run("ApplyDefaults then ValidateConfig succeeds", func(t *testing.T) {
+		cfg := &Config{}
+		cfg.ApplyDefaults()
+		err := cfg.ValidateConfig()
+		assert.NoError(t, err)
+	})
+}
