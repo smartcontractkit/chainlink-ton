@@ -52,8 +52,15 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		CursedSubjects: nil,
-		OnRamps:        nil, // set afterwards
+		RMNRemote: router.RMNRemote{
+			Admin: common.Ownable2Step{
+				Owner:        deps.TonChain.WalletAddress,
+				PendingOwner: nil,
+			},
+			CursedSubjects: nil,
+			ForwardUpdates: nil,
+		},
+		OnRamps: nil, // set afterwards
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
