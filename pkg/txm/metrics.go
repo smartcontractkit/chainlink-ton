@@ -54,7 +54,6 @@ type tonTxmMetrics struct {
 
 	// error cases
 	failedToBroadcastTxs metric.Int64Counter
-	errorTxs             metric.Int64Counter
 	revertTxs            metric.Int64Counter
 }
 
