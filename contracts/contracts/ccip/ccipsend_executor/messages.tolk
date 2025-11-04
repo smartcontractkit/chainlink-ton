@@ -10,6 +10,7 @@ import "../onramp/types"
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | CCIPSendExecutor_MessageValidated<Metadata>
+    | CCIPSendExecutor_MessageValidationFailed<Metadata>
     | Common_JettonTransferNotification
     // TODO | TokenRegistry_TokenPoolInfo
     // TODO Implement interrupt message that allows to cancel the pending CCIP send and return funds to the sender. This should be callable only after a certain timeout. 

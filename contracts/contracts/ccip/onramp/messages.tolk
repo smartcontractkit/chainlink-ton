@@ -49,6 +49,13 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     fee: coins
 }
 
+struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
+    msgID: uint224,
+    msg: Cell<Router_CCIPSend>,
+    metadata: Metadata,
+    error: uint256,
+}
+
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRamp_UpdateDestChainConfigs {
     updates: cell; // vec<OffRampUpdateDestChainConfig>
