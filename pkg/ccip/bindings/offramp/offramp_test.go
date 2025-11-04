@@ -177,10 +177,8 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, execute.ConfigDigest, decoded.ConfigDigest)
 }
 
-func TestConfig_Any2TVMRampMessage(t *testing.T) {
-	var rampMsg ocr.Any2TVMRampMessage
-
-	// Your hex string from TypeScript
+func TestExecuteReport_WithHardCodedTSBytes(t *testing.T) {
+	// hex string from TypeScript
 	hexStr := "b5ee9c724101030100820002ca00000000000000000000000000000000000000000000000000000000000000010c9f9284461c852bc09c614ab4cba0de00000000000000010000000000000000801da2d2260e0a008e22f73316ac3b1bd05a63f7f092219dadd6bf925ce90bdf14e7312d000102002a141a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a0000d27b54c4"
 
 	// Convert hex string to bytes
@@ -192,6 +190,21 @@ func TestConfig_Any2TVMRampMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	// Load the message from the cell
+	var rampMsg ocr.Any2TVMRampMessage
 	err = tlb.LoadFromCell(&rampMsg, c.BeginParse())
+	require.NoError(t, err)
+
+	// Convert hex string to bytes
+	hexStr = "b5ee9c724101040100af0003500c9f9284461c852b000000000000000000000000000000000000000000000000000000000000000001030302ca00000000000000000000000000000000000000000000000000000000000000010c9f9284461c852bc09c614ab4cba0de00000000000000010000000000000000801da2d2260e0a008e22f73316ac3b1bd05a63f7f092219dadd6bf925ce90bdf14e7312d000203002a141a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a000074bb30ab"
+	bytes, err = hex.DecodeString(hexStr)
+	require.NoError(t, err)
+
+	// Parse the BOC (Bag of Cells)
+	c, err = cell.FromBOC(bytes)
+	require.NoError(t, err)
+
+	// Load the message from the cell
+	var report ocr.ExecuteReport
+	err = tlb.LoadFromCell(&report, c.BeginParse())
 	require.NoError(t, err)
 }

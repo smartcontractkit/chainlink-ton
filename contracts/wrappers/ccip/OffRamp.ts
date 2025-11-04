@@ -554,7 +554,7 @@ export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {
   }
 }
 
-function ExecutionReportToBuilder(report: ExecutionReport) {
+export function ExecutionReportToBuilder(report: ExecutionReport) {
   return beginCell()
     .storeUint(report.sourceChainSelector, 64)
     .storeRef(
