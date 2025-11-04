@@ -47,9 +47,9 @@ export abstract class Opcodes {
   static updateOffRamps = 0x234110a7
   static ccipReceiveConfirm = 0x1e55bbf6
   static routeMessage = 0xfc69c50b
-  static curse = 0x10000002
-  static uncurse = 0x10000003
-  static verifyNotCursed = 0x10000004
+  static curse = 0x41e8c1dc
+  static uncurse = 0x3c3f5e73
+  static verifyNotCursed = 0xa6e4b7e1
 }
 
 export type Ramp = {
