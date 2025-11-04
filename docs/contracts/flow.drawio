@@ -1,6 +1,6 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="27.1.3">
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" version="28.1.1">
   <diagram name="Page-1" id="3iFhkfZK2x6ODLsFprLD">
-    <mxGraphModel dx="2107" dy="689" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="2305" dy="1095" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -10,67 +10,14 @@
         <mxCell id="wz00zq7dg4Ay0myICROf-157" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#cce5ff;strokeColor=#36393d;" parent="1" vertex="1">
           <mxGeometry x="1615" y="710" width="835" height="350" as="geometry" />
         </mxCell>
-        <mxCell id="alMYTrZxWz3z2fR32nsG-1" value="Router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" parent="1" vertex="1">
-          <mxGeometry x="-400" y="260" width="120" height="60" as="geometry" />
-        </mxCell>
         <mxCell id="alMYTrZxWz3z2fR32nsG-2" value="FeeQuoter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" parent="1" vertex="1">
           <mxGeometry x="1095" y="260" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="alMYTrZxWz3z2fR32nsG-6" value="Contract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" parent="1" vertex="1">
-          <mxGeometry x="-820" y="100" width="120" height="60" as="geometry" />
+          <mxGeometry x="320" y="100" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="alMYTrZxWz3z2fR32nsG-7" value="Event" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a0522d;fontColor=#ffffff;strokeColor=#6D1F00;" parent="1" vertex="1">
-          <mxGeometry x="-820" y="170" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="alMYTrZxWz3z2fR32nsG-9" value="OnRamp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" parent="1" vertex="1">
-          <mxGeometry x="-200" y="260" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="lhNfmY7bn4wPwTe5wsCC-3" value="User" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#6d8764;fontColor=#ffffff;strokeColor=#3A5431;" parent="1" vertex="1">
-          <mxGeometry x="-600" y="260" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-2" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" target="alMYTrZxWz3z2fR32nsG-1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-340" y="1060" as="sourcePoint" />
-            <mxPoint x="-230" y="460" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-3" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="alMYTrZxWz3z2fR32nsG-5" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-140.5" y="700" as="sourcePoint" />
-            <mxPoint x="-140.5" y="320" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-4" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" target="lhNfmY7bn4wPwTe5wsCC-3" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-550" y="1070" as="sourcePoint" />
-            <mxPoint x="-540.5" y="330" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-6" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-540" y="360" as="sourcePoint" />
-            <mxPoint x="-340" y="360" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-7" value="ccipSend" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="wz00zq7dg4Ay0myICROf-6" vertex="1" connectable="0">
-          <mxGeometry x="-0.0762" y="-2" relative="1" as="geometry">
-            <mxPoint as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-8" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-340" y="400" as="sourcePoint" />
-            <mxPoint x="-140" y="400" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-9" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" target="alMYTrZxWz3z2fR32nsG-5" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-140.5" y="700" as="sourcePoint" />
-            <mxPoint x="-140.5" y="320" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="alMYTrZxWz3z2fR32nsG-5" value="CCIPMessageSent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a0522d;fontColor=#ffffff;strokeColor=#6D1F00;" parent="1" vertex="1">
-          <mxGeometry x="-200" y="800" width="120" height="60" as="geometry" />
+          <mxGeometry x="320" y="170" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="wz00zq7dg4Ay0myICROf-21" value="OffRamp" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" parent="1" vertex="1">
           <mxGeometry x="700" y="260" width="120" height="60" as="geometry" />
@@ -238,11 +185,8 @@
         <mxCell id="wz00zq7dg4Ay0myICROf-93" value="&lt;h1&gt;Execute&lt;/h1&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="1420" y="210" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-94" value="&lt;h1&gt;Send&lt;/h1&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-          <mxGeometry x="-590" y="210" width="60" height="30" as="geometry" />
-        </mxCell>
         <mxCell id="wz00zq7dg4Ay0myICROf-95" value="Third-party" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#6d8764;fontColor=#ffffff;strokeColor=#3A5431;" parent="1" vertex="1">
-          <mxGeometry x="-820" y="30" width="120" height="60" as="geometry" />
+          <mxGeometry x="320" y="30" width="120" height="60" as="geometry" />
         </mxCell>
         <mxCell id="wz00zq7dg4Ay0myICROf-96" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
@@ -323,12 +267,6 @@
         </mxCell>
         <mxCell id="wz00zq7dg4Ay0myICROf-120" value="notify:success" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
           <mxGeometry x="1940" y="1430" width="100" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-125" value="ccipSend" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;" parent="1" vertex="1">
-          <mxGeometry x="-270" y="370" width="70" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-129" value="we can support two different flows:&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;- single transfer can contain a ccipSend in the forwardPayload of the transfer notification (and use forwardTonAmount for native payment)&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;limitation is that we only support a single token that way, benefit is less latency &amp;amp; async jumps&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;- transferring multiple tokens would need to call ccipSend first to allocate a Message, then send all the transfers with the message id in the forwardPayload reference&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;NOTE: have to refund or track partial transfers, if the user doesn&#39;t send enough tokens&lt;/div&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" parent="1" vertex="1">
-          <mxGeometry x="-730" y="350" width="175" height="360" as="geometry" />
         </mxCell>
         <mxCell id="wz00zq7dg4Ay0myICROf-131" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
@@ -491,103 +429,6 @@
         </mxCell>
         <mxCell id="wz00zq7dg4Ay0myICROf-181" value="&lt;p&gt;NOTE: need to be able to resume execution if for example token pools were incorrectly configured and the root didn&#39;t fully execute?&lt;/p&gt;&lt;p&gt;releaseOrMint should calculate remaining balance and re-execute if needed, but only for balances that were marked as bounced&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="2470" y="760" width="270" height="120" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-182" value="FeeQuoter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;" parent="1" vertex="1">
-          <mxGeometry y="260" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-183" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="60.5" y="1065" as="sourcePoint" />
-            <mxPoint x="60" y="315" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-185" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-140" y="440" as="sourcePoint" />
-            <mxPoint x="60" y="440" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-190" value="getFee(destChain, Message { receiver, data, tokens, feeToken, extraArgs })" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="wz00zq7dg4Ay0myICROf-185" vertex="1" connectable="0">
-          <mxGeometry x="-0.2831" y="4" relative="1" as="geometry">
-            <mxPoint x="38" y="-6" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-191" value="store destConfigs sharded but token prices in root?" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="1" vertex="1">
-          <mxGeometry x="-85" y="328" width="290" height="30" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-192" value="DestChainConfig&lt;div&gt;init(destSelector)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76608a;fontColor=#ffffff;strokeColor=#432D57;align=center;" parent="1" vertex="1">
-          <mxGeometry x="200.000909090909" y="260" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-193" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="260.500909090909" y="1065" as="sourcePoint" />
-            <mxPoint x="260.000909090909" y="315" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-194" value="validate message" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="200.000909090909" y="510" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-197" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="60" y="480" as="sourcePoint" />
-            <mxPoint x="260" y="480" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-198" value="getValidatedFee(destChain, Message)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="wz00zq7dg4Ay0myICROf-197" vertex="1" connectable="0">
-          <mxGeometry x="-0.2831" y="4" relative="1" as="geometry">
-            <mxPoint x="28" y="-6" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-184" value="calculate gas cost + overhead" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry x="200" y="580" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-201" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="260" y="660" as="sourcePoint" />
-            <mxPoint x="60" y="660" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-202" value="validatedMessage" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="wz00zq7dg4Ay0myICROf-201" vertex="1" connectable="0">
-          <mxGeometry x="0.2476" relative="1" as="geometry">
-            <mxPoint x="25" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-203" value="using token prices convert gas cost to fee" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
-          <mxGeometry y="690" width="120" height="60" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-204" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" parent="1" source="alMYTrZxWz3z2fR32nsG-5" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-200" y="810" as="sourcePoint" />
-            <mxPoint x="-140" y="1060" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-200" value="&lt;p&gt;TODO: for paying and using non-native tokens: it&#39;d be easiest to allow a deposit into the router&lt;/p&gt;&lt;p&gt;or use the single token route&lt;/p&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" parent="1" vertex="1">
-          <mxGeometry x="-130" y="860" width="180" height="100" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-205" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="60" y="780" as="sourcePoint" />
-            <mxPoint x="-140" y="780" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-206" value="publish" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="wz00zq7dg4Ay0myICROf-205" vertex="1" connectable="0">
-          <mxGeometry x="0.2827" y="-2" relative="1" as="geometry">
-            <mxPoint x="28" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-210" value="&lt;p&gt;NOTE: can probably directly call into DestChainConfig since address is deterministic&lt;/p&gt;" style="text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;" parent="1" vertex="1">
-          <mxGeometry x="-130" y="430" width="180" height="80" as="geometry" />
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-211" value="" style="endArrow=classic;html=1;rounded=0;" parent="1" edge="1">
-          <mxGeometry width="50" height="50" relative="1" as="geometry">
-            <mxPoint x="-140" y="960" as="sourcePoint" />
-            <mxPoint x="-550" y="960" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="wz00zq7dg4Ay0myICROf-212" value="notification: ccipSend(success)" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" parent="wz00zq7dg4Ay0myICROf-211" vertex="1" connectable="0">
-          <mxGeometry x="0.4" y="-5" relative="1" as="geometry">
-            <mxPoint x="-12" y="-5" as="offset" />
-          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

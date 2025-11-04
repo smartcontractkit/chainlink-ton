@@ -80,6 +80,6 @@ The explorer will try to decode message payloads for known contracts. It current
 - Router
 - OnRamp
 - FeeQuoter
-- CcipSendExecutor
+- SendExecutor
 
 Read [TON Explorer Development Guide](./development.md) to learn how to add support for more contracts.

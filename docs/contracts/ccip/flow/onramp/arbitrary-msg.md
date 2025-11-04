@@ -1,6 +1,6 @@
 # Arbitrary Message Onramp Flow
 
-> See [how CCIPSend works](../../onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../token-registry.md).
+> See [how CCIPSend works](send-executor.md) and [how the Token Registry is implemented](../../token-registry.md).
 
 ```mermaid
 sequenceDiagram
@@ -20,7 +20,7 @@ sequenceDiagram
 
     box OnRamp
     participant OR as OnRamp
-    participant ORM as CCIPSendExecutor<br>{id}
+    participant ORM as SendExecutor<br>{id}
     end
 
     participant FQ as FeeQuoter
@@ -49,7 +49,7 @@ For any bounce we catch, or when we say Reject CCIPSend, it envolves:
 ```mermaid
 sequenceDiagram
     participant OR as OnRamp
-    participant LRM as CCIPSendExecutor<br>{id}
+    participant LRM as SendExecutor<br>{id}
     Note over LRM: destroy
     destroy LRM
     LRM ->> OR: failed{storageID: LRM.id, data:<br>CCIPSend, reason}<br>+ TON remaining balance
