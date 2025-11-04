@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
@@ -24,6 +26,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -333,6 +336,18 @@ func SendTonRequest(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
+
+	debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		senderAddr.String():            {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+		state.FeeQuoter.String():       {Type: "FeeQuoter", Version: *semver.MustParse("0.0.1")},
+		state.OffRamp.String():         {Type: "OffRamp", Version: *semver.MustParse("0.0.1")},
+		state.Router.String():          {Type: "Router", Version: *semver.MustParse("0.0.1")},
+		state.OnRamp.String():          {Type: "OnRamp", Version: *semver.MustParse("0.0.1")},
+		state.FeeQuoter.String():       {Type: "FeeQuoter", Version: *semver.MustParse("0.0.1")},
+		state.Timelock.String():        {Type: "Timelock", Version: *semver.MustParse("0.0.1")},
+		state.ReceiverAddress.String(): {Type: "ReceiverAddress", Version: *semver.MustParse("0.0.1")},
+	})
+	e.Logger.Infof("Msg trace:\n%s\n", debugger.DumpReceived(receivedMsg))
 
 	event, err := waitForReceivedMsgFlatten(e, clientConn, receivedMsg)
 	if err != nil {
