@@ -104,7 +104,7 @@ func connectClient(ctx context.Context, endpoint string) (*ton.APIClient, error)
 // TODO(2025-11-04@jadepark-dev): This custom CCIPSend is a local version of router.CCIPSend with older opcode tag.
 // TODO: Currently staging env has older router contract(14d4e69), revert to the original binding once we deploy the new router contract.
 type CCIPSend struct {
-	_                 tlb.Magic                           `tlb:"#00000001"`
+	_                 tlb.Magic                           `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                              `tlb:"## 64"`
 	DestChainSelector uint64                              `tlb:"## 64"`
 	Receiver          common.CrossChainAddress            `tlb:"."`
