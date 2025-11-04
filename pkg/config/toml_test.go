@@ -21,14 +21,18 @@ ChainID = '-3'
 NetworkName = 'testnet'
 
 [TransactionManager]
-BroadcastChanSize = 200
-SendRetryDelay = '5s'
-CleanupIntervalMins = 15
+BroadcastChanSize = 101
+ConfirmPollInterval = '9s'
+SendRetryDelay = '8s'
+MaxSendRetryAttempts = 7
+TxExpiration = '6h'
+CleanupInterval = '15m'
 
 [LogPoller]
 PollPeriod = '10s'
 PageSize = 50
-BlockTime = '2500ms'
+LogPollerStartingLookback = '1h'
+BlockTime = '1200ms'
 
 [[Nodes]]
 Name = 'ton-testnet-1'
@@ -44,14 +48,18 @@ URL = 'http://localhost:8081'
 
 		// Verify config sections exist and key fields parse correctly
 		require.NotNil(t, cfg.TransactionManager)
-		assert.Equal(t, uint(200), cfg.TransactionManager.BroadcastChanSize)
-		assert.Equal(t, 5*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
-		assert.Equal(t, uint(15), cfg.TransactionManager.CleanupIntervalMins)
+		assert.Equal(t, uint(101), cfg.TransactionManager.BroadcastChanSize)
+		assert.Equal(t, 9*time.Second, cfg.TransactionManager.ConfirmPollInterval.Duration())
+		assert.Equal(t, 8*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
+		assert.Equal(t, uint(7), cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, 6*time.Hour, cfg.TransactionManager.TxExpiration.Duration())
+		assert.Equal(t, 15*time.Minute, cfg.TransactionManager.CleanupInterval.Duration())
 
 		require.NotNil(t, cfg.LogPoller)
 		assert.Equal(t, uint32(50), cfg.LogPoller.PageSize)
 		assert.Equal(t, 10*time.Second, cfg.LogPoller.PollPeriod.Duration())
-		assert.Equal(t, 2500*time.Millisecond, cfg.LogPoller.BlockTime.Duration())
+		assert.Equal(t, 1*time.Hour, cfg.LogPoller.LogPollerStartingLookback.Duration())
+		assert.Equal(t, 1200*time.Millisecond, cfg.LogPoller.BlockTime.Duration())
 
 		require.Len(t, cfg.Nodes, 1)
 		assert.Equal(t, "ton-testnet-1", *cfg.Nodes[0].Name)
@@ -71,12 +79,23 @@ URL = 'http://localhost:8081'
 		cfg, err := NewDecodedTOMLConfig(tomlStr)
 		require.NoError(t, err)
 
-		// Missing sections should get full defaults
-		assert.Equal(t, DefaultConfigSet.TransactionManager, cfg.TransactionManager)
-		assert.Equal(t, DefaultConfigSet.LogPoller, cfg.LogPoller)
+		// Missing sections should get full defaults - verify field by field
+		require.NotNil(t, cfg.TransactionManager)
+		assert.Equal(t, txm.DefaultConfigSet.BroadcastChanSize, cfg.TransactionManager.BroadcastChanSize)
+		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendRetryDelay, cfg.TransactionManager.SendRetryDelay)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
+		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+
+		require.NotNil(t, cfg.LogPoller)
+		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
+		assert.Equal(t, logpoller.DefaultConfigSet.PageSize, cfg.LogPoller.PageSize)
+		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
+		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
 	})
 
-	t.Run("partial configs get zero values", func(t *testing.T) {
+	t.Run("partial configs get field-by-field defaults", func(t *testing.T) {
 		tomlStr := `
 Enabled = true
 ChainID = '-3'
@@ -100,11 +119,16 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, uint(300), cfg.TransactionManager.BroadcastChanSize)
 		assert.Equal(t, uint32(200), cfg.LogPoller.PageSize)
 
-		// Missing fields get zero values (Aptos behavior)
-		assert.Equal(t, uint(0), cfg.TransactionManager.ConfirmPollSecs)
-		assert.Equal(t, uint(0), cfg.TransactionManager.CleanupIntervalMins)
-		assert.Nil(t, cfg.TransactionManager.SendRetryDelay)
-		assert.False(t, cfg.TransactionManager.StickyNodeContextEnabled)
+		// Missing fields get defaults applied (field-by-field)
+		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendRetryDelay, cfg.TransactionManager.SendRetryDelay)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
+		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+
+		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
+		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
+		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
 	})
 
 	t.Run("validation errors", func(t *testing.T) {
@@ -123,31 +147,67 @@ URL = 'http://localhost:8081'
 }
 
 func TestTOMLConfig_SetDefaults(t *testing.T) {
-	// Test nil configs get defaults
-	cfg := &TOMLConfig{NetworkName: "testnet"}
-	cfg.SetDefaults()
+	t.Run("nil configs get full defaults", func(t *testing.T) {
+		cfg := &TOMLConfig{NetworkName: "testnet"}
+		cfg.SetDefaults()
 
-	assert.Equal(t, DefaultConfigSet.TransactionManager, cfg.TransactionManager)
-	assert.Equal(t, DefaultConfigSet.LogPoller, cfg.LogPoller)
-	assert.Equal(t, "ton-testnet", cfg.NetworkNameFull)
+		// Verify all TransactionManager fields got defaults
+		require.NotNil(t, cfg.TransactionManager)
+		assert.Equal(t, txm.DefaultConfigSet.BroadcastChanSize, cfg.TransactionManager.BroadcastChanSize)
+		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendRetryDelay, cfg.TransactionManager.SendRetryDelay)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
+		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
 
-	// Test existing configs preserved
-	customTxm := &txm.Config{BroadcastChanSize: 999}
-	customLP := &logpoller.Config{PageSize: 777}
+		// Verify all LogPoller fields got defaults
+		require.NotNil(t, cfg.LogPoller)
+		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
+		assert.Equal(t, logpoller.DefaultConfigSet.PageSize, cfg.LogPoller.PageSize)
+		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
+		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
 
-	cfg2 := &TOMLConfig{
-		NetworkName:     "mainnet",
-		NetworkNameFull: "custom-name",
-		Chain: Chain{
-			TransactionManager: customTxm,
-			LogPoller:          customLP,
-		},
-	}
-	cfg2.SetDefaults()
+		assert.Equal(t, "ton-testnet", cfg.NetworkNameFull)
+	})
 
-	assert.Equal(t, customTxm, cfg2.TransactionManager)
-	assert.Equal(t, customLP, cfg2.LogPoller)
-	assert.Equal(t, "custom-name", cfg2.NetworkNameFull)
+	t.Run("partial configs get field-by-field defaults applied", func(t *testing.T) {
+		// Create configs with only some fields set
+		customTxm := &txm.Config{
+			BroadcastChanSize: 999,
+			SendRetryDelay:    config.MustNewDuration(10 * time.Second),
+		}
+		customLP := &logpoller.Config{
+			PageSize:  777,
+			BlockTime: config.MustNewDuration(3 * time.Second),
+		}
+
+		cfg := &TOMLConfig{
+			NetworkName:     "mainnet",
+			NetworkNameFull: "custom-name",
+			Chain: Chain{
+				TransactionManager: customTxm,
+				LogPoller:          customLP,
+			},
+		}
+		cfg.SetDefaults()
+
+		// Verify custom values are preserved
+		assert.Equal(t, uint(999), cfg.TransactionManager.BroadcastChanSize)
+		assert.Equal(t, 10*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
+		assert.Equal(t, uint32(777), cfg.LogPoller.PageSize)
+		assert.Equal(t, 3*time.Second, cfg.LogPoller.BlockTime.Duration())
+
+		// Verify missing fields got defaults
+		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
+		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+
+		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
+		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
+
+		assert.Equal(t, "custom-name", cfg.NetworkNameFull)
+	})
 }
 
 func TestSetFromChain(t *testing.T) {

@@ -480,11 +480,10 @@ func FetchResultHelper(
 	} else {
 		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
 	}
+
 	if err != nil {
-		return fmt.Errorf("error getting %s: %w", method, err)
+		return err
 	}
-	if err = fromResult(result); err != nil {
-		return fmt.Errorf("failed to parse %s: %w", method, err)
-	}
-	return nil
+
+	return fromResult(result)
 }
