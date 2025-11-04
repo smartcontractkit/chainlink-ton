@@ -9,6 +9,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 	relaytypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
 type TOMLConfig struct {
@@ -36,50 +39,29 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 		return &TOMLConfig{}, fmt.Errorf("failed to decode config toml: %w:\n\t%s", err, rawConfig)
 	}
 
-	if !cfg.IsEnabled() {
-		return &TOMLConfig{}, fmt.Errorf("cannot create new chain with ID %s: config is disabled", cfg.ChainID)
-	}
-
+	// Apply defaults before validation
 	cfg.SetDefaults()
 
 	if err := cfg.ValidateConfig(); err != nil {
 		return &TOMLConfig{}, fmt.Errorf("invalid ton config: %w", err)
+	}
+
+	if !cfg.IsEnabled() {
+		return &TOMLConfig{}, fmt.Errorf("cannot create new chain with ID %s: config is disabled", cfg.ChainID)
 	}
 	return &cfg, nil
 }
 
 func (c *TOMLConfig) SetDefaults() {
 	if c.TransactionManager == nil {
-		c.TransactionManager = DefaultConfigSet.TransactionManager
+		c.TransactionManager = &txm.Config{}
 	}
+	c.TransactionManager.ApplyDefaults()
 
 	if c.LogPoller == nil {
-		c.LogPoller = DefaultConfigSet.LogPoller
-	} else {
-		// apply defaults to missing fields within LogPoller
-		defaultLogPoller := DefaultConfigSet.LogPoller
-
-		if c.LogPoller.PollPeriod == nil {
-			c.LogPoller.PollPeriod = defaultLogPoller.PollPeriod
-		}
-		if c.LogPoller.PageSize == 0 {
-			c.LogPoller.PageSize = defaultLogPoller.PageSize
-		}
-		if c.LogPoller.LogPollerStartingLookback == nil {
-			c.LogPoller.LogPollerStartingLookback = defaultLogPoller.LogPollerStartingLookback
-		}
-		if c.LogPoller.BlockTime == nil {
-			c.LogPoller.BlockTime = defaultLogPoller.BlockTime
-		}
-
-		// apply defaults to database config (only if zero)
-		if c.LogPoller.BatchInsertSize == 0 {
-			c.LogPoller.BatchInsertSize = defaultLogPoller.BatchInsertSize
-		}
-		if c.LogPoller.MinBatchSize == 0 {
-			c.LogPoller.MinBatchSize = defaultLogPoller.MinBatchSize
-		}
+		c.LogPoller = &logpoller.Config{}
 	}
+	c.LogPoller.ApplyDefaults()
 
 	// Set network name full defaults
 	if c.NetworkNameFull == "" {
@@ -115,6 +97,7 @@ func NodeStatus(n *Node, id string) (relaytypes.NodeStatus, error) {
 }
 
 func setFromChain(c, f *Chain) {
+	c.ClientTTL = f.ClientTTL
 	if f.TransactionManager != nil {
 		c.TransactionManager = f.TransactionManager
 	}
@@ -136,8 +119,8 @@ func (c *TOMLConfig) ValidateConfig() (err error) {
 		}
 	}
 
-	// validate chain configuration (including LogPoller)
-	err = errors.Join(err, c.Chain.ValidateConfig())
+	err = errors.Join(err, c.TransactionManager.ValidateConfig())
+	err = errors.Join(err, c.LogPoller.ValidateConfig())
 
 	return
 }

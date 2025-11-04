@@ -13,6 +13,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+const (
+	tokenPriceGetter   = "tokenPrice"
+	StaticConfigGetter = "staticConfig"
+)
+
 // Fee Quoter opcodes
 const (
 	OpcodeUpdatePrices                  = 0x20000001
@@ -34,10 +39,8 @@ const (
 	ErrorInvalidTokenReceiver                 tvm.ExitCode = tvm.ExitCode(1007)
 	ErrorTooManySuiExtraArgsReceiverObjectIDs tvm.ExitCode = tvm.ExitCode(1008)
 	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
-)
-
-const (
-	StaticConfigGetter = "staticConfig"
+	ErrorTokenNotSupported                    tvm.ExitCode = tvm.ExitCode(24813)
+	ErrorUnknownDestChainSelector             tvm.ExitCode = tvm.ExitCode(24814)
 )
 
 type Storage struct {
@@ -217,6 +220,10 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
 	}
 	return nil
+}
+
+func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p.FromResult)
 }
 
 type TokenPriceUpdate struct {

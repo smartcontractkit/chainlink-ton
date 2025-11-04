@@ -455,7 +455,9 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
 
 get fun tokenPrice(token: address): TimestampedPrice {
     val st = lazy Storage.load();
-    return st.usdPerToken.mustGet(token, FeeQuoter_Error.TokenNotSupported as int);
+    val entry = st.usdPerToken.get(token);
+    assert (entry.isFound, FeeQuoter_Error.TokenNotSupported);
+    return entry.loadValue();
 }
 
 // vec<TimestampedPrice>
@@ -475,8 +477,9 @@ get fun tokenPrices(tokens: tuple): tuple {
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.UnknownDestChainSelector as int);
-    return config.usdPerUnitGas
+    var entry = st.destChainConfigs.get(destChainSelector);
+    assert (entry.isFound, FeeQuoter_Error.UnknownDestChainSelector);
+    return entry.loadValue().usdPerUnitGas
 }
 
 get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {

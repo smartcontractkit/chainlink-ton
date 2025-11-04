@@ -9,6 +9,7 @@ import (
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
+	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
@@ -49,7 +50,7 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, keystore)
 
 	config := txm.DefaultConfigSet
-	config.ConfirmPollSecs = 2
+	config.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
 
 	runTxmTest(t, logger, config, tonChain, keystore, 5)
 }

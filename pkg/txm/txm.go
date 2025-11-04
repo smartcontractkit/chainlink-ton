@@ -123,7 +123,7 @@ func (t *Txm) Enqueue(request Request) error {
 	// 	return fmt.Errorf("failed to sign: %w", err)
 	// }
 
-	txExpirationMins := time.Minute * time.Duration(t.config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
+	txExpiration := t.config.TxExpiration.Duration()
 	tx := &Tx{
 		Mode:       request.Mode,
 		From:       *request.FromWallet.Address(),
@@ -133,7 +133,7 @@ func (t *Txm) Enqueue(request Request) error {
 		StateInit:  request.StateInit,
 		Bounceable: request.Bounce,
 		CreatedAt:  time.Now(),
-		Expiration: time.Now().Add(txExpirationMins),
+		Expiration: time.Now().Add(txExpiration),
 		ID:         request.ID,
 	}
 
@@ -291,7 +291,7 @@ func (t *Txm) confirmLoop() {
 	_, cancel := commonutils.ContextFromChan(t.stop)
 	defer cancel()
 
-	pollDuration := time.Duration(t.config.ConfirmPollSecs) * time.Second //nolint:gosec // ignoring G115 overflow conversion
+	pollDuration := t.config.ConfirmPollInterval.Duration()
 	tick := time.After(pollDuration)
 
 	t.logger.Debugw("confirmLoop: started")
@@ -368,7 +368,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 func (t *Txm) cleanupLoop() {
 	defer t.done.Done()
 
-	cleanupInterval := time.Duration(t.config.CleanupIntervalMins) * time.Minute //nolint:gosec // ignoring G115 overflow conversion
+	cleanupInterval := t.config.CleanupInterval.Duration()
 	ticker := time.NewTicker(cleanupInterval)
 	defer ticker.Stop()
 

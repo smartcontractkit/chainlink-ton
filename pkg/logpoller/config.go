@@ -8,7 +8,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 )
 
-// Config holds the main log poller configuration
+// Config holds the configuration for the log poller.
+// NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
+// Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
 type Config struct {
 	PollPeriod                *config.Duration
 	PageSize                  uint32
@@ -72,5 +74,24 @@ func (c *Config) Validate() error {
 	if c.SaveThreshold == 0 {
 		return errors.New("save_threshold must be greater than 0")
 	}
+	return nil
+}
+
+func (c *Config) ApplyDefaults() {
+	if c.PollPeriod == nil {
+		c.PollPeriod = DefaultConfigSet.PollPeriod
+	}
+	if c.PageSize == 0 {
+		c.PageSize = DefaultConfigSet.PageSize
+	}
+	if c.LogPollerStartingLookback == nil {
+		c.LogPollerStartingLookback = DefaultConfigSet.LogPollerStartingLookback
+	}
+	if c.BlockTime == nil {
+		c.BlockTime = DefaultConfigSet.BlockTime
+	}
+}
+
+func (c *Config) ValidateConfig() (err error) {
 	return nil
 }
