@@ -25,7 +25,7 @@ func NewDecoder(tlbsCtx map[uint64]interface{}, t string) lib.ContractDecoder {
 
 // ContractType implements lib.ContractDecoder.
 func (d *decoder) ContractType() string {
-	return "com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet"
+	return d.contractType
 }
 
 // EventInfo implements lib.ContractDecoder.
