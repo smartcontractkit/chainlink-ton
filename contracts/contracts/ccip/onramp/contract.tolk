@@ -151,7 +151,7 @@ fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
     var tokenAmounts = payload.tokens.iter();
     assert (!tokenAmounts.empty()) throw 5;
     var tokenAmount = tokenAmounts.next();
-    assert (tokenAmounts.empty()) throw 0xFFFF; // TODO: only single token withdraw supported for now
+    assert (tokenAmounts.empty()) throw ERROR_UNIMPLEMENTED; // TODO: only single token withdraw supported for now
     // TODO validate sender is executor msg.msgId
         val sendMsg = createMessage({
         bounce: true,
@@ -226,7 +226,18 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
-    // TODO: notify user
+    val confirmation = createMessage({
+        bounce: false,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_MessageSent {
+            queryID: ccipsend.queryID,
+            messageId: rampMessage.header.messageId,
+            destChainSelector: ccipsend.destChainSelector,
+            sender: payload.metadata.sender,
+        },
+    });
+    sendCarryAllRemainingMessageValueSafe(confirmation);
 }
 
 

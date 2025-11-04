@@ -41,9 +41,10 @@ struct (0x234110a7) Router_UpdateOffRamps {
 
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
+// Answers with Router_CCIPReceive
 //crc32("Router_CCIPSend")
 struct (0x31768d95) Router_CCIPSend {
-    queryId: uint64;
+    queryID: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;
     data: cell;
@@ -62,4 +63,12 @@ struct (0xfc69c50b) Router_RouteMessage {
 //crc32("Router_CCIPReceiveConfirm")
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     execId: ReceiveExecutorId;
+}
+
+// 0x6513f8e1 = crc32b("Router_MessageSent")
+struct (0x6513f8e1) Router_MessageSent {
+    queryID: uint64;
+    messageId: uint256;
+    destChainSelector: uint64;
+    sender: address;
 }

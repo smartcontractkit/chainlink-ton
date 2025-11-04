@@ -186,7 +186,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
         value: 0, // TODO:
         dest: wallet,
         body: AskToTransferFwdPayload {
-            queryId: sendMsg.queryId,
+            queryId: sendMsg.queryID,
             jettonAmount: transferNotification.amount,
             transferRecipient: onRamp,
             sendExcessesTo: contract.getAddress(),
