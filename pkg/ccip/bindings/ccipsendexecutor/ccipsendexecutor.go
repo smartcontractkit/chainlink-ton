@@ -7,14 +7,16 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // CCIPSend Executor opcodes
 const (
-	OpcodeCCIPSendExecutorExecute = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
+	OpcodeCCIPSendExecutorExecute                 = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
+	OpcodeCCIPSendExecutorMessageValidated        = 0xCBC4AF76 // crc32('CCIPSendExecutor_MessageValidated'
+	OpcodeCCIPSendExecutorMessageValidationFailed = 0x0F756150 // crc32('CCIPSendExecutor_MessageValidationFailed')
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -41,6 +43,21 @@ type Execute struct {
 	OnRampSend         onramp.Send      `tlb:"."`
 	Config             *cell.Cell       `tlb:"^"`
 	OnRampJettonWallet *address.Address `tlb:"maybe addr"`
+}
+
+// CCIPSendExecutor_MessageValidated message structure
+type MessageValidated struct {
+	_        tlb.Magic        `tlb:"#cbc4af76"` //nolint:revive // Ignore opcode tag
+	Msg      *router.CCIPSend `tlb:"^"`
+	Metadata *cell.Cell       `tlb:"^"`
+	Fee      *tlb.Coins       `tlb:"."`
+}
+
+type MessageValidationFailed struct {
+	_        tlb.Magic        `tlb:"#0f756150"` //nolint:revive // Ignore opcode tag
+	Msg      *router.CCIPSend `tlb:"^"`
+	Metadata *cell.Cell       `tlb:"^"`
+	Reason   string           `tlb:"str"`
 }
 
 // Metadata structure
@@ -83,20 +100,6 @@ type PendingJettonLock struct {
 	TokenRegistry *address.Address `tlb:"addr"`
 	JettonWallet  *address.Address `tlb:"addr"`
 	TokenPool     *address.Address `tlb:"addr"`
-}
-
-// OnRamp message types that the executor sends back
-type OnRampWithdrawJettons struct {
-	MsgID              *big.Int                     `tlb:"## 224"`
-	Tokens             common.SnakeRef[TokenAmount] `tlb:"^"`
-	OnRampJettonWallet *address.Address             `tlb:"addr"`
-}
-
-type OnRampExecutorFinishedSuccessfully struct {
-	MsgID    *big.Int   `tlb:"## 224"`
-	Msg      *cell.Cell `tlb:"^"`
-	Metadata Metadata   `tlb:"."`
-	Fee      tlb.Coins  `tlb:"."`
 }
 
 // TokenAmount structure (reused from router package concept)

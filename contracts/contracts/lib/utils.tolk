@@ -16,6 +16,9 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     return getFacilityId(crc32Key) * 100 + local;
 }
 
+// Generic unimplemented error code
+const ERROR_UNIMPLEMENTED = 0xBBBB; // == 48059
+
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
 /// for the recipient, at least validation and bounces, to avoid out of gas errors (no bounces).

@@ -264,13 +264,6 @@ type GetValidatedFee struct {
 	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
 }
 
-type MessageValidated struct {
-	_        tlb.Magic  `tlb:"#1FA60374"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`         // TODO put content here
-	Metadata *cell.Cell `tlb:"^"`
-	Fee      *tlb.Coins `tlb:"."`
-}
-
 type UpdatePrices struct {
 	_           tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
 	TokenPrices ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`

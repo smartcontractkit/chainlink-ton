@@ -91,6 +91,7 @@ struct (0x78d0f21e) Router_CCIPSendACK {
     messageId: uint256;
 }
 
+// crc32("Router_CCIPSendNACK")
 struct (0x5a45d434) Router_CCIPSendNACK {
     queryID: uint64;
     error: uint256;

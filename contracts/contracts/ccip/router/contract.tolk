@@ -174,10 +174,10 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
     val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
     var tokenAmounts = sendMsg.tokenAmounts.iter();
     // TODO handle payment in LINK if this is a LINK transfer
-    assert (!tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for no token amounts
+    assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
     val transferedJetton = tokenAmounts.next();
     assert (transferedJetton.amount == transferNotification.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
-    assert (tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for only supporting single token transfers
+    assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount

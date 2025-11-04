@@ -12,7 +12,8 @@ import (
 
 var TLBs = lib.MustNewTLBMap([]interface{}{
 	ccipsendexecutor.Execute{},
-
+	ccipsendexecutor.MessageValidated{},
+	ccipsendexecutor.MessageValidationFailed{},
 	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
 	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
 })

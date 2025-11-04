@@ -17,7 +17,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
-            assert (in.senderAddress == this.addresses.load().onramp) throw 0xFFFF;
+            assert (in.senderAddress == this.addresses.load().onramp) throw CCIPSendExecutor_Error.Unauthorized;
             this.onExecute(msg.onrampJettonWallet);
         }
         CCIPSendExecutor_MessageValidated<Metadata> => {
