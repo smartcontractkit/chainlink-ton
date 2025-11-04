@@ -13,6 +13,11 @@ import (
 var TLBs = lib.MustNewTLBMap([]interface{}{
 	router.SetRamps{},
 	router.CCIPSend{},
+	router.UpdateOffRamps{},
+	router.RouteMessage{},
+	router.CCIPReceiveConfirm{},
+	router.MessageSent{},
+	router.MessageRejected{},
 })
 
 type decoder struct {

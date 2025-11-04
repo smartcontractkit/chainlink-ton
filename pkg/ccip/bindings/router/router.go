@@ -9,7 +9,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receive_executor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -99,42 +98,42 @@ type CCIPSend struct {
 // crc32("Router_RouteMessage")
 type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b"` //nolint:revive // Ignore opcode tag
-	message  offramp.Any2TVMMessage `tlb:"^"`
-	execId   receive_executor.ID    `tlb:"."`
-	receiver *address.Address       `tlb:"addr"`
+	Message  offramp.Any2TVMMessage `tlb:"^"`
+	ExecID   big.Int                `tlb:"## 192"`
+	Receiver *address.Address       `tlb:"addr"`
 }
 
 // crc32("Router_CCIPReceiveConfirm")
 type CCIPReceiveConfirm struct {
 	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
-	execId receive_executor.ID
+	ExecID big.Int   `tlb:"## 192"`
 }
 
 // 0x6513f8e1 = crc32b("Router_MessageSent")
 type MessageSent struct {
 	_                 tlb.Magic        `tlb:"#6513f8e1"` //nolint:revive // Ignore opcode tag
-	queryID           uint64           `tlb:"## 64"`
-	messageId         big.Int          `tlb:"## 256"`
-	destChainSelector uint64           `tlb:"## 64"`
-	sender            *address.Address `tlb:"addr"`
+	QueryID           uint64           `tlb:"## 64"`
+	MessageID         big.Int          `tlb:"## 256"`
+	DestChainSelector uint64           `tlb:"## 64"`
+	Sender            *address.Address `tlb:"addr"`
 }
 
 type MessageRejected struct {
 	_                 tlb.Magic        `tlb:"#8ae25114"` //nolint:revive // Ignore opcode tag
-	queryID           uint64           `tlb:"## 64"`
-	destChainSelector uint64           `tlb:"## 64"`
-	sender            *address.Address `tlb:"addr"`
-	error             big.Int          `tlb:"## 256"`
+	QueryID           uint64           `tlb:"## 64"`
+	DestChainSelector uint64           `tlb:"## 64"`
+	Sender            *address.Address `tlb:"addr"`
+	Error             big.Int          `tlb:"## 256"`
 }
 
 type CCIPSendACK struct {
 	_         tlb.Magic `tlb:"#78d0f21e"` //nolint:revive // Ignore opcode tag
-	queryID   uint64    `tlb:"## 64"`
-	messageId big.Int   `tlb:"## 256"`
+	QueryID   uint64    `tlb:"## 64"`
+	MessageID big.Int   `tlb:"## 256"`
 }
 
 type CCIPSendNACK struct {
 	_       tlb.Magic `tlb:"#5a45d434"` //nolint:revive // Ignore opcode tag
-	queryID uint64    `tlb:"## 64"`
-	error   big.Int   `tlb:"## 256"`
+	QueryID uint64    `tlb:"## 64"`
+	Error   big.Int   `tlb:"## 256"`
 }
