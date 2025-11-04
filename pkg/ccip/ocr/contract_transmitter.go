@@ -103,10 +103,8 @@ func (c *ccipTransmitter) Transmit(
 
 	// extract CCIP-specific txID for enhanced tracking (includes messageID if execute report)
 	// falls back to seq-only format for commit reports or decode failures
+	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
 
-	txID, _ := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
-
-	/*
 	var finalAmount *tlb.Coins
 	baseAmount := tlb.MustFromTON("0.05") // base amount, TODO: make configurable
 	if gasLimit != nil {
@@ -117,14 +115,13 @@ func (c *ccipTransmitter) Transmit(
 	} else {
 		finalAmount = &baseAmount
 	}
-	*/
 
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("1000000"),
+		Amount:          *finalAmount,
 		ID:              &txID,
 	}
 
