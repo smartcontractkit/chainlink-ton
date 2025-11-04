@@ -120,7 +120,10 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		}, nil
 	})
 
-	ch.txm = txm.New(lggr, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
+	ch.txm, err = txm.New(lggr, ch.id, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TON TXM for chain ID %s: %w", cfg.ChainID, err)
+	}
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		signedClient, err := signedClientProvider.Get(ctx)
