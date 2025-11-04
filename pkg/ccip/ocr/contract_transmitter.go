@@ -132,7 +132,9 @@ func (c *ccipTransmitter) Transmit(
 		"configDigest", hex.EncodeToString(configDigest[:]),
 		"seqNr", seqNr,
 		"reportBytes", len(reportWithInfo.Report),
-		"signatures", len(sigs))
+		"signatures", len(sigs),
+		"gasLimit", finalAmount,
+		)
 	if err := c.txm.Enqueue(request); err != nil {
 		return fmt.Errorf("failed to enqueue transaction (txID=%s, seqNr=%d): %w",
 			txID, seqNr, err)
