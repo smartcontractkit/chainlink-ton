@@ -136,10 +136,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     val addresses = lazy self.addresses.load();
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
-    // if (msg.fee > self.originalBalance) {
-    //     self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
-    //     return;
-    // }
+    if (msg.fee > self.originalBalance) {
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
+        return;
+    }
 
     if (self.state.load().pendingJettonLock == null) {
         // no tokens to send, we are done
