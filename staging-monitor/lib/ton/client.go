@@ -14,10 +14,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -99,6 +101,19 @@ func connectClient(ctx context.Context, endpoint string) (*ton.APIClient, error)
 	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
 }
 
+// TODO(2025-11-04@jadepark-dev): This custom CCIPSend is a local version of router.CCIPSend with older opcode tag.
+// TODO: Currently staging env has older router contract(14d4e69), revert to the original binding once we deploy the new router contract.
+type CCIPSend struct {
+	_                 tlb.Magic                           `tlb:"#00000001"`
+	QueryID           uint64                              `tlb:"## 64"`
+	DestChainSelector uint64                              `tlb:"## 64"`
+	Receiver          common.CrossChainAddress            `tlb:"."`
+	Data              common.SnakeBytes                   `tlb:"^"`
+	TokenAmounts      common.SnakeRef[router.TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address                    `tlb:"addr"`
+	ExtraArgs         *cell.Cell                          `tlb:"^"`
+}
+
 func (c *Client) ChainSelector() uint64 {
 	return c.chainSel
 }
@@ -133,8 +148,8 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		receiverBytes = leftPadTo32(receiverBytes)
 	}
 
-	// Build CCIPSend message
-	ccipSend := router.CCIPSend{
+	// Build CCIPSend message using custom type
+	ccipSend := CCIPSend{
 		QueryID:           uint64(0),
 		DestChainSelector: msg.DestChainSel,
 		Receiver:          receiverBytes,
