@@ -107,10 +107,10 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			SequenceNumber:      1,
 			Nonce:               0,
 		},
-		Sender:   onrampAddr,
-		Data:     make([]byte, 1000),
-		Receiver: addr,
-		//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
+		Sender:       onrampAddr,
+		Data:         make([]byte, 1000),
+		Receiver:     addr,
+		GasLimit:     tlb.MustFromTON("0.0001"),
 		TokenAmounts: tokenAmountsSlice,
 	}
 

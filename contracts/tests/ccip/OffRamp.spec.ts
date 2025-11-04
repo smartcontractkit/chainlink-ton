@@ -56,6 +56,7 @@ import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
+import * as or from '../../wrappers/ccip/OffRamp'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
 
@@ -748,6 +749,9 @@ describe('OffRamp - Unit Tests', () => {
 
     // Basic validation that we got a valid hash
     expect(messageId).toBe(0xeb8aad87a4ec888a0c1527a51f778a7539cf5a4084159e3e928abb6ac909a183n)
+
+    // Uncomment to log the raw bytes of ramp message for Go test
+    // console.log(beginCell().storeRef(or.Any2TVMRampMessageToBuilder(message)).endCell().toBoc().toString('hex'))
   })
 
   it('Test execute fails when root was not committed', async () => {

@@ -571,7 +571,7 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
     .storeUint(report.proofFlagBits, 256)
 }
 
-function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
+export function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
     .storeBuilder(RampMessageHeaderToBuidler(message.header))
     .storeRef(

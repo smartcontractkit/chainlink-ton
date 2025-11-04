@@ -1,6 +1,7 @@
 package offramp
 
 import (
+	"encoding/hex"
 	"math/big"
 	"testing"
 
@@ -123,26 +124,24 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	rampMessageSlice := []ocr.Any2TVMRampMessage{
-		{
-			Header: ocr.RampMessageHeader{
-				MessageID:           make([]byte, 32),
-				SourceChainSelector: 1,
-				DestChainSelector:   2,
-				SequenceNumber:      1,
-				Nonce:               0,
-			},
-			Sender:   onrampAddr,
-			Data:     make([]byte, 1000),
-			Receiver: addr,
-			//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsSlice,
+	rampMessage := ocr.Any2TVMRampMessage{
+		Header: ocr.RampMessageHeader{
+			MessageID:           make([]byte, 32),
+			SourceChainSelector: 1,
+			DestChainSelector:   2,
+			SequenceNumber:      1,
+			Nonce:               0,
 		},
+		Sender:       onrampAddr,
+		Data:         make([]byte, 1000),
+		Receiver:     addr,
+		GasLimit:     tlb.MustFromTON("0.0001"),
+		TokenAmounts: tokenAmountsSlice,
 	}
 
 	report := ocr.ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageSlice[0],
+		Messages:            rampMessage,
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
 		Proofs:              common.SnakeData[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
@@ -176,4 +175,23 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.Len(t, decoded.ExecuteReport.Proofs, 2)
 	require.Equal(t, execute.QueryID, decoded.QueryID)
 	require.Equal(t, execute.ConfigDigest, decoded.ConfigDigest)
+}
+
+func TestConfig_Any2TVMRampMessage(t *testing.T) {
+	var rampMsg ocr.Any2TVMRampMessage
+
+	// Your hex string from TypeScript
+	hexStr := "b5ee9c724101040100850001000102ca00000000000000000000000000000000000000000000000000000000000000010c9f9284461c852bc09c614ab4cba0de00000000000000010000000000000000801da2d2260e0a008e22f73316ac3b1bd05a63f7f092219dadd6bf925ce90bdf14e7312d000203002a141a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a000092bcec71"
+
+	// Convert hex string to bytes
+	bytes, err := hex.DecodeString(hexStr)
+	require.NoError(t, err)
+
+	// Parse the BOC (Bag of Cells)
+	c, err := cell.FromBOC(bytes)
+	require.NoError(t, err)
+
+	// Load the message from the cell
+	err = tlb.LoadFromCell(&rampMsg, c.BeginParse())
+	require.NoError(t, err)
 }
