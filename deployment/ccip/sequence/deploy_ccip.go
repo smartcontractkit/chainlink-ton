@@ -164,12 +164,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
-			FeeQuoter:           &feeQuoterAddress,
 			Router:              &routerAddress,
 			Deployer:            tonCompiledContracts[state.Deployer].Code,
 			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
 			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,
 		},
+		FeeQuoter: &feeQuoterAddress,
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).
