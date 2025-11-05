@@ -27,7 +27,11 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
         Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
-        Router_CCIPSend => { onSend(msg, in.senderAddress) }
+        Router_CCIPSend => { 
+            val minValue = Router_Costs.CCIPSend();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            onSend(msg, in.senderAddress)
+            }
         Router_RouteMessage => { 
             routeMessage(msg, in.senderAddress)
             }

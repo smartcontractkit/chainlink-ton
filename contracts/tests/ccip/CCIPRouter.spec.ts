@@ -117,6 +117,12 @@ describe('Router', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    blockchain.verbosity = {
+      print: true,
+      blockchainLogs: false,
+      vmLogs: 'none',
+      debugLogs: false,
+    }
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
     let deployerCode = await compile('Deployable')

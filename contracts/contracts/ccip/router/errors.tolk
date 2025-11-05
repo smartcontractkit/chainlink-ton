@@ -7,5 +7,6 @@ enum Router_Error {
     NotOnRamp;
     MissingTokenAmounts;
     NoMultiTokenTransfers;
+    InsufficientFee;
 }
 
