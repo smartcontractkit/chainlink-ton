@@ -9,8 +9,6 @@ import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
 import "../../lib/access/ownable_2step"
 import "../../lib/utils"
-import "../../lib/jetton/messages"
-import "../../lib/jetton/messages_extended"
 import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
@@ -32,7 +30,6 @@ fun onInternalMessage(in: InMessage) {
             routeMessage(msg, in.senderAddress)
             }
         Router_CCIPReceiveConfirm => { ccipReceiveConfirm(msg, in.senderAddress) }
-        Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -158,50 +155,6 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 
 fun onSend(msg: Router_CCIPSend, sender: address) {
     ccipSend(msg, sender);
-}
-
-fun onTransferNotification(transferNotification: Common_JettonTransferNotification, wallet: address) {
-    val st = lazy Storage.load();
-
-    // TBD: I think we don't need to validate the sender here. If it is not a Jetton Wallet, it would not be able to transfer the jettons?
-
-    // TODO: need to validate that the transfer notification came from our own wallet
-    // assert(sender == st.owner) throw Error.NotOwner;
-    // TODO: need to validate the jetton (master) address, but to do this we need to
-    // derive the address. We can probably fetch that from the ccip send payload's tokenAmounts
-
-    // TODO: catch errors, if different message type than CCIPSend
-    val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
-    var tokenAmounts = sendMsg.tokenAmounts.iter();
-    // TODO handle payment in LINK if this is a LINK transfer
-    assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
-    val transferedJetton = tokenAmounts.next();
-    assert (transferedJetton.amount == transferNotification.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
-    assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
-
-    // TODO: store msg.amount + value
-    // make sure msg.amount == sendMsg.token amount
-    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
-
-    val transferMessage = createMessage({
-        bounce: true,
-        value: 0, // TODO:
-        dest: wallet,
-        body: AskToTransferFwdPayload {
-            queryId: sendMsg.queryID,
-            jettonAmount: transferNotification.amount,
-            transferRecipient: onRamp,
-            sendExcessesTo: contract.getAddress(),
-            customPayload: null,
-            forwardTonAmount: ton("0.5"), // TODO
-            forwardPayload: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender } }.toCell(),
-        },
-    });
-    transferMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-
-    // Forward excesses
-    // self.forward(msg.sender, null, false, null);
 }
 
 fun ccipSend(msg: Router_CCIPSend, sender: address) {

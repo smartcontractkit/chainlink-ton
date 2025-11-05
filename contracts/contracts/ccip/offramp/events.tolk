@@ -27,22 +27,4 @@ struct SourceChainConfigUpdated {
     sourceChainConfig: SourceChainConfig;
 }
 
-//TODO not used, remove?
-struct SkippedAlreadyExecuted {
-    sourceChainSelector: uint64;
-    sequenceNumber: uint64;
-}
-
-//TODO not used, remove?
-struct AlreadyAttempted {
-    sourceChainSelector: uint64;
-    sequenceNumber: uint64;
-}
-
-//TODO not used, remove?
-struct SkippedReportExecution {
-    sourceChainSelector: uint64;
-}
-
-
 

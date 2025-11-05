@@ -21,9 +21,7 @@ struct CCIPSendExecutor_Addresses {
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
     | Cell<CCIPSendExecutor_State_WaitingForJettons>
-    // TODO | Cell<CCIPSendExecutor_State_OnGoingTokenRegistryQuery>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
-    // TODO | Cell<CCIPSendExecutor_State_OnGoingLockOrBurn>
 
 struct CCIPSendExecutor_State_Initialized {
     tokenRegistry: address?,
@@ -32,12 +30,6 @@ struct CCIPSendExecutor_State_Initialized {
 struct CCIPSendExecutor_State_WaitingForJettons {
     tokenRegistry: address,
 }
-
-// TODO
-// struct CCIPSendExecutor_State_OnGoingTokenRegistryQuery {
-//     tokenRegistry: address,
-//     jettonWallet: address,
-// }
 
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
     pendingJettonLock: CCIPSendExecutor_PendingJettonLock?
@@ -53,11 +45,5 @@ struct CCIPSendExecutor_Config {
     feeQuoter: address,
     tokenRegistry: address?,
 }
-
-// TODO
-// struct CCIPSendExecutor_State_OnGoingLockOrBurn {
-// }
-
-// Casted state
 
 
