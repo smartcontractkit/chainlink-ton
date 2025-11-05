@@ -212,7 +212,17 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
-
+    
+    // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
+    // Otherwise, keep original limit
+    var gasLimit: coins = message.gasLimit;
+    if (msg.gasOverride != null) {
+        if (gasLimit > msg.gasOverride!) {
+            gasLimit = message.gasLimit;
+        } else {
+            gasLimit = msg.gasOverride;
+        }
+    }    
     val routeMessage = createMessage({
         bounce: true,
         value: message.gasLimit + ton("0.1"),
@@ -226,7 +236,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
-            gasLimit: message.gasLimit,
+            gasLimit: gasLimit,
         }
     });
 
@@ -486,12 +496,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
         state: ExecutionState.InProgress
     });
 
-    initializeExecutor(st, sender, message, msg.metadataHash);
-}
-
-fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, metadataHash: uint256) {
-    // Deploy executor
-    val messageId = message.generateMessageId(metadataHash);
+    val messageId = message.generateMessageId(msg.metadataHash);
     val execId = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
 
     val executorAddress: AutoDeployAddress = {
@@ -504,6 +509,15 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
         }
     };
 
+    if (msg.gasOverride == null) {
+        deployAndInitializeExecutor(st, sender, message, executorAddress, execId);
+    } else {
+        //gasOverride indicates manual exec
+        sendInitExecute(executorAddress, msg.gasOverride);
+    }
+}
+
+fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, executorAddress: AutoDeployAddress, execId: ReceiveExecutorId) {
     val deployMsg = createMessage({
         bounce: true, 
         value: ton("0.5"), // TODO:
@@ -523,11 +537,17 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
     });
     deployMsg.send(SEND_MODE_REGULAR);
 
+    sendInitExecute(executorAddress, null);
+}
+
+fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
     val initExecMsg = createMessage ({
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: executorAddress,
-        body: ReceiveExecutor_InitExecute {}
+        body: ReceiveExecutor_InitExecute {
+            gasOverride,
+        }
     });
     initExecMsg.send(SEND_MODE_REGULAR);
 }

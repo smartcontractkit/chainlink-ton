@@ -3,4 +3,5 @@ enum Error {
     UpdatingStateOfNonExecutedMessage;
     NotificationFromInvalidReceiver;
     Unauthorized; //TODO maybe use Ownable2Step or similar
+    NotEnoughTimeBetweenExecutions;
 }

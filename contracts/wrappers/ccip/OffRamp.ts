@@ -56,7 +56,8 @@ export enum ReceiveExecutorError {
   StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
-  Unauthorized, //TODO maybe use Ownable2Step or similar
+  Unauthorized,
+  NotEnoughTimeBetweenExecutions,
 }
 
 export type OffRampStorage = {
@@ -127,7 +128,7 @@ export type Any2TVMRampMessage = {
   sender: CrossChainAddress
   data: Cell
   receiver: Address
-  gasLimit: bigint ,
+  gasLimit: bigint
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
@@ -402,6 +403,7 @@ export class OffRamp
       value: bigint
       message: Any2TVMRampMessage
       execId: bigint
+      gasOverride?: bigint
     },
   ) {
     await provider.internal(via, {
@@ -411,6 +413,7 @@ export class OffRamp
         .storeUint(Opcodes.dispatchValidated, 32)
         .storeRef(Any2TVMRampMessageToBuilder(opts.message))
         .storeUint(opts.execId, 192)
+        .storeMaybeUint(opts.gasOverride, 64)
         .endCell(),
     })
   }

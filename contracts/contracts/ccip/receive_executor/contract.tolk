@@ -32,6 +32,12 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
 
     assert(sender == st.owner, Error.Unauthorized);
 
+    // We prevent execution from being spammed with a 3 minute window between executions
+    // This prevents manual executions from being replayed before the receiver marks the transaction as successful 
+    // TODO: maybe this time window should be configurable?
+    assert(blockchain.now() > st.lastExecutionTimestamp + (60 * 3), Error.NotEnoughTimeBetweenExecutions);
+    st.lastExecutionTimestamp = blockchain.now();
+
     //TODO 
 
     // if tokenAmounts > 0 && state == initial
@@ -39,10 +45,10 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     // send message to offramp to ask to release tokens
 
     // else if no tokenTransfers
-    _execute(st);
+    _execute(st, msg.gasOverride);
 }
 
-fun _execute(st: ReceiveExecutor_Storage) {
+fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
     st.state = ReceiveExecutor_MessageState.Execute;
     st.store();
     createMessage(
@@ -53,6 +59,7 @@ fun _execute(st: ReceiveExecutor_Storage) {
             body: OffRamp_DispatchValidated {
                 message: st.message,
                 execId: st.execId,
+                gasOverride,
             }
         }
     ).send(SEND_MODE_REGULAR);

@@ -1,5 +1,14 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, contractAddress, Dictionary, fromNano, StateInit, toNano } from '@ton/core'
+import {
+  Address,
+  beginCell,
+  Cell,
+  contractAddress,
+  Dictionary,
+  fromNano,
+  StateInit,
+  toNano,
+} from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -17,6 +26,7 @@ import {
   SourceChainConfig,
   OffRamp,
   OffRampError,
+  ReceiveExecutorError,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
@@ -240,6 +250,10 @@ describe('OffRamp - Unit Tests', () => {
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
 
   // Helper functions for configuration and data creation
+  //
+  const warpTime = (period: number) => {
+    blockchain.now = blockchain.now!! + period
+  }
 
   const createDefaultOCRConfig = (overrides = {}) => ({
     value: toNano('100'),
@@ -280,7 +294,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: data,
       receiver: receiverAddress,
-      gasLimit: toNano("0.1"), //I think this shuold be 0.1TON (10_000_000 nanotons)
+      gasLimit: toNano('0.1'), // 10_000_000 nanotons
     }
   }
 
@@ -472,6 +486,7 @@ describe('OffRamp - Unit Tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
@@ -1359,6 +1374,8 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
+  //it('
+
   it('Manual execute: receiver fails, then succeeds', async () => {
     const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
     await setupAndCommitMessage(message)
@@ -1380,6 +1397,13 @@ describe('OffRamp - Unit Tests', () => {
       success: false,
     })
 
+    assertLog(result2.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_FAILURE,
+    })
+
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
       behavior: ReceiverBehavior.Accept,
     })
@@ -1389,23 +1413,34 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
 
-    //
+    // Try manual exec right after, it should fail because the time window has not passed
     const result4 = await manualExecuteReport(report, undefined, true)
 
     expect(result4.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: false,
+      exitCode: ReceiveExecutorError.NotEnoughTimeBetweenExecutions,
+    })
+
+    // Advance time to pass the retry window
+    warpTime(60 * 4)
+
+    const result5 = await manualExecuteReport(report, undefined, true)
+
+    expect(result5.transactions).toHaveTransaction({
       from: router.address,
       to: receiver.address,
       success: true,
     })
 
-    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
       state: EXECUTION_STATE_IN_PROGRESS,
     })
 
-    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
@@ -1413,7 +1448,94 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     assertLog(
-      result4.transactions,
+      result5.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
+  })
+
+  it('Manual exec: receiver runs out of gas and does not notify', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+
+    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.ConsumeAllGas,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    const result2 = await executeReport(report)
+    expect(result2.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+      exitCode: -14,
+    })
+
+    assertLog(result2.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.Accept,
+    })
+    expect(result3.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    // Try manual exec right after, it should fail because the time window has not passed
+    const result4 = await manualExecuteReport(report, undefined, true)
+
+    expect(result4.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: false,
+      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
+    })
+
+    // Advance time to pass the retry window
+    warpTime(60 * 4)
+
+    const result5 = await manualExecuteReport(report, undefined, true)
+
+    expect(result5.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_SUCCESS,
+    })
+
+    assertLog(
+      result5.transactions,
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
