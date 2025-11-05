@@ -42,14 +42,22 @@ struct SendExecutor_Costs {}
 
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
-fun SendExecutor_Costs.Execute(tokenTransfer: bool): int {
-    var getValidatedFeeFwdFee = ton("0.05");
-    var baseFee = getValidatedFeeFwdFee += FeeQuoter_Costs.GetValidatedFee();
-    if (tokenTransfer) {
-        // TODO add extra fee for token transfer handling
-        // baseFee += getTokenPoolInfoFwdFee + TokenRegistry_Costs.GetTokenPoolInfo();
-        // baseFee += tokenTransferFwdFee + TokenPool_Costs.MaxLockTokenCost();
-        throw 0xffff;
-    }
+fun SendExecutor_Costs.Execute(): int {
+    var baseFee =
+        ton("0.05") // GetValidatedFee fwdFee
+        + FeeQuoter_Costs.GetValidatedFee()
+        ;
     return baseFee;
+}
+
+@inline
+fun SendExecutor_Costs.MessageValidated(): int {
+    return ton("0.05") // ExecutorFinishedSuccessfully fwdFee
+        + OnRamp_Costs.ExecutorFinishedSuccessfully();
+}
+
+@inline
+fun SendExecutor_Costs.MessageValidationFailed(): int {
+    return ton("0.05") // ExecutorFinishedWithError fwdFee
+        + OnRamp_Costs.ExecutorFinishedWithError();
 }
