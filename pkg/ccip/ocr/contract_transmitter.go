@@ -244,6 +244,6 @@ func extractCCIPTxIDAndGasLimit(reportBytes []byte, seqNr uint64) (string, *tlb.
 		return fmt.Sprintf("seq-%d", seqNr), nil
 	}
 
-	messageIDHex := hex.EncodeToString(executeReport.Messages.Header.MessageID)
-	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Messages.Header.SequenceNumber, messageIDHex), &executeReport.Messages.GasLimit
+	messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
+	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex), &executeReport.Message.GasLimit
 }

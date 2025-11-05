@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Messages - incoming ---
@@ -59,10 +60,10 @@ type ScheduleBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeData[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *big.Int               `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int               `tlb:"## 256"` // Salt used to derive the operation ID
-	Delay       uint64                 `tlb:"## 64"`  // Delay in seconds before the operation can be executed
+	Calls       common.SnakeRef[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *big.Int              `tlb:"## 256"` // Predecessor operation ID
+	Salt        *big.Int              `tlb:"## 256"` // Salt used to derive the operation ID
+	Delay       uint64                `tlb:"## 64"`  // Delay in seconds before the operation can be executed
 }
 
 // Cancel an operation.
@@ -91,9 +92,9 @@ type ExecuteBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeData[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *big.Int               `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int               `tlb:"## 256"` // Salt used to derive the operation ID
+	Calls       common.SnakeRef[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *big.Int              `tlb:"## 256"` // Predecessor operation ID
+	Salt        *big.Int              `tlb:"## 256"` // Salt used to derive the operation ID
 }
 
 // Changes the minimum timelock duration for future operations.
@@ -174,7 +175,7 @@ type BypasserExecuteBatch struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// Array of calls to be scheduled
-	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
 }
 
 // Updates the executor role check (enabled/disabled) which guards the execution of operations.
@@ -198,7 +199,7 @@ type UpdateExecutorRoleCheck struct {
 // The error report is used for a category of errors which might occur during execution
 // of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
 type SubmitErrorReport struct {
-	_ tlb.Magic `tlb:"f4538b79"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#f4538b79"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -235,11 +236,11 @@ type CallExecuted struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	ID     *big.Int        `tlb:"## 256"` // ID of the operation that was executed.
-	Index  uint64          `tlb:"## 64"`  // Index of the call in the operation
-	Target address.Address `tlb:"addr"`   // Address of the target contract to call.
-	Value  tlb.Coins       `tlb:"."`      // Value in TONs to send with the call.
-	Data   *cell.Cell      `tlb:"^"`      // Data to send with the call - message body.
+	ID     *big.Int         `tlb:"## 256"` // ID of the operation that was executed.
+	Index  uint64           `tlb:"## 64"`  // Index of the call in the operation
+	Target *address.Address `tlb:"addr"`   // Address of the target contract to call.
+	Value  tlb.Coins        `tlb:"."`      // Value in TONs to send with the call.
+	Data   *cell.Cell       `tlb:"^"`      // Data to send with the call - message body.
 }
 
 // Emitted when a call is performed via bypasser.
@@ -248,10 +249,10 @@ type BypasserCallExecuted struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Index  uint64          `tlb:"## 64"` // Index of the call in the operation
-	Target address.Address `tlb:"addr"`  // Address of the target contract to call.
-	Value  tlb.Coins       `tlb:"."`     // Value in TONs to send with the call.
-	Data   *cell.Cell      `tlb:"^"`     // Data to send with the call - message body.
+	Index  uint64           `tlb:"## 64"` // Index of the call in the operation
+	Target *address.Address `tlb:"addr"`  // Address of the target contract to call.
+	Value  tlb.Coins        `tlb:"."`     // Value in TONs to send with the call.
+	Data   *cell.Cell       `tlb:"^"`     // Data to send with the call - message body.
 }
 
 // Emitted when operation `id` is cancelled.
@@ -333,7 +334,7 @@ type Data struct {
 // Represents a single call
 type Call struct {
 	// Address of the target contract to call.
-	Target address.Address `tlb:"addr"`
+	Target *address.Address `tlb:"addr"`
 	// Value in TONs to send with the call.
 	Value *big.Int `tlb:"## 256"`
 	// Data to send with the call - message body.
@@ -343,7 +344,7 @@ type Call struct {
 // Batch of transactions represented as a operation, which can be scheduled and executed.
 type OperationBatch struct {
 	// Array of calls to be scheduled
-	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
 	// Predecessor operation ID
 	Predecessor *big.Int `tlb:"## 256"`
 	// Salt used to derive the operation ID
@@ -408,9 +409,22 @@ const (
 	ErrorTimestamp = 2
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorSelectorIsBlocked)
+		ecMax = int32(ErrorContractNotInitialized)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
 const (
 	// Error codes
-	ErrorSelectorIsBlocked = iota * 19300
+	ErrorSelectorIsBlocked ExitCode = iota + 19300
 	ErrorOperationNotReady
 	ErrorOperationMissingDependency
 	ErrorOperationCannotBeCancelled

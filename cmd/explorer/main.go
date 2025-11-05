@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/explorer"
 )
 
-var rootCmd = explorer.GenerateExplorerCmd(nil, map[string]deployment.TypeAndVersion{}, nil)
+var rootCmd = explorer.GenerateExplorerCmd(nil, map[string]debug.TypeAndVersion{}, nil)
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
