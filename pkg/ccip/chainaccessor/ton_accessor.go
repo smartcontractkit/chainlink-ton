@@ -749,7 +749,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here
 				// TODO revisit the common error code, right now common.TokenNotSupported doesn't match with on-chain
-				prices[ccipocr3.UnknownEncodedAddress(token)] = ccipocr3.TimestampedUnixBig{
+				prices[ccipocr3.UnknownEncodedAddress(strAddr)] = ccipocr3.TimestampedUnixBig{
 					Timestamp: 0,
 					Value:     big.NewInt(0),
 				}
@@ -766,7 +766,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if !utf8.ValidString(token.String()) {
 			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
 		}
-		prices[ccipocr3.UnknownEncodedAddress(token)] = price
+		prices[ccipocr3.UnknownEncodedAddress(strAddr)] = price
 	}
 	return prices, nil
 }
