@@ -45,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         FeeQuoter_GetValidatedFee<cell> => {
-            assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw Error.InsufficientFee;
+            assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw FeeQuoter_Error.InsufficientFee;
             handleGetValidatedFee(msg, in.senderAddress)
         }
         Withdrawable_Withdraw => {
@@ -420,10 +420,10 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidated<cell> {
+            body: CCIPSendExecutor_MessageValidationFailed<cell> {
                 msg: payload.msg,
                 metadata: payload.metadata,
-                fee: feeTokenAmount,
+                error: e,
             }
         });
     }
