@@ -60,6 +60,7 @@ type Storage struct {
 	Deployables                             Deployables             `tlb:"^"`
 	FeeQuoter                               *address.Address        `tlb:"addr"`
 	OCR3Base                                *cell.Cell              `tlb:"^"` // TODO:
+	CursedSubjects                          *cell.Dictionary        `tlb:"dict 128"`
 	ChainSelector                           uint64                  `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32                  `tlb:"## 32"`
 	SourceChainConfigs                      *cell.Dictionary        `tlb:"dict 64"`
