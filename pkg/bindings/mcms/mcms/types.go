@@ -12,6 +12,7 @@ import (
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Messages - incoming ---
@@ -118,6 +119,7 @@ type SubmitErrorReport struct {
 
 // Message sent by the owner to transfer the oracle role.
 type TransferOracleRole struct {
+	_ tlb.Magic `tlb:"#f275742f"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -345,8 +347,8 @@ type RootMetadata struct {
 	// int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
 	// There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
 	// bound chainid to 64 bits, but it is still unresolved.
-	ChainID  *big.Int        `tlb:"## 256"`
-	MultiSig address.Address `tlb:"addr"`
+	ChainID  *big.Int         `tlb:"## 256"`
+	MultiSig *address.Address `tlb:"addr"`
 	// opCount before adding this root
 	PreOpCount uint64 `tlb:"## 40"`
 	// opCount after executing all ops in this root
@@ -386,9 +388,22 @@ var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_D
 // Merkle tree.
 var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON")
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorOutOfBoundsNumSigners)
+		ecMax = int32(ErrorUnauthorizedOracle)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-	ErrorOutOfBoundsNumSigners = 39000
+	ErrorOutOfBoundsNumSigners ExitCode = iota + 39000
 
 	// Thrown when signerKeys and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch
@@ -460,12 +475,12 @@ const (
 	// Thrown when attempt to set the same (root, validUntil) in setRoot().
 	ErrorSignedHashAlreadySeen
 
-	/// Thrown when the root has not been finalized yet (can't execute next op before finalization).
+	// Thrown when the root has not been finalized yet (can't execute next op before finalization).
 	ErrorRootNotFinalized
 
-	/// Thrown when the provided op.value is insufficient (min required value not met).
+	// Thrown when the provided op.value is insufficient (min required value not met).
 	ErrorInsufficientValue
 
-	/// Thrown when the error report sender is not the authorized oracle.
+	// Thrown when the error report sender is not the authorized oracle.
 	ErrorUnauthorizedOracle
 )

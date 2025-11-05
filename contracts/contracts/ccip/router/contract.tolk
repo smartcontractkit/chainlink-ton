@@ -40,6 +40,8 @@ fun onInternalMessage(in: InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        Router_MessageSent => { onSendACK(msg, in.senderAddress) }
+        Router_MessageRejected => { onSendNACK(msg, in.senderAddress) }
         Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -172,10 +174,10 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
     val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
     var tokenAmounts = sendMsg.tokenAmounts.iter();
     // TODO handle payment in LINK if this is a LINK transfer
-    assert (!tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for no token amounts
+    assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
     val transferedJetton = tokenAmounts.next();
     assert (transferedJetton.amount == transferNotification.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
-    assert (tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for only supporting single token transfers
+    assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
 
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount
@@ -186,7 +188,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
         value: 0, // TODO:
         dest: wallet,
         body: AskToTransferFwdPayload {
-            queryId: sendMsg.queryId,
+            queryId: sendMsg.queryID,
             jettonAmount: transferNotification.amount,
             transferRecipient: onRamp,
             sendExcessesTo: contract.getAddress(),
@@ -216,6 +218,42 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
         body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender } },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onSendACK(msg: Router_MessageSent, sender: address) {
+    val st = lazy Storage.load();
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert (sender == onRamp) throw Router_Error.NotOnRamp;
+
+    val ackMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: msg.sender,
+        body: Router_CCIPSendACK {
+            queryID: msg.queryID,
+            messageId: msg.messageId,
+        }
+    });
+
+    ackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onSendNACK(msg: Router_MessageRejected, sender: address) {
+    val st = lazy Storage.load();
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert (sender == onRamp) throw Router_Error.NotOnRamp;
+
+    val nackMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: msg.sender,
+        body: Router_CCIPSendNACK {
+            queryID: msg.queryID,
+            error: msg.error,
+        }
+    });
+
+    nackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {

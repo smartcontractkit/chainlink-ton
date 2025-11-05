@@ -3,6 +3,8 @@ package rbac
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -145,7 +147,20 @@ const (
 	DefaultAdminRole = 0x00
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorUnauthorizedAccount)
+		ecMax = int32(ErrorBadConfirmation)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
 const (
-	ErrorUnauthorizedAccount = 60900
+	ErrorUnauthorizedAccount ExitCode = iota + 60900
 	ErrorBadConfirmation
 )

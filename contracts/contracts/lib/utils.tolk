@@ -16,6 +16,9 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     return getFacilityId(crc32Key) * 100 + local;
 }
 
+// Generic unimplemented error code
+const ERROR_UNIMPLEMENTED = 0xBBBB; // == 48059
+
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
 /// for the recipient, at least validation and bounces, to avoid out of gas errors (no bounces).
@@ -69,6 +72,12 @@ fun calculateGasFeeFor(size: int): coins {
         return calculateGasFeeDefault() * 2;
     }
     return calculateGasFeeDefault();
+}
+
+@inline
+fun sendCarryAllRemainingMessageValueSafe(msg: OutMessage) {
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    msg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Computes the Keccak-256 hash of the given data.
