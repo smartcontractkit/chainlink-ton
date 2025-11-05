@@ -492,12 +492,13 @@ describe('Router', () => {
     }
 
     const result = await onRamp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
-      value: toNano('0.05'),
+      value: toNano('0.04'),
       body: {
         messageID: 42n,
         msg: rt.builder.message.in.ccipSend.encode(ccipSend).asCell(),
         metadata: {
           sender: deployer.address,
+          value: toNano('0.05'),
         },
         fee: toNano('0.01'),
       },

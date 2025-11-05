@@ -35,7 +35,7 @@ struct UpdateAllowlist {
 
 struct Metadata {
     sender: address,
-    // TODO: metadata { value, tokenAmounts }
+    value: coins,
 }
 
 struct TVM2AnyRampMessage {
