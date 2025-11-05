@@ -35,7 +35,7 @@ source "${SCRIPT_DIR}/lib.sh"
 
 # test database configuration
 PG_CONTAINER_NAME="cl_pg"
-PG_HOST="localhost"
+PG_HOST="127.0.0.1"
 PG_PORT=5432
 PG_DB="chainlink_test"
 PG_USER="postgres"
@@ -172,6 +172,15 @@ log_info "Using Chainlink Core: $CHAINLINK_CORE_DIR"
 validate_project_dir "$CHAINLINK_CORE_DIR" "Chainlink Core"
 
 validate_core_version "$CHAINLINK_CORE_DIR"
+
+# NOTE: Contracts must be built separately before running tests
+# To build: cd contracts && yarn build
+# This allows testing with previous contract versions without rebuilding
+setup_contracts "$CHAINLINK_CORE_DIR"
+
+# TODO: Revisit to check if this is needed. we already have nix build for chainlink-ton.
+# but the point is building the binary for every test run in local dev env
+build_ton_binary
 
 setup_postgres
 

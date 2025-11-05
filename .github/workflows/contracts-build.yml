@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@v5
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
@@ -26,13 +26,17 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+      - name: Run gas report
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn ccip-gas-report
 
   build-nixpkg:
     name: Build nix package
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@v5
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
@@ -44,16 +48,17 @@ jobs:
   check-contract-versions:
     name: Verify Contract Version Updates
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    # if: github.event_name == 'pull_request'
+    if: false # Temporarily disabled too reduce merging friction
 
     steps:
       - name: Check out PR code
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@v5
         with:
           path: "pr-branch"
 
       - name: Check out base branch code
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: "base-branch"

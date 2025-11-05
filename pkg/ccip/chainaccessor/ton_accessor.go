@@ -22,7 +22,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -95,7 +94,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		// we're fetching config on the destination chain (offramp + fee quoter static config + RMN)
 
 		// OffRamp
-		offrampConfig, err := a.getOffRampConfig(ctx, block)
+		offrampConfig, err := a.GetOffRampConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp config: %w", err)
 		}
@@ -103,7 +102,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		config.Offramp = offrampConfig
 
 		// FeeQuoter
-		feeQuoterStaticConfig, err := a.getFeeQuoterStaticConfig(ctx, block)
+		feeQuoterStaticConfig, err := a.GetFeeQuoterStaticConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current feequoter static config: %w", err)
 		}
@@ -121,13 +120,13 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// CurseInfo
-		curseInfo, err := a.getCurseInfo(ctx, block)
+		curseInfo, err := a.GetCurseInfo(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get curse info: %w", err)
 		}
 		config.CurseInfo = curseInfo
 
-		sourceChainConfigs, err = a.getOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
+		sourceChainConfigs, err = a.GetOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get source chain configs: %w", err)
 		}
@@ -135,11 +134,11 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		// we're fetching config on the source chain (onramp + router config)
 
 		// OnRamp
-		onRampDynamicConfig, err := a.getOnRampDynamicConfig(ctx, block)
+		onRampDynamicConfig, err := a.GetOnRampDynamicConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dynamic config: %w", err)
 		}
-		onRampDestChainConfig, err := a.getOnRampDestChainConfig(ctx, block, destChainSelector)
+		onRampDestChainConfig, err := a.GetOnRampDestChainConfig(ctx, block, destChainSelector)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dest chain config: %w", err)
 		}
@@ -166,10 +165,9 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 }
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
-	// TODO(NONEVM-2364) implement me
 	return ccipocr3.ChainFeeComponents{
-		ExecutionFee:        big.NewInt(1),
-		DataAvailabilityFee: big.NewInt(1),
+		ExecutionFee:        big.NewInt(400), // Basechain costs are 400 nanotons (400e-9), and TON has 9 decimals
+		DataAvailabilityFee: big.NewInt(0),   // there are no storage fees per tx, instead contracts pay rent
 	}, nil
 }
 
@@ -325,6 +323,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	return ccipocr3.SeqNum(value.Uint64()), nil
 }
 
+// GetTokenPriceUSD returns price per TON, with 18 decimals
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
@@ -357,9 +356,8 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	return ccipocr3.TimestampedUnixBig{
-		Value: timestampedPrice.Value,
-		// TODO: u64 -> u32? should we fix the onchain type?
-		Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // G115
+		Value:     timestampedPrice.Value,
+		Timestamp: timestampedPrice.Timestamp,
 	}, nil
 }
 
@@ -372,12 +370,8 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", uint64(dest))
-	if err != nil {
-		return ccipocr3.FeeQuoterDestChainConfig{}, err
-	}
 	var cfg feequoter.DestChainConfig
-	if err = cfg.FromResult(result); err != nil {
+	if err = cfg.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(dest)}); err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
 	return ccipocr3.FeeQuoterDestChainConfig{
@@ -420,7 +414,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
 		FilterTimestamp(query.TimestampGTE(ts)).
 		// Filter to only get events with MerkleRoot
-		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented
+		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented: we need bit query for merkle root prefix
 		FilterTyped(
 			func(event offramp.CommitReportAccepted) bool {
 				return event.MerkleRoot != nil
@@ -638,19 +632,23 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 }
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
+	// initialize the map with default values for all selectors
+	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return nil, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
+		a.lggr.Warnw("failed to get current block", "err", err)
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
-	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
+
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector { //nolint:errorlint // we're guaranteed to get unwrapped error here
+		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
+			// TODO revisit the common error code, right now common.UnknownDestChainSelector doesn't match with on-chain
 			prices[selector] = ccipocr3.TimestampedUnixBig{
 				Timestamp: 0,
 				Value:     big.NewInt(0),
@@ -658,20 +656,22 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			return nil, err
 		}
 
 		value, err := result.Cell(0)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			return nil, err
 		}
+
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			return nil, fmt.Errorf("failed to decode TimestampedPrice, potentially unsynced gobindings: %w", err)
 		}
+
 		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
+			Timestamp: update.Timestamp,
 			Value:     update.Value,
 		}
 	}
@@ -720,6 +720,8 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	ctx context.Context,
 	tokens []ccipocr3.UnknownAddress,
 ) (map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, error) {
+	// NOTE: Currently, input tokens are mostly LINK and the native token, so batching is not implemented
+	// to keep the TON accessor simple. Batching can be added later if needed, such as for performance bottlenecks.
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return nil, err
@@ -730,8 +732,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	}
 
 	// TODO: decode token addresses here according to chain selector
-
-	encodedTokens := make([]any, 0, len(tokens))
+	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
 	for _, token := range tokens {
 		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
 		if err2 != nil {
@@ -741,44 +742,31 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if err2 != nil {
 			return nil, fmt.Errorf("failed to ParseAddr %s for encodedTokens: %w", strAddr, err2)
 		}
-		encodedTokens = append(encodedTokens, addrParsed)
-	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrices", encodedTokens...)
-	// result is a list of TimestampedPrice
-	if err != nil {
-		return nil, err
-	}
-	results := result.AsTuple()
-	if len(tokens) != len(results) {
-		return nil, fmt.Errorf("length mismatch: expected %d prices but received %d", len(tokens), len(results))
-	}
-	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
-	for i, priceResult := range results {
-		token := tokens[i]
-		var price ccipocr3.TimestampedUnixBig
-		switch priceResult := priceResult.(type) {
-		case nil:
-			// return zero value
-			price = ccipocr3.TimestampedUnixBig{
-				Value:     big.NewInt(0),
-				Timestamp: 0,
+
+		var tokenPrice feequoter.TimestampedPrice
+		err = tokenPrice.FetchResult(ctx, a.client, block, addr, []interface{}{cell.BeginCell().MustStoreAddr(addrParsed).EndCell().BeginParse()})
+		if err != nil {
+			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
+			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here
+				// TODO revisit the common error code, right now common.TokenNotSupported doesn't match with on-chain
+				prices[ccipocr3.UnknownEncodedAddress(strAddr)] = ccipocr3.TimestampedUnixBig{
+					Timestamp: 0,
+					Value:     big.NewInt(0),
+				}
+				continue
 			}
-		case cell.Cell:
-			var timestampedPrice feequoter.TimestampedPrice
-			if err := tlb.LoadFromCell(&timestampedPrice, priceResult.BeginParse()); err != nil {
-				return nil, err
-			}
-			price = ccipocr3.TimestampedUnixBig{
-				Value:     timestampedPrice.Value,
-				Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // TODO: fix type onchain
-			}
-		default:
-			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)
+			return nil, fmt.Errorf("failed to FetchResult for encodedTokens: %w", err)
 		}
+
+		price := ccipocr3.TimestampedUnixBig{
+			Value:     tokenPrice.Value,
+			Timestamp: tokenPrice.Timestamp,
+		}
+
 		if !utf8.ValidString(token.String()) {
 			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
 		}
-		prices[ccipocr3.UnknownEncodedAddress(token)] = price
+		prices[ccipocr3.UnknownEncodedAddress(strAddr)] = price
 	}
 	return prices, nil
 }

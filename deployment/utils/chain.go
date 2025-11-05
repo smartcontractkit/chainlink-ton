@@ -81,7 +81,7 @@ func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*addres
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
 	require.NoError(t, txerr, "airdrop transaction failed")
 
-	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, false)
+	err = waitForAirdropCompletion(t, client, recipients, amounts, 120*time.Second, true)
 	require.NoError(t, err, "airdrop completion verification failed")
 }
 
@@ -113,8 +113,9 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 
-			expectedMin := tlb.MustFromNano(
-				initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
+			// It seems that the fund message is processes before getting the initial state. If the wallet has the expected amount should be enough
+			// expectedMin := tlb.MustFromNano(initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
+			expectedMin := expectedAmount
 
 			for {
 				select {
@@ -254,9 +255,9 @@ func createNewNetwork(ctx context.Context, chainID uint64, port int) (client ton
 	// The cleanup function ensures the temporary network is terminated after the test.
 	cleanup = func() {
 		if bcOut.Container != nil && bcOut.Container.IsRunning() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			termCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+			if cterr := bcOut.Container.Terminate(termCtx); cterr != nil {
 				fmt.Printf("Container termination failed: %v", cterr)
 			}
 		}

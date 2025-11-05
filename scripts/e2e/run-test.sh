@@ -70,7 +70,15 @@ CHAINLINK_CORE_DIR=$(realpath "${ARG_CORE_DIR:-$DEFAULT_CHAINLINK_CORE_DIR}")
 
 validate_core_version "$CHAINLINK_CORE_DIR"
 
+# ensure contracts symlink and env are set (idempotent)
+setup_contracts "$CHAINLINK_CORE_DIR"
+
+# TODO: Revisit if verify_plugin_config is necessary for CI.
+# Since we use CL_TON_CMD for binary path and go.mod replace for modules,
+# verifying gitRef match might be redundant for local workflow.
 verify_plugin_config "$CHAINLINK_CORE_DIR"
+
+build_ton_binary
 
 # test database URL availability validation
 if [ -z "${CL_DATABASE_URL:-}" ]; then
@@ -81,6 +89,7 @@ fi
 log_info "=== CCIP Test Execution ==="
 log_info "Using Chainlink Core: $CHAINLINK_CORE_DIR"
 log_info "Using Database URL: $CL_DATABASE_URL"
+log_info "Using TON Binary: $CL_TON_CMD"
 log_info "Test Command: $ARG_TEST_COMMAND"
 
 log_info "Executing Test Command in $CHAINLINK_CORE_DIR: $ARG_TEST_COMMAND"

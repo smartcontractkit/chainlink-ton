@@ -13,14 +13,16 @@
   "scripts": {
     "bp": "blueprint",
     "start": "blueprint run",
-    "build": "blueprint build --all",
+    "clean": "[ -d build ] && rm -rf build || true",
+    "build": "yarn clean && blueprint build --all",
     "test": "jest --verbose",
     "fmt:check": "yarn fmt-contracts:check && yarn fmt-typescript:check",
     "fmt": "yarn fmt-contracts && yarn fmt-typescript",
     "fmt-contracts:check": "tact-fmt --check contracts",
     "fmt-contracts": "tact-fmt --write contracts",
     "fmt-typescript:check": "prettier --check .",
-    "fmt-typescript": "prettier --write ."
+    "fmt-typescript": "prettier --write .",
+    "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0"

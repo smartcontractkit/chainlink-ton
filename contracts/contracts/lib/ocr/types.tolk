@@ -25,11 +25,11 @@ fun newOCRConfig(): OCRConfig {
 
 fun OCRConfig.assignSignerOracles(
 	mutate self,
-	signers: cell /*Vector<uint256>*/
+	signers: SnakedCell<uint256>
 ) {
 	// TODO: Right now we cannot do ed25519 public key validation on chain. For now we assume valid keys.
-	var signersMap= createEmptyMap<uint256, uint8>();
-	var signersIt = Iterator<uint256>.new(signers);
+	var signersMap: map<uint256, uint8> = createEmptyMap<uint256, uint8>();
+	var signersIt = signers.iter();
 	var i = 0;
 	while (!signersIt.empty()) {
 		val signer = signersIt.next();
@@ -45,10 +45,10 @@ fun OCRConfig.assignSignerOracles(
 
 fun OCRConfig.assignTransmitterOracles(
 	mutate self,
-	transmitters: cell, //Vector<address>
+	transmitters: SnakedCell<address>,
 ) {
-	var transmittersMap = createEmptyMap<address, uint8>(); 
-	var transmittersIt = Iterator<address>.new(transmitters);
+	var transmittersMap: map<address, uint8> = createEmptyMap<address, uint8>(); 
+	var transmittersIt = transmitters.iter();
 	var i = 0;
 	while (!transmittersIt.empty()) {
 		val transmitter = transmittersIt.next();

@@ -1,10 +1,10 @@
-# OnRamp User Interface
+# Sender User Interface
 
 For arbitrary messages paying fees in TON, the user interface is as follows:
 
 ```mermaid
 sequenceDiagram
-    participant U as User
+    participant U as Sender
     participant R as Router
 
     Note over U: TODO Get fee?
@@ -26,7 +26,7 @@ For token transfers paid in TON, the user interface is as follows:
 
 ```mermaid
 sequenceDiagram
-    participant U as User
+    participant U as Sender
     participant R as Router
 
     Note over U: TODO Get fee?

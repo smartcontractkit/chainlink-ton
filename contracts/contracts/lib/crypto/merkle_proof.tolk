@@ -39,8 +39,6 @@ fun hashPair(a: uint256, b: uint256): uint256 {
 fun hashInternalNode(a: uint256, b: uint256): uint256 {
     var data = beginCell()
         .storeUint(a, 256)
-        .storeUint(b, 256)
-        .endCell()
-        .beginParse();
+        .storeUint(b, 256);
     return keccak256(data);
 }

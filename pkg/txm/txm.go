@@ -53,6 +53,7 @@ type Request struct {
 	Amount          tlb.Coins       // Amount in nanotons
 	Bounce          bool            // Bounce on error (TON message flag)
 	StateInit       *cell.Cell      // Optional: contract deploy init
+	ID              *string         // Optional: unique ID for transaction tracking
 }
 
 func New(lgr logger.Logger, keystore loop.Keystore, clientProvider func(context.Context) (tracetracking.SignedAPIClient, error), config Config) *Txm {
@@ -87,9 +88,10 @@ func (t *Txm) GetClient(ctx context.Context) (tracetracking.SignedAPIClient, err
 
 func (t *Txm) Start(ctx context.Context) error {
 	return t.starter.StartOnce("Txm", func() error {
-		t.done.Add(2) // waitgroup: broadcast loop and confirm loop
+		t.done.Add(3) // wait group: broadcast loop, confirm loop, and cleanup loop
 		go t.broadcastLoop()
 		go t.confirmLoop()
+		go t.cleanupLoop()
 		return nil
 	})
 }
@@ -121,7 +123,7 @@ func (t *Txm) Enqueue(request Request) error {
 	// 	return fmt.Errorf("failed to sign: %w", err)
 	// }
 
-	txExpirationMins := time.Minute * time.Duration(t.config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
+	txExpiration := t.config.TxExpiration.Duration()
 	tx := &Tx{
 		Mode:       request.Mode,
 		From:       *request.FromWallet.Address(),
@@ -131,7 +133,8 @@ func (t *Txm) Enqueue(request Request) error {
 		StateInit:  request.StateInit,
 		Bounceable: request.Bounce,
 		CreatedAt:  time.Now(),
-		Expiration: time.Now().Add(txExpirationMins),
+		Expiration: time.Now().Add(txExpiration),
+		ID:         request.ID,
 	}
 
 	select {
@@ -182,9 +185,25 @@ func (t *Txm) broadcastLoop() {
 			}
 
 			// 3. Sign and send
-			err := t.broadcastWithRetry(ctx, tx, msg)
+			txID := "none"
+			if tx.ID != nil {
+				txID = *tx.ID
+			}
+			t.logger.Debugw("attempting to broadcast transaction",
+				"txID", txID,
+				"from", tx.From.String(),
+				"to", tx.To.String(),
+				"amount", tx.Amount.Nano().String(),
+				"mode", tx.Mode,
+				"hasBody", tx.Body != nil,
+				"bounceable", tx.Bounceable)
+			err := t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
-				t.logger.Errorw("broadcast failed after retries", "err", err)
+				t.logger.Errorw("broadcast failed after retries",
+					"txID", txID,
+					"err", err,
+					"to", tx.To.String(),
+					"from", tx.From.String())
 				continue
 			}
 		case <-t.stop:
@@ -195,7 +214,7 @@ func (t *Txm) broadcastLoop() {
 }
 
 // Attempts to broadcast a transaction with retries on failure.
-func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message) error {
+func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message, txID string) error {
 	var receivedMessage *tracetracking.ReceivedMessage
 	var err error
 
@@ -207,14 +226,28 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 
 	// try to send transaction
 	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
+		t.logger.Debugw("sending transaction to TON",
+			"txID", txID,
+			"attempt", attempt,
+			"to", tx.To.String(),
+			"amount", tx.Amount.Nano().String(),
+			"bounce", msg.InternalMessage.Bounce,
+			"hasBody", msg.InternalMessage.Body != nil)
 		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
 
 		if err == nil {
-			t.logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
+			t.logger.Infow("transaction broadcasted",
+				"txID", txID,
+				"to", tx.To.String(),
+				"amount", tx.Amount.Nano().String())
 			break
 		}
 
-		t.logger.Warnw("failed to broadcast tx, will retry", "attempt", attempt, "err", err, "to", tx.To.String())
+		t.logger.Warnw("failed to broadcast tx, will retry",
+			"txID", txID,
+			"attempt", attempt,
+			"to", tx.To.String(),
+			"err", err)
 
 		select {
 		case <-time.After(t.config.SendRetryDelay.Duration()):
@@ -225,17 +258,15 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	}
 
 	if err != nil {
-		t.logger.Errorw("failed to broadcast tx after retries", "err", err, "to", tx.To.String())
+		t.logger.Errorw("failed to broadcast tx after retries",
+			"txID", txID,
+			"err", err,
+			"to", tx.To.String())
 		return err
 	}
 
 	// Save receivedMessage into tx
 	tx.ReceivedMessage = *receivedMessage
-
-	// Determine expiration
-	lamportTime := receivedMessage.LamportTime
-	lamportTimeSecs := lamportTime / 1000
-	expirationTimestampSecs := lamportTimeSecs + uint64(t.config.SendRetryDelay.Duration().Seconds())
 
 	walletAddr := client.Wallet.Address().String()
 	txStore := t.accountStore.GetTxStore(walletAddr)
@@ -243,7 +274,8 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
+	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
+	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
 		return err
@@ -259,7 +291,7 @@ func (t *Txm) confirmLoop() {
 	_, cancel := commonutils.ContextFromChan(t.stop)
 	defer cancel()
 
-	pollDuration := time.Duration(t.config.ConfirmPollSecs) * time.Second //nolint:gosec // ignoring G115 overflow conversion
+	pollDuration := t.config.ConfirmPollInterval.Duration()
 	tick := time.After(pollDuration)
 
 	t.logger.Debugw("confirmLoop: started")
@@ -328,6 +360,37 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			} else {
 				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
+		}
+	}
+}
+
+// Periodically cleans up finalized and expired transactions from the TxStore.
+func (t *Txm) cleanupLoop() {
+	defer t.done.Done()
+
+	cleanupInterval := t.config.CleanupInterval.Duration()
+	ticker := time.NewTicker(cleanupInterval)
+	defer ticker.Stop()
+
+	t.logger.Debugw("cleanupLoop: started", "interval", cleanupInterval)
+
+	for {
+		select {
+		case <-ticker.C:
+			currentTimeMs := uint64(time.Now().UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
+			finalized, expired := t.accountStore.CleanupAll(currentTimeMs)
+
+			if finalized > 0 || expired > 0 {
+				t.logger.Infow("cleaned up transactions",
+					"finalized", finalized,
+					"expired", expired,
+					"currentTimeMs", currentTimeMs)
+			} else {
+				t.logger.Debugw("cleanup completed, no transactions removed")
+			}
+		case <-t.stop:
+			t.logger.Debugw("cleanupLoop: stopped")
+			return
 		}
 	}
 }

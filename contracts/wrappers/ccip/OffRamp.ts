@@ -2,29 +2,77 @@ import {
   Address,
   beginCell,
   Cell,
-  Contract,
   contractAddress,
   ContractProvider,
   Dictionary,
   Sender,
   SendMode,
   Slice,
+  Builder,
+  ContractABI,
+  Contract,
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { crc32 } from 'zlib'
+import { CellCodec } from '../utils'
+import * as upgradeable from '../libraries/versioning/Upgradeable'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { Maybe } from '@ton/core/dist/utils/maybe'
+import { compile } from '@ton/blueprint'
+
+export const Opcodes = {
+  commit: crc32('OffRamp_Commit'),
+  execute: crc32('OffRamp_Execute'),
+  manualExecute: crc32('OffRamp_ManuallyExecute'),
+  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
+  dispatchValidated: crc32('OffRamp_DispatchValidated'),
+  ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
+}
+
+export const OFFRAMP_CONTRACT_VERSION = '0.0.12'
+
+export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
+export const OFFRAMP_FACILITY_ID = 84
+export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
+
+export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
+export const RECEIVE_EXECUTOR_FACILITY_ID = 338
+export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
+
+export enum OffRampError {
+  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
+  SourceChainNotEnabled,
+  EmptyExecutionReport,
+  InvalidMessageDestChainSelector,
+  SourceChainSelectorMismatch,
+  InvalidOnRampUpdate,
+}
+
+export enum ReceiveExecutorError {
+  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
+  UpdatingStateOfNonExecutedMessage,
+  NotificationFromInvalidReceiver,
+  Unauthorized, //TODO maybe use Ownable2Step or similar
+}
 
 export type OffRampStorage = {
   id: bigint
   ownable: ownable2step.Data
-  deployerCode: Cell
-  merkleRootCode: Cell
+  deployables: Deployables
   feeQuoter: Address
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
   latestPriceSequenceNumber: bigint
+}
+
+export type Deployables = {
+  deployerCode: Cell
+  merkleRootCode: Cell
+  receiveExecutorCode: Cell
 }
 
 export type SourceChainConfig = {
@@ -100,61 +148,103 @@ export type MerkleRoot = {
 
 //TODO: Refactor these with the CellCodec<T> pattern
 
-export const Builder = {
-  asStorage: (config: OffRampStorage): Cell => {
-    return (
-      beginCell()
-        .storeUint(config.id, 32)
-        .storeAddress(config.ownable.owner)
-        .storeMaybeBuilder(
-          config.ownable.pendingOwner
-            ? beginCell().storeAddress(config.ownable.pendingOwner)
-            : null,
-        )
-        .storeRef(config.deployerCode)
-        .storeRef(config.merkleRootCode)
-        .storeAddress(config.feeQuoter)
-        // empty OCR3Base::
-        .storeRef(
+export const builder = {
+  data: (() => {
+    const contractData: CellCodec<OffRampStorage> = {
+      encode: (storage: OffRampStorage): Builder => {
+        return (
           beginCell()
-            .storeUint(1, 8) //chainId
-            .storeBit(false)
-            .storeBit(false)
-            .endCell(),
+            .storeUint(storage.id, 32)
+            .storeAddress(storage.ownable.owner)
+            .storeMaybeBuilder(
+              storage.ownable.pendingOwner
+                ? beginCell().storeAddress(storage.ownable.pendingOwner)
+                : null,
+            )
+            .storeRef(
+              beginCell()
+                .storeRef(storage.deployables.deployerCode)
+                .storeRef(storage.deployables.merkleRootCode)
+                .storeRef(storage.deployables.receiveExecutorCode)
+                .endCell(),
+            )
+            .storeAddress(storage.feeQuoter)
+            // empty OCR3Base::
+            .storeRef(
+              beginCell()
+                .storeUint(1, 8) //chainId
+                .storeBit(false)
+                .storeBit(false)
+                .endCell(),
+            )
+            .storeUint(storage.chainSelector, 64)
+            .storeUint(storage.permissionlessExecutionThresholdSeconds, 32)
+            .storeDict(Dictionary.empty())
+            .storeUint(storage.latestPriceSequenceNumber, 64)
         )
-        .storeUint(config.chainSelector, 64)
-        .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-        .storeDict(Dictionary.empty())
-        .storeUint(config.latestPriceSequenceNumber, 64)
-        .endCell()
-    )
+      },
+
+      load: (src: Slice): OffRampStorage => {
+        throw new Error('Implement me')
+      },
+    }
+
+    const any2TVMMessage: CellCodec<Any2TVMMessage> = {
+      encode: (message: Any2TVMMessage): Builder => {
+        return beginCell()
+          .storeUint(message.messageId, 256)
+          .storeUint(message.sourceChainSelector, 64)
+          .storeUint(message.sender.byteLength, 8)
+          .storeBuffer(message.sender, message.sender.byteLength)
+          .storeRef(message.data)
+      },
+
+      load: (src: Slice): Any2TVMMessage => {
+        const messageId = src.loadUintBig(256)
+        const sourceChainSelector = src.loadUintBig(64)
+        const senderSize = src.loadUint(8)
+        const sender = src.loadBuffer(senderSize * 8)
+
+        return {
+          messageId,
+          sourceChainSelector,
+          sender,
+          data: src.loadRef(),
+        }
+      },
+    }
+
+    return {
+      contractData,
+      any2TVMMessage,
+    }
+  })(),
+  message: {
+    in: (() => {
+      return {}
+    })(),
   },
 }
+
 export abstract class Params {}
-
-export const Opcodes = {
-  commit: crc32('OffRamp_Commit'),
-  execute: crc32('OffRamp_Execute'),
-  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
-  dispatchValidated: crc32('OffRamp_DispatchValidated'),
-}
-
-export abstract class Errors {}
-
-export class OffRamp extends OCR3Base {
+export class OffRamp
+  extends OCR3Base
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+{
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
     super()
   }
+  abi?: Maybe<ContractABI>
 
   static createFromAddress(address: Address) {
     return new OffRamp(address)
   }
 
   static createFromConfig(config: OffRampStorage, code: Cell, workchain = 0) {
-    const data = Builder.asStorage(config)
+    const data = builder.data.contractData.encode(config).endCell()
     const init = { code, data }
     return new OffRamp(contractAddress(workchain, init), init)
   }
@@ -173,6 +263,37 @@ export class OffRamp extends OCR3Base {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: Cell.EMPTY,
     })
+  }
+
+  sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return OFFRAMP_CONTRACT_VERSION
+  }
+
+  static type() {
+    return OFFRAMP_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('OffRamp')
   }
 
   async sendCommit(
@@ -229,6 +350,28 @@ export class OffRamp extends OCR3Base {
     })
   }
 
+  async sendManualExecute(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      report: ExecutionReport
+      gasOverride?: bigint
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.manualExecute, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeBuilder(ExecutionReportToBuilder(opts.report))
+        .storeCoins(opts.gasOverride ?? 0)
+        .endCell(),
+    })
+  }
+
   async sendUpdateSourceChainConfig(
     provider: ContractProvider,
     via: Sender,
@@ -257,10 +400,8 @@ export class OffRamp extends OCR3Base {
     via: Sender,
     opts: {
       value: bigint
-      messages: Any2TVMRampMessage[]
-      proofs: bigint[] //256[]
-      proofFlagBits: bigint //256
-      metadataHash: bigint //256
+      message: Any2TVMRampMessage
+      execId: bigint
     },
   ) {
     await provider.internal(via, {
@@ -268,16 +409,54 @@ export class OffRamp extends OCR3Base {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.dispatchValidated, 32)
-        .storeRef(
-          asSnakeData(opts.messages, (item) =>
-            beginCell().storeBuilder(Any2TVMRampMessageToBuilder(item)),
-          ),
-        )
-        .storeRef(asSnakeData(opts.proofs, (item) => beginCell().storeUint(item, 256)))
-        .storeUint(opts.proofFlagBits, 256)
-        .storeUint(opts.metadataHash, 256)
+        .storeRef(Any2TVMRampMessageToBuilder(opts.message))
+        .storeUint(opts.execId, 192)
         .endCell(),
     })
+  }
+
+  async getLatestPriceSequenceNumber(provider: ContractProvider): Promise<bigint> {
+    const result = await provider.get('latestPriceSequenceNumber', [])
+    return result.stack.readBigNumber()
+  }
+
+  async getSourceChainConfig(
+    provider: ContractProvider,
+    sourceChainSelector: bigint,
+  ): Promise<SourceChainConfig> {
+    const result = await provider.get('sourceChainConfig', [
+      { type: 'int', value: sourceChainSelector },
+    ])
+    // Tolk returns struct as tuple
+    const router = result.stack.readAddress()
+    const isEnabled = result.stack.readBoolean()
+    const minSeqNr = result.stack.readBigNumber()
+    const isRMNVerificationDisabled = result.stack.readBoolean()
+    const onRampSlice = result.stack.readCell().beginParse()
+    const onRampLength = onRampSlice.loadUint(8)
+    const onRamp = onRampSlice.loadBuffer(onRampLength)
+
+    return {
+      router,
+      isEnabled,
+      minSeqNr,
+      isRMNVerificationDisabled,
+      onRamp,
+    }
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 
@@ -363,6 +542,16 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBit(config.isRMNVerificationDisabled)
     .storeUint(config.onRamp.byteLength, 8)
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
+}
+
+export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {
+  return {
+    router: slice.loadAddress(),
+    isEnabled: slice.loadBit(),
+    minSeqNr: slice.loadUintBig(64),
+    isRMNVerificationDisabled: slice.loadBit(),
+    onRamp: slice.loadBuffer(slice.loadUint(8)),
+  }
 }
 
 function ExecutionReportToBuilder(report: ExecutionReport) {

@@ -7,23 +7,35 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/address"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
 var (
-	Version1_6_0                   = *semver.MustParse("1.6.0")
-	LinkToken    cldf.ContractType = "LinkToken"
-	TonReceiver  cldf.ContractType = "TonReceiver"
-	Router       cldf.ContractType = "Router"
-	OnRamp       cldf.ContractType = "OnRamp"
-	OffRamp      cldf.ContractType = "OffRamp"
-	FeeQuoter    cldf.ContractType = "FeeQuoter"
+	Version1_6_0 = *semver.MustParse("1.6.0")
+	// Core contracts
+	LinkToken ds.ContractType = "LinkToken"
+	Router    ds.ContractType = "Router"
+	OnRamp    ds.ContractType = "OnRamp"
+	OffRamp   ds.ContractType = "OffRamp"
+	FeeQuoter ds.ContractType = "FeeQuoter"
+	// Internal contracts
+	Deployer        ds.ContractType = "Deployer"
+	MerkleRoot      ds.ContractType = "MerkleRoot"
+	SendExecutor    ds.ContractType = "SendExecutor"
+	ReceiveExecutor ds.ContractType = "ReceiveExecutor"
+	// Utilities
+	Timelock    ds.ContractType = "Timelock"
+	TonReceiver ds.ContractType = "Receiver"
+	Counter     ds.ContractType = "Counter"
 )
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
@@ -34,28 +46,27 @@ type CCIPChainState struct {
 	Router           address.Address
 	OnRamp           address.Address
 	FeeQuoter        address.Address
-
-	// dummy receiver address
-	ReceiverAddress address.Address
+	Timelock         address.Address
+	ReceiverAddress  address.Address
 }
 
 type TONChainView struct {
-	ChainSelector uint64                        `json:"chainSelector,omitempty"`
-	ChainID       string                        `json:"chainID,omitempty"`
-	OnRamp        map[string]view.OnRampView    `json:"onRamp,omitempty"`
-	Router        map[string]view.RouterView    `json:"router,omitempty"`
-	FeeQuoter     map[string]view.FeeQuoterView `json:"feeQuoter,omitempty"`
-	OffRamp       map[string]view.OffRampView   `json:"offRamp,omitempty"`
+	ChainSelector uint64                    `json:"chainSelector,omitempty"`
+	ChainID       string                    `json:"chainID,omitempty"`
+	OnRamp        map[string]onramp.View    `json:"onRamp,omitempty"`
+	Router        map[string]router.View    `json:"router,omitempty"`
+	FeeQuoter     map[string]feequoter.View `json:"feeQuoter,omitempty"`
+	OffRamp       map[string]offramp.View   `json:"offRamp,omitempty"`
 }
 
 func newTONChainView() TONChainView {
 	return TONChainView{
 		ChainSelector: 0,
 		ChainID:       "",
-		OnRamp:        make(map[string]view.OnRampView),
-		Router:        make(map[string]view.RouterView),
-		FeeQuoter:     make(map[string]view.FeeQuoterView),
-		OffRamp:       make(map[string]view.OffRampView),
+		OnRamp:        make(map[string]onramp.View),
+		Router:        make(map[string]router.View),
+		FeeQuoter:     make(map[string]feequoter.View),
+		OffRamp:       make(map[string]offramp.View),
 	}
 }
 
@@ -82,7 +93,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	errGroup := errgroup.Group{}
 	if !s.OnRamp.IsAddrNone() {
 		errGroup.Go(func() error {
-			onRampView, err := view.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+			onRampView, err := onramp.FetchView(ctx, tonClient, block, &s.OnRamp, selector)
 			if err != nil {
 				return fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
 			}
@@ -94,7 +105,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.Router.IsAddrNone() {
 		errGroup.Go(func() error {
-			routerView, err := view.FetchRouterView(ctx, tonClient, block, &s.Router)
+			routerView, err := router.FetchView(ctx, tonClient, block, &s.Router)
 			if err != nil {
 				return fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
 			}
@@ -107,7 +118,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.FeeQuoter.IsAddrNone() {
 		errGroup.Go(func() error {
-			feeQuoterView, err := view.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+			feeQuoterView, err := feequoter.FetchView(ctx, tonClient, block, &s.FeeQuoter)
 			if err != nil {
 				return fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
 			}
@@ -120,7 +131,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.OffRamp.IsAddrNone() {
 		errGroup.Go(func() error {
-			offRampView, err := view.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
+			offRampView, err := offramp.FetchView(ctx, tonClient, block, &s.OffRamp)
 			if err != nil {
 				return fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
 			}
@@ -134,105 +145,74 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return tonView, errGroup.Wait()
 }
 
-func GetAddressBook(chainSelector uint64, state CCIPChainState) (cldf.AddressBook, error) {
-	// TODO: use DataStore
-	ab := cldf.NewMemoryAddressBook()
-	if !state.LinkTokenAddress.IsAddrNone() {
-		err := ab.Save(chainSelector, state.LinkTokenAddress.String(), cldf.NewTypeAndVersion(LinkToken, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
+func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64) (CCIPChainState, error) {
+	addresses := dataStore.Addresses().Filter(
+		ds.AddressRefByChainSelector(chainSelector),
+	)
+	chainState, err := loadChainState(addresses)
+	if err != nil {
+		return chainState, err
 	}
-	if !state.ReceiverAddress.IsAddrNone() {
-		err := ab.Save(chainSelector, state.ReceiverAddress.String(), cldf.NewTypeAndVersion(TonReceiver, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.OffRamp.IsAddrNone() {
-		err := ab.Save(chainSelector, state.OffRamp.String(), cldf.NewTypeAndVersion(OffRamp, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.Router.IsAddrNone() {
-		err := ab.Save(chainSelector, state.Router.String(), cldf.NewTypeAndVersion(Router, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.OnRamp.IsAddrNone() {
-		err := ab.Save(chainSelector, state.OnRamp.String(), cldf.NewTypeAndVersion(OnRamp, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.FeeQuoter.IsAddrNone() {
-		err := ab.Save(chainSelector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(FeeQuoter, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ab, nil
+
+	return chainState, nil
 }
 
 func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	chains := make(map[uint64]CCIPChainState)
-	for chainSelector, chain := range e.BlockChains.TonChains() {
-		addresses, err := e.ExistingAddresses.AddressesForChain(chainSelector)
-		if err != nil {
-			// Chain not found in address book, initialize empty
-			if !errors.Is(err, cldf.ErrChainNotFound) {
-				return chains, err
-			}
-			addresses = make(map[string]cldf.TypeAndVersion)
-		}
-		chainState, err := loadChainState(chain, addresses)
+	for chainSelector := range e.BlockChains.TonChains() {
+		chainState, err := LoadOnchainStateUsingDataStore(e.DataStore, chainSelector)
 		if err != nil {
 			return chains, err
 		}
+
 		chains[chainSelector] = chainState
 	}
 	return chains, nil
 }
 
 // loadChainState Loads all state for a TonChain into state
-func loadChainState(chain cldf_ton.Chain, addressTypes map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
-	_ = chain // TODO: Use chain to access the client if needed
+func loadChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 	state := CCIPChainState{}
 
 	// Most programs upgraded in place, but some are not so we always want to
 	// load the latest version
-	versions := make(map[cldf.ContractType]semver.Version)
-	for addressStr, tvStr := range addressTypes {
-		address, err := address.ParseAddr(addressStr)
+	versions := make(map[ds.ContractType]semver.Version)
+
+	for _, addressType := range addresses {
+		contractType := addressType.Type
+		version := addressType.Version
+		rawContractAddress := addressType.Address
+		contractAddress, err := address.ParseAddr(rawContractAddress)
+
 		if err != nil {
 			return state, err
 		}
 
-		switch tvStr.Type {
+		switch contractType {
 		case LinkToken:
-			state.LinkTokenAddress = *address
+			state.LinkTokenAddress = *contractAddress
 		case TonReceiver:
-			state.ReceiverAddress = *address
+			state.ReceiverAddress = *contractAddress
 		case OffRamp:
-			state.OffRamp = *address
+			state.OffRamp = *contractAddress
 		case Router:
-			state.Router = *address
+			state.Router = *contractAddress
 		case OnRamp:
-			state.OnRamp = *address
+			state.OnRamp = *contractAddress
 		case FeeQuoter:
-			state.FeeQuoter = *address
+			state.FeeQuoter = *contractAddress
+		case Timelock:
+			state.Timelock = *contractAddress
 		default:
-			log.Warn().Str("address", addressStr).Str("type", string(tvStr.Type)).Msg("Unknown TON address type")
+			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue
 		}
 
-		existingVersion, ok := versions[tvStr.Type]
+		existingVersion, ok := versions[contractType]
 		if ok {
-			log.Warn().Str("existingVersion", existingVersion.String()).Str("type", string(tvStr.Type)).Msg("Duplicate address type found")
+			log.Warn().Str("existingVersion", existingVersion.String()).Str("type", contractType.String()).Msg("Duplicate address type found")
 		}
-		versions[tvStr.Type] = tvStr.Version
+		versions[contractType] = *version
 	}
 
 	return state, nil

@@ -1,10 +1,14 @@
 package ops
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
 	"testing"
+
+	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -36,6 +40,7 @@ const (
 var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
+	// TODO Remove in favor of the canonical model
 	EvmFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
 		IsEnabled:                         true,
 		MaxNumberOfTokensPerMsg:           10,
@@ -58,8 +63,53 @@ var (
 		NetworkFeeUSDCents:                10,
 	}
 
+	EvmFeeQuoterDestChainCanonicalConfig = lanes.FeeQuoterDestChainConfig{
+		IsEnabled:                         true,
+		MaxNumberOfTokensPerMsg:           10,
+		MaxDataBytes:                      30_000,
+		MaxPerMsgGasLimit:                 3_000_000,
+		DestGasOverhead:                   DestGasOverhead,
+		DestGasPerPayloadByteBase:         CalldataGasPerByteBase,
+		DestGasPerPayloadByteHigh:         CalldataGasPerByteHigh,
+		DestGasPerPayloadByteThreshold:    CalldataGasPerByteThreshold,
+		DestDataAvailabilityOverheadGas:   100,
+		DestGasPerDataAvailabilityByte:    16,
+		DestDataAvailabilityMultiplierBps: 1,
+		ChainFamilySelector:               config.EVMFamilySelector,
+		EnforceOutOfOrder:                 false,
+		DefaultTokenFeeUSDCents:           25,
+		DefaultTokenDestGasOverhead:       90_000,
+		DefaultTxGasLimit:                 200_000,
+		GasMultiplierWeiPerEth:            11e17,
+		GasPriceStalenessThreshold:        0,
+		NetworkFeeUSDCents:                10,
+	}
+
+	// TODO Remove in favor of the canonical model
 	// Default fee quoter config for TON CCIP testing
 	TonFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
+		IsEnabled:                       true,
+		MaxNumberOfTokensPerMsg:         0,
+		MaxDataBytes:                    100,
+		MaxPerMsgGasLimit:               100,
+		DestGasOverhead:                 0,
+		DestGasPerPayloadByteBase:       0,
+		DestGasPerPayloadByteHigh:       0,
+		DestGasPerPayloadByteThreshold:  0,
+		DestDataAvailabilityOverheadGas: 0,
+		DestGasPerDataAvailabilityByte:  0,
+		ChainFamilySelector:             config.TVMFamilySelector,
+		EnforceOutOfOrder:               false,
+		DefaultTokenFeeUSDCents:         0,
+		DefaultTokenDestGasOverhead:     0,
+		DefaultTxGasLimit:               1,
+		GasMultiplierWeiPerEth:          0,
+		GasPriceStalenessThreshold:      0,
+		NetworkFeeUSDCents:              0,
+	}
+
+	// Default fee quoter config for TON CCIP testing
+	TonFeeQuoterDestChainCanonicalConfig = lanes.FeeQuoterDestChainConfig{
 		IsEnabled:                       true,
 		MaxNumberOfTokensPerMsg:         0,
 		MaxDataBytes:                    100,
@@ -119,6 +169,18 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 			},
+			ReceiverParams: config.ReceiverParams{
+				ID: idForContracts,
+			},
+			TimelockParams: config.TimelockParams{
+				ID:         idForContracts,
+				MinDelay:   0,
+				Admin:      deployer.WalletAddress(),
+				Proposers:  []*address.Address{deployer.WalletAddress()},
+				Executors:  []*address.Address{deployer.WalletAddress()},
+				Cancellers: []*address.Address{deployer.WalletAddress()},
+				Bypassers:  []*address.Address{deployer.WalletAddress()},
+			},
 		},
 		ContractsVersion: contractVersion,
 	}
@@ -138,7 +200,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
 	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
 	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
-	TON_TOKEN_PRICE := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
+	tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
 	switch fromFamily {
 	case chainsel.FamilyEVM:
 		src = config.ChainDefinition{
@@ -157,7 +219,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): TON_TOKEN_PRICE,
+				TonTokenAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
@@ -185,7 +247,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): TON_TOKEN_PRICE,
+				TonTokenAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
@@ -340,4 +402,13 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 	}
 
 	return event, nil
+}
+
+func RandomUint32() (uint32, error) {
+	var b [4]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b[:]), nil
 }

@@ -4,7 +4,7 @@ import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.4";
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
@@ -33,14 +33,6 @@ const CONTRACT_VERSION = "0.0.1";
 /// therein having been executed to be on the order of a couple of minutes.
 
 // --- Messages - incoming ---
-
-/// Top up contract with TON coins.
-///
-/// @dev Contract might receive/hold TON as part of the maintenance process.
-struct (0x5f427bb3) MCMS_TopUp {
-    /// Query ID of the change request.
-    queryId: uint64;
-}
 
 /// Sets a new expiring root.
 ///
@@ -164,7 +156,6 @@ struct (0xf275742f) MCMS_TransferOracleRole {
 
 /// @dev Union of all incoming messages.
 type MCMS_InMessage =
-    | MCMS_TopUp
     | MCMS_SetRoot
     | MCMS_Execute
     | MCMS_SetConfig
@@ -316,13 +307,13 @@ struct MCMS_Hooks<T> {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP =
-    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP");
+    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON");
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
-    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA");
+    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON");
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
@@ -589,7 +580,7 @@ struct Op {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 39000
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return errorCode(stringCrc32("com.chainlink.ton.mcms.MCMS"), local);
+    return getErrorCode(stringCrc32("com.chainlink.ton.mcms.MCMS"), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.
@@ -1218,7 +1209,7 @@ fun MCMS<T>.submitErrorReport(
             opLeafHash: hashedLeaf,
             opTxHash,
             errorTxHash,
-            errorCode,
+            errorCode: errorCode,
             root,
             matchesPendingOp,
         }
@@ -1309,9 +1300,6 @@ fun MCMS<T>.getOracle(self): address {
 fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice) {
     val msg = lazy MCMS_InMessage.fromSlice(msgBody);
     match (msg) {
-        MCMS_TopUp => {
-            // Top up the contract balance, no action needed
-        }
         MCMS_SetRoot => {
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
                 Iterator<uint256>.new(msg.metadataProof), msg.signatures, msg.opFinalizationTimeout);
@@ -1340,6 +1328,9 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         else => {
             val _msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
+
+            // Notice: allow empty message (top up)
+            // @dev Contract might receive/hold TON as part of the maintenance process.
 
             // If the message was not handled:
             //  - ignore all other messages, empty or not empty
@@ -1395,16 +1386,6 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.mcms.MCMS", CONTRACT_VERSION);
-}
-
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
 }
 
 /// @see <MCMS<T>.getId>

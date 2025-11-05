@@ -15,9 +15,36 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
-import { loadMap, loadDict, UMapToBuilder } from '../../src/utils/dict'
+import * as upgradeable from '../libraries/versioning/Upgradeable'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { compile } from '@ton/blueprint'
+
+export const FEE_QUOTER_CONTRACT_VERSION = '0.0.8'
+
+export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
+export const FEE_QUOTER_FACILITY_ID = 248
+export const FEE_QUOTER_ERROR_CODE = 24800 //FACILITY_ID * 100
+
+export enum FeeQuoterError {
+  UnsupportedChainFamilySelector = FEE_QUOTER_ERROR_CODE,
+  GasLimitTooHigh,
+  ExtraArgOutOfOrderExecutionMustBeTrue,
+  InvalidExtraArgsData,
+  UnsupportedNumberOfTokens,
+  InvalidSuiReceiverAddress,
+  InvalidTokenReceiver,
+  TooManySuiExtraArgsReceiverObjectIds,
+  MsgDataTooLarge,
+  StaleGasPrice,
+  DestChainNotEnabled,
+  FeeTokenNotSupported,
+  InvalidMsgData,
+  TokenNotSupported,
+  UnknownDestChainSelector,
+}
 
 export type FeeQuoterStorage = {
   id: number
@@ -38,12 +65,12 @@ export type TimestampedPrice = {
 export function createTimestampedPriceValue(): DictionaryValue<TimestampedPrice> {
   return {
     serialize: (src, builder) => {
-      builder.storeUint(src.value, 224).storeUint(src.timestamp, 64)
+      builder.storeUint(src.value, 224).storeUint(src.timestamp, 32)
     },
     parse: (src): TimestampedPrice => {
       return {
         value: src.loadUintBig(224),
-        timestamp: src.loadUintBig(64),
+        timestamp: src.loadUintBig(32),
       }
     },
   }
@@ -139,8 +166,7 @@ export const builder = {
             updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
           }
 
-          const updates = UMapToBuilder({ dict: updatesDict, keyLen: 64 })
-          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeBuilder(updates)
+          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeDict(updatesDict)
         },
         load(src: Slice): UpdateTokenTransferFeeConfigs {
           throw new Error('Function not implemented.') // TODO implement if needed
@@ -173,12 +199,12 @@ export const builder = {
   data: (() => {
     const timestampedPrice: CellCodec<TimestampedPrice> = {
       encode: (data: TimestampedPrice): Builder => {
-        return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 64)
+        return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 32)
       },
       load: (src: Slice): TimestampedPrice => {
         return {
           value: src.loadUintBig(224),
-          timestamp: src.loadUintBig(64),
+          timestamp: src.loadUintBig(32),
         }
       },
     }
@@ -361,7 +387,9 @@ export type UpdateDestChainConfigs = {
 
 export abstract class Errors {}
 
-export class FeeQuoter implements Contract {
+export class FeeQuoter
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+{
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -391,6 +419,37 @@ export class FeeQuoter implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
     })
+  }
+
+  sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return FEE_QUOTER_CONTRACT_VERSION
+  }
+
+  static type() {
+    return FEE_QUOTER_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('FeeQuoter')
   }
 
   async sendUpdateDestChainConfigs(
@@ -451,6 +510,20 @@ export class FeeQuoter implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.updateTokenTransferFeeConfigs.encode(opts.msg).asCell(),
     })
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 

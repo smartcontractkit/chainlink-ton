@@ -1,4 +1,4 @@
-import { toNano, beginCell } from '@ton/core'
+import { toNano, beginCell, Cell } from '@ton/core'
 import '@ton/test-utils'
 import {
   MCMSBaseSetRootAndExecuteTestSetup,
@@ -164,7 +164,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('10'),
-        mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
+        Cell.EMPTY,
       )
       await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
@@ -382,7 +382,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('10'),
-        mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
+        Cell.EMPTY,
       )
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.deployer.address,

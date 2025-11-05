@@ -29,5 +29,5 @@ jobs:
           changesets-root-version-package-path: ./pkg/package.json
           pnpm-use-cache: false
           aws-region: ${{ vars.AWS_REGION }}
-          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY_CHANGESETS }}
+          aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
           aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}

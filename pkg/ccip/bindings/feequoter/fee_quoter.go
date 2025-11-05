@@ -1,6 +1,7 @@
 package feequoter
 
 import (
+	"context"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -8,18 +9,68 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+)
+
+const (
+	tokenPriceGetter   = "tokenPrice"
+	StaticConfigGetter = "staticConfig"
+)
+
+// Fee Quoter opcodes
+const (
+	OpcodeUpdatePrices                  = 0x20000001
+	OpcodeUpdateFeeTokens               = 0xD0984986
+	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
+	OpcodeUpdateDestChainConfigs        = 0x29950BAA
+	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
+	OpcodeFeeQuoterMessageValidated     = 0x1FA60374
+)
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorUnsupportedChainFamilySelector)
+		ecMax = int32(ErrorMsgDataTooLarge)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
+const (
+	ErrorUnsupportedChainFamilySelector ExitCode = iota + 1001
+	ErrorGasLimitTooHigh
+	ExtraArgOutOfOrderExecutionMustBeTrue
+	ErrorInvalidExtraArgsData
+	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidSuiReceiverAddress
+	ErrorInvalidTokenReceiver
+	ErrorTooManySuiExtraArgsReceiverObjectIDs
+	ErrorMsgDataTooLarge
+
+	ErrorTokenNotSupported        ExitCode = ExitCode(24813)
+	ErrorUnknownDestChainSelector ExitCode = ExitCode(24814)
 )
 
 type Storage struct {
-	ID                           uint32              `tlb:"## 32"`
-	Ownable                      common.Ownable2Step `tlb:"."`
-	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
-	LinkToken                    *address.Address    `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64              `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
+	ID                           uint32                  `tlb:"## 32"`
+	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
+	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
+	LinkToken                    *address.Address        `tlb:"addr"`
+	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary        `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary        `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
+}
+
+type USDPerUnitGas struct {
+	ExecutionGasPrice        *big.Int `tlb:"## 112"`
+	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	Timestamp                uint64   `tlb:"## 64"`
 }
 
 type DestChainConfig struct {
@@ -42,12 +93,6 @@ type DestChainConfig struct {
 	GasMultiplierWeiPerEth            uint64 `tlb:"## 64"`
 	GasPriceStalenessThreshold        uint32 `tlb:"## 32"`
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
-}
-
-type USDPerUnitGas struct {
-	ExecutionGasPrice        *big.Int `tlb:"## 112"`
-	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
-	Timestamp                uint64   `tlb:"## 64"`
 }
 
 func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
@@ -154,6 +199,10 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c.FromResult)
+}
+
 type TokenTransferFeeConfig struct {
 	IsEnabled         bool   `tlb:"bool"`
 	MinFeeUsdCents    uint32 `tlb:"## 32"`
@@ -165,7 +214,7 @@ type TokenTransferFeeConfig struct {
 
 type TimestampedPrice struct {
 	Value     *big.Int `tlb:"## 224"`
-	Timestamp uint64   `tlb:"## 64"`
+	Timestamp uint32   `tlb:"## 32"`
 }
 
 // TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
@@ -181,9 +230,13 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 
 	*p = TimestampedPrice{
 		Value:     value,
-		Timestamp: timestamp.Uint64(),
+		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
 	}
 	return nil
+}
+
+func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p.FromResult)
 }
 
 type TokenPriceUpdate struct {
@@ -201,13 +254,62 @@ type FeeToken struct {
 	PremiumMultiplierWeiPerEth uint64 `tlb:"## 64"`
 }
 
+// Methods
+
+// Generic wrapper for fee quoter messages with metadata
+type GetValidatedFee struct {
+	_        tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
+	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
+}
+
+type MessageValidated struct {
+	_        tlb.Magic  `tlb:"#1FA60374"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`         // TODO put content here
+	Metadata *cell.Cell `tlb:"^"`
+	Fee      *tlb.Coins `tlb:"."`
+}
+
+type UpdatePrices struct {
+	_           tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	TokenPrices ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices   ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
+}
+
+type UpdateFeeTokens struct {
+	_      tlb.Magic                              `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	Add    *cell.Dictionary                       `tlb:"dict 267"`
+	Remove ccipcommon.SnakeData[*address.Address] `tlb:"^"`
+}
+
+type UpdateTokenTransferFeeConfig struct {
+	_      tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+	Add    map[*address.Address]TokenTransferFeeConfig
+	Remove []*address.Address `tlb:"addr"`
+}
+type UpdateTokenTransferFeeConfigs struct {
+	_ tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+}
+
+type UpdateDestChainConfig struct {
+	DestinationChainSelector uint64          `tlb:"## 64"`
+	DestChainConfig          DestChainConfig `tlb:"."`
+}
+
+type UpdateDestChainConfigs struct {
+	_       tlb.Magic                                   `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
+	Updates ccipcommon.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+}
+
+// binding types that supports FetchResult interface with rpc client
+
 type StaticConfig struct {
 	MaxFeeJuelsPerMsg  *big.Int
 	LinkToken          *address.Address
 	StalenessThreshold uint32
 }
 
-func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	maxFeeJuelsPerMsg, err := result.Int(0)
 	if err != nil {
 		return err
@@ -224,7 +326,7 @@ func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	*c = StaticConfig{
+	*s = StaticConfig{
 		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
 		LinkToken:          linkTokenAddress,
 		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
@@ -232,33 +334,6 @@ func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-// Methods
-
-type UpdatePrices struct {
-	_           tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
-	TokenPrices common.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices   common.SnakeData[GasPriceUpdate]   `tlb:"^"`
-}
-
-type UpdateFeeTokens struct {
-	_      tlb.Magic                          `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                   `tlb:"dict 267"`
-	Remove common.SnakeData[*address.Address] `tlb:"^"`
-}
-
-type UpdateTokenTransferFeeConfig struct {
-	_      tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
-	Add    map[*address.Address]TokenTransferFeeConfig
-	Remove []*address.Address `tlb:"addr"`
-}
-type UpdateTokenTransferFeeConfigs struct{}
-
-type UpdateDestChainConfig struct {
-	DestinationChainSelector uint64          `tlb:"## 64"`
-	DestChainConfig          DestChainConfig `tlb:"."`
-}
-
-type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
 }

@@ -135,3 +135,37 @@ verify_plugin_config() {
     log_info "TON plugin gitRef matches current commit"
   fi
 }
+
+# build chainlink-ton binary for LOOP plugin
+build_ton_binary() {
+  log_info "Building chainlink-ton binary for LOOP plugin..."
+  
+  local build_dir="$ROOT_DIR/cmd/chainlink-ton"
+  
+  pushd "$build_dir" > /dev/null
+  go build .
+  popd > /dev/null
+  
+  local output_binary="$build_dir/chainlink-ton"
+  if [ ! -f "$output_binary" ]; then
+    log_error "Failed to build chainlink-ton binary at $output_binary"
+    exit 1
+  fi
+  
+  export CL_TON_CMD="$output_binary"
+  log_info "CL_TON_CMD=$CL_TON_CMD"
+}
+
+# setup contracts for e2e tests
+# creates a symlink from chainlink core to chainlink-ton contracts
+# no copy needed - symlink allows chainlink to directly reference chainlink-ton/contracts/build/
+# note: contracts must be built separately before calling this function
+setup_contracts() {
+  local chainlink_core_dir="$1"
+  
+  log_info "Linking contracts to chainlink core (no copy, direct reference via symlink)..."
+  ln -sfn "$ROOT_DIR/contracts" "$chainlink_core_dir/contracts"
+  
+  export CCIP_CONTRACTS_TON_VERSION="local"
+  log_info "Contracts ready at $chainlink_core_dir/contracts -> $ROOT_DIR/contracts"
+}

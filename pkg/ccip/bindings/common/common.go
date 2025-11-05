@@ -1,9 +1,13 @@
 package common //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -11,21 +15,53 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorUnknownDestChainSelector)
+		ecMax = int32(ErrorDispatchNotFromMerkleRoot)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
 const (
-	ErrUnknownDestChainSelector = iota + 256
-	DestChainNotEnabled
-	FeeTokenNotSupported
-	StaleGasPrice
-	InvalidMsgData
-	SenderNotAllowed
-	InvalidMessageDestChainSelector
-	SourceChainSelectorMismatch
-	TokenNotSupported
-	Unauthorized
-	SourceChainNotEnabled
-	EmptyReport
-	DispatchNotFromMerkleRoot
+	ErrorUnknownDestChainSelector ExitCode = iota + 256
+	ErrorDestChainNotEnabled
+	ErrorFeeTokenNotSupported
+	ErrorStaleGasPrice
+	ErrorInvalidMsgData
+	ErrorSenderNotAllowed
+	ErrorInvalidMessageDestChainSelector
+	ErrorSourceChainSelectorMismatch
+	ErrorTokenNotSupported
+	ErrorUnauthorized
+	ErrorSourceChainNotEnabled
+	ErrorEmptyReport
+	ErrorDispatchNotFromMerkleRoot
 )
+
+const (
+	DestChainConfigGetter = "destChainConfig"
+	VersionGetter         = "typeAndVersion"
+	SrcChainConfigGetter  = "sourceChainConfig"
+)
+
+// WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
+type WrappedAddress struct {
+	WrappedAddress *address.Address `tlb:"addr"`
+}
+
+func WrapAddresses(addrs []*address.Address) []WrappedAddress {
+	wrapped := make([]WrappedAddress, len(addrs))
+	for i, a := range addrs {
+		wrapped[i] = WrappedAddress{WrappedAddress: a}
+	}
+	return wrapped
+}
 
 // TypeAndVersion holds the type and version of the onramp contract.
 type TypeAndVersion struct {
@@ -33,7 +69,7 @@ type TypeAndVersion struct {
 	Version string `tlb:"str"`
 }
 
-func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
+func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	typ, err := result.Slice(0)
 	if err != nil {
 		return err
@@ -53,12 +89,16 @@ func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 		return err
 	}
 
-	*c = TypeAndVersion{
+	*t = TypeAndVersion{
 		Type:    tStr,
 		Version: vStr,
 	}
 
 	return nil
+}
+
+func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return FetchResultHelper(ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
 }
 
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
@@ -126,6 +166,16 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 
 	*c = addr
 	return nil
+}
+
+// LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data that lacks a length prefix as the first byte.
+// TODO: check why getter is not including the first byte as length prefix for CrossChainAddress type
+func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
+	data, err := s.LoadSlice(s.BitsLeft())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load data for cross chain address: %w", err)
+	}
+	return CrossChainAddress(data), nil
 }
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
@@ -418,4 +468,37 @@ func NewDummyCell() (*cell.Cell, error) {
 		return nil, err
 	}
 	return builder.EndCell(), nil
+}
+
+// Proof represents a 32-byte (256 bits) proof used in merkle proofs.
+// This wrapper type allows [32]byte to be used with SnakeData by implementing
+// ToCell/LoadFromCell that directly store/load 256 bits inline, avoiding the
+// infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
+type Proof struct {
+	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+// FetchResultHelper is a generic helper function to fetch and parse contract configurations.
+func FetchResultHelper(
+	ctx context.Context,
+	client ton.APIClientWrapped,
+	block *ton.BlockIDExt,
+	contractAddr *address.Address,
+	method string,
+	opts []interface{},
+	fromResult func(*ton.ExecutionResult) error,
+) error {
+	var result *ton.ExecutionResult
+	var err error
+	if opts == nil {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
+	} else {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return fromResult(result)
 }

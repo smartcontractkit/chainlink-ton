@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, beginCell, Slice } from '@ton/core'
+import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
@@ -11,12 +11,17 @@ import {
 import '@ton/test-utils'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
-import { ZERO_ADDRESS } from '../../src/utils'
+import { generateRandomTonAddress, ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
-import { dump } from '../utils/prettyPrint'
-import { CellCodec } from '../../wrappers/utils'
+import { CellCodec, facilityId } from '../../wrappers/utils'
+import { crc32 } from 'zlib'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
+import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -35,6 +40,64 @@ const EVM_ADDRESS = Buffer.from(
   'hex',
 ) // 32 bytes
 
+describe('rt.Router - TypeAndVersion Tests', () => {
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: rt.Router.type(),
+    version: rt.Router.version(),
+    deployContract: deployRouterContract,
+  })
+  currentVersionSpec.run()
+})
+
+describe('Router - Withdrawable Tests', () => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => compile('Router'),
+    ContractConstructor: rt.Router,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: deployRouterContract,
+  })
+  withdrawableSpec.run()
+})
+
+// TODO when we have a new version
+// describe('Router - Upgrade Tests', () => {
+//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
+//     {
+//       contractType: RouterPrev.type(),
+//       prevVersion: RouterPrev.version(),
+//       currentVersion: Router.version(),
+//       getPrevCode: () => RouterPrev.code(),
+//       getCurrentCode: () => Router.code(),
+//       CurrentVersionConstructor: Router,
+//     },
+//     async (blockchain, owner) => {
+//       const codeV1 = await RouterPrev.code()
+//       const data = {} as any // TODO fill with valid data
+//       const contract = blockchain.openContract(
+//         RouterPrev.createFromConfig(
+//           data,
+//           codeV1,
+//         ),
+//       )
+//       const deployer = await blockchain.treasury('deployer')
+//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+//       return contract
+//     },
+//   )
+//   upgradeSpec.run()
+// })
+
+describe('Router - Current Version Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: rt.Router.type(),
+    currentVersion: rt.Router.version(),
+    getCurrentCode: () => rt.Router.code(),
+    CurrentVersionConstructor: rt.Router,
+    deployCurrentContract: deployRouterContract,
+  })
+  currentVersionSpec.run()
+})
+
 describe('Router', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -47,9 +110,7 @@ describe('Router', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
-
     let deployerCode = await compile('Deployable')
-
     let merkleRootCodeRaw = await compile('MerkleRoot')
 
     // Populate the emulator library code
@@ -61,12 +122,13 @@ describe('Router', () => {
     // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: rt.Storage = {
-      id: 0,
+      id: 0n,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
       },
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
     router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
     // Deploy contract
@@ -213,13 +275,19 @@ describe('Router', () => {
 
       // add config for EVM destination
       {
+        const config = {
+          router: router.address,
+          sequenceNumber: 0n,
+          allowlistEnabled: false,
+        }
+
         const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
           value: toNano('1'),
           destChainConfigs: [
             {
               destChainSelector: CHAINSEL_EVM_TEST_90000001,
-              router: router.address,
-              allowlistEnabled: false,
+              router: config.router,
+              allowlistEnabled: config.allowlistEnabled,
             },
           ],
         })
@@ -229,11 +297,18 @@ describe('Router', () => {
           deploy: false,
           success: true,
         })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          config,
+        })
       }
     }
   })
 
-  it('update router ramps in batch', async () => {
+  it('update router onramps in batch', async () => {
     {
       const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
@@ -249,14 +324,121 @@ describe('Router', () => {
     }
 
     {
-      let result = await router.onRamp(
-        blockchain.provider(router.address),
-        CHAINSEL_EVM_TEST_90000001,
-      )
+      let result = await router.getOnRamp(CHAINSEL_EVM_TEST_90000001)
       expect(result).toEqual(onRamp.address)
 
-      result = await router.onRamp(blockchain.provider(router.address), CHAINSEL_EVM_TEST_90000002)
+      result = await router.getOnRamp(CHAINSEL_EVM_TEST_90000002)
       expect(result).toEqual(onRamp.address)
+    }
+
+    {
+      let result = await router.getOnRamps()
+      expect(result).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000002,
+          address: onRamp.address,
+        },
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000001,
+          address: onRamp.address,
+        },
+      ])
+    }
+  })
+
+  it('update router offramps in batch with one offRamp address', async () => {
+    const offRampAddress1 = await generateRandomTonAddress()
+    {
+      // test update method wrapper
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        offRampAdd: offRampAddress1,
+        sourceChainSelectorRemove: [],
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      //test batch getter
+      let result = await router.getOffRamps()
+      expect(result.sort()).toEqual(
+        [
+          {
+            chainSelector: CHAINSEL_EVM_TEST_90000002,
+            address: offRampAddress1,
+          },
+          {
+            chainSelector: CHAINSEL_EVM_TEST_90000001,
+            address: offRampAddress1,
+          },
+        ].sort(),
+      )
+    }
+
+    {
+      // test individual getter
+      let result = await router.getOffRamp(CHAINSEL_EVM_TEST_90000001)
+      expect(result).toEqual(offRampAddress1)
+
+      result = await router.getOffRamp(CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(offRampAddress1)
+    }
+
+    {
+      //test removing ramps wrapper
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [],
+        sourceChainSelectorRemove: [CHAINSEL_EVM_TEST_90000001],
+        offRampRemove: offRampAddress1,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      let getResult = await router.getOffRamps()
+      expect(getResult).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000002,
+          address: offRampAddress1,
+        },
+      ])
+    }
+
+    {
+      const offRampAddress2 = await generateRandomTonAddress()
+      //test adding and removing on the same call
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
+        offRampAdd: offRampAddress2,
+        sourceChainSelectorRemove: [CHAINSEL_EVM_TEST_90000002],
+        offRampRemove: offRampAddress1,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      const getResult = await router.getOffRamps()
+      expect(getResult).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000001,
+          address: offRampAddress2,
+        },
+      ])
     }
   })
 
@@ -584,7 +766,37 @@ describe('Router', () => {
       })
     }
   })
+
+  it('Test facilityId matches facility name', () => {
+    expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
+    expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
+    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
+      facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
+    )
+  })
 })
+
+async function deployRouterContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+) {
+  const code = await rt.Router.code()
+  let data: rt.Storage = {
+    id: 0n,
+    ownable: {
+      owner: owner.address,
+      pendingOwner: null,
+    },
+    onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+    offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+  }
+
+  // TODO: use deployable to make deterministic?
+  const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
+  const deployer = await blockchain.treasury('deployer')
+  await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+  return contract
+}
 
 async function setupJetton(
   blockchain: Blockchain,
