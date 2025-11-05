@@ -51,120 +51,125 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	}
 
 	chainReport := report.ChainReports[0]
+	// TON supports single chain only, encode single ExecuteReport (not array)
+	// Contract expects single message: val message = Any2TVMRampMessage.fromCell(report.messages);
+	if len(chainReport.Messages) == 0 {
+		return nil, errors.New("no messages to encode")
+	}
+
+	if len(chainReport.Messages) > 1 {
+		return nil, errors.New("TON supports single message only per report")
+	}
+
+	msg := chainReport.Messages[0]
 	var offChainTokenData common.SnakeRef[common.SnakeBytes]
-	rampMessages := make([]ocr.Any2TVMRampMessage, 0, len(chainReport.Messages))
-
-	for _, msg := range chainReport.Messages {
-		tokenAmounts := make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
-		for _, tokenAmount := range msg.TokenAmounts {
-			if tokenAmount.Amount.IsEmpty() {
-				return nil, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
-			}
-
-			if tokenAmount.Amount.Sign() < 0 {
-				return nil, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
-			}
-
-			if len(tokenAmount.DestTokenAddress) != 36 {
-				return nil, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
-			}
-
-			destExecDataDecodedMap, err := e.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, chainReport.SourceChainSelector)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode dest exec data: %w", err)
-			}
-
-			destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
-			if err != nil {
-				return nil, fmt.Errorf("extract dest gas amount: %w", err)
-			}
-
-			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
-
-			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-			if err != nil {
-				return nil, fmt.Errorf("pack extra data: %w", err)
-			}
-
-			if len(tokenAmount.DestTokenAddress) < 36 {
-				return nil, fmt.Errorf("invalid dest token address length: %d", len(tokenAmount.DestTokenAddress))
-			}
-
-			destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
-			if err != nil {
-				return nil, err
-			}
-
-			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
-			}
-
-			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
-				SourcePoolAddress: poolAddrCell,
-				ExtraData:         extraData,
-				DestPoolAddress:   DestPoolTonAddr,
-				Amount:            tokenAmount.Amount.Int,
-				DestGasAmount:     destGasAmount,
-			})
+	var rampMessage ocr.Any2TVMRampMessage
+	tokenAmounts := make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
+	for _, tokenAmount := range msg.TokenAmounts {
+		if tokenAmount.Amount.IsEmpty() {
+			return nil, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
 		}
 
-		header := ocr.RampMessageHeader{
+		if tokenAmount.Amount.Sign() < 0 {
+			return nil, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
+		}
+
+		if len(tokenAmount.DestTokenAddress) != 36 {
+			return nil, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
+		}
+
+		destExecDataDecodedMap, err := e.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, chainReport.SourceChainSelector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode dest exec data: %w", err)
+		}
+
+		destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
+		if err != nil {
+			return nil, fmt.Errorf("extract dest gas amount: %w", err)
+		}
+
+		poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
+
+		extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
+		if err != nil {
+			return nil, fmt.Errorf("pack extra data: %w", err)
+		}
+
+		if len(tokenAmount.DestTokenAddress) < 36 {
+			return nil, fmt.Errorf("invalid dest token address length: %d", len(tokenAmount.DestTokenAddress))
+		}
+
+		destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
+		if err != nil {
+			return nil, err
+		}
+
+		DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
+		}
+
+		tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
+			SourcePoolAddress: poolAddrCell,
+			ExtraData:         extraData,
+			DestPoolAddress:   DestPoolTonAddr,
+			Amount:            tokenAmount.Amount.Int,
+			DestGasAmount:     destGasAmount,
+		})
+	}
+
+	// TODO, re-enable when gas limit from extra args is supported
+	/*
+		var gasLimitBigInt *big.Int
+		var extraArgsDecodeMap map[string]any
+		if len(msg.ExtraArgs) > 0 {
+			extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode extra args: %w", err)
+			}
+
+			gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
+			if err != nil {
+				return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+			}
+		}
+
+		// gas limit can be nil, which means no limit
+		var gasLimit tlb.Coins
+		if gasLimitBigInt != nil {
+			gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
+			if err != nil {
+				return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
+			}
+		}
+	*/
+
+	tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)
+	if err != nil {
+		return nil, fmt.Errorf("error convert receiver address: %w", err)
+	}
+
+	tonReceiverAddr, err := address.ParseAddr(tonReceiverAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
+	}
+
+	rampMessage = ocr.Any2TVMRampMessage{
+		Header: ocr.RampMessageHeader{
 			MessageID:           msg.Header.MessageID[:],
 			SourceChainSelector: uint64(msg.Header.SourceChainSelector),
 			DestChainSelector:   uint64(msg.Header.DestChainSelector),
 			SequenceNumber:      uint64(msg.Header.SequenceNumber),
 			Nonce:               msg.Header.Nonce,
-		}
-
-		tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)
-		if err != nil {
-			return nil, fmt.Errorf("error convert receiver address: %w", err)
-		}
-
-		tonReceiverAddr, err := address.ParseAddr(tonReceiverAddrStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
-		}
-
-		// TODO, re-enable when gas limit from extra args is supported
-		/*
-			var gasLimitBigInt *big.Int
-			var extraArgsDecodeMap map[string]any
-			if len(msg.ExtraArgs) > 0 {
-				extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
-				if err != nil {
-					return nil, fmt.Errorf("failed to decode extra args: %w", err)
-				}
-
-				gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
-				if err != nil {
-					return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-				}
-			}
-
-			// gas limit can be nil, which means no limit
-			var gasLimit tlb.Coins
-			if gasLimitBigInt != nil {
-				gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-				if err != nil {
-					return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
-				}
-			}
-		*/
-		rampMsg := ocr.Any2TVMRampMessage{
-			Header:   header,
-			Sender:   common.CrossChainAddress(msg.Sender),
-			Data:     common.SnakeBytes(msg.Data),
-			Receiver: tonReceiverAddr,
-			//GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal. Note the offramp contract would not use this value base on current design.
-			TokenAmounts: tokenAmounts,
-		}
-
-		rampMessages = append(rampMessages, rampMsg)
+		},
+		Sender:   common.CrossChainAddress(msg.Sender),
+		Data:     common.SnakeBytes(msg.Data),
+		Receiver: tonReceiverAddr,
+		//GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal. Note the offramp contract would not use this value base on current design.
+		TokenAmounts: tokenAmounts,
 	}
 
-	if len(chainReport.Messages) > 0 && len(chainReport.OffchainTokenData) > 0 {
+	if len(chainReport.OffchainTokenData) > 0 {
 		tokenDataSlice := make([]common.SnakeBytes, len(chainReport.OffchainTokenData[0]))
 		for i, data := range chainReport.OffchainTokenData[0] {
 			tokenDataSlice[i] = data
@@ -179,16 +184,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		proofs = append(proofs, p)
 	}
 
-	// TON supports single chain only, encode single ExecuteReport (not array)
-	// Contract expects single message: val message = Any2TVMRampMessage.fromCell(report.messages);
-	if len(rampMessages) == 0 {
-		return nil, errors.New("no messages to encode")
-	}
-
 	// Take only the first message (contract only processes one message at a time)
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
-		Messages:            rampMessages[0],
+		Message:             rampMessage,
 		OffChainTokenData:   offChainTokenData,
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
@@ -225,9 +224,9 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			proofs = append(proofs, ccipocr3.Bytes32(proof.Value.Bytes()))
 		}
 
-		// Messages is a single message (not array) - contract only processes one at a time
+		// Message is a single message (not array) - contract only processes one at a time
 		messages := make([]ccipocr3.Message, 0, 1)
-		msg := tonReport.Messages
+		msg := tonReport.Message
 
 		tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(msg.TokenAmounts))
 		for _, tokenAmount := range msg.TokenAmounts {

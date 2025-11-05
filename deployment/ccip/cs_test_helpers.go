@@ -350,7 +350,7 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 	var messagesToProcess []*tracetracking.ReceivedMessage
 	messagesToProcess = append(messagesToProcess, msg)
 
-	var lastMsg *tracetracking.ReceivedMessage
+	var commitMessage *tracetracking.ReceivedMessage
 
 	// Process messages iteratively
 	for len(messagesToProcess) > 0 {
@@ -386,16 +386,19 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 
 			// Add this message to the queue for further processing
 			messagesToProcess = append(messagesToProcess, outMsg)
-			lastMsg = outMsg
+			opcode, err := outMsg.InternalMsg.Body.BeginParse().LoadUInt(32)
+			if err == nil && opcode == onramp.OpcodeOnRampExecutorFinishedSuccessfully {
+				commitMessage = outMsg
+			}
 		}
 	}
 
-	if lastMsg == nil || len(lastMsg.OutgoingExternalMessages) == 0 {
+	if commitMessage == nil || len(commitMessage.OutgoingExternalMessages) == 0 {
 		return onramp.CCIPMessageSent{}, errors.New("no received messages were processed")
 	}
 
 	var event onramp.CCIPMessageSent
-	err := tlb.LoadFromCell(&event, lastMsg.OutgoingExternalMessages[0].Body.BeginParse())
+	err := tlb.LoadFromCell(&event, commitMessage.OutgoingExternalMessages[0].Body.BeginParse())
 	if err != nil {
 		e.Logger.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
 		return onramp.CCIPMessageSent{}, err

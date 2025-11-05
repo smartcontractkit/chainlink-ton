@@ -230,6 +230,6 @@ func extractCCIPTxID(reportBytes []byte, seqNr uint64) string {
 		return fmt.Sprintf("seq-%d", seqNr)
 	}
 
-	messageIDHex := hex.EncodeToString(executeReport.Messages.Header.MessageID)
-	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Messages.Header.SequenceNumber, messageIDHex)
+	messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
+	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex)
 }

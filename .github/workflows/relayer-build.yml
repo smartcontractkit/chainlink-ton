@@ -73,3 +73,13 @@ jobs:
           nix develop -c ./modgraph > go.md
           git add --all
           git diff --minimal --cached --exit-code
+
+      - name: Ensure go generate output is up to date
+        run: |
+          nix develop -c go generate ./...
+          git add --all
+          if ! git diff --minimal --cached --exit-code; then
+            echo "::error::Running 'go generate' produced uncommitted changes."
+            echo "Please run 'go generate ./...' and commit the results."
+            exit 1
+          fi

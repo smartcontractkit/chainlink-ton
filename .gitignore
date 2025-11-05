@@ -32,7 +32,8 @@ docs/local/**
 node_modules/
 
 # Go build artifacts
-/chainlink-ton
+/cmd/chainlink-ton/chainlink-ton
+/cmd/explorer/explorer
 
 # macOS Finder metadata
 .DS_Store

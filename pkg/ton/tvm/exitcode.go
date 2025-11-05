@@ -2,13 +2,45 @@ package tvm
 
 import (
 	"fmt"
+	"slices"
 )
+
+type ExitCodeCodecInt[E ~int32] interface {
+	NewFrom(code ExitCode) (E, error)
+}
+
+func NewExitCodeInRange[E ~int32](ec E, ecMin int32, ecMax int32) (E, error) {
+	if int32(ec) < ecMin || int32(ec) > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
+	}
+	return ec, nil
+}
+
+func NewExitCodeInSet[E ~int32](ec E, set []E) (E, error) {
+	idx := slices.IndexFunc(set, func(v E) bool { return ec == v })
+	if idx < 0 {
+		return 0, fmt.Errorf("invalid exit code (not in set): %d (set=%v)", ec, set)
+	}
+	return ec, nil
+}
 
 // This code is returned by smart contracts to indicate the reason for transaction failure or abnormal termination.
 // For a comprehensive and up-to-date list of exit codes, refer to:
 // - Tact documentation: https://docs.tact-lang.org/book/exit-codes/
 // - TON documentation:  https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes
+//
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode int32
+
+var ExitCodeCodec ExitCodeCodecInt[ExitCode] = ExitCode(-1)
+
+func (ExitCode) NewFrom(ec ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ExitCodeOutOfGasErrorVariant)
+		ecMax = int32(ExitCodeTactNotABasechainAddress)
+	)
+	return NewExitCodeInRange(ec, ecMin, ecMax)
+}
 
 const (
 	/// TVM exit codes

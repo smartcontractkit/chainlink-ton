@@ -32,6 +32,9 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
         }
+        OnRamp_ExecutorFinishedWithError => {
+            replyWithError(msg, in.senderAddress);
+        }
         OnRamp_SetDynamicConfig => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -102,7 +105,7 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val executeMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO: calculate
+        value: 0,
         dest: AutoDeployAddress {
             stateInit: ContractState {
                 code: st.executor_code,
@@ -151,7 +154,7 @@ fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
     var tokenAmounts = payload.tokens.iter();
     assert (!tokenAmounts.empty()) throw 5;
     var tokenAmount = tokenAmounts.next();
-    assert (tokenAmounts.empty()) throw 0xFFFF; // TODO: only single token withdraw supported for now
+    assert (tokenAmounts.empty()) throw ERROR_UNIMPLEMENTED; // TODO: only single token withdraw supported for now
     // TODO validate sender is executor msg.msgId
         val sendMsg = createMessage({
         bounce: true,
@@ -226,7 +229,40 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
-    // TODO: notify user
+    val confirmation = createMessage({
+        bounce: false,
+        value: 0,
+        dest: destChainConfig.router,
+        body: Router_MessageSent {
+            queryID: ccipsend.queryID,
+            messageId: rampMessage.header.messageId,
+            destChainSelector: ccipsend.destChainSelector,
+            sender: payload.metadata.sender,
+        },
+    });
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
+fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
+    var st = lazy OnRamp_Storage.load();
+    // TODO validate sender is executor msg.msgId
+
+    val ccipsend: Router_CCIPSend = payload.msg.load();
+    val metadata = payload.metadata;
+
+    val errorMsg = createMessage({
+        bounce: false,
+        value: 0,
+        dest: st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector as int).router,
+        body: Router_MessageRejected {
+            queryID: ccipsend.queryID,
+            destChainSelector: ccipsend.destChainSelector,
+            sender: metadata.sender,
+            error: payload.error,
+        },
+    });
+    errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 

@@ -123,26 +123,24 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	rampMessageSlice := []ocr.Any2TVMRampMessage{
-		{
-			Header: ocr.RampMessageHeader{
-				MessageID:           make([]byte, 32),
-				SourceChainSelector: 1,
-				DestChainSelector:   2,
-				SequenceNumber:      1,
-				Nonce:               0,
-			},
-			Sender:   onrampAddr,
-			Data:     make([]byte, 1000),
-			Receiver: addr,
-			//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsSlice,
+	rampMessage := ocr.Any2TVMRampMessage{
+		Header: ocr.RampMessageHeader{
+			MessageID:           make([]byte, 32),
+			SourceChainSelector: 1,
+			DestChainSelector:   2,
+			SequenceNumber:      1,
+			Nonce:               0,
 		},
+		Sender:   onrampAddr,
+		Data:     make([]byte, 1000),
+		Receiver: addr,
+		//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
+		TokenAmounts: tokenAmountsSlice,
 	}
 
 	report := ocr.ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageSlice[0],
+		Message:             rampMessage,
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
 		Proofs:              common.SnakeData[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
@@ -172,7 +170,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	require.Len(t, decoded.ExecuteReport.Messages.TokenAmounts, 2)
+	require.Len(t, decoded.ExecuteReport.Message.TokenAmounts, 2)
 	require.Len(t, decoded.ExecuteReport.Proofs, 2)
 	require.Equal(t, execute.QueryID, decoded.QueryID)
 	require.Equal(t, execute.ConfigDigest, decoded.ConfigDigest)

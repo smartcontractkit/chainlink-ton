@@ -22,8 +22,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton/nft"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	jetton_common "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
@@ -133,7 +131,7 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons")
 
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			Sender.Contract.Address.String():         {Type: "Sender", Version: *semver.MustParse("0.0.1")},
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -346,7 +344,7 @@ func TestJettonAll(t *testing.T) {
 			Content: newContent,
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to change content")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			newContent.String():                      {Type: "NewContent", Version: *semver.MustParse("0.0.1")},
@@ -395,7 +393,7 @@ func TestJettonAll(t *testing.T) {
 			},
 		}, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to mint jettons")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			recipient.String():                       {Type: "Recipient", Version: *semver.MustParse("0.0.1")},
@@ -419,7 +417,7 @@ func TestJettonAll(t *testing.T) {
 			NewAdmin: setup.receiver.Wallet.Address(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to change admin")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
@@ -433,7 +431,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to open jetton minter as new admin")
 		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(minter.ClaimAdminMessage{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to claim admin")
-		debugger2 := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger2 := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 		})
@@ -453,7 +451,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID: rand.Uint64(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to drop admin")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
@@ -483,7 +481,7 @@ func TestJettonAll(t *testing.T) {
 		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
 		require.Len(t, mintMsg.OutgoingInternalReceivedMessages, 1, "Mint message should have 1 outgoing message")
 		msgToMinter = mintMsg.OutgoingInternalReceivedMessages[0]
-		require.Equal(t, jetton_common.ErrorNotOwner, msgToMinter.ExitCode, "Msg to minter should have")
+		require.Equal(t, int(jetton_common.ErrorNotOwner), int(msgToMinter.ExitCode), "Msg to minter should have")
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data after admin change")
@@ -506,7 +504,7 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -533,7 +531,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to create top-up message")
 		receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.common.receiver.Wallet.Address().String(): {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
 			receiverJettonWallet.Address.String():           {Type: "ReceiverJettonWallet", Version: *semver.MustParse("0.0.1")},
@@ -550,7 +548,7 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
-		debugger2 := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger2 := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -586,7 +584,7 @@ func TestJettonAll(t *testing.T) {
 			ForwardPayload:   forwardPayload,
 		}, tonAmount)
 		require.NoError(t, err, "failed to send jettons in basic mode")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -636,7 +634,7 @@ func TestJettonAll(t *testing.T) {
 				ForwardPayload:   jettonTransferPayload,
 			}, tlb.MustFromTON("2"))
 			require.NoError(t, err2, "failed to send jettons with custom payload")
-			debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 				setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 				setup.Sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
 				SenderWallet.Address().String():                 {Type: "SenderWallet", Version: *semver.MustParse("0.0.1")},
@@ -742,7 +740,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get jetton sender wallet")
 		SimpleJettonReceiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.simpleReceiver.Contract.Address)
 		require.NoError(t, err, "failed to get simple jetton receiver wallet")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.Sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
 			SenderWallet.Address().String():                 {Type: "SenderWallet", Version: *semver.MustParse("0.0.1")},
@@ -780,7 +778,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get JettonWallet init cell")
 		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
@@ -814,7 +812,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to transfer jettons")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), recipient)
 		require.NoError(t, err, "failed to get receiver wallet")
-		debugger = debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger = debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -841,7 +839,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to create top-up message")
 		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
@@ -875,7 +873,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to transfer jettons")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), recipient)
 		require.NoError(t, err, "failed to get receiver wallet")
-		debugger = debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger = debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -901,7 +899,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to create top-up message")
 		jettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 			jettonWallet.Address.String():                   {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
@@ -927,7 +925,7 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to burn jettons")
 
-		debugger2 := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		debugger2 := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 			jettonWallet.Address.String():                   {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
 			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
@@ -953,7 +951,7 @@ func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initDat
 	minterInitCell, err := tlb.ToCell(initData)
 	require.NoError(t, err, "failed to create JettonMinter init data cell")
 	minterContract, deployMsg, err := wrappers.Deploy(deployer, minterCode, minterInitCell, tlb.MustFromTON("1"), topUpMsg)
-	debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+	debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 		deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 	})
 	t.Logf("Deploy trace: %s\n", debugger.DumpReceived(deployMsg))
