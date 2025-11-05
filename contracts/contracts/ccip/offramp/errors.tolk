@@ -7,5 +7,6 @@ enum Error {
     InvalidOnRampUpdate
     SenderIsNotRouter
     SubjectCursed
+    Unauthorized
 }
 
