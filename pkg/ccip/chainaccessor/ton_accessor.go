@@ -261,7 +261,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1).                              // only get the last one
+		Limit(1). // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -644,7 +644,8 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	}
 
 	for _, selector := range selectors {
-		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
+		var gasPrice feequoter.USDPerUnitGas
+		err := gasPrice.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(selector)})
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
 			// TODO revisit the common error code, right now common.UnknownDestChainSelector doesn't match with on-chain
@@ -658,15 +659,15 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, err
 		}
 
-		// Use FromResult to extract timestamp and value from the execution result stack
-		var update feequoter.TimestampedPrice
-		if err := update.FromResult(result); err != nil {
-			return nil, fmt.Errorf("failed to decode TimestampedPrice: %w", err)
-		}
+		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
+		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
+		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
+		daShifted := new(big.Int).Lsh(gasPrice.DataAvailabilityGasPrice, 112)
+		packedValue := new(big.Int).Or(daShifted, gasPrice.ExecutionGasPrice)
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: update.Timestamp,
-			Value:     update.Value,
+			Value:     packedValue,
+			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115
 		}
 	}
 	return prices, nil

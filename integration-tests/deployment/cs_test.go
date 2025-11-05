@@ -301,7 +301,6 @@ func TestDeploy(t *testing.T) {
 		require.NoError(t, err)
 		evmUpdate := feePriceUpdate[ccipocr3.ChainSelector(evmSelector)]
 		require.NotEqual(t, "0", evmUpdate.Value.String(), "expected non-zero gas price value")
-		fmt.Println("timestamp field: ", evmUpdate.Timestamp)
 		require.NotEqual(t, uint64(0), evmUpdate.Timestamp, "expected non-zero timestamp - this validates timestamp is unpacked correctly")
 		t.Logf("EVM chain selector %d gas price: value=%s, timestamp=%d", evmSelector, evmUpdate.Value.String(), evmUpdate.Timestamp)
 
