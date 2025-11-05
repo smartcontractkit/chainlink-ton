@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -659,15 +658,10 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, err
 		}
 
-		value, err := result.Cell(0)
-		if err != nil {
-			return nil, err
-		}
-
-		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
+		// Use FromResult to extract timestamp and value from the execution result stack
 		var update feequoter.TimestampedPrice
-		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to decode TimestampedPrice, potentially unsynced gobindings: %w", err)
+		if err := update.FromResult(result); err != nil {
+			return nil, fmt.Errorf("failed to decode TimestampedPrice: %w", err)
 		}
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
