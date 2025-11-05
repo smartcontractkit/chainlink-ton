@@ -103,7 +103,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 		return nil, err
 	}
 
-	var eg errgroup.Group
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
 	var lock sync.Mutex
 	output := make(map[uint64]offramp.SourceChainConfig)
@@ -113,7 +113,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 		eg.Go(func() error {
 			var cfg offramp.SourceChainConfig
 			opts := []interface{}{dest}
-			if err = cfg.FetchResult(ctx, client, block, offRampAddr, opts); err != nil {
+			if err = cfg.FetchResult(egCtx, client, block, offRampAddr, opts); err != nil {
 				return err
 			}
 
