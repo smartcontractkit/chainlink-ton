@@ -10,12 +10,27 @@ const (
 	OpcodeTopUp = 0xd372158c
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	return tvm.NewExitCodeInSet(ExitCode(ec), []ExitCode{
+		ErrorInvalidOp,
+		ErrorWrongOp,
+		ErrorNotOwner,
+		ErrorNotValidWallet,
+		ErrorWrongWorkchain,
+	})
+}
+
 const (
-	ErrorInvalidOp      tvm.ExitCode = tvm.ExitCode(72)
-	ErrorWrongOp        tvm.ExitCode = tvm.ExitCode(0xffff)
-	ErrorNotOwner       tvm.ExitCode = tvm.ExitCode(73)
-	ErrorNotValidWallet tvm.ExitCode = tvm.ExitCode(74)
-	ErrorWrongWorkchain tvm.ExitCode = tvm.ExitCode(333)
+	ErrorInvalidOp      ExitCode = 72
+	ErrorWrongOp        ExitCode = 0xffff
+	ErrorNotOwner       ExitCode = 73
+	ErrorNotValidWallet ExitCode = 74
+	ErrorWrongWorkchain ExitCode = 333
 )
 
 // For funding the contract with TON

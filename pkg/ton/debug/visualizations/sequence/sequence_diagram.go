@@ -11,8 +11,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/TyphonHill/go-mermaid/diagrams/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
@@ -81,12 +79,12 @@ func (v *visualization) ToString() string {
 	}
 }
 
-func (v *visualization) NewActor(address string, contractType deployment.ContractType, name string) {
+func (v *visualization) NewActor(address string, contractType string, name string) {
 	if _, exists := v.Actors[address]; !exists {
 		if name != "" {
 			v.Actors[address] = name
 		} else {
-			v.Actors[address] = contractType.String()
+			v.Actors[address] = contractType
 		}
 	}
 }

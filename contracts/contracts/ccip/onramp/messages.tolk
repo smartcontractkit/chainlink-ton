@@ -10,6 +10,7 @@ type OnRamp_InMessage =
     | OnRamp_Send
     | OnRamp_WithdrawJettons
     | OnRamp_ExecutorFinishedSuccessfully
+    | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateAllowlists
@@ -47,6 +48,13 @@ struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
     fee: coins
+}
+
+struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
+    msgID: uint224,
+    msg: Cell<Router_CCIPSend>,
+    metadata: Metadata,
+    error: uint256,
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell

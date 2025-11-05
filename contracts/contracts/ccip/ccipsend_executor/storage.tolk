@@ -3,20 +3,22 @@ import "types"
 import "../onramp/messages"
 
 struct CCIPSendExecutor<T> {
-    messageId: uint224,
+    messageID: uint224,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: Cell<T>,
+    originalBalance: coins,
 }
 
 fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
     val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
     assert (st.state is Cell<T>) throw CCIPSendExecutor_Error.StateNotExpected; // invalid state
     return CCIPSendExecutor<T> {
-        messageId: st.messageId,
+        messageID: st.messageId,
         onrampSend: st.onrampSend,
         addresses: st.addresses,
         state: st.state,
+        originalBalance: st.originalBalance,
     };
 }
 
@@ -26,5 +28,6 @@ fun CCIPSendExecutor<T>.store(self) {
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: self.state,
+        originalBalance: self.originalBalance,
     }.toCell());
 }

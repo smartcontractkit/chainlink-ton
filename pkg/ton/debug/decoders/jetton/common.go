@@ -1,56 +1,53 @@
 package jetton
 
 import (
-	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	jetton.TopUpMessage{},
+})
+
 type decoder struct {
+	tlbsCtx map[uint64]interface{}
+
+	contractType string
 }
 
-func NewDecoder() *decoder {
-	return &decoder{}
+func NewDecoder(tlbsCtx map[uint64]interface{}, t string) lib.ContractDecoder {
+	return &decoder{tlbsCtx: tlbsCtx, contractType: t}
 }
 
-// InternalMessageInfo implements lib.ContractDecoder.
-func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	r := msg.BeginParse()
-	if r.BitsLeft() == 0 {
-		return nil, &lib.UnknownMessageError{}
-	}
-	opCode, err := r.PreloadUInt(32)
-	if err != nil {
-		return nil, err
-	}
-	if opCode == jetton.OpcodeTopUp {
-		var topUp jetton.TopUpMessage
-		err := tlb.LoadFromCell(&topUp, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("TopUp", topUp)
-	}
+// ContractType implements lib.ContractDecoder.
+func (d *decoder) ContractType() string {
+	return d.contractType
+}
+
+// EventInfo implements lib.ContractDecoder.
+func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
-func (j *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	case jetton.ErrorInvalidOp:
-		return "ErrorInvalidOp", nil
-	case jetton.ErrorWrongOp:
-		return "ErrorWrongOp", nil
-	case jetton.ErrorNotOwner:
-		return "ErrorNotOwner", nil
-	case jetton.ErrorNotValidWallet:
-		return "ErrorNotValidWallet", nil
-	case jetton.ErrorWrongWorkchain:
-		return "ErrorWrongWorkchain", nil
-	default:
+// ExternalMessageInfo implements lib.ContractDecoder.
+func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+	return nil, &lib.UnknownMessageError{}
+}
+
+// InternalMessageInfo implements lib.ContractDecoder.
+func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
+}
+
+func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
+	ec, err := jetton.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
 		return "", &lib.UnknownMessageError{}
 	}
+
+	return ec.String(), nil
 }

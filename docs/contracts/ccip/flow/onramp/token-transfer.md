@@ -2,7 +2,7 @@
 
 > Before you read, see [Jetton Transfer Notation Convention](../token-transfer-notation-convention.md)
 
-> See also [how CCIPSend works](../../onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../token-registry.md).
+> See also [how CCIPSend works](../../onramp-ccipsend-executor.md) and [how the Token Registry is implemented](../../token-registry.md).
 
 _The message flow for **Reject CCIPSend** is collapsed to a Note. You can find more details below._
 
@@ -20,13 +20,13 @@ sequenceDiagram
     
     Note over OR: Create msgID
     create participant ORM
-    OR ->> ORM: deploy CCIPSendExecutor <br>initData{msgID}<br>execute{CCIPSend, onrampJettonWallet}
+    OR ->> ORM: deploy SendExecutor <br>initData{msgID}<br>execute{CCIPSend, onrampJettonWallet}
     ORM ->> OR: withdrawJettons{ORM.id, ccipSend}
     OR -->> ORM: Transfer T { amount,<br>fwdPayload: msgID }
 
     box OnRamp
     participant OR as OnRamp
-    participant ORM as CCIPSendExecutor<br>{id}
+    participant ORM as SendExecutor<br>{id}
     end
 
     participant FQ as FeeQuoter
@@ -70,7 +70,7 @@ sequenceDiagram
     ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
-    OR ->> R: sendConfirmation{seqNum}<br>+ Recovered TON
+    OR ->> R: MessageSent{queryID, seqNum}<br>+ Recovered TON
     end
     end
     end
@@ -82,9 +82,9 @@ For any bounce we catch, or every **Reject CCIPSend**, it envolves:
 ```mermaid
 sequenceDiagram
     participant OR as OnRamp
-    participant LRM as CCIPSendExecutor<br>{id}
+    participant LRM as SendExecutor<br>{id}
     Note over LRM: destroy
     destroy LRM
-    LRM -->> OR: Transfer T {fwdPayload: failed{storageID: LRM.id, data:<br>CCIPSend, reason}}<br>+ TON remaining balance
-    Note over OR: Send rejectedCCIPSend{reason}<br>to the user in a Jetton transfer<br>+ excess TON
+    LRM -->> OR: Transfer T {fwdPayload:<br>messageRejected{messageId, msg, reason}}<br>+ TON remaining balance
+    Note over OR: Send CCIPSendNACK{queryID, reason}<br>to the user in a Jetton transfer<br>+ excess TON
 ```

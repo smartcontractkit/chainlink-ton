@@ -4,18 +4,23 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"maps"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/mcms/mcms"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/tree"
@@ -24,13 +29,18 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+type TypeAndVersion struct {
+	Type    string         `json:"Type"`
+	Version semver.Version `json:"Version"`
+}
+
 type DebuggerEnvironment struct {
-	existingAddresses map[string]cldf.TypeAndVersion
-	contracts         map[cldf.ContractType]lib.ContractDecoder
+	existingAddresses map[string]TypeAndVersion
+	contracts         map[string]lib.ContractDecoder
 	writerFactory     func(DebuggerEnvironment) lib.DebuggerVisualization
 }
 
-func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvironment {
+func NewDebuggerTreeTrace(addresses map[string]TypeAndVersion) DebuggerEnvironment {
 	return DebuggerEnvironment{
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
@@ -44,7 +54,7 @@ func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvi
 	}
 }
 
-func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFmt sequence.OutputFmt) DebuggerEnvironment {
+func NewDebuggerSequenceTrace(addresses map[string]TypeAndVersion, outputFmt sequence.OutputFmt) DebuggerEnvironment {
 	return DebuggerEnvironment{
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
@@ -58,18 +68,36 @@ func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFm
 	}
 }
 
-func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
-	t := make(map[cldf.ContractType]lib.ContractDecoder)
-	registerDecoder(t, wallet.NewDecoder(t))
-	registerDecoder(t, minter.NewDecoder(t))
-	registerDecoder(t, router.NewDecoder(t))
-	registerDecoder(t, onramp.NewDecoder(t))
-	registerDecoder(t, feequoter.NewDecoder())
-	registerDecoder(t, ccipsendexecutor.NewDecoder(t))
+func defaultDecoders() map[string]lib.ContractDecoder {
+	tlbs := make(map[uint64]interface{})
+	// Jetton contract types
+	maps.Copy(tlbs, wallet.TLBs)
+	maps.Copy(tlbs, minter.TLBs)
+	// CCIP contract types
+	maps.Copy(tlbs, router.TLBs)
+	maps.Copy(tlbs, onramp.TLBs)
+	maps.Copy(tlbs, feequoter.TLBs)
+	maps.Copy(tlbs, ccipsendexecutor.TLBs)
+	// MCMS contract types
+	maps.Copy(tlbs, rbac.TLBs)
+	maps.Copy(tlbs, mcms.TLBs)
+	maps.Copy(tlbs, timelock.TLBs)
+
+	t := make(map[string]lib.ContractDecoder)
+	registerDecoder(t, wallet.NewDecoder(tlbs))
+	registerDecoder(t, minter.NewDecoder(tlbs))
+	registerDecoder(t, router.NewDecoder(tlbs))
+	registerDecoder(t, onramp.NewDecoder(tlbs))
+	registerDecoder(t, offramp.NewDecoder(tlbs))
+	registerDecoder(t, feequoter.NewDecoder(tlbs))
+	registerDecoder(t, ccipsendexecutor.NewDecoder(tlbs))
+	registerDecoder(t, rbac.NewDecoder(tlbs))
+	registerDecoder(t, mcms.NewDecoder(tlbs))
+	registerDecoder(t, timelock.NewDecoder(tlbs))
 	return t
 }
 
-func registerDecoder(t map[cldf.ContractType]lib.ContractDecoder, decoder lib.ContractDecoder) {
+func registerDecoder(t map[string]lib.ContractDecoder, decoder lib.ContractDecoder) {
 	t[decoder.ContractType()] = decoder
 }
 
