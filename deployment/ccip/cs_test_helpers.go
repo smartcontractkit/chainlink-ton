@@ -339,7 +339,7 @@ func SendTonRequest(
 	}
 
 	// TODO: This is temporary debugging code to be removed later
-	debugger := debug.NewDebuggerSequenceTrace(map[string]cldf.TypeAndVersion{
+	debugger := debug.NewDebuggerSequenceTrace(map[string]debug.TypeAndVersion{
 		senderAddr.String():             {Type: "SenderWallet", Version: *semver.MustParse("0.0.0")},
 		state.LinkTokenAddress.String(): {Type: "LinkTokenAddress", Version: *semver.MustParse("0.0.0")},
 		state.OffRamp.String():          {Type: "OffRamp", Version: *semver.MustParse("0.0.0")},
