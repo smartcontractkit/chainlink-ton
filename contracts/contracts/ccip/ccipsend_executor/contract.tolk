@@ -8,7 +8,6 @@ import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
 import "../onramp/errors"
-import "../router/messages"
 
 const CONTRACT_VERSION = "0.0.6";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
@@ -58,6 +57,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
         state: CCIPSendExecutor_State_Initialized{
             tokenRegistry: config.tokenRegistry,
         }.toCell(),
+        originalBalance: contract.getOriginalBalance(),
     };
 }
 
@@ -73,6 +73,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self, 
             state: CCIPSendExecutor_State_OnGoingFeeValidation {
                 pendingJettonLock: null,
             }.toCell(),
+            originalBalance: self.originalBalance,
         };
         newState.store();
     }
@@ -99,6 +100,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
         state: CCIPSendExecutor_State_WaitingForJettons {
             tokenRegistry: self.state.load().tokenRegistry!,
         }.toCell(),
+        originalBalance: self.originalBalance,
     };
     newState.store();
 }
@@ -117,6 +119,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
                 tokenPool: createAddressNone(), // TODO
             },
         }.toCell(),
+        originalBalance: self.originalBalance,
     };
     newState.store();
 }
@@ -139,7 +142,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     val addresses = lazy self.addresses.load();
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
-    // if (msg.fee + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
+    // if (msg.fee > self.getOriginalBalance + fwd fees for answer) {
     //     self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
     //     return;
     // }

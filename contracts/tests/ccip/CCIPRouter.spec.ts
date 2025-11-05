@@ -8,12 +8,15 @@ import {
   Message,
   CommonMessageInfoInternal,
   TransactionDescriptionGeneric,
-  Sender,
 } from '@ton/core'
-import { compile, sleep } from '@ton/blueprint'
+import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
-import * as fq from '../../wrappers/ccip/FeeQuoter'
+import {
+  createTimestampedPriceValue,
+  FeeQuoter,
+  FeeQuoterStorage,
+} from '../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
@@ -23,12 +26,11 @@ import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { CellCodec, facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
-import * as sendExecutor from '../../wrappers/ccip/CCIPSendExecutor'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
-import { dump } from '../utils/prettyPrint'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -110,7 +112,7 @@ describe('Router', () => {
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
-  let feeQuoter: SandboxContract<fq.FeeQuoter>
+  let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<or.OnRamp>
 
   beforeAll(async () => {
@@ -159,7 +161,7 @@ describe('Router', () => {
     {
       let code = await compile('FeeQuoter')
 
-      let data: fq.FeeQuoterStorage = {
+      let data: FeeQuoterStorage = {
         id: 0,
         ownable: {
           owner: deployer.address,
@@ -168,14 +170,14 @@ describe('Router', () => {
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
         tokenPriceStalenessThreshold: 1000n,
-        usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
+        usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
         premiumMultiplierWeiPerEth: Dictionary.empty(
           Dictionary.Keys.Address(),
           Dictionary.Values.BigUint(64),
         ),
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
       }
-      feeQuoter = blockchain.openContract(fq.FeeQuoter.createFromConfig(data, code))
+      feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
       {
         const result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -471,7 +473,7 @@ describe('Router', () => {
   })
 
   it('doesnt lose balance on messageSent fees', async () => {
-    const initialOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
+    const initialRouterBalance = (await blockchain.getContract(router.address)).balance
 
     const ccipSend: rt.CCIPSend = {
       queryID: 1,
@@ -489,19 +491,16 @@ describe('Router', () => {
         .asCell(),
     }
 
-    const originalSentValue = toNano('0.5')
-    const valueFromExecutor = toNano('0.4')
-    const ccipFee = toNano('0.01')
     const result = await onRamp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
-      value: valueFromExecutor,
+      value: toNano('0.04'),
       body: {
         messageID: 42n,
         msg: rt.builder.message.in.ccipSend.encode(ccipSend).asCell(),
         metadata: {
           sender: deployer.address,
-          value: originalSentValue,
+          value: toNano('0.05'),
         },
-        fee: ccipFee,
+        fee: toNano('0.01'),
       },
     })
 
@@ -525,7 +524,7 @@ describe('Router', () => {
       op: rt.OutgoingOpcodes.ccipSendACK,
     })
 
-    const finalOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
+    const finalRouterBalance = (await blockchain.getContract(router.address)).balance
 
     const relayTX = result.transactions.find((tx) => {
       return (
@@ -534,11 +533,11 @@ describe('Router', () => {
         tx.inMessage.info.src != null &&
         tx.inMessage.info.src != undefined &&
         tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(deployer.address) &&
+        tx.inMessage.info.src.equals(onRamp.address) &&
         tx.inMessage.info.dest != null &&
         tx.inMessage.info.dest != undefined &&
         tx.inMessage.info.dest instanceof Address &&
-        tx.inMessage.info.dest.equals(onRamp.address) &&
+        tx.inMessage.info.dest.equals(router.address) &&
         tx.description.type === 'generic'
       )
     }) as BlockchainTransaction & {
@@ -547,7 +546,7 @@ describe('Router', () => {
     }
     const rentFee = relayTX.description.storagePhase?.storageFeesCollected ?? 0n
 
-    expect(finalOnRampBalance).toBe(initialOnRampBalance - rentFee + ccipFee)
+    expect(finalRouterBalance).toBe(initialRouterBalance - rentFee)
   })
 
   it('onramp arbitrary message passing', async () => {
@@ -567,32 +566,11 @@ describe('Router', () => {
         .asCell(),
     }
 
-    const amount = await getValidatedFee(sender.getSender(), feeQuoter, ccipSend, Cell.EMPTY)
-    console.log('Validated fee:', amount.fee, 'TON')
-    const totalSendValue = amount.fee + toNano('0.5')
-
     // router.ccipSend
     {
       const result = await router.sendCcipSend(sender.getSender(), {
-        value: totalSendValue,
+        value: toNano('1'),
         body: ccipSend,
-      })
-      console.log('MsgTrace: \n', (await dump(result.transactions)).join('\n'))
-      // console.log('TXs:', result.transactions)
-
-      // we called the router
-      expect(result.transactions).toHaveTransaction({
-        from: sender.address,
-        to: router.address,
-        deploy: false,
-        success: true,
-      })
-      // the router called the onRamp
-      expect(result.transactions).toHaveTransaction({
-        from: router.address,
-        to: onRamp.address,
-        deploy: false,
-        success: true,
       })
 
       const executorAddress = ((): Address => {
@@ -614,6 +592,20 @@ describe('Router', () => {
         throw new Error('Executor address not found')
       })()
 
+      // we called the router
+      expect(result.transactions).toHaveTransaction({
+        from: sender.address,
+        to: router.address,
+        deploy: false,
+        success: true,
+      })
+      // the router called the onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
       // the onRamp deployed the executor
       expect(result.transactions).toHaveTransaction({
         from: onRamp.address,
@@ -927,8 +919,8 @@ describe('Router', () => {
   it('Test facilityId matches facility name', () => {
     expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
     expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
-    expect(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
-      facilityId(crc32(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
+    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
+      facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
     )
   })
 })
@@ -957,7 +949,7 @@ async function deployRouterContract(
 
 async function setupJetton(
   blockchain: Blockchain,
-  feeQuoter: SandboxContract<fq.FeeQuoter>,
+  feeQuoter: SandboxContract<FeeQuoter>,
   deployer: SandboxContract<TreasuryContract>,
   user: SandboxContract<TreasuryContract>,
 ) {
@@ -1200,50 +1192,4 @@ function verifyBodyIsRouterCCIPSendACK(
   const validations = validation ? [validation] : []
 
   return verifyBodyMessage(body, rt.builder.message.out.ccipSendACK, validations)
-}
-
-/**
- * Requests validateMessage
- */
-async function getValidatedFee(
-  sender: Sender,
-  feeQuoter: SandboxContract<fq.FeeQuoter>,
-  msg: rt.CCIPSend,
-  metadata: Cell,
-): Promise<sendExecutor.MessageValidated> {
-  const res = await feeQuoter.sendGetValidatedFee(sender, {
-    value: toNano('1'),
-    msg: {
-      msg,
-      metadata,
-    },
-  })
-
-  // request
-  expect(res.transactions).toHaveTransaction({
-    from: sender.address,
-    to: feeQuoter.address,
-    success: true,
-  })
-  // response
-  expect(res.transactions).toHaveTransaction({
-    from: feeQuoter.address,
-    to: sender.address,
-    success: true,
-  })
-
-  const tx = res.transactions.find(
-    (tx) =>
-      tx.inMessage?.info.type === 'internal' && tx.inMessage.info.src.equals(feeQuoter.address),
-  )
-
-  if (!tx || tx.inMessage === undefined || tx.inMessage?.info.type !== 'internal') {
-    throw new Error('Failed to find response transaction')
-  }
-  const resp = tx.inMessage
-
-  const body = resp.body.beginParse()
-  expect(body.preloadUint(32)).toBe(sendExecutor.Opcodes.messageValidated)
-  const messageValidated = fq.builder.message.out.messageValidated.load(resp.body.beginParse())
-  return messageValidated
 }

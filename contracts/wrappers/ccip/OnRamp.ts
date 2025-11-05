@@ -184,7 +184,7 @@ export const builder = {
                   : rt.builder.message.in.ccipSend.encode(data.msg),
               )
               .storeBuilder(metadataCodec.encode(data.metadata))
-              .storeCoins(data.fee)
+              .storeUint(data.fee, 64)
           },
           load: function (src: Slice): ExecutorFinishedSuccessfully {
             src.skip(32)
@@ -192,7 +192,7 @@ export const builder = {
               messageID: src.loadUintBig(224),
               msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
               metadata: metadataCodec.load(src),
-              fee: src.loadCoins(),
+              fee: src.loadUintBig(64),
             }
           },
         }
