@@ -274,7 +274,7 @@ export class Router
   async sendCurse(
     provider: ContractProvider,
     via: Sender,
-    opts: { value: string | bigint; queryID?: number; subject: bigint },
+    opts: { value: string | bigint; queryID?: number; subjects: bigint[] },
   ) {
     await provider.internal(via, {
       value: opts.value,
@@ -282,7 +282,7 @@ export class Router
       body: beginCell()
         .storeUint(Opcodes.curse, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.subject, 128)
+        .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
         .asCell(),
     })
   }
@@ -290,7 +290,7 @@ export class Router
   async sendUncurse(
     provider: ContractProvider,
     via: Sender,
-    opts: { value: string | bigint; queryID?: number; subject: bigint },
+    opts: { value: string | bigint; queryID?: number; subjects: bigint[] },
   ) {
     await provider.internal(via, {
       value: opts.value,
@@ -298,7 +298,7 @@ export class Router
       body: beginCell()
         .storeUint(Opcodes.uncurse, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.subject, 128)
+        .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
         .asCell(),
     })
   }

@@ -472,7 +472,7 @@ describe('Router', () => {
       const result = await router.sendCurse(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        subject: CHAINSEL_EVM_TEST_90000001,
+        subjects: [CHAINSEL_EVM_TEST_90000001],
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -517,7 +517,7 @@ describe('Router', () => {
       const result = await router.sendUncurse(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        subject: CHAINSEL_EVM_TEST_90000001,
+        subjects: [CHAINSEL_EVM_TEST_90000001],
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
