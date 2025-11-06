@@ -240,7 +240,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address, value:
             sender: payload.metadata.sender,
         },
     });
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveToncoinsOnBalance(payload.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
