@@ -18,6 +18,8 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
+	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -342,6 +344,14 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
+			t.logger.Debugf("broadcastLoop: started")
+
+			// zeroVersion := *semver.MustParse("0.0.0")
+			knownAddresses := map[string]debug.TypeAndVersion{
+				// senderAddress.String():             {Type: "SenderWallet", Version: zeroVersion},
+			}
+			t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(&receivedMessage))
+			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 
 			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
