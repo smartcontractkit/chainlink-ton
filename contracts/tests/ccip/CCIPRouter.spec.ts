@@ -466,6 +466,67 @@ describe('Router', () => {
     }
   })
 
+  it('router respects cursing', async () => {
+    // Curse the lane
+    {
+      const result = await router.sendCurse(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        subjects: [CHAINSEL_EVM_TEST_90000001],
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    // Fail router.ccipSend
+    {
+      const result = await router.sendCcipSend(sender.getSender(), {
+        value: toNano('1'),
+        body: {
+          queryID: 1,
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          receiver: EVM_ADDRESS,
+          data: Cell.EMPTY,
+          tokenAmounts: [],
+          feeToken: TEST_TOKEN_ADDR,
+          extraArgs: rt.builder.data.extraArgs
+            .encode({
+              kind: 'generic-v2',
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            })
+            .asCell(),
+        },
+      })
+
+      // we called the router
+      expect(result.transactions).toHaveTransaction({
+        from: sender.address,
+        to: router.address,
+        deploy: false,
+        success: false,
+        exitCode: 49605, // subjectCursed
+      })
+    }
+
+    // Uncurse the lane
+    {
+      const result = await router.sendUncurse(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        subjects: [CHAINSEL_EVM_TEST_90000001],
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+  })
+
   it('doesnt lose balance on messageSent fees', async () => {
     const initialRouterBalance = (await blockchain.getContract(router.address)).balance
 
