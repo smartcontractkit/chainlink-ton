@@ -339,17 +339,19 @@ func SendTonRequest(
 	}
 
 	// TODO: This is temporary debugging code to be removed later
-	debugger := debug.NewDebuggerSequenceTrace(map[string]debug.TypeAndVersion{
-		senderAddr.String():             {Type: "SenderWallet", Version: *semver.MustParse("0.0.0")},
-		state.LinkTokenAddress.String(): {Type: "LinkTokenAddress", Version: *semver.MustParse("0.0.0")},
-		state.OffRamp.String():          {Type: "OffRamp", Version: *semver.MustParse("0.0.0")},
-		state.Router.String():           {Type: "Router", Version: *semver.MustParse("0.0.0")},
-		state.OnRamp.String():           {Type: "OnRamp", Version: *semver.MustParse("0.0.0")},
-		state.FeeQuoter.String():        {Type: "FeeQuoter", Version: *semver.MustParse("0.0.0")},
-		state.Timelock.String():         {Type: "Timelock", Version: *semver.MustParse("0.0.0")},
-		state.ReceiverAddress.String():  {Type: "ReceiverAddress", Version: *semver.MustParse("0.0.0")},
-	}, sequenceDiagram.OutputFmtURL)
-	e.Logger.Infof("Msg trace:\n%s\n", debugger.DumpReceived(receivedMsg))
+	zeroVersion := *semver.MustParse("0.0.0")
+	knownAddresses := map[string]debug.TypeAndVersion{
+		senderAddr.String():             {Type: "SenderWallet", Version: zeroVersion},
+		state.LinkTokenAddress.String(): {Type: "LinkTokenAddress", Version: zeroVersion},
+		state.OffRamp.String():          {Type: "OffRamp", Version: zeroVersion},
+		state.Router.String():           {Type: "Router", Version: zeroVersion},
+		state.OnRamp.String():           {Type: "OnRamp", Version: zeroVersion},
+		state.FeeQuoter.String():        {Type: "FeeQuoter", Version: zeroVersion},
+		state.Timelock.String():         {Type: "Timelock", Version: zeroVersion},
+		state.ReceiverAddress.String():  {Type: "ReceiverAddress", Version: zeroVersion},
+	}
+	e.Logger.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(receivedMsg))
+	e.Logger.Infof("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMsg))
 
 	event, err := waitForReceivedMsgFlatten(e, clientConn, receivedMsg)
 	if err != nil {
