@@ -151,9 +151,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	}
 
 	// gas limit can be nil, which means no limit
-	var gasLimit tlb.Coins
+	var gasLimit tlb.Coins // this is gas unit, not the amount of TON
 	if gasLimitBigInt != nil {
-		gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
+		// TODO: make it constant or configurable
+		gasLimit, err = tlb.FromNano(gasLimitBigInt.Mul(gasLimitBigInt, big.NewInt(400)), 0)
 		if err != nil {
 			return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
 		}
