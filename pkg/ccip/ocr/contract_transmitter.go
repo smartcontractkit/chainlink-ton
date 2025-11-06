@@ -106,7 +106,7 @@ func (c *ccipTransmitter) Transmit(
 	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
 
 	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.1") // base amount, TODO: make configurable
+	baseAmount := tlb.MustFromTON("0.05") // base amount, TODO: make configurable
 	if gasLimit != nil {
 		finalAmount, err = baseAmount.Add(gasLimit)
 		if err != nil {
