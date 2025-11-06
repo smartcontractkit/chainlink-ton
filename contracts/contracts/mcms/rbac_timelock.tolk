@@ -908,7 +908,7 @@ fun Timelock<T>.execute(self, call: Timelock_Call): void {
         dest: call.target,
         body: call.data
     });
-    op.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Hook before execution of an operation's calls.

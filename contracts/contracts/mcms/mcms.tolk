@@ -1209,7 +1209,7 @@ fun MCMS<T>.submitErrorReport(
             opLeafHash: hashedLeaf,
             opTxHash,
             errorTxHash,
-            errorCode: errorCode,
+            errorCode,
             root,
             matchesPendingOp,
         }
@@ -1249,7 +1249,7 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     // Send a message to the target with the provided value and data
     val op = createMessage({
         bounce: true,
-        value: value,
+        value,
         dest: target,
         body: data
     });
