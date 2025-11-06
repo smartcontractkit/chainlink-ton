@@ -189,6 +189,11 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
     return (price.executionGasPrice, price.dataAvailabilityGasPrice)
 }
 
+get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
+    return validatedFee(msg.load());
+}
+
+
 get fun validatedFee(msg: Router_CCIPSend): coins {
     var st = lazy Storage.load();
 
