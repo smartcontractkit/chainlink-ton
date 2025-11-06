@@ -30,7 +30,7 @@ fun onInternalMessage(in: InMessage) {
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         OnRamp_WithdrawJettons => { handleWithdrawJettons(msg, in.senderAddress)},
         OnRamp_ExecutorFinishedSuccessfully => {
-            commit(msg, in.senderAddress, in.valueCoins);
+            commit(msg, in.senderAddress);
         }
         OnRamp_ExecutorFinishedWithError => {
             replyWithError(msg, in.senderAddress);
@@ -172,7 +172,7 @@ fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
     sendMsg.send(SEND_MODE_REGULAR);
 }
 
-fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address, value: coins) {
+fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     var st = lazy OnRamp_Storage.load();
     // TODO validate sender is executor msg.msgId
 
