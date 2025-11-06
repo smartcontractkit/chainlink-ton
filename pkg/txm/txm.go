@@ -344,7 +344,6 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
-			t.logger.Debugf("broadcastLoop: started")
 
 			// zeroVersion := *semver.MustParse("0.0.0")
 			knownAddresses := map[string]debug.TypeAndVersion{
