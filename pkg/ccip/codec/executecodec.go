@@ -136,33 +136,27 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		Nonce:               msg.Header.Nonce,
 	}
 
-	//var gasLimitBigInt *big.Int
-	//var extraArgsDecodeMap map[string]any
-	//if len(msg.ExtraArgs) > 0 {
-	//	extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("failed to decode extra args: %w", err)
-	//	}
-	//
-	//	gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-	//	}
-	//}
+	var gasLimitBigInt *big.Int
+	var extraArgsDecodeMap map[string]any
+	if len(msg.ExtraArgs) > 0 {
+		extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode extra args: %w", err)
+		}
+
+		gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
+		if err != nil {
+			return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+		}
+	}
 
 	// gas limit can be nil, which means no limit
-	//var gasLimit tlb.Coins
-	//if gasLimitBigInt != nil {
-	//	gasLimit, err = tlb.FromNano(gasLimitBigInt, 0) //TODO: is 0 decimals ok? should it be 9?
-	//	if err != nil {
-	//		return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
-	//	}
-	//}
-
-	// Hard code gas limit for now
-	gasLimit, err := tlb.FromTON("0.1") // TODO: is 0 decimals ok? should it be 9?
-	if err != nil {
-		return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
+	var gasLimit tlb.Coins
+	if gasLimitBigInt != nil {
+		gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
+		if err != nil {
+			return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
+		}
 	}
 
 	rampMessage = ocr.Any2TVMRampMessage{
