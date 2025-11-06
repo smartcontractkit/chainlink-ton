@@ -6,5 +6,7 @@ enum Error {
     SourceChainSelectorMismatch
     InvalidOnRampUpdate
     SenderIsNotRouter
+    SubjectCursed
+    Unauthorized
 }
 

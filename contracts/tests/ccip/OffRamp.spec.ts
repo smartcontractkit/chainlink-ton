@@ -152,6 +152,7 @@ async function deployOffRampContract(
       receiveExecutorCode: beginCell().endCell(),
     },
     feeQuoter: ZERO_ADDRESS,
+    router: owner.address, // used to determine who can send RMN updates
     chainSelector: CHAINSEL_TON,
     permissionlessExecutionThresholdSeconds: 60,
     latestPriceSequenceNumber: 0n,
@@ -544,6 +545,7 @@ describe('OffRamp - Unit Tests', () => {
           receiveExecutorCode: receiveExecutorCode,
         },
         feeQuoter: feeQuoter.address,
+        router: deployer.address, // used to validate who can configure RMN
         chainSelector: CHAINSEL_TON,
         permissionlessExecutionThresholdSeconds: 60,
         latestPriceSequenceNumber: 0n,
@@ -947,6 +949,42 @@ describe('OffRamp - Unit Tests', () => {
 
     const report = createExecuteReport([message])
     await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)
+  })
+
+  it('Test execute fails when source chain is cursed', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+
+    // Setup and commit with enabled chain
+    await setupOCRConfigs()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+    await commitReport([root])
+
+    // Curse source chain
+    let result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [CHAINSEL_EVM_TEST_90000001],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    const report = createExecuteReport([message])
+    await executeReportExpectingFailure(report, OffRampError.SubjectCursed)
+
+    // Uncurse source chain
+    result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
   })
 
   it('Test execute fails when source chain config does not exist', async () => {

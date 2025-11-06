@@ -6,6 +6,7 @@ import "../common/types.tolk"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "../rmn_remote/lib"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -20,13 +21,13 @@ type OffRamp_InMessage =
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
     | OCR3Base_SetOCR3Config
+    | OffRamp_UpdateCursedSubjects
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw;
 
 //crc32('OffRamp_Commit')
 struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;
-    // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: CommitReport;
     signatures: SnakedCell<SignatureEd25519>;
@@ -35,7 +36,6 @@ struct (0x9d431905) OffRamp_Commit {
 //crc32('OffRamp_Execute')
 struct (0x27bdac33) OffRamp_Execute {
     queryId: uint64;
-    // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: ExecutionReport;
 }
@@ -93,4 +93,9 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
     execId: ReceiveExecutorId;
     root: address;
+}
+
+//crc32('OffRamp_UpdateCursedSubjects')
+struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
+    cursedSubjects: CursedSubjects
 }
