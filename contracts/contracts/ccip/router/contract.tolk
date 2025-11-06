@@ -90,7 +90,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: false,
                 value: ton("0.05"),
                 dest: in.senderAddress,
-                body: RMNRemote_VerifyNotCursedResponse { queryId: msg.queryId, result },
+                body: Router_RMNRemoteVerifyNotCursedResponse { queryId: msg.queryId, result },
             });
             reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
