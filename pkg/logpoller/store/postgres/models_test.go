@@ -95,8 +95,7 @@ func TestLogModel_Conversion(t *testing.T) {
 
 	// Convert to database model and back
 	dbLogModel := logModel{}
-	dbLog, err := dbLogModel.FromLog(originalLog)
-	require.NoError(t, err)
+	dbLog := dbLogModel.FromLog(originalLog)
 	convertedLog, err := dbLog.ToLog()
 	require.NoError(t, err)
 
@@ -114,15 +113,14 @@ func TestLogModel_Conversion(t *testing.T) {
 	require.Equal(t, originalLog.MasterBlockSeqno, convertedLog.MasterBlockSeqno)
 	require.Equal(t, originalLog.MsgIndex, convertedLog.MsgIndex)
 
-	// verify cell data can be read
+	// Verify cell data can be read
 	require.NotNil(t, convertedLog.Data)
 
-	// verify boc split/join worked correctly
-	require.NotEmpty(t, dbLog.BocHeader)
-	require.NotEmpty(t, dbLog.BocPayload)
+	require.NotEmpty(t, dbLog.Data)
 }
 
 // TestCalculateBOCHeaderLen verifies dynamic header calculation is type-agnostic
+// TODO: verify with CCIP events
 func TestCalculateBOCHeaderLen(t *testing.T) {
 	tests := []struct {
 		name      string

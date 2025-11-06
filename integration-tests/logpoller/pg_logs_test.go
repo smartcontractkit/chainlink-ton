@@ -192,11 +192,11 @@ func TestPgLogStore(t *testing.T) {
 	t.Run("QueryLogs - With Byte Filters", func(t *testing.T) {
 		// Filter for logs with counter value = 200 (second log)
 		// Based on BOC analysis: Value field is at offset 4 in the cell payload
-		// offset 4 bytes after cell descriptor in payload
+		// (17 in full BOC - 13 BOC header = 4 in cell payload)
 		byteFilters := []*query.ByteFilter{
 			{
-				Offset: 4, // offset where value field appears in cell data
-				Size:   4, // 4 bytes for uint32 value
+				Offset: 4, // Offset where Value field appears in cell payload (after BOC header)
+				Size:   4, // 4 bytes for uint32 Value
 				Conditions: []query.Condition{
 					query.WithCondition([]byte{0x00, 0x00, 0x00, 0xc8}, primitives.Eq), // 200 = 0xc8 in hex
 				},
