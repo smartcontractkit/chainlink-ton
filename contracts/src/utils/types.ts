@@ -77,6 +77,10 @@ export function fromSnakeData<T>(data: Cell, readerFn: (cs: Slice) => T): T[] {
   return array
 }
 
+export function asSnakeBytes(data: Buffer): Cell {
+  return asSnakeData(Array.from(data), (item: number) => new Builder().storeUint(item, 8))
+}
+
 export function asSnakeDataUint(data: bigint[] | number[], bits: number): Cell {
   return asSnakeData(data, (item: bigint | number) => new Builder().storeUint(item, bits))
 }
