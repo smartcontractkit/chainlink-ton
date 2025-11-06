@@ -64,6 +64,7 @@ export type OnRampSend = {
 
 export type Metadata = {
   sender: Address
+  value: bigint
 }
 
 export type DestChainConfig = {
@@ -95,10 +96,10 @@ export type ExecutorFinishedWithError = {
 
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
-    return beginCell().storeAddress(data.sender)
+    return beginCell().storeAddress(data.sender).storeCoins(data.value)
   },
   load: function (src: Slice): Metadata {
-    return { sender: src.loadAddress() }
+    return { sender: src.loadAddress(), value: src.loadCoins() }
   },
 }
 
@@ -183,7 +184,7 @@ export const builder = {
                   : rt.builder.message.in.ccipSend.encode(data.msg),
               )
               .storeBuilder(metadataCodec.encode(data.metadata))
-              .storeUint(data.fee, 64)
+              .storeCoins(data.fee)
           },
           load: function (src: Slice): ExecutorFinishedSuccessfully {
             src.skip(32)
@@ -191,7 +192,7 @@ export const builder = {
               messageID: src.loadUintBig(224),
               msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
               metadata: metadataCodec.load(src),
-              fee: src.loadUintBig(64),
+              fee: src.loadCoins(),
             }
           },
         }

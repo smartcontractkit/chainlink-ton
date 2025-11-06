@@ -7,7 +7,6 @@ struct CCIPSendExecutor<T> {
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: Cell<T>,
-    originalBalance: coins,
 }
 
 fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
@@ -18,7 +17,6 @@ fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
         onrampSend: st.onrampSend,
         addresses: st.addresses,
         state: st.state,
-        originalBalance: st.originalBalance,
     };
 }
 
@@ -28,6 +26,5 @@ fun CCIPSendExecutor<T>.store(self) {
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: self.state,
-        originalBalance: self.originalBalance,
     }.toCell());
 }
