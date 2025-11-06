@@ -55,6 +55,9 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_UpdateSourceChainConfig => {
             _updateSourceChainConfig(msg, in.senderAddress)
         }
+        OffRamp_UpdateCursedSubjects => {
+            _updateCursedSubjects(msg, in.senderAddress)
+        },
         // Sender must be receiver
         OffRamp_CCIPReceiveConfirm => {
             _ccipReceiveConfirm(msg, in.senderAddress);
@@ -292,7 +295,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
-            bounce: true, // TODO: could bounce if root already exists but i don't think we shuold handle it
+            bounce: true, // TODO: could bounce if root already exists but i don't think we should handle it
             value: ton("0.5"), // TODO:
             dest: {
                 stateInit: {
@@ -372,7 +375,9 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address) {
     var st = Storage.load();
 
-    // TODO: check if chain was cursed by RMNRemote
+    // check if chain was cursed by RMNRemote
+    val isCursed = st.cursedSubjects.isCursed(report.sourceChainSelector as uint128);
+    assert(!isCursed, Error.SubjectCursed);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
@@ -468,6 +473,14 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
         sourceChainSelector: msg.sourceChainSelector,
         sourceChainConfig: config,
     })
+}
+
+fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
+    var st = Storage.load();
+    // Only allow updates to come through the router
+    assert(sender == st.deployables.load().router, Error.Unauthorized);
+    st.cursedSubjects = msg.cursedSubjects;
+    st.store();
 }
 
 fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {

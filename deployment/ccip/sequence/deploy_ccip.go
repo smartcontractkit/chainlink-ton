@@ -164,17 +164,18 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
+			Router:              &routerAddress,
 			Deployer:            tonCompiledContracts[state.Deployer].Code,
 			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
 			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,
 		},
+		FeeQuoter: &feeQuoterAddress,
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).
 			MustStoreBoolBit(false).
 			MustStoreBoolBit(false).
 			EndCell(),
-		FeeQuoter:                               &feeQuoterAddress,
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 		LatestPriceSequenceNumber: 0,

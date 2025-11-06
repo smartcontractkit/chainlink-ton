@@ -32,6 +32,68 @@ fun onInternalMessage(in: InMessage) {
             routeMessage(msg, in.senderAddress)
             }
         Router_CCIPReceiveConfirm => { ccipReceiveConfirm(msg, in.senderAddress) }
+        Router_RMNRemoteCurse => {
+            var st = lazy Storage.load();
+            var rmn = st.rmnRemote.load();
+            rmn.admin.requireOwner(in.senderAddress);
+            var subjects = msg.subjects.iter();
+            while (!subjects.empty()) {
+                val subject = subjects.next();  
+                rmn.cursedSubjects.curse(subject);
+            }
+            st.rmnRemote = rmn.toCell();
+            st.store();
+
+            // propagate update to cache
+            var entry = rmn.forwardUpdates.findFirst();
+            while (entry.isFound) {
+                val destination = entry.getKey();
+                val sendMsg = createMessage({
+                    bounce: false,
+                    value: ton("0.05"),
+                    dest: destination,
+                    body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
+                });
+                sendMsg.send(SEND_MODE_IGNORE_ERRORS);
+                entry = rmn.forwardUpdates.iterateNext(entry);
+            }
+        }
+        Router_RMNRemoteUncurse => {
+            var st = lazy Storage.load();
+            var rmn = st.rmnRemote.load();
+            rmn.admin.requireOwner(in.senderAddress);
+            var subjects = msg.subjects.iter();
+            while (!subjects.empty()) {
+                val subject = subjects.next();  
+                rmn.cursedSubjects.uncurse(subject);
+            }
+            st.rmnRemote = rmn.toCell();
+            st.store();
+
+            // propagate update to offramp cache
+            var entry = rmn.forwardUpdates.findFirst();
+            while (entry.isFound) {
+                val destination = entry.getKey();
+                val sendMsg = createMessage({
+                    bounce: false,
+                    value: ton("0.05"),
+                    dest: destination,
+                    body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
+                });
+                sendMsg.send(SEND_MODE_IGNORE_ERRORS);
+                entry = rmn.forwardUpdates.iterateNext(entry);
+            }
+        }
+        Router_RMNRemoteVerifyNotCursed => {
+            val result = verifyNotCursed(msg.subject);
+            val reply = createMessage({
+                bounce: false,
+                value: ton("0.05"),
+                dest: in.senderAddress,
+                body: Router_RMNRemoteVerifyNotCursedResponse { queryId: msg.queryId, result },
+            });
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
@@ -92,6 +154,7 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
         st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
+    // TODO: emit(OnRampsSet)
 }
 
 fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
@@ -116,6 +179,18 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             st.offRamps.delete(selector);
         }
     }
+
+    // update RMN forwarding cache
+    var rmn = st.rmnRemote.load();
+    var forwardUpdates = createEmptyMap<address, ()>();
+    var entry = st.offRamps.findFirst(); 
+    while (entry.isFound) {
+        val ramp = entry.loadValue();
+        forwardUpdates.addIfNotExists(ramp, ());
+        entry = st.offRamps.iterateNext(entry);
+    }
+    rmn.forwardUpdates = forwardUpdates;
+    st.rmnRemote = rmn.toCell();
     st.store();
 }
 
@@ -153,7 +228,6 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     });
     receiveBounced.send(SEND_MODE_REGULAR);
 }
-
 
 
 fun onSend(msg: Router_CCIPSend, sender: address) {
@@ -200,12 +274,17 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
     transferMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
 
-    // Forward excesses
+    // TODO: Forward excesses
     // self.forward(msg.sender, null, false, null);
 }
 
 fun ccipSend(msg: Router_CCIPSend, sender: address) {
     val st = lazy Storage.load();
+
+    // verify destination chain not cursed
+    var rmn = st.rmnRemote.load();
+    val isCursed = rmn.cursedSubjects.isCursed(msg.destChainSelector as uint128);
+    assert(!isCursed, Router_Error.SubjectCursed as int);
 
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
@@ -267,6 +346,12 @@ fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.Versi
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
+
+get fun verifyNotCursed(subject: uint128): bool {
+    val st = lazy Storage.load();
+    var rmn = st.rmnRemote.load();
+    return rmn.cursedSubjects.isCursed(subject);
+}
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);

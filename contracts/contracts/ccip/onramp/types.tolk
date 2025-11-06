@@ -7,12 +7,6 @@ struct OnRamp_DestChainConfig {
     allowlistEnabled: bool;
     allowedSenders: map<address, bool>;
 }
-// TODO: move allowlist into accounts
-// user calls wallet -> account contract -> router, account verifies dest chain and if
-// the user is allowed to send. This will also allow users to deposit funds ahead of time
-// unless we intend to keep the allow list small?
-// nonceManager: also seems to fit best in a sender subcontract with a dict destChainSelector -> nonce
-// if we pass through account contract then we can grab a nonce and pass it through?
 
 struct OnRamp_DynamicConfig {
     feeQuoter: address;
@@ -35,7 +29,7 @@ struct UpdateAllowlist {
 
 struct Metadata {
     sender: address,
-    // TODO: metadata { value, tokenAmounts }
+    // TODO: carry through token information: { TON value, tokenAmounts }
 }
 
 struct TVM2AnyRampMessage {
