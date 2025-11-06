@@ -145,7 +145,6 @@ fun Iterator<T>.countBytes(self): int {
 @inline
 fun Iterator<T>.countBytesSafe(self): (int, int) {
     try {
-        self.countBytes();
         return (self.countBytes(), 0);
     } catch (e) {
         return (0, e);
