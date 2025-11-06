@@ -16,7 +16,6 @@ type Router_InMsg =
     | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
-    | Ownable2Step_Messages
     | Router_RMNRemoteCurse
     | Router_RMNRemoteUncurse
     | Router_RMNRemoteVerifyNotCursed
