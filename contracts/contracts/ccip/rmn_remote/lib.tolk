@@ -18,10 +18,6 @@ fun CursedSubjects.isCursed(self, subject: uint128) {
     if (isGlobalCursed) {
         return true;
     }
-    val isCursed = self.data.exists(subject);
-    if (isCursed) {
-        return true;
-    }
-    return false
+    return self.data.exists(subject);
 }
 

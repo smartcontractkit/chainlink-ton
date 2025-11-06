@@ -46,7 +46,7 @@ fun onInternalMessage(in: InMessage) {
                 val destination = entry.getKey();
                 val sendMsg = createMessage({
                     bounce: false,
-                    value: 0,
+                    value: ton("0.05"),
                     dest: destination,
                     body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
                 });
@@ -78,13 +78,13 @@ fun onInternalMessage(in: InMessage) {
         }
         RMNRemote_VerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
-            val sendMsg = createMessage({
+            val reply = createMessage({
                 bounce: false,
-                value: 0,
+                value: ton("0.05"),
                 dest: in.senderAddress,
                 body: RMNRemote_VerifyNotCursedResponse { queryId: msg.queryId, result },
             });
-            sendMsg.send(SEND_MODE_REGULAR);
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         Withdrawable_Withdraw => {
