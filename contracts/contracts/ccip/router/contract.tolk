@@ -76,7 +76,7 @@ fun onInternalMessage(in: InMessage) {
                 val destination = entry.getKey();
                 val sendMsg = createMessage({
                     bounce: false,
-                    value: 0,
+                    value: ton("0.05"),
                     dest: destination,
                     body: OffRamp_UpdateCursedSubjects { cursedSubjects: rmn.cursedSubjects },
                 });
