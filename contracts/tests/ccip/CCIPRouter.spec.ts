@@ -26,7 +26,7 @@ import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { CellCodec, facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
-import * as sendExecutor from '../../wrappers/ccip/CCIPSendExecutor'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
@@ -492,13 +492,12 @@ describe('Router', () => {
     }
 
     const result = await onRamp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
-      value: toNano('0.04'),
+      value: toNano('0.05'),
       body: {
         messageID: 42n,
         msg: rt.builder.message.in.ccipSend.encode(ccipSend).asCell(),
         metadata: {
           sender: deployer.address,
-          value: toNano('0.05'),
         },
         fee: toNano('0.01'),
       },
@@ -919,8 +918,8 @@ describe('Router', () => {
   it('Test facilityId matches facility name', () => {
     expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
     expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
-    expect(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
-      facilityId(crc32(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
+    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
+      facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
     )
   })
 })

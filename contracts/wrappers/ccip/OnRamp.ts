@@ -64,7 +64,6 @@ export type OnRampSend = {
 
 export type Metadata = {
   sender: Address
-  value: bigint
 }
 
 export type DestChainConfig = {
@@ -96,10 +95,10 @@ export type ExecutorFinishedWithError = {
 
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
-    return beginCell().storeAddress(data.sender).storeCoins(data.value)
+    return beginCell().storeAddress(data.sender)
   },
   load: function (src: Slice): Metadata {
-    return { sender: src.loadAddress(), value: src.loadCoins() }
+    return { sender: src.loadAddress() }
   },
 }
 
