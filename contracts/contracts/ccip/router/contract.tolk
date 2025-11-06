@@ -32,11 +32,15 @@ fun onInternalMessage(in: InMessage) {
             routeMessage(msg, in.senderAddress)
             }
         Router_CCIPReceiveConfirm => { ccipReceiveConfirm(msg, in.senderAddress) }
-        RMNRemote_Curse => {
+        Router_RMNRemoteCurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             rmn.admin.requireOwner(in.senderAddress);
-            rmn.cursedSubjects.curse(msg.subject);
+            var subjects = msg.subjects.iter();
+            while (!subjects.empty()) {
+                val subject = subjects.next();  
+                rmn.cursedSubjects.curse(subject);
+            }
             st.rmnRemote = rmn.toCell();
             st.store();
 
@@ -54,11 +58,15 @@ fun onInternalMessage(in: InMessage) {
                 entry = rmn.forwardUpdates.iterateNext(entry);
             }
         }
-        RMNRemote_Uncurse => {
+        Router_RMNRemoteUncurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             rmn.admin.requireOwner(in.senderAddress);
-            rmn.cursedSubjects.uncurse(msg.subject);
+            var subjects = msg.subjects.iter();
+            while (!subjects.empty()) {
+                val subject = subjects.next();  
+                rmn.cursedSubjects.uncurse(subject);
+            }
             st.rmnRemote = rmn.toCell();
             st.store();
 
@@ -76,7 +84,7 @@ fun onInternalMessage(in: InMessage) {
                 entry = rmn.forwardUpdates.iterateNext(entry);
             }
         }
-        RMNRemote_VerifyNotCursed => {
+        Router_RMNRemoteVerifyNotCursed => {
             val result = verifyNotCursed(msg.subject);
             val reply = createMessage({
                 bounce: false,

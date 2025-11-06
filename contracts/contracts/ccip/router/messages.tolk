@@ -16,9 +16,10 @@ type Router_InMsg =
     | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
-    | RMNRemote_Curse
-    | RMNRemote_Uncurse
-    | RMNRemote_VerifyNotCursed
+    | Ownable2Step_Messages
+    | Router_RMNRemoteCurse
+    | Router_RMNRemoteUncurse
+    | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
     ;
@@ -71,25 +72,25 @@ struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
 }
 
 // curse/uncurse/verify uncursed (also as getter)
-// crc32("RMNRemote_Curse")
-struct (0x41e8c1dc) RMNRemote_Curse {
+// crc32("Router_RMNRemoteCurse")
+struct (0x41e8c1dc) Router_RMNRemoteCurse {
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+// crc32("Router_RMNRemoteUncurse")
+struct (0x3c3f5e73) Router_RMNRemoteUncurse {
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+// crc32("Router_RMNRemoteVerifyNotCursed")
+struct (0xa6e4b7e1) Router_RMNRemoteVerifyNotCursed {
     queryId: uint64
     subject: uint128
 }
 
-// crc32("RMNRemote_Uncurse")
-struct (0x3c3f5e73) RMNRemote_Uncurse {
-    queryId: uint64
-    subject: uint128
-}
-
-// crc32("RMNRemote_VerifyNotCursed"
-struct (0xa6e4b7e1) RMNRemote_VerifyNotCursed {
-    queryId: uint64
-    subject: uint128
-}
-
-struct (0x0d9368a9) RMNRemote_VerifyNotCursedResponse {
+struct (0x0d9368a9) Router_RMNRemoteVerifyNotCursedResponse {
     queryId: uint64
     result: bool
 }
