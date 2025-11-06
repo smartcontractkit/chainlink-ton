@@ -95,6 +95,7 @@ struct Any2TVMTokenTransfer {
 }
 
 struct OffRamp_Deployables {
+    router: address;
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // use a library cell offchain to save space
     receiveExecutorCode: cell; //TODO: use a library cell offchain to save space 

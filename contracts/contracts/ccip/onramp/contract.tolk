@@ -210,11 +210,6 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
         feeValueJuels: 0, // TODO:
     };
 
-    // TODO: support for ordered execution
-    // rampMessage.header.nonce = isOutOfOrderExecution
-    //   ? 0
-    //   : nonceManager.getIncrementedOutboundNonce(destChainSelector, metadata.sender);
-
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = beginCell()
@@ -277,8 +272,6 @@ get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     return config.sequenceNumber + 1;
 }
-
-// TODO: getFee forwarding? users should just call the fee quoter
 
 get fun staticConfig() {
     // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
@@ -360,7 +353,6 @@ fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
     }
 }
 
-// outboundNonce() TODO: nonceManager?
 // calculateMetadataHash/calculateMessageHash
 
 get fun supportedTokens() {
