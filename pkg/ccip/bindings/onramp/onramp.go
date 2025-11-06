@@ -116,6 +116,7 @@ type Send struct {
 
 type Metadata struct {
 	Sender *address.Address `tlb:"addr"`
+	Value  *tlb.Coins       `tlb:"."`
 }
 
 type WithdrawJettons struct {
