@@ -23,15 +23,13 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func GenerateExplorerCmd(lggr *logger.Logger, contracts map[string]deployment.TypeAndVersion, client *ton.APIClient) *cobra.Command {
+func GenerateExplorerCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, client *ton.APIClient) *cobra.Command {
 	var (
 		destAddressStr string
 		txHashStr      string
@@ -302,7 +300,7 @@ const (
 // - ctx: The context for managing request deadlines and cancellation.
 // - txHashStr: The transaction hash in hexadecimal format.
 // - srcAddrStr: The source address of the transaction in string format.
-func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr string, format Format, knownActors map[string]deployment.TypeAndVersion) error {
+func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr string, format Format, knownActors map[string]debug.TypeAndVersion) error {
 	var senderAddr *address.Address
 	var err error
 	if srcAddrStr == "" {
@@ -368,7 +366,7 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 	return nil
 }
 
-func (c *client) queryActors(ctx context.Context, message *tracetracking.ReceivedMessage, knownActors map[string]deployment.TypeAndVersion) error {
+func (c *client) queryActors(ctx context.Context, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion) error {
 	visited := make(map[string]bool)
 	block, err := c.connection.CurrentMasterchainInfo(ctx)
 	if err != nil {
@@ -377,7 +375,7 @@ func (c *client) queryActors(ctx context.Context, message *tracetracking.Receive
 	return c.queryActorsReceivedRec(ctx, block, message, knownActors, visited)
 }
 
-func (c *client) queryActorsReceivedRec(ctx context.Context, block *ton.BlockIDExt, message *tracetracking.ReceivedMessage, knownActors map[string]deployment.TypeAndVersion, visited map[string]bool) error {
+func (c *client) queryActorsReceivedRec(ctx context.Context, block *ton.BlockIDExt, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
 	if message.InternalMsg != nil {
 		err := c.queryActorIfNotVisited(ctx, block, message.InternalMsg.SrcAddr, knownActors, visited)
 		if err != nil {
@@ -400,7 +398,7 @@ func (c *client) queryActorsReceivedRec(ctx context.Context, block *ton.BlockIDE
 	return fmt.Errorf("unknown message type: %+v", message)
 }
 
-func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDExt, outgoingSentMessages []*tracetracking.SentMessage, outgoingReceivedMessages []*tracetracking.ReceivedMessage, knownActors map[string]deployment.TypeAndVersion, visited map[string]bool) error {
+func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDExt, outgoingSentMessages []*tracetracking.SentMessage, outgoingReceivedMessages []*tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
 	for _, outMsg := range outgoingSentMessages {
 		err := c.queryActorIfNotVisited(ctx, block, outMsg.InternalMsg.SrcAddr, knownActors, visited)
 		if err != nil {
@@ -420,7 +418,7 @@ func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDEx
 	return nil
 }
 
-func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDExt, addr *address.Address, knownActors map[string]deployment.TypeAndVersion, visited map[string]bool) error {
+func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDExt, addr *address.Address, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
 	c.lggr.Debug("queryActorIfNotVisited", addr.String())
 	c.lggr.Debug("visited:", visited)
 	c.lggr.Debug("knownActors:", knownActors)
@@ -448,9 +446,9 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	}
 	visited[addr.String()] = true
 	semVer := semver.MustParse(typeVersion.Version)
-	knownActors[addr.String()] = deployment.TypeAndVersion{
+	knownActors[addr.String()] = debug.TypeAndVersion{
 		Version: *semVer,
-		Type:    deployment.ContractType(typeVersion.Type),
+		Type:    typeVersion.Type,
 	}
 	return nil
 }

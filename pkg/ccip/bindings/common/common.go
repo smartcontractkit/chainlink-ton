@@ -7,26 +7,41 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorUnknownDestChainSelector)
+		ecMax = int32(ErrorDispatchNotFromMerkleRoot)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
 const (
-	ErrUnknownDestChainSelector = iota + 256
-	DestChainNotEnabled
-	FeeTokenNotSupported
-	StaleGasPrice
-	InvalidMsgData
-	SenderNotAllowed
-	InvalidMessageDestChainSelector
-	SourceChainSelectorMismatch
-	TokenNotSupported
-	Unauthorized
-	SourceChainNotEnabled
-	EmptyReport
-	DispatchNotFromMerkleRoot
+	ErrorUnknownDestChainSelector ExitCode = iota + 256
+	ErrorDestChainNotEnabled
+	ErrorFeeTokenNotSupported
+	ErrorStaleGasPrice
+	ErrorInvalidMsgData
+	ErrorSenderNotAllowed
+	ErrorInvalidMessageDestChainSelector
+	ErrorSourceChainSelectorMismatch
+	ErrorTokenNotSupported
+	ErrorUnauthorized
+	ErrorSourceChainNotEnabled
+	ErrorEmptyReport
+	ErrorDispatchNotFromMerkleRoot
 )
 
 const (

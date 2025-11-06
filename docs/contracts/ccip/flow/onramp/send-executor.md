@@ -1,6 +1,6 @@
-# CCIPSendStorage
+# SendExecutor
 
-This is  a contract that will be used by the OnRamp to store incoming CCIPSend messages. CCIPSend message will be presisted in a sharded map by deploing `CCIPSendStorage` contracts. This will be used to recover the message information in two situations:
+This is  a contract that will be used by the OnRamp to store incoming CCIPSend messages. CCIPSend message will be persisted in a sharded map by deploying `SendExecutor` contracts. This will be used to recover the message information in two situations:
 
 1. When we get a bounced.
 2. When we lockOrBurn tokens (as we won't be passing the whole ccipSend msg to the Token Pool).

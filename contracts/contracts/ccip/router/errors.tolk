@@ -5,5 +5,8 @@ enum Router_Error {
     OffRampNotSetForSelector;
     OffRampAddressMismatch;
     SubjectCursed;
+    NotOnRamp;
+    MissingTokenAmounts;
+    NoMultiTokenTransfers;
 }
 

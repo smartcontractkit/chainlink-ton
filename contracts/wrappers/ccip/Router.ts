@@ -50,11 +50,18 @@ export abstract class Opcodes {
   static curse = 0x41e8c1dc
   static uncurse = 0x3c3f5e73
   static verifyNotCursed = 0xa6e4b7e1
+  static messageSent = 0x6513f8e1
+  static messageRejected = 0x8ae25114
 }
 
 export type Ramp = {
   chainSelector: bigint //64
   address: Address
+}
+
+export abstract class OutgoingOpcodes {
+  static ccipSendACK = 0x78d0f21e
+  static ccipSendNACK = 0x5a45d434
 }
 
 export class Router
@@ -178,7 +185,6 @@ export class Router
       queryID?: number
       destChainSelector: bigint[]
       onRamp: Address
-      offRamp: Address
     },
   ) {
     await provider.internal(via, {
@@ -189,7 +195,6 @@ export class Router
         .storeUint(opts.queryID ?? 0, 64)
         .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
-        .storeAddress(opts.offRamp)
         .endCell(),
     })
   }
@@ -238,6 +243,18 @@ export class Router
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.ccipSend.encode(opts.body).asCell(),
     })
+  }
+
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[]> {
+    const res = await provider.get('destChainSelectors', [])
+    const tupleItems = res.stack.readLispList()
+    const chainSelectors: bigint[] = tupleItems.map((t: TupleItem) => {
+      if (t.type != 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return chainSelectors
   }
 
   // Withdrawable methods
@@ -300,6 +317,30 @@ export type CCIPSend = {
   tokenAmounts: TokenAmount[]
   feeToken: Address
   extraArgs: Cell
+}
+
+export type MessageSent = {
+  queryID: bigint
+  messageId: bigint
+  destChainSelector: bigint
+  sender: Address
+}
+
+export type MessageRejected = {
+  queryID: bigint
+  destChainSelector: bigint
+  sender: Address
+  error: bigint
+}
+
+export type CCIPSendACK = {
+  queryID: bigint
+  messageId: bigint
+}
+
+export type CCIPSendNACK = {
+  queryID: bigint
+  error: bigint
 }
 
 const tokenAmountCodec: CellCodec<TokenAmount> = {
@@ -455,9 +496,88 @@ export const builder = {
         },
       }
 
+      const messageSent: CellCodec<MessageSent> = {
+        encode: (opts: MessageSent): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.messageSent, 32)
+            .storeUint(opts.queryID, 64)
+            .storeUint(opts.messageId, 256)
+            .storeUint(opts.destChainSelector, 64)
+            .storeAddress(opts.sender)
+        },
+        load: function (src: Slice): MessageSent {
+          src.skip(32)
+          return {
+            queryID: src.loadUintBig(64),
+            messageId: src.loadUintBig(256),
+            destChainSelector: src.loadUintBig(64),
+            sender: src.loadAddress(),
+          }
+        },
+      }
+
+      const messageRejected: CellCodec<MessageRejected> = {
+        encode: (opts: MessageRejected): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.messageRejected, 32)
+            .storeUint(opts.queryID, 64)
+            .storeUint(opts.destChainSelector, 64)
+            .storeAddress(opts.sender)
+            .storeUint(opts.error, 256)
+        },
+        load: function (src: Slice): MessageRejected {
+          src.skip(32)
+          return {
+            queryID: src.loadUintBig(64),
+            destChainSelector: src.loadUintBig(64),
+            sender: src.loadAddress(),
+            error: src.loadUintBig(256),
+          }
+        },
+      }
+
       return {
         ccipSend,
         ccipReceiveConfirm,
+        messageSent,
+        messageRejected,
+      }
+    })(),
+    out: (() => {
+      const ccipSendACK: CellCodec<CCIPSendACK> = {
+        encode: (opts: CCIPSendACK): Builder => {
+          return beginCell()
+            .storeUint(OutgoingOpcodes.ccipSendACK, 32)
+            .storeUint(opts.queryID, 64)
+            .storeUint(opts.messageId, 256)
+        },
+        load: function (src: Slice): CCIPSendACK {
+          src.skip(32)
+          return {
+            queryID: src.loadUintBig(64),
+            messageId: src.loadUintBig(256),
+          }
+        },
+      }
+      const ccipSendNACK: CellCodec<CCIPSendNACK> = {
+        encode: (opts: CCIPSendNACK): Builder => {
+          return beginCell()
+            .storeUint(OutgoingOpcodes.ccipSendNACK, 32)
+            .storeUint(opts.queryID, 64)
+            .storeUint(opts.error, 256)
+        },
+        load: function (src: Slice): CCIPSendNACK {
+          src.skip(32)
+          return {
+            queryID: src.loadUintBig(64),
+            error: src.loadUintBig(256),
+          }
+        },
+      }
+
+      return {
+        ccipSendACK,
+        ccipSendNACK,
       }
     })(),
   },

@@ -22,6 +22,7 @@ const (
 	OpcodeOnRampSend                         = 0x10000002
 	OpcodeOnRampWithdrawJettons              = 0x266AEACF
 	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
+	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
 	OpcodeSetDynamicConfig                   = 0x10000003
 	OpcodeUpdateDestChainConfigs             = 0x10000004
 	OpcodeUpdateAllowlists                   = 0x10000005
@@ -130,6 +131,14 @@ type ExecutorFinishedSuccessfully struct {
 	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
 	Metadata Metadata   `tlb:"."`         // Metadata
 	Fee      *tlb.Coins `tlb:"."`         // Fee amount
+}
+
+type ExecutorFinishedWithError struct {
+	_        tlb.Magic  `tlb:"#C4068E21"` //nolint:revive // Ignore opcode tag
+	MsgId    big.Int    `tlb:"## 224"`    // Message ID
+	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
+	Metadata Metadata   `tlb:"."`         // Metadata
+	Reason   string     `tlb:"str"`       // Error reason
 }
 
 type SetDynamicConfigMessage struct {

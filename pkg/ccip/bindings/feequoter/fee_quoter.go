@@ -25,22 +25,34 @@ const (
 	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
 	OpcodeUpdateDestChainConfigs        = 0x29950BAA
 	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
-	OpcodeFeeQuoterMessageValidated     = 0x1FA60374
 )
 
-// Fee Quoter exit codes
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorUnsupportedChainFamilySelector)
+		ecMax = int32(ErrorMsgDataTooLarge)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
 const (
-	ErrorUnsupportedChainFamilySelector       tvm.ExitCode = tvm.ExitCode(1001)
-	ErrorGasLimitTooHigh                      tvm.ExitCode = tvm.ExitCode(1002)
-	ExtraArgOutOfOrderExecutionMustBeTrue     tvm.ExitCode = tvm.ExitCode(1003)
-	ErrorInvalidExtraArgsData                 tvm.ExitCode = tvm.ExitCode(1004)
-	ErrorUnsupportedNumberOfTokens            tvm.ExitCode = tvm.ExitCode(1005)
-	ErrorInvalidSuiReceiverAddress            tvm.ExitCode = tvm.ExitCode(1006)
-	ErrorInvalidTokenReceiver                 tvm.ExitCode = tvm.ExitCode(1007)
-	ErrorTooManySuiExtraArgsReceiverObjectIDs tvm.ExitCode = tvm.ExitCode(1008)
-	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
-	ErrorTokenNotSupported                    tvm.ExitCode = tvm.ExitCode(24813)
-	ErrorUnknownDestChainSelector             tvm.ExitCode = tvm.ExitCode(24814)
+	ErrorUnsupportedChainFamilySelector ExitCode = iota + 1001
+	ErrorGasLimitTooHigh
+	ExtraArgOutOfOrderExecutionMustBeTrue
+	ErrorInvalidExtraArgsData
+	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidSuiReceiverAddress
+	ErrorInvalidTokenReceiver
+	ErrorTooManySuiExtraArgsReceiverObjectIDs
+	ErrorMsgDataTooLarge
+
+	ErrorTokenNotSupported        ExitCode = ExitCode(24813)
+	ErrorUnknownDestChainSelector ExitCode = ExitCode(24814)
 )
 
 type Storage struct {
@@ -250,13 +262,6 @@ type GetValidatedFee struct {
 	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
 }
 
-type MessageValidated struct {
-	_        tlb.Magic  `tlb:"#1FA60374"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`         // TODO put content here
-	Metadata *cell.Cell `tlb:"^"`
-	Fee      *tlb.Coins `tlb:"."`
-}
-
 type UpdatePrices struct {
 	_           tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
 	TokenPrices ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
@@ -274,7 +279,9 @@ type UpdateTokenTransferFeeConfig struct {
 	Add    map[*address.Address]TokenTransferFeeConfig
 	Remove []*address.Address `tlb:"addr"`
 }
-type UpdateTokenTransferFeeConfigs struct{}
+type UpdateTokenTransferFeeConfigs struct {
+	_ tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+}
 
 type UpdateDestChainConfig struct {
 	DestinationChainSelector uint64          `tlb:"## 64"`

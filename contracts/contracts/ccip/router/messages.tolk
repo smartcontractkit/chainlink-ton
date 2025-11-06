@@ -18,7 +18,9 @@ type Router_InMsg =
     | Withdrawable_Withdraw
     | RMNRemote_Curse
     | RMNRemote_Uncurse
-    | RMNRemote_VerifyNotCursed;
+    | RMNRemote_VerifyNotCursed
+    | Router_MessageSent
+    | Router_MessageRejected
     ;
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
@@ -44,9 +46,10 @@ struct (0x234110a7) Router_UpdateOffRamps {
 
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
+// Answers with Router_CCIPReceive
 //crc32("Router_CCIPSend")
 struct (0x31768d95) Router_CCIPSend {
-    queryId: uint64;
+    queryID: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;
     data: cell;
@@ -89,4 +92,34 @@ struct (0xa6e4b7e1) RMNRemote_VerifyNotCursed {
 struct (0x0d9368a9) RMNRemote_VerifyNotCursedResponse {
     queryId: uint64
     result: bool
+}
+
+// 0x6513f8e1 = crc32b("Router_MessageSent")
+struct (0x6513f8e1) Router_MessageSent {
+    queryID: uint64;
+    messageId: uint256;
+    destChainSelector: uint64;
+    sender: address;
+}
+
+struct (0x8ae25114) Router_MessageRejected {
+    queryID: uint64;
+    destChainSelector: uint64;
+    sender: address;
+    error: uint256;
+}
+
+
+// TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
+// TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
+// crc32("Router_CCIPSendACK")
+struct (0x78d0f21e) Router_CCIPSendACK {
+    queryID: uint64;
+    messageId: uint256;
+}
+
+// crc32("Router_CCIPSendNACK")
+struct (0x5a45d434) Router_CCIPSendNACK {
+    queryID: uint64;
+    error: uint256;
 }
