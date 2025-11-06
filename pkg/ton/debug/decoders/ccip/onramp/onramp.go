@@ -17,6 +17,7 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	onramp.Send{},
 	onramp.WithdrawJettons{},
 	onramp.ExecutorFinishedSuccessfully{},
+	onramp.ExecutorFinishedWithError{},
 	onramp.SetDynamicConfigMessage{},
 	onramp.UpdateDestChainConfigsMessage{},
 	onramp.UpdateAllowlistsMessage{},

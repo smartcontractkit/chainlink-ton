@@ -138,7 +138,7 @@ type ExecutorFinishedWithError struct {
 	MsgId    big.Int    `tlb:"## 224"`    // Message ID
 	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
 	Metadata Metadata   `tlb:"."`         // Metadata
-	Reason   string     `tlb:"str"`       // Error reason
+	Error    big.Int    `tlb:"## 256"`    // Error reason
 }
 
 type SetDynamicConfigMessage struct {
