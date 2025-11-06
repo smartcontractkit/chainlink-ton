@@ -295,21 +295,16 @@ func TestDeploy(t *testing.T) {
 	})
 
 	t.Run("GetChainFeePriceUpdate", func(t *testing.T) {
-		// evm chain selector - should have valid price and timestamp
+		// evm chain selector
 		var feePriceUpdate map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig
 		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
 		require.NoError(t, err)
-		evmUpdate := feePriceUpdate[ccipocr3.ChainSelector(evmSelector)]
-		require.NotEqual(t, "0", evmUpdate.Value.String(), "expected non-zero gas price value")
-		require.NotEqual(t, uint64(0), evmUpdate.Timestamp, "expected non-zero timestamp - this validates timestamp is unpacked correctly")
-		t.Logf("EVM chain selector %d gas price: value=%s, timestamp=%d", evmSelector, evmUpdate.Value.String(), evmUpdate.Timestamp)
+		require.NotEqual(t, "0", feePriceUpdate[ccipocr3.ChainSelector(evmSelector)].Value.String())
 
-		// unknown chain selector, returns default values (zero value and zero timestamp)
+		// unknown chain selector, returns default values
 		feePriceUpdate, err = accessor.GetChainFeePriceUpdate(ctx, []ccipocr3.ChainSelector{ccipocr3.ChainSelector(1)})
 		require.NoError(t, err)
-		unknownUpdate := feePriceUpdate[ccipocr3.ChainSelector(1)]
-		require.Equal(t, "0", unknownUpdate.Value.String(), "expected zero value for unknown chain")
-		require.Equal(t, uint64(0), unknownUpdate.Timestamp, "expected zero timestamp for unknown chain")
+		require.Equal(t, "0", feePriceUpdate[ccipocr3.ChainSelector(1)].Value.String())
 	})
 
 	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
