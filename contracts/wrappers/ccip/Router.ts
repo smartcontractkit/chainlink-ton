@@ -35,7 +35,7 @@ export enum RouterError {
 export type Storage = {
   id: bigint
   ownable: ownable2step.Data
-  wrappedNative: Address,
+  wrappedNative: Address
   onRamps: Dictionary<bigint, Address>
   offRamps: Dictionary<bigint, Address>
 }

@@ -116,7 +116,6 @@ fun onInternalMessage(in: InMessage) {
 
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF;
-
         }
     }
 }
