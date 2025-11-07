@@ -74,30 +74,11 @@ type USDPerUnitGas struct {
 }
 
 func (u *USDPerUnitGas) FromResult(result *ton.ExecutionResult) error {
-	cell, err := result.Cell(0)
+	c, err := result.Cell(0)
 	if err != nil {
 		return err
 	}
-	slice := cell.BeginParse()
-	executionGasPrice, err := slice.LoadBigUInt(112)
-	if err != nil {
-		return err
-	}
-	dataAvailabilityGasPrice, err := slice.LoadBigUInt(112)
-	if err != nil {
-		return err
-	}
-	timestamp, err := slice.LoadUInt(64)
-	if err != nil {
-		return err
-	}
-
-	*u = USDPerUnitGas{
-		ExecutionGasPrice:        executionGasPrice,
-		DataAvailabilityGasPrice: dataAvailabilityGasPrice,
-		Timestamp:                timestamp,
-	}
-	return nil
+	return tlb.LoadFromCell(u, c.BeginParse())
 }
 
 func (u *USDPerUnitGas) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
