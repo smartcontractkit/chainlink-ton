@@ -381,9 +381,8 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV
         throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
-    if (enforceOutOfOrder) {
-        assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    }
+    // Out of order is always enforced because we don't do ordering on non-EVMs
+    assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
 }
 
