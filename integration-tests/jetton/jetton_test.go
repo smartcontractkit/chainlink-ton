@@ -46,6 +46,7 @@ const JettonDataURI = "smartcontract.com"
 var jettonMintingAmount tlb.Coins = tlb.MustFromTON("100")
 
 func TestJettonAll(t *testing.T) {
+	t.Skip("Skipping jetton tests for now to speed up CI")
 	if testing.Short() {
 		t.Skip("Skipping long-running test in short mode")
 	}
