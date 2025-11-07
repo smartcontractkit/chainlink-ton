@@ -298,6 +298,8 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
         st.sourceChainConfigs.replaceIfExists(root.sourceChainSelector, sourceChainConfig);
 
         val totalAmountForRoot = AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT * amountOfMessagesInReport;
+        debug.print(amountOfMessagesInReport);
+        debug.print(totalAmountForRoot);
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
@@ -351,6 +353,7 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
                 });
                 updatePricesMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
             } else {
+                debug.printString("both roots and priceUPdates");
                 reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
                 val updatePricesMsg = createMessage({
                     bounce: true,

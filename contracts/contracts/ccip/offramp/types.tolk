@@ -1,6 +1,8 @@
 import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
+import "../router/messages"
+import "../fee_quoter/messages"
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
@@ -120,14 +122,12 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
     Failure = 3
 }
 
-const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.02");
+const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.01");
 const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.02");
 
 struct OffRamp_Costs{}
 struct MerkleRoot_Costs{}
-struct Router_Costs{}
 struct ReceiveExecutor_Costs{}
-struct FeeQuoter_Costs{}
 
 fun MerkleRoot_Costs.validate(isManualExec: bool){
     val baseFee = ton("0.005"); // validateFees
@@ -153,17 +153,6 @@ fun OffRamp_Costs.dispatchValidated(){
     return baseFee + Router_Costs.routeMessage();
 }
 
-
-fun Router_Costs.routeMessage() {
-    val baseFee = ton("0.004");
-    return baseFee + Router_Costs.receiveConfirm();
-}
-
-fun Router_Costs.receiveConfirm() {
-    val baseFee = ton("0.002");
-    return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
-}
-
 fun OffRamp_Costs.receiveConfirmOrDeny() {
     val baseFee = ton("0.004");
     return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
@@ -181,11 +170,6 @@ fun MerkleRoot_Costs.markState() {
 fun ReceiveExecutor_Costs.confirmedOrBounced() {
     val baseFee = ton("0.004");
     return baseFee + OffRamp_Costs.notify();
-}
-
-fun FeeQuoter_Costs.updatePrices() {
-    // when we support token transfers the message value amount will depend on the quantity of supported tokens
-    return ton("0.008");
 }
 
 fun OffRamp_Costs.commit(amountOfMessagesCommited: int) {

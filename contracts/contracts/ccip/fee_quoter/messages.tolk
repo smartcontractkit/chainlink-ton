@@ -58,3 +58,10 @@ fun FeeQuoter_Costs.GetValidatedFee(): int {
         + SendExecutor_Costs.MessageValidationFailed()
     );
 }
+
+fun FeeQuoter_Costs.updatePrices() {
+    // when we support token transfers the message value amount will depend on the quantity of supported tokens
+    return ton("0.008");
+}
+
+

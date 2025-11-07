@@ -134,6 +134,16 @@ fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
 }
 
+fun Router_Costs.routeMessage() {
+    val baseFee = ton("0.004");
+    return baseFee + Router_Costs.receiveConfirm();
+}
+
+fun Router_Costs.receiveConfirm() {
+    val baseFee = ton("0.002");
+    return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
+}
+
 
 
 
