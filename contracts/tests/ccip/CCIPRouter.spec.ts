@@ -904,7 +904,7 @@ async function setupJetton(
   }
 }
 
-function verifyBodyMessage<T>(
+export function verifyBodyMessage<T>(
   body: Cell | undefined,
   codec: CellCodec<T>,
   validations: ((message: T) => boolean)[] = [],

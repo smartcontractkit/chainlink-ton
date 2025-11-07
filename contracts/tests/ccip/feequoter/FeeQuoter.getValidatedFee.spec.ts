@@ -5,9 +5,11 @@ import { Blockchain } from '@ton/sandbox'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes, asSnakeData, ZERO_ADDRESS } from '../../../src/utils'
 import { skip } from 'node:test'
+import { verifyBodyMessage } from '../CCIPRouter.spec'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -184,7 +186,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // Error cases
 
-  skip('should revert when destination chain not enabled', async () => {
+  it('should revert when destination chain not enabled', async () => {
     const invalidChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR + 1n
     const message: rt.CCIPSend = {
       destChainSelector: invalidChainSelector,
@@ -209,16 +211,32 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
-    // Should fail - destination chain not configured
+    // Should return faliure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
+      from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
-      success: false,
-      // exitCode: feeQuoter.FeeQuoterError.DestChainNotEnabled,
-      exitCode: 7, // TODO Tolk mustGet doesn't support big values yet
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      op: sendExec.Opcodes.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          x,
+          sendExec.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.DestChainNotEnabled)
+              // return true
+            },
+          ],
+        )
+      },
     })
   })
 
-  skip('should revert when message too large', async () => {
+  it('should revert when message too large', async () => {
     const message: rt.CCIPSend = {
       destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
@@ -242,14 +260,31 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
+    // Should return faliure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
+      from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
-      success: false,
-      exitCode: feeQuoter.FeeQuoterError.MsgDataTooLarge,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      op: sendExec.Opcodes.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          x,
+          sendExec.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.MsgDataTooLarge)
+            },
+          ],
+        )
+      },
     })
   })
 
-  skip('should revert when too many tokens', async () => {
+  it('should revert when too many tokens', async () => {
     const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
 
     const message: rt.CCIPSend = {
@@ -278,14 +313,31 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
+    // Should return faliure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
+      from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
-      success: false,
-      exitCode: feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      op: sendExec.Opcodes.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          x,
+          sendExec.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens)
+            },
+          ],
+        )
+      },
     })
   })
 
-  skip('should revert when gas limit too high', async () => {
+  it('should revert when gas limit too high', async () => {
     const message: rt.CCIPSend = {
       destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
@@ -309,10 +361,27 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
+    // should return faliure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
+      from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
-      success: false,
-      exitCode: feeQuoter.FeeQuoterError.GasLimitTooHigh,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      op: sendExec.Opcodes.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          x,
+          sendExec.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.GasLimitTooHigh)
+            },
+          ],
+        )
+      },
     })
   })
 
@@ -342,11 +411,27 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
+    // should return faliure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
+      from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
-      success: false,
-      // exitCode: feeQuoter.FeeQuoterError.FeeTokenNotSupported,
-      exitCode: 7, // TODO Tolk mustGet doesn't support big values yet
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      op: sendExec.Opcodes.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          x,
+          sendExec.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.FeeTokenNotSupported)
+            },
+          ],
+        )
+      },
     })
   })
 })
