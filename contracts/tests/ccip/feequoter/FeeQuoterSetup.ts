@@ -48,7 +48,7 @@ export class FeeQuoterSetup {
   ) // 32 bytes
 
   static readonly MAX_DATA_SIZE = 300
-  static readonly MAX_TOKENS_LENGTH = 5
+  static readonly MAX_TOKENS_LENGTH = 0 // We don't support token transfers in TON yet
   static readonly MAX_GAS_LIMIT = 4000000
 
   // OnRamp constants
