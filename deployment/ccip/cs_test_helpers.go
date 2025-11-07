@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -199,8 +200,9 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 	var src, dest config.ChainDefinition
 	// TODO: LINK placeholder address
 
-	const TONtoUSD = 3.15              // As of September 2025
-	const TONtoNanoTON = 1e9           // Smallest denomination
+	const TONtoUSD = 3.15 // As of September 2025
+	// const TONtoNanoTON = 1e9           // Smallest denomination
+	const TONtoNanoTON = 1e3           // TODO: This is a temporary overwrite until we figure out why feequoter is returning such a high fee
 	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
 	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
 	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
@@ -291,9 +293,6 @@ func SendTonRequest(
 	senderAddr := tonChain.WalletAddress
 	clientConn := tonChain.Client
 
-	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
-		sourceChain, destChain, senderAddr.String())
-
 	routerAddr := state.Router
 
 	ccipSend := router.CCIPSend{
@@ -301,8 +300,8 @@ func SendTonRequest(
 		DestChainSelector: destChain,
 		Receiver:          msg.Receiver,
 		Data:              msg.Data,
-		FeeToken:          msg.FeeToken,
 		TokenAmounts:      nil, // TODO: add token amounts when token transfer enabled
+		FeeToken:          msg.FeeToken,
 		ExtraArgs:         msg.ExtraArgs,
 	}
 
@@ -311,13 +310,37 @@ func SendTonRequest(
 		return 0, nil, fmt.Errorf("failed to convert to cell: %w", err)
 	}
 
+	e.Logger.Infof("Getting Fee to send CCIP request from chain selector %d to chain selector %d",
+		sourceChain, destChain)
+
+	ctx := context.Background()
+	block, err := clientConn.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+	getResult, err := clientConn.RunGetMethod(ctx, block, &state.FeeQuoter, "validatedFeeCell", ccipSendCell)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to get validatedFee: %w", err)
+	}
+
+	fee, err := getResult.Int(0)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to get fee: %w", err)
+	}
+	e.Logger.Infof("Fee to send CCIP request: %s TON", fee.String())
+
+	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
+		sourceChain, destChain, senderAddr.String())
+
+	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
+
 	walletMsg := &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
 			Bounce:      false,
 			DstAddr:     &routerAddr,
-			Amount:      tlb.MustFromTON("1.0"), // TODO:
+			Amount:      tlb.MustFromNano(value, 9),
 			Body:        ccipSendCell,
 		},
 	}

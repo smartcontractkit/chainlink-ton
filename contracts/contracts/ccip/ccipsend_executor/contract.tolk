@@ -8,6 +8,7 @@ import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
 import "../onramp/errors"
+import "../router/messages"
 
 const CONTRACT_VERSION = "0.0.6";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
@@ -18,6 +19,7 @@ fun onInternalMessage(in: InMessage) {
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
             assert (in.senderAddress == this.addresses.load().onramp) throw CCIPSendExecutor_Error.Unauthorized;
+            assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute(msg.onrampJettonWallet);
         }
         CCIPSendExecutor_MessageValidated<Metadata> => {
@@ -39,6 +41,16 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+fun onBouncedMessage(in: InMessageBounced) {
+    val msg = lazy CCIPSendExecutor_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    match (msg) {
+        FeeQuoter_GetValidatedFee<Metadata> => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+            this.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, in.senderAddress);
+        }
+    }
+}
+
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
@@ -51,7 +63,6 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
         state: CCIPSendExecutor_State_Initialized{
             tokenRegistry: config.tokenRegistry,
         }.toCell(),
-        originalBalance: contract.getOriginalBalance(),
     };
 }
 
@@ -67,7 +78,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self, 
             state: CCIPSendExecutor_State_OnGoingFeeValidation {
                 pendingJettonLock: null,
             }.toCell(),
-            originalBalance: self.originalBalance,
         };
         newState.store();
     }
@@ -94,7 +104,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
         state: CCIPSendExecutor_State_WaitingForJettons {
             tokenRegistry: self.state.load().tokenRegistry!,
         }.toCell(),
-        originalBalance: self.originalBalance,
     };
     newState.store();
 }
@@ -113,7 +122,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
                 tokenPool: createAddressNone(), // TODO
             },
         }.toCell(),
-        originalBalance: self.originalBalance,
     };
     newState.store();
 }
@@ -121,14 +129,14 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO
+        value: FeeQuoter_Costs.GetValidatedFee(),
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee<Metadata> {
             msg: onrampSend.msg,
             metadata: onrampSend.metadata.toCell(), // TODO: must include nonce
         }
     });
-    getValidatedFeeMsg.send(SEND_MODE_REGULAR);
+    getValidatedFeeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: CCIPSendExecutor_MessageValidated<Metadata>, sender: address) {
@@ -136,10 +144,10 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     val addresses = lazy self.addresses.load();
     assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
-    // if (msg.fee > self.originalBalance) {
-    //     self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
-    //     return;
-    // }
+    if (msg.fee + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
+        return;
+    }
 
     if (self.state.load().pendingJettonLock == null) {
         // no tokens to send, we are done

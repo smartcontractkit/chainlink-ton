@@ -48,6 +48,9 @@ type DeployCCIPSeqOutput struct {
 	Transactions     [][]byte
 }
 
+// We use 0x1 as an internal value for native token. Can't be 0x0 because the CCIP plugin throws on zero addresses
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
+
 var DeployCCIPSequence = operations.NewSequence(
 	"ton-deploy-ccip-seq",
 	semver.MustParse("0.1.0"),
@@ -92,6 +95,15 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
+		},
+		WrappedNative: TonTokenAddr,
+		RMNRemote: router.RMNRemote{
+			Admin: common.Ownable2Step{
+				Owner:        deps.TonChain.WalletAddress,
+				PendingOwner: nil,
+			},
+			CursedSubjects: nil,
+			ForwardUpdates: nil,
 		},
 		OnRamps: nil, // set afterward
 	}

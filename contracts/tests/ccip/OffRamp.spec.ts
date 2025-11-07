@@ -587,6 +587,7 @@ describe('OffRamp - Unit Tests', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
+        wrappedNative: ZERO_ADDRESS,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }

@@ -14,6 +14,7 @@ enum FeeQuoter_Error {
     InvalidMsgData
     TokenNotSupported
     UnknownDestChainSelector
+    InsufficientFee
 }
 
 

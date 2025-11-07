@@ -126,6 +126,7 @@ fun Iterator<T>.next(mutate self): T {
 }
 
 // Expensive to calculate
+// Unsafe: throws exit code 8 if it exceeds maxCells
 @inline
 fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
@@ -133,6 +134,23 @@ fun Iterator<T>.countBytes(self): int {
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
     return dataBitsSize / 8;
 }
+
+// Expensive to calculate
+// Returns (byteCount, errorCode)
+// 
+// ExitCodes:
+// - 0: no error
+// - 8 (cell overflow): exceeded maxCells
+// - ERROR_INVALID_DATA: data is invalid (not byte-aligned)
+@inline
+fun Iterator<T>.countBytesSafe(self): (int, int) {
+    try {
+        return (self.countBytes(), 0);
+    } catch (e) {
+        return (0, e);
+    }
+}
+
 
 @inline
 fun Iterator<T>.size(self, elemSize: int): int {
