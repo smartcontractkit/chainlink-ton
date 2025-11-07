@@ -224,20 +224,18 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
     val (executionGasPrice, dataAvailabilityGasPrice) = destChainConfig.getValidatedGasPrice();
 
     var tokensIter = msg.tokenAmounts.iter();
-    var (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = (0, destChainConfig.config.networkFeeUsdCents * VAL_1E16, 0, 0);
-    if (!tokensIter.empty()) {
-        (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(st, destChainConfig, mutate tokensIter);
-    }
+    val premiumFeeUsdWei = destChainConfig.config.networkFeeUsdCents * VAL_1E16;
+    assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     val dataAvailabilityCost = _dataAvailabilityCost(
         destChainConfig,
         dataAvailabilityGasPrice,
         msgDataLen,
-        tokenCount,
-        tokenTransferBytesOverhead,
+        0,
+        0,
     );
 
-    val calldataLen = msgDataLen + tokenTransferBytesOverhead;
+    val calldataLen = msgDataLen; // + token transfer overheads, not supported in TON yet
     var calldataGas = calldataLen * destChainConfig.config.destGasPerPayloadByteBase;
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
     if (calldataLen > calldataThreshold) {
@@ -247,7 +245,7 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
         calldataGas = baseCalldataGas + extraCalldataGas;
     }
 
-    val executionGas = gasLimit + destChainConfig.config.destGasOverhead + calldataGas + tokenTransferGas;
+    val executionGas = gasLimit + destChainConfig.config.destGasOverhead + calldataGas;
 
     val executionCost = executionGasPrice
         * executionGas
@@ -268,12 +266,15 @@ fun _dataAvailabilityCost(
     tokenCount: uint256,
     tokenTransferBytesOverhead: uint256,
 ): uint256 {
-     // Sums up byte lengths of fixed message fields and dynamic message fields.
+    assert (tokenCount == 0) throw FeeQuoter_Error.TokenTransfersNotSupported;
+    assert (tokenTransferBytesOverhead == 0) throw FeeQuoter_Error.TokenTransfersNotSupported;
+    // Sums up byte lengths of fixed message fields and dynamic message fields.
     // Fixed message fields do account for the offset and length slot of the dynamic fields.
     val dataAvailabilityLengthBytes = TON_2_EVM_MESSAGE_FIXED_BYTES
-        + msgDataLen
-        + tokenCount as uint256 * TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN
-        + tokenTransferBytesOverhead;
+        + msgDataLen;
+        // Token transfers not supported in TON yet
+        // + tokenCount as uint256 * TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN
+        // + tokenTransferBytesOverhead
 
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
@@ -295,11 +296,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
     var tokenAmounts = message.tokenAmounts.iter();
     var numberOfTokens = 0;
-    while (!tokenAmounts.empty()) {
-        var _ = tokenAmounts.next();
-        numberOfTokens += 1;
-    }
-    assert (numberOfTokens <= config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+    assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
@@ -440,50 +437,6 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
         });
     }
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-// TODO: a lot of the as uint256 annotations seem to be unnecessary in this function
-fun getTokenTransferCost(
-    st: Storage,
-    destChainConfig: DestChainConfig,
-    mutate tokens: Iterator<TokenAmount>,
-): (int, uint256, uint32, uint32) {
-    var tokenTransferFeeWei: uint256 = 0;
-    var tokenTransferGas: uint32 = 0;
-    var tokenTransferBytesOverhead: uint32 = 0;
-
-    var count = 0;
-
-    while (!tokens.empty()) {
-        val tokenAmount = tokens.next();
-        count += 1;
-
-        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, FeeQuoter_Error.TokenNotSupported as int);
-        if (!transferFeeConfig.isEnabled) {
-            // If the token has no specific overrides configured, we use the global defaults.
-            tokenTransferFeeWei +=((destChainConfig.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
-            tokenTransferGas += destChainConfig.config.defaultTokenDestGasOverhead;
-            tokenTransferBytesOverhead += CCIP_LOCK_OR_BURN_V1_RET_BYTES;
-        } else {
-            var bpsFeeUsdWei = 0;
-            if (transferFeeConfig.deciBps > 0) {
-                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, FeeQuoter_Error.TokenNotSupported as int);
-
-                // Calculate token transfer value, then apply fee ratio
-                // ratio represents multiples of 0.1bps, or 1e-5
-                val tokenUsdValue = tokenAmount.amount as uint256 * tokenPrice.value / VAL_1E18;
-                bpsFeeUsdWei = (tokenUsdValue * (transferFeeConfig.deciBps as uint256)) / VAL_1E5;
-            };
-
-            tokenTransferGas += transferFeeConfig.destGasOverhead;
-            tokenTransferBytesOverhead += transferFeeConfig.destBytesOverhead;
-
-            var minFeeUsdWei = (transferFeeConfig.minFeeUsdCents as uint256) * VAL_1E16;
-            var maxFeeUsdWei = (transferFeeConfig.maxFeeUsdCents as uint256) * VAL_1E16;
-            tokenTransferFeeWei += min(maxFeeUsdWei, max(minFeeUsdWei, bpsFeeUsdWei));
-        }
-    }
-    return (count, tokenTransferFeeWei, tokenTransferGas, tokenTransferBytesOverhead);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {

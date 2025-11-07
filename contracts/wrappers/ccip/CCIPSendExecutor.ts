@@ -31,6 +31,7 @@ export enum Error {
   Unauthorized,
   InsufficientFunds,
   InsufficientFee,
+  TokenTransfersNotSupported,
 }
 
 export type InitialData = {

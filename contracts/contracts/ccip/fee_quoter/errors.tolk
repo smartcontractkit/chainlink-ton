@@ -15,6 +15,7 @@ enum FeeQuoter_Error {
     TokenNotSupported
     UnknownDestChainSelector
     InsufficientFee
+    TokenTransfersNotSupported
 }
 
 

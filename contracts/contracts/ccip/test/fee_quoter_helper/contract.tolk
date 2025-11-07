@@ -22,16 +22,3 @@ get fun dataAvailabilityCost(
         tokenTransferBytesOverhead,
     );
 }
-
-get fun tokenTransferCost(
-    destChainSelector: uint64,
-    // TODO: when we allow paying fees in Link, we will need to pass in:
-    // feeToken: address,
-    // feeTokenPrice: uint224,
-    tokenAmounts: SnakedCell<TokenAmount>
-) : (uint256, uint32, uint32) {
-    val st = lazy Storage.load();
-    var tokensIter = tokenAmounts.iter();
-    val (count, tokenTransferFeeWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(st, st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int), mutate tokensIter);
-    return (tokenTransferFeeWei, tokenTransferGas, tokenTransferBytesOverhead);
-}

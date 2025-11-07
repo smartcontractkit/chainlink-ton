@@ -54,28 +54,4 @@ export class FeeQuoterHelper extends FeeQuoter.FeeQuoter {
     ])
     return stack.readBigNumber()
   }
-
-  async getTokenTransferCost(
-    provider: ContractProvider,
-    destChainSelector: bigint,
-    // feeToken: Address,
-    // feeTokenPrice: bigint,
-    tokenAmounts: { token: Address; amount: bigint }[],
-  ): Promise<{
-    transferFeeUSD: bigint
-    tokenTransferGas: number
-    tokenTransferBytesOverhead: number
-  }> {
-    const { stack } = await provider.get('tokenTransferCost', [
-      { type: 'int', value: destChainSelector },
-      // { type: 'address', value: feeToken },
-      // { type: 'int', value: feeTokenPrice },
-      { type: 'cell', cell: asSnakeData(tokenAmounts, rt.builder.data.tokenAmount.encode) },
-    ])
-    return {
-      transferFeeUSD: stack.readBigNumber(),
-      tokenTransferGas: stack.readNumber(),
-      tokenTransferBytesOverhead: stack.readNumber(),
-    }
-  }
 }
