@@ -611,8 +611,27 @@ export class FeeQuoter
     const { stack } = await provider.get('destChainConfig', [
       { type: 'int', value: destChainSelector },
     ])
-    const configCell = stack.readCell()
-    return builder.data.destChainConfig.load(configCell.beginParse())
+    return {
+      isEnabled: stack.readBoolean(),
+      maxNumberOfTokensPerMsg: stack.readNumber(),
+      maxDataBytes: stack.readNumber(),
+      maxPerMsgGasLimit: stack.readNumber(),
+      destGasOverhead: stack.readNumber(),
+      destGasPerPayloadByteBase: stack.readNumber(),
+      destGasPerPayloadByteHigh: stack.readNumber(),
+      destGasPerPayloadByteThreshold: stack.readNumber(),
+      destDataAvailabilityOverheadGas: stack.readNumber(),
+      destGasPerDataAvailabilityByte: stack.readNumber(),
+      destDataAvailabilityMultiplierBps: stack.readNumber(),
+      chainFamilySelector: stack.readNumber(),
+      enforceOutOfOrder: stack.readBoolean(),
+      defaultTokenFeeUsdCents: stack.readNumber(),
+      defaultTokenDestGasOverhead: stack.readNumber(),
+      defaultTxGasLimit: stack.readNumber(),
+      gasMultiplierWeiPerEth: stack.readBigNumber(),
+      gasPriceStalenessThreshold: stack.readNumber(),
+      networkFeeUsdCents: stack.readNumber(),
+    }
   }
 
   async getTokenTransferFeeConfig(
