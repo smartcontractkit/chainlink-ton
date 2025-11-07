@@ -144,27 +144,27 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	defaultTokenFeeUsdCents, err := result.Int(13)
+	defaultTokenFeeUsdCents, err := result.Int(12)
 	if err != nil {
 		return err
 	}
-	defaultTokenDestGasOverhead, err := result.Int(14)
+	defaultTokenDestGasOverhead, err := result.Int(13)
 	if err != nil {
 		return err
 	}
-	defaultTxGasLimit, err := result.Int(15)
+	defaultTxGasLimit, err := result.Int(14)
 	if err != nil {
 		return err
 	}
-	gasMultiplierWeiPerEth, err := result.Int(16)
+	gasMultiplierWeiPerEth, err := result.Int(15)
 	if err != nil {
 		return err
 	}
-	gasPriceStalenessThreshold, err := result.Int(17)
+	gasPriceStalenessThreshold, err := result.Int(16)
 	if err != nil {
 		return err
 	}
-	networkFeeUsdCents, err := result.Int(18)
+	networkFeeUsdCents, err := result.Int(17)
 	if err != nil {
 		return err
 	}
