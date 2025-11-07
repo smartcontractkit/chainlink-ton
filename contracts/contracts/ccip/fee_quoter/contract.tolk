@@ -25,11 +25,20 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             updatePrices(mutate st, msg.updates);
             st.store();
+
+            val returnValueResponse = createMessage({
+                bounce: false,
+                value: 0,
+                dest: in.senderAddress,
+                body: beginCell().endCell(),
+            });
+            returnValueResponse.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         FeeQuoter_UpdateFeeTokens => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             updateFeeTokens(mutate st, msg);
+
             st.store();
         }
         FeeQuoter_UpdateTokenTransferFeeConfigs => {
@@ -172,6 +181,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
           //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
         }
     }
+
+
 }
 
 // apply_premium_multiplier_wei_per_eth_updates??

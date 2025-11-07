@@ -6,5 +6,6 @@ enum Error {
     SourceChainSelectorMismatch
     InvalidOnRampUpdate
     SenderIsNotRouter
+    InsufficientFee
 }
 

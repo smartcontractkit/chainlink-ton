@@ -93,7 +93,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
 
     val executeValidated = createMessage({
         bounce: true,
-        value: ton("0.02"),
+        value: OffRamp_Costs.executeValidated(isManualExecute),
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
             message: message.toCell(),

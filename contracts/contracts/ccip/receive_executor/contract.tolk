@@ -54,7 +54,7 @@ fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
     createMessage(
         {
             bounce: true,
-            value: ton("0.05"),
+            value: 0,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
                 message: st.message,
@@ -62,7 +62,7 @@ fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
                 gasOverride,
             }
         }
-    ).send(SEND_MODE_REGULAR);
+    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract

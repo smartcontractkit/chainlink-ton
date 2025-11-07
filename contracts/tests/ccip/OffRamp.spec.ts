@@ -371,6 +371,7 @@ describe('OffRamp - Unit Tests', () => {
   // Helper function to test commit report flow
   const commitReport = async (
     merkleRoots: MerkleRoot[],
+    value: bigint = toNano('0.5'),
     sequenceBytes = 0x01,
     priceUpdates: PriceUpdates | undefined = undefined,
   ) => {
@@ -382,7 +383,7 @@ describe('OffRamp - Unit Tests', () => {
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {
-      value: toNano('0.5'),
+      value,
       reportContext,
       report,
       signatures,
@@ -718,16 +719,17 @@ describe('OffRamp - Unit Tests', () => {
     await setupOCRConfig()
     await setupSourceChainConfig()
 
-    const result = await commitReport([root1, root2])
+    const result1 = await commitReport([root1])
 
-    expect(result.transactions).toHaveTransaction({
+    expect(result1.transactions).toHaveTransaction({
       from: offRamp.address,
       to: merkleRootAddress(root1),
       deploy: true,
       success: true,
     })
 
-    expect(result.transactions).toHaveTransaction({
+    const result2 = await commitReport([root2])
+    expect(result2.transactions).toHaveTransaction({
       from: offRamp.address,
       to: merkleRootAddress(root2),
       deploy: true,
@@ -1052,7 +1054,7 @@ describe('OffRamp - Unit Tests', () => {
         },
       ],
     }
-    const result = await commitReport([], 0x01, priceUpdates)
+    const result = await commitReport([], toNano('0.5'), 0x01, priceUpdates)
   })
 
   it('Can commit with both merkle root and price updates', async () => {
@@ -1083,7 +1085,7 @@ describe('OffRamp - Unit Tests', () => {
       ],
     }
 
-    const result = await commitReport([root], 0x01, priceUpdates)
+    const result = await commitReport([root], toNano('0.5'), 0x01, priceUpdates)
   })
 
   it('Test price update sequence number increases with OCR sequence', async () => {
@@ -1101,17 +1103,17 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // First commit with sequence 0x01
-    await commitReport([], 0x01, priceUpdates)
+    await commitReport([], toNano('0.5'), 0x01, priceUpdates)
     let latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x01n)
 
     // Second commit with sequence 0x05 (jump forward)
-    await commitReport([], 0x05, priceUpdates)
+    await commitReport([], toNano('0.5'),0x05, priceUpdates)
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x05n)
 
     // Third commit with higher sequence 0x10
-    await commitReport([], 0x10, priceUpdates)
+    await commitReport([], toNano('0.5'),0x10, priceUpdates)
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x10n)
   })
@@ -1131,12 +1133,12 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // First commit with sequence 0x10
-    await commitReport([], 0x10, priceUpdates)
+    await commitReport([], toNano('0.5'),0x10, priceUpdates)
     let latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x10n)
 
     // Try to commit with older sequence 0x05 (should be ignored)
-    await commitReport([], 0x05, priceUpdates)
+    await commitReport([], toNano('0.5'),0x05, priceUpdates)
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     // Sequence should remain at 0x10, stale update ignored
     expect(latestSeq).toBe(0x10n)
@@ -1148,7 +1150,7 @@ describe('OffRamp - Unit Tests', () => {
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupSourceChainConfig()
-    await commitReport([root], 0x08, priceUpdates) // 0x08 < 0x10, price update should be ignored
+    await commitReport([root], toNano('0.5'),0x08, priceUpdates) // 0x08 < 0x10, price update should be ignored
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x10n) // Still at 0x10, but merkle root was committed
   })
@@ -1189,13 +1191,14 @@ describe('OffRamp - Unit Tests', () => {
     const message = createTestMessage(1n, 1n)
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
-    const root = createMerkleRoot(1n, 100n, rootBytes)
+    const root = createMerkleRoot(1n, 10n, rootBytes)
 
-    await commitReport([root])
+    const value = toNano('1')
+    await commitReport([root], value)
 
     // minSeqNr should jump to 101
     const config = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
-    expect(config.minSeqNr).toBe(101n)
+    expect(config.minSeqNr).toBe(11n)
   })
 
   it('Test receiver notifies success with non-empty data and offRamp emits ExecutionStateChanged: Success', async () => {

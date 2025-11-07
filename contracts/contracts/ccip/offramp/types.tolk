@@ -118,3 +118,87 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
     Success = 2
     Failure = 3
 }
+
+const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.02");
+const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.02");
+
+struct OffRamp_Costs{}
+struct MerkleRoot_Costs{}
+struct Router_Costs{}
+struct ReceiveExecutor_Costs{}
+struct FeeQuoter_Costs{}
+
+fun MerkleRoot_Costs.validate(isManualExec: bool){
+    val baseFee = ton("0.005"); // validateFees
+    return baseFee + OffRamp_Costs.executeValidated(isManualExec);
+}
+
+fun OffRamp_Costs.executeValidated(isManualExec: bool){
+    val baseFee = ton("0.01");
+    if (!isManualExec) {
+        return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec();
+    } else {
+        return baseFee + ReceiveExecutor_Costs.initExec();
+    }
+}
+
+fun ReceiveExecutor_Costs.initExec(){
+    val baseFee = ton("0.003");
+    return baseFee + OffRamp_Costs.dispatchValidated();
+}
+
+fun OffRamp_Costs.dispatchValidated(){
+    val baseFee = ton("0.005");
+    return baseFee + Router_Costs.routeMessage();
+}
+
+
+fun Router_Costs.routeMessage() {
+    val baseFee = ton("0.004");
+    return baseFee + Router_Costs.receiveConfirm();
+}
+
+fun Router_Costs.receiveConfirm() {
+    val baseFee = ton("0.002");
+    return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
+}
+
+fun OffRamp_Costs.receiveConfirmOrDeny() {
+    val baseFee = ton("0.004");
+    return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
+}
+
+fun OffRamp_Costs.notify() {
+    val baseFee = ton("0.004");
+    return baseFee + MerkleRoot_Costs.markState();
+}
+
+fun MerkleRoot_Costs.markState() {
+    return ton("0.002");
+}
+
+fun ReceiveExecutor_Costs.confirmedOrBounced() {
+    val baseFee = ton("0.004");
+    return baseFee + OffRamp_Costs.notify();
+}
+
+fun FeeQuoter_Costs.updatePrices() {
+    // when we support token transfers the message value amount will depend on the quantity of supported tokens
+    return ton("0.008");
+}
+
+fun OffRamp_Costs.commit(amountOfMessagesCommited: int) {
+    val baseFee = ton("0.015");
+    if (amountOfMessagesCommited == 0) {
+        return baseFee + FeeQuoter_Costs.updatePrices();
+    } else {
+        val totalAmountForRoot = AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT * amountOfMessagesCommited;
+        return baseFee + FeeQuoter_Costs.updatePrices() + totalAmountForRoot;
+    }
+}
+
+fun OffRamp_Costs.execute(isManualExec: bool) {
+    val baseFee = ton("0.015");
+    return baseFee + MerkleRoot_Costs.validate(isManualExec);
+}
+
