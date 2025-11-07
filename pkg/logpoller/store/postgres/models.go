@@ -15,6 +15,7 @@ import (
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
+// TODO: consider use BYTEA for address field to avoid conversion overhead and improve consistency with raw address format
 // filterModel represents the 'ton_log_poller_filters' table schema.
 type filterModel struct {
 	ID            int64     `db:"id"`

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -243,57 +242,6 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 	}()
 
 	return txsOut, errsOut
-}
-
-// processTransactions spawns goroutines to process transactions in parallel.
-// TODO: consider worker pool if transaction volume becomes high (>1000/block)
-func (lp *service) processTransactions(
-	ctx context.Context,
-	filterIndex models.FilterIndex,
-	chainID string,
-	txsIn <-chan models.Tx,
-) (<-chan models.Log, <-chan error) {
-	logsOut := make(chan models.Log, lp.saveThreshold)
-	errsOut := make(chan error)
-
-	var wg sync.WaitGroup
-	var txCount, logCount atomic.Int32
-
-	go func() {
-		for tx := range txsIn {
-			txCount.Add(1)
-			wg.Add(1)
-			go func(t models.Tx) {
-				defer wg.Done()
-
-				logs, err := lp.ProcessTx(ctx, t.Transaction, t.Block, chainID, filterIndex)
-				if err != nil {
-					errsOut <- fmt.Errorf("failed to process tx %x: %w", t.Transaction.Hash, err)
-					return
-				}
-
-				for _, log := range logs {
-					select {
-					case logsOut <- log:
-						logCount.Add(1)
-					case <-ctx.Done():
-						return
-					}
-				}
-			}(tx)
-		}
-
-		wg.Wait()
-
-		if tc := txCount.Load(); tc > 0 {
-			lp.lggr.Debugw("Processed transactions", "txCount", tc, "logsGenerated", logCount.Load())
-		}
-
-		close(logsOut)
-		close(errsOut)
-	}()
-
-	return logsOut, errsOut
 }
 
 func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int, error) {

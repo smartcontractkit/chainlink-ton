@@ -30,14 +30,14 @@ var DefaultConfigSet = Config{
 	BlockTime:                 config.MustNewDuration(2500 * time.Millisecond), // TON block time is approximately 2.5 seconds
 
 	// fixed-sized fields in models.Log: ~342 bytes + Data field(BOC cell)
-	// ccip message conservative e.g. 1500 bytes -> ~1842 bytes per log // TODO: calculate the average CCIP log size
+	// ccip message conservative e.g. 1500 bytes -> ~1842 bytes per log
 	// SaveThreshold:   8000, // ~14.7MB
 
 	// fixed-sized fields in postgres models.Log: ~474 bytes + Data field(BOC cell)
 	// ccip message conservative e.g. 1500 bytes -> ~1974 bytes per log
 	// BatchInsertSize: 4000, // ~7.9MB
 
-	// database configuration, // TODO: need load testing
+	// database configuration,
 	BatchInsertSize: 4000, // PostgreSQL batch insert size
 	MinBatchSize:    500,  // Minimum batch size for timeout retry
 	SaveThreshold:   8000, // Memory buffer size before batch saving

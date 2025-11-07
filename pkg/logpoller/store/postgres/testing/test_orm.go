@@ -24,7 +24,6 @@ func NewTestORM(ds sqlutil.DataSource) *TestDSORM {
 // HasFilterByEventName checks if a filter exists for the provided event name
 // It converts the event name to CRC32 signature internally
 func (o *TestDSORM) HasFilterByEventName(ctx context.Context, chainID string, eventName string, addressBytes []byte) (bool, error) {
-	// TODO: consider use BYTEA for address field to avoid conversion overhead and improve consistency with raw address format
 	// Convert address bytes to TON user-friendly string format
 	addressStr, err := codec.NewAddressCodec().AddressBytesToString(addressBytes)
 	if err != nil {
