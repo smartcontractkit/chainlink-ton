@@ -93,6 +93,15 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
+		WrappedNative: TonTokenAddr,
+		RMNRemote: router.RMNRemote{
+			Admin: common.Ownable2Step{
+				Owner:        deps.TonChain.WalletAddress,
+				PendingOwner: nil,
+			},
+			CursedSubjects: nil,
+			ForwardUpdates: nil,
+		},
 		OnRamps: nil, // set afterward
 	}
 
