@@ -86,7 +86,6 @@ type DestChainConfig struct {
 	DestGasPerDataAvailabilityByte    uint16 `tlb:"## 16"`
 	DestDataAvailabilityMultiplierBps uint16 `tlb:"## 16"`
 	ChainFamilySelector               uint32 `tlb:"## 32"`
-	EnforceOutOfOrder                 bool   `tlb:"bool"`
 	DefaultTokenFeeUsdCents           uint16 `tlb:"## 16"`
 	DefaultTokenDestGasOverhead       uint32 `tlb:"## 32"`
 	DefaultTxGasLimit                 uint32 `tlb:"## 32"`
@@ -145,11 +144,6 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	enforceOutOfOrderInt, err := result.Int(12)
-	if err != nil {
-		return err
-	}
-	enforceOutOfOrder := enforceOutOfOrderInt.Cmp(big.NewInt(-1)) == 0
 	defaultTokenFeeUsdCents, err := result.Int(13)
 	if err != nil {
 		return err
@@ -188,10 +182,9 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
 		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
 		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
-		EnforceOutOfOrder:                 enforceOutOfOrder,
-		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),     //nolint:gosec // G115
-		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()), //nolint:gosec // G115
-		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),           //nolint:gosec // G115
+		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),           //nolint:gosec // G115
+		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()),       //nolint:gosec // G115
+		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),                 //nolint:gosec // G115
 		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
 		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115

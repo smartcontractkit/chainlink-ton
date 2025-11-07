@@ -93,7 +93,6 @@ export type DestChainConfig = {
   destDataAvailabilityMultiplierBps: number
 
   chainFamilySelector: number // 4 bytes
-  enforceOutOfOrder: boolean
 
   defaultTokenFeeUsdCents: number
   defaultTokenDestGasOverhead: number
@@ -124,7 +123,6 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
     .storeUint(config.destGasPerDataAvailabilityByte, 16)
     .storeUint(config.destDataAvailabilityMultiplierBps, 16)
     .storeUint(config.chainFamilySelector, 32)
-    .storeBit(config.enforceOutOfOrder)
     .storeUint(config.defaultTokenFeeUsdCents, 16)
     .storeUint(config.defaultTokenDestGasOverhead, 32)
     .storeUint(config.defaultTxGasLimit, 32)
@@ -255,7 +253,6 @@ export const builder = {
           destGasPerDataAvailabilityByte: src.loadUint(16),
           destDataAvailabilityMultiplierBps: src.loadUint(16),
           chainFamilySelector: src.loadUint(32),
-          enforceOutOfOrder: src.loadBoolean(),
           defaultTokenFeeUsdCents: src.loadUint(16),
           defaultTokenDestGasOverhead: src.loadUint(32),
           defaultTxGasLimit: src.loadUint(32),

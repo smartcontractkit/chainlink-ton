@@ -392,7 +392,7 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 		GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
 		NetworkFeeUSDCents:                cfg.NetworkFeeUsdCents,
 		GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-		EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
+		EnforceOutOfOrder:                 true, // NOTE: EnforceOutOfOrder is always true on TON
 		ChainFamilySelector:               [4]byte(binary.BigEndian.AppendUint32(nil, cfg.ChainFamilySelector)),
 	}, nil
 }
