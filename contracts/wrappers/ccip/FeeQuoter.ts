@@ -687,7 +687,9 @@ function encodeGasPriceUpdate(gasPriceUpdate: GasPriceUpdate): TonBuilder {
 }
 
 function encodeTokenPriceUpdate(tokenPriceUpdate: TokenPriceUpdate): TonBuilder {
-  return new TonBuilder().storeAddress(tokenPriceUpdate.token).storeInt(tokenPriceUpdate.price, 224)
+  return new TonBuilder()
+    .storeAddress(tokenPriceUpdate.token)
+    .storeUint(tokenPriceUpdate.price, 224)
 }
 
 function UpdateTokenTransferFeeConfigDictionaryValueType(): DictionaryValue<UpdateTokenTransferFeeConfig> {
