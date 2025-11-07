@@ -317,6 +317,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
+        wrappedNative: ZERO_ADDRESS,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }
@@ -404,6 +405,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
+        router: router.address,
         deployables: {
           deployerCode: beginCell().endCell(),
           merkleRootCode: beginCell().endCell(),

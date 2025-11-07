@@ -6,6 +6,7 @@ import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/types"
+import "../onramp/messages"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -16,6 +17,9 @@ type Router_InMsg =
     | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
+    | Router_RMNRemoteCurse
+    | Router_RMNRemoteUncurse
+    | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
     ;
@@ -68,6 +72,31 @@ struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     execId: ReceiveExecutorId;
 }
 
+// curse/uncurse/verify uncursed (also as getter)
+// crc32("Router_RMNRemoteCurse")
+struct (0x41e8c1dc) Router_RMNRemoteCurse {
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+// crc32("Router_RMNRemoteUncurse")
+struct (0x3c3f5e73) Router_RMNRemoteUncurse {
+    queryId: uint64
+    subjects: SnakedCell<uint128>
+}
+
+// Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
+// crc32("Router_RMNRemoteVerifyNotCursed")
+struct (0xa6e4b7e1) Router_RMNRemoteVerifyNotCursed {
+    queryId: uint64
+    subject: uint128
+}
+
+struct (0x0d9368a9) Router_RMNRemoteVerifyNotCursedResponse {
+    queryId: uint64
+    result: bool
+}
+
 // 0x6513f8e1 = crc32b("Router_MessageSent")
 struct (0x6513f8e1) Router_MessageSent {
     queryID: uint64;
@@ -82,6 +111,30 @@ struct (0x8ae25114) Router_MessageRejected {
     sender: address;
     error: uint256;
 }
+
+// Costs associated with Router operations
+struct Router_Costs {}
+
+// Minimum value for calling Router_CCIPSend
+@inline
+fun Router_Costs.CCIPSend(): int {
+    return ton("0.05") // Send fwdFee TODO 
+        + OnRamp_Costs.Send()
+}
+
+// Minimum value for calling Router_MessageSent
+@inline
+fun Router_Costs.MessageSent(): int {
+    return ton("0.05"); // TODO
+}
+
+// Minimum value for calling Router_MessageRejected
+@inline
+fun Router_Costs.MessageRejected(): int {
+    return ton("0.05"); // TODO
+}
+
+
 
 
 // TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.

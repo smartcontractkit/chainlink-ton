@@ -28,6 +28,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	return tvm.NewExitCodeInSet(ExitCode(ec), []ExitCode{
 		ErrorUnauthorized,
 		ErrorStateNotExpected,
+		InsufficientFee,
 	})
 }
 
@@ -35,6 +36,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 const (
 	ErrorUnauthorized     ExitCode = 265 // ERROR_UNAUTHORIZED from contract
 	ErrorStateNotExpected ExitCode = 500
+	InsufficientFee       ExitCode = 43602 // TODO this error codes are outdated
 )
 
 // CCIPSendExecutor_Execute message structure

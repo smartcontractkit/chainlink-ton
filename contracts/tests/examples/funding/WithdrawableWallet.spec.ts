@@ -21,7 +21,7 @@ async function setUpTest(
     print: true,
     blockchainLogs: false,
     vmLogs: 'none',
-    debugLogs: true,
+    debugLogs: false,
   }
 
   let deployer = await blockchain.treasury('deployer')

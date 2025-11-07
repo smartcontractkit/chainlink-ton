@@ -10,11 +10,13 @@ func _() {
 	var x [1]struct{}
 	_ = x[ErrorUnauthorized-265]
 	_ = x[ErrorStateNotExpected-500]
+	_ = x[InsufficientFee-43602]
 }
 
 const (
 	_ExitCode_name_0 = "ErrorUnauthorized"
 	_ExitCode_name_1 = "ErrorStateNotExpected"
+	_ExitCode_name_2 = "InsufficientFee"
 )
 
 func (i ExitCode) String() string {
@@ -23,6 +25,8 @@ func (i ExitCode) String() string {
 		return _ExitCode_name_0
 	case i == 500:
 		return _ExitCode_name_1
+	case i == 43602:
+		return _ExitCode_name_2
 	default:
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

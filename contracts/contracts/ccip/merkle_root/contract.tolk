@@ -71,12 +71,10 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     assert(sender == st.owner, MerkleRoot_Error.NotOwner);
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state != ExecutionState.Success, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
+    assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null; 
     if (isManualExecute) {
-        // TODO: validate limits
-        // assert(value >= msg.gasOverride + feesEstimate);
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
 
         // Manual execution is fine if we previously failed or if the commit report is just too old.
@@ -88,7 +86,6 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     }
 
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
-    st.deliveredMessageCount += 1;
     st.store();
 
     val executeValidated = createMessage({

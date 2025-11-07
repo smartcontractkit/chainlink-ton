@@ -17,23 +17,24 @@ func _() {
 	_ = x[ErrorInvalidTokenReceiver-1007]
 	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-1008]
 	_ = x[ErrorMsgDataTooLarge-1009]
+	_ = x[ErrorInsufficientFee-1010]
 	_ = x[ErrorTokenNotSupported-24813]
 	_ = x[ErrorUnknownDestChainSelector-24814]
 }
 
 const (
-	_ExitCode_name_0 = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLarge"
+	_ExitCode_name_0 = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorInsufficientFee"
 	_ExitCode_name_1 = "ErrorTokenNotSupportedErrorUnknownDestChainSelector"
 )
 
 var (
-	_ExitCode_index_0 = [...]uint16{0, 35, 55, 92, 117, 147, 177, 202, 243, 263}
+	_ExitCode_index_0 = [...]uint16{0, 35, 55, 92, 117, 147, 177, 202, 243, 263, 283}
 	_ExitCode_index_1 = [...]uint8{0, 22, 51}
 )
 
 func (i ExitCode) String() string {
 	switch {
-	case 1001 <= i && i <= 1009:
+	case 1001 <= i && i <= 1010:
 		i -= 1001
 		return _ExitCode_name_0[_ExitCode_index_0[i]:_ExitCode_index_0[i+1]]
 	case 24813 <= i && i <= 24814:

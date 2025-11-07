@@ -32,10 +32,6 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
 
     assert(sender == st.owner, Error.Unauthorized);
 
-    // We prevent execution from being spammed with a 3 minute window between executions
-    // This prevents manual executions from being replayed before the receiver marks the transaction as successful 
-    // TODO: maybe this time window should be configurable?
-    assert(blockchain.now() > st.lastExecutionTimestamp + (60 * 3), Error.NotEnoughTimeBetweenExecutions);
     st.lastExecutionTimestamp = blockchain.now();
 
     //TODO 

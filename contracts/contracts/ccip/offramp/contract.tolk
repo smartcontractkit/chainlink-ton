@@ -61,6 +61,9 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_UpdateSourceChainConfig => {
             _updateSourceChainConfig(msg, in.senderAddress)
         }
+        OffRamp_UpdateCursedSubjects => {
+            _updateCursedSubjects(msg, in.senderAddress)
+        },
         // Sender must be receiver
         OffRamp_CCIPReceiveConfirm => {
             _ccipReceiveConfirm(msg, in.senderAddress);
@@ -87,6 +90,14 @@ fun onInternalMessage(in:InMessage) {
             _upgrade(msg, in.senderAddress);
         }
         else => {
+            // attempt to handle Ownable messages
+            var st = lazy Storage.load();
+            val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+            if (handled) {
+                st.store();
+                return;
+            }
+
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
@@ -401,7 +412,9 @@ fun _execute(msg: OffRamp_Execute, sender: address, value: coins) {
 fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address, value: coins) {
     var st = Storage.load();
 
-    // TODO: check if chain was cursed by RMNRemote
+    // check if chain was cursed by RMNRemote
+    val isCursed = st.cursedSubjects.isCursed(report.sourceChainSelector as uint128);
+    assert(!isCursed, Error.SubjectCursed);
 
     assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
 
@@ -499,6 +512,14 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
         sourceChainSelector: msg.sourceChainSelector,
         sourceChainConfig: config,
     })
+}
+
+fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
+    var st = Storage.load();
+    // Only allow updates to come through the router
+    assert(sender == st.deployables.load().router, Error.Unauthorized);
+    st.cursedSubjects = msg.cursedSubjects;
+    st.store();
 }
 
 fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {

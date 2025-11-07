@@ -4,8 +4,10 @@ enum Router_Error {
     SenderIsNotOffRamp;
     OffRampNotSetForSelector;
     OffRampAddressMismatch;
+    SubjectCursed;
     NotOnRamp;
     MissingTokenAmounts;
     NoMultiTokenTransfers;
+    InsufficientFee;
 }
 
