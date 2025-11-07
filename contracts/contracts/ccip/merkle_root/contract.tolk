@@ -71,7 +71,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     assert(sender == st.owner, MerkleRoot_Error.NotOwner);
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state != ExecutionState.Success, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
+    assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null; 
     if (isManualExecute) {

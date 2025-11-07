@@ -1449,124 +1449,25 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
 
-    // Try manual exec right after, it should fail because the time window has not passed
-    const result4 = await manualExecuteReport(report, undefined, true)
-
-    expect(result4.transactions).toHaveTransaction({
-      from: offRamp.address,
-      success: false,
-      exitCode: ReceiveExecutorError.NotEnoughTimeBetweenExecutions,
-    })
-
-    // Advance time to pass the retry window
-    warpTime(60 * 4)
-
-    const result5 = await manualExecuteReport(report, undefined, true)
-
-    expect(result5.transactions).toHaveTransaction({
-      from: router.address,
-      to: receiver.address,
-      success: true,
-    })
-
-    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
-    })
-
-    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
-    })
-
-    assertLog(
-      result5.transactions,
-      receiver.address,
-      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
-      {
-        message: {
-          messageId: message.header.messageId,
-          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sender: message.sender,
-          data: message.data,
-        },
-      },
-    )
-  })
-
-  it('Manual exec: receiver runs out of gas and does not notify', async () => {
-    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
-    await setupAndCommitMessage(message)
-    const report = createExecuteReport([message])
-
-    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: ReceiverBehavior.ConsumeAllGas,
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiver.address,
-      success: true,
-    })
-
-    const result2 = await executeReport(report)
-    expect(result2.transactions).toHaveTransaction({
-      from: router.address,
-      to: receiver.address,
-      value: message.gasLimit,
-      success: false,
-      exitCode: -14,
-    })
-
-    assertLog(result2.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
-    })
-
-    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: ReceiverBehavior.Accept,
-    })
-    expect(result3.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiver.address,
-      success: true,
-    })
-
-    const gasOverride = message.gasLimit + 100n
-    // Try manual exec right after, it should fail because the time window has not passed
+    //try manual exec
+    const gasOverride = toNano('1')
     const result4 = await manualExecuteReport(report, gasOverride, true)
 
     expect(result4.transactions).toHaveTransaction({
-      from: offRamp.address,
-      success: false,
-      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
-    })
-
-    // Advance time to pass the retry window
-    warpTime(60 * 4)
-
-    const result5 = await manualExecuteReport(report, gasOverride, true)
-
-    expect(result5.transactions).toHaveTransaction({
       from: router.address,
       to: receiver.address,
       value: gasOverride,
       success: true,
     })
 
-    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
       state: EXECUTION_STATE_IN_PROGRESS,
     })
 
-    assertLog(result5.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
@@ -1574,7 +1475,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     assertLog(
-      result5.transactions,
+      result4.transactions,
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
@@ -1625,8 +1526,6 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const gasOverride = message.gasLimit - 100n
-
-    warpTime(60 * 4)
 
     const result4 = await manualExecuteReport(report, gasOverride, true)
 

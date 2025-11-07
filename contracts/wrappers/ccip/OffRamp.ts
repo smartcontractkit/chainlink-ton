@@ -60,7 +60,6 @@ export enum ReceiveExecutorError {
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
   Unauthorized,
-  NotEnoughTimeBetweenExecutions,
 }
 
 export type OffRampStorage = {
