@@ -305,14 +305,14 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit, config.enforceOutOfOrder);
+        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
         val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // resolveSVMGasLimit()
-        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit, config.enforceOutOfOrder);
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
@@ -362,16 +362,15 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): int?{
-    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit, enforceOutOfOrder).gasLimit;
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int?{
+    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
 }
 
-fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): GenericExtraArgsV2 {
+fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
     val extra = parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
-    if (enforceOutOfOrder) {
-        assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    }
+    // Out of order is always enforced because we don't do ordering on non-EVMs
+    assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
 }
 
@@ -385,14 +384,13 @@ fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): Ge
     return GenericExtraArgsV2.fromCell(extraArgs);
 }
 
-fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): SVMExtraArgsV1 {
+fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV1 {
     val extra = SVMExtraArgsV1.fromCell(extraArgs, {
         throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
-    if (enforceOutOfOrder) {
-        assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
-    }
+    // Out of order is always enforced because we don't do ordering on non-EVMs
+    assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
 }
 

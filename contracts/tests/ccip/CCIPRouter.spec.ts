@@ -224,7 +224,6 @@ describe('Router', () => {
                 destGasPerDataAvailabilityByte: 0,
                 destDataAvailabilityMultiplierBps: 0,
                 chainFamilySelector: CHAIN_FAMILY_SELECTOR_EVM,
-                enforceOutOfOrder: true,
                 defaultTokenFeeUsdCents: 0,
                 defaultTokenDestGasOverhead: 0,
                 defaultTxGasLimit: 1,
