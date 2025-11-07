@@ -2,6 +2,7 @@ type ReceiveExecutor_InMessage = ReceiveExecutor_InitExecute | ReceiveExecutor_B
 
 //crc32('ReceiveExecutor_InitExecute')
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
+    gasOverride: coins? = null;
 }
 
 //crc32('ReceiveExecutor_Confirm')

@@ -59,7 +59,7 @@ export enum ReceiveExecutorError {
   StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
-  Unauthorized, //TODO maybe use Ownable2Step or similar
+  Unauthorized,
 }
 
 export type OffRampStorage = {
@@ -131,7 +131,7 @@ export type Any2TVMRampMessage = {
   sender: CrossChainAddress
   data: Cell
   receiver: Address
-  // gasLimit: bigint ,
+  gasLimit: bigint
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
@@ -428,6 +428,7 @@ export class OffRamp
       value: bigint
       message: Any2TVMRampMessage
       execId: bigint
+      gasOverride?: bigint
     },
   ) {
     await provider.internal(via, {
@@ -437,6 +438,7 @@ export class OffRamp
         .storeUint(Opcodes.dispatchValidated, 32)
         .storeRef(Any2TVMRampMessageToBuilder(opts.message))
         .storeUint(opts.execId, 192)
+        .storeMaybeUint(opts.gasOverride, 64)
         .endCell(),
     })
   }
@@ -580,7 +582,7 @@ export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {
   }
 }
 
-function ExecutionReportToBuilder(report: ExecutionReport) {
+export function ExecutionReportToBuilder(report: ExecutionReport) {
   return beginCell()
     .storeUint(report.sourceChainSelector, 64)
     .storeRef(
@@ -597,7 +599,7 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
     .storeUint(report.proofFlagBits, 256)
 }
 
-function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
+export function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
     .storeBuilder(RampMessageHeaderToBuidler(message.header))
     .storeRef(
@@ -608,6 +610,7 @@ function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
     )
     .storeRef(message.data)
     .storeAddress(message.receiver)
+    .storeCoins(message.gasLimit)
     .storeMaybeRef(message.tokenAmounts)
 }
 

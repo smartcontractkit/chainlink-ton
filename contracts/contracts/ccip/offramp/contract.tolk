@@ -23,7 +23,13 @@ import "../router/messages"
 import "../../lib/receiver/types"
 
 const CONTRACT_VERSION = "0.0.12";
-const RESERVE = ton("1"); // TODO: set correct value
+const RESERVE = ton("5"); 
+
+// TODO: handle signals from MerkleRoot for releaseTokens
+
+// NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
+// (or init contract state with that router addr? probably what solana does)
+
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -121,9 +127,9 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.05"),
+        value: ton("0.02"),
         dest: {
-            stateInit: { //the ReceiveExecutor address
+            stateInit: { //ReceiveExecutor address
                 code: st.deployables.load().deployer,
                 data: Deployable<ReceiveExecutorId> {
                     owner: contract.getAddress(),
@@ -141,7 +147,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
-        value: ton("0.05"),
+        value: ton("0.02"),
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
@@ -193,7 +199,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
 
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.05"), //TODO how much do we need to send
+        value: ton("0.02"), //TODO how much do we need to send
         dest: {
             stateInit: {
                 code: st.deployables.load().deployer,
@@ -210,38 +216,42 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     receiveConfirm.send(SEND_MODE_REGULAR);
 }
 
-// TODO: handle signals from MerkleRoot for releaseTokens
-// maybe send these and MerkleRoot_Execute straight to router
-// the payload would need the id & chainSelector so we can calculate/validate offrampAddress & that the merkle root is allowed to send for that ID
-// NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
-// (or init contract state with that router addr? probably what solana does)
 
-//TODO: This function should relay to the router
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     val st = Storage.load();
     assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
-
+    
+    // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
+    // Otherwise, keep original limit
+    var gasLimit: coins = message.gasLimit;
+    if (msg.gasOverride != null) {
+        if (gasLimit > msg.gasOverride!) {
+            gasLimit = message.gasLimit;
+        } else {
+            gasLimit = msg.gasOverride;
+        }
+    }    
     val routeMessage = createMessage({
         bounce: true,
-        value: ton("0.1"), //TODO use message gas limit
+        value: message.gasLimit + ton("0.1"),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
                 messageId: message.header.messageId,
                 sourceChainSelector: message.header.sourceChainSelector,
                 sender: CrossChainAddress.fromCell(message.sender),
-                data: message.data
+                data: message.data,
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
+            gasLimit: gasLimit,
         }
     });
 
     routeMessage.send(SEND_MODE_REGULAR);
-    //TODO send message to router_routeMessage
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
@@ -507,12 +517,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
         state: ExecutionState.InProgress
     });
 
-    initializeExecutor(st, sender, message, msg.metadataHash);
-}
-
-fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, metadataHash: uint256) {
-    // Deploy executor
-    val messageId = message.generateMessageId(metadataHash);
+    val messageId = message.generateMessageId(msg.metadataHash);
     val execId = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
 
     val executorAddress: AutoDeployAddress = {
@@ -525,6 +530,15 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
         }
     };
 
+    if (msg.gasOverride == null) {
+        deployAndInitializeExecutor(st, sender, message, executorAddress, execId);
+    } else {
+        //gasOverride indicates manual exec
+        sendInitExecute(executorAddress, msg.gasOverride);
+    }
+}
+
+fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, executorAddress: AutoDeployAddress, execId: ReceiveExecutorId) {
     val deployMsg = createMessage({
         bounce: true, 
         value: ton("0.5"), // TODO:
@@ -544,11 +558,17 @@ fun initializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMe
     });
     deployMsg.send(SEND_MODE_REGULAR);
 
+    sendInitExecute(executorAddress, null);
+}
+
+fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
     val initExecMsg = createMessage ({
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: executorAddress,
-        body: ReceiveExecutor_InitExecute {}
+        body: ReceiveExecutor_InitExecute {
+            gasOverride,
+        }
     });
     initExecMsg.send(SEND_MODE_REGULAR);
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"math/big"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -107,31 +108,22 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
 	}
 
-	// TODO: Re-enable gas limit when supported on-chain
-	/*
-		var gasLimitBigInt *big.Int
-		var extraArgsDecodeMap map[string]any
-		if len(msg.ExtraArgs) > 0 {
-			extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
-			}
+	// var gasLimit *big.Int
+	// var extraArgsDecodeMap map[string]any
+	// if len(msg.ExtraArgs) == 0 {
+	//	 return [32]byte{}, fmt.Errorf("cannot hash without extra args: %w", err)
+	// }
+	// extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
+	// if err != nil {
+	//	 return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
+	// }
 
-			gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-			}
-		}
-
-		// gas limit can be nil, which means no limit
-		var gasLimit tlb.Coins
-		if gasLimitBigInt != nil {
-			gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("convert gas limit to TON cell: %w", err)
-			}
-		}
-	*/
+	// gasLimit, err = parseExtraArgsMap(extraArgsDecodeMap)
+	// FIXME do the same as in the exec_code
+	gasLimit := big.NewInt(1e8) // 0.1 TON which is the same hard-coded value as in the executecode.go file
+	// if err != nil {
+	// return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+	// }
 
 	// use the reference from contracts/contracts/ccip/types.tolk generateMessageId()
 	/* Top level cell contains:
@@ -181,6 +173,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 			MustStoreSlice(header.MessageID, 256).
 			MustStoreAddr(receiver).
 			MustStoreUInt(header.SequenceNumber, 64).
+			MustStoreBigCoins(gasLimit).
 			MustStoreUInt(header.Nonce, 64).
 			EndCell())
 

@@ -1,5 +1,14 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
+import {
+  Address,
+  beginCell,
+  Cell,
+  contractAddress,
+  Dictionary,
+  fromNano,
+  StateInit,
+  toNano,
+} from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -17,6 +26,7 @@ import {
   SourceChainConfig,
   OffRamp,
   OffRampError,
+  ReceiveExecutorError,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
@@ -56,6 +66,7 @@ import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
+import * as or from '../../wrappers/ccip/OffRamp'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
 
@@ -116,7 +127,7 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
           .storeUint(message.header.messageId, 256)
           .storeAddress(message.receiver)
           .storeUint(message.header.sequenceNumber, 64)
-          // .storeCoins(message.gasLimit)
+          .storeCoins(message.gasLimit)
           .storeUint(message.header.nonce, 64)
           .endCell(),
       )
@@ -240,6 +251,10 @@ describe('OffRamp - Unit Tests', () => {
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
 
   // Helper functions for configuration and data creation
+  //
+  const warpTime = (period: number) => {
+    blockchain.now = blockchain.now!! + period
+  }
 
   const createDefaultOCRConfig = (overrides = {}) => ({
     value: toNano('100'),
@@ -280,7 +295,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: data,
       receiver: receiverAddress,
-      // gasLimit: 10000000n,
+      gasLimit: toNano('0.1'), // 100_000_000 nanotons
     }
   }
 
@@ -472,6 +487,7 @@ describe('OffRamp - Unit Tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
@@ -737,7 +753,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
       data: beginCell().endCell(),
       receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
-      // gasLimit: 10000000n,
+      gasLimit: 100000000n,
       tokenAmounts: undefined,
     }
 
@@ -745,12 +761,19 @@ describe('OffRamp - Unit Tests', () => {
     const messageIdHash = generateMessageId(message, metadataHash)
     const messageId = uint8ArrayToBigInt(messageIdHash)
 
-    // Log the hash for copying to Go test
-    const hashHex = messageId.toString(16).padStart(64, '0')
-    console.log('Expected hash for Go test:', hashHex)
+    // Uncomment to log the hash to update Go test
+    //const hashHex = messageId.toString(16).padStart(64, '0')
+    //console.log('Expected hash for Go test:', hashHex)
 
     // Basic validation that we got a valid hash
-    expect(messageId).toBeGreaterThan(0n)
+    expect(messageId).toBe(0xce60f1962af3c7c7f9d3e434dea13530564dbff46704d628ff4b2206bbc93289n)
+
+    // Uncomment to log the raw bytes of ramp message for Go test
+    // console.log(beginCell().storeBuilder(or.Any2TVMRampMessageToBuilder(message)).endCell().toBoc().toString('hex'))
+
+    // Uncomment to log the raw bytes of execute report for Go test
+    // const report = createExecuteReport([message])
+    // console.log(beginCell().storeBuilder(or.ExecutionReportToBuilder(report)).endCell().toBoc().toString('hex'))
   })
 
   it('Test execute fails when root was not committed', async () => {
@@ -1226,6 +1249,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: receiver.address,
+      value: message.gasLimit,
       success: true,
     })
 
@@ -1410,6 +1434,13 @@ describe('OffRamp - Unit Tests', () => {
       success: false,
     })
 
+    assertLog(result2.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_FAILURE,
+    })
+
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
       behavior: ReceiverBehavior.Accept,
     })
@@ -1419,12 +1450,90 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
 
-    //
-    const result4 = await manualExecuteReport(report, undefined, true)
+    //try manual exec
+    const gasOverride = toNano('1')
+    const result4 = await manualExecuteReport(report, gasOverride, true)
 
     expect(result4.transactions).toHaveTransaction({
       from: router.address,
       to: receiver.address,
+      value: gasOverride,
+      success: true,
+    })
+
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_SUCCESS,
+    })
+
+    assertLog(
+      result4.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
+  })
+
+  it('Manual execute: gasOverride lower than original gasLimit is ignored', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+    const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.RejectAll,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    const result2 = await executeReport(report)
+    expect(result2.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    assertLog(result2.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_FAILURE,
+    })
+
+    const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+      behavior: ReceiverBehavior.Accept,
+    })
+    expect(result3.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    const gasOverride = message.gasLimit - 100n
+
+    const result4 = await manualExecuteReport(report, gasOverride, true)
+
+    expect(result4.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      value: message.gasLimit,
       success: true,
     })
 

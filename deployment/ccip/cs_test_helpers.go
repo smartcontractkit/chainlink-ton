@@ -251,7 +251,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 				AllowListEnabled:        false,
 			},
 			Selector: to,
-			GasPrice: big.NewInt(1e17),
+			GasPrice: gasPrices[to],
 			TokenPrices: map[string]*big.Int{
 				TonTokenAddr.String(): tonTokenPrice,
 			},

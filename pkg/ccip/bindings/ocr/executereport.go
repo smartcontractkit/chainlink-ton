@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -23,11 +24,11 @@ type ExecuteReport struct {
 
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.
 type Any2TVMRampMessage struct {
-	Header   RampMessageHeader        `tlb:"."`
-	Sender   common.CrossChainAddress `tlb:"^"`
-	Data     common.SnakeBytes        `tlb:"^"`
-	Receiver *address.Address         `tlb:"addr"`
-	// GasLimit     tlb.Coins                             `tlb:"maybe ."` // TODO, missing in on-chain contract, TBD until supporting token transfer
+	Header       RampMessageHeader                     `tlb:"."`
+	Sender       common.CrossChainAddress              `tlb:"^"`
+	Data         common.SnakeBytes                     `tlb:"^"`
+	Receiver     *address.Address                      `tlb:"addr"`
+	GasLimit     tlb.Coins                             `tlb:"."`
 	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"maybe ^"`
 }
 

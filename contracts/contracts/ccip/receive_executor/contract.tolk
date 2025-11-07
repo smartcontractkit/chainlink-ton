@@ -31,10 +31,11 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     var st = ReceiveExecutor_Storage.load();
 
     assert(sender == st.owner, Error.Unauthorized);
-    _execute(st);
+    st.lastExecutionTimestamp = blockchain.now();
+    _execute(st, msg.gasOverride);
 }
 
-fun _execute(st: ReceiveExecutor_Storage) {
+fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
     st.state = ReceiveExecutor_MessageState.Execute;
     st.store();
     createMessage(
@@ -45,6 +46,7 @@ fun _execute(st: ReceiveExecutor_Storage) {
             body: OffRamp_DispatchValidated {
                 message: st.message,
                 execId: st.execId,
+                gasOverride,
             }
         }
     ).send(SEND_MODE_REGULAR);

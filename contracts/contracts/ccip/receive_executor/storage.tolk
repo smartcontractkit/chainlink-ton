@@ -8,6 +8,7 @@ struct ReceiveExecutor_Storage {
     root: address;
     execId: uint192;
     state: ReceiveExecutor_MessageState = ReceiveExecutor_MessageState.Untouched;
+    lastExecutionTimestamp: uint64 = 0;
     tokenBalance: TokenBalance = TokenBalance{};
 }
 
