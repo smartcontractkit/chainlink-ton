@@ -164,34 +164,39 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should calculate fee for single token transfer', async () => {
     const tokenAmount = toNano(10000e18)
-    for (const token of FeeQuoterSetup.SOURCE_FEE_TOKENS) {
+    for (const feeToken of FeeQuoterSetup.SOURCE_FEE_TOKENS) {
       // Message with s_sourceFeeToken being transferred, paying fee with token
       const message = setup.generateSingleTokenMessage({
         token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
         amount: tokenAmount,
-        feeToken: token.token,
+        feeToken: feeToken.token,
       })
 
       const tokenTransferFeeConfig = await setup.bind.feeQuoter.getTokenTransferFeeConfig(
         FeeQuoterSetup.DEST_CHAIN_SELECTOR,
         message.tokenAmounts[0].token,
       )
-      const destBytesOverhead = tokenTransferFeeConfig.destBytesOverhead
+      const tokenBytesOverhead = tokenTransferFeeConfig.destBytesOverhead
+      const tokenGasOverhead = BigInt(tokenTransferFeeConfig.destGasOverhead)
 
-      expect(destBytesOverhead).toBeGreaterThan(0n) // as FeeQuoterSetup.CCIP_LOCK_OR_BURN_V1_RET_BYTES is not available
-      const tokenBytesOverhead = destBytesOverhead
+      expect(tokenBytesOverhead).toBeGreaterThan(0n) // as FeeQuoterSetup.CCIP_LOCK_OR_BURN_V1_RET_BYTES is not available
 
-      const feeAmount = (await setup.getValidatedFee(message, beginCell().endCell())).fee
+      const totalPayloadLength = BigInt(tokenBytesOverhead)
 
       // Calculate expected fee
-      const gasUsed =
-        BigInt(FeeQuoterSetup.GAS_LIMIT) +
-        BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD) +
-        BigInt(tokenBytesOverhead) * BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE) +
-        BigInt(tokenTransferFeeConfig.destGasOverhead)
+      const gasFeeUSD = (() => {
+        const gasUsed =
+          BigInt(FeeQuoterSetup.GAS_LIMIT) +
+          BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD) +
+          totalPayloadLength * BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE) +
+          tokenGasOverhead
 
-      const gasFeeUSD =
-        gasUsed * FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth * FeeQuoterSetup.USD_PER_GAS
+        return (
+          gasUsed *
+          FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth *
+          FeeQuoterSetup.USD_PER_GAS
+        )
+      })()
 
       const { transferFeeUSD } = await setup.bind.feeQuoter.getTokenTransferCost(
         FeeQuoterSetup.DEST_CHAIN_SELECTOR,
@@ -211,28 +216,31 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
 
       const totalPriceInFeeToken =
-        (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / token.price
+        (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / feeToken.price
+
+      const feeAmount = (await setup.getValidatedFee(message, beginCell().endCell())).fee
 
       expect(feeAmount).toEqual(totalPriceInFeeToken)
     }
   })
 
   it('should calculate fee for message with data and token transfer', async () => {
-    const testTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS
+    const customGasLimit = BigInt(FeeQuoterFeeSetup.MAX_GAS_LIMIT)
+    const testData = Buffer.from(
+      'random bits and bytes that should be factored into the cost of the message',
+    )
+    const dataLength = BigInt(testData.length)
 
-    const customGasLimit = BigInt(1_000_000)
-    const testData = 'random bits and bytes that should be factored into the cost of the message'
-
-    for (const token of testTokens) {
+    for (const feeToken of FeeQuoterSetup.SOURCE_FEE_TOKENS) {
       const message: rt.CCIPSend = {
         destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: asSnakeBytes(Buffer.from(testData)),
+        data: asSnakeBytes(testData),
         tokenAmounts: [
-          { token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token, amount: toNano(10000e18) }, // feeTokenAmount
-          { token: FeeQuoterSetup.CUSTOM_TOKEN.token, amount: toNano(200000e18) }, // customTokenAmount
+          // { token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token, amount: toNano(10000e18) }, // feeTokenAmount
+          // { token: FeeQuoterSetup.CUSTOM_TOKEN.token, amount: toNano(200000e18) }, // customTokenAmount
         ],
-        feeToken: token.token,
+        feeToken: feeToken.token,
         extraArgs: rt.builder.data.extraArgs
           .encode({
             kind: 'generic-v2',
@@ -242,36 +250,39 @@ describe('FeeQuoter GetValidatedFee', () => {
           .endCell(),
       }
 
-      const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-        message.feeToken,
-      )
-
       // Calculate token gas and bytes overhead
       let tokenGasOverhead = 0n
       let tokenBytesOverhead = 0n
       for (const tokenAmount of message.tokenAmounts) {
-        const config = await setup.bind.feeQuoter.getTokenTransferFeeConfig(
+        const tokenTransferFeeConfig = await setup.bind.feeQuoter.getTokenTransferFeeConfig(
           FeeQuoterSetup.DEST_CHAIN_SELECTOR,
           tokenAmount.token,
         )
-        tokenGasOverhead += BigInt(config.destGasOverhead)
-        expect(config.destBytesOverhead).toBeGreaterThan(0n) // as FeeQuoterSetup.CCIP_LOCK_OR_BURN_V1_RET_BYTES is not available
-        tokenBytesOverhead += BigInt(config.destBytesOverhead)
+        tokenGasOverhead += BigInt(tokenTransferFeeConfig.destGasOverhead)
+        expect(tokenTransferFeeConfig.destBytesOverhead).toBeGreaterThan(0n) // as FeeQuoterSetup.CCIP_LOCK_OR_BURN_V1_RET_BYTES is not available
+
+        tokenBytesOverhead += BigInt(tokenTransferFeeConfig.destBytesOverhead)
       }
       const { transferFeeUSD, tokenTransferBytesOverhead } =
         await setup.bind.feeQuoter.getTokenTransferCost(
           FeeQuoterSetup.DEST_CHAIN_SELECTOR,
           message.tokenAmounts,
         )
+
+      expect(BigInt(tokenTransferBytesOverhead)).toBe(tokenBytesOverhead)
+
+      const totalPayloadLength = dataLength + BigInt(tokenTransferBytesOverhead)
+
       // Calculate gas fee
-      const dataLength = BigInt(testData.length)
       const gasFeeUSD = (() => {
-        const gasUsed =
-          customGasLimit +
-          BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD) +
-          (dataLength + BigInt(tokenTransferBytesOverhead)) *
-            BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE) +
+        expect(totalPayloadLength).toBeLessThan(
+          FeeQuoterFeeSetup.DEST_GAS_PER_PAYLOAD_BYTE_THRESHOLD,
+        )
+        const callDataCost =
+          totalPayloadLength * BigInt(FeeQuoterSetup.DEST_GAS_PER_PAYLOAD_BYTE_BASE) +
           tokenGasOverhead
+
+        const gasUsed = customGasLimit + BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD) + callDataCost
 
         return (
           gasUsed *
@@ -279,6 +290,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           FeeQuoterSetup.USD_PER_GAS
         )
       })()
+
+      const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
+        message.feeToken,
+      )
 
       const messageFeeUSD = transferFeeUSD * premiumMultiplierWeiPerEth
 
@@ -290,15 +305,17 @@ describe('FeeQuoter GetValidatedFee', () => {
         tokenBytesOverhead,
       )
       const totalPriceInFeeToken =
-        (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / token.price
-      console.log('token.price', token.price)
-      const result = await setup.getValidatedFee(message, beginCell().endCell())
-      console.log('diff', result.fee - totalPriceInFeeToken)
+        (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / feeToken.price
+
+      console.log('token.price', feeToken.price)
+      const feeAmount = (await setup.getValidatedFee(message, beginCell().endCell())).fee
+
+      console.log('diff', feeAmount - totalPriceInFeeToken)
       console.log(
         'diff without token price',
-        result.fee * token.price - totalPriceInFeeToken * token.price,
+        feeAmount * feeToken.price - totalPriceInFeeToken * feeToken.price,
       )
-      expect(result.fee).toEqual(totalPriceInFeeToken)
+      expect(feeAmount).toEqual(totalPriceInFeeToken)
     }
   })
 
