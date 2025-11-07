@@ -205,7 +205,10 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 get fun validatedFee(msg: Router_CCIPSend): coins {
     var st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
+    assert (destChainConfigResult.isFound) throw FeeQuoter_Error.DestChainNotEnabled;
+    var destChainConfig = destChainConfigResult.loadValue();
+
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
 
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
