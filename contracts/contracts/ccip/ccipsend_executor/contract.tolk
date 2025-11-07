@@ -42,8 +42,13 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    // TODO handle bounce from
-    // - FeeQuoter_GetValidatedFee (insufficient funds)
+    val msg = lazy CCIPSendExecutor_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
+    match (msg) {
+        FeeQuoter_GetValidatedFee<Metadata> => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+            this.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, in.senderAddress);
+        }
+    }
 }
 
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {

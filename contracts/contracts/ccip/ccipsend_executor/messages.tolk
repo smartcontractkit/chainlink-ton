@@ -61,3 +61,7 @@ fun SendExecutor_Costs.MessageValidationFailed(): int {
     return ton("0.05") // ExecutorFinishedWithError fwdFee
         + OnRamp_Costs.ExecutorFinishedWithError();
 }
+
+type CCIPSendExecutor_BouncedMessage =
+    | FeeQuoter_GetValidatedFee<Metadata>
+    ;
