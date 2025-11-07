@@ -643,7 +643,6 @@ describe('OffRamp - Unit Tests', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
-  /*
   it('should deploy', async () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
@@ -1096,7 +1095,7 @@ describe('OffRamp - Unit Tests', () => {
     }
     const result = await commitReport([], toNano('0.5'), 0x01, priceUpdates)
   })
-  */
+
   it('Can commit with both merkle root and price updates', async () => {
     await setupOCRConfig()
     await setupSourceChainConfig()
@@ -1125,10 +1124,9 @@ describe('OffRamp - Unit Tests', () => {
       ],
     }
 
-    const result = await commitReport([root], toNano('0.8'), 0x01, priceUpdates)
+    const result = await commitReport([root], toNano('0.5'), 0x01, priceUpdates)
   })
 
-  /*
   it('Test price update sequence number increases with OCR sequence', async () => {
     await setupOCRConfig()
 
@@ -2033,5 +2031,4 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   })
-  */
 })
