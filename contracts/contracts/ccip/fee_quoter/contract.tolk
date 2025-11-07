@@ -30,7 +30,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: false,
                 value: 0,
                 dest: in.senderAddress,
-                body: beginCell().endCell(),
+                body: createEmptyCell(),
             });
             returnValueResponse.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }

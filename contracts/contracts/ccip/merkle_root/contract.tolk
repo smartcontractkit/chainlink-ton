@@ -90,7 +90,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
 
     val executeValidated = createMessage({
         bounce: true,
-        value: OffRamp_Costs.executeValidated(isManualExecute),
+        value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
             message: message.toCell(),
@@ -99,7 +99,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
             gasOverride: msg.gasOverride,
         }
     });
-    executeValidated.send(SEND_MODE_REGULAR);
+    executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun typeAndVersion(): (slice, slice) {

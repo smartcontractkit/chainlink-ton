@@ -38,7 +38,7 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_Commit => {
             _commit(msg, in.senderAddress, in.valueCoins)
         }
-        // Permissionless
+        // Sender must be OCR transmitter
         OffRamp_Execute => {
             _execute(msg, in.senderAddress, in.valueCoins)
         }
@@ -50,6 +50,7 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_DispatchValidated => {
             _dispatchValidated(msg, in.senderAddress)
         } 
+        // Permissionless
         OffRamp_ManuallyExecute => {
             _manually_execute(msg, in.senderAddress, in.valueCoins)
         }
@@ -127,7 +128,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.02"),
+        value: 0,
         dest: {
             stateInit: { //ReceiveExecutor address
                 code: st.deployables.load().deployer,
@@ -141,20 +142,20 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
             receiver: msg.receiver
         }
     });
-    receiveBounced.send(SEND_MODE_REGULAR);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
-        value: ton("0.02"),
+        value: 0,
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
             state,
         },
     });
-    markState.send(SEND_MODE_REGULAR);
+    markState.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
@@ -236,7 +237,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     }    
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + Router_Costs.routeMessage(),
+        value: message.gasLimit,
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -251,7 +252,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
         }
     });
 
-    routeMessage.send(SEND_MODE_REGULAR);
+    routeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
@@ -571,6 +572,7 @@ fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2
 }
 
 fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
+    // Sends the rest of the message value minus the amount sent for executor deployment
     reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     val initExecMsg = createMessage ({
         bounce: true,
