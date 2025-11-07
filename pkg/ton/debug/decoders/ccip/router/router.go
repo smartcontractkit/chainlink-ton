@@ -16,6 +16,8 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	router.UpdateOffRamps{},
 	router.RouteMessage{},
 	router.CCIPReceiveConfirm{},
+	router.CCIPSendACK{},
+	router.CCIPSendNACK{},
 	router.MessageSent{},
 	router.MessageRejected{},
 })

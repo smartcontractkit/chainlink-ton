@@ -3,6 +3,7 @@ import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "../ccipsend_executor/messages"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
@@ -44,3 +45,16 @@ struct (0x29950BAA) FeeQuoter_UpdateDestChainConfigs {
     updates: cell; // vec<FeeQuoter_UpdateDestChainConfig>
 }
 
+// Costs associated with FeeQuoter operations
+struct FeeQuoter_Costs {}
+
+// Minimum value for calling FeeQuoter_GetValidatedFee
+@inline
+fun FeeQuoter_Costs.GetValidatedFee(): int {
+    return min(
+        ton("0.05") // MessageValidated fwdFee
+        + SendExecutor_Costs.MessageValidated(),
+        ton("0.05") // MessageValidationFailed fwdFee
+        + SendExecutor_Costs.MessageValidationFailed()
+    );
+}
