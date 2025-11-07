@@ -224,7 +224,7 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
     var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
 
-    val (executionGasPrice, dataAvailabilityGasPrice) = destChainConfig.getValidatedGasPrice();
+    val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
     var tokensIter = msg.tokenAmounts.iter();
     val premiumFeeUsdWei = destChainConfig.config.networkFeeUsdCents * VAL_1E16;
@@ -298,7 +298,6 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
     var tokenAmounts = message.tokenAmounts.iter();
-    var numberOfTokens = 0;
     assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
 
     // NOTE: we could deploy distinct contracts to cut down on code
@@ -334,26 +333,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
         }
          
-        if (numberOfTokens > 0 && svmExtraArgs.tokenReceiver == 0) {
-            throw FeeQuoter_Error.InvalidTokenReceiver;
-        }
-
         assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
-        suiExpandedDataLength += (numberOfTokens * SUI_TOKEN_TRANSFER_DATA_OVERHEAD);
-
-        // TBD this is not doable in TON. We cannot aford to have a map of every token to be sent to Solana.
-        // The token destBytesOverhead can be very different per token so we have to take it into account as well.
-        // for (uint256 i = 0; i < numberOfTokens; ++i) {
-        //   uint256 destBytesOverhead =
-        //     s_tokenTransferFeeConfig[destChainSelector][message.tokenAmounts[i].token].destBytesOverhead
-        //   // Pools get Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES by default, but if an override is set we use that instead.
-        //   if (destBytesOverhead > 0) {
-        //     suiExpandedDataLength += destBytesOverhead;
-        //   } else {
-        //     suiExpandedDataLength += Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES;
-        //   }
-        // }
         assert (suiExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
         return gasLimit;
