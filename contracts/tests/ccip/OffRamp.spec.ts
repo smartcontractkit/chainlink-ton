@@ -752,7 +752,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
       data: beginCell().endCell(),
       receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
-      gasLimit: 10000000n,
+      gasLimit: 100000000n,
       tokenAmounts: undefined,
     }
 
@@ -765,7 +765,7 @@ describe('OffRamp - Unit Tests', () => {
     //console.log('Expected hash for Go test:', hashHex)
 
     // Basic validation that we got a valid hash
-    expect(messageId).toBe(0xeb8aad87a4ec888a0c1527a51f778a7539cf5a4084159e3e928abb6ac909a183n)
+    expect(messageId).toBe(0xce60f1962af3c7c7f9d3e434dea13530564dbff46704d628ff4b2206bbc93289n)
 
     // Uncomment to log the raw bytes of ramp message for Go test
     // console.log(beginCell().storeBuilder(or.Any2TVMRampMessageToBuilder(message)).endCell().toBoc().toString('hex'))
