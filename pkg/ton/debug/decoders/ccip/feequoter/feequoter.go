@@ -16,7 +16,6 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	feequoter.UpdateTokenTransferFeeConfigs{},
 	feequoter.UpdateDestChainConfigs{},
 	feequoter.GetValidatedFee{},
-	feequoter.GetValidatedFee{},
 })
 
 type decoder struct {

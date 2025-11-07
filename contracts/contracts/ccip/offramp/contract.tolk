@@ -84,6 +84,14 @@ fun onInternalMessage(in:InMessage) {
             _upgrade(msg, in.senderAddress);
         }
         else => {
+            // attempt to handle Ownable messages
+            var st = lazy Storage.load();
+            val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+            if (handled) {
+                st.store();
+                return;
+            }
+
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }

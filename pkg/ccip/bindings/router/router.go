@@ -51,11 +51,12 @@ const (
 )
 
 type Storage struct {
-	ID        uint32              `tlb:"## 32"`
-	Ownable   common.Ownable2Step `tlb:"."`
-	OnRamps   *cell.Dictionary    `tlb:"dict 64"`
-	OffRamps  *cell.Dictionary    `tlb:"dict 64"`
-	RMNRemote RMNRemote           `tlb:"^"`
+	ID            uint32              `tlb:"## 32"`
+	Ownable       common.Ownable2Step `tlb:"."`
+	WrappedNative *address.Address    `tlb:"addr"`
+	OnRamps       *cell.Dictionary    `tlb:"dict 64"`
+	OffRamps      *cell.Dictionary    `tlb:"dict 64"`
+	RMNRemote     RMNRemote           `tlb:"^"`
 }
 
 type RMNRemote struct {

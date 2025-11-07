@@ -10,7 +10,6 @@ struct CCIPSendExecutor_Data {
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
-    originalBalance: coins,
 }
 
 struct CCIPSendExecutor_Addresses {

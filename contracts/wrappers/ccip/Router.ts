@@ -35,6 +35,7 @@ export enum RouterError {
 export type Storage = {
   id: bigint
   ownable: ownable2step.Data
+  wrappedNative: Address
   onRamps: Dictionary<bigint, Address>
   offRamps: Dictionary<bigint, Address>
 }
@@ -393,6 +394,7 @@ export const builder = {
               ? beginCell().storeAddress(config.ownable.pendingOwner)
               : null,
           )
+          .storeAddress(config.wrappedNative)
           .storeDict(config.onRamps)
           .storeDict(config.offRamps)
           .storeRef(
@@ -414,6 +416,7 @@ export const builder = {
         return {
           id: src.loadUintBig(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
+          wrappedNative: src.loadAddress(),
           onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
           offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
           // TODO: rmnRemote loading

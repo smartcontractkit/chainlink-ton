@@ -3,7 +3,6 @@ import "storage"
 import "errors"
 import "../onramp/messages"
 import "../onramp/types"
-import "../common/messages"
 import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
@@ -25,7 +24,11 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
         Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
-        Router_CCIPSend => { onSend(msg, in.senderAddress) }
+        Router_CCIPSend => { 
+            val minValue = Router_Costs.CCIPSend();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            onSend(msg, in.senderAddress, in.valueCoins)
+            }
         Router_RouteMessage => { 
             routeMessage(msg, in.senderAddress)
             }
@@ -42,7 +45,7 @@ fun onInternalMessage(in: InMessage) {
             st.rmnRemote = rmn.toCell();
             st.store();
 
-            // propagate update to cache
+            // propagate update to caches
             var entry = rmn.forwardUpdates.findFirst();
             while (entry.isFound) {
                 val destination = entry.getKey();
@@ -68,7 +71,7 @@ fun onInternalMessage(in: InMessage) {
             st.rmnRemote = rmn.toCell();
             st.store();
 
-            // propagate update to offramp cache
+            // propagate update to caches
             var entry = rmn.forwardUpdates.findFirst();
             while (entry.isFound) {
                 val destination = entry.getKey();
@@ -103,8 +106,16 @@ fun onInternalMessage(in: InMessage) {
         Router_MessageRejected => { onSendNACK(msg, in.senderAddress) }
         Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }
         else => {
+            // attempt to handle Ownable messages
+            var st = lazy Storage.load();
+            val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+            if (handled) {
+                st.store();
+                return;
+            }
+
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
 }
@@ -226,28 +237,29 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     receiveBounced.send(SEND_MODE_REGULAR);
 }
 
-
-fun onSend(msg: Router_CCIPSend, sender: address) {
-    ccipSend(msg, sender);
+fun onSend(msg: Router_CCIPSend, sender: address, value: coins) {
+    ccipSend(msg, sender, value);
 }
 
-fun ccipSend(msg: Router_CCIPSend, sender: address) {
+fun ccipSend(msg: Router_CCIPSend, sender: address, value: coins) {
     val st = lazy Storage.load();
 
     // verify destination chain not cursed
     var rmn = st.rmnRemote.load();
     val isCursed = rmn.cursedSubjects.isCursed(msg.destChainSelector as uint128);
-    assert(!isCursed, Router_Error.SubjectCursed as int);
+    assert(!isCursed, Router_Error.SubjectCursed);
 
-    // forward to onRamp
-    // ccipSend(onRamp, msg, value/token amounts)
+    // TODO: the feeToken typing will need to change to `address?` and comparing with `null` in upcoming Tolk 1.2
+    if (msg.feeToken.isNone()) {
+        msg.feeToken = st.wrappedNative
+    }
 
     val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
         dest: onRamp,
-        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value } },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -258,7 +270,7 @@ fun onSendACK(msg: Router_MessageSent, sender: address) {
     assert (sender == onRamp) throw Router_Error.NotOnRamp;
 
     val ackMsg = createMessage({
-        bounce: true,
+        bounce: false,
         value: 0,
         dest: msg.sender,
         body: Router_CCIPSendACK {
@@ -358,7 +370,6 @@ get fun offRamps() {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
         };
-        var cs = ramp.toCell().beginParse();
         list = listPrepend(ramp.toCell(), list);
         r = st.offRamps.iterateNext(r);
     }
