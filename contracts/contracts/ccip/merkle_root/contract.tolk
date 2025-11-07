@@ -85,7 +85,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
         assert(state == ExecutionState.Untouched, MerkleRoot_Error.AlreadyExecuted);
     }
 
-    st.setMessageState(ccipMessage.header.sequenceNumber, ExecutionState.InProgress);
+    st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
     st.store();
 
     val executeValidated = createMessage({
