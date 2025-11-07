@@ -35,7 +35,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorMsgDataTooLarge)
+		ecMax = int32(ErrorInsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -50,6 +50,7 @@ const (
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
 	ErrorMsgDataTooLarge
+	ErrorInsufficientFee
 
 	ErrorTokenNotSupported        ExitCode = ExitCode(24813)
 	ErrorUnknownDestChainSelector ExitCode = ExitCode(24814)

@@ -48,6 +48,9 @@ type DeployCCIPSeqOutput struct {
 	Transactions     [][]byte
 }
 
+// We use 0x1 as an internal value for native token. Can't be 0x0 because the CCIP plugin throws on zero addresses
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
+
 var DeployCCIPSequence = operations.NewSequence(
 	"ton-deploy-ccip-seq",
 	semver.MustParse("0.1.0"),
@@ -92,6 +95,15 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
+		},
+		WrappedNative: TonTokenAddr,
+		RMNRemote: router.RMNRemote{
+			Admin: common.Ownable2Step{
+				Owner:        deps.TonChain.WalletAddress,
+				PendingOwner: nil,
+			},
+			CursedSubjects: nil,
+			ForwardUpdates: nil,
 		},
 		OnRamps: nil, // set afterward
 	}
@@ -164,17 +176,18 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
+			Router:              &routerAddress,
 			Deployer:            tonCompiledContracts[state.Deployer].Code,
 			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
 			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,
 		},
+		FeeQuoter: &feeQuoterAddress,
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).
 			MustStoreBoolBit(false).
 			MustStoreBoolBit(false).
 			EndCell(),
-		FeeQuoter:                               &feeQuoterAddress,
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 		LatestPriceSequenceNumber: 0,

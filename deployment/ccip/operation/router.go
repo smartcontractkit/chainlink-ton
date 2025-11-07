@@ -35,6 +35,9 @@ var DeployRouterOp = operations.NewOperation(
 	deployRouter,
 )
 
+// We use 0x1 as an internal value for native token. Can't be 0x0 because the CCIP plugin throws on zero addresses
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
+
 func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (DeployRouterOutput, error) {
 	output := DeployRouterOutput{}
 
@@ -51,6 +54,15 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
+		},
+		WrappedNative: TonTokenAddr,
+		RMNRemote: router.RMNRemote{
+			Admin: common.Ownable2Step{
+				Owner:        deps.TonChain.WalletAddress,
+				PendingOwner: nil,
+			},
+			CursedSubjects: nil,
+			ForwardUpdates: nil,
 		},
 		OnRamps: nil, // set afterwards
 	}

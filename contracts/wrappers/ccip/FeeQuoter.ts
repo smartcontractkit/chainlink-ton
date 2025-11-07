@@ -21,6 +21,8 @@ import { asSnakeData, fromSnakeData } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
+import * as rt from './Router'
+import * as sendExecutor from './CCIPSendExecutor'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '0.0.8'
 
@@ -44,6 +46,7 @@ export enum FeeQuoterError {
   InvalidMsgData,
   TokenNotSupported,
   UnknownDestChainSelector,
+  InsufficientFee,
 }
 
 export type FeeQuoterStorage = {
@@ -100,6 +103,11 @@ export type DestChainConfig = {
   gasMultiplierWeiPerEth: bigint
   gasPriceStalenessThreshold: number
   networkFeeUsdCents: number
+}
+
+export type GetValidatedFee = {
+  msg: rt.CCIPSend
+  metadata: Cell
 }
 
 export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
@@ -179,7 +187,7 @@ export const builder = {
             .storeRef(
               asSnakeData(updates, (update) =>
                 new TonBuilder()
-                  .storeInt(update.destChainSelector, 64)
+                  .storeUint(update.destChainSelector, 64)
                   .storeBuilder(destChainConfigToBuilder(update.config)),
               ),
             )
@@ -188,13 +196,33 @@ export const builder = {
           throw new Error('Function not implemented.') // TODO implement if needed
         },
       }
+
+      const getValidatedFee: CellCodec<GetValidatedFee> = {
+        encode: function (data: GetValidatedFee): Builder {
+          return beginCell()
+            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeRef(data.metadata)
+        },
+        load: function (src: Slice): GetValidatedFee {
+          src.skip(32) // opcode
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src),
+            metadata: src.loadRef(),
+          }
+        },
+      }
       return {
         updatePrices,
         updateFeeTokens,
         updateTokenTransferFeeConfigs,
         updateDestChainConfigs,
+        getValidatedFee,
       }
     })(),
+    out: {
+      messageValidated: sendExecutor.builder.message.in.messageValidated,
+    },
   },
   data: (() => {
     const timestampedPrice: CellCodec<TimestampedPrice> = {
@@ -331,6 +359,7 @@ export abstract class Opcodes {
   static updateFeeTokens = 0xd0984986
   static updateTransferFeeConfigs = 0xb2826316
   static updateDestChainConfig = 0x29950baa
+  static getValidatedFee = 0x7496ff56
 }
 
 export type TokenPriceUpdate = {
@@ -512,6 +541,21 @@ export class FeeQuoter
     })
   }
 
+  async sendGetValidatedFee(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      msg: GetValidatedFee
+    },
+  ) {
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.getValidatedFee.encode(opts.msg).asCell(),
+    })
+  }
+
   // Withdrawable methods
   async sendWithdraw(
     provider: ContractProvider,
@@ -524,6 +568,74 @@ export class FeeQuoter
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  // Getter methods for price queries
+  async getTokenPrice(provider: ContractProvider, token: Address): Promise<TimestampedPrice> {
+    const { stack } = await provider.get('tokenPrice', [
+      { type: 'slice', cell: beginCell().storeAddress(token).endCell() },
+    ])
+    // The contract returns TimestampedPrice struct directly (value: uint224, timestamp: uint32)
+    const value = stack.readBigNumber()
+    const timestamp = stack.readBigNumber()
+    return { value, timestamp }
+  }
+
+  async getDestinationChainGasPrice(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<any> {
+    const { stack } = await provider.get('destinationChainGasPrice', [
+      { type: 'int', value: destChainSelector },
+    ])
+    // The getter returns a cell containing GasPrice struct
+    const gasCell = stack.readCell()
+    const slice = gasCell.beginParse()
+    return {
+      value: {
+        executionGasPrice: slice.loadUintBig(112),
+        dataAvailabilityGasPrice: slice.loadUintBig(112),
+        timestamp: slice.loadUintBig(64),
+      },
+    }
+  }
+
+  async getPremiumMultiplierWeiPerEth(provider: ContractProvider, token: Address): Promise<bigint> {
+    const { stack } = await provider.get('premiumMultiplierWeiPerEth', [
+      { type: 'slice', cell: beginCell().storeAddress(token).endCell() },
+    ])
+    return stack.readBigNumber()
+  }
+
+  async getDestChainConfig(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<DestChainConfig> {
+    const { stack } = await provider.get('destChainConfig', [
+      { type: 'int', value: destChainSelector },
+    ])
+    const configCell = stack.readCell()
+    return builder.data.destChainConfig.load(configCell.beginParse())
+  }
+
+  async getTokenTransferFeeConfig(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+    token: Address,
+  ): Promise<TokenTransferFeeConfig> {
+    const { stack } = await provider.get('tokenTransferFeeConfig', [
+      { type: 'int', value: destChainSelector },
+      { type: 'slice', cell: beginCell().storeAddress(token).endCell() },
+    ])
+    const tokenTransferFeeConfig: TokenTransferFeeConfig = {
+      isEnabled: stack.readBoolean(),
+      minFeeUsdCents: Number(stack.readNumber()),
+      maxFeeUsdCents: Number(stack.readNumber()),
+      deciBps: Number(stack.readNumber()),
+      destGasOverhead: Number(stack.readNumber()),
+      destBytesOverhead: Number(stack.readNumber()),
+    }
+    return tokenTransferFeeConfig
   }
 }
 
@@ -554,9 +666,9 @@ function encodeTokenTransferFeeConfig(tokenTransferFeeConfig: TokenTransferFeeCo
 
 function encodeGasPriceUpdate(gasPriceUpdate: GasPriceUpdate): TonBuilder {
   return new TonBuilder()
-    .storeInt(gasPriceUpdate.chainSelector, 64)
-    .storeInt(gasPriceUpdate.executionGasPrice, 112)
-    .storeInt(gasPriceUpdate.dataAvailabilityGasPrice, 112)
+    .storeUint(gasPriceUpdate.chainSelector, 64)
+    .storeUint(gasPriceUpdate.executionGasPrice, 112)
+    .storeUint(gasPriceUpdate.dataAvailabilityGasPrice, 112)
 }
 
 function encodeTokenPriceUpdate(tokenPriceUpdate: TokenPriceUpdate): TonBuilder {

@@ -5,6 +5,7 @@ import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "../ccipsend_executor/messages"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -69,3 +70,32 @@ struct (0x10000005) OnRamp_UpdateAllowlists {
 
 struct WithdrawFeeTokens {}
 
+
+// Costs associated with OnRamp operations
+struct OnRamp_Costs {}
+
+// Minimum value for calling OnRamp_Send
+@inline
+fun OnRamp_Costs.Send(): int {
+    return
+        + ton("0.05") // SendExecutor deployment
+        + ton("0.05") // Execute fwdFee
+        + SendExecutor_Costs.Execute()
+        ;
+}
+
+// Minimum value for calling OnRamp_ExecutorFinishedSuccessfully
+@inline
+fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
+    return
+        Router_Costs.MessageSent() + ton("0.05") // Fwd fee // TODO
+        ;
+}
+
+// Minimum value for calling OnRamp_ExecutorFinishedWithError
+@inline
+fun OnRamp_Costs.ExecutorFinishedWithError(): int {
+    return
+        Router_Costs.MessageRejected() + ton("0.05") // Fwd fee // TODO
+        ;
+}
