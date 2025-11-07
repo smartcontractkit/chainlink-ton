@@ -54,7 +54,7 @@ export enum OffRampError {
   SenderIsNotRouter,
   InsufficientFee,
   SubjectCursed,
-  Unauthorized
+  Unauthorized,
 }
 
 export enum ReceiveExecutorError {

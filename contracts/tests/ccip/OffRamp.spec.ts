@@ -1147,12 +1147,12 @@ describe('OffRamp - Unit Tests', () => {
     expect(latestSeq).toBe(0x01n)
 
     // Second commit with sequence 0x05 (jump forward)
-    await commitReport([], toNano('0.5'),0x05, priceUpdates)
+    await commitReport([], toNano('0.5'), 0x05, priceUpdates)
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x05n)
 
     // Third commit with higher sequence 0x10
-    await commitReport([], toNano('0.5'),0x10, priceUpdates)
+    await commitReport([], toNano('0.5'), 0x10, priceUpdates)
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x10n)
   })
@@ -1172,12 +1172,12 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // First commit with sequence 0x10
-    await commitReport([], toNano('0.5'),0x10, priceUpdates)
+    await commitReport([], toNano('0.5'), 0x10, priceUpdates)
     let latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x10n)
 
     // Try to commit with older sequence 0x05 (should be ignored)
-    await commitReport([], toNano('0.5'),0x05, priceUpdates)
+    await commitReport([], toNano('0.5'), 0x05, priceUpdates)
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     // Sequence should remain at 0x10, stale update ignored
     expect(latestSeq).toBe(0x10n)
@@ -1189,7 +1189,7 @@ describe('OffRamp - Unit Tests', () => {
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupSourceChainConfig()
-    await commitReport([root], toNano('0.5'),0x08, priceUpdates) // 0x08 < 0x10, price update should be ignored
+    await commitReport([root], toNano('0.5'), 0x08, priceUpdates) // 0x08 < 0x10, price update should be ignored
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
     expect(latestSeq).toBe(0x10n) // Still at 0x10, but merkle root was committed
   })
