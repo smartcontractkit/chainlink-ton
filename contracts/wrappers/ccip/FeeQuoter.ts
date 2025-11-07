@@ -624,7 +624,6 @@ export class FeeQuoter
       destGasPerDataAvailabilityByte: stack.readNumber(),
       destDataAvailabilityMultiplierBps: stack.readNumber(),
       chainFamilySelector: stack.readNumber(),
-      enforceOutOfOrder: stack.readBoolean(),
       defaultTokenFeeUsdCents: stack.readNumber(),
       defaultTokenDestGasOverhead: stack.readNumber(),
       defaultTxGasLimit: stack.readNumber(),

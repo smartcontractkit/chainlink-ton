@@ -150,7 +150,6 @@ export class FeeQuoterSetup {
     destGasPerDataAvailabilityByte: FeeQuoterSetup.DEST_GAS_PER_DATA_AVAILABILITY_BYTE,
     destDataAvailabilityMultiplierBps: FeeQuoterSetup.DEST_GAS_DATA_AVAILABILITY_MULTIPLIER_BPS,
     chainFamilySelector: FeeQuoterSetup.CHAIN_FAMILY_SELECTOR_EVM,
-    enforceOutOfOrder: false, // TBD: I don't remember if we support this
     defaultTokenFeeUsdCents: FeeQuoterSetup.DEFAULT_TOKEN_FEE_USD_CENTS,
     defaultTokenDestGasOverhead: FeeQuoterSetup.DEFAULT_TOKEN_DEST_GAS_OVERHEAD,
     defaultTxGasLimit: FeeQuoterSetup.GAS_LIMIT,
@@ -484,7 +483,7 @@ export class FeeQuoterSetup {
     return rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',
-        allowOutOfOrderExecution: false,
+        allowOutOfOrderExecution: true,
         gasLimit: BigInt(gasLimit),
       })
       .endCell()
@@ -527,7 +526,54 @@ export class FeeQuoterSetup {
     const resp = tx.inMessage
 
     const body = resp.body.beginParse()
-    expect(body.preloadUint(32)).toBe(sendExecutor.Opcodes.messageValidated)
+    try {
+      expect(body.preloadUint(32)).toBe(sendExecutor.Opcodes.messageValidated)
+    } catch (error) {
+      if (body.preloadUint(32) === sendExecutor.Opcodes.messageValidationFailed) {
+        const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
+          resp.body.beginParse(),
+        )
+        switch (Number(failure.error)) {
+          case feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector:
+            throw new Error('Validation failed with UnsupportedChainFamilySelector error')
+          case feeQuoter.FeeQuoterError.GasLimitTooHigh:
+            throw new Error('Validation failed with GasLimitTooHigh error')
+          case feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue:
+            throw new Error('Validation failed with ExtraArgOutOfOrderExecutionMustBeTrue error')
+          case feeQuoter.FeeQuoterError.InvalidExtraArgsData:
+            throw new Error('Validation failed with InvalidExtraArgsData error')
+          case feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens:
+            throw new Error('Validation failed with UnsupportedNumberOfTokens error')
+          case feeQuoter.FeeQuoterError.InvalidSuiReceiverAddress:
+            throw new Error('Validation failed with InvalidSuiReceiverAddress error')
+          case feeQuoter.FeeQuoterError.InvalidTokenReceiver:
+            throw new Error('Validation failed with InvalidTokenReceiver error')
+          case feeQuoter.FeeQuoterError.TooManySuiExtraArgsReceiverObjectIds:
+            throw new Error('Validation failed with TooManySuiExtraArgsReceiverObjectIds error')
+          case feeQuoter.FeeQuoterError.MsgDataTooLarge:
+            throw new Error('Validation failed with MsgDataTooLarge error')
+          case feeQuoter.FeeQuoterError.StaleGasPrice:
+            throw new Error('Validation failed with StaleGasPrice error')
+          case feeQuoter.FeeQuoterError.DestChainNotEnabled:
+            throw new Error('Validation failed with DestChainNotEnabled error')
+          case feeQuoter.FeeQuoterError.FeeTokenNotSupported:
+            throw new Error('Validation failed with FeeTokenNotSupported error')
+          case feeQuoter.FeeQuoterError.InvalidMsgData:
+            throw new Error('Validation failed with InvalidMsgData error')
+          case feeQuoter.FeeQuoterError.TokenNotSupported:
+            throw new Error('Validation failed with TokenNotSupported error')
+          case feeQuoter.FeeQuoterError.UnknownDestChainSelector:
+            throw new Error('Validation failed with UnknownDestChainSelector error')
+          case feeQuoter.FeeQuoterError.InsufficientFee:
+            throw new Error('Validation failed with InsufficientFee error')
+          default:
+            throw new Error(
+              `Message validation failed with unknown error code: ${failure.error.toString()}`,
+            )
+        }
+      }
+      throw error
+    }
     const messageValidated = feeQuoter.builder.message.out.messageValidated.load(
       resp.body.beginParse(),
     )

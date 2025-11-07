@@ -119,7 +119,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           .encode({
             kind: 'generic-v2',
             gasLimit: customGasLimit,
-            allowOutOfOrderExecution: false,
+            allowOutOfOrderExecution: true,
           })
           .endCell(),
       }
@@ -185,6 +185,32 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   // Error cases
+
+  it('should allow fail when allow out of order execution is false', async () => {
+    const message: rt.CCIPSend = {
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      receiver: FeeQuoterSetup.DEST_ADDRESS,
+      data: beginCell().endCell(),
+      tokenAmounts: [],
+      feeToken: FeeQuoterSetup.NATIVE_TON.token,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+          allowOutOfOrderExecution: false,
+        })
+        .endCell(),
+    }
+
+    try {
+      await setup.getValidatedFee(message, beginCell().endCell())
+      fail('Should have thrown an error')
+    } catch (error) {
+      expect((error as Error).message).toBe(
+        'Validation failed with ExtraArgOutOfOrderExecutionMustBeTrue error',
+      )
+    }
+  })
 
   it('should revert when destination chain not enabled', async () => {
     const invalidChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR + 1n
