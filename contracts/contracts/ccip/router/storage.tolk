@@ -11,6 +11,9 @@ struct Storage {
     id: uint32;
     ownable: Ownable2Step;
 
+    // TON technically doesn't have a wrapped native yet so we use an internal identifier
+    wrappedNative: address;
+
     onRamps: map<uint64, address>; // destChainSelector -> onRamp address
     offRamps: map<uint64, address>; // sourceChainSelector -> offRamp address
 

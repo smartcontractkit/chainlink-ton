@@ -286,8 +286,10 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
     val isCursed = rmn.cursedSubjects.isCursed(msg.destChainSelector as uint128);
     assert(!isCursed, Router_Error.SubjectCursed as int);
 
-    // forward to onRamp
-    // ccipSend(onRamp, msg, value/token amounts)
+    // TODO: the feeToken typing will need to change to `address?` and comparing with `null` in upcoming Tolk 1.2
+    if (msg.feeToken.isNone()) {
+        msg.feeToken = st.wrappedNative
+    }
 
     val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
     val sendMsg = createMessage({
