@@ -96,7 +96,6 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     }
 
     st.setMessageState(ccipMessage.header.sequenceNumber, ExecutionState.InProgress);
-    st.deliveredMessageCount += 1;
     st.store();
 
     val executeValidated = createMessage({
