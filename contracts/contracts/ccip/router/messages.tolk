@@ -83,6 +83,7 @@ struct (0x3c3f5e73) Router_RMNRemoteUncurse {
     subjects: SnakedCell<uint128>
 }
 
+// Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
 // crc32("Router_RMNRemoteVerifyNotCursed")
 struct (0xa6e4b7e1) Router_RMNRemoteVerifyNotCursed {
     queryId: uint64

@@ -44,7 +44,7 @@ fun onInternalMessage(in: InMessage) {
             st.rmnRemote = rmn.toCell();
             st.store();
 
-            // propagate update to cache
+            // propagate update to caches
             var entry = rmn.forwardUpdates.findFirst();
             while (entry.isFound) {
                 val destination = entry.getKey();
@@ -70,7 +70,7 @@ fun onInternalMessage(in: InMessage) {
             st.rmnRemote = rmn.toCell();
             st.store();
 
-            // propagate update to offramp cache
+            // propagate update to caches
             var entry = rmn.forwardUpdates.findFirst();
             while (entry.isFound) {
                 val destination = entry.getKey();
@@ -106,8 +106,17 @@ fun onInternalMessage(in: InMessage) {
         Router_MessageRejected => { onSendNACK(msg, in.senderAddress) }
         Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }
         else => {
+            // attempt to handle Ownable messages
+            var st = lazy Storage.load();
+            val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+            if (handled) {
+                st.store();
+                return;
+            }
+
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw 0xFFFF;
+
         }
     }
 }
@@ -407,7 +416,6 @@ get fun offRamps() {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
         };
-        var cs = ramp.toCell().beginParse();
         list = listPrepend(ramp.toCell(), list);
         r = st.offRamps.iterateNext(r);
     }
