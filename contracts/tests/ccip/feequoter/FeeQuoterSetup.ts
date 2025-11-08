@@ -13,6 +13,8 @@ import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import { verifyBodyMessage } from '../CCIPRouter.spec'
+import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -566,6 +568,18 @@ export class FeeQuoterSetup {
             throw new Error('Validation failed with UnknownDestChainSelector error')
           case feeQuoter.FeeQuoterError.InsufficientFee:
             throw new Error('Validation failed with InsufficientFee error')
+          case feeQuoter.FeeQuoterError.ExecutionCostOverflow:
+            throw new Error('Validation failed with ExecutionCostOverflow error')
+          case feeQuoter.FeeQuoterError.PremiumFeeOverflow:
+            throw new Error('Validation failed with PremiumFeeOverflow error')
+          case feeQuoter.FeeQuoterError.DataAvailabilityCostOverflow:
+            throw new Error('Validation failed with DataAvailabilityCostOverflow error')
+          case feeQuoter.FeeQuoterError.FeeCalculationOverflow:
+            throw new Error('Validation failed with FeeCalculationOverflow error')
+          case feeQuoter.FeeQuoterError.TokenPriceTooLow:
+            throw new Error('Validation failed with TokenPriceTooLow error')
+          case feeQuoter.FeeQuoterError.FeeOverflow:
+            throw new Error('Validation failed with FeeOverflow error')
           default:
             throw new Error(
               `Message validation failed with unknown error code: ${failure.error.toString()}`,
@@ -578,6 +592,39 @@ export class FeeQuoterSetup {
       resp.body.beginParse(),
     )
     return messageValidated
+  }
+
+  async assertGetFeeValidationError(message: rt.CCIPSend, expectedError: number): Promise<void> {
+    const result = await this.bind.feeQuoter.sendGetValidatedFee(
+      this.acc.externalCaller.getSender(),
+      {
+        value: toNano('1'),
+        msg: { msg: message, metadata: beginCell().endCell() },
+      },
+    )
+
+    // It should return failure due to overflow
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.externalCaller.getSender().address,
+      to: this.bind.feeQuoter.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: this.bind.feeQuoter.address,
+      op: sendExec.Opcodes.messageValidationFailed,
+      success: true,
+      body(x) {
+        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          x,
+          sendExec.builder.message.in.messageValidationFailed,
+          [
+            (msg) => {
+              return msg.error === BigInt(expectedError)
+            },
+          ],
+        )
+      },
+    })
   }
 }
 

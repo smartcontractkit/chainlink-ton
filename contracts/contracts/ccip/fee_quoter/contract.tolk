@@ -8,6 +8,7 @@ import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
 import "../../deployable/types";
 import "../../lib/utils";
+import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
@@ -227,7 +228,7 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
     var tokensIter = msg.tokenAmounts.iter();
-    val premiumFeeUsdWei = destChainConfig.config.networkFeeUsdCents * VAL_1E16;
+    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow as int);
     assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     val dataAvailabilityCost = _dataAvailabilityCost(
@@ -239,27 +240,27 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
     );
 
     val calldataLen = msgDataLen; // + token transfer overheads, not supported in TON yet
-    var calldataGas = calldataLen * destChainConfig.config.destGasPerPayloadByteBase;
+    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow as int);
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
     if (calldataLen > calldataThreshold) {
-        val baseCalldataGas = destChainConfig.config.destGasPerPayloadByteBase * calldataThreshold;
+        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow as int);
         val extraBytes = calldataLen - calldataThreshold;
-        val extraCalldataGas = extraBytes * destChainConfig.config.destGasPerPayloadByteHigh;
-        calldataGas = baseCalldataGas + extraCalldataGas;
+        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow as int);
+        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
     }
 
-    val executionGas = gasLimit + destChainConfig.config.destGasOverhead + calldataGas;
+    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow as int), calldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
 
-    val executionCost = executionGasPrice
-        * executionGas
-        * destChainConfig.config.gasMultiplierWeiPerEth;
+    val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow as int), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow as int);
 
-    val feeTokenValue =
-        (premiumFeeUsdWei * premiumMultiplier) + executionCost + dataAvailabilityCost;
+    val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow as int);
+    val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow as int), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow as int);
 
+    // Check for division by zero (extremely small token prices)
+    assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
     val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
-    return feeTokenAmount;
+    return mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int);
 }
 
 fun _dataAvailabilityCost(
@@ -282,16 +283,14 @@ fun _dataAvailabilityCost(
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
     // the overhead data posted for OCR.
-    val dataAvailabilityGas = dataAvailabilityLengthBytes
-        * destChainConfig.config.destGasPerDataAvailabilityByte as uint256
-        + destChainConfig.config.destDataAvailabilityOverheadGas as uint256;
+    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte as uint256, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas as uint256, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 
     // data_availability_gas_price is in 18 decimals, dest_data_availability_multiplier_bps is in 4 decimals
     // We pad 14 decimals to bring the result to 36 decimals, in line with token bps and execution fee.
-    return dataAvailabilityGasPrice
-        * dataAvailabilityGas
-        * destChainConfig.config.destDataAvailabilityMultiplierBps as uint256
-        * VAL_1E14;
+    val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps as uint256, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {

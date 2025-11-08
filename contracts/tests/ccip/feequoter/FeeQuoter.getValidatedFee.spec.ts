@@ -460,4 +460,54 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     })
   })
+
+  // Overflow/Underflow Edge Case Tests
+  describe('Overflow and Underflow Edge Cases', () => {
+    it('should handle extreme gas price that could cause overflow in coin serialization', async () => {
+      // Set up extreme gas prices that approach uint112 maximum
+      const extremeGasPrice = (1n << 112n) - 1n // Max uint112: ~5.2e33
+      const extremeDAGasPrice = (1n << 112n) - 1n
+
+      const priceUpdates: feeQuoter.PriceUpdates = {
+        tokenPricesUpdates: FeeQuoterSetup.SOURCE_FEE_TOKENS,
+        gasPricesUpdates: [
+          {
+            chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+            executionGasPrice: extremeGasPrice,
+            dataAvailabilityGasPrice: extremeDAGasPrice,
+          },
+        ],
+      }
+
+      const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+        setup.acc.owner.getSender(),
+        {
+          value: toNano('1'),
+          msg: { updates: priceUpdates },
+        },
+      )
+      expect(updateResult.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+
+      // Create message with maximum gas limit to maximize overflow potential
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE)), // Max data size
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT), // Max gas limit
+            allowOutOfOrderExecution: true,
+          })
+          .endCell(),
+      }
+      // replace with sendGetValidatedFee to capture failure
+      await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.FeeOverflow)
+    })
+  })
 })

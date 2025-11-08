@@ -47,6 +47,14 @@ export enum FeeQuoterError {
   TokenNotSupported,
   UnknownDestChainSelector,
   InsufficientFee,
+  TokenTransfersNotSupported,
+  // Overflow protection errors
+  ExecutionCostOverflow,
+  PremiumFeeOverflow,
+  DataAvailabilityCostOverflow,
+  FeeCalculationOverflow,
+  TokenPriceTooLow,
+  FeeOverflow,
 }
 
 export type FeeQuoterStorage = {
