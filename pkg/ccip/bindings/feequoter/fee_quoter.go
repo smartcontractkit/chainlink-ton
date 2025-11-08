@@ -74,7 +74,7 @@ type USDPerUnitGas struct {
 	Timestamp                uint64   `tlb:"## 64"`
 }
 
-func (u *USDPerUnitGas) FromResult(result *ton.ExecutionResult) error {
+func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
 	c, err := result.Cell(0)
 	if err != nil {
 		return err
@@ -83,7 +83,7 @@ func (u *USDPerUnitGas) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (u *USDPerUnitGas) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u)
 }
 
 type DestChainConfig struct {

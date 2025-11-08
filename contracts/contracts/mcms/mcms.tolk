@@ -693,7 +693,7 @@ fun MCMS<T>.setRoot(
             var _break = false;
             var group = signer.group;
             while (!_break) {
-                var votes = 1;
+                var votes: uint8 = 1;
                 {
                     var current = groupVoteCounts.get(group);
                     if (current.isFound) {
@@ -988,7 +988,7 @@ fun MCMS<T>.setConfig(
             if (count.isFound) {
                 value = count.loadValue() + 1;
             }
-            groupChildrenCounts.set(g, value);
+            groupChildrenCounts.set(g, value as uint8);
         }
 
         // second, we iterate backwards so as to check each group and propagate counts from
@@ -998,7 +998,7 @@ fun MCMS<T>.setConfig(
         repeat(NUM_GROUPS) {
             val i = NUM_GROUPS - 1 - j;
             // ensure we have a well-formed group tree. the root should have itself as parent
-            var gp: int = 0; // default parent for root group
+            var gp: uint8 = 0; // default parent for root group
             {
                 var value = groupParents.get(i);
                 if (value.isFound) {
@@ -1009,7 +1009,7 @@ fun MCMS<T>.setConfig(
                 throw MCMS_Error.GroupTreeNotWellFormed;
             }
 
-            var gq = 0; // default quorum for groups without a set quorum
+            var gq: uint8 = 0; // default quorum for groups without a set quorum
             {
                 var value = groupQuorums.get(i);
                 if (value.isFound) {
@@ -1039,7 +1039,7 @@ fun MCMS<T>.setConfig(
                     throw MCMS_Error.OutOfBoundsGroupQuorum;
                 }
 
-                var current = 0;
+                var current: uint8 = 0;
                 {
                    var value = groupChildrenCounts.get(gp);
                    if (value.isFound) {
@@ -1130,11 +1130,7 @@ fun MCMS<T>.setConfig(
         bounce: false,
         value: 0,
         dest: sender,
-        body: MCMS_ConfigSet{
-            queryId: queryId,
-            config: Config.fromCell(self.data.config),
-            isRootCleared: clearRoot
-        }
+        body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
