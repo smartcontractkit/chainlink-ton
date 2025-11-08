@@ -3,7 +3,7 @@ import '@ton/test-utils'
 import { toNano, Address, Cell, beginCell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 
-import { FeeQuoterSetup, FeeQuoterFeeSetup } from './FeeQuoterSetup'
+import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
@@ -468,8 +468,14 @@ describe('FeeQuoter GetValidatedFee', () => {
       const extremeGasPrice = (1n << 112n) - 1n // Max uint112: ~5.2e33
       const extremeDAGasPrice = (1n << 112n) - 1n
 
+      const SOURCE_FEE_TOKENS: Token[] = [
+        {
+          token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+          price: 1n,
+        },
+      ]
       const priceUpdates: feeQuoter.PriceUpdates = {
-        tokenPricesUpdates: FeeQuoterSetup.SOURCE_FEE_TOKENS,
+        tokenPricesUpdates: SOURCE_FEE_TOKENS,
         gasPricesUpdates: [
           {
             chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,

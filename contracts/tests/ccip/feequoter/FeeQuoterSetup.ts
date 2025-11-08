@@ -33,7 +33,7 @@ export type TestContracts = {
   counter: SandboxContract<counter.ContractClient>
 }
 
-type Token = {
+export type Token = {
   token: Address
   price: bigint
 }
@@ -126,11 +126,11 @@ export class FeeQuoterSetup {
 
   static readonly CUSTOM_TOKEN: Token = {
     token: Address.parse(`0:${Buffer.from('CUSTOM').toString('hex').padStart(64, '0')}`),
-    price: decimals.usdPriceToTokenPrice('0.1', 18),
+    price: decimals.usdPriceToTokenPrice(0.1, 18),
   }
   static readonly CUSTOM_TOKEN_2: Token = {
     token: Address.parse(`0:${Buffer.from('CUSTOM_2').toString('hex').padStart(64, '0')}`),
-    price: decimals.usdPriceToTokenPrice('0.1', 18),
+    price: decimals.usdPriceToTokenPrice(0.1, 18),
   }
 
   blockchain: Blockchain
@@ -609,22 +609,47 @@ export class FeeQuoterSetup {
       to: this.bind.feeQuoter.address,
       success: true,
     })
-    expect(result.transactions).toHaveTransaction({
-      from: this.bind.feeQuoter.address,
-      op: sendExec.Opcodes.messageValidationFailed,
-      success: true,
-      body(x) {
-        return verifyBodyMessage<sendExec.MessageValidationFailed>(
-          x,
-          sendExec.builder.message.in.messageValidationFailed,
-          [
-            (msg) => {
-              return msg.error === BigInt(expectedError)
-            },
-          ],
-        )
-      },
-    })
+
+    try {
+      expect(result.transactions).toHaveTransaction({
+        from: this.bind.feeQuoter.address,
+        op: sendExec.Opcodes.messageValidationFailed,
+        success: true,
+      })
+    } catch (error) {
+      var success = false
+      try {
+        expect(result.transactions).toHaveTransaction({
+          from: this.bind.feeQuoter.address,
+          op: sendExec.Opcodes.messageValidated,
+          success: true,
+        })
+        success = true
+      } catch (error) {}
+      if (success) {
+        throw new Error('Expected messageValidationFailed, but got messageValidated')
+      }
+    }
+    try {
+      expect(result.transactions).toHaveTransaction({
+        from: this.bind.feeQuoter.address,
+        op: sendExec.Opcodes.messageValidationFailed,
+        success: true,
+        body(x) {
+          return verifyBodyMessage<sendExec.MessageValidationFailed>(
+            x,
+            sendExec.builder.message.in.messageValidationFailed,
+            [
+              (msg) => {
+                return msg.error === BigInt(expectedError)
+              },
+            ],
+          )
+        },
+      })
+    } catch (error) {
+      throw new Error(`Expected error code ${expectedError}, but it was got a different error.`)
+    }
   }
 }
 
