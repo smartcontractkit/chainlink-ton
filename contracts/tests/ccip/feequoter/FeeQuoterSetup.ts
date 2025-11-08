@@ -535,56 +535,7 @@ export class FeeQuoterSetup {
         const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
           resp.body.beginParse(),
         )
-        switch (Number(failure.error)) {
-          case feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector:
-            throw new Error('Validation failed with UnsupportedChainFamilySelector error')
-          case feeQuoter.FeeQuoterError.GasLimitTooHigh:
-            throw new Error('Validation failed with GasLimitTooHigh error')
-          case feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue:
-            throw new Error('Validation failed with ExtraArgOutOfOrderExecutionMustBeTrue error')
-          case feeQuoter.FeeQuoterError.InvalidExtraArgsData:
-            throw new Error('Validation failed with InvalidExtraArgsData error')
-          case feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens:
-            throw new Error('Validation failed with UnsupportedNumberOfTokens error')
-          case feeQuoter.FeeQuoterError.InvalidSuiReceiverAddress:
-            throw new Error('Validation failed with InvalidSuiReceiverAddress error')
-          case feeQuoter.FeeQuoterError.InvalidTokenReceiver:
-            throw new Error('Validation failed with InvalidTokenReceiver error')
-          case feeQuoter.FeeQuoterError.TooManySuiExtraArgsReceiverObjectIds:
-            throw new Error('Validation failed with TooManySuiExtraArgsReceiverObjectIds error')
-          case feeQuoter.FeeQuoterError.MsgDataTooLarge:
-            throw new Error('Validation failed with MsgDataTooLarge error')
-          case feeQuoter.FeeQuoterError.StaleGasPrice:
-            throw new Error('Validation failed with StaleGasPrice error')
-          case feeQuoter.FeeQuoterError.DestChainNotEnabled:
-            throw new Error('Validation failed with DestChainNotEnabled error')
-          case feeQuoter.FeeQuoterError.FeeTokenNotSupported:
-            throw new Error('Validation failed with FeeTokenNotSupported error')
-          case feeQuoter.FeeQuoterError.InvalidMsgData:
-            throw new Error('Validation failed with InvalidMsgData error')
-          case feeQuoter.FeeQuoterError.TokenNotSupported:
-            throw new Error('Validation failed with TokenNotSupported error')
-          case feeQuoter.FeeQuoterError.UnknownDestChainSelector:
-            throw new Error('Validation failed with UnknownDestChainSelector error')
-          case feeQuoter.FeeQuoterError.InsufficientFee:
-            throw new Error('Validation failed with InsufficientFee error')
-          case feeQuoter.FeeQuoterError.ExecutionCostOverflow:
-            throw new Error('Validation failed with ExecutionCostOverflow error')
-          case feeQuoter.FeeQuoterError.PremiumFeeOverflow:
-            throw new Error('Validation failed with PremiumFeeOverflow error')
-          case feeQuoter.FeeQuoterError.DataAvailabilityCostOverflow:
-            throw new Error('Validation failed with DataAvailabilityCostOverflow error')
-          case feeQuoter.FeeQuoterError.FeeCalculationOverflow:
-            throw new Error('Validation failed with FeeCalculationOverflow error')
-          case feeQuoter.FeeQuoterError.TokenPriceTooLow:
-            throw new Error('Validation failed with TokenPriceTooLow error')
-          case feeQuoter.FeeQuoterError.FeeOverflow:
-            throw new Error('Validation failed with FeeOverflow error')
-          default:
-            throw new Error(
-              `Message validation failed with unknown error code: ${failure.error.toString()}`,
-            )
-        }
+        printErrorName(failure)
       }
       throw error
     }
@@ -641,14 +592,20 @@ export class FeeQuoterSetup {
             sendExec.builder.message.in.messageValidationFailed,
             [
               (msg) => {
-                return msg.error === BigInt(expectedError)
+                if (msg.error === BigInt(expectedError)) {
+                  return true
+                }
+                throw new Error(`Validation failed with error ${printErrorName(msg)}`)
+                return false
               },
             ],
           )
         },
       })
     } catch (error) {
-      throw new Error(`Expected error code ${expectedError}, but it was got a different error.`)
+      throw new Error(
+        `Expected error code ${expectedError}, but it was got a different error: ${error}`,
+      )
     }
   }
 }
@@ -664,5 +621,55 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
   async setupAll(testId: string): Promise<void> {
     await super.setupAll(testId)
     // In TON, we'll focus on native TON fees rather than complex token pricing
+  }
+}
+function printErrorName(failure: sendExecutor.MessageValidationFailed): string {
+  switch (Number(failure.error)) {
+    case feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector:
+      return 'UnsupportedChainFamilySelector'
+    case feeQuoter.FeeQuoterError.GasLimitTooHigh:
+      return 'GasLimitTooHigh'
+    case feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue:
+      return 'ExtraArgOutOfOrderExecutionMustBeTrue'
+    case feeQuoter.FeeQuoterError.InvalidExtraArgsData:
+      return 'InvalidExtraArgsData'
+    case feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens:
+      return 'UnsupportedNumberOfTokens'
+    case feeQuoter.FeeQuoterError.InvalidSuiReceiverAddress:
+      return 'InvalidSuiReceiverAddress'
+    case feeQuoter.FeeQuoterError.InvalidTokenReceiver:
+      return 'InvalidTokenReceiver'
+    case feeQuoter.FeeQuoterError.TooManySuiExtraArgsReceiverObjectIds:
+      return 'TooManySuiExtraArgsReceiverObjectIds'
+    case feeQuoter.FeeQuoterError.MsgDataTooLarge:
+      return 'MsgDataTooLarge'
+    case feeQuoter.FeeQuoterError.StaleGasPrice:
+      return 'StaleGasPrice'
+    case feeQuoter.FeeQuoterError.DestChainNotEnabled:
+      return 'DestChainNotEnabled'
+    case feeQuoter.FeeQuoterError.FeeTokenNotSupported:
+      return 'FeeTokenNotSupported'
+    case feeQuoter.FeeQuoterError.InvalidMsgData:
+      return 'InvalidMsgData'
+    case feeQuoter.FeeQuoterError.TokenNotSupported:
+      return 'TokenNotSupported'
+    case feeQuoter.FeeQuoterError.UnknownDestChainSelector:
+      return 'UnknownDestChainSelector'
+    case feeQuoter.FeeQuoterError.InsufficientFee:
+      return 'InsufficientFee'
+    case feeQuoter.FeeQuoterError.ExecutionCostOverflow:
+      return 'ExecutionCostOverflow'
+    case feeQuoter.FeeQuoterError.PremiumFeeOverflow:
+      return 'PremiumFeeOverflow'
+    case feeQuoter.FeeQuoterError.DataAvailabilityCostOverflow:
+      return 'DataAvailabilityCostOverflow'
+    case feeQuoter.FeeQuoterError.FeeCalculationOverflow:
+      return 'FeeCalculationOverflow'
+    case feeQuoter.FeeQuoterError.TokenPriceTooLow:
+      return 'TokenPriceTooLow'
+    case feeQuoter.FeeQuoterError.FeeOverflow:
+      return 'FeeOverflow'
+    default:
+      throw new Error(`Unknown error code: ${failure.error.toString()}`)
   }
 }

@@ -468,14 +468,14 @@ describe('FeeQuoter GetValidatedFee', () => {
       const extremeGasPrice = (1n << 112n) - 1n // Max uint112: ~5.2e33
       const extremeDAGasPrice = (1n << 112n) - 1n
 
-      const SOURCE_FEE_TOKENS: Token[] = [
+      const tokenPricesUpdates: Token[] = [
         {
-          token: FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
+          token: FeeQuoterSetup.NATIVE_TON.token,
           price: 1n,
         },
       ]
       const priceUpdates: feeQuoter.PriceUpdates = {
-        tokenPricesUpdates: SOURCE_FEE_TOKENS,
+        tokenPricesUpdates: tokenPricesUpdates,
         gasPricesUpdates: [
           {
             chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
