@@ -511,5 +511,93 @@ describe('FeeQuoter GetValidatedFee', () => {
       // replace with sendGetValidatedFee to capture failure
       await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.FeeOverflow)
     })
+
+    // TODO other overflows
+    it('should handle extreme gas price that could cause overflow in ***', async () => {
+      // Set up extreme gas prices that approach uint112 maximum
+      const extremeGasPrice = (1n << 112n) - 1n // Max uint112: ~5.2e33
+      const extremeDAGasPrice = (1n << 112n) - 1n
+
+      const tokenPricesUpdates: Token[] = [
+        {
+          token: FeeQuoterSetup.NATIVE_TON.token,
+          price: 1n,
+        },
+      ]
+      const priceUpdates: feeQuoter.PriceUpdates = {
+        tokenPricesUpdates: tokenPricesUpdates,
+        gasPricesUpdates: [
+          {
+            chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+            executionGasPrice: extremeGasPrice,
+            dataAvailabilityGasPrice: extremeDAGasPrice,
+          },
+        ],
+      }
+
+      // Update destChainConfig to have high fee
+      const destChainConfig = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
+        setup.acc.owner.getSender(),
+        {
+          value: toNano('1'),
+          updates: [
+            {
+              destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+              config: {
+                ...FeeQuoterSetup.destChainConfig,
+                maxDataBytes: 2 ** 32 - 1,
+                maxPerMsgGasLimit: 2 ** 32 - 1,
+                destGasOverhead: 2 ** 32 - 1,
+                destGasPerPayloadByteBase: 2 ** 8 - 1,
+                destGasPerPayloadByteHigh: 2 ** 8 - 1,
+                destGasPerPayloadByteThreshold: 2 ** 16 - 1,
+                destDataAvailabilityOverheadGas: 2 ** 32 - 1,
+                destGasPerDataAvailabilityByte: 2 ** 16 - 1,
+                destDataAvailabilityMultiplierBps: 2 ** 16 - 1,
+                defaultTxGasLimit: 2 ** 32 - 1,
+                gasMultiplierWeiPerEth: (1n << 64n) - 1n,
+                gasPriceStalenessThreshold: 2 ** 32 - 1,
+                networkFeeUsdCents: 2 ** 32 - 1,
+              },
+            },
+          ],
+        },
+      )
+
+      expect(destChainConfig.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+
+      const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+        setup.acc.owner.getSender(),
+        {
+          value: toNano('1'),
+          msg: { updates: priceUpdates },
+        },
+      )
+      expect(updateResult.transactions).toHaveTransaction({
+        to: setup.bind.feeQuoter.address,
+        success: true,
+      })
+
+      // Create message with maximum gas limit to maximize overflow potential
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE)), // Max data size
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT), // Max gas limit
+            allowOutOfOrderExecution: true,
+          })
+          .endCell(),
+      }
+      // replace with sendGetValidatedFee to capture failure
+      await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.FeeOverflow)
+    })
   })
 })
