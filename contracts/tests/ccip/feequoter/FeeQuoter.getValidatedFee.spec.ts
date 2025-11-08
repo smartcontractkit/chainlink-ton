@@ -21,7 +21,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   it('should calculate fee for empty message', async () => {
-    const testTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS // Native TON and Linkq
+    const testTokens = FeeQuoterSetup.SOURCE_FEE_TOKENS // Native TON and Link
     for (const token of testTokens) {
       var message = setup.generateEmptyMessage({
         feeToken: token.token,
@@ -237,7 +237,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
-    // Should return faliure - destination chain not configured
+    // Should return failure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
       from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
@@ -286,7 +286,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
-    // Should return faliure - destination chain not configured
+    // Should return failure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
       from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
@@ -339,7 +339,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
-    // Should return faliure - destination chain not configured
+    // Should return failure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
       from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
@@ -387,7 +387,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
-    // should return faliure - destination chain not configured
+    // should return failure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
       from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
@@ -437,7 +437,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       },
     )
 
-    // should return faliure - destination chain not configured
+    // should return failure - destination chain not configured
     expect(result.transactions).toHaveTransaction({
       from: setup.acc.externalCaller.getSender().address,
       to: setup.bind.feeQuoter.address,
