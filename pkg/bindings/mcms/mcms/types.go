@@ -2,7 +2,6 @@ package mcms
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -231,6 +230,21 @@ type SignerGroup struct {
 	Value uint8 `tlb:"## 8"` // The value of the struct
 }
 
+// Config.GroupQuorums value wrapper
+type GroupQuorumItem struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Config.GroupParents value wrapper
+type GroupParentItem struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Data.SeenSignedHashes value wrapper
+type SeenSignedHashesItem struct {
+	Val bool `tlb:"bool"`
+}
+
 // Length of serialized signer structure in bytes.
 const LenSignerBytes = (256 + 8 + 8) / 8
 
@@ -390,20 +404,15 @@ type Op struct {
 
 // --- Constants ---
 
-func stringSha256_32(data string) uint32 {
-	d := sha256.Sum256([]byte(data))
-	return binary.BigEndian.Uint32(d[0:4])
-}
-
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 // op. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON")
+var ManyChainMultiSigDomainSeparatorOp = sha256.Sum256([]byte("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON"))
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON")
+var ManyChainMultiSigDomainSeparatorMetadata = sha256.Sum256([]byte("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON"))
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode

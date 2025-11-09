@@ -12,7 +12,7 @@ import {
   Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { CellCodec, sha256_32 } from '../utils'
+import { CellCodec } from '../utils'
 import { keccak256 } from '@ethersproject/keccak256'
 import { asSnakeData, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 

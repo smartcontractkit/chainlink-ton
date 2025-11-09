@@ -12,7 +12,7 @@ import {
   Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { CellCodec, sha256_32 } from '../utils'
+import { CellCodec, sha256 } from '../utils'
 import { asSnakeData, fromSnakeData, ZERO_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { loadDict, loadMap } from '../../src/utils/dict'
@@ -129,14 +129,14 @@ export type ContractData = {
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
-export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = sha256_32(
+export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = sha256(
   'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON',
 )
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
-export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = sha256_32(
+export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = sha256(
   'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON',
 )
 
