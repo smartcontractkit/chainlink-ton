@@ -7,13 +7,6 @@ struct OnRamp_Storage {
 
     // static config
     chainSelector: uint64; // source chain selector
-    // TODO: rmnRemote (only used to validate curse on getFee), nonceManager, tokenAdminRegistry
-    // hmm, need to consider the design here.
-    // probably like solana tokenAdminRegistry will be fused into onramp/router
-    // but the problem is unbounded dict growth
-    // it's only used to resolve getPoolBySourceToken when calling lockOrBurn
-    // maybe onramp -> feeQuoter -> tokenAdminRegistry(token instance) -> tokenPool.LockAndBurn?
-    // NOTE: fee quoter also processes pool return data
 
     // dynamic config
     config: Cell<OnRamp_DynamicConfig>;

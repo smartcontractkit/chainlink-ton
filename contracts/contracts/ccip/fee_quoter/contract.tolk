@@ -42,7 +42,7 @@ fun onInternalMessage(in: InMessage) {
         FeeQuoter_UpdateDestChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            updateDestChainConfigs(mutate st, msg.updates); // TODO: pass in st.destChainConfigs instead
+            updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
         FeeQuoter_GetValidatedFee<cell> => {
@@ -125,7 +125,6 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     }
 }
 
-// TODO: allow providing an array of these msgs to feeQuoter
 fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
     var iter = Iterator<FeeQuoter_UpdateDestChainConfig>.new(updates);
 
@@ -154,7 +153,6 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
 fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
     val timestamp = blockchain.now();
 
-    // TODO: assert cells are well-formed
     var iter = priceUpdates.tokenPriceUpdates.iter();
     while (!iter.empty()) {
         val update = iter.next();
@@ -523,8 +521,6 @@ get fun tokenTransferFeeConfig(
     val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
     return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported as int);
 }
-
-// TODO: processMessageArgs(), processPoolReturnData()?
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
