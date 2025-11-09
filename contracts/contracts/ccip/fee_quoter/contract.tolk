@@ -309,21 +309,20 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
-        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
         val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
         val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
-    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        // resolveSVMGasLimit()
-        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
-        val gasLimit = svmExtraArgs.computeUnits;
+    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
         // objectIds are 32 bytes long
-        val accounts = svmExtraArgs.accounts.iter();
-        val receiverObjectIdsLength = accounts.size(32);
+        val objectIds = suiExtraArgs.receiverObjectIds.iter();
+        val receiverObjectIdsLength = objectIds.size(SUI_ACCOUNT_BYTE_SIZE);
         // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
         var suiExpandedDataLength = msgDataLen;
@@ -335,13 +334,44 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         } else {
             // The messaging accounts needed for CCIP receiver on SUI are:
             // message receiver,
-            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            // plus remaining accounts specified in Sui extraArgs. Each receiverObjectId is 32 bytes.
             suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
         }
+
+        // TODO: tokenReceiver validation
          
         assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
         assert (suiExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
+    }
+    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val gasLimit = svmExtraArgs.computeUnits;
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+
+        // accounts are 32 bytes long
+        val accounts = svmExtraArgs.accounts.iter();
+        val accountsLength = accounts.size(SVM_ACCOUNT_BYTE_SIZE);
+        // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
+        // tokens. Below, token and account overhead will count towards maxDataBytes.
+        var svmExpandedDataLength = msgDataLen;
+
+        if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
+            // When message receiver is zero, CCIP receiver is not invoked on SVM.
+            // There should not be additional accounts specified for the receiver.
+            assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSuiReceiverAddress;
+        } else {
+            // The messaging accounts needed for CCIP receiver on SUI are:
+            // message receiver,
+            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
+        }
+         
+        // TODO: tokenReceiver validation
+        // 
+        assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
+
+        assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
         return gasLimit;
     } else {
@@ -354,18 +384,18 @@ fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsg
 }
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
-    val extra = parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
+    val extra = _parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
 }
 
-fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
+fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
     if (extraArgs.beginParse().isEmpty()) {
         return GenericExtraArgsV2 {
             gasLimit: defaultTxGasLimit as uint256,
-            allowOutOfOrderExecution: false, // TBD: isn't default true in TON?
+            allowOutOfOrderExecution: true,
         };
     }
     return GenericExtraArgsV2.fromCell(extraArgs);
@@ -376,6 +406,16 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV
         throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
+    // Out of order is always enforced because we don't do ordering on non-EVMs
+    assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
+    return extra;
+}
+
+fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV1 {
+    val extra = SuiExtraArgsV1.fromCell(extraArgs, {
+        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
+    });
+    assert (extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
