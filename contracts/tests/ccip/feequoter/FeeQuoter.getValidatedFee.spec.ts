@@ -202,14 +202,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell(),
     }
 
-    try {
-      await setup.getValidatedFee(message, beginCell().endCell())
-      fail('Should have thrown an error')
-    } catch (error) {
-      expect((error as Error).message).toBe(
-        'Validation failed with ExtraArgOutOfOrderExecutionMustBeTrue error',
-      )
-    }
+    await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue)
   })
 
   it('should revert when destination chain not enabled', async () => {
