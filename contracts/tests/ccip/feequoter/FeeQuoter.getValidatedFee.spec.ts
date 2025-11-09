@@ -202,7 +202,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell(),
     }
 
-    await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue)
+    await setup.assertGetFeeValidationError(
+      message,
+      feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
+    )
   })
 
   it('should revert when destination chain not enabled', async () => {
