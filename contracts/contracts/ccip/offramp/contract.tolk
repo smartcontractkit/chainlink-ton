@@ -351,7 +351,7 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
                     updates: report.priceUpdates!.load()
                 }
             });
-            updatePricesMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            updatePricesMsg.send(SEND_MODE_REGULAR);
         }
     }
 
