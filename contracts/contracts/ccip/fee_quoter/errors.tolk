@@ -20,7 +20,7 @@ enum FeeQuoter_Error {
     ExecutionCostOverflow // Unreachable
     PremiumFeeOverflow // Unreachable
     DataAvailabilityCostOverflow // Unreachable
-    FeeCalculationOverflow
+    FeeCalculationOverflow // Unreachable
     TokenPriceTooLow
     FeeOverflow
 }

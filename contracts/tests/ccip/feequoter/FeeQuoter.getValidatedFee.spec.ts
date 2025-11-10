@@ -742,6 +742,56 @@ describe('FeeQuoter GetValidatedFee', () => {
       await testSuccessScenario('data availability cost overflow', overrides)
     })
 
+    it('should never throw fee calculation overflow when adding premium + execution + DA costs', async () => {
+      const overrides = {
+        // Create scenario where premiumFee + executionCost + dataAvailabilityCost overflows uint256
+        // This is the intermediate calculation before dividing by token price
+        executionGasPrice: 1n << 111n, // Very high execution gas price
+        dataAvailabilityGasPrice: 1n << 111n, // Very high DA gas price
+        networkFeeUsdCents: Math.pow(2, 32) - 1, // Max network fee
+        premiumMultiplier: 1n << 63n, // Very high premium multiplier
+        gasMultiplierWeiPerEth: 1n << 63n, // Very high gas multiplier
+        destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max DA multiplier
+        gasLimit: BigInt(Math.pow(2, 32) - 1), // Max gas limit
+        destGasOverhead: Math.pow(2, 32) - 1, // Max gas overhead
+        destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max DA byte cost
+        destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max DA overhead
+        maxPerMsgGasLimit: Math.pow(2, 32) - 1, // Allow max gas
+        dataSize: 16000, // Data size to calculate DA cost
+        maxDataBytes: Math.pow(2, 32) - 1, // Max allowed data size
+        tokenPrice: 1n << 200n, // Very high token price (so final division doesn't overflow)
+      }
+
+      // Calculate the three components that will be added together
+      // 1. Premium Fee = networkFeeUsdCents * VAL_1E16 * premiumMultiplier
+      const premiumFeeUsdWei = BigInt(overrides.networkFeeUsdCents) * BigInt(1e16)
+      const premiumFee = premiumFeeUsdWei * overrides.premiumMultiplier
+
+      // 2. Execution Cost = executionGasPrice * executionGas * gasMultiplierWeiPerEth
+      const executionGas =
+        overrides.gasLimit + BigInt(overrides.destGasOverhead) + BigInt(overrides.dataSize) * 255n // Simplified calldata calculation
+      const executionCost =
+        overrides.executionGasPrice * executionGas * overrides.gasMultiplierWeiPerEth
+
+      // 3. Data Availability Cost (similar to other test)
+      const TON_2_EVM_MESSAGE_FIXED_BYTES = 320n // Approximate
+      const dataAvailabilityLengthBytes = TON_2_EVM_MESSAGE_FIXED_BYTES + BigInt(overrides.dataSize)
+      const daLengthCost =
+        dataAvailabilityLengthBytes * BigInt(overrides.destGasPerDataAvailabilityByte)
+      const dataAvailabilityGas = daLengthCost + BigInt(overrides.destDataAvailabilityOverheadGas)
+      const daPrice = overrides.dataAvailabilityGasPrice * dataAvailabilityGas
+      const daWithMultiplier = daPrice * BigInt(overrides.destDataAvailabilityMultiplierBps)
+      const dataAvailabilityCost = daWithMultiplier * BigInt(1e14)
+
+      // Check if the sum would overflow uint256
+      const uint256Max = (1n << 256n) - 1n
+      const totalCost = premiumFee + executionCost + dataAvailabilityCost
+
+      // If our calculation shows it should overflow, expect the error
+      expect(totalCost).toBeLessThanOrEqual(uint256Max)
+      await testSuccessScenario('fee calculation should not overflow with max values', overrides)
+    })
+
     it('should handle final fee overflow when casting to uint120', async () => {
       await testOverflowScenario(
         'final fee overflow when casting to uint120',
