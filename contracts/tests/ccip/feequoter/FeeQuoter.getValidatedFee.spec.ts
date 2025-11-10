@@ -660,8 +660,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         feeQuoter.FeeQuoterError.FeeOverflow,
         {
           // Max uint112 gas prices
-          executionGasPrice: (1n << 112n) - 1n,
-          dataAvailabilityGasPrice: (1n << 112n) - 1n,
+          executionGasPrice: 2n ** 112n - 1n,
+          dataAvailabilityGasPrice: 2n ** 112n - 1n,
           // Very small token price to maximize final fee amount
           tokenPrice: 1n,
         },
@@ -675,8 +675,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         // premiumFee = premiumFeeUsdWei * premiumMultiplier
         // With max values: (2^32-1) * 10^16 * (2^64-1) = very large but likely within int257
         // This overflow may not be achievable with realistic constraints
-        networkFeeUsdCents: Math.pow(2, 32) - 1, // Max uint32
-        premiumMultiplier: (1n << 64n) - 1n, // Max uint64
+        networkFeeUsdCents: 2 ** 32 - 1, // Max uint32
+        premiumMultiplier: 2n ** 64n - 1n, // Max uint64
       })
       const bitCount = fee.toString(2).length
       expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
@@ -689,17 +689,17 @@ describe('FeeQuoter GetValidatedFee', () => {
         'execution cost with max realistic values (should succeed)',
         {
           // Use maximum allowed values within serialization constraints
-          executionGasPrice: (1n << 112n) - 1n, // Max uint112
-          dataAvailabilityGasPrice: (1n << 112n) - 1n, // Max uint112
-          gasMultiplierWeiPerEth: (1n << 64n) - 1n, // Max uint64
-          gasLimit: BigInt(Math.pow(2, 32) - 1), // Max uint32
-          destGasOverhead: Math.pow(2, 32) - 1, // Max uint32
-          destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max uint16
-          destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max uint32
+          executionGasPrice: 2n ** 112n - 1n, // Max uint112
+          dataAvailabilityGasPrice: 2n ** 112n - 1n, // Max uint112
+          gasMultiplierWeiPerEth: 2n ** 64n - 1n, // Max uint64
+          gasLimit: BigInt(2 ** 32 - 1), // Max uint32
+          destGasOverhead: 2 ** 32 - 1, // Max uint32
+          destGasPerDataAvailabilityByte: 2 ** 16 - 1, // Max uint16
+          destDataAvailabilityOverheadGas: 2 ** 32 - 1, // Max uint32
           destGasPerPayloadByteBase: 255, // Max uint8
           destGasPerPayloadByteHigh: 255, // Max uint8
           destGasPerPayloadByteThreshold: 1, // Trigger high calculation
-          maxPerMsgGasLimit: Math.pow(2, 32) - 1, // Allow max gas
+          maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
           dataSize: 16000,
           maxDataBytes: 16001,
         },
@@ -716,10 +716,10 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('should never throw data availability cost overflow', async () => {
       const overrides = {
-        dataAvailabilityGasPrice: (1n << 112n) - 1n, // Max uint112
-        destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max uint32
-        destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max uint16 (65535)
-        destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max uint16 (65535)
+        dataAvailabilityGasPrice: 2n ** 112n - 1n, // Max uint112
+        destDataAvailabilityOverheadGas: 2 ** 32 - 1, // Max uint32
+        destGasPerDataAvailabilityByte: 2 ** 16 - 1, // Max uint16 (65535)
+        destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16 (65535)
         dataSize: 16000,
         maxDataBytes: 16001,
       }
@@ -736,7 +736,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const dataAvailabilityCost = daWithMultiplier * VAL_1E14
 
       // Sanity check - this can't exceed int257 max (2^256)
-      const int257Max = (1n << 256n) - 1n
+      const int257Max = 2n ** 256n - 1n
       expect(dataAvailabilityCost).toBeLessThanOrEqual(int257Max)
 
       await testSuccessScenario('data availability cost overflow', overrides)
@@ -746,20 +746,20 @@ describe('FeeQuoter GetValidatedFee', () => {
       const overrides = {
         // Create scenario where premiumFee + executionCost + dataAvailabilityCost overflows uint256
         // This is the intermediate calculation before dividing by token price
-        executionGasPrice: 1n << 111n, // Very high execution gas price
-        dataAvailabilityGasPrice: 1n << 111n, // Very high DA gas price
-        networkFeeUsdCents: Math.pow(2, 32) - 1, // Max network fee
-        premiumMultiplier: 1n << 63n, // Very high premium multiplier
-        gasMultiplierWeiPerEth: 1n << 63n, // Very high gas multiplier
-        destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max DA multiplier
-        gasLimit: BigInt(Math.pow(2, 32) - 1), // Max gas limit
-        destGasOverhead: Math.pow(2, 32) - 1, // Max gas overhead
-        destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max DA byte cost
-        destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max DA overhead
-        maxPerMsgGasLimit: Math.pow(2, 32) - 1, // Allow max gas
+        executionGasPrice: 2n ** 111n, // Very high execution gas price
+        dataAvailabilityGasPrice: 2n ** 111n, // Very high DA gas price
+        networkFeeUsdCents: 2 ** 32 - 1, // Max network fee
+        premiumMultiplier: 2n ** 63n, // Very high premium multiplier
+        gasMultiplierWeiPerEth: 2n ** 63n, // Very high gas multiplier
+        destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max DA multiplier
+        gasLimit: BigInt(2 ** 32 - 1), // Max gas limit
+        destGasOverhead: 2 ** 32 - 1, // Max gas overhead
+        destGasPerDataAvailabilityByte: 2 ** 16 - 1, // Max DA byte cost
+        destDataAvailabilityOverheadGas: 2 ** 32 - 1, // Max DA overhead
+        maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
         dataSize: 16000, // Data size to calculate DA cost
-        maxDataBytes: Math.pow(2, 32) - 1, // Max allowed data size
-        tokenPrice: 1n << 200n, // Very high token price (so final division doesn't overflow)
+        maxDataBytes: 2 ** 32 - 1, // Max allowed data size
+        tokenPrice: 2n ** 200n, // Very high token price (so final division doesn't overflow)
       }
 
       // Calculate the three components that will be added together
@@ -784,7 +784,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const dataAvailabilityCost = daWithMultiplier * BigInt(1e14)
 
       // Check if the sum would overflow uint256
-      const uint256Max = (1n << 256n) - 1n
+      const uint256Max = 2n ** 256n - 1n
       const totalCost = premiumFee + executionCost + dataAvailabilityCost
 
       // If our calculation shows it should overflow, expect the error
@@ -800,12 +800,12 @@ describe('FeeQuoter GetValidatedFee', () => {
           // Try to create a fee that exceeds uint120 max (2^120 - 1 ≈ 1.3e36)
           // Final fee = (premiumFee + executionCost + dataAvailabilityCost) / tokenPrice
           // To exceed uint120: need result > 2^120
-          executionGasPrice: 1n << 111n, // Very high but within uint112
-          dataAvailabilityGasPrice: 1n << 111n, // Very high but within uint112
-          networkFeeUsdCents: Math.pow(2, 32) - 1, // Max uint32
-          premiumMultiplier: 1n << 50n, // Large premium multiplier
-          gasMultiplierWeiPerEth: 1n << 63n, // Near max uint64
-          destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max uint16
+          executionGasPrice: 2n ** 111n, // Very high but within uint112
+          dataAvailabilityGasPrice: 2n ** 111n, // Very high but within uint112
+          networkFeeUsdCents: 2 ** 32 - 1, // Max uint32
+          premiumMultiplier: 2n ** 50n, // Large premium multiplier
+          gasMultiplierWeiPerEth: 2n ** 63n, // Near max uint64
+          destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16
           tokenPrice: 1n, // Very small token price to maximize final result
           gasLimit: BigInt(Math.pow(2, 32) - 1), // Max gas limit
           destGasOverhead: Math.pow(2, 32) - 1, // Max overhead
