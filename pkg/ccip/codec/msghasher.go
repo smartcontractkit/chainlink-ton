@@ -3,6 +3,7 @@ package codec
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -111,7 +112,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	var gasLimit *big.Int
 	var extraArgsDecodeMap map[string]any
 	if len(msg.ExtraArgs) == 0 {
-		return [32]byte{}, fmt.Errorf("cannot hash without extra args")
+		return [32]byte{}, errors.New("cannot hash without extra args")
 	}
 	extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
 	if err != nil {
