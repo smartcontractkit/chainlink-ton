@@ -7,6 +7,7 @@ import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/types"
 import "../onramp/messages"
+import "../../lib/access/ownable_2step"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -21,6 +22,7 @@ type Router_InMsg =
     | Router_RMNRemoteVerifyNotCursed
     | Router_MessageSent
     | Router_MessageRejected
+    | Router_RMNOwnableMessage
     ;
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
@@ -109,6 +111,10 @@ struct (0x8ae25114) Router_MessageRejected {
     destChainSelector: uint64;
     sender: address;
     error: uint256;
+}
+
+struct (0xaf7a9ac6) Router_RMNOwnableMessage {
+    content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
 // Costs associated with Router operations
