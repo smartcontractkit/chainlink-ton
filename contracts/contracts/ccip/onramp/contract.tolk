@@ -16,7 +16,6 @@ import "../ccipsend_executor/messages"
 import "../router/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
-import "../offramp/errors"
 
 const CONTRACT_VERSION = "0.0.9";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -93,7 +92,7 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: executorAddress(st.currentMessageId),
+        dest: executorAddress(st.executorCode, st.currentMessageId),
         body: CCIPSendExecutor_Execute {
             onrampSend: payload,
             config: CCIPSendExecutor_Config {
@@ -111,13 +110,13 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 }
 
 @inline
-fun executorAddress(messageId: uint64): AutoDeployAddress {
+fun executorAddress(executorCode: cell, messageID: int): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
-            code: st.executor_code,
+            code: executorCode,
             data: CCIPSendExecutor_InitialData {
                 onramp: contract.getAddress(),
-                messageId: messageId
+                messageID: messageID
             }.toCell(),
         }
     }
@@ -125,7 +124,7 @@ fun executorAddress(messageId: uint64): AutoDeployAddress {
 
 fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(payload.msg.msgId).addressMatches(sender)) throw Error.Unauthorized;
+    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
@@ -192,7 +191,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
 
 fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(payload.msg.msgId).addressMatches(sender)) throw Error.Unauthorized;
+    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
