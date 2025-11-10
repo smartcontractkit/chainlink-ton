@@ -528,16 +528,18 @@ export class FeeQuoterSetup {
     const resp = tx.inMessage
 
     const body = resp.body.beginParse()
-    try {
-      expect(body.preloadUint(32)).toBe(sendExecutor.Opcodes.messageValidated)
-    } catch (error) {
-      if (body.preloadUint(32) === sendExecutor.Opcodes.messageValidationFailed) {
+    const errorCode = body.preloadUint(32)
+    if (errorCode !== sendExecutor.Opcodes.messageValidated) {
+      if (errorCode === sendExecutor.Opcodes.messageValidationFailed) {
         const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
           resp.body.beginParse(),
         )
-        printErrorName(Number(failure.error))
+        throw new Error(
+          `Message validation failed with error ${printErrorName(Number(failure.error))}`,
+        )
+      } else {
+        throw new Error(`Unexpected response opcode: ${errorCode}`)
       }
-      throw error
     }
     const messageValidated = feeQuoter.builder.message.out.messageValidated.load(
       resp.body.beginParse(),

@@ -700,8 +700,8 @@ describe('FeeQuoter GetValidatedFee', () => {
           destGasPerPayloadByteHigh: 255, // Max uint8
           destGasPerPayloadByteThreshold: 1, // Trigger high calculation
           maxPerMsgGasLimit: Math.pow(2, 32) - 1, // Allow max gas
-          dataSize: 16000, // Reasonable data size
-          maxDataBytes: 16001, // Allow data size
+          dataSize: 16000,
+          maxDataBytes: 16001,
         },
       )
       const bitCount = fee.toString(2).length
@@ -714,22 +714,32 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
     })
 
-    it('should handle data availability cost overflow with extreme values', async () => {
-      await testOverflowScenario(
-        'data availability cost overflow',
-        feeQuoter.FeeQuoterError.DataAvailabilityCostOverflow,
-        {
-          // Combine max values to try to trigger DA overflow
-          // DA calculation: daPrice = dataAvailabilityGasPrice * dataAvailabilityGas
-          // Then: daWithMultiplier = daPrice * destDataAvailabilityMultiplierBps
-          // Finally: result = daWithMultiplier * VAL_1E14
-          dataAvailabilityGasPrice: (1n << 112n) - 1n, // Max uint112
-          destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max uint32
-          destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max uint16 (65535)
-          destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max uint16 (65535)
-          dataSize: 10000, // Large but reasonable data size
-        },
-      )
+    it('should never throw data availability cost overflow', async () => {
+      const overrides = {
+        dataAvailabilityGasPrice: (1n << 112n) - 1n, // Max uint112
+        destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max uint32
+        destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max uint16 (65535)
+        destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max uint16 (65535)
+        dataSize: 16000,
+        maxDataBytes: 16001,
+      }
+
+      // Combine max values to try to trigger DA overflow
+      // DA calculation:
+      const daLengthCost =
+        BigInt(overrides.dataSize) * BigInt(overrides.destGasPerDataAvailabilityByte)
+      const dataAvailabilityGas = daLengthCost * BigInt(overrides.destDataAvailabilityOverheadGas)
+      //
+      const daPrice = overrides.dataAvailabilityGasPrice * dataAvailabilityGas
+      const daWithMultiplier = daPrice * BigInt(overrides.destDataAvailabilityMultiplierBps)
+      const VAL_1E14 = 100000000000000n
+      const dataAvailabilityCost = daWithMultiplier * VAL_1E14
+
+      // Sanity check - this can't exceed int257 max (2^256)
+      const int257Max = (1n << 256n) - 1n
+      expect(dataAvailabilityCost).toBeLessThanOrEqual(int257Max)
+
+      await testSuccessScenario('data availability cost overflow', overrides)
     })
 
     it('should handle final fee overflow when casting to uint120', async () => {
@@ -751,6 +761,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           destGasOverhead: Math.pow(2, 32) - 1, // Max overhead
           maxPerMsgGasLimit: Math.pow(2, 32) - 1,
           dataSize: 10000, // Large data size
+          maxDataBytes: 10001,
         },
       )
     })
