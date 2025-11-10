@@ -40,7 +40,7 @@ fun onInternalMessage(in: InMessage) {
                 CONFIG_SET_TOPIC,
                 ConfigSet {
                     chainSelector: st.chainSelector,
-                    dynamicCOnfig: st.config,
+                    dynamicCOnfig: msg.config,
                 }
             )
         }
