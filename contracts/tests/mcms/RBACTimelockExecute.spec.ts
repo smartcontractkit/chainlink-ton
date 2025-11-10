@@ -97,7 +97,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
-        toNano('1.05'), // need 1 TON extra to reserve for rent
+        toNano('0.15'), // need 0.1 TON extra to reserve for rent
         body,
       )
 

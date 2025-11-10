@@ -575,7 +575,7 @@ enum Timelock_Error {
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = ton("1");
+const MIN_TON_TO_RESERVE: int = ton("0.1");
 
 // --- Methods ---
 
