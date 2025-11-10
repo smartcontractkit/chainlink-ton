@@ -3,6 +3,7 @@ package codec
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -108,22 +109,20 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
 	}
 
-	// var gasLimit *big.Int
-	// var extraArgsDecodeMap map[string]any
-	// if len(msg.ExtraArgs) == 0 {
-	//	 return [32]byte{}, fmt.Errorf("cannot hash without extra args: %w", err)
-	// }
-	// extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
-	// if err != nil {
-	//	 return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
-	// }
+	var gasLimit *big.Int
+	var extraArgsDecodeMap map[string]any
+	if len(msg.ExtraArgs) == 0 {
+		return [32]byte{}, errors.New("cannot hash without extra args")
+	}
+	extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
+	}
 
-	// gasLimit, err = parseExtraArgsMap(extraArgsDecodeMap)
-	// FIXME do the same as in the exec_code
-	gasLimit := big.NewInt(1e8) // 0.1 TON which is the same hard-coded value as in the executecode.go file
-	// if err != nil {
-	// return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-	// }
+	gasLimit, err = parseExtraArgsMapAndRetrieveGasLimit(extraArgsDecodeMap)
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+	}
 
 	// use the reference from contracts/contracts/ccip/types.tolk generateMessageId()
 	/* Top level cell contains:

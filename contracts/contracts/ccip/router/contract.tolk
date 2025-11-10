@@ -384,4 +384,3 @@ get fun destChainSelectors(): tuple {
 get fun reserve(): coins {
     return RESERVE;
 }
-

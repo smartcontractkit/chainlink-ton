@@ -12,12 +12,12 @@ sequenceDiagram
     Note over OR: RECEIVES from OCR transmiter Commit<br>{ queryId, reportContext, report, signatures }
     activate OR
 
-    loop For every MerkleRoot in Commit
-        create participant MR as MerkleRoot{id}
-        OR ->> MR: stateInit: Deployable {owner: OffRamp, id: rootId}<br>Init: {root, owner: OffRamp, expectedMessages: n}
-    end
+    create participant MR as MerkleRoot{id}
+    OR ->> MR: stateInit: Deployable {owner: OffRamp, id: rootId}<br>Init: {root, owner: OffRamp, expectedMessages: n}
+    
     Note over OR: Verifies signatures and emits OCR3Base_Transmitted<br>{ocrPluginType, configDigest, sequenceNumber}
     Note over OR: emit: CommitReportAccepted {merkleRoot, priceUpdates}
+    Note over OR: Sends UpdatePrices to FeeQuoter
     deactivate OR
  
     Note over OR: RECEIVES Execute<br>{queryId, reportContext, report}
