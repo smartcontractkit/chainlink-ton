@@ -39,7 +39,7 @@ func (r *ReplayInfo) hasRequest() bool {
 type service struct {
 	services.Service
 	eng            *services.Engine                                    // Service engine for lifecycle management
-	lggr           logger.Logger                                       // Logger instance
+	lggr           logger.SugaredLogger                                // Logger instance
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 	chainID        string                                              // Target chain ID
 
@@ -73,7 +73,7 @@ type ServiceOptions struct {
 // NewService creates a new TON log polling service instance
 func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
 	lp := &service{
-		lggr:             logger.Named(lggr, "LogPoller"),
+		lggr:             logger.Sugared(lggr).Named("LogPoller"),
 		chainID:          chainID,
 		clientProvider:   clientProvider,
 		filterStore:      opts.FilterStore,
@@ -117,8 +117,6 @@ func (lp *service) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	lp.lggr.Debugw("run iteration started")
-
 	blockRange, err := lp.getMasterchainBlockRange(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get masterchain block range: %w", err)
@@ -126,7 +124,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	if blockRange == nil {
 		// no new blocks to process
-		lp.lggr.Debugw("no new blocks to process")
+		lp.lggr.Debug("no new blocks to process")
 		return nil
 	}
 
@@ -136,24 +134,20 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to apply replay override: %w", err)
 	}
 
-	lp.lggr.Debugw("processing block range", "fromSeq", func() uint32 {
+	lp.lggr.Tracew("processing block range", "fromSeq", func() uint32 {
 		if blockRange.Prev == nil {
 			return 0
 		}
 		return blockRange.Prev.SeqNo
 	}(), "toSeq", blockRange.To.SeqNo)
 
-	lp.lggr.Debugf("reading distinct addresses from filter store")
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to read distinct addresses from filter store: %w", err)
 	}
 	if len(addresses) == 0 {
-		lp.lggr.Debugw("filter store is empty, no addresses to process, aborting run iteration")
 		return nil
 	}
-
-	lp.lggr.Debugw("processing addresses", "count", len(addresses))
 
 	err = lp.processBlockRange(ctx, blockRange, addresses)
 	if err != nil {
@@ -171,7 +165,6 @@ func (lp *service) run(ctx context.Context) (err error) {
 	}
 
 	lp.lastProcessedBlock = blockRange.To.SeqNo
-	lp.lggr.Debugw("run iteration completed", "lastProcessedBlock", lp.lastProcessedBlock)
 	return nil
 }
 

@@ -57,10 +57,6 @@ func (lp *service) processTransactions(
 
 		wg.Wait()
 
-		if tc := txCount.Load(); tc > 0 {
-			lp.lggr.Debugw("Processed transactions", "txCount", tc, "logsGenerated", logCount.Load())
-		}
-
 		close(logsOut)
 		close(errsOut)
 	}()

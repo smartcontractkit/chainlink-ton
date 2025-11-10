@@ -76,9 +76,8 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
 func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	if lastProcessedBlockSeqNo == 0 {
-		// Start from genesis - this only happens when lookback window calculation
-		// determines the chain is shorter than the configured lookback duration(likely localnet)
-		lp.lggr.Debugw("Processing from genesis", "toSeq", toBlock.SeqNo)
+		// No previous block reference - lookback window returned 0
+		// (chain is shorter than configured lookback duration, likely localnet)
 		return nil, nil
 	}
 
