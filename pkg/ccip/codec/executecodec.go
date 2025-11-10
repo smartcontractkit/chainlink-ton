@@ -144,7 +144,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 			return nil, fmt.Errorf("failed to decode extra args: %w", err)
 		}
 
-		gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
+		gasLimitBigInt, err = parseExtraArgsMapAndRetrieveGasLimit(extraArgsDecodeMap)
 		if err != nil {
 			return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 		}
@@ -323,7 +323,7 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
-func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
+func parseExtraArgsMapAndRetrieveGasLimit(input map[string]any) (*big.Int, error) {
 	var outputGas *big.Int
 	for fieldName, fieldValue := range input {
 		lowercase := strings.ToLower(fieldName)

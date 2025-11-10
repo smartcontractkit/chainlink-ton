@@ -119,7 +119,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
 	}
 
-	gasLimit, err = parseExtraArgsMap(extraArgsDecodeMap)
+	gasLimit, err = parseExtraArgsMapAndRetrieveGasLimit(extraArgsDecodeMap)
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 	}
