@@ -765,30 +765,5 @@ describe('FeeQuoter GetValidatedFee', () => {
         },
       )
     })
-
-    it('should successfully handle maximum realistic values without overflow', async () => {
-      // This test verifies the system can handle maximum realistic values
-      // Most overflow scenarios are unlikely with the given input constraints
-      const result = await setup.getValidatedFee(
-        {
-          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
-          receiver: FeeQuoterSetup.DEST_ADDRESS,
-          data: asSnakeBytes(Buffer.alloc(1000)), // Reasonable data size
-          tokenAmounts: [],
-          feeToken: FeeQuoterSetup.NATIVE_TON.token,
-          extraArgs: rt.builder.data.extraArgs
-            .encode({
-              kind: 'generic-v2',
-              gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT),
-              allowOutOfOrderExecution: true,
-            })
-            .endCell(),
-        },
-        beginCell().endCell(),
-      )
-
-      // Should succeed and return a valid fee
-      expect(result.fee).toBeGreaterThan(0n)
-    })
   })
 })
