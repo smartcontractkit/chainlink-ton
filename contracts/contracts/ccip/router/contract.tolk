@@ -42,6 +42,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.curse(subject);
+                emit(
+                    RMN_REMOTE_CURSED_TOPIC,
+                    RMNRemoteCursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -68,6 +74,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.uncurse(subject);
+                emit(
+                    RMN_REMOTE_UNCURSED_TOPIC,
+                    RMNRemoteUncursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -162,7 +174,7 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
         st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
-    emit(TOPIC_RAMP_SET, RampsSet {
+    emit(RAMP_SET_TOPIC, RampsSet {
         destChainSelectors: msg.destChainSelectors,
         onRamp: msg.onRamp,
     });
@@ -179,7 +191,7 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             val selector = iter.next();
             st.offRamps.set(selector, offRampAdd);
         }
-        emit(TOPIC_OFF_RAMP_ADDED, OffRampAdded {
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
             sourceChainSelectorsAdd: msg.sourceChainSelectorsAdd,
             offRampAdd: offRampAdd,
         });
@@ -193,7 +205,7 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
             st.offRamps.delete(selector);
         }
-        emit(TOPIC_OFF_RAMP_REMOVED, OffRampRemoved {
+        emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
             sourceChainSelectorsRemove: msg.sourceChainSelectorsRemove,
             offRampRemove: offRampRemove,
         });
