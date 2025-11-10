@@ -698,7 +698,7 @@ fun MCMS<T>.setRoot(
             var _break = false;
             var group = signer.group;
             while (!_break) {
-                var votes: uint8 = 1;
+                var votes = 1;
                 {
                     var current = groupVoteCounts.get(group);
                     if (current.isFound) {
@@ -989,7 +989,7 @@ fun MCMS<T>.setConfig(
             }
 
             var count = groupChildrenCounts.get(g);
-            var value: uint8 = 1;
+            var value = 1;
             if (count.isFound) {
                 value = count.loadValue() + 1;
             }
@@ -1003,7 +1003,7 @@ fun MCMS<T>.setConfig(
         repeat(NUM_GROUPS) {
             val i = NUM_GROUPS - 1 - j;
             // ensure we have a well-formed group tree. the root should have itself as parent
-            var gp: uint8 = 0; // default parent for root group
+            var gp = 0; // default parent for root group
             {
                 var value = groupParents.get(i);
                 if (value.isFound) {
@@ -1014,7 +1014,7 @@ fun MCMS<T>.setConfig(
                 throw MCMS_Error.GroupTreeNotWellFormed;
             }
 
-            var gq: uint8 = 0; // default quorum for groups without a set quorum
+            var gq = 0; // default quorum for groups without a set quorum
             {
                 var value = groupQuorums.get(i);
                 if (value.isFound) {
@@ -1024,7 +1024,7 @@ fun MCMS<T>.setConfig(
 
             val disabled = gq == 0;
 
-            var count: uint8 = 0; // default count
+            var count = 0; // default count
             {
                 // get the number of children for this group
                 var value = groupChildrenCounts.get(i);
@@ -1044,7 +1044,7 @@ fun MCMS<T>.setConfig(
                     throw MCMS_Error.OutOfBoundsGroupQuorum;
                 }
 
-                var current: uint8 = 0;
+                var current = 0;
                 {
                    var value = groupChildrenCounts.get(gp);
                    if (value.isFound) {
