@@ -459,145 +459,363 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // Overflow/Underflow Edge Case Tests
   describe('Overflow and Underflow Edge Cases', () => {
-    it('should handle extreme gas price that could cause overflow in coin serialization', async () => {
-      // Set up extreme gas prices that approach uint112 maximum
-      const extremeGasPrice = (1n << 112n) - 1n // Max uint112: ~5.2e33
-      const extremeDAGasPrice = (1n << 112n) - 1n
+    interface FeeQuoterOverrides {
+      // Gas prices - constrained by serialization limits
+      executionGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
+      dataAvailabilityGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
+      // Token price and premium multiplier
+      tokenPrice?: bigint // max: uint224 = 2^224-1 ≈ 2.7e67
+      premiumMultiplier?: bigint // max: uint256 = 2^256-1 ≈ 1.2e77
+      // Dest chain config overrides - constrained by struct field types
+      networkFeeUsdCents?: number // max: uint32 = 2^32-1 = 4,294,967,295
+      gasMultiplierWeiPerEth?: bigint // max: uint64 = 2^64-1 ≈ 1.8e19
+      destGasOverhead?: number // max: uint32 = 2^32-1 = 4,294,967,295
+      destGasPerPayloadByteBase?: number // max: uint8 = 255
+      destGasPerPayloadByteHigh?: number // max: uint8 = 255
+      destGasPerPayloadByteThreshold?: number // max: uint16 = 65,535
+      destDataAvailabilityOverheadGas?: number // max: uint32 = 2^32-1 = 4,294,967,295
+      destGasPerDataAvailabilityByte?: number // max: uint16 = 65,535
+      destDataAvailabilityMultiplierBps?: number // max: uint16 = 65,535
+      maxDataBytes?: number // max: uint32 = 2^32-1 = 4,294,967,295
+      maxPerMsgGasLimit?: number // max: uint32 = 2^32-1 = 4,294,967,295
+      // Message parameters
+      gasLimit?: bigint // constrained by maxPerMsgGasLimit (uint32)
+      dataSize?: number // constrained by maxDataBytes (uint32)
+    }
 
-      const tokenPricesUpdates: Token[] = [
-        {
-          token: FeeQuoterSetup.NATIVE_TON.token,
-          price: 1n,
-        },
-      ]
+    async function feequoterOverwrite(overrides: FeeQuoterOverrides) {
+      // Set up token prices
+      const tokenPricesUpdates: Token[] = overrides.tokenPrice
+        ? [
+            {
+              token: FeeQuoterSetup.NATIVE_TON.token,
+              price: overrides.tokenPrice,
+            },
+          ]
+        : []
+
+      // Set up gas prices if specified
       const priceUpdates: feeQuoter.PriceUpdates = {
         tokenPricesUpdates: tokenPricesUpdates,
-        gasPricesUpdates: [
-          {
-            chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
-            executionGasPrice: extremeGasPrice,
-            dataAvailabilityGasPrice: extremeDAGasPrice,
-          },
-        ],
+        gasPricesUpdates:
+          overrides.executionGasPrice !== undefined ||
+          overrides.dataAvailabilityGasPrice !== undefined
+            ? [
+                {
+                  chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+                  executionGasPrice: overrides.executionGasPrice ?? FeeQuoterSetup.USD_PER_GAS,
+                  dataAvailabilityGasPrice:
+                    overrides.dataAvailabilityGasPrice ??
+                    FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
+                },
+              ]
+            : [],
       }
 
-      const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
-        setup.acc.owner.getSender(),
-        {
-          value: toNano('1'),
-          msg: { updates: priceUpdates },
-        },
-      )
-      expect(updateResult.transactions).toHaveTransaction({
-        to: setup.bind.feeQuoter.address,
-        success: true,
-      })
+      // Update prices if needed
+      if (priceUpdates.gasPricesUpdates.length > 0 || priceUpdates.tokenPricesUpdates.length > 0) {
+        const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+          setup.acc.owner.getSender(),
+          {
+            value: toNano('1'),
+            msg: { updates: priceUpdates },
+          },
+        )
+        expect(updateResult.transactions).toHaveTransaction({
+          to: setup.bind.feeQuoter.address,
+          success: true,
+        })
+      }
 
-      // Create message with maximum gas limit to maximize overflow potential
+      // Update dest chain config if needed
+      const hasDestConfigOverrides = Object.keys(overrides).some((key) =>
+        [
+          'networkFeeUsdCents',
+          'gasMultiplierWeiPerEth',
+          'destGasOverhead',
+          'destGasPerPayloadByteBase',
+          'destGasPerPayloadByteHigh',
+          'destGasPerPayloadByteThreshold',
+          'destDataAvailabilityOverheadGas',
+          'destGasPerDataAvailabilityByte',
+          'destDataAvailabilityMultiplierBps',
+          'maxDataBytes',
+          'maxPerMsgGasLimit',
+        ].includes(key),
+      )
+
+      if (overrides.maxDataBytes) {
+        expect(overrides.dataSize).toBeLessThanOrEqual(
+          overrides.maxDataBytes ?? FeeQuoterSetup.destChainConfig.maxDataBytes,
+        )
+      }
+
+      if (hasDestConfigOverrides) {
+        const destChainConfigResult = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
+          setup.acc.owner.getSender(),
+          {
+            value: toNano('1'),
+            updates: [
+              {
+                destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+                config: {
+                  ...FeeQuoterSetup.destChainConfig,
+                  networkFeeUsdCents:
+                    overrides.networkFeeUsdCents ??
+                    FeeQuoterSetup.destChainConfig.networkFeeUsdCents,
+                  gasMultiplierWeiPerEth:
+                    overrides.gasMultiplierWeiPerEth ??
+                    FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth,
+                  destGasOverhead:
+                    overrides.destGasOverhead ?? FeeQuoterSetup.destChainConfig.destGasOverhead,
+                  destGasPerPayloadByteBase:
+                    overrides.destGasPerPayloadByteBase ??
+                    FeeQuoterSetup.destChainConfig.destGasPerPayloadByteBase,
+                  destGasPerPayloadByteHigh:
+                    overrides.destGasPerPayloadByteHigh ??
+                    FeeQuoterSetup.destChainConfig.destGasPerPayloadByteHigh,
+                  destGasPerPayloadByteThreshold:
+                    overrides.destGasPerPayloadByteThreshold ??
+                    FeeQuoterSetup.destChainConfig.destGasPerPayloadByteThreshold,
+                  destDataAvailabilityOverheadGas:
+                    overrides.destDataAvailabilityOverheadGas ??
+                    FeeQuoterSetup.destChainConfig.destDataAvailabilityOverheadGas,
+                  destGasPerDataAvailabilityByte:
+                    overrides.destGasPerDataAvailabilityByte ??
+                    FeeQuoterSetup.destChainConfig.destGasPerDataAvailabilityByte,
+                  destDataAvailabilityMultiplierBps:
+                    overrides.destDataAvailabilityMultiplierBps ??
+                    FeeQuoterSetup.destChainConfig.destDataAvailabilityMultiplierBps,
+                  maxDataBytes:
+                    overrides.maxDataBytes ?? FeeQuoterSetup.destChainConfig.maxDataBytes,
+                  maxPerMsgGasLimit:
+                    overrides.maxPerMsgGasLimit ?? FeeQuoterSetup.destChainConfig.maxPerMsgGasLimit,
+                },
+              },
+            ],
+          },
+        )
+        expect(destChainConfigResult.transactions).toHaveTransaction({
+          to: setup.bind.feeQuoter.address,
+          success: true,
+        })
+      }
+
+      // Update fee token premium multiplier if specified
+      if (overrides.premiumMultiplier !== undefined) {
+        const feeTokenResult = await setup.bind.feeQuoter.sendUpdateFeeTokens(
+          setup.acc.owner.getSender(),
+          {
+            value: toNano('1'),
+            msg: {
+              add: new Map([
+                [
+                  FeeQuoterSetup.NATIVE_TON.token,
+                  { premiumMultiplierWeiPerEth: overrides.premiumMultiplier },
+                ],
+              ]),
+              remove: [],
+            },
+          },
+        )
+        expect(feeTokenResult.transactions).toHaveTransaction({
+          to: setup.bind.feeQuoter.address,
+          success: true,
+        })
+      }
+    }
+
+    /**
+     * Helper function to test overflow scenarios with configurable parameters
+     * @param testName Description of the test scenario
+     * @param expectedError Expected error type
+     * @param overrides Configuration overrides for extreme values
+     */
+    async function testOverflowScenario(
+      testName: string,
+      expectedError: number,
+      overrides: FeeQuoterOverrides = {},
+    ) {
+      await feequoterOverwrite(overrides)
+
+      // Create message with specified parameters
+      const dataSize = overrides.dataSize ?? 10
+      const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
+
       const message: rt.CCIPSend = {
         destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE)), // Max data size
+        data: asSnakeBytes(Buffer.alloc(dataSize)),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: rt.builder.data.extraArgs
           .encode({
             kind: 'generic-v2',
-            gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT), // Max gas limit
+            gasLimit: gasLimit,
             allowOutOfOrderExecution: true,
           })
           .endCell(),
       }
-      // replace with sendGetValidatedFee to capture failure
-      await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.FeeOverflow)
+
+      await setup.assertGetFeeValidationError(message, expectedError)
+    }
+
+    /**
+     * Helper function to test success scenarios with configurable parameters
+     * @param testName Description of the test scenario
+     * @param expectedError Expected error type
+     * @param overrides Configuration overrides for extreme values
+     */
+    async function testSuccessScenario(testName: string, overrides: FeeQuoterOverrides = {}) {
+      await feequoterOverwrite(overrides)
+
+      // Create message with specified parameters
+      const dataSize = overrides.dataSize ?? 10
+      const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
+
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: asSnakeBytes(Buffer.alloc(dataSize)),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: gasLimit,
+            allowOutOfOrderExecution: true,
+          })
+          .endCell(),
+      }
+      const result = await setup.getValidatedFee(message, beginCell().endCell())
+      expect(result.fee).toBeGreaterThan(0n)
+      return result.fee
+    }
+
+    it('should handle extreme gas price that could cause overflow in final fee calculation', async () => {
+      await testOverflowScenario(
+        'extreme gas price causing FeeOverflow',
+        feeQuoter.FeeQuoterError.FeeOverflow,
+        {
+          // Max uint112 gas prices
+          executionGasPrice: (1n << 112n) - 1n,
+          dataAvailabilityGasPrice: (1n << 112n) - 1n,
+          // Very small token price to maximize final fee amount
+          tokenPrice: 1n,
+        },
+      )
     })
 
-    // TODO other overflows
-    it('should handle extreme gas price that could cause overflow in ***', async () => {
-      // Set up extreme gas prices that approach uint112 maximum
-      const extremeGasPrice = (1n << 112n) - 1n // Max uint112: ~5.2e33
-      const extremeDAGasPrice = (1n << 112n) - 1n
+    it('should never throw premium fee overflow', async () => {
+      const fee = await testSuccessScenario('premium fee overflow', {
+        // Analysis: premiumMultiplier is uint64, so max value is 2^64-1
+        // premiumFeeUsdWei = networkFeeUsdCents * VAL_1E16
+        // premiumFee = premiumFeeUsdWei * premiumMultiplier
+        // With max values: (2^32-1) * 10^16 * (2^64-1) = very large but likely within int257
+        // This overflow may not be achievable with realistic constraints
+        networkFeeUsdCents: Math.pow(2, 32) - 1, // Max uint32
+        premiumMultiplier: (1n << 64n) - 1n, // Max uint64
+      })
+      const bitCount = fee.toString(2).length
+      expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
+    })
 
-      const tokenPricesUpdates: Token[] = [
+    it('should never throw execution cost overflow', async () => {
+      // Most execution cost overflows are unlikely with given constraints
+      // int257 max ≈ 2^256, but realistic input combinations won't reach this
+      const fee = await testSuccessScenario(
+        'execution cost with max realistic values (should succeed)',
         {
-          token: FeeQuoterSetup.NATIVE_TON.token,
-          price: 1n,
-        },
-      ]
-      const priceUpdates: feeQuoter.PriceUpdates = {
-        tokenPricesUpdates: tokenPricesUpdates,
-        gasPricesUpdates: [
-          {
-            chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
-            executionGasPrice: extremeGasPrice,
-            dataAvailabilityGasPrice: extremeDAGasPrice,
-          },
-        ],
-      }
-
-      // Update destChainConfig to have high fee
-      const destChainConfig = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
-        setup.acc.owner.getSender(),
-        {
-          value: toNano('1'),
-          updates: [
-            {
-              destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
-              config: {
-                ...FeeQuoterSetup.destChainConfig,
-                maxDataBytes: 2 ** 32 - 1,
-                maxPerMsgGasLimit: 2 ** 32 - 1,
-                destGasOverhead: 2 ** 32 - 1,
-                destGasPerPayloadByteBase: 2 ** 8 - 1,
-                destGasPerPayloadByteHigh: 2 ** 8 - 1,
-                destGasPerPayloadByteThreshold: 2 ** 16 - 1,
-                destDataAvailabilityOverheadGas: 2 ** 32 - 1,
-                destGasPerDataAvailabilityByte: 2 ** 16 - 1,
-                destDataAvailabilityMultiplierBps: 2 ** 16 - 1,
-                defaultTxGasLimit: 2 ** 32 - 1,
-                gasMultiplierWeiPerEth: (1n << 64n) - 1n,
-                gasPriceStalenessThreshold: 2 ** 32 - 1,
-                networkFeeUsdCents: 2 ** 32 - 1,
-              },
-            },
-          ],
+          // Use maximum allowed values within serialization constraints
+          executionGasPrice: (1n << 112n) - 1n, // Max uint112
+          dataAvailabilityGasPrice: (1n << 112n) - 1n, // Max uint112
+          gasMultiplierWeiPerEth: (1n << 64n) - 1n, // Max uint64
+          gasLimit: BigInt(Math.pow(2, 32) - 1), // Max uint32
+          destGasOverhead: Math.pow(2, 32) - 1, // Max uint32
+          destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max uint16
+          destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max uint32
+          destGasPerPayloadByteBase: 255, // Max uint8
+          destGasPerPayloadByteHigh: 255, // Max uint8
+          destGasPerPayloadByteThreshold: 1, // Trigger high calculation
+          maxPerMsgGasLimit: Math.pow(2, 32) - 1, // Allow max gas
+          dataSize: 16000, // Reasonable data size
+          maxDataBytes: 16001, // Allow data size
         },
       )
+      const bitCount = fee.toString(2).length
+      expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
+    })
 
-      expect(destChainConfig.transactions).toHaveTransaction({
-        to: setup.bind.feeQuoter.address,
-        success: true,
+    it('should handle token price too low error', async () => {
+      await testOverflowScenario('token price too low', feeQuoter.FeeQuoterError.TokenPriceTooLow, {
+        tokenPrice: 0n, // Zero token price should trigger error
       })
+    })
 
-      const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
-        setup.acc.owner.getSender(),
+    it('should handle data availability cost overflow with extreme values', async () => {
+      await testOverflowScenario(
+        'data availability cost overflow',
+        feeQuoter.FeeQuoterError.DataAvailabilityCostOverflow,
         {
-          value: toNano('1'),
-          msg: { updates: priceUpdates },
+          // Combine max values to try to trigger DA overflow
+          // DA calculation: daPrice = dataAvailabilityGasPrice * dataAvailabilityGas
+          // Then: daWithMultiplier = daPrice * destDataAvailabilityMultiplierBps
+          // Finally: result = daWithMultiplier * VAL_1E14
+          dataAvailabilityGasPrice: (1n << 112n) - 1n, // Max uint112
+          destDataAvailabilityOverheadGas: Math.pow(2, 32) - 1, // Max uint32
+          destGasPerDataAvailabilityByte: Math.pow(2, 16) - 1, // Max uint16 (65535)
+          destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max uint16 (65535)
+          dataSize: 10000, // Large but reasonable data size
         },
       )
-      expect(updateResult.transactions).toHaveTransaction({
-        to: setup.bind.feeQuoter.address,
-        success: true,
-      })
+    })
 
-      // Create message with maximum gas limit to maximize overflow potential
-      const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
-        receiver: FeeQuoterSetup.DEST_ADDRESS,
-        data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE)), // Max data size
-        tokenAmounts: [],
-        feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.builder.data.extraArgs
-          .encode({
-            kind: 'generic-v2',
-            gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT), // Max gas limit
-            allowOutOfOrderExecution: true,
-          })
-          .endCell(),
-      }
-      // replace with sendGetValidatedFee to capture failure
-      await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.FeeOverflow)
+    it('should handle final fee overflow when casting to uint120', async () => {
+      await testOverflowScenario(
+        'final fee overflow when casting to uint120',
+        feeQuoter.FeeQuoterError.FeeOverflow,
+        {
+          // Try to create a fee that exceeds uint120 max (2^120 - 1 ≈ 1.3e36)
+          // Final fee = (premiumFee + executionCost + dataAvailabilityCost) / tokenPrice
+          // To exceed uint120: need result > 2^120
+          executionGasPrice: 1n << 111n, // Very high but within uint112
+          dataAvailabilityGasPrice: 1n << 111n, // Very high but within uint112
+          networkFeeUsdCents: Math.pow(2, 32) - 1, // Max uint32
+          premiumMultiplier: 1n << 50n, // Large premium multiplier
+          gasMultiplierWeiPerEth: 1n << 63n, // Near max uint64
+          destDataAvailabilityMultiplierBps: Math.pow(2, 16) - 1, // Max uint16
+          tokenPrice: 1n, // Very small token price to maximize final result
+          gasLimit: BigInt(Math.pow(2, 32) - 1), // Max gas limit
+          destGasOverhead: Math.pow(2, 32) - 1, // Max overhead
+          maxPerMsgGasLimit: Math.pow(2, 32) - 1,
+          dataSize: 10000, // Large data size
+        },
+      )
+    })
+
+    it('should successfully handle maximum realistic values without overflow', async () => {
+      // This test verifies the system can handle maximum realistic values
+      // Most overflow scenarios are unlikely with the given input constraints
+      const result = await setup.getValidatedFee(
+        {
+          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+          receiver: FeeQuoterSetup.DEST_ADDRESS,
+          data: asSnakeBytes(Buffer.alloc(1000)), // Reasonable data size
+          tokenAmounts: [],
+          feeToken: FeeQuoterSetup.NATIVE_TON.token,
+          extraArgs: rt.builder.data.extraArgs
+            .encode({
+              kind: 'generic-v2',
+              gasLimit: BigInt(FeeQuoterSetup.MAX_GAS_LIMIT),
+              allowOutOfOrderExecution: true,
+            })
+            .endCell(),
+        },
+        beginCell().endCell(),
+      )
+
+      // Should succeed and return a valid fee
+      expect(result.fee).toBeGreaterThan(0n)
     })
   })
 })

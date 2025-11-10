@@ -535,7 +535,7 @@ export class FeeQuoterSetup {
         const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
           resp.body.beginParse(),
         )
-        printErrorName(failure)
+        printErrorName(Number(failure.error))
       }
       throw error
     }
@@ -595,7 +595,7 @@ export class FeeQuoterSetup {
                 if (msg.error === BigInt(expectedError)) {
                   return true
                 }
-                throw new Error(`Validation failed with error ${printErrorName(msg)}`)
+                throw new Error(`Validation failed with error ${printErrorName(Number(msg.error))}`)
                 return false
               },
             ],
@@ -604,7 +604,7 @@ export class FeeQuoterSetup {
       })
     } catch (error) {
       throw new Error(
-        `Expected error code ${expectedError}, but it was got a different error: ${error}`,
+        `Expected error code ${expectedError} (${printErrorName(expectedError)}), but it was got a different error: ${error}`,
       )
     }
   }
@@ -623,8 +623,8 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }
-function printErrorName(failure: sendExecutor.MessageValidationFailed): string {
-  switch (Number(failure.error)) {
+function printErrorName(error: number): string {
+  switch (error) {
     case feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector:
       return 'UnsupportedChainFamilySelector'
     case feeQuoter.FeeQuoterError.GasLimitTooHigh:
@@ -670,6 +670,6 @@ function printErrorName(failure: sendExecutor.MessageValidationFailed): string {
     case feeQuoter.FeeQuoterError.FeeOverflow:
       return 'FeeOverflow'
     default:
-      throw new Error(`Unknown error code: ${failure.error.toString()}`)
+      throw new Error(`Unknown error code: ${error.toString()}`)
   }
 }

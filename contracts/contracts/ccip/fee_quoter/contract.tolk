@@ -217,10 +217,17 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
-    if (errorCode == ERROR_INVALID_DATA) {
-        throw FeeQuoter_Error.InvalidMsgData;
-    } else if (errorCode == 8) {
-        throw FeeQuoter_Error.MsgDataTooLarge;
+    match (errorCode) {
+        0 => { /* continue */ }
+        8 => {
+            throw FeeQuoter_Error.MsgDataTooLarge;
+        }
+        ERROR_INVALID_DATA => {
+            throw FeeQuoter_Error.InvalidMsgData;
+        }
+        else => {
+            throw errorCode;
+        }
     }
 
     var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
@@ -283,13 +290,13 @@ fun _dataAvailabilityCost(
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
     // the overhead data posted for OCR.
-    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte as uint256, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas as uint256, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 
     // data_availability_gas_price is in 18 decimals, dest_data_availability_multiplier_bps is in 4 decimals
     // We pad 14 decimals to bring the result to 36 decimals, in line with token bps and execution fee.
     val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps as uint256, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
     return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 }
 
