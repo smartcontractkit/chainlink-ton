@@ -14,6 +14,7 @@ import "../../lib/receiver/messages"
 import "../offramp/messages"
 import "@stdlib/lisp-lists"
 import "../offramp/types"
+import "events"
 
 
 const CONTRACT_VERSION = "0.0.7";
@@ -161,7 +162,10 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
         st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
-    // TODO: emit(OnRampsSet)
+    emit(TOPIC_RAMP_SET, RampsSet {
+        destChainSelectors: msg.destChainSelectors,
+        onRamp: msg.onRamp,
+    });
 }
 
 fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
@@ -175,6 +179,10 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             val selector = iter.next();
             st.offRamps.set(selector, offRampAdd);
         }
+        emit(TOPIC_OFF_RAMP_ADDED, OffRampAdded {
+            sourceChainSelectorsAdd: msg.sourceChainSelectorsAdd,
+            offRampAdd: offRampAdd,
+        });
     }
     if (msg.offRampRemove != null) {
         val offRampRemove = msg.offRampRemove!;
@@ -185,6 +193,10 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
             st.offRamps.delete(selector);
         }
+        emit(TOPIC_OFF_RAMP_REMOVED, OffRampRemoved {
+            sourceChainSelectorsRemove: msg.sourceChainSelectorsRemove,
+            offRampRemove: offRampRemove,
+        });
     }
 
     // update RMN forwarding cache

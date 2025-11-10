@@ -390,6 +390,11 @@ describe('Router', () => {
         to: router.address,
         success: true,
       })
+
+    // assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
+    //     sourceChainSelectorsAdd: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+    //     offRampAdd: offRampAddress1,
+    // })
     }
 
     {

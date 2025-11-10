@@ -68,6 +68,9 @@ type LogTypeMap = {
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: CCIPLogs.ReceiverCCIPMessageReceived
+  [CCIPLogs.LogTypes.RampSet]: CCIPLogs.RampsSet
+  [CCIPLogs.LogTypes.OffRampAdded]: CCIPLogs.OffRampAdded
+  [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
 }
 
 // union of the keys of that map
@@ -113,6 +116,15 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
 
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: (x, from, match) =>
     testTransmittedLogMessage(x, from, match as Partial<OCR3Logs.OCR3BaseTransmitted>),
+
+  [CCIPLogs.LogTypes.RampSet]: (x, from, match) =>
+    testLogRampSet(x, from, match as CCIPLogs.RampsSet),
+
+  [CCIPLogs.LogTypes.OffRampAdded]: (x, from, match) =>
+    testLogOffRampAdded(x, from, match as CCIPLogs.OffRampAdded),
+
+  [CCIPLogs.LogTypes.OffRampRemoved]: (x, from, match) =>
+    testLogOffRampRemoved(x, from, match as CCIPLogs.OffRampRemoved),
 }
 
 // assertLog delegates via the handler table
@@ -291,6 +303,60 @@ export const testTransmittedLogMessage = (
     matchesObject(msg, match)
     return true
   })
+}
+
+export const testLogRampSet = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.RampsSet,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.RampSet, (x) => {
+     const cs = x.beginParse()
+     const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+     const addr = cs.loadAddress()
+     const msg = {
+       destChainSelectors: selectors,
+       onRamp: addr,
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogOffRampAdded = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.OffRampAdded,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.OffRampAdded, (x) => {
+    const cs = x.beginParse()
+    const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+    const addr = cs.loadAddress()
+    const msg = {
+        sourceChainSelectors: selectors,
+        offRampAdded: addr,
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogOffRampRemoved = (
+    message: Message,
+    from: Address,
+    match: CCIPLogs.OffRampRemoved,
+    ) => {
+    return testLog(message, from, CCIPLogs.LogTypes.OffRampRemoved, (x) => {
+        const cs = x.beginParse()
+        const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+        const addr = cs.loadAddress()
+        const msg = {
+            sourceChainSelectors: selectors,
+            offRampRemoved: cs.loadAddress(),
+        }
+        equalsObject(msg, match)
+        return true
+    })
 }
 
 export const testLogReceiverCCIPMessageReceived = (
