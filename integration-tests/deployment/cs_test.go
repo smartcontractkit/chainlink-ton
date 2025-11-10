@@ -426,7 +426,7 @@ func TestDeploy(t *testing.T) {
 			DestGasPerDataAvailabilityByte:    16,
 			DestDataAvailabilityMultiplierBps: 1,
 			ChainFamilySelector:               [4]byte{0x28, 0x12, 0xd5, 0x2c},
-			EnforceOutOfOrder:                 false,
+			EnforceOutOfOrder:                 true,
 			DefaultTokenFeeUSDCents:           25,
 			DefaultTokenDestGasOverhead:       90_000,
 			DefaultTxGasLimit:                 200_000,

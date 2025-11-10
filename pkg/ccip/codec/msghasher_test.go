@@ -171,7 +171,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		"destgasamount": uint32(1000),
 	}, nil)
 	mockExtraDataCodec.On("DecodeExtraArgsToMap", mock.Anything).Return(map[string]any{
-		"gasLimit": big.NewInt(10000000),
+		"gasLimit": big.NewInt(100_000_000),
 	}, nil)
 
 	lg := logger.Test(t)

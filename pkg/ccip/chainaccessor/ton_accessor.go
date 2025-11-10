@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -31,6 +30,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var ErrNoBindings = errors.New("no bindings found")
@@ -166,8 +166,13 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
 	return ccipocr3.ChainFeeComponents{
-		ExecutionFee:        big.NewInt(400), // Basechain costs are 400 nanotons (400e-9), and TON has 9 decimals
-		DataAvailabilityFee: big.NewInt(0),   // there are no storage fees per tx, instead contracts pay rent
+		// We are using nanoTON instead of compute units, that's why this value is 1.
+		// The commit plugin will pick this value and do the math according to
+		// https://github.com/smartcontractkit/chainlink-ccip/blob/main/internal/libs/mathslib/calc.go#L105-L114
+		// The gas price in USD that is stored in dest chain Fee Quoter will express the value of 1 nanoTON in USD
+		// given that the gasLimit is now in nanoTONs
+		ExecutionFee:        big.NewInt(1),
+		DataAvailabilityFee: big.NewInt(0), // there are no storage fees per tx, instead contracts pay rent
 	}, nil
 }
 
@@ -351,7 +356,7 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	var timestampedPrice feequoter.TimestampedPrice
-	err = timestampedPrice.FromResult(result)
+	err = tvm.LoadFromResult(&timestampedPrice, result)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
@@ -392,7 +397,7 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 		GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
 		NetworkFeeUSDCents:                cfg.NetworkFeeUsdCents,
 		GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-		EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
+		EnforceOutOfOrder:                 true, // NOTE: EnforceOutOfOrder is always true on TON
 		ChainFamilySelector:               [4]byte(binary.BigEndian.AppendUint32(nil, cfg.ChainFamilySelector)),
 	}, nil
 }
@@ -645,7 +650,8 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	}
 
 	for _, selector := range selectors {
-		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
+		var gasPrice feequoter.USDPerUnitGas
+		err := gasPrice.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(selector)})
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
 			// TODO revisit the common error code, right now common.UnknownDestChainSelector doesn't match with on-chain
@@ -659,20 +665,16 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, err
 		}
 
-		value, err := result.Cell(0)
-		if err != nil {
-			return nil, err
-		}
-
-		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
-		var update feequoter.TimestampedPrice
-		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to decode TimestampedPrice, potentially unsynced gobindings: %w", err)
-		}
+		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
+		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
+		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
+		// The below is a is a bitwise operation: (dataAvFeeUSD << 112) | executionFeeUSD
+		daShifted := new(big.Int).Lsh(gasPrice.DataAvailabilityGasPrice, 112)
+		packedValue := new(big.Int).Or(daShifted, gasPrice.ExecutionGasPrice)
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: update.Timestamp,
-			Value:     update.Value,
+			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115
+			Value:     packedValue,
 		}
 	}
 	return prices, nil

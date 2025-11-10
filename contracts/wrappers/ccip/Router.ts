@@ -449,7 +449,7 @@ export const builder = {
 
     return {
       contractData,
-      tokenAmountCodec,
+      tokenAmount: tokenAmountCodec,
       extraArgs,
     }
   })(),

@@ -192,7 +192,6 @@ func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation
 				DestGasPerDataAvailabilityByte:    input.Dest.FeeQuoterDestChainConfig.DestGasPerDataAvailabilityByte,
 				DestDataAvailabilityMultiplierBps: input.Dest.FeeQuoterDestChainConfig.DestDataAvailabilityMultiplierBps,
 				ChainFamilySelector:               input.Dest.FeeQuoterDestChainConfig.ChainFamilySelector,
-				EnforceOutOfOrder:                 input.Dest.FeeQuoterDestChainConfig.EnforceOutOfOrder,
 				DefaultTokenFeeUsdCents:           input.Dest.FeeQuoterDestChainConfig.DefaultTokenFeeUSDCents,
 				DefaultTokenDestGasOverhead:       input.Dest.FeeQuoterDestChainConfig.DefaultTokenDestGasOverhead,
 				DefaultTxGasLimit:                 input.Dest.FeeQuoterDestChainConfig.DefaultTxGasLimit,

@@ -12,6 +12,12 @@ export const errorCode = (crc32Key: number, local: number): number => {
   return facilityId(crc32Key) * 100 + local
 }
 
+// Helper function to compute a SHA-256 hash of a string (e.g., Tolk's stringSha256)
+export const sha256 = (input: string): bigint => {
+  const hash = createHash('sha256').update(input).digest()
+  return BigInt('0x' + hash.toString('hex'))
+}
+
 // Helper function to compute a 32-bit SHA-256 hash of a string (e.g., Tolk's stringSha256_32)
 export const sha256_32 = (input: string): bigint => {
   const hash = createHash('sha256').update(input).digest()

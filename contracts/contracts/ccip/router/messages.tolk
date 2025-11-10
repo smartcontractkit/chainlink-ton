@@ -14,7 +14,6 @@ type Router_InMsg =
     | Router_UpdateOffRamps
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
-    | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse

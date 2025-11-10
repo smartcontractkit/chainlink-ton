@@ -2,6 +2,7 @@ import "./../utils.tolk";
 
 // Exit codes
 
+// TODO: follow namespaced exitcodes structure
 /// Matches the exit code for `TactExitCodeAccessDenied` from `@stdlib`.
 const ERROR_ONLY_CALLABLE_BY_OWNER = 132;
 

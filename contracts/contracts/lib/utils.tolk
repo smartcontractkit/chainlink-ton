@@ -40,10 +40,16 @@ const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanoton
 /// Note: In TVM 12, "rich bounced messages" will be added — containing all the original message that was sent
 const BOUNCE_MSG_SIZE_MAX = 256;
 
+// Represents the default blockchain (chain ID) - when configParam(19) not set
+const GLOBAL_ID_UNSET = -1;
+
 /// Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
-    // Notice: configParam(19)! will be available (non-null)
-    return blockchain.configParam(19)!.beginParse().loadInt(32);
+    // Notice: configParam(19) should be available (TVM upgrade 04/24)
+    val param = blockchain.configParam(19);
+    return param != null
+        ? param!.beginParse().loadInt(32)
+        : GLOBAL_ID_UNSET;
 }
 
 /// Extracts the (potential) bounced body from the given slice (message body).

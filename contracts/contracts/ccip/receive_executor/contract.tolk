@@ -31,16 +31,7 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     var st = ReceiveExecutor_Storage.load();
 
     assert(sender == st.owner, Error.Unauthorized);
-
     st.lastExecutionTimestamp = blockchain.now();
-
-    //TODO 
-
-    // if tokenAmounts > 0 && state == initial
-    // set state = token transfer
-    // send message to offramp to ask to release tokens
-
-    // else if no tokenTransfers
     _execute(st, msg.gasOverride);
 }
 
@@ -116,35 +107,6 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
     notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
 }
-
-// TODO: should we wait for all transfers to either complete or fail before we allow retry?
-
-// fun onExcesses() {
-    // if state == token_transfer
-    // track token transfer amounts per tokenAmount in report
-    //
-    // TODO: what if offramp->tokenPool bounces
-    //
-    // if all transfers complete
-    // set state = execution
-    // call execute
-// }
-
-// fun _execute() {
-    // notify offramp to call receiver with payload    
-    // store a callback address (this commit report)
-    //
-    // TODO: we could execute directly from commit report but it'd require the receiver
-    // to validate the commit report address at runtime rather than router that can be hardcoded
-// }
-
-// fun onExecutionNotification() {
-    // lookup execution report
-    // validate sender is actually the receiver of the execution
-    // validate state is actually set to execute
-// }
-
-// IDEA: we could incentivise receivers to call back on success by sharing the rent refund
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.ReceiveExecutor", CONTRACT_VERSION);

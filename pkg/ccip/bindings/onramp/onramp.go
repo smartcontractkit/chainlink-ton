@@ -167,7 +167,7 @@ type DestChainConfig struct {
 	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
 }
 
-func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	routerAddressSlice, err := result.Slice(0)
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, common.DestChainConfigGetter, destChainSelector, c.FromResult)
+	return common.FetchResultHelper(ctx, client, block, contractAddr, common.DestChainConfigGetter, destChainSelector, c)
 }
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
@@ -205,7 +205,7 @@ type DynamicConfig struct {
 	AllowListAdmin *address.Address `tlb:"addr"`
 }
 
-func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
+func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	feeQuoterAddressSlice, err := result.Slice(0)
 	if err != nil {
 		return err
@@ -239,5 +239,5 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
+	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c)
 }

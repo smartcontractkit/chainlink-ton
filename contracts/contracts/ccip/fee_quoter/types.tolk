@@ -35,7 +35,6 @@ struct FeeQuoterDestChainConfig {
     destDataAvailabilityMultiplierBps: uint16;
 
     chainFamilySelector: uint32; // 4 bytes
-    enforceOutOfOrder: bool;
 
     defaultTokenFeeUsdCents: uint16;
     defaultTokenDestGasOverhead: uint32;

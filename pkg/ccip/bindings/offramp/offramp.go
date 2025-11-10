@@ -100,6 +100,7 @@ type Any2TVMMessage struct {
 	SourceChainSelector uint64                       `tlb:"## 64"`
 	Sender              ccipcommon.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
 	Data                *cell.Cell                   `tlb:"^"`
+	TokenAmounts        *cell.Cell                   `tlb:"maybe ^"`
 }
 
 // Signer represents a signer entry in the OCR3 config
@@ -158,7 +159,7 @@ type Config struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
-func (c *Config) FromResult(result *ton.ExecutionResult) error {
+func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
 	cs, err := result.Int(0)
 	if err != nil {
 		return fmt.Errorf("failed to get ChainSelector: %w", err)
@@ -190,7 +191,7 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, configGetter, nil, c.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, configGetter, nil, c)
 }
 
 // SourceChainConfig represents the configuration for a specific source chain
@@ -202,7 +203,7 @@ type SourceChainConfig struct {
 	OnRamp                    ccipcommon.CrossChainAddress `tlb:"."`
 }
 
-func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
+func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	routerAddressSlice, err := result.Slice(0)
 	if err != nil {
 		return fmt.Errorf("failed to get router address slice: %w", err)
@@ -250,5 +251,5 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c)
 }

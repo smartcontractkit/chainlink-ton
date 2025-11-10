@@ -2,7 +2,6 @@ package mcms
 
 import (
 	"crypto/sha256"
-	"encoding/binary"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -90,11 +89,11 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerKeys   common.SnakeData[SignerKey] `tlb:"^"`      // vec<uint256>
-	SignerGroups common.SnakeData[uint8]     `tlb:"^"`      // vec<uint8>
-	GroupQuorums *cell.Dictionary            `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents *cell.Dictionary            `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot    bool                        `tlb:"bool"`
+	SignerKeys   common.SnakeData[SignerKey]   `tlb:"^"`      // vec<uint256>
+	SignerGroups common.SnakeData[SignerGroup] `tlb:"^"`      // vec<uint8>
+	GroupQuorums *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot    bool                          `tlb:"bool"`
 }
 
 // Submit an oracle error report, which marks the current root as invalid.
@@ -225,6 +224,38 @@ type Proof struct {
 
 type SignerKey struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+type SignerGroup struct {
+	Value uint8 `tlb:"## 8"` // The value of the struct
+}
+
+// Config.GroupQuorums value wrapper
+type GroupQuorumItem struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Config.GroupParents value wrapper
+type GroupParentItem struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Data.SeenSignedHashes value wrapper
+type SeenSignedHashesItem struct {
+	Val bool `tlb:"bool"`
+}
+
+// Length of serialized signer structure in bytes.
+const LenSignerBytes = (256 + 8 + 8) / 8
+
+// Signer information
+type Signer struct {
+	// The public key of the signer.
+	Key *big.Int `tlb:"## 256"`
+	// The index of the signer in data.config.signers
+	Index uint8 `tlb:"## 8"` // 0 <= index < MAX_NUM_SIGNERS
+	// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
+	Group uint8 `tlb:"## 8"`
 }
 
 // Signing groups are arranged in a tree. Each group is an interior node and has its own quorum.
@@ -373,20 +404,15 @@ type Op struct {
 
 // --- Constants ---
 
-func stringSha256_32(data string) uint32 {
-	d := sha256.Sum256([]byte(data))
-	return binary.BigEndian.Uint32(d[0:4])
-}
-
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 // op. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON")
+var ManyChainMultiSigDomainSeparatorOp = sha256.Sum256([]byte("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON"))
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON")
+var ManyChainMultiSigDomainSeparatorMetadata = sha256.Sum256([]byte("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON"))
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode

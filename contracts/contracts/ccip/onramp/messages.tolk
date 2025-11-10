@@ -9,13 +9,11 @@ import "../ccipsend_executor/messages"
 
 type OnRamp_InMessage =
     | OnRamp_Send
-    | OnRamp_WithdrawJettons
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateAllowlists
-    | Common_JettonTransferNotification
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade
     ;
@@ -23,7 +21,6 @@ type OnRamp_InMessage =
 
 type OnRamp_NotificationInMessage =
     | OnRamp_Send
-    // TODO refunds from CCIPSendExecutor
     ;
 
 struct (0x10000002) OnRamp_Send {
