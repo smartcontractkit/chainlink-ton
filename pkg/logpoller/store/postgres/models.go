@@ -12,6 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
 
 // TODO: consider use BYTEA for address field to avoid conversion overhead and improve consistency with raw address format
@@ -68,9 +69,10 @@ type logModel struct {
 	ID               int64     `db:"id"`
 	FilterID         int64     `db:"filter_id"`
 	ChainID          string    `db:"chain_id"`
-	Address          string    `db:"address"`   // TON address in user-friendly format
-	EventSig         []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
-	Data             []byte    `db:"data"`
+	Address          string    `db:"address"`      // TON address in user-friendly format
+	EventSig         []byte    `db:"event_sig"`    // CRC32 hash as 4-byte binary
+	DataHeader       []byte    `db:"data_header"`  // BOC header (variable size)
+	DataPayload      []byte    `db:"data_payload"` // BOC payload (cell descriptor + data)
 	TxHash           []byte    `db:"tx_hash"`
 	TxLT             string    `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
 	TxTimestamp      time.Time `db:"tx_timestamp"`
@@ -87,9 +89,17 @@ type logModel struct {
 
 // FromLog converts a models.Log to logModel
 func (l *logModel) FromLog(log lptypes.Log) logModel {
-	var data []byte
+	var dataHeader, dataPayload []byte
 	if log.Data != nil {
-		data = log.Data.ToBOC()
+		bocData := log.Data.ToBOC()
+
+		headerLen, err := boc.HeaderLen(bocData)
+		if err != nil {
+			panic(fmt.Sprintf("failed to calculate BOC header length: %v", err))
+		}
+
+		dataHeader = bocData[:headerLen]
+		dataPayload = bocData[headerLen:]
 	}
 
 	eventSig := make([]byte, 4)
@@ -100,7 +110,8 @@ func (l *logModel) FromLog(log lptypes.Log) logModel {
 		ChainID:          log.ChainID,
 		Address:          log.Address.String(),
 		EventSig:         eventSig,
-		Data:             data,
+		DataHeader:       dataHeader,
+		DataPayload:      dataPayload,
 		TxHash:           log.TxHash[:],
 		TxLT:             strconv.FormatUint(log.TxLT, 10), // Convert uint64 to string for NUMERIC(20,0) storage
 		TxTimestamp:      log.TxTimestamp,
@@ -127,10 +138,14 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		return lptypes.Log{}, fmt.Errorf("failed to parse address %s: %w", l.Address, err)
 	}
 
-	// Convert BOC data back to cell.Cell
+	// Reconstruct full BOC from header + payload
 	var cellData *cell.Cell
-	if len(l.Data) > 0 {
-		cellData, err = cell.FromBOC(l.Data)
+	if len(l.DataHeader) > 0 && len(l.DataPayload) > 0 {
+		fullBOC := make([]byte, 0, len(l.DataHeader)+len(l.DataPayload))
+		fullBOC = append(fullBOC, l.DataHeader...)
+		fullBOC = append(fullBOC, l.DataPayload...)
+
+		cellData, err = cell.FromBOC(fullBOC)
 		if err != nil {
 			return lptypes.Log{}, fmt.Errorf("failed to parse cell data: %w", err)
 		}

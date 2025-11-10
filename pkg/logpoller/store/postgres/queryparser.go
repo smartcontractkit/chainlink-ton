@@ -10,16 +10,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
-
-// TODO: revert header/body split, BOC header size can be different for different cells, need a better approach to handle this.
-// TON_BOC_HEADER_SIZE is the number of bytes to skip when accessing raw BOC data
-// to align PostgreSQL store behavior with Memory store behavior.
-// Memory store uses BeginParse().RestBits() which extracts cell payload only,
-// while PostgreSQL stores the full BOC data including header.
-// This value was determined through empirical testing and is consistent across
-// different TON cell structures.
-const TonBocHeaderSize = 14
 
 // queryParser helps build SQL queries with named parameters for TON log retrieval
 type queryParser struct {
@@ -42,7 +34,8 @@ func newQueryParser(chainID string) *queryParser {
 		chain_id, 
 		address, 
 		event_sig, 
-		data, 
+		data_header,
+		data_payload,
 		tx_hash, 
 		tx_lt, 
 		msg_index, 
@@ -114,12 +107,10 @@ func (p *queryParser) addCondition(condition string) {
 // addByteFilter adds WHERE conditions for a single byte filter
 func (p *queryParser) addByteFilter(filter *query.ByteFilter) error {
 	for _, condition := range filter.Conditions {
-		// Apply BOC header offset to align PostgreSQL with Memory store behavior
-		// Memory store uses log.Data.BeginParse().RestBits() which extracts cell payload only,
-		// while PostgreSQL stores the full BOC data including header.
-		// Convert 0-based offset to 1-based for SQL SUBSTRING, plus BOC header offset
-		sqlOffset := int(filter.Offset) + 1 + TonBocHeaderSize //nolint:gosec // byte filter offsets are small values
-		sqlSize := int(filter.Size)                            //nolint:gosec // byte filter sizes are small values
+		// Query operates on data_payload which starts with 2-byte cell descriptor
+		// Cell data starts at byte 2, so: offset + 1 (SQL 1-based) + 2 (descriptor)
+		sqlOffset := int(filter.Offset) + 1 + boc.CellDescriptorSize //nolint:gosec // byte filter offsets are small values
+		sqlSize := int(filter.Size)                                   //nolint:gosec // byte filter sizes are small values
 
 		operatorSQL, err := buildOperator(condition.Operator)
 		if err != nil {
@@ -131,7 +122,7 @@ func (p *queryParser) addByteFilter(filter *query.ByteFilter) error {
 		p.byteFilterIdx++
 		p.params[paramName] = condition.Value
 
-		conditionSQL := fmt.Sprintf("SUBSTRING(data, %d, %d) %s :%s",
+		conditionSQL := fmt.Sprintf("SUBSTRING(data_payload, %d, %d) %s :%s",
 			sqlOffset, sqlSize, operatorSQL, paramName)
 		p.addCondition(conditionSQL)
 	}
@@ -248,8 +239,8 @@ func buildOperator(operator primitives.ComparisonOperator) (string, error) {
 
 // addBitFilter adds WHERE conditions for bit filters using PostgreSQL bit functions
 func (p *queryParser) addBitFilter(f *query.BitFilter) error {
-	// Apply BOC header offset to align PostgreSQL with Memory store behavior
-	adjustedStartBit := f.Offset + uint64(TonBocHeaderSize*8)
+	// Bit offset relative to cell data start (after 2-byte descriptor)
+	adjustedStartBit := f.Offset + uint64(boc.CellDescriptorSize*8)
 
 	for _, condition := range f.Conditions {
 		conditionSQL, err := p.buildBitConditionSQL(adjustedStartBit, f.Size, condition)
@@ -272,11 +263,11 @@ func (p *queryParser) buildBitConditionSQL(offset, size uint64, condition query.
 	if size == 1 {
 		// Single bit case: use get_bit() directly
 		expectedValue := int(condition.Value[0])
-		return fmt.Sprintf("get_bit(data, %d) %s %d", offset, operatorSQL, expectedValue), nil
+		return fmt.Sprintf("get_bit(data_payload, %d) %s %d", offset, operatorSQL, expectedValue), nil
 	}
 
 	// Multi-bit case: build bit string comparison using get_bit() concatenation
-	// This creates SQL like: (get_bit(data, 160) || get_bit(data, 161) || ... || get_bit(data, 167)) = B'10101010'
+	// This creates SQL like: (get_bit(data_payload, 160) || get_bit(data_payload, 161) || ... || get_bit(data_payload, 167)) = B'10101010'
 
 	// Convert byte value to bit string literal
 	bitString := p.bytesToBitString(condition.Value, size)
@@ -284,7 +275,7 @@ func (p *queryParser) buildBitConditionSQL(offset, size uint64, condition query.
 	// Build concatenated get_bit() expression
 	var bitExpressions []string
 	for i := uint64(0); i < size; i++ {
-		bitExpressions = append(bitExpressions, fmt.Sprintf("get_bit(data, %d)", offset+i))
+		bitExpressions = append(bitExpressions, fmt.Sprintf("get_bit(data_payload, %d)", offset+i))
 	}
 
 	concatenatedBits := strings.Join(bitExpressions, " || ")

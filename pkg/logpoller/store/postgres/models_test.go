@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"math/big"
 	"testing"
 	"time"
@@ -117,7 +118,9 @@ func TestLogModel_Conversion(t *testing.T) {
 	// Verify cell data can be read
 	require.NotNil(t, convertedLog.Data)
 
-	require.NotEmpty(t, dbLog.Data)
+	// Verify BOC split fields
+	require.NotEmpty(t, dbLog.DataHeader)
+	require.NotEmpty(t, dbLog.DataPayload)
 }
 
 // TestCalculateBOCHeaderLen verifies dynamic header calculation is type-agnostic
@@ -336,6 +339,75 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 			reconstructedCell, err := cell.FromBOC(reconstructedBOC)
 			require.NoError(t, err)
 			require.Equal(t, originalCell.Hash(), reconstructedCell.Hash())
+		})
+	}
+}
+
+func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
+	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name           string
+		bocHex         string
+		expectedHeader int
+	}{
+		{
+			"CCIP_11_byte_header",
+			"b5ee9c724101040100de0001dbec712336f3d9bad60787cb41bdd4fa6f167b1d57ee6c73c633be9902249b27d0c09c614ab4cba0de0c9f9284461c852b000000000000000100000000000000008008d0d4580cd8f09522be7c0390a7a632bda4a99291c435b767c95367ebe78e9ae00000000000000000000000100104838000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000100203030300422012345678901234567890123456789012345678901234567890123456789012340000a04bb835",
+			11,
+		},
+		{
+			"CommitReportAccepted_11_byte",
+			"b5ee9c7241010101005000009b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d00000000000000008000000000000000df513addb30a7c281b29b5e33872a05e3a408c74829bdc220e4a83397ba303eaa06e51f72f",
+			11,
+		},
+		{
+			"ExecutionStateChanged_11_byte",
+			"b5ee9c724101010100330000620c9f9284461c852b00000000000000010000000000000000000000000000000000000000000000000000000000000001016423df08",
+			11,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			bocBytes, err := hex.DecodeString(tc.bocHex)
+			require.NoError(t, err)
+
+			originalCell, err := cell.FromBOC(bocBytes)
+			require.NoError(t, err)
+
+			originalLog := models.Log{
+				FilterID:    1,
+				ChainID:     "test-chain",
+				Address:     testAddr,
+				EventSig:    0x12345678,
+				Data:        originalCell,
+				TxHash:      models.TxHash{1, 2, 3, 4, 5},
+				TxLT:        1000,
+				TxTimestamp: time.Now().Truncate(time.Microsecond),
+				Block: &ton.BlockIDExt{
+					Workchain: 0,
+					Shard:     -1,
+					SeqNo:     100,
+					RootHash:  make([]byte, 32),
+					FileHash:  make([]byte, 32),
+				},
+				MasterBlockSeqno: 200,
+				MsgLT:            1000,
+				MsgIndex:         0,
+			}
+
+			dbModel := (&logModel{}).FromLog(originalLog)
+
+			require.NotEmpty(t, dbModel.DataHeader)
+			require.NotEmpty(t, dbModel.DataPayload)
+			require.Equal(t, tc.expectedHeader, len(dbModel.DataHeader))
+			require.Equal(t, len(bocBytes), len(dbModel.DataHeader)+len(dbModel.DataPayload))
+
+			reconstructed, err := dbModel.ToLog()
+			require.NoError(t, err)
+			require.Equal(t, originalCell.Hash(), reconstructed.Data.Hash())
 		})
 	}
 }
