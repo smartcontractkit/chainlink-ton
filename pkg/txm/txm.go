@@ -240,11 +240,21 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"hasBody", msg.InternalMessage.Body != nil)
 		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
 
+		if receivedMessage.ExitCode != 0 {
+			t.logger.Errorw("transaction failed: with exitcode %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
+		}
+
 		if err == nil {
 			t.logger.Infow("transaction broadcasted",
 				"txID", txID,
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
+			err = receivedMessage.WaitForTrace(client.Client)
+			if err != nil {
+				t.logger.Errorw("failed to wait for trace: %w", err)
+			}
+			t.logger.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
+			t.logger.Infof("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 			break
 		}
 
