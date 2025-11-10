@@ -19,14 +19,17 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
+	postgresstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+
+	logpoller_testdata "github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
+	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"
 )
 
 const (
@@ -623,13 +626,13 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return nil, nil
 	}
-	// Test ExecutedMessages integration with logpoller using ExecutionStateChanged BOCs
+
+	// Setup in-memory store
 	lggr := logger.Test(t)
-	store := inmemorystore.NewLogStore("test-chain", lggr)
 	opts := &logpoller.ServiceOptions{
 		Config:      logpoller.DefaultConfigSet,
 		FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
-		LogStore:    store,
+		LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 	}
 
 	lp := logpoller.NewService(
@@ -638,6 +641,65 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 		clientProvider,
 		opts,
 	)
+
+	// Run common test logic with in-memory store (filterID = 1 for in-memory)
+	testExecutedMessagesHelper(t, lp, opts.LogStore, 1)
+}
+
+func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
+	// Skip if no database available
+	if testing.Short() {
+		t.Skip("Skipping postgres test in short mode")
+	}
+
+	// Note: we don't test the API client interaction here, so we return empty client
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return nil, nil
+	}
+
+	// Setup postgres store using testcontainers
+	lggr := logger.Test(t)
+	ds := pgtest.SetupTestDB(t)
+
+	// Create TON tables
+	err := pgtest.ApplyMigration(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+	require.NoError(t, err, "failed to create TON tables")
+
+	orm := postgresstore.NewORM("test-chain", ds, lggr)
+	pgStore := postgresstore.NewLogStore("test-chain", orm, lggr)
+	pgFilterStore := postgresstore.NewFilterStore("test-chain", orm, lggr)
+
+	opts := &logpoller.ServiceOptions{
+		Config:      logpoller.DefaultConfigSet,
+		FilterStore: pgFilterStore,
+		LogStore:    pgStore,
+	}
+
+	lp := logpoller.NewService(
+		lggr,
+		"test-chain",
+		clientProvider,
+		opts,
+	)
+
+	// Register filter first (required for foreign key constraint)
+	filter := lptypes.Filter{
+		Name:     "ExecutionStateChanged_Filter",
+		Address:  address.MustParseAddr(MockOffRampAddr),
+		MsgType:  tlb.MsgTypeExternalOut,
+		EventSig: hash.CRC32(consts.EventNameExecutionStateChanged),
+	}
+	filterID, err := lp.RegisterFilter(t.Context(), filter)
+	require.NoError(t, err, "failed to register filter")
+
+	// Run common test logic with postgres store
+	testExecutedMessagesHelper(t, lp, opts.LogStore, filterID)
+}
+
+// testExecutedMessagesHelper contains the common test logic for ExecutedMessages query.
+// It is used by both in-memory and postgres store tests to avoid duplication.
+func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore logpoller.LogStore, filterID int64) {
+	t.Helper()
 
 	// Parse the ExecutionStateChanged BOCs and save them as logs
 	baseTimestamp := time.Now()
@@ -660,10 +722,11 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	failureCell, err := cell.FromBOC(failureBytes)
 	require.NoError(t, err)
 
-	_, serr := store.SaveLogs(t.Context(), []lptypes.Log{
+	// Save logs via logStore
+	savedCount, serr := logStore.SaveLogs(t.Context(), []lptypes.Log{
 		{
 			ChainID:          "test-chain",
-			FilterID:         1,
+			FilterID:         filterID,
 			Address:          address.MustParseAddr(MockOffRampAddr),
 			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
 			Data:             inProgressCell,
@@ -672,11 +735,12 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 			TxTimestamp:      baseTimestamp.Add(1 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
 			MasterBlockSeqno: 200,
+			MsgLT:            1000,
 			MsgIndex:         0,
 		},
 		{
 			ChainID:          "test-chain",
-			FilterID:         1,
+			FilterID:         filterID,
 			Address:          address.MustParseAddr(MockOffRampAddr),
 			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
 			Data:             successCell,
@@ -685,11 +749,12 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 			TxTimestamp:      baseTimestamp.Add(2 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
 			MasterBlockSeqno: 201,
+			MsgLT:            1001,
 			MsgIndex:         1,
 		},
 		{
 			ChainID:          "test-chain",
-			FilterID:         1,
+			FilterID:         filterID,
 			Address:          address.MustParseAddr(MockOffRampAddr),
 			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
 			Data:             failureCell,
@@ -698,10 +763,12 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 			TxTimestamp:      baseTimestamp.Add(3 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
 			MasterBlockSeqno: 202,
+			MsgLT:            1002,
 			MsgIndex:         2,
 		},
 	}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, serr, "failed to save logs")
+	require.Equal(t, int64(3), savedCount, "should have saved 3 logs")
 
 	// Setup accessor
 	addrCodec := codec.NewAddressCodec()
@@ -729,7 +796,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	executedSeqNums := executed[ccipocr3.ChainSelector(ChainSelEVMTest90000001)]
 	require.Len(t, executedSeqNums, 3, "should have 3 executed messages (IN_PROGRESS, SUCCESS and FAILURE)")
 
-	// Verify both sequence numbers are 1 (from our test BOCs)
+	// Verify all sequence numbers are 1 (from our test BOCs)
 	for _, seqNum := range executedSeqNums {
 		require.Equal(t, ccipocr3.SeqNum(1), seqNum, "sequence number should be 1")
 	}

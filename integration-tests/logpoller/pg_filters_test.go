@@ -19,8 +19,7 @@ import (
 
 func TestSQLFilterStore(t *testing.T) {
 	ctx := t.Context()
-	ds, cleanup := pgtest.SetupTestDB(t)
-	defer cleanup()
+	ds := pgtest.SetupTestDB(t)
 
 	// Create tables
 	err := pgtest.ApplyMigration(ctx, ds, testdata.CreateLogPollerTables)
