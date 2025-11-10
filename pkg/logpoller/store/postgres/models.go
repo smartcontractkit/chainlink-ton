@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -175,31 +174,4 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		MsgLT:            msgLT,
 		MsgIndex:         l.MsgIndex,
 	}, nil
-}
-
-// TODO:
-// cell descriptor is always 2 bytes
-const cellDescriptorSize = 2
-
-// calculateBOCHeaderLen calculates the header length of a BOC based on its structure
-// header = magic(4) + flags(1) + sizeBytes(1) + cellsNum(cellSizeBytes) + rootsNum(cellSizeBytes) +
-//
-//	completeNum(cellSizeBytes) + dataLen(sizeBytes) + rootIdx(cellSizeBytes)
-func calculateBOCHeaderLen(boc []byte) (int, error) {
-	if len(boc) < 6 {
-		return 0, errors.New("BOC too small: minimum 6 bytes required for header")
-	}
-
-	flags := boc[4]
-	cellSizeBytes := int(flags & 0x07) // last 3 bits
-	sizeBytes := int(boc[5])
-
-	// header size = fixed(6) + variable((4 × cellSizeBytes) + sizeBytes)
-	headerSize := 6 + (4 * cellSizeBytes) + sizeBytes
-
-	if len(boc) < headerSize {
-		return 0, fmt.Errorf("BOC too small for calculated header size %d, actual size %d", headerSize, len(boc))
-	}
-
-	return headerSize, nil
 }

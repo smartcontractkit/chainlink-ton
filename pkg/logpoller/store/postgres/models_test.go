@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
 
 func TestFilterModel_Conversion(t *testing.T) {
@@ -217,17 +218,17 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			originalCell := tt.buildCell()
-			boc := originalCell.ToBOC()
+			bocBytes := originalCell.ToBOC()
 
 			// calculate header length dynamically
-			headerLen, err := calculateBOCHeaderLen(boc)
+			headerLen, err := boc.HeaderLen(bocBytes)
 			require.NoError(t, err)
 			require.Positive(t, headerLen)
-			require.Less(t, headerLen, len(boc))
+			require.Less(t, headerLen, len(bocBytes))
 
 			// verify split and join preserves data
-			header := boc[:headerLen]
-			payload := boc[headerLen:]
+			header := bocBytes[:headerLen]
+			payload := bocBytes[headerLen:]
 
 			require.NotEmpty(t, header)
 			require.NotEmpty(t, payload)
@@ -235,7 +236,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 			reconstructedBOC := make([]byte, 0, len(header)+len(payload))
 			reconstructedBOC = append(reconstructedBOC, header...)
 			reconstructedBOC = append(reconstructedBOC, payload...)
-			require.Equal(t, boc, reconstructedBOC)
+			require.Equal(t, bocBytes, reconstructedBOC)
 
 			// verify cell reconstruction works
 			reconstructedCell, err := cell.FromBOC(reconstructedBOC)
@@ -300,17 +301,17 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			originalCell := tt.buildCell()
-			boc := originalCell.ToBOC()
+			bocBytes := originalCell.ToBOC()
 
 			// split using our function
-			headerLen, err := calculateBOCHeaderLen(boc)
+			headerLen, err := boc.HeaderLen(bocBytes)
 			require.NoError(t, err)
 
-			payload := boc[headerLen:]
+			payload := bocBytes[headerLen:]
 
 			// payload starts with 2-byte cell descriptor
 			// actual cell data starts at byte 2
-			cellData := payload[cellDescriptorSize:]
+			cellData := payload[boc.CellDescriptorSize:]
 
 			// verify expected bytes at each offset
 			for offset, expected := range tt.expectedBytes {
@@ -321,7 +322,7 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 				// simulate SQL SUBSTRING query
 				// SQL is 1-based, and operates on boc_payload which includes descriptor
 				// so SQL offset = cell_data_offset + descriptor_size + 1
-				sqlOffset := offset + cellDescriptorSize + 1
+				sqlOffset := offset + boc.CellDescriptorSize + 1
 				sqlResult := payload[sqlOffset-1 : sqlOffset-1+len(expected)]
 				require.Equal(t, expected, sqlResult,
 					"SQL SUBSTRING(boc_payload, %d, %d) should return %x, got %x",
@@ -330,7 +331,7 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 
 			// verify cell reconstruction still works
 			reconstructedBOC := make([]byte, 0, headerLen+len(payload))
-			reconstructedBOC = append(reconstructedBOC, boc[:headerLen]...)
+			reconstructedBOC = append(reconstructedBOC, bocBytes[:headerLen]...)
 			reconstructedBOC = append(reconstructedBOC, payload...)
 			reconstructedCell, err := cell.FromBOC(reconstructedBOC)
 			require.NoError(t, err)
