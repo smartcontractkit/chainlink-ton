@@ -625,7 +625,6 @@ describe('FeeQuoter GetValidatedFee', () => {
     /**
      * Helper function to test success scenarios with configurable parameters
      * @param testName Description of the test scenario
-     * @param expectedError Expected error type
      * @param overrides Configuration overrides for extreme values
      */
     async function testSuccessScenario(testName: string, overrides: FeeQuoterOverrides = {}) {
@@ -728,7 +727,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       // DA calculation:
       const daLengthCost =
         BigInt(overrides.dataSize) * BigInt(overrides.destGasPerDataAvailabilityByte)
-      const dataAvailabilityGas = daLengthCost * BigInt(overrides.destDataAvailabilityOverheadGas)
+      const dataAvailabilityGas = daLengthCost + BigInt(overrides.destDataAvailabilityOverheadGas)
       //
       const daPrice = overrides.dataAvailabilityGasPrice * dataAvailabilityGas
       const daWithMultiplier = daPrice * BigInt(overrides.destDataAvailabilityMultiplierBps)
@@ -807,9 +806,9 @@ describe('FeeQuoter GetValidatedFee', () => {
           gasMultiplierWeiPerEth: 2n ** 63n, // Near max uint64
           destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16
           tokenPrice: 1n, // Very small token price to maximize final result
-          gasLimit: BigInt(Math.pow(2, 32) - 1), // Max gas limit
-          destGasOverhead: Math.pow(2, 32) - 1, // Max overhead
-          maxPerMsgGasLimit: Math.pow(2, 32) - 1,
+          gasLimit: 2n ** 32n - 1n, // Max gas limit
+          destGasOverhead: 2 ** 32 - 1, // Max overhead
+          maxPerMsgGasLimit: 2 ** 32 - 1,
           dataSize: 10000, // Large data size
           maxDataBytes: 10001,
         },
