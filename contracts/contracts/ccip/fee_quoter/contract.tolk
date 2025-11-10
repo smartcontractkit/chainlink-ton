@@ -341,6 +341,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
         assert (suiExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
+
+        return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
