@@ -320,6 +320,11 @@ const MAX_NUM_SIGNERS = 200;
 
 const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
 
+// --- Constants - storage ---
+
+/// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
+const MIN_TON_TO_RESERVE: int = ton("1");
+
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
@@ -1241,6 +1246,9 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
         return self.hooks.execute(self.context, target, value, data); // extension hook
     }
+
+    // We reserve some TON coins on the balance for rent
+    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
 
     // Send a message to the target with the provided value and data
     val op = createMessage({
