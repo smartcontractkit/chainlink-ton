@@ -47,9 +47,6 @@ func NewCCIPProvider(
 	logPoller logpoller.Service,
 	cargs commontypes.CCIPProviderArgs,
 ) (*Provider, error) {
-	// TODO: clean up, too verbose
-	lggr.Info("Creating TON CCIPProvider", "chainSelector", chainSelector, "pluginType", cargs.PluginType, "offRampAddress", cargs.OffRampAddress)
-
 	// Validate offramp address
 	addressCodec := codec.NewAddressCodec()
 	var offRampAddrStr string
@@ -64,9 +61,8 @@ func NewCCIPProvider(
 			return nil, fmt.Errorf("failed to decode TON offRamp address: %w", err)
 		}
 	} else {
-		// TODO: clean up, too verbose
 		// EVM address provided - use zero address as placeholder
-		lggr.Warnw("EVM offramp address provided to TON provider, using zero address placeholder",
+		lggr.Debug("EVM offramp address provided to TON provider, using zero address placeholder",
 			"providedLength", len(cargs.OffRampAddress),
 			"expectedLength", tvm.AddressLength)
 		// Use a zero TON address as placeholder
@@ -102,6 +98,9 @@ func NewCCIPProvider(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON Accessor: %w", err)
 	}
+
+	lggr.Info("Returning TON CCIPProvider", "chainSelector", chainSelector, "pluginType", cargs.PluginType,
+		"cargs.offRampAddress", cargs.OffRampAddress, "offRampAddrStr", offRampAddrStr)
 
 	return &Provider{
 		lggr:  logger.Named(lggr, CCIPProviderName),
