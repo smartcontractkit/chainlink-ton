@@ -459,25 +459,13 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // Overflow/Underflow Edge Case Tests
   describe('Overflow and Underflow Edge Cases', () => {
-    interface FeeQuoterOverrides {
+    interface FeeQuoterOverrides extends Partial<feeQuoter.DestChainConfig> {
       // Gas prices - constrained by serialization limits
       executionGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
       dataAvailabilityGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
       // Token price and premium multiplier
       tokenPrice?: bigint // max: uint224 = 2^224-1 ≈ 2.7e67
       premiumMultiplier?: bigint // max: uint256 = 2^256-1 ≈ 1.2e77
-      // Dest chain config overrides - constrained by struct field types
-      networkFeeUsdCents?: number // max: uint32 = 2^32-1 = 4,294,967,295
-      gasMultiplierWeiPerEth?: bigint // max: uint64 = 2^64-1 ≈ 1.8e19
-      destGasOverhead?: number // max: uint32 = 2^32-1 = 4,294,967,295
-      destGasPerPayloadByteBase?: number // max: uint8 = 255
-      destGasPerPayloadByteHigh?: number // max: uint8 = 255
-      destGasPerPayloadByteThreshold?: number // max: uint16 = 65,535
-      destDataAvailabilityOverheadGas?: number // max: uint32 = 2^32-1 = 4,294,967,295
-      destGasPerDataAvailabilityByte?: number // max: uint16 = 65,535
-      destDataAvailabilityMultiplierBps?: number // max: uint16 = 65,535
-      maxDataBytes?: number // max: uint32 = 2^32-1 = 4,294,967,295
-      maxPerMsgGasLimit?: number // max: uint32 = 2^32-1 = 4,294,967,295
       // Message parameters
       gasLimit?: bigint // constrained by maxPerMsgGasLimit (uint32)
       dataSize?: number // constrained by maxDataBytes (uint32)
@@ -527,21 +515,14 @@ describe('FeeQuoter GetValidatedFee', () => {
         })
       }
 
+      // Get dest chain config keys for filtering
+      const destChainConfigKeys = Object.keys(FeeQuoterSetup.destChainConfig) as Array<
+        keyof feeQuoter.DestChainConfig
+      >
+
       // Update dest chain config if needed
       const hasDestConfigOverrides = Object.keys(overrides).some((key) =>
-        [
-          'networkFeeUsdCents',
-          'gasMultiplierWeiPerEth',
-          'destGasOverhead',
-          'destGasPerPayloadByteBase',
-          'destGasPerPayloadByteHigh',
-          'destGasPerPayloadByteThreshold',
-          'destDataAvailabilityOverheadGas',
-          'destGasPerDataAvailabilityByte',
-          'destDataAvailabilityMultiplierBps',
-          'maxDataBytes',
-          'maxPerMsgGasLimit',
-        ].includes(key),
+        destChainConfigKeys.includes(key as keyof feeQuoter.DestChainConfig),
       )
 
       if (overrides.maxDataBytes) {
@@ -551,6 +532,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
 
       if (hasDestConfigOverrides) {
+        // Extract only DestChainConfig properties from overrides
+        const destConfigOverrides = Object.fromEntries(
+          Object.entries(overrides).filter(
+            ([key, value]) =>
+              destChainConfigKeys.includes(key as keyof feeQuoter.DestChainConfig) &&
+              value !== undefined,
+          ),
+        ) as Partial<feeQuoter.DestChainConfig>
+
         const destChainConfigResult = await setup.bind.feeQuoter.sendUpdateDestChainConfigs(
           setup.acc.owner.getSender(),
           {
@@ -560,36 +550,7 @@ describe('FeeQuoter GetValidatedFee', () => {
                 destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
                 config: {
                   ...FeeQuoterSetup.destChainConfig,
-                  networkFeeUsdCents:
-                    overrides.networkFeeUsdCents ??
-                    FeeQuoterSetup.destChainConfig.networkFeeUsdCents,
-                  gasMultiplierWeiPerEth:
-                    overrides.gasMultiplierWeiPerEth ??
-                    FeeQuoterSetup.destChainConfig.gasMultiplierWeiPerEth,
-                  destGasOverhead:
-                    overrides.destGasOverhead ?? FeeQuoterSetup.destChainConfig.destGasOverhead,
-                  destGasPerPayloadByteBase:
-                    overrides.destGasPerPayloadByteBase ??
-                    FeeQuoterSetup.destChainConfig.destGasPerPayloadByteBase,
-                  destGasPerPayloadByteHigh:
-                    overrides.destGasPerPayloadByteHigh ??
-                    FeeQuoterSetup.destChainConfig.destGasPerPayloadByteHigh,
-                  destGasPerPayloadByteThreshold:
-                    overrides.destGasPerPayloadByteThreshold ??
-                    FeeQuoterSetup.destChainConfig.destGasPerPayloadByteThreshold,
-                  destDataAvailabilityOverheadGas:
-                    overrides.destDataAvailabilityOverheadGas ??
-                    FeeQuoterSetup.destChainConfig.destDataAvailabilityOverheadGas,
-                  destGasPerDataAvailabilityByte:
-                    overrides.destGasPerDataAvailabilityByte ??
-                    FeeQuoterSetup.destChainConfig.destGasPerDataAvailabilityByte,
-                  destDataAvailabilityMultiplierBps:
-                    overrides.destDataAvailabilityMultiplierBps ??
-                    FeeQuoterSetup.destChainConfig.destDataAvailabilityMultiplierBps,
-                  maxDataBytes:
-                    overrides.maxDataBytes ?? FeeQuoterSetup.destChainConfig.maxDataBytes,
-                  maxPerMsgGasLimit:
-                    overrides.maxPerMsgGasLimit ?? FeeQuoterSetup.destChainConfig.maxPerMsgGasLimit,
+                  ...destConfigOverrides,
                 },
               },
             ],
