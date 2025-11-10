@@ -473,14 +473,15 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     async function feequoterOverwrite(overrides: FeeQuoterOverrides) {
       // Set up token prices
-      const tokenPricesUpdates: Token[] = overrides.tokenPrice
-        ? [
-            {
-              token: FeeQuoterSetup.NATIVE_TON.token,
-              price: overrides.tokenPrice,
-            },
-          ]
-        : []
+      const tokenPricesUpdates: Token[] =
+        overrides.tokenPrice === undefined
+          ? []
+          : [
+              {
+                token: FeeQuoterSetup.NATIVE_TON.token,
+                price: overrides.tokenPrice,
+              },
+            ]
 
       // Set up gas prices if specified
       const priceUpdates: feeQuoter.PriceUpdates = {
