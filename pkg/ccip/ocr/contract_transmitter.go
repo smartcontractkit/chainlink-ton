@@ -106,15 +106,24 @@ func (c *ccipTransmitter) Transmit(
 	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
 
 	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.05") // base amount, TODO: make configurable
-	if gasLimit != nil {
-		finalAmount, err = baseAmount.Add(gasLimit)
-		if err != nil {
-			return fmt.Errorf("failed to add gas limit to base amount: %w", err)
-		}
+
+	// Base amounts
+	baseCommit := tlb.MustFromTON("0.075") // 0.008 + 0.015 + (0.005 * 10) + 0.002
+	baseExecute := tlb.MustFromTON("0.07") // execute base; gasLimit is added below
+
+	if gasLimit == nil {
+		// Commit report: fixed total
+		commit := baseCommit
+		finalAmount = &commit
 	} else {
-		finalAmount = &baseAmount
+		// Execute report: base + gasLimit
+		var err error
+		finalAmount, err = baseExecute.Add(gasLimit)
+		if err != nil {
+			return fmt.Errorf("failed to add gas limit to execute base amount: %w", err)
+		}
 	}
+
 
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,

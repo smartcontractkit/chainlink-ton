@@ -282,7 +282,6 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
     }
 
     // check that the amount attached is enough to cover message execution and delivery off outgoing messages
-    debug.print(OffRamp_Costs.commit(amountOfMessagesInReport));
     assert(value >= OffRamp_Costs.commit(amountOfMessagesInReport), Error.InsufficientFee);
 
     if (root != null) {
@@ -299,8 +298,6 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
         st.sourceChainConfigs.replaceIfExists(root.sourceChainSelector, sourceChainConfig);
 
         val totalAmountForRoot = AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT * amountOfMessagesInReport;
-        debug.print(amountOfMessagesInReport);
-        debug.print(totalAmountForRoot);
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
@@ -412,6 +409,12 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
     val isManualExec = gasOverride != null;
+    debug.printString("execute value");
+    debug.print(value);
+    debug.printString("required value");
+    debug.print(OffRamp_Costs.execute(isManualExec));
+    debug.printString("message gasLimit");
+    debug.print(message.gasLimit);
 
     assert(value >= (OffRamp_Costs.execute(isManualExec) + message.gasLimit), Error.InsufficientFee);
 

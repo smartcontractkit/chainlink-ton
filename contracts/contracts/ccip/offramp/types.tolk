@@ -100,7 +100,7 @@ struct OffRamp_Deployables {
     router: address;
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // use a library cell offchain to save space
-    receiveExecutorCode: cell; //TODO: use a library cell offchain to save space 
+    receiveExecutorCode: cell; // use a library cell offchain to save space 
 }
 
 const MERKLE_ROOT_ID_SIZE = 256;
@@ -122,8 +122,8 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
     Failure = 3
 }
 
-const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.01");
-const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.02");
+const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.005");
+const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.005");
 
 struct OffRamp_Costs{}
 struct MerkleRoot_Costs{}
@@ -149,7 +149,7 @@ fun ReceiveExecutor_Costs.initExec(){
 }
 
 fun OffRamp_Costs.dispatchValidated(){
-    val baseFee = ton("0.005");
+    val baseFee = ton("0.004");
     return baseFee + Router_Costs.routeMessage();
 }
 
@@ -183,7 +183,7 @@ fun OffRamp_Costs.commit(amountOfMessagesCommited: int) {
 }
 
 fun OffRamp_Costs.execute(isManualExec: bool) {
-    val baseFee = ton("0.015");
+    val baseFee = ton("0.0125");
     return baseFee + MerkleRoot_Costs.validate(isManualExec);
 }
 
