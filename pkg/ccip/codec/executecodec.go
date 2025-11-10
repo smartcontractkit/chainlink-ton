@@ -154,7 +154,6 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	var gasLimit tlb.Coins // this is express in nanoTONs
 	if gasLimitBigInt != nil {
 		gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-		// gasLimit, err = tlb.FromTON("0.1") // 0.1 TON which is the same hard-coded value as in the msghasher.go file
 		if err != nil {
 			return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
 		}

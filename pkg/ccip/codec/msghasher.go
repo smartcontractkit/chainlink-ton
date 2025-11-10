@@ -119,7 +119,6 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	}
 
 	gasLimit, err = parseExtraArgsMap(extraArgsDecodeMap)
-	// gasLimit := big.NewInt(1e8) // 0.1 TON which is the same hard-coded value as in the executecode.go file
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 	}
