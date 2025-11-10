@@ -133,9 +133,9 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
     val st = lazy Storage.load();
     val message: Any2TVMMessage = msg.message.load();
 
-    val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
+    val key = _mergeChainSelectorAndOffRamp(message.sourceChainSelector, sender);
+    val expectedOffRamp = st.offRamps.mustGet(key, Router_Error.DestChainNotEnabled as int);
     assert(sender == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
-
 
     val ccipReceive: Receiver_CCIPReceive = {
         execId: msg.execId,
@@ -164,6 +164,17 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
     // TODO: emit(OnRampsSet)
 }
 
+/// @notice Merges a chain selector and offRamp address into a single uint256 by shifting the
+/// chain selector 160 bits to the left.
+fun _mergeChainSelectorAndOffRamp(sourceChainSelector: uint64, offRampAddress: address): uint256 {
+    return beginCell()
+        .storeUint(sourceChainSelector, 64)
+        .storeAddress(offRampAddress)
+        .endCell()
+        .beginParse()
+        .loadUint(256);
+}
+
 fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
@@ -173,7 +184,8 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
         var iter = msg.sourceChainSelectorsAdd.iter();
         while (!iter.empty()) {
             val selector = iter.next();
-            st.offRamps.set(selector, offRampAdd);
+            val key = _mergeChainSelectorAndOffRamp(selector, offRampAdd);
+            st.offRamps.set(key, offRampAdd);
         }
     }
     if (msg.offRampRemove != null) {
@@ -181,9 +193,10 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
         var iter = msg.sourceChainSelectorsRemove.iter();
         while (!iter.empty()) {
             val selector = iter.next();
-            val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector as int);
+            val key = _mergeChainSelectorAndOffRamp(selector, offRampRemove);
+            val existing = st.offRamps.mustGet(key, Router_Error.OffRampNotSetForSelector as int);
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
-            st.offRamps.delete(selector);
+            st.offRamps.delete(key);
         }
     }
 
@@ -205,11 +218,14 @@ fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     val st = lazy Storage.load();
     val sourceChainSelector = msg.execId.getSourceChainSelector();
 
-    val offRamp: address = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+    // TODO: get offramp per execId
+    val offRamp: address  = address("0:0000000000000000000000000000000000000000000000000000000000000000");
+    val key: uint256 = _mergeChainSelectorAndOffRamp(sourceChainSelector, offRamp);
+    st.offRamps.mustGet(key, Router_Error.SourceChainNotEnabled as int);
 
     val confirmMsg = createMessage({
         bounce: true,
-        value: ton("0"), 
+        value: 0,
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
             execId: msg.execId,
@@ -222,7 +238,11 @@ fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val st = Storage.load();
     val sourceChainSelector = execId.getSourceChainSelector();
-    val offRamp = st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+
+    // TODO: get offramp per execId
+    val offRamp: address  = address("0:0000000000000000000000000000000000000000000000000000000000000000");
+    val key: uint256 = _mergeChainSelectorAndOffRamp(sourceChainSelector, offRamp);
+    st.offRamps.mustGet(key, Router_Error.SourceChainNotEnabled as int);
 
     val receiveBounced = createMessage({
         bounce: true,
@@ -334,9 +354,10 @@ get fun onRamp(destChainSelector: uint64): address {
     return st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled as int);
 }
 
-get fun offRamp(sourceChainSelector: uint64): address {
+get fun isOffRamp(sourceChainSelector: uint64, offRamp: address): address {
     val st = lazy Storage.load();
-    return st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+    val key = _mergeChainSelectorAndOffRamp(sourceChainSelector, offRamp);
+    return st.offRamps.mustGet(key, Router_Error.SourceChainNotEnabled as int);
 }
 
 struct Ramp {
@@ -365,10 +386,8 @@ get fun offRamps() {
     var list: tuple? = null;
     var r = st.offRamps.findFirst();
     while (r.isFound) {
-        val ramp = Ramp {
-            chainSelector: r.getKey(),
-            ramp: r.loadValue(),
-        };
+        val chainSelector = (r.getKey() >> 192) as uint64;
+        val ramp = Ramp { chainSelector, ramp: r.loadValue() };
         list = listPrepend(ramp.toCell(), list);
         r = st.offRamps.iterateNext(r);
     }
@@ -384,4 +403,3 @@ get fun destChainSelectors(): tuple {
 get fun reserve(): coins {
     return RESERVE;
 }
-

@@ -15,7 +15,7 @@ struct Storage {
     wrappedNative: address;
 
     onRamps: map<uint64, address>; // destChainSelector -> onRamp address
-    offRamps: map<uint64, address>; // sourceChainSelector -> offRamp address
+    offRamps: map<uint256, address>; // key(sourceChainSelector, addr) -> offRamp address
 
     rmnRemote: Cell<RMNRemote>,
 }
