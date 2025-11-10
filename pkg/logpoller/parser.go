@@ -17,9 +17,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-// processTransactions spawns goroutines to process transactions in parallel.
+// parseTransactions spawns goroutines to parse transactions in parallel.
 // TODO: consider worker pool if transaction volume becomes high (>1000/block)
-func (lp *service) processTransactions(
+func (lp *service) parseTransactions(
 	ctx context.Context,
 	filterIndex models.FilterIndex,
 	chainID string,
@@ -38,7 +38,7 @@ func (lp *service) processTransactions(
 			go func(t models.Tx) {
 				defer wg.Done()
 
-				logs, err := lp.ProcessTx(ctx, t.Transaction, t.Block, chainID, filterIndex)
+				logs, err := lp.parseTx(t.Transaction, t.Block, chainID, filterIndex)
 				if err != nil {
 					errsOut <- fmt.Errorf("failed to process tx %x: %w", t.Transaction.Hash, err)
 					return
@@ -64,8 +64,8 @@ func (lp *service) processTransactions(
 	return logsOut, errsOut
 }
 
-// ProcessTx handles a single transaction
-func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+// parseTx handles a single transaction
+func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx == nil {
 		return nil, errors.New("transaction is nil")
 	}
@@ -83,7 +83,7 @@ func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *to
 	}
 
 	for msgIndex, msg := range msgs {
-		logs, err := lp.processMessage(ctx, tx, block, chainID, msgIndex, &msg, filterIndex)
+		logs, err := lp.parseMessage(&msg, msgIndex, tx, block, chainID, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
 			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Hash, "msgIndex", msgIndex, "err", err)
@@ -94,8 +94,8 @@ func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *to
 	return allLogs, nil
 }
 
-// processMessage handles a single message within a transaction
-func (lp *service) processMessage(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, msgIndex int, msg *tlb.Message, filterIndex models.FilterIndex) ([]models.Log, error) {
+// parseMessage handles a single message within a transaction
+func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	// guard clauses for initial validation and early exit
 	if msg == nil || msg.Msg == nil {
 		return nil, errors.New("message or message content is nil")

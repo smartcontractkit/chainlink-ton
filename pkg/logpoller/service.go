@@ -177,7 +177,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 	}
 
 	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
-	logsCh, processorErrsCh := lp.processTransactions(ctx, filterIndex, lp.chainID, txsCh)
+	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
 	// TODO: deal with error metrics here
 	go func() {
@@ -186,8 +186,8 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		}
 	}()
 	go func() {
-		for err := range processorErrsCh {
-			lp.lggr.Errorw("processor error", "err", err)
+		for err := range parseErrsCh {
+			lp.lggr.Errorw("parse error", "err", err)
 		}
 	}()
 
