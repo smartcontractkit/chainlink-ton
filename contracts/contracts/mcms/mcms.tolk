@@ -989,11 +989,11 @@ fun MCMS<T>.setConfig(
             }
 
             var count = groupChildrenCounts.get(g);
-            var value = 1;
+            var value: uint8 = 1;
             if (count.isFound) {
                 value = count.loadValue() + 1;
             }
-            groupChildrenCounts.set(g, value as uint8);
+            groupChildrenCounts.set(g, value);
         }
 
         // second, we iterate backwards so as to check each group and propagate counts from
@@ -1024,7 +1024,7 @@ fun MCMS<T>.setConfig(
 
             val disabled = gq == 0;
 
-            var count = 0; // default count
+            var count: uint8 = 0; // default count
             {
                 // get the number of children for this group
                 var value = groupChildrenCounts.get(i);
@@ -1242,21 +1242,16 @@ fun MCMS<T>.transferOracleRole(
 }
 
 /// Execute an op's call. Performs a raw message send that can bounce on errors.
-fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
+fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
-        return self.hooks.execute(self.context, target, value, data); // extension hook
+        return self.hooks.execute(self.context, dest, value, body); // extension hook
     }
 
     // We reserve some TON coins on the balance for rent
     reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
 
     // Send a message to the target with the provided value and data
-    val op = createMessage({
-        bounce: true,
-        value,
-        dest: target,
-        body: data
-    });
+    val op = createMessage({bounce: true, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
