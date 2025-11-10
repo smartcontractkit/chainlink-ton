@@ -97,7 +97,8 @@ func TestLogModel_Conversion(t *testing.T) {
 
 	// Convert to database model and back
 	dbLogModel := logModel{}
-	dbLog := dbLogModel.FromLog(originalLog)
+	dbLog, err := dbLogModel.FromLog(originalLog)
+	require.NoError(t, err)
 	convertedLog, err := dbLog.ToLog()
 	require.NoError(t, err)
 
@@ -396,18 +397,19 @@ func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
 				MasterBlockSeqno: 200,
 				MsgLT:            1000,
 				MsgIndex:         0,
-			}
+		}
 
-			dbModel := (&logModel{}).FromLog(originalLog)
+		dbModel, err := (&logModel{}).FromLog(originalLog)
+		require.NoError(t, err)
 
-			require.NotEmpty(t, dbModel.DataHeader)
-			require.NotEmpty(t, dbModel.DataPayload)
-			require.Equal(t, tc.expectedHeader, len(dbModel.DataHeader))
-			require.Equal(t, len(bocBytes), len(dbModel.DataHeader)+len(dbModel.DataPayload))
+		require.NotEmpty(t, dbModel.DataHeader)
+		require.NotEmpty(t, dbModel.DataPayload)
+		require.Equal(t, tc.expectedHeader, len(dbModel.DataHeader))
+		require.Equal(t, len(bocBytes), len(dbModel.DataHeader)+len(dbModel.DataPayload))
 
-			reconstructed, err := dbModel.ToLog()
-			require.NoError(t, err)
-			require.Equal(t, originalCell.Hash(), reconstructed.Data.Hash())
+		reconstructed, err := dbModel.ToLog()
+		require.NoError(t, err)
+		require.Equal(t, originalCell.Hash(), reconstructed.Data.Hash())
 		})
 	}
 }

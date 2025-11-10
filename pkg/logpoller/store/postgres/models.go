@@ -88,14 +88,14 @@ type logModel struct {
 }
 
 // FromLog converts a models.Log to logModel
-func (l *logModel) FromLog(log lptypes.Log) logModel {
+func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 	var dataHeader, dataPayload []byte
 	if log.Data != nil {
 		bocData := log.Data.ToBOC()
 
 		headerLen, err := boc.HeaderLen(bocData)
 		if err != nil {
-			panic(fmt.Sprintf("failed to calculate BOC header length: %v", err))
+			return logModel{}, fmt.Errorf("failed to calculate BOC header length: %w", err)
 		}
 
 		dataHeader = bocData[:headerLen]
@@ -123,7 +123,7 @@ func (l *logModel) FromLog(log lptypes.Log) logModel {
 		MasterBlockSeqno: int64(log.MasterBlockSeqno),
 		MsgLT:            strconv.FormatUint(log.MsgLT, 10),
 		MsgIndex:         log.MsgIndex,
-	}
+	}, nil
 }
 
 // ToLog converts a logModel to models.Log
