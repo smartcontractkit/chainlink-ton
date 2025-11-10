@@ -230,7 +230,8 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	}
 
 	// try to send transaction
-	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
+	//todo revert here
+	for attempt := uint(1); attempt <= 1; attempt++ {
 		t.logger.Debugw("sending transaction to TON",
 			"txID", txID,
 			"attempt", attempt,
