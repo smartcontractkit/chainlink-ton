@@ -58,14 +58,8 @@ func SetupTestDB(t testing.TB) sqlutil.DataSource {
 		t.Fatalf("failed to start postgres container: %v", err)
 	}
 
-	// Cleanup on test completion
-	t.Cleanup(func() {
-		if pg.Container != nil {
-			if err := pg.Container.Terminate(t.Context()); err != nil {
-				logger.Test(t).Warnf("failed to terminate postgres container: %v", err)
-			}
-		}
-	})
+	// Note: Container cleanup is handled automatically by testcontainers' ryuk
+	// No need to call Terminate() explicitly - it causes "context canceled" warnings
 
 	// Connect to the database
 	db, err := sqlx.Connect("postgres", pg.ExternalURL.String())
