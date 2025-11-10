@@ -73,7 +73,7 @@ type ServiceOptions struct {
 // NewService creates a new TON log polling service instance
 func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
 	lp := &service{
-		lggr:             logger.Sugared(lggr).Named("LogPoller"),
+		lggr:             logger.Sugared(lggr),
 		chainID:          chainID,
 		clientProvider:   clientProvider,
 		filterStore:      opts.FilterStore,
@@ -196,12 +196,15 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return fmt.Errorf("failed to save logs: %w", err)
 	}
 
-	if blockRange.Prev == nil {
-		lp.lggr.Debugf("processed range (unspecified, %d], saved %d logs from %d addresses",
-			blockRange.To.SeqNo, totalSaved, len(addresses))
-	} else {
-		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses",
-			blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
+	// Only log when we actually saved logs to reduce noise
+	if totalSaved > 0 {
+		if blockRange.Prev == nil {
+			lp.lggr.Debugf("processed range (unspecified, %d], saved %d logs from %d addresses",
+				blockRange.To.SeqNo, totalSaved, len(addresses))
+		} else {
+			lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses",
+				blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
+		}
 	}
 
 	return nil

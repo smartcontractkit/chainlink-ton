@@ -69,7 +69,10 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 		return lookbackSeqNo, nil
 	}
 
-	lp.lggr.Debugw("Resuming from last processed", "seqNo", lastProcessed)
+	// Only log when actually resuming from previous work (lastProcessed > 0)
+	if lastProcessed > 0 {
+		lp.lggr.Debugw("Resuming from last processed", "seqNo", lastProcessed)
+	}
 	return lastProcessed, nil
 }
 
