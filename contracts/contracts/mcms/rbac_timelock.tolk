@@ -14,7 +14,7 @@ const CONTRACT_VERSION = "0.0.3";
  *
  * Non-emergency actions are expected to follow the timelock.
  *
- * The contract has five roles. Each role can be inhabited by multiple
+ * The contract has six roles. Each role can be inhabited by multiple
  * (potentially overlapping) addresses.
  *
  * 1) Admin: The admin manages membership for all roles (including the admin
@@ -45,9 +45,10 @@ const CONTRACT_VERSION = "0.0.3";
  *    by the timelock and the list of blocked functions to immediately execute
  *    operations, e.g. in case of emergencies.
  *
- * Note that this contract doesn't place any restrictions on the gas limit used
- * when executing operations. See the above comment on the executor role for
- * more details.
+ * 6) Oracle: The oracle can submit an error report, for an executed non-final opration
+ *    which marks an operation in error state. The error report is used for a category of
+ *    errors which might occur during execution of an operation, but can't be caught
+ *    on-chain (OOG errors, and downstream tx-trace errors).
  *
  * @dev This contract is a modified version of OpenZeppelin's
  * contracts/governance/TimelockController.sol contract from v4.7.0, accessed in
