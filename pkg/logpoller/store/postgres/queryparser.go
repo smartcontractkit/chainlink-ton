@@ -110,7 +110,7 @@ func (p *queryParser) addByteFilter(filter *query.ByteFilter) error {
 		// Query operates on data_payload which starts with 2-byte cell descriptor
 		// Cell data starts at byte 2, so: offset + 1 (SQL 1-based) + 2 (descriptor)
 		sqlOffset := int(filter.Offset) + 1 + boc.CellDescriptorSize //nolint:gosec // byte filter offsets are small values
-		sqlSize := int(filter.Size)                                   //nolint:gosec // byte filter sizes are small values
+		sqlSize := int(filter.Size)                                  //nolint:gosec // byte filter sizes are small values
 
 		operatorSQL, err := buildOperator(condition.Operator)
 		if err != nil {
@@ -237,19 +237,36 @@ func buildOperator(operator primitives.ComparisonOperator) (string, error) {
 	}
 }
 
+// TODO(@jadepark-dev): need to test performance of this approach.
 // addBitFilter adds WHERE conditions for bit filters using PostgreSQL bit functions
 func (p *queryParser) addBitFilter(f *query.BitFilter) error {
 	// Bit offset relative to cell data start (after 2-byte descriptor)
 	adjustedStartBit := f.Offset + uint64(boc.CellDescriptorSize*8)
 
+	// Convert to PostgreSQL bit numbering
+	// Our system: bit 0 = leftmost bit of byte 0
+	// PostgreSQL BYTEA: bit 0 = rightmost bit of byte 0(LSB)
+	// See: https://www.postgresql.org/docs/current/functions-binarystring.html
+	pgStartBit := convertToPostgresBitOffset(adjustedStartBit)
+
 	for _, condition := range f.Conditions {
-		conditionSQL, err := p.buildBitConditionSQL(adjustedStartBit, f.Size, condition)
+		conditionSQL, err := p.buildBitConditionSQL(pgStartBit, f.Size, condition)
 		if err != nil {
 			return err
 		}
 		p.addCondition(conditionSQL)
 	}
 	return nil
+}
+
+// convertToPostgresBitOffset converts our bit numbering to PostgreSQL BYTEA's bit numbering.
+// Our application: bit 0 is the leftmost bit of the first byte (left-to-right numbering).
+// PostgreSQL BYTEA: bit 0 is the rightmost bit of the first byte (right-to-left numbering within each byte).
+// Formula: postgres_bit = (byte_index * 8) + (7 - bit_in_byte)
+func convertToPostgresBitOffset(bit uint64) uint64 {
+	byteIndex := bit / 8
+	bitInByte := bit % 8
+	return byteIndex*8 + (7 - bitInByte)
 }
 
 // buildBitConditionSQL creates optimized SQL for bit filtering using consistent get_bit() approach

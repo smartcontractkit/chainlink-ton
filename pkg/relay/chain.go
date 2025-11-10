@@ -248,7 +248,6 @@ func (c *chain) Transact(ctx context.Context, from, to string, amount *big.Int, 
 }
 
 func (c *chain) Replay(ctx context.Context, fromBlock string, _ map[string]any) error {
-	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
 	fromBlockNum, err := strconv.ParseUint(fromBlock, 10, 32)
 	if err != nil {
 		return fmt.Errorf("invalid fromBlock: %w", err)
