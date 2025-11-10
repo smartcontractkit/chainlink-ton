@@ -75,16 +75,16 @@ func SetupTestDB(t testing.TB) sqlutil.DataSource {
 	return sqlutil.WrapDataSource(db, logger.Test(t))
 }
 
-// ApplyMigration executes the given SQL migration on the provided sqlx.DB or DataSource.
+// ExecuteSQL executes the given SQL migration on the provided sqlx.DB or DataSource.
 // This is a convenience helper for running CREATE TABLE and other DDL statements.
 //
 // Usage:
 //
 //	db := pgtest.SetupTestDB(t)
 //	ds := sqlutil.WrapDataSource(db, logger.Test(t))
-//	err := pgtest.ApplyMigration(ctx, ds, testdata.CreateLogPollerTables)
+//	err := pgtest.ExecuteSQL(ctx, ds, testdata.CreateLogPollerTables)
 //	require.NoError(t, err)
-func ApplyMigration(ctx context.Context, ds sqlutil.DataSource, migrationSQL string) error {
+func ExecuteSQL(ctx context.Context, ds sqlutil.DataSource, migrationSQL string) error {
 	_, err := ds.ExecContext(ctx, migrationSQL)
 	return err
 }

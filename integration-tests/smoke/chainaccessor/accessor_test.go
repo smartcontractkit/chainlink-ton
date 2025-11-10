@@ -384,7 +384,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		lggr := logger.Test(t)
 		ds := pgtest.SetupTestDB(t)
 
-		err := pgtest.ApplyMigration(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+		err := pgtest.ExecuteSQL(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
 		require.NoError(t, err, "failed to create TON tables")
 
 		orm := postgresstore.NewORM("test-chain", ds, lggr)
@@ -423,7 +423,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		lggr := logger.Test(t)
 		ds := pgtest.SetupTestDB(t)
 
-		err := pgtest.ApplyMigration(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+		err := pgtest.ExecuteSQL(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
 		require.NoError(t, err, "failed to create TON tables")
 
 		orm := postgresstore.NewORM("test-chain", ds, lggr)
@@ -726,7 +726,7 @@ func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
 	ds := pgtest.SetupTestDB(t)
 
 	// Create TON tables
-	err := pgtest.ApplyMigration(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+	err := pgtest.ExecuteSQL(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
 	require.NoError(t, err, "failed to create TON tables")
 
 	orm := postgresstore.NewORM("test-chain", ds, lggr)

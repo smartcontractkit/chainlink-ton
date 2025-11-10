@@ -71,7 +71,7 @@ func TestPgLogStore(t *testing.T) {
 	ds := pgtest.SetupTestDB(t)
 
 	// Create tables
-	err := pgtest.ApplyMigration(ctx, ds, testdata.CreateLogPollerTables)
+	err := pgtest.ExecuteSQL(ctx, ds, testdata.CreateLogPollerTables)
 	require.NoError(t, err)
 
 	// Create stores

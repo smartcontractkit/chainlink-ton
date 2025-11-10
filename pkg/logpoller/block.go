@@ -154,6 +154,10 @@ func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.B
 
 // getBlockForReplay retrieves the block information for the given sequence number
 func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*ton.BlockIDExt, error) {
+	if fromBlock == 0 {
+		return nil, nil
+	}
+
 	client, err := lp.clientProvider(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
@@ -162,10 +166,6 @@ func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*to
 	toBlock, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
-	if fromBlock == 0 {
-		return nil, nil
 	}
 
 	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
