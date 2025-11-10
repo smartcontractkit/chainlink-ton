@@ -103,14 +103,25 @@ func (c *ccipTransmitter) Transmit(
 
 	// extract CCIP-specific txID for enhanced tracking (includes messageID if execute report)
 	// falls back to seq-only format for commit reports or decode failures
-	txID := extractCCIPTxID(reportWithInfo.Report, seqNr)
+	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
+
+	var finalAmount *tlb.Coins
+	baseAmount := tlb.MustFromTON("0.05") // base amount, TODO: make configurable
+	if gasLimit != nil {
+		finalAmount, err = baseAmount.Add(gasLimit)
+		if err != nil {
+			return fmt.Errorf("failed to add gas limit to base amount: %w", err)
+		}
+	} else {
+		finalAmount = &baseAmount
+	}
 
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
+		Amount:          *finalAmount,
 		ID:              &txID,
 	}
 
@@ -121,7 +132,10 @@ func (c *ccipTransmitter) Transmit(
 		"configDigest", hex.EncodeToString(configDigest[:]),
 		"seqNr", seqNr,
 		"reportBytes", len(reportWithInfo.Report),
-		"signatures", len(sigs))
+		"signatures", len(sigs),
+		"gasLimit", gasLimit,
+		"finalAmountTON", finalAmount,
+	)
 	if err := c.txm.Enqueue(request); err != nil {
 		return fmt.Errorf("failed to enqueue transaction (txID=%s, seqNr=%d): %w",
 			txID, seqNr, err)
@@ -210,26 +224,26 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 }
 
 // extractCCIPTxID is a CCIP-specific helper that attempts to extract messageID from execute reports
-// for better debugging and transaction tracking. This is NOT used by the generic transmitter,
-// but can be useful for logging and debugging in CCIP-specific code.
+// for better debugging and transaction tracking.
 //
 // Returns:
 //   - For execute reports: "seq-{seqNum}-msg-{messageID}"
 //   - For commit reports or decode failures: "seq-{seqNum}"
+//   - Gas limit from execute report, or nil if not applicable
 //
 // Note: This is a "hacky" convenience function that makes assumptions about report structure.
-func extractCCIPTxID(reportBytes []byte, seqNr uint64) string {
+func extractCCIPTxIDAndGasLimit(reportBytes []byte, seqNr uint64) (string, *tlb.Coins) {
 	reportCell, err := cell.FromBOC(reportBytes)
 	if err != nil {
-		return fmt.Sprintf("seq-%d", seqNr)
+		return fmt.Sprintf("seq-%d", seqNr), nil
 	}
 
 	var executeReport ocr.ExecuteReport
 	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
 		// Not an execute report (likely commit report)
-		return fmt.Sprintf("seq-%d", seqNr)
+		return fmt.Sprintf("seq-%d", seqNr), nil
 	}
 
 	messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
-	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex)
+	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex), &executeReport.Message.GasLimit
 }

@@ -12,6 +12,7 @@ import {
 } from '@ton/core'
 import { JettonOpcodes } from '../examples/jetton/types'
 import { ZERO_ADDRESS } from '../../src/utils'
+import { JettonMinterCode } from './JettonCode'
 
 export type JettonMinterContent = {
   uri: string
@@ -113,6 +114,10 @@ export class JettonMinter implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: Cell.EMPTY,
     })
+  }
+
+  static async code(): Promise<Cell> {
+    return await JettonMinterCode()
   }
 
   async sendMint(

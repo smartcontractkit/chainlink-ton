@@ -118,32 +118,6 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		})
 	}
 
-	// TODO, re-enable when gas limit from extra args is supported
-	/*
-		var gasLimitBigInt *big.Int
-		var extraArgsDecodeMap map[string]any
-		if len(msg.ExtraArgs) > 0 {
-			extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode extra args: %w", err)
-			}
-
-			gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
-			if err != nil {
-				return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-			}
-		}
-
-		// gas limit can be nil, which means no limit
-		var gasLimit tlb.Coins
-		if gasLimitBigInt != nil {
-			gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-			if err != nil {
-				return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
-			}
-		}
-	*/
-
 	tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)
 	if err != nil {
 		return nil, fmt.Errorf("error convert receiver address: %w", err)
@@ -154,18 +128,45 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		return nil, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
 	}
 
+	header := ocr.RampMessageHeader{
+		MessageID:           msg.Header.MessageID[:],
+		SourceChainSelector: uint64(msg.Header.SourceChainSelector),
+		DestChainSelector:   uint64(msg.Header.DestChainSelector),
+		SequenceNumber:      uint64(msg.Header.SequenceNumber),
+		Nonce:               msg.Header.Nonce,
+	}
+
+	var gasLimitBigInt *big.Int
+	var extraArgsDecodeMap map[string]any
+	if len(msg.ExtraArgs) > 0 {
+		extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode extra args: %w", err)
+		}
+
+		gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
+		if err != nil {
+			return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+		}
+	}
+
+	// gas limit can be nil, which means no limit
+	var gasLimit tlb.Coins // this is gas unit, not the amount of TON
+	if gasLimitBigInt != nil {
+		// FIXME
+		// gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
+		gasLimit, err = tlb.FromTON("0.1") // 0.1 TON which is the same hard-coded value as in the msghasher.go file
+		if err != nil {
+			return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
+		}
+	}
+
 	rampMessage = ocr.Any2TVMRampMessage{
-		Header: ocr.RampMessageHeader{
-			MessageID:           msg.Header.MessageID[:],
-			SourceChainSelector: uint64(msg.Header.SourceChainSelector),
-			DestChainSelector:   uint64(msg.Header.DestChainSelector),
-			SequenceNumber:      uint64(msg.Header.SequenceNumber),
-			Nonce:               msg.Header.Nonce,
-		},
-		Sender:   common.CrossChainAddress(msg.Sender),
-		Data:     common.SnakeBytes(msg.Data),
-		Receiver: tonReceiverAddr,
-		//GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal. Note the offramp contract would not use this value base on current design.
+		Header:       header,
+		Sender:       common.CrossChainAddress(msg.Sender),
+		Data:         common.SnakeBytes(msg.Data),
+		Receiver:     tonReceiverAddr,
+		GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal.
 		TokenAmounts: tokenAmounts,
 	}
 
@@ -324,20 +325,20 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
-// func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
-// 	var outputGas *big.Int
-// 	for fieldName, fieldValue := range input {
-// 		lowercase := strings.ToLower(fieldName)
-// 		switch lowercase {
-// 		case "gaslimit":
-// 			if val, ok := fieldValue.(*big.Int); ok {
-// 				outputGas = val
-// 				return outputGas, nil
-// 			}
-// 			return nil, fmt.Errorf("unexpected type for gas limit: %T", fieldValue)
-// 		default:
-// 			// no error here, as we only need the keys to gasLimit, other keys can be skipped without like AllowOutOfOrderExecution	etc.
-// 		}
-// 	}
-// 	return outputGas, errors.New("gas limit not found in extra data map")
-// }
+func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
+	var outputGas *big.Int
+	for fieldName, fieldValue := range input {
+		lowercase := strings.ToLower(fieldName)
+		switch lowercase {
+		case "gaslimit":
+			if val, ok := fieldValue.(*big.Int); ok {
+				outputGas = val
+				return outputGas, nil
+			}
+			return nil, fmt.Errorf("unexpected type for gas limit: %T", fieldValue)
+		default:
+			// no error here, as we only need the keys to gasLimit, other keys can be skipped without like AllowOutOfOrderExecution	etc.
+		}
+	}
+	return outputGas, errors.New("gas limit not found in extra data map")
+}

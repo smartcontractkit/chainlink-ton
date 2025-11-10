@@ -13,9 +13,7 @@ type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_MessageValidated<Metadata>
     | CCIPSendExecutor_MessageValidationFailed<Metadata>
     | Common_JettonTransferNotification
-    // TODO | TokenRegistry_TokenPoolInfo
-    // TODO Implement interrupt message that allows to cancel the pending CCIP send and return funds to the sender. This should be callable only after a certain timeout. 
-
+   
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
     onrampSend: OnRamp_Send,

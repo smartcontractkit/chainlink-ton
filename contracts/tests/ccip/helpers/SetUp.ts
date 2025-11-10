@@ -68,7 +68,6 @@ export const setupTestFeeQuoter = async (
           destGasPerDataAvailabilityByte: 0,
           destDataAvailabilityMultiplierBps: 0,
           chainFamilySelector: 0,
-          enforceOutOfOrder: true,
           defaultTokenFeeUsdCents: 0,
           defaultTokenDestGasOverhead: 0,
           defaultTxGasLimit: 1,

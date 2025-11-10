@@ -20,7 +20,7 @@ import { compile } from '@ton/blueprint'
 import * as or from './OnRamp'
 import * as rt from './Router'
 
-export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '0.0.5'
+export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '0.0.6'
 
 export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
 export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436
@@ -29,6 +29,9 @@ export const CCIP_SEND_EXECUTOR_ERROR_CODE = 43600 //FACILITY_ID * 100
 export enum Error {
   StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
   Unauthorized,
+  InsufficientFunds,
+  InsufficientFee,
+  TokenTransfersNotSupported,
 }
 
 export type InitialData = {
@@ -51,6 +54,12 @@ export type MessageValidated = {
   msg: rt.CCIPSend
   metadata: Cell
   fee: bigint
+}
+
+export type MessageValidationFailed = {
+  msg: rt.CCIPSend
+  metadata: Cell
+  error: bigint
 }
 
 export const builder = {
@@ -94,9 +103,28 @@ export const builder = {
         },
       }
 
+      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
+        encode: (data: MessageValidationFailed): TonBuilder => {
+          return beginCell()
+            .storeUint(Opcodes.messageValidationFailed, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeRef(data.metadata)
+            .storeUint(data.error, 256)
+        },
+        load: (src: Slice): MessageValidationFailed => {
+          src.skip(32) // opcode
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            metadata: src.loadRef(),
+            error: src.loadUintBig(256),
+          }
+        },
+      }
+
       return {
         execute,
         messageValidated,
+        messageValidationFailed,
       }
     })(),
   },
@@ -123,6 +151,7 @@ export abstract class Params {}
 export abstract class Opcodes {
   static execute = 0xaf3c62b3
   static messageValidated = 0xcbc4af76
+  static messageValidationFailed = 0x0f756150
 }
 
 export class ContractClient implements typeAndVersion.Interface, Contract {

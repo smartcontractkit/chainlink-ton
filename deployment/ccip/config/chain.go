@@ -91,6 +91,7 @@ type FeeQuoterTokenTransferFeeConfig struct {
 
 // TonFeeQuoterConfig Convert generic fee quoter config to TON fee quoter config
 func TonFeeQuoterConfig(fqc FeeQuoterDestChainConfig) ton_fee_quoter.DestChainConfig {
+	// NOTE: EnforceOutOfOrder is always true for TON
 	return ton_fee_quoter.DestChainConfig{
 		IsEnabled:                         fqc.IsEnabled,
 		MaxNumberOfTokensPerMsg:           fqc.MaxNumberOfTokensPerMsg,
@@ -104,7 +105,6 @@ func TonFeeQuoterConfig(fqc FeeQuoterDestChainConfig) ton_fee_quoter.DestChainCo
 		DestGasPerDataAvailabilityByte:    fqc.DestGasPerDataAvailabilityByte,
 		DestDataAvailabilityMultiplierBps: fqc.DestDataAvailabilityMultiplierBps,
 		ChainFamilySelector:               fqc.ChainFamilySelector,
-		EnforceOutOfOrder:                 fqc.EnforceOutOfOrder,
 		DefaultTokenFeeUsdCents:           fqc.DefaultTokenFeeUSDCents,
 		DefaultTokenDestGasOverhead:       fqc.DefaultTokenDestGasOverhead,
 		DefaultTxGasLimit:                 fqc.DefaultTxGasLimit,

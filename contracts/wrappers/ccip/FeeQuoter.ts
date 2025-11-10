@@ -47,6 +47,14 @@ export enum FeeQuoterError {
   TokenNotSupported,
   UnknownDestChainSelector,
   InsufficientFee,
+  TokenTransfersNotSupported,
+  // Overflow protection errors
+  ExecutionCostOverflow,
+  PremiumFeeOverflow,
+  DataAvailabilityCostOverflow,
+  FeeCalculationOverflow,
+  TokenPriceTooLow,
+  FeeOverflow,
 }
 
 export type FeeQuoterStorage = {
@@ -93,7 +101,6 @@ export type DestChainConfig = {
   destDataAvailabilityMultiplierBps: number
 
   chainFamilySelector: number // 4 bytes
-  enforceOutOfOrder: boolean
 
   defaultTokenFeeUsdCents: number
   defaultTokenDestGasOverhead: number
@@ -124,7 +131,6 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
     .storeUint(config.destGasPerDataAvailabilityByte, 16)
     .storeUint(config.destDataAvailabilityMultiplierBps, 16)
     .storeUint(config.chainFamilySelector, 32)
-    .storeBit(config.enforceOutOfOrder)
     .storeUint(config.defaultTokenFeeUsdCents, 16)
     .storeUint(config.defaultTokenDestGasOverhead, 32)
     .storeUint(config.defaultTxGasLimit, 32)
@@ -255,7 +261,6 @@ export const builder = {
           destGasPerDataAvailabilityByte: src.loadUint(16),
           destDataAvailabilityMultiplierBps: src.loadUint(16),
           chainFamilySelector: src.loadUint(32),
-          enforceOutOfOrder: src.loadBoolean(),
           defaultTokenFeeUsdCents: src.loadUint(16),
           defaultTokenDestGasOverhead: src.loadUint(32),
           defaultTxGasLimit: src.loadUint(32),
@@ -614,8 +619,26 @@ export class FeeQuoter
     const { stack } = await provider.get('destChainConfig', [
       { type: 'int', value: destChainSelector },
     ])
-    const configCell = stack.readCell()
-    return builder.data.destChainConfig.load(configCell.beginParse())
+    return {
+      isEnabled: stack.readBoolean(),
+      maxNumberOfTokensPerMsg: stack.readNumber(),
+      maxDataBytes: stack.readNumber(),
+      maxPerMsgGasLimit: stack.readNumber(),
+      destGasOverhead: stack.readNumber(),
+      destGasPerPayloadByteBase: stack.readNumber(),
+      destGasPerPayloadByteHigh: stack.readNumber(),
+      destGasPerPayloadByteThreshold: stack.readNumber(),
+      destDataAvailabilityOverheadGas: stack.readNumber(),
+      destGasPerDataAvailabilityByte: stack.readNumber(),
+      destDataAvailabilityMultiplierBps: stack.readNumber(),
+      chainFamilySelector: stack.readNumber(),
+      defaultTokenFeeUsdCents: stack.readNumber(),
+      defaultTokenDestGasOverhead: stack.readNumber(),
+      defaultTxGasLimit: stack.readNumber(),
+      gasMultiplierWeiPerEth: stack.readBigNumber(),
+      gasPriceStalenessThreshold: stack.readNumber(),
+      networkFeeUsdCents: stack.readNumber(),
+    }
   }
 
   async getTokenTransferFeeConfig(
@@ -672,7 +695,9 @@ function encodeGasPriceUpdate(gasPriceUpdate: GasPriceUpdate): TonBuilder {
 }
 
 function encodeTokenPriceUpdate(tokenPriceUpdate: TokenPriceUpdate): TonBuilder {
-  return new TonBuilder().storeAddress(tokenPriceUpdate.token).storeInt(tokenPriceUpdate.price, 224)
+  return new TonBuilder()
+    .storeAddress(tokenPriceUpdate.token)
+    .storeUint(tokenPriceUpdate.price, 224)
 }
 
 function UpdateTokenTransferFeeConfigDictionaryValueType(): DictionaryValue<UpdateTokenTransferFeeConfig> {

@@ -27,20 +27,10 @@ export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
 
 export const ONRAMP_CONTRACT_VERSION = '0.0.9'
 
-export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
-export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436
-export const CCIP_SEND_EXECUTOR_ERROR_CODE = 43600 //FACILITY_ID * 100
-
 export enum OnRampError {
   UnknownDestChainSelector = ONRAMP_ERROR_CODE,
   Unauthorized,
   SenderNotAllowed,
-}
-export enum CCIPSendExecutorError {
-  StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
-  Unauthorized,
-  InsufficientFunds,
-  InsufficientFee,
 }
 
 export type OnRampStorage = {

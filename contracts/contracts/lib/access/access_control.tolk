@@ -278,7 +278,12 @@ fun AccessControl<T>.requireRoleSender(self, role: int, msgSender: address, msgB
 ///
 fun AccessControl<T>.requireRole(self, role: int, account: address): void {
     if (!self.hasRole(role, account)) {
-        throw AccessControl_Error.UnauthorizedAccount; // TODO: attach error arguments
+        val arg = beginCell()
+            .storeAddress(account)
+            .storeUint(role, 256)
+            .endCell()
+            .beginParse();
+        throw (AccessControl_Error.UnauthorizedAccount, arg);
     }
 }
 
@@ -456,7 +461,7 @@ fun AccessControl<T>.renounceRole(
     returnExcess: bool = false
 ): bool {
     if (callerConfirmation != sender) {
-        throw AccessControl_Error.BadConfirmation; // TODO: attach error arguments
+        throw AccessControl_Error.BadConfirmation;
     }
 
     // Renouncing a role is equivalent to revoking it from the caller

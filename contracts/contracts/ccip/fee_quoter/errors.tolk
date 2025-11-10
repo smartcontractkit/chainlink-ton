@@ -15,6 +15,14 @@ enum FeeQuoter_Error {
     TokenNotSupported
     UnknownDestChainSelector
     InsufficientFee
+    TokenTransfersNotSupported
+    // Overflow protection errors
+    ExecutionCostOverflow
+    PremiumFeeOverflow
+    DataAvailabilityCostOverflow
+    FeeCalculationOverflow
+    TokenPriceTooLow
+    FeeOverflow
 }
 
 

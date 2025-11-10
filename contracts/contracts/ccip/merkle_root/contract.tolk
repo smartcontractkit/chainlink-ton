@@ -7,9 +7,6 @@ import "../../lib/utils"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
 import "../../lib/funding/withdrawable"
-import "../receive_executor/messages"
-import "../receive_executor/types"
-import "../common/types"
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
@@ -72,30 +69,23 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
 
     assert(sender == st.owner, MerkleRoot_Error.NotOwner);
-    val ccipMessage = msg.message.load();
-
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state == ExecutionState.Untouched || state == ExecutionState.Failure, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
+    assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null; 
     if (isManualExecute) {
-        // TODO: validate limits
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
 
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
         assert(isOldCommitReport || state == ExecutionState.Failure, MerkleRoot_Error.ManualExecutionNotYetEnabled);
-
-        if (msg.gasOverride! != 0) {
-            // TODO: specify this as gas value on execution
-        }
     } else {
         // DON can only execute a message once.
         assert(state == ExecutionState.Untouched, MerkleRoot_Error.AlreadyExecuted);
     }
 
-    st.setMessageState(ccipMessage.header.sequenceNumber, ExecutionState.InProgress);
+    st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
     st.store();
 
     val executeValidated = createMessage({
@@ -103,9 +93,10 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
         value: ton("0.02"),
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
-            message: ccipMessage.toCell(),
+            message: message.toCell(),
             root: st.root,
-            metadataHash: msg.metadataHash
+            metadataHash: msg.metadataHash,
+            gasOverride: msg.gasOverride,
         }
     });
     executeValidated.send(SEND_MODE_REGULAR);

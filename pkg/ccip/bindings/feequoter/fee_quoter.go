@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	tokenPriceGetter   = "tokenPrice"
-	StaticConfigGetter = "staticConfig"
+	tokenPriceGetter               = "tokenPrice"
+	StaticConfigGetter             = "staticConfig"
+	DestinationChainGasPriceGetter = "destinationChainGasPrice"
 )
 
 // Fee Quoter opcodes
@@ -73,6 +74,18 @@ type USDPerUnitGas struct {
 	Timestamp                uint64   `tlb:"## 64"`
 }
 
+func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
+	c, err := result.Cell(0)
+	if err != nil {
+		return err
+	}
+	return tlb.LoadFromCell(u, c.BeginParse())
+}
+
+func (u *USDPerUnitGas) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u)
+}
+
 type DestChainConfig struct {
 	IsEnabled                         bool   `tlb:"bool"`
 	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
@@ -86,7 +99,6 @@ type DestChainConfig struct {
 	DestGasPerDataAvailabilityByte    uint16 `tlb:"## 16"`
 	DestDataAvailabilityMultiplierBps uint16 `tlb:"## 16"`
 	ChainFamilySelector               uint32 `tlb:"## 32"`
-	EnforceOutOfOrder                 bool   `tlb:"bool"`
 	DefaultTokenFeeUsdCents           uint16 `tlb:"## 16"`
 	DefaultTokenDestGasOverhead       uint32 `tlb:"## 32"`
 	DefaultTxGasLimit                 uint32 `tlb:"## 32"`
@@ -95,7 +107,7 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
-func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	isEnabledInt, err := result.Int(0)
 	if err != nil {
 		return err
@@ -145,32 +157,27 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	enforceOutOfOrderInt, err := result.Int(12)
+	defaultTokenFeeUsdCents, err := result.Int(12)
 	if err != nil {
 		return err
 	}
-	enforceOutOfOrder := enforceOutOfOrderInt.Cmp(big.NewInt(-1)) == 0
-	defaultTokenFeeUsdCents, err := result.Int(13)
+	defaultTokenDestGasOverhead, err := result.Int(13)
 	if err != nil {
 		return err
 	}
-	defaultTokenDestGasOverhead, err := result.Int(14)
+	defaultTxGasLimit, err := result.Int(14)
 	if err != nil {
 		return err
 	}
-	defaultTxGasLimit, err := result.Int(15)
+	gasMultiplierWeiPerEth, err := result.Int(15)
 	if err != nil {
 		return err
 	}
-	gasMultiplierWeiPerEth, err := result.Int(16)
+	gasPriceStalenessThreshold, err := result.Int(16)
 	if err != nil {
 		return err
 	}
-	gasPriceStalenessThreshold, err := result.Int(17)
-	if err != nil {
-		return err
-	}
-	networkFeeUsdCents, err := result.Int(18)
+	networkFeeUsdCents, err := result.Int(17)
 	if err != nil {
 		return err
 	}
@@ -188,10 +195,9 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
 		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
 		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
-		EnforceOutOfOrder:                 enforceOutOfOrder,
-		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),     //nolint:gosec // G115
-		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()), //nolint:gosec // G115
-		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),           //nolint:gosec // G115
+		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),           //nolint:gosec // G115
+		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()),       //nolint:gosec // G115
+		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),                 //nolint:gosec // G115
 		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
 		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
@@ -200,7 +206,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c)
 }
 
 type TokenTransferFeeConfig struct {
@@ -218,7 +224,7 @@ type TimestampedPrice struct {
 }
 
 // TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
-func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
+func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 	value, err := result.Int(0)
 	if err != nil {
 		return err
@@ -236,7 +242,7 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p)
 }
 
 type TokenPriceUpdate struct {
@@ -302,7 +308,7 @@ type StaticConfig struct {
 	StalenessThreshold uint32
 }
 
-func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	maxFeeJuelsPerMsg, err := result.Int(0)
 	if err != nil {
 		return err
@@ -328,5 +334,5 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s)
 }

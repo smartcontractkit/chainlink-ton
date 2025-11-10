@@ -14,7 +14,6 @@ type Router_InMsg =
     | Router_UpdateOffRamps
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
-    | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     | Router_RMNRemoteCurse
@@ -64,6 +63,7 @@ struct (0xfc69c50b) Router_RouteMessage {
     message: Cell<Any2TVMMessage>;
     execId: ReceiveExecutorId;
     receiver: address;
+    gasLimit: coins;
 }
 
 //crc32("Router_CCIPReceiveConfirm")

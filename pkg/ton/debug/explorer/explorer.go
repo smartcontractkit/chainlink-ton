@@ -27,6 +27,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func GenerateExplorerCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, client *ton.APIClient) *cobra.Command {
@@ -441,7 +442,7 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 
 	defer func() {
 	}()
-	if err = typeVersion.FromResult(result); err != nil {
+	if err = tvm.LoadFromResult(&typeVersion, result); err != nil {
 		return fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 	visited[addr.String()] = true

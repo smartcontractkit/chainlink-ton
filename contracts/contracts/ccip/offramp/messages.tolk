@@ -45,6 +45,7 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: MerkleRootId;
     metadataHash: uint256;
+    gasOverride: coins?;
 }
 
 //crc32('OffRamp_ManuallyExecute')
@@ -67,6 +68,7 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
     execId: uint192;
+    gasOverride: coins?;
 }
 
 //crc32('OffRamp_CCIPReceiveConfirm')

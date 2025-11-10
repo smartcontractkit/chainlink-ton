@@ -2,6 +2,7 @@ package txm
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -198,6 +199,8 @@ func (t *Txm) broadcastLoop() {
 				"amount", tx.Amount.Nano().String(),
 				"mode", tx.Mode,
 				"hasBody", tx.Body != nil,
+				"body", tx.Body,
+				"bodyBOC", hex.EncodeToString(tx.Body.ToBOC()),
 				"bounceable", tx.Bounceable)
 			err := t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
