@@ -26,6 +26,8 @@ const (
 	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
 	OpcodeUpdateDestChainConfigs        = 0x29950BAA
 	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
+	OpcodeFeeQuoterAddPriceUpdater      = 0x71DF848A
+	OpcodeFeeQuoterRemovePriceUpdater   = 0x5DFBB1BC
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -60,6 +62,7 @@ const (
 type Storage struct {
 	ID                           uint32                  `tlb:"## 32"`
 	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
+	AllowedPriceUpdaters         *cell.Dictionary        `tlb:"dict 267"`
 	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
 	LinkToken                    *address.Address        `tlb:"addr"`
 	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
@@ -267,6 +270,16 @@ type GetValidatedFee struct {
 	_        tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
 	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
 	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
+}
+
+type AddPriceUpdater struct {
+	_            tlb.Magic        `tlb:"#71DF848A"` //nolint:revive // Ignore opcode tag
+	PriceUpdater *address.Address `tlb:"addr"`
+}
+
+type RemovePriceUpdater struct {
+	_            tlb.Magic        `tlb:"#5DFBB1BC"` //nolint:revive // Ignore opcode tag
+	PriceUpdater *address.Address `tlb:"addr"`
 }
 
 type UpdatePrices struct {

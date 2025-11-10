@@ -166,6 +166,7 @@ describe('Router', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
+        allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
         tokenPriceStalenessThreshold: 1000n,
@@ -188,6 +189,16 @@ describe('Router', () => {
         })
       }
       {
+        // Allow us to updatePrices
+        const addPriceUpdaterResult = await feeQuoter.sendAddPriceUpdater(deployer.getSender(), {
+          value: toNano('1'),
+          msg: { priceUpdater: deployer.address },
+        })
+        expect(addPriceUpdaterResult.transactions).toHaveTransaction({
+          to: feeQuoter.address,
+          success: true,
+        })
+
         const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
           value: toNano('1'),
           msg: {

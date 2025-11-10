@@ -124,6 +124,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
+		// TODO: offramp as AllowedPriceUpdater + deployer
 		MaxFeeJuelsPerMsg:            in.CCIPConfig.FeeQuoterParams.MaxFeeJuelsPerMsg,
 		LinkToken:                    address.NewAddressNone(), // TODO use real LINK address
 		TokenPriceStalenessThreshold: in.CCIPConfig.FeeQuoterParams.TokenPriceStalenessThreshold,

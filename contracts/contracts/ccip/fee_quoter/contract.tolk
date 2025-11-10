@@ -21,9 +21,21 @@ const RESERVE = ton("1"); // TODO: set correct value
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
     match (msg) {
-        FeeQuoter_UpdatePrices => {
-            // TODO: validate that price updates came from the offramp
+        FeeQuoter_AddPriceUpdater => {
             var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.allowedPriceUpdaters.addIfNotExists(msg.priceUpdater, ());
+            st.store();
+        },
+        FeeQuoter_RemovePriceUpdater => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.allowedPriceUpdaters.delete(msg.priceUpdater);
+            st.store();
+        },
+        FeeQuoter_UpdatePrices => {
+            var st = lazy Storage.load();
+            assert(st.allowedPriceUpdaters.exists(in.senderAddress), FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
         }
