@@ -108,8 +108,8 @@ func (c *ccipTransmitter) Transmit(
 	var finalAmount *tlb.Coins
 
 	// Base amounts
-	baseCommit := tlb.MustFromTON("0.075") // 0.008 + 0.015 + (0.005 * 10) + 0.002
-	baseExecute := tlb.MustFromTON("0.07") // execute base; gasLimit is added below
+	baseCommit := tlb.MustFromTON("0.1") // 0.008 + 0.015 + (0.005 * 10) + 0.002
+	baseExecute := tlb.MustFromTON("0.1") // execute base; gasLimit is added below
 
 	if gasLimit == nil {
 		// Commit report: fixed total
