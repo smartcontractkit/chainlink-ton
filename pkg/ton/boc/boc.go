@@ -77,5 +77,6 @@ func HeaderLen(data []byte) (int, error) {
 func readDynamicInt(data []byte) int {
 	tmp := make([]byte, 8)
 	copy(tmp[8-len(data):], data)
-	return int(binary.BigEndian.Uint64(tmp))
+	val := binary.BigEndian.Uint64(tmp)
+	return int(val) //nolint:gosec // G115 - BOC format limits ensure this fits in int range
 }

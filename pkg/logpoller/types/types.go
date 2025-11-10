@@ -1,7 +1,6 @@
 // Package types provides backward compatibility for the old import path.
 // Deprecated: Use github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models instead.
-// TODO: remove once core ref is updated
-package types
+package types //nolint:revive // TODO: remove once core ref is updated
 
 import "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 

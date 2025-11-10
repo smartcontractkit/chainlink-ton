@@ -397,19 +397,19 @@ func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
 				MasterBlockSeqno: 200,
 				MsgLT:            1000,
 				MsgIndex:         0,
-		}
+			}
 
-		dbModel, err := (&logModel{}).FromLog(originalLog)
-		require.NoError(t, err)
+			dbModel, err := (&logModel{}).FromLog(originalLog)
+			require.NoError(t, err)
 
-		require.NotEmpty(t, dbModel.DataHeader)
-		require.NotEmpty(t, dbModel.DataPayload)
-		require.Equal(t, tc.expectedHeader, len(dbModel.DataHeader))
-		require.Equal(t, len(bocBytes), len(dbModel.DataHeader)+len(dbModel.DataPayload))
+			require.NotEmpty(t, dbModel.DataHeader)
+			require.NotEmpty(t, dbModel.DataPayload)
+			require.Len(t, dbModel.DataHeader, tc.expectedHeader)
+			require.Len(t, dbModel.DataPayload, len(bocBytes)-tc.expectedHeader)
 
-		reconstructed, err := dbModel.ToLog()
-		require.NoError(t, err)
-		require.Equal(t, originalCell.Hash(), reconstructed.Data.Hash())
+			reconstructed, err := dbModel.ToLog()
+			require.NoError(t, err)
+			require.Equal(t, originalCell.Hash(), reconstructed.Data.Hash())
 		})
 	}
 }

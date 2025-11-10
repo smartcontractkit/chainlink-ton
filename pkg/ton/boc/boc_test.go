@@ -120,7 +120,9 @@ func TestHeaderLenSimple(t *testing.T) {
 			// Verify we can split and reconstruct
 			header := boc[:headerLen]
 			payload := boc[headerLen:]
-			reconstructed := append(header, payload...)
+			reconstructed := make([]byte, 0, len(header)+len(payload))
+			reconstructed = append(reconstructed, header...)
+			reconstructed = append(reconstructed, payload...)
 			require.Equal(t, boc, reconstructed)
 		})
 	}
@@ -197,7 +199,9 @@ func TestHeaderLenCorrectness(t *testing.T) {
 			// Split and reconstruct
 			header := originalBOC[:headerLen]
 			payload := originalBOC[headerLen:]
-			reconstructedBOC := append(header, payload...)
+			reconstructedBOC := make([]byte, 0, len(header)+len(payload))
+			reconstructedBOC = append(reconstructedBOC, header...)
+			reconstructedBOC = append(reconstructedBOC, payload...)
 
 			require.Equal(t, originalBOC, reconstructedBOC)
 
@@ -342,7 +346,6 @@ func TestPayloadByteFiltering(t *testing.T) {
 // TestBOCHeaderVariability creates synthetic BOCs with different structures
 // to verify HeaderLen handles variable header sizes correctly
 func TestBOCHeaderVariability(t *testing.T) {
-
 	testCases := []struct {
 		name               string
 		createCell         func() *cell.Cell
@@ -423,8 +426,8 @@ func TestBOCHeaderVariability(t *testing.T) {
 				// Create 300 unique leaf cells
 				for i := 0; i < 300; i++ {
 					cells = append(cells, cell.BeginCell().
-						MustStoreUInt(uint64(i*1000+i), 32). // Unique data
-						MustStoreUInt(uint64(i*2), 16).
+						MustStoreUInt(uint64(i*1000+i), 32). //nolint:gosec // G115 - loop index i < 300
+						MustStoreUInt(uint64(i*2), 16).      //nolint:gosec // G115 - loop index i < 300
 						EndCell())
 				}
 
@@ -433,7 +436,7 @@ func TestBOCHeaderVariability(t *testing.T) {
 				for len(cells) > 1 {
 					var newLevel []*cell.Cell
 					for i := 0; i < len(cells); i += 4 {
-						builder := cell.BeginCell().MustStoreUInt(uint64(i), 16)
+						builder := cell.BeginCell().MustStoreUInt(uint64(i), 16) //nolint:gosec // G115 - loop index bounded by len(cells)
 
 						if i < len(cells) {
 							builder.MustStoreRef(cells[i])
@@ -476,7 +479,9 @@ func TestBOCHeaderVariability(t *testing.T) {
 			// Verify split/reconstruct works
 			header := bocBytes[:headerLen]
 			payload := bocBytes[headerLen:]
-			reconstructed := append(header, payload...)
+			reconstructed := make([]byte, 0, len(header)+len(payload))
+			reconstructed = append(reconstructed, header...)
+			reconstructed = append(reconstructed, payload...)
 			require.Equal(t, bocBytes, reconstructed)
 
 			// Verify cell can be parsed from reconstructed BOC
