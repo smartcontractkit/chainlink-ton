@@ -22,7 +22,10 @@ func MakeDict[T any](m map[*big.Int]T, keySz uint) (*cell.Dictionary, error) {
 			return nil, fmt.Errorf("failed to encode value as cell: %w", err)
 		}
 
-		dict.SetIntKey(k, c)
+		err = dict.SetIntKey(k, c)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set int key: %w", err)
+		}
 	}
 
 	return dict, nil
