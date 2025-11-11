@@ -180,17 +180,17 @@ export class Router
   }
 
   async sendApplyRampUpdatesSetRamps(
-      provider: ContractProvider,
-      via: Sender,
-      opts: {
-        value: bigint
-        data: ApplyRampUpdates
-      },
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      data: ApplyRampUpdates
+    },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.message.in.applyRampUpdates.encode(opts.data).asCell()
+      body: builder.message.in.applyRampUpdates.encode(opts.data).asCell(),
     })
   }
 
@@ -449,8 +449,8 @@ export const builder = {
     const onRamps: CellCodec<OnRamps> = {
       encode: function (data: OnRamps): Builder {
         return beginCell()
-            .storeRef(asSnakeDataUint(data.destChainSelectors, 64))
-            .storeAddress(data.onRamp)
+          .storeRef(asSnakeDataUint(data.destChainSelectors, 64))
+          .storeAddress(data.onRamp)
       },
       load: function (src: Slice): OnRamps {
         throw new Error('Function not implemented.')
@@ -460,8 +460,8 @@ export const builder = {
     const offRamps: CellCodec<OffRamps> = {
       encode: function (data: OffRamps): Builder {
         return beginCell()
-            .storeRef(asSnakeDataUint(data.sourceChainSelectors, 64))
-            .storeAddress(data.offRamp)
+          .storeRef(asSnakeDataUint(data.sourceChainSelectors, 64))
+          .storeAddress(data.offRamp)
       },
       load: function (src: Slice): OffRamps {
         throw new Error('Function not implemented.')
@@ -473,7 +473,7 @@ export const builder = {
       tokenAmount: tokenAmountCodec,
       extraArgs,
       onRamps,
-      offRamps
+      offRamps,
     }
   })(),
   message: {
@@ -567,20 +567,12 @@ export const builder = {
           return beginCell()
             .storeUint(Opcodes.applyRampUpdates, 32)
             .storeUint(opts.queryID ?? 0, 64)
+            .storeMaybeBuilder(opts.onRamps ? builder.data.onRamps.encode(opts.onRamps) : null)
             .storeMaybeBuilder(
-                opts.onRamps
-                    ? builder.data.onRamps.encode(opts.onRamps)
-                    : null,
+              opts.offRampAdds ? builder.data.offRamps.encode(opts.offRampAdds) : null,
             )
             .storeMaybeBuilder(
-                opts.offRampAdds
-                    ? builder.data.offRamps.encode(opts.offRampAdds)
-                    : null,
-            )
-            .storeMaybeBuilder(
-                opts.offRampRemoves
-                    ? builder.data.offRamps.encode(opts.offRampRemoves)
-                    : null,
+              opts.offRampRemoves ? builder.data.offRamps.encode(opts.offRampRemoves) : null,
             )
         },
         load: function (src: Slice): ApplyRampUpdates {
@@ -593,7 +585,7 @@ export const builder = {
         ccipReceiveConfirm,
         messageSent,
         messageRejected,
-        applyRampUpdates
+        applyRampUpdates,
       }
     })(),
     out: (() => {

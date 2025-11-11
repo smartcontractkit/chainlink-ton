@@ -134,8 +134,8 @@ describe('CCIP OnRamp Gas Estimation', () => {
         onRamps: {
           destChainSelectors: [CHAINSEL_EVM_TEST],
           onRamp: onRamp.address,
-        }
-      }
+        },
+      },
     })
 
     // Configure OnRamp

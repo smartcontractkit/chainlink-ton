@@ -611,8 +611,8 @@ describe('OffRamp - Unit Tests', () => {
           offRampAdds: {
             sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
             offRamp: offRamp.address,
-          }
-        }
+          },
+        },
       })
       expect(updateRampsResult.transactions).toHaveTransaction({
         from: deployer.address,

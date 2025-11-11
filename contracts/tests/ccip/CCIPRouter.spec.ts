@@ -340,8 +340,8 @@ describe('Router', () => {
           onRamps: {
             destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
             onRamp: onRamp.address,
-          }
-        }
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -365,8 +365,8 @@ describe('Router', () => {
           onRamps: {
             destChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
             onRamp: onRamp.address,
-          }
-        }
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -409,8 +409,8 @@ describe('Router', () => {
           offRampAdds: {
             sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
             offRamp: offRampAddress1,
-          }
-        }
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -431,8 +431,8 @@ describe('Router', () => {
           offRampRemoves: {
             sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
             offRamp: offRampAddress1,
-          }
-        }
+          },
+        },
       })
       expect(result2.transactions).toHaveTransaction({
         from: deployer.address,
@@ -458,8 +458,8 @@ describe('Router', () => {
           offRampAdds: {
             sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
             offRamp: offRampAddress1,
-          }
-        }
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -508,8 +508,8 @@ describe('Router', () => {
           offRampRemoves: {
             sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
             offRamp: offRampAddress1,
-          }
-        }
+          },
+        },
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -541,8 +541,8 @@ describe('Router', () => {
           offRampRemoves: {
             sourceChainSelectors: [CHAINSEL_EVM_TEST_90000002],
             offRamp: offRampAddress1,
-          }
-        }
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,

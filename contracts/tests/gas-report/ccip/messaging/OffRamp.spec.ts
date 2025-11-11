@@ -370,8 +370,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
           onRamps: {
             destChainSelectors: [CHAINSEL_EVM_TEST],
             onRamp: onRamp.address,
-          }
-        }
+          },
+        },
       })
       expect(addResult.transactions).toHaveTransaction({
         to: router.address,
