@@ -64,7 +64,7 @@ struct (0xe7fabde3) MCMS_SetRoot {
     /// The ECDSA signatures on (root, validUntil).
     signatures: cell; // vec<Signature>
 
-    // TODO: move opFinalizationTimeout to access controlled MCMS_SetConfig
+    // TODO (audit): move opFinalizationTimeout to access controlled MCMS_SetConfig
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
 }
@@ -627,7 +627,7 @@ fun MCMS<T>.setRoot(
     metadataProof: Iterator<uint256>,
     signatures: cell, // vec<Signature>
 
-    // TODO: move opFinalizationTimeout to access controlled setConfig
+    // TODO (audit): move opFinalizationTimeout to access controlled setConfig
     //      An arbitrary third party (not the signers) who learns a valid (root, validUntil) + signatures
     //      can call MCMS_SetRoot with a malicious opFinalizationTimeout.
     opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT
@@ -803,6 +803,9 @@ fun MCMS<T>.setRoot(
     }
 
     // done with validation, persist in in contract state
+    // TODO (audit): note unbounded growth of seen signed hashes / roots map - what's the plan?
+    //      - Do we add an onlyOwner cleanup operation? Need to be careful what/when to cleanup.
+    //      - Or periodically rotate to a fresh instance?
     self.data.seenSignedHashes.set(signedHash, true);
     self.data.rootInfo = RootInfo {
         expiringRootAndOpCount: ExpiringRootAndOpCount{
