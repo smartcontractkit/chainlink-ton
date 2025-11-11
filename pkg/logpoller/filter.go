@@ -21,16 +21,16 @@ func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Ad
 			return nil, fmt.Errorf("failed to get filters for %s: %w", addr.String(), err)
 		}
 
-	// Index filters by (address, msgType, eventSig) using canonical string representation
-	for _, filter := range filters {
-		key := models.FilterKey{
-			Address:  addr,
-			MsgType:  filter.MsgType,
-			EventSig: filter.EventSig,
+		// index filters by (address, msgType, eventSig) using string representation
+		for _, filter := range filters {
+			key := models.FilterKey{
+				Address:  addr,
+				MsgType:  filter.MsgType,
+				EventSig: filter.EventSig,
+			}
+			keyStr := key.String()
+			filterIndex[keyStr] = append(filterIndex[keyStr], filter.ID)
 		}
-		keyStr := key.String()
-		filterIndex[keyStr] = append(filterIndex[keyStr], filter.ID)
-	}
 	}
 
 	return filterIndex, nil
