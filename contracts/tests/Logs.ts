@@ -71,6 +71,8 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.RampSet]: CCIPLogs.RampsSet
   [CCIPLogs.LogTypes.OffRampAdded]: CCIPLogs.OffRampAdded
   [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
+  [CCIPLogs.LogTypes.RMNRemoteCursed]: CCIPLogs.RMNRemoteCursed
+  [CCIPLogs.LogTypes.RMNRemoteUncursed]: CCIPLogs.RMNRemoteUncursed
 }
 
 // union of the keys of that map
@@ -125,6 +127,12 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
 
   [CCIPLogs.LogTypes.OffRampRemoved]: (x, from, match) =>
     testLogOffRampRemoved(x, from, match as CCIPLogs.OffRampRemoved),
+
+  [CCIPLogs.LogTypes.RMNRemoteCursed]: (x, from, match) =>
+    testLogRMNRemoteCursed(x, from, match as CCIPLogs.RMNRemoteCursed),
+
+  [CCIPLogs.LogTypes.RMNRemoteUncursed]: (x, from, match) =>
+    testLogRMNRemoteUncursed(x, from, match as CCIPLogs.RMNRemoteUncursed),
 }
 
 // assertLog delegates via the handler table
@@ -349,6 +357,38 @@ export const testLogOffRampRemoved = (
     const msg = {
       sourceChainSelectors: selectors,
       offRampRemoved: addr,
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogRMNRemoteCursed = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.RMNRemoteCursed,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.RMNRemoteCursed, (x) => {
+    const cs = x.beginParse()
+    const subject = cs.loadUintBig(128)
+    const msg = {
+      subject: subject,
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogRMNRemoteUncursed = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.RMNRemoteUncursed,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.RMNRemoteUncursed, (x) => {
+    const cs = x.beginParse()
+    const subject = cs.loadUintBig(128)
+    const msg = {
+      subject: subject,
     }
     equalsObject(msg, match)
     return true

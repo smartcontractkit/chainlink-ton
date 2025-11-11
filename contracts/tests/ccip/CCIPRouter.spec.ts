@@ -536,6 +536,10 @@ describe('Router', () => {
         to: router.address,
         success: true,
       })
+
+      assertLog(result.transactions, router.address, LogTypes.RMNRemoteCursed, {
+        subject: CHAINSEL_EVM_TEST_90000001,
+      })
     }
 
     // Fail router.ccipSend
@@ -580,6 +584,10 @@ describe('Router', () => {
         from: deployer.address,
         to: router.address,
         success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.RMNRemoteUncursed, {
+        subject: CHAINSEL_EVM_TEST_90000001,
       })
     }
   })
