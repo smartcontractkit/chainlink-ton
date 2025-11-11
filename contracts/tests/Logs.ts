@@ -68,11 +68,11 @@ type LogTypeMap = {
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: CCIPLogs.ReceiverCCIPMessageReceived
-  [CCIPLogs.LogTypes.OnRampSet]: CCIPLogs.OnRampsSet
+  [CCIPLogs.LogTypes.OnRampSet]: CCIPLogs.OnRampSet
   [CCIPLogs.LogTypes.OffRampAdded]: CCIPLogs.OffRampAdded
   [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
-  [CCIPLogs.LogTypes.RMNRemoteCursed]: CCIPLogs.RMNRemoteCursed
-  [CCIPLogs.LogTypes.RMNRemoteUncursed]: CCIPLogs.RMNRemoteUncursed
+  [CCIPLogs.LogTypes.Cursed]: CCIPLogs.Cursed
+  [CCIPLogs.LogTypes.Uncursed]: CCIPLogs.Uncursed
 }
 
 // union of the keys of that map
@@ -120,7 +120,7 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
     testTransmittedLogMessage(x, from, match as Partial<OCR3Logs.OCR3BaseTransmitted>),
 
   [CCIPLogs.LogTypes.OnRampSet]: (x, from, match) =>
-    testLogRampSet(x, from, match as CCIPLogs.OnRampsSet),
+    testLogRampSet(x, from, match as CCIPLogs.OnRampSet),
 
   [CCIPLogs.LogTypes.OffRampAdded]: (x, from, match) =>
     testLogOffRampAdded(x, from, match as CCIPLogs.OffRampAdded),
@@ -128,11 +128,11 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [CCIPLogs.LogTypes.OffRampRemoved]: (x, from, match) =>
     testLogOffRampRemoved(x, from, match as CCIPLogs.OffRampRemoved),
 
-  [CCIPLogs.LogTypes.RMNRemoteCursed]: (x, from, match) =>
-    testLogRMNRemoteCursed(x, from, match as CCIPLogs.RMNRemoteCursed),
+  [CCIPLogs.LogTypes.Cursed]: (x, from, match) =>
+    testLogRMNRemoteCursed(x, from, match as CCIPLogs.Cursed),
 
-  [CCIPLogs.LogTypes.RMNRemoteUncursed]: (x, from, match) =>
-    testLogRMNRemoteUncursed(x, from, match as CCIPLogs.RMNRemoteUncursed),
+  [CCIPLogs.LogTypes.Uncursed]: (x, from, match) =>
+    testLogRMNRemoteUncursed(x, from, match as CCIPLogs.Uncursed),
 }
 
 // assertLog delegates via the handler table
@@ -313,7 +313,7 @@ export const testTransmittedLogMessage = (
   })
 }
 
-export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.OnRampsSet) => {
+export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.OnRampSet) => {
   return testLog(message, from, CCIPLogs.LogTypes.OnRampSet, (x) => {
     const cs = x.beginParse()
     const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
@@ -363,12 +363,8 @@ export const testLogOffRampRemoved = (
   })
 }
 
-export const testLogRMNRemoteCursed = (
-  message: Message,
-  from: Address,
-  match: CCIPLogs.RMNRemoteCursed,
-) => {
-  return testLog(message, from, CCIPLogs.LogTypes.RMNRemoteCursed, (x) => {
+export const testLogRMNRemoteCursed = (message: Message, from: Address, match: CCIPLogs.Cursed) => {
+  return testLog(message, from, CCIPLogs.LogTypes.Cursed, (x) => {
     const cs = x.beginParse()
     const subject = cs.loadUintBig(128)
     const msg = {
@@ -382,9 +378,9 @@ export const testLogRMNRemoteCursed = (
 export const testLogRMNRemoteUncursed = (
   message: Message,
   from: Address,
-  match: CCIPLogs.RMNRemoteUncursed,
+  match: CCIPLogs.Uncursed,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.RMNRemoteUncursed, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.Uncursed, (x) => {
     const cs = x.beginParse()
     const subject = cs.loadUintBig(128)
     const msg = {

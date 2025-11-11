@@ -43,8 +43,8 @@ fun onInternalMessage(in: InMessage) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.curse(subject);
                 emit(
-                    RMN_REMOTE_CURSED_TOPIC,
-                    RMNRemoteCursed {
+                    CURSED_TOPIC,
+                    Cursed {
                         subject: subject,
                     }
                 )
@@ -75,8 +75,8 @@ fun onInternalMessage(in: InMessage) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.uncurse(subject);
                 emit(
-                    RMN_REMOTE_UNCURSED_TOPIC,
-                    RMNRemoteUncursed {
+                    UNCURSED_TOPIC,
+                    Uncursed {
                         subject: subject,
                     }
                 )
@@ -174,7 +174,7 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
         st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
-    emit(ON_RAMP_SET_TOPIC, OnRampsSet {
+    emit(ON_RAMP_SET_TOPIC, OnRampSet {
         destChainSelectors: msg.destChainSelectors,
         onRamp: msg.onRamp,
     });

@@ -19,6 +19,6 @@ struct DestChainConfigUpdated {
 
 const CONFIG_SET_TOPIC: int = stringCrc32("ConfigSet");
 struct ConfigSet {
-    chainSelector: uint64,
-    dynamicCOnfig: OnRamp_DynamicConfig
+    chainSelector: uint64;
+    dynamicConfig: OnRamp_DynamicConfig;
 }

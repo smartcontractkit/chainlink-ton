@@ -1,7 +1,7 @@
 import "../../lib/utils"
 
-const ON_RAMP_SET_TOPIC: int = stringCrc32("OnRampsSet");
-struct OnRampsSet {
+const ON_RAMP_SET_TOPIC: int = stringCrc32("OnRampSet");
+struct OnRampSet {
     destChainSelectors: SnakedCell<uint64>;
     onRamp: address;
 }
@@ -18,12 +18,12 @@ struct OffRampRemoved {
     offRampRemoved: address;
 }
 
-const RMN_REMOTE_CURSED_TOPIC: int = stringCrc32("RMNRemoteCursed");
-struct RMNRemoteCursed {
+const CURSED_TOPIC: int = stringCrc32("Cursed");
+struct Cursed {
     subject: uint128;
 }
 
-const RMN_REMOTE_UNCURSED_TOPIC: int = stringCrc32("RMNRemoteUncursed");
-struct RMNRemoteUncursed {
+const UNCURSED_TOPIC: int = stringCrc32("Uncursed");
+struct Uncursed {
     subject: uint128;
 }

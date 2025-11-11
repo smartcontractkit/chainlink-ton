@@ -537,7 +537,7 @@ describe('Router', () => {
         success: true,
       })
 
-      assertLog(result.transactions, router.address, LogTypes.RMNRemoteCursed, {
+      assertLog(result.transactions, router.address, LogTypes.Cursed, {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
     }
@@ -586,7 +586,7 @@ describe('Router', () => {
         success: true,
       })
 
-      assertLog(result.transactions, router.address, LogTypes.RMNRemoteUncursed, {
+      assertLog(result.transactions, router.address, LogTypes.Uncursed, {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
     }
