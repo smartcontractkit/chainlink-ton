@@ -206,6 +206,70 @@ func FromPackedGasFee(packedFee *big.Int) GasPrice {
 	}
 }
 
+type AddPriceUpdaterInput struct {
+	PriceUpdater *address.Address
+}
+
+// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
+var AddPriceUpdaterOp = operations.NewOperation(
+	"add-price-updater-op",
+	semver.MustParse("0.1.0"),
+	"Adds a FeeQuoter allowed price updater",
+	addPriceUpdater,
+)
+
+func addPriceUpdater(b operations.Bundle, deps TonDeps, in AddPriceUpdaterInput) ([][]byte, error) {
+	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+
+	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
+		PriceUpdater: in.PriceUpdater,
+	})
+	if err != nil {
+		return nil, err
+	}
+	messages := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("0.1"),
+			DstAddr: &feeQuoterAddress,
+			Body:    payload,
+		},
+	}
+	return helpers.Serialize(messages)
+}
+
+type RemovePriceUpdaterInput struct {
+	PriceUpdater *address.Address
+}
+
+// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
+var RemovePriceUpdaterOp = operations.NewOperation(
+	"remove-price-updater-op",
+	semver.MustParse("0.1.0"),
+	"Removes a FeeQuoter allowed price updater",
+	removePriceUpdater,
+)
+
+func removePriceUpdater(b operations.Bundle, deps TonDeps, in RemovePriceUpdaterInput) ([][]byte, error) {
+	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+
+	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
+		PriceUpdater: in.PriceUpdater,
+	})
+	if err != nil {
+		return nil, err
+	}
+	messages := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("0.1"),
+			DstAddr: &feeQuoterAddress,
+			Body:    payload,
+		},
+	}
+	return helpers.Serialize(messages)
+}
+
 // UpdateFeeQuoterPricesInput contains configuration for updating FeeQuoter price configs
 type UpdateFeeQuoterPricesInput struct {
 	TokenPrices map[string]*big.Int // token address (string) -> price

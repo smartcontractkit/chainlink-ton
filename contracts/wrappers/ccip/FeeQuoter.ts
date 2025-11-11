@@ -23,6 +23,7 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 import * as rt from './Router'
 import * as sendExecutor from './CCIPSendExecutor'
+import { crc32 } from 'zlib'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '0.0.8'
 
@@ -60,6 +61,7 @@ export enum FeeQuoterError {
 export type FeeQuoterStorage = {
   id: number
   ownable: ownable2step.Data
+  allowedPriceUpdaters: Dictionary<Address, Buffer>
   maxFeeJuelsPerMsg: bigint
   linkToken: Address
   tokenPriceStalenessThreshold: bigint
@@ -142,6 +144,24 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
 export const builder = {
   message: {
     in: (() => {
+      const addPriceUpdater: CellCodec<AddPriceUpdater> = {
+        encode: (data: AddPriceUpdater): Builder => {
+          return beginCell().storeUint(Opcodes.addPriceUpdater, 32).storeAddress(data.priceUpdater)
+        },
+        load: (src: Slice): AddPriceUpdater => {
+          throw new Error('Not implemented') // TODO implement if needed
+        },
+      }
+      const removePriceUpdater: CellCodec<RemovePriceUpdater> = {
+        encode: (data: RemovePriceUpdater): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.removePriceUpdater, 32)
+            .storeAddress(data.priceUpdater)
+        },
+        load: (src: Slice): RemovePriceUpdater => {
+          throw new Error('Not implemented') // TODO implement if needed
+        },
+      }
       const updatePrices: CellCodec<UpdatePrices> = {
         encode: (data: UpdatePrices): Builder => {
           const tokenPrices = asSnakeData(data.updates.tokenPricesUpdates, encodeTokenPriceUpdate)
@@ -219,6 +239,8 @@ export const builder = {
         },
       }
       return {
+        addPriceUpdater,
+        removePriceUpdater,
         updatePrices,
         updateFeeTokens,
         updateTokenTransferFeeConfigs,
@@ -298,6 +320,7 @@ export const builder = {
         return beginCell()
           .storeUint(data.id, 32)
           .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
+          .storeDict(data.allowedPriceUpdaters)
           .storeUint(data.maxFeeJuelsPerMsg, 96)
           .storeAddress(data.linkToken)
           .storeUint(data.tokenPriceStalenessThreshold, 64)
@@ -311,6 +334,12 @@ export const builder = {
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
         const tokenPriceStalenessThreshold = src.loadUintBig(64)
+
+        const allowedPriceUpdaters = Dictionary.loadDirect(
+          Dictionary.Keys.Address(),
+          Dictionary.Values.Buffer(0),
+          src.loadRef(),
+        )
 
         const usdPerToken = Dictionary.loadDirect(
           Dictionary.Keys.Address(),
@@ -339,6 +368,7 @@ export const builder = {
         return {
           id,
           ownable,
+          allowedPriceUpdaters,
           maxFeeJuelsPerMsg,
           linkToken,
           tokenPriceStalenessThreshold,
@@ -365,6 +395,8 @@ export abstract class Opcodes {
   static updateTransferFeeConfigs = 0xb2826316
   static updateDestChainConfig = 0x29950baa
   static getValidatedFee = 0x7496ff56
+  static addPriceUpdater = crc32('FeeQuoter_AddPriceUpdater')
+  static removePriceUpdater = crc32('FeeQuoter_RemovePriceUpdater')
 }
 
 export type TokenPriceUpdate = {
@@ -381,6 +413,14 @@ export type GasPriceUpdate = {
 export type PriceUpdates = {
   tokenPricesUpdates: TokenPriceUpdate[]
   gasPricesUpdates: GasPriceUpdate[]
+}
+
+export type AddPriceUpdater = {
+  priceUpdater: Address
+}
+
+export type RemovePriceUpdater = {
+  priceUpdater: Address
 }
 
 export type UpdatePrices = {
@@ -498,6 +538,36 @@ export class FeeQuoter
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.updateDestChainConfigs.encode(opts.updates).asCell(),
+    })
+  }
+
+  async sendAddPriceUpdater(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      msg: AddPriceUpdater
+    },
+  ) {
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.addPriceUpdater.encode(opts.msg).asCell(),
+    })
+  }
+
+  async sendRemovePriceUpdater(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      msg: RemovePriceUpdater
+    },
+  ) {
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.removePriceUpdater.encode(opts.msg).asCell(),
     })
   }
 
