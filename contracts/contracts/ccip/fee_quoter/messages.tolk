@@ -12,7 +12,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
     | FeeQuoter_UpdateDestChainConfigs
-    | FeeQuoter_GetValidatedFee<cell> // marked as cell since we never attempt to load the metadata
+    | FeeQuoter_GetValidatedFee
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade;
     ;
@@ -22,9 +22,9 @@ struct (0x20000001) FeeQuoter_UpdatePrices {
 }
 
 // crc32('FeeQuoter_GetValidatedFee')
-struct (0x7496FF56) FeeQuoter_GetValidatedFee<C> {
+struct (0x7496FF56) FeeQuoter_GetValidatedFee {
     msg: Cell<Router_CCIPSend>
-    metadata: Cell<C>
+    context: RemainingBitsAndRefs
 }
 
 // crc32('FeeQuoter_UpdateFeeTokens')
@@ -36,17 +36,17 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 // OutGoing messages
 
 // crc32('FeeQuoter_MessageValidated')
-struct (0x1fa60374) FeeQuoter_MessageValidated<C> {
+struct (0x1fa60374) FeeQuoter_MessageValidated {
     msg: Cell<Router_CCIPSend>
-    metadata: Cell<C>
     fee: coins
+    context: RemainingBitsAndRefs
 }
 
 // crc32('FeeQuoter_MessageValidationFailed')
-struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<C> {
+struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed {
     msg: Cell<Router_CCIPSend>,
-    metadata: Cell<C>,
     error: uint256,
+    context: RemainingBitsAndRefs
 }
 
 
