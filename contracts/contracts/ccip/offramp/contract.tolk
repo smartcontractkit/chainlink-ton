@@ -567,7 +567,7 @@ fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2
             }
         },
     });
-    deployMsg.send(SEND_MODE_REGULAR);
+    deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 
     sendInitExecute(executorAddress, null);
 }
@@ -582,7 +582,7 @@ fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
             gasOverride,
         }
     });
-    initExecMsg.send(SEND_MODE_REGULAR);
+    initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
