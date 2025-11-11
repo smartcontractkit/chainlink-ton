@@ -38,6 +38,7 @@ type ccipTransmitter struct {
 	offrampAddress      string
 	toEd25519CalldataFn ToEd25519CalldataFunc
 	lggr                logger.Logger
+	cfg                 *Config
 }
 
 func NewCCIPTransmitter(
@@ -45,8 +46,9 @@ func NewCCIPTransmitter(
 	lggr logger.Logger,
 	offrampAddress string,
 	toEd25519CalldataFn ToEd25519CalldataFunc,
+	cfg *Config,
 ) (ocr3types.ContractTransmitter[[]byte], error) {
-	if txm == nil || lggr == nil {
+	if txm == nil || lggr == nil || cfg == nil {
 		return nil, errors.New("invalid transmitter args")
 	}
 
@@ -55,6 +57,7 @@ func NewCCIPTransmitter(
 		offrampAddress:      offrampAddress,
 		toEd25519CalldataFn: toEd25519CalldataFn,
 		lggr:                lggr,
+		cfg:                 cfg,
 	}, nil
 }
 
@@ -105,15 +108,10 @@ func (c *ccipTransmitter) Transmit(
 	// falls back to seq-only format for commit reports or decode failures
 	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
 
-	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.05") // base amount, TODO: make configurable
-	if gasLimit != nil {
-		finalAmount, err = baseAmount.Add(gasLimit)
-		if err != nil {
-			return fmt.Errorf("failed to add gas limit to base amount: %w", err)
-		}
-	} else {
-		finalAmount = &baseAmount
+	// Determine the appropriate gas cost based on report type
+	finalAmount, err := getGasCostAmount(reportWithInfo.Report, c.cfg)
+	if err != nil {
+		return fmt.Errorf("failed to calculate gas cost amount: %w", err)
 	}
 
 	request := txm.Request{
@@ -121,20 +119,20 @@ func (c *ccipTransmitter) Transmit(
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          *finalAmount,
+		Amount:          finalAmount,
 		ID:              &txID,
 	}
 
 	c.lggr.Infow("Transmitting OCR report",
 		"txID", txID,
-		"from", w.Address().String(),
+		"from", w.WalletAddress().String(),
 		"to", c.offrampAddress,
 		"configDigest", hex.EncodeToString(configDigest[:]),
 		"seqNr", seqNr,
 		"reportBytes", len(reportWithInfo.Report),
 		"signatures", len(sigs),
 		"gasLimit", gasLimit,
-		"finalAmountTON", finalAmount,
+		"finalAmountTON", &finalAmount,
 	)
 	if err := c.txm.Enqueue(request); err != nil {
 		return fmt.Errorf("failed to enqueue transaction (txID=%s, seqNr=%d): %w",
@@ -246,4 +244,73 @@ func extractCCIPTxIDAndGasLimit(reportBytes []byte, seqNr uint64) (string, *tlb.
 
 	messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
 	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex), &executeReport.Message.GasLimit
+}
+
+// getGasCostAmount determines the appropriate gas cost based on the report type.
+//
+// Report Type Logic:
+//   - Execute Report: Returns ExecuteCostTON + message gas limit
+//   - Commit Report with messages: Returns CommitPriceUpdateOnlyCostTON + (CommitPerMessageCostTON * num messages)
+//   - Commit Report (price-only): Returns CommitPriceUpdateOnlyCostTON
+//
+// The function attempts to decode the report to determine its type and calculates
+// the appropriate cost from the configuration.
+func getGasCostAmount(reportBytes []byte, cfg *Config) (tlb.Coins, error) {
+	reportCell, err := cell.FromBOC(reportBytes)
+	if err != nil {
+		return tlb.Coins{}, fmt.Errorf("failed to decode report BOC: %w", err)
+	}
+
+	// Try to decode as ExecuteReport first
+	var executeReport ocr.ExecuteReport
+	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err == nil {
+		// This is an execute report
+		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
+
+		// Add the message's gas limit to the base execute cost
+		totalCost, err := baseCost.Add(&executeReport.Message.GasLimit)
+		if err != nil {
+			return tlb.Coins{}, fmt.Errorf("failed to add gas limit to execute cost: %w", err)
+		}
+		return *totalCost, nil
+	}
+
+	// Not an execute report, try to decode as CommitReport
+	var commitReport ocr.CommitReport
+	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
+		return tlb.Coins{}, fmt.Errorf("failed to decode as commit report: %w", err)
+	}
+
+	// Calculate cost based on number of messages in the commit report
+	numMessages := len(commitReport.MerkleRoots)
+
+	if numMessages == 0 {
+		// Price-only update (no messages)
+		return tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON)), nil
+	}
+
+	// Commit with messages: base cost + per-message cost
+	baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON))
+	perMessageCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPerMessageCostTON))
+
+	// Calculate total per-message cost
+	var totalPerMessageCost tlb.Coins
+	for i := 0; i < numMessages; i++ {
+		if i == 0 {
+			totalPerMessageCost = perMessageCost
+		} else {
+			cost, err := totalPerMessageCost.Add(&perMessageCost)
+			if err != nil {
+				return tlb.Coins{}, fmt.Errorf("failed to calculate per-message cost: %w", err)
+			}
+			totalPerMessageCost = *cost
+		}
+	}
+
+	totalCost, err := baseCost.Add(&totalPerMessageCost)
+	if err != nil {
+		return tlb.Coins{}, fmt.Errorf("failed to add per-message cost to base cost: %w", err)
+	}
+
+	return *totalCost, nil
 }

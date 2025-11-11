@@ -47,6 +47,7 @@ type Chain interface {
 	TxManager() TxManager
 	LogPoller() logpoller.Service
 	GetClient(ctx context.Context) (*ton.APIClient, error)
+	ContractTransmitterConfig() *config.Chain
 }
 
 type ChainOpts struct {
@@ -276,6 +277,10 @@ func (c *chain) FeeEstimator() fees.Estimator {
 
 func (c *chain) LogPoller() logpoller.Service {
 	return c.lp
+}
+
+func (c *chain) ContractTransmitterConfig() *config.Chain {
+	return &c.cfg.Chain
 }
 
 func (c *chain) ChainID() string {
