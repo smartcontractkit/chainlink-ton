@@ -150,8 +150,8 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static execute = 0xaf3c62b3
-  static messageValidated = 0xcbc4af76
-  static messageValidationFailed = 0x0f756150
+  static messageValidated = 0x1fa60374
+  static messageValidationFailed = 0xbcf0ab0f
 }
 
 export class ContractClient implements typeAndVersion.Interface, Contract {

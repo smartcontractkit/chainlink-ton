@@ -33,6 +33,23 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
     remove: SnakedCell<address>;
 }
 
+// OutGoing messages
+
+// crc32('FeeQuoter_MessageValidated')
+struct (0x1fa60374) FeeQuoter_MessageValidated<C> {
+    msg: Cell<Router_CCIPSend>
+    metadata: Cell<C>
+    fee: coins
+}
+
+// crc32('FeeQuoter_MessageValidationFailed')
+struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<C> {
+    msg: Cell<Router_CCIPSend>,
+    metadata: Cell<C>,
+    error: uint256,
+}
+
+
 // NOTE: we just merged this into UpdateFeeTokens
 // struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
 

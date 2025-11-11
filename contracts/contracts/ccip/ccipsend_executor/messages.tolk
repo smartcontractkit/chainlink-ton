@@ -10,8 +10,8 @@ import "../fee_quoter/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | CCIPSendExecutor_MessageValidated<Metadata>
-    | CCIPSendExecutor_MessageValidationFailed<Metadata>
+    | FeeQuoter_MessageValidated<Metadata>
+    | FeeQuoter_MessageValidationFailed<Metadata>
     | Common_JettonTransferNotification
    
 // crc32('CCIPSendExecutor_Execute')
@@ -19,20 +19,6 @@ struct (0xaf3c62b3) CCIPSendExecutor_Execute {
     onrampSend: OnRamp_Send,
     config: Cell<CCIPSendExecutor_Config>,
     onrampJettonWallet: address? = null,
-}
-
-// crc32('CCIPSendExecutor_MessageValidated')
-struct (0xcbc4af76) CCIPSendExecutor_MessageValidated<C> {
-    msg: Cell<Router_CCIPSend>
-    metadata: Cell<C>
-    fee: coins
-}
-
-// crc32('CCIPSendExecutor_MessageValidationFailed')
-struct (0x0f756150) CCIPSendExecutor_MessageValidationFailed<C> {
-    msg: Cell<Router_CCIPSend>,
-    metadata: Cell<C>,
-    error: uint256,
 }
 
 // Costs associated with SendExecutor operations

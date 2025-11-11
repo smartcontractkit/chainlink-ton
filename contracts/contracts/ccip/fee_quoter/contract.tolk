@@ -472,7 +472,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidated<cell> {
+            body: FeeQuoter_MessageValidated<cell> {
                 msg: payload.msg,
                 metadata: payload.metadata,
                 fee: feeTokenAmount,
@@ -483,7 +483,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidationFailed<cell> {
+            body: FeeQuoter_MessageValidationFailed<cell> {
                 msg: payload.msg,
                 metadata: payload.metadata,
                 error: e,
