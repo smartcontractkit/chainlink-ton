@@ -36,7 +36,8 @@ fun onInternalMessage(in: InMessage) {
         },
         FeeQuoter_UpdatePrices => {
             var st = lazy Storage.load();
-            assert(st.allowedPriceUpdaters.exists(in.senderAddress), FeeQuoter_Error.UnauthorizedPriceUpdater);
+            // either an allowed price updater or feeQuoter owner
+            assert(st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress, FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
         }
@@ -391,7 +392,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         }
          
         // TODO: tokenReceiver validation
-        // 
+
         assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
         assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
