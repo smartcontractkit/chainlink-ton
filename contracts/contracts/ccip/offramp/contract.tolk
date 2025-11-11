@@ -413,6 +413,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     debug.printString("message gasLimit");
     debug.print(message.gasLimit);
 
+    // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
     assert(value >= (OffRamp_Costs.execute(isManualExec) + message.gasLimit), Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
@@ -449,7 +450,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
          bounce: true,
-         value: MerkleRoot_Costs.validate(),
+         value: MerkleRoot_Costs.validate(isManualExec),
          dest: {
              stateInit: {
                  code: st.deployables.load().deployer,
