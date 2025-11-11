@@ -139,7 +139,7 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 		}
 
 		// Skip emitting an empty op (shouldn't happen, but defensive)
-		if len(input.OffRampAdds.SourceChainSelectors) == 0 && len(input.OffRampRemoves.SourceChainSelectors) == 0 {
+		if (input.OffRampAdds == nil || len(input.OffRampAdds.SourceChainSelectors) == 0) && (input.OffRampRemoves == nil || len(input.OffRampRemoves.SourceChainSelectors) == 0) {
 			continue
 		}
 
