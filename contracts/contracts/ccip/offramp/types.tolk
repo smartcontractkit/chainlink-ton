@@ -123,7 +123,7 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
 }
 
 const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.01");
-const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
+const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.02");
 
 struct OffRamp_Costs{}
 struct MerkleRoot_Costs{}
@@ -149,7 +149,7 @@ fun ReceiveExecutor_Costs.initExec(){
 }
 
 fun OffRamp_Costs.dispatchValidated(){
-    val baseFee = ton("0.004");
+    val baseFee = ton("0.005");
     return baseFee + Router_Costs.routeMessage();
 }
 
