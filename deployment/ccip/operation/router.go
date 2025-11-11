@@ -49,9 +49,9 @@ func applyRampUpdates(b operations.Bundle, deps TonDeps, in ApplyRampUpdatesInpu
 	return append(onramps, offramps...), nil
 }
 
-func updateRouterOnramps(routerAddr address.Address, OnRampUpdates map[string][]router.ChainSelector) ([][]byte, error) {
+func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([][]byte, error) {
 	msgs := make([]*tlb.InternalMessage, 0)
-	for onRampAddrStr, selectors := range OnRampUpdates {
+	for onRampAddrStr, selectors := range onRampUpdates {
 		rampAddr := address.MustParseAddr(onRampAddrStr)
 		input := router.ApplyRampUpdates{
 			OnRampUpdates: &router.OnRamps{
@@ -77,21 +77,21 @@ func updateRouterOnramps(routerAddr address.Address, OnRampUpdates map[string][]
 	return helpers.Serialize(msgs)
 }
 
-func updateRouterOfframps(routerAddr address.Address, OffRampAdds map[string][]router.ChainSelector, OffRampRemoves map[string][]router.ChainSelector) ([][]byte, error) {
+func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([][]byte, error) {
 	type change struct {
 		addr *address.Address
 		sels []router.ChainSelector
 	}
 
 	// Collect + sort keys so iteration is deterministic.
-	addKeys := make([]string, 0, len(OffRampAdds))
-	for k := range OffRampAdds {
+	addKeys := make([]string, 0, len(offRampAdds))
+	for k := range offRampAdds {
 		addKeys = append(addKeys, k)
 	}
 	sort.Strings(addKeys)
 
-	rmKeys := make([]string, 0, len(OffRampRemoves))
-	for k := range OffRampRemoves {
+	rmKeys := make([]string, 0, len(offRampRemoves))
+	for k := range offRampRemoves {
 		rmKeys = append(rmKeys, k)
 	}
 	sort.Strings(rmKeys)
@@ -101,7 +101,7 @@ func updateRouterOfframps(routerAddr address.Address, OffRampAdds map[string][]r
 	for _, k := range addKeys {
 		adds = append(adds, change{
 			addr: address.MustParseAddr(k),
-			sels: OffRampAdds[k],
+			sels: offRampAdds[k],
 		})
 	}
 
@@ -109,7 +109,7 @@ func updateRouterOfframps(routerAddr address.Address, OffRampAdds map[string][]r
 	for _, k := range rmKeys {
 		removes = append(removes, change{
 			addr: address.MustParseAddr(k),
-			sels: OffRampRemoves[k],
+			sels: offRampRemoves[k],
 		})
 	}
 
