@@ -168,8 +168,7 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	return nil
 }
 
-// LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data that lacks a length prefix as the first byte.
-// TODO: check why getter is not including the first byte as length prefix for CrossChainAddress type
+// LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data if lacks a length prefix as the first byte.
 func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
 	data, err := s.LoadSlice(s.BitsLeft())
 	if err != nil {

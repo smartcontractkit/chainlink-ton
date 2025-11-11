@@ -19,14 +19,12 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-const ERROR_OUT_OF_BOUNDS = 0x78;
-
 fun MerkleRoot_Storage.expectedMessages(self) {
     return self.maxMsgNr - self.minMsgNr + 1
 }
 
 fun MerkleRoot_Storage.setMessageState(mutate self, seqNum: uint64, executionState: ExecutionState) {
-    assert(seqNum >= self.minMsgNr, MerkleRoot_Error.SeqNumOutOfBounds);
+    assert(seqNum >= self.minMsgNr && seqNum <= self.maxMsgNr, MerkleRoot_Error.SeqNumOutOfBounds); // Out of bounds
     val i = seqNum - self.minMsgNr;
     assert(i < 64, MerkleRoot_Error.SeqNumOutOfBounds);
 
@@ -37,7 +35,7 @@ fun MerkleRoot_Storage.setMessageState(mutate self, seqNum: uint64, executionSta
 }
 
 fun MerkleRoot_Storage.getMessageState(self, seqNum: uint64): ExecutionState {
-    assert(seqNum >= self.minMsgNr, MerkleRoot_Error.SeqNumOutOfBounds); // Out of bounds
+    assert(seqNum >= self.minMsgNr && seqNum <= self.maxMsgNr, MerkleRoot_Error.SeqNumOutOfBounds); // Out of bounds
     val i= seqNum - self.minMsgNr;
     assert(i < 64, MerkleRoot_Error.SeqNumOutOfBounds);
 

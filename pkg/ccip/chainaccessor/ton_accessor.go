@@ -166,8 +166,13 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
 	return ccipocr3.ChainFeeComponents{
-		ExecutionFee:        big.NewInt(400), // Basechain costs are 400 nanotons (400e-9), and TON has 9 decimals
-		DataAvailabilityFee: big.NewInt(0),   // there are no storage fees per tx, instead contracts pay rent
+		// We are using nanoTON instead of compute units, that's why this value is 1.
+		// The commit plugin will pick this value and do the math according to
+		// https://github.com/smartcontractkit/chainlink-ccip/blob/main/internal/libs/mathslib/calc.go#L105-L114
+		// The gas price in USD that is stored in dest chain Fee Quoter will express the value of 1 nanoTON in USD
+		// given that the gasLimit is now in nanoTONs
+		ExecutionFee:        big.NewInt(1),
+		DataAvailabilityFee: big.NewInt(0), // there are no storage fees per tx, instead contracts pay rent
 	}, nil
 }
 

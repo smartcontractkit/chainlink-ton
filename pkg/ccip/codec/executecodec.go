@@ -144,18 +144,16 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 			return nil, fmt.Errorf("failed to decode extra args: %w", err)
 		}
 
-		gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
+		gasLimitBigInt, err = parseExtraArgsMapAndRetrieveGasLimit(extraArgsDecodeMap)
 		if err != nil {
 			return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 		}
 	}
 
 	// gas limit can be nil, which means no limit
-	var gasLimit tlb.Coins // this is gas unit, not the amount of TON
+	var gasLimit tlb.Coins // this is expressed in nanoTONs
 	if gasLimitBigInt != nil {
-		// FIXME
-		// gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-		gasLimit, err = tlb.FromTON("0.1") // 0.1 TON which is the same hard-coded value as in the msghasher.go file
+		gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
 		if err != nil {
 			return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
 		}
@@ -261,7 +259,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		}
 
 		extraArgs := onramp.GenericExtraArgsV2{
-			//GasLimit:                 msg.GasLimit.Nano(),
+			GasLimit:                 msg.GasLimit.Nano(),
 			AllowOutOfOrderExecution: true,
 		}
 
@@ -325,7 +323,7 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
-func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
+func parseExtraArgsMapAndRetrieveGasLimit(input map[string]any) (*big.Int, error) {
 	var outputGas *big.Int
 	for fieldName, fieldValue := range input {
 		lowercase := strings.ToLower(fieldName)

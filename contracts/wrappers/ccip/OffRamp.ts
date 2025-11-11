@@ -140,6 +140,7 @@ export type Any2TVMMessage = {
   sourceChainSelector: bigint
   sender: CrossChainAddress
   data: Cell
+  tokenAmounts?: Cell
 }
 
 export type MerkleRoot = {
@@ -203,6 +204,7 @@ export const builder = {
           .storeUint(message.sender.byteLength, 8)
           .storeBuffer(message.sender, message.sender.byteLength)
           .storeRef(message.data)
+          .storeMaybeRef(message.tokenAmounts)
       },
 
       load: (src: Slice): Any2TVMMessage => {

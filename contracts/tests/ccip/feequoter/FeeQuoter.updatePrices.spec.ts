@@ -1,12 +1,9 @@
 import '@ton/test-utils'
 
-import { toNano, Address, Cell, beginCell } from '@ton/core'
-import { Blockchain } from '@ton/sandbox'
+import { toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
-import { ZERO_ADDRESS } from '../../../src/utils'
-import { skip } from 'node:test'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup
@@ -15,6 +12,78 @@ describe('FeeQuoter UpdatePrices', () => {
     setup = new FeeQuoterSetup()
     setup.code = await FeeQuoterSetup.compileContracts()
     await setup.setupAll('updatePrices')
+  })
+
+  it('should only trust allowedPriceUpdaters', async () => {
+    // Allow us to updatePrices again
+    const addPriceUpdaterResult = await setup.bind.feeQuoter.sendAddPriceUpdater(
+      setup.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { priceUpdater: setup.acc.deployer.address },
+      },
+    )
+    expect(addPriceUpdaterResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+
+    const priceUpdates: feeQuoter.PriceUpdates = {
+      tokenPricesUpdates: [],
+      gasPricesUpdates: [],
+    }
+
+    // Send updatePrices transaction and expect it to succeed
+    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates },
+      },
+    )
+    expect(updateResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+
+    // Remove sender from allowed updaters
+    const removePriceUpdaterResult = await setup.bind.feeQuoter.sendRemovePriceUpdater(
+      setup.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { priceUpdater: setup.acc.deployer.address },
+      },
+    )
+    expect(removePriceUpdaterResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+
+    // Send updatePrices transaction and expect it to fail
+    const updateFailResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates },
+      },
+    )
+    expect(updateFailResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: false,
+    })
+
+    // Owner can always update
+    const ownerUpdateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates },
+      },
+    )
+    expect(ownerUpdateResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
   })
 
   it('should update only token price', async () => {

@@ -6,6 +6,8 @@ import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
 
 type FeeQuoter_InMessage =
+    | FeeQuoter_AddPriceUpdater
+    | FeeQuoter_RemovePriceUpdater
     | FeeQuoter_UpdatePrices
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
@@ -43,6 +45,14 @@ struct (0xB2826316) FeeQuoter_UpdateTokenTransferFeeConfigs {
 // crc32('FeeQuoter_UpdateDestChainConfig')
 struct (0x29950BAA) FeeQuoter_UpdateDestChainConfigs {
     updates: cell; // vec<FeeQuoter_UpdateDestChainConfig>
+}
+
+struct (0x71DF848A) FeeQuoter_AddPriceUpdater {
+    priceUpdater: address;
+}
+
+struct (0x5DFBB1BC) FeeQuoter_RemovePriceUpdater {
+    priceUpdater: address;
 }
 
 // Costs associated with FeeQuoter operations

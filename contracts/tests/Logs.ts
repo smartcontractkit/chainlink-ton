@@ -404,6 +404,7 @@ export const testLogReceiverCCIPMessageReceived = (
       .storeUint(msg.sender.byteLength, 8)
       .storeBuffer(msg.sender, msg.sender.byteLength)
       .storeRef(msg.data)
+      .storeMaybeRef(msg.tokenAmounts)
       .endCell()
 
     equalsObject(expectedCell, x)

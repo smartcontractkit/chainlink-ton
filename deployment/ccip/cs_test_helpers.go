@@ -327,7 +327,7 @@ func SendTonRequest(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get fee: %w", err)
 	}
-	e.Logger.Infof("Fee to send CCIP request: %s TON", fee.String())
+	e.Logger.Infof("Fee to send CCIP request: %s nano TON", fee.String())
 
 	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
 		sourceChain, destChain, senderAddr.String())

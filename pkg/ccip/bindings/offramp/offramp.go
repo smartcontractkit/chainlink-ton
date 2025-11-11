@@ -100,6 +100,7 @@ type Any2TVMMessage struct {
 	SourceChainSelector uint64                       `tlb:"## 64"`
 	Sender              ccipcommon.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
 	Data                *cell.Cell                   `tlb:"^"`
+	TokenAmounts        *cell.Cell                   `tlb:"maybe ^"`
 }
 
 // Signer represents a signer entry in the OCR3 config

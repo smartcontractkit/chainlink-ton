@@ -247,7 +247,6 @@ func (c *chain) ListNodeStatuses(ctx context.Context, pageSize int32, pageToken 
 }
 
 func (c *chain) Transact(ctx context.Context, from, to string, amount *big.Int, balanceCheck bool) error {
-	// TODO(NONEVM-1460): implement
 	return errors.ErrUnsupported
 }
 

@@ -6,7 +6,7 @@ struct CursedSubjects {
 }
 
 fun CursedSubjects.curse(mutate self, subject: uint128) {
-    self.data.set(subject, ());
+    self.data.addIfNotExists(subject, ());
 }
 fun CursedSubjects.uncurse(mutate self, subject: uint128) {
     self.data.delete(subject);

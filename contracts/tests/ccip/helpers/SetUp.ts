@@ -23,6 +23,7 @@ export const setupTestFeeQuoter = async (
       owner: deployer.address,
       pendingOwner: null,
     },
+    allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
     maxFeeJuelsPerMsg: 1000000n,
     linkToken: ZERO_ADDRESS,
     tokenPriceStalenessThreshold: 1000n,
