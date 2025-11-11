@@ -29,6 +29,7 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
+import { GetValidatedFee } from '../../would-be-sdk/CCIPSend'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -119,7 +120,7 @@ describe('Router', () => {
       print: true,
       blockchainLogs: false,
       vmLogs: 'none',
-      debugLogs: false,
+      debugLogs: true,
     }
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
@@ -648,9 +649,12 @@ describe('Router', () => {
         .asCell(),
     }
 
-    const amount = await getValidatedFee(sender.getSender(), feeQuoter, ccipSend, Cell.EMPTY)
-    console.log('Validated fee:', amount.fee, 'TON')
-    const totalSendValue = amount.fee + toNano('0.5')
+    const fee = await GetValidatedFee(blockchain, router.address, ccipSend)
+    console.log('Validated fee:', fee, 'TON')
+    const totalSendValue = fee + toNano('0.5')
+    // const amount = await getValidatedFee(sender.getSender(), feeQuoter, ccipSend, Cell.EMPTY)
+    // console.log('Validated fee:', amount.fee, 'TON')
+    // const totalSendValue = amount.fee + toNano('0.5')
 
     // router.ccipSend
     {

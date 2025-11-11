@@ -504,6 +504,14 @@ export class FeeQuoter
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
+  async getValidatedFee(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
+    const result = await provider.get('validatedFeeCell', [
+      { type: 'cell', cell: rt.builder.message.in.ccipSend.encode(msg).asCell() },
+    ])
+
+    return result.stack.readBigNumber()
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
