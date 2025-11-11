@@ -23,8 +23,9 @@ type OffRamp_InMessage =
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
-    | OCR3Base_SetOCR3Config
     | OffRamp_UpdateCursedSubjects
+    | OffRamp_SetDynamicConfig
+    | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw;
 
@@ -95,6 +96,14 @@ struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
     cursedSubjects: CursedSubjects
 }
 
+// TODO: add to offchain bindings
+// TODO: opcode
+struct (0x4ca1bcb3) OffRamp_SetDynamicConfig {
+    queryId: uint64;
+
+    feeQuoter: address;
+    permissionlessExecutionThresholdSeconds: uint32,
+}
 
 struct OffRamp_Costs{}
 
