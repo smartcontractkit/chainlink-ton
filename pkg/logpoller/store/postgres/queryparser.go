@@ -250,9 +250,7 @@ func (p *queryParser) addBitFilter(f *query.BitFilter) error {
 }
 
 // convertToPostgresBitOffset converts our bit numbering to PostgreSQL BYTEA's bit numbering.
-// Our application: bit 0 is the leftmost bit of the first byte (left-to-right numbering).
-// PostgreSQL BYTEA: bit 0 is the rightmost bit of the first byte (right-to-left numbering within each byte).
-// Formula: postgres_bit = (byte_index * 8) + (7 - bit_in_byte)
+// PostgreSQL BYTEA: bit 0 = rightmost bit of byte 0(LSB), see https://www.postgresql.org/docs/16/functions-binarystring.html
 func convertToPostgresBitOffset(bit uint64) uint64 {
 	byteIndex := bit / 8
 	bitInByte := bit % 8
@@ -296,11 +294,9 @@ func (p *queryParser) buildBitConditionSQL(offset, size uint64, condition query.
 }
 
 // bytesToBitString converts byte slice to bit string for multi-bit comparison.
-// reads bytes left-to-right (MSB first) and builds a string of '0' and '1' characters.
-// example: []byte{0x86} with size=8 → "10000110"
 func (p *queryParser) bytesToBitString(value []byte, size uint64) string {
 	var bits strings.Builder
-	bits.Grow(int(size)) // pre-allocate buffer
+	bits.Grow(int(size)) //nolint:gosec // safe to grow buffer since size is controlled
 
 	bitsProcessed := uint64(0)
 	for _, byteVal := range value {
@@ -309,13 +305,12 @@ func (p *queryParser) bytesToBitString(value []byte, size uint64) string {
 
 		// append only the bits we need
 		remaining := size - bitsProcessed
-		if remaining >= 8 {
-			bits.WriteString(byteBits)
-			bitsProcessed += 8
-		} else {
+		if remaining < 8 {
 			bits.WriteString(byteBits[:remaining])
 			break
 		}
+		bits.WriteString(byteBits)
+		bitsProcessed += 8
 	}
 
 	return bits.String()
