@@ -9,3 +9,4 @@ enum Error {
     SubjectCursed
     Unauthorized
 }
+
