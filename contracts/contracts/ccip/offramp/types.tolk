@@ -122,8 +122,8 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
     Failure = 3
 }
 
-const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.01");
-const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.02");
+const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.02");
+const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
 
 struct OffRamp_Costs{}
 struct MerkleRoot_Costs{}
@@ -172,12 +172,12 @@ fun ReceiveExecutor_Costs.confirmedOrBounced() {
     return baseFee + OffRamp_Costs.notify();
 }
 
-fun OffRamp_Costs.commit(amountOfMessagesCommited: int) {
+fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool) {
     val baseFee = ton("0.015");
-    if (amountOfMessagesCommited == 0) {
+    if (priceUpdatesOnlyReport) {
         return baseFee + FeeQuoter_Costs.updatePrices();
     } else {
-        val totalAmountForRoot = AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT * amountOfMessagesCommited;
+        val totalAmountForRoot = AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT;
         return baseFee + FeeQuoter_Costs.updatePrices() + totalAmountForRoot;
     }
 }

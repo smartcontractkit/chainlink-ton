@@ -273,17 +273,15 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
     val report = msg.report;
     val priceUpdatesOnlyReport = report.merkleRoots.empty();
     
-    var amountOfMessagesInReport = 0;
     var root: MerkleRoot? = null;
 
     if (!priceUpdatesOnlyReport) {
         // no batching of roots supported for now, so no need for an iterator
         root = MerkleRoot.fromCell(report.merkleRoots);
-        amountOfMessagesInReport = root.maxSeqNr - root.minSeqNr + 1;
     }
 
     // check that the amount attached is enough to cover message execution and delivery off outgoing messages
-    assert(value >= OffRamp_Costs.commit(amountOfMessagesInReport), Error.InsufficientFee);
+    assert(value >= OffRamp_Costs.commit(priceUpdatesOnlyReport), Error.InsufficientFee);
 
     if (root != null) {
         // validate lane not cursed
@@ -298,12 +296,10 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
         st.sourceChainConfigs.replaceIfExists(root.sourceChainSelector, sourceChainConfig);
 
-        val totalAmountForRoot = AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT * amountOfMessagesInReport;
-
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: true,
-            value: totalAmountForRoot,
+            value: AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT,
             dest: {
                 stateInit: {
                     code: st.deployables.load().deployer,

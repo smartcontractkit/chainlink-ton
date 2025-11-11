@@ -39,8 +39,6 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
     // only offramp owned message is allowed
     assert(sender == st.owner, MerkleRoot_Error.NotOwner);
 
-    // TODO: manually executing an inProgress message if the receiver doesn't correctly ack the message can be problematic
-
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
     assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
