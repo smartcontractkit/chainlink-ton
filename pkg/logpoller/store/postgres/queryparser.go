@@ -19,6 +19,7 @@ type queryParser struct {
 	params        map[string]any // all query parameters
 	byteFilterIdx int            // counter for byte filter parameters
 	chainID       string         // Chain ID for shared database scenarios
+	hasWhere      bool
 }
 
 // newQueryParser creates a new SQL query parser for TON logs
@@ -96,8 +97,9 @@ func (p *queryParser) Parse(q *query.LogQuery) (sql string, params any, err erro
 
 // addCondition adds a condition to the query (WHERE for first, AND for subsequent)
 func (p *queryParser) addCondition(condition string) {
-	if !strings.Contains(p.query.String(), "WHERE") {
+	if !p.hasWhere {
 		p.query.WriteString(" WHERE ")
+		p.hasWhere = true
 	} else {
 		p.query.WriteString(" AND ")
 	}
@@ -217,40 +219,28 @@ func (p *queryParser) addLimit(limitAndSort commonquery.LimitAndSort) {
 	}
 }
 
+var operatorMap = map[primitives.ComparisonOperator]string{
+	primitives.Eq:  "=",
+	primitives.Neq: "!=",
+	primitives.Gt:  ">",
+	primitives.Gte: ">=",
+	primitives.Lt:  "<",
+	primitives.Lte: "<=",
+}
+
 // buildOperator returns the SQL operator string for a condition operator.
 func buildOperator(operator primitives.ComparisonOperator) (string, error) {
-	switch operator {
-	case primitives.Eq:
-		return "=", nil
-	case primitives.Neq:
-		return "!=", nil
-	case primitives.Gt:
-		return ">", nil
-	case primitives.Gte:
-		return ">=", nil
-	case primitives.Lt:
-		return "<", nil
-	case primitives.Lte:
-		return "<=", nil
-	default:
-		return "", fmt.Errorf("unsupported comparison operator: %v", operator)
+	if sql, ok := operatorMap[operator]; ok {
+		return sql, nil
 	}
+	return "", fmt.Errorf("unsupported comparison operator: %v", operator)
 }
 
 // TODO(@jadepark-dev): need to test performance of this approach.
 // addBitFilter adds WHERE conditions for bit filters using PostgreSQL bit functions
 func (p *queryParser) addBitFilter(f *query.BitFilter) error {
-	// Bit offset relative to cell data start (after 2-byte descriptor)
-	adjustedStartBit := f.Offset + uint64(boc.CellDescriptorSize*8)
-
-	// Convert to PostgreSQL bit numbering
-	// Our system: bit 0 = leftmost bit of byte 0
-	// PostgreSQL BYTEA: bit 0 = rightmost bit of byte 0(LSB)
-	// See: https://www.postgresql.org/docs/current/functions-binarystring.html
-	pgStartBit := convertToPostgresBitOffset(adjustedStartBit)
-
 	for _, condition := range f.Conditions {
-		conditionSQL, err := p.buildBitConditionSQL(pgStartBit, f.Size, condition)
+		conditionSQL, err := p.buildBitConditionSQL(f.Offset, f.Size, condition)
 		if err != nil {
 			return err
 		}
@@ -270,50 +260,60 @@ func convertToPostgresBitOffset(bit uint64) uint64 {
 }
 
 // buildBitConditionSQL creates optimized SQL for bit filtering using consistent get_bit() approach
+// offset is in our bit numbering system (relative to cell data, after 2-byte descriptor)
 func (p *queryParser) buildBitConditionSQL(offset, size uint64, condition query.Condition) (string, error) {
-	// Convert operator to SQL
 	operatorSQL, err := buildOperator(condition.Operator)
 	if err != nil {
 		return "", err
 	}
 
+	// Only support equality for bit filtering (other operators don't make sense for bit-by-bit comparison)
+	if operatorSQL != "=" {
+		return "", fmt.Errorf("bit comparison only supports equality, got: %s", operatorSQL)
+	}
+
+	// Build each bit comparison as AND conditions
+	conditions := make([]string, size)
+
 	if size == 1 {
-		// Single bit case: use get_bit() directly
-		expectedValue := int(condition.Value[0])
-		return fmt.Sprintf("get_bit(data_payload, %d) %s %d", offset, operatorSQL, expectedValue), nil
+		// Single bit: Value[0] is the bit value directly (0 or 1)
+		adjustedBit := offset + uint64(boc.CellDescriptorSize*8)
+		pgBit := convertToPostgresBitOffset(adjustedBit)
+		expectedBit := int(condition.Value[0])
+		conditions[0] = fmt.Sprintf("get_bit(data_payload, %d) = %d", pgBit, expectedBit)
+	} else {
+		// Multi-bit: Value is a byte array, convert to bit string
+		bitString := p.bytesToBitString(condition.Value, size)
+		for i := uint64(0); i < size; i++ {
+			adjustedBit := (offset + i) + uint64(boc.CellDescriptorSize*8)
+			pgBit := convertToPostgresBitOffset(adjustedBit)
+			expectedBit := bitString[i] - '0' // Convert '0' or '1' char to 0 or 1 int
+			conditions[i] = fmt.Sprintf("get_bit(data_payload, %d) = %d", pgBit, expectedBit)
+		}
 	}
 
-	// Multi-bit case: build bit string comparison using get_bit() concatenation
-	// This creates SQL like: (get_bit(data_payload, 160) || get_bit(data_payload, 161) || ... || get_bit(data_payload, 167)) = B'10101010'
-
-	// Convert byte value to bit string literal
-	bitString := p.bytesToBitString(condition.Value, size)
-
-	// Build concatenated get_bit() expression
-	var bitExpressions []string
-	for i := uint64(0); i < size; i++ {
-		bitExpressions = append(bitExpressions, fmt.Sprintf("get_bit(data_payload, %d)", offset+i))
-	}
-
-	concatenatedBits := strings.Join(bitExpressions, " || ")
-	return fmt.Sprintf("(%s) %s B'%s'", concatenatedBits, operatorSQL, bitString), nil
+	return "(" + strings.Join(conditions, " AND ") + ")", nil
 }
 
-// bytesToBitString converts byte slice to PostgreSQL bit string literal format
+// bytesToBitString converts byte slice to bit string for multi-bit comparison.
+// reads bytes left-to-right (MSB first) and builds a string of '0' and '1' characters.
+// example: []byte{0x86} with size=8 → "10000110"
 func (p *queryParser) bytesToBitString(value []byte, size uint64) string {
 	var bits strings.Builder
+	bits.Grow(int(size)) // pre-allocate buffer
 
 	bitsProcessed := uint64(0)
 	for _, byteVal := range value {
-		for bitPos := 7; bitPos >= 0 && bitsProcessed < size; bitPos-- {
-			if (byteVal>>bitPos)&1 == 1 {
-				bits.WriteByte('1')
-			} else {
-				bits.WriteByte('0')
-			}
-			bitsProcessed++
-		}
-		if bitsProcessed >= size {
+		// format byte as 8-bit binary string (e.g. 0x86 → "10000110")
+		byteBits := fmt.Sprintf("%08b", byteVal)
+
+		// append only the bits we need
+		remaining := size - bitsProcessed
+		if remaining >= 8 {
+			bits.WriteString(byteBits)
+			bitsProcessed += 8
+		} else {
+			bits.WriteString(byteBits[:remaining])
 			break
 		}
 	}

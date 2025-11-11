@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -150,40 +151,29 @@ func (s *inMemoryLogs) applyFilters(log models.Log, logQuery *query.LogQuery) bo
 	return true
 }
 
+var fieldExtractors = map[string]func(models.Log) any{
+	"address":            func(l models.Log) any { return l.Address.String() },
+	"event_sig":          func(l models.Log) any { return l.EventSig },
+	"tx_lt":              func(l models.Log) any { return l.TxLT },
+	"tx_timestamp":       func(l models.Log) any { return l.TxTimestamp },
+	"block_seqno":        func(l models.Log) any { return l.Block.SeqNo },
+	"block_workchain":    func(l models.Log) any { return l.Block.Workchain },
+	"block_shard":        func(l models.Log) any { return l.Block.Shard },
+	"master_block_seqno": func(l models.Log) any { return l.MasterBlockSeqno },
+	"msg_index":          func(l models.Log) any { return l.MsgIndex },
+}
+
 // matchFields checks if a log passes a root field filter
 func (s *inMemoryLogs) matchFields(log models.Log, filter *query.FieldFilter) bool {
-	var logValue interface{}
-
-	// Extract the field value from the log based on the field name
-	switch filter.Field {
-	case "address":
-		logValue = log.Address.String()
-	case "event_sig":
-		logValue = log.EventSig
-	case "tx_lt":
-		logValue = log.TxLT
-	case "tx_timestamp":
-		logValue = log.TxTimestamp
-	case "block_seqno":
-		logValue = log.Block.SeqNo
-	case "block_workchain":
-		logValue = log.Block.Workchain
-	case "block_shard":
-		logValue = log.Block.Shard
-	case "master_block_seqno":
-		logValue = log.MasterBlockSeqno
-	case "msg_index":
-		logValue = log.MsgIndex
-	default:
-		return false // unknown field
+	extractor, ok := fieldExtractors[filter.Field]
+	if !ok {
+		return false
 	}
-
-	// apply the comparison operator
-	return s.compareValues(logValue, filter.Value, filter.Operator)
+	return s.compareValues(extractor(log), filter.Value, filter.Operator)
 }
 
 // compareValues compares two values using the specified operator
-func (s *inMemoryLogs) compareValues(logValue, filterValue interface{}, operator primitives.ComparisonOperator) bool {
+func (s *inMemoryLogs) compareValues(logValue, filterValue any, operator primitives.ComparisonOperator) bool {
 	cmp, ok := s.compareTypedValues(logValue, filterValue)
 	if !ok {
 		// fallback to simple equality for unsupported types
@@ -215,50 +205,29 @@ func (s *inMemoryLogs) compareValues(logValue, filterValue interface{}, operator
 	}
 }
 
-// TODO: revisit, too verbose
 // compareTypedValues performs type-safe comparison between two values
 // Returns: -1 if a < b, 0 if a == b, 1 if a > b, or false if types don't match
-func (s *inMemoryLogs) compareTypedValues(a, b interface{}) (int, bool) {
+func (s *inMemoryLogs) compareTypedValues(a, b any) (int, bool) {
+	// Handle time.Time separately (not cmp.Ordered)
+	if av, ok := a.(time.Time); ok {
+		if bv, ok := b.(time.Time); ok {
+			return cmp.Compare(av.Unix(), bv.Unix()), true
+		}
+		return 0, false
+	}
+
 	switch av := a.(type) {
 	case uint64:
 		if bv, ok := b.(uint64); ok {
-			if av < bv {
-				return -1, true
-			}
-			if av > bv {
-				return 1, true
-			}
-			return 0, true
+			return cmp.Compare(av, bv), true
 		}
 	case uint32:
 		if bv, ok := b.(uint32); ok {
-			if av < bv {
-				return -1, true
-			}
-			if av > bv {
-				return 1, true
-			}
-			return 0, true
+			return cmp.Compare(av, bv), true
 		}
 	case int64:
 		if bv, ok := b.(int64); ok {
-			if av < bv {
-				return -1, true
-			}
-			if av > bv {
-				return 1, true
-			}
-			return 0, true
-		}
-	case time.Time:
-		if bv, ok := b.(time.Time); ok {
-			if av.Before(bv) {
-				return -1, true
-			}
-			if av.After(bv) {
-				return 1, true
-			}
-			return 0, true
+			return cmp.Compare(av, bv), true
 		}
 	}
 	return 0, false

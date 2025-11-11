@@ -3,6 +3,7 @@ package logpoller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -239,7 +240,7 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 
 func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int, error) {
 	saveThreshold := int(lp.saveThreshold)
-	chunk := make([]models.Log, 0, saveThreshold)
+	chunk := slices.Grow([]models.Log{}, saveThreshold)
 	totalSaved := 0
 
 	for log := range logsCh {
