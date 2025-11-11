@@ -104,7 +104,6 @@ enum Upgradeable_Error {
 }
 
 /// Message for upgrading a contract.
-/// crc32("Upgradeable_Upgrade") == 0x0aa811ed
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
