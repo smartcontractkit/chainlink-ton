@@ -1,4 +1,5 @@
 import "errors"
+import "events"
 import "messages"
 import "types"
 import "storage"
@@ -172,8 +173,13 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
         st.usdPerToken.set(update.sourceToken, TimestampedPrice {
             value: update.usdPerToken,
             timestamp
+        });
+
+        emit(USD_PER_TOKEN_UPDATED_TOPIC, UsdPerTokenUpdated {
+            sourceToken: update.sourceToken,
+            usdPerToken: update.usdPerToken,
+            timestamp,
         })
-      //TODO: emit UsdPerTokenUpdated(update.sourceToken, update.usdPerToken, block.timestamp);
     }
 
     var iter2 = priceUpdates.gasPriceUpdates.iter();
@@ -191,7 +197,12 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
             }.toCell();
             st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
 
-          //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
+            emit(USD_PER_UNIT_GAS_UPDATED, UsdPerUnitGasUpdated {
+                destChainSelector: update.destChainSelector,
+                executionGasPrice: update.executionGasPrice,
+                dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
+                timestamp,
+            })
         }
     }
 }
