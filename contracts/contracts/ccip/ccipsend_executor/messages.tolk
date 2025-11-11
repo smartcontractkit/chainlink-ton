@@ -10,8 +10,8 @@ import "../fee_quoter/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
-    | FeeQuoter_MessageValidated
-    | FeeQuoter_MessageValidationFailed
+    | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
+    | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
     | Common_JettonTransferNotification
    
 // crc32('CCIPSendExecutor_Execute')
@@ -47,5 +47,5 @@ fun SendExecutor_Costs.MessageValidationFailed(): int {
 }
 
 type CCIPSendExecutor_BouncedMessage =
-    | FeeQuoter_GetValidatedFee
+    | FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
     ;

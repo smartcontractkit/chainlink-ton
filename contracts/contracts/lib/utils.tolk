@@ -238,3 +238,28 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple? {
     } ;
     return list;
 }
+
+type RemainingBitsOrRef<T> = T;
+
+fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
+    val serialized = (self as T).toCell();
+    val nBits = serialized.remainingBitsCount();
+    if (b.remainingSpace() < nBits) {
+        // not enough space, create a new cell
+        b.storeBit(1);
+        b.storeRef(serialized);
+    } else {
+        b.storeBit(0);
+        b.storeSlice(serialized.beginParse());
+    }
+}
+
+fun RemainingBitsOrRef<T>.unpackFromSlice(mutate s: slice): RemainingBitsOrRef<T> {
+    val isRef = s.loadBit();
+    if (isRef) {
+        val c = s.loadRef();
+        return T.fromCell(c) as RemainingBitsOrRef<T>;
+    } else {
+        return T.fromSlice(s) as RemainingBitsOrRef<T>;
+    }
+}

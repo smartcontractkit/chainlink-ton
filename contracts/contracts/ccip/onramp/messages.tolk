@@ -6,9 +6,11 @@ import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
+import "../fee_quoter/messages"
 
 type OnRamp_InMessage =
     | OnRamp_Send
+    | OnRamp_GetValidatedFee<RemainingBitsAndRefs>
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -27,6 +29,16 @@ struct (0x10000002) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata
+}
+
+struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
+    ccipSend: Router_CCIPSend;
+    context: T;
+}
+
+struct OnRamp_GetValidatedFeeContext {
+    userContext: UnsafeBodyNoRef<slice>, // We know this fits because it arrived in OnRamp_GetValidatedFee.context
+    onrampContext: RemainingBitsOrRef<address>; // onramp address
 }
 
 // crc32('OnRamp_WithdrawJettons')
@@ -70,6 +82,14 @@ struct WithdrawFeeTokens {}
 
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}
+
+// Minimum value for calling OnRamp_GetValidatedFee
+@inline
+fun OnRamp_Costs.GetValidatedFee(): int {
+    return
+        + ton("0.02") // GetValidatedFee fwdFee
+        + FeeQuoter_Costs.GetValidatedFee()
+}
 
 // Minimum value for calling OnRamp_Send
 @inline

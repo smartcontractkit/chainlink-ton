@@ -28,7 +28,12 @@ fun onInternalMessage(in: InMessage) {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onSend(msg, in.senderAddress, in.valueCoins)
-            }
+        }
+        Router_GetValidatedFee<RemainingBitsAndRefs> => {
+            val minValue = Router_Costs.GetValidatedFee();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            onGetValidatedFee(msg, in.senderAddress)
+        }
         Router_RouteMessage => { 
             routeMessage(msg, in.senderAddress)
             }
@@ -281,6 +286,26 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
         }
     });
     receiveBounced.send(SEND_MODE_REGULAR);
+}
+
+fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+    val st = lazy Storage.load();
+    val onRamp = st.onRamps.mustGet(msg.ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+
+    val feeQuoterMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: onRamp,
+        body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
+            ccipSend: msg.ccipSend,
+            context: Router_GetValidatedFeeContext {
+                userContext: { forceInline: msg.context },
+                routerContext: sender as RemainingBitsOrRef<address>,
+            },
+        }
+    });
+
+    feeQuoterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun onSend(msg: Router_CCIPSend, sender: address, value: coins) {

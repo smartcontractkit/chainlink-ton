@@ -11,6 +11,9 @@ import "../onramp/messages"
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
+    | Router_GetValidatedFee<RemainingBitsAndRefs>
+    | Router_SetRamps
+    | Router_UpdateOffRamps
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
@@ -105,6 +108,16 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
+struct (0x4dd6aa82) Router_GetValidatedFee<T> {
+    ccipSend: Router_CCIPSend;
+    context: T;
+}
+
+struct Router_GetValidatedFeeContext {
+    userContext: UnsafeBodyNoRef<slice>, // We know this fits because it arrived in Router_GetValidatedFee.context 
+    routerContext: RemainingBitsOrRef<address>; // sender
+}
+
 // Costs associated with Router operations
 struct Router_Costs {}
 
@@ -125,6 +138,12 @@ fun Router_Costs.MessageSent(): int {
 @inline
 fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
+}
+
+// Minimum value for calling Router_GetValidatedFee
+@inline
+fun Router_Costs.GetValidatedFee(): int {
+    return ton("0.02"); // TODO
 }
 
 // TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.

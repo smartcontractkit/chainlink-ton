@@ -59,7 +59,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
-        FeeQuoter_GetValidatedFee => {
+        FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw FeeQuoter_Error.InsufficientFee;
             handleGetValidatedFee(msg, in.senderAddress)
         }
@@ -462,7 +462,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
 }
 
 
-fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee, sender: address) {
+fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {

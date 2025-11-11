@@ -17,6 +17,7 @@ import "../router/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "events"
+import "../fee_quoter/messages"
 
 const CONTRACT_VERSION = "0.0.9";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -24,6 +25,9 @@ const RESERVE = ton("1"); // TODO: set correct value
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
+        OnRamp_GetValidatedFee<RemainingBitsAndRefs> => {
+            onGetValidatedFee(msg, in.senderAddress)
+        }
         OnRamp_Send => {send(msg, in.senderAddress)}
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
@@ -76,6 +80,28 @@ fun onInternalMessage(in: InMessage) {
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
+}
+
+fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+
+    val feeQuoter = config.feeQuoter;
+
+    val getFeeMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: feeQuoter,
+        body: FeeQuoter_GetValidatedFee<OnRamp_GetValidatedFeeContext> {
+            msg: msg.ccipSend.toCell(),
+            context: {
+                userContext: { forceInline: msg.context },
+                onrampContext: sender as RemainingBitsOrRef<address>,
+            },
+        }
+    });
+
+    getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {

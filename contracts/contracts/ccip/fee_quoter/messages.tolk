@@ -12,7 +12,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
     | FeeQuoter_UpdateDestChainConfigs
-    | FeeQuoter_GetValidatedFee
+    | FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade;
     ;
@@ -22,9 +22,9 @@ struct (0x20000001) FeeQuoter_UpdatePrices {
 }
 
 // crc32('FeeQuoter_GetValidatedFee')
-struct (0x7496FF56) FeeQuoter_GetValidatedFee {
+struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
     msg: Cell<Router_CCIPSend>
-    context: RemainingBitsAndRefs
+    context: T;
 }
 
 // crc32('FeeQuoter_UpdateFeeTokens')
@@ -36,17 +36,17 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 // OutGoing messages
 
 // crc32('FeeQuoter_MessageValidated')
-struct (0x1fa60374) FeeQuoter_MessageValidated {
+struct (0x1fa60374) FeeQuoter_MessageValidated<T> {
     msg: Cell<Router_CCIPSend>
     fee: coins
-    context: RemainingBitsAndRefs
+    context: T
 }
 
 // crc32('FeeQuoter_MessageValidationFailed')
-struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed {
+struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
     msg: Cell<Router_CCIPSend>,
     error: uint256,
-    context: RemainingBitsAndRefs
+    context: T
 }
 
 
