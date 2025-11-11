@@ -1,4 +1,4 @@
-import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, printTransactionFees, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import {
   toNano,
   Address,
@@ -28,7 +28,8 @@ import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
-import { dump } from '../utils/prettyPrint'
+import { dump, prettifyAddressesMap } from '../utils/prettyPrint'
+import { mapOpcode } from '../utils/opcodes'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -675,6 +676,85 @@ describe('Router', () => {
           })
         },
       })
+
+      printTransactionFees(result.transactions, mapOpcode)
+      const addresses = prettifyAddressesMap(result.transactions)
+
+      result.transactions.forEach((tx) => {
+        if (
+          tx.inMessage &&
+          tx.inMessage.info.type === 'internal' &&
+          tx.description.type === 'generic'
+        ) {
+          const inValue = tx.inMessage.info.value.coins
+          const outValue = tx.outMessages
+            .values()
+            .reduce(
+              (acc, msg) => acc + (msg.info.type === 'internal' ? msg.info.value.coins : 0n),
+              0n,
+            )
+
+          const fees = {
+            inFwdFee: tx.inMessage.info.forwardFee,
+            gasFees:
+              tx.description.computePhase.type === 'vm' ? tx.description.computePhase.gasFees : 0n,
+            actionFees: tx.description.actionPhase?.totalActionFees ?? 0n,
+            fwdFees: tx.description.actionPhase?.totalFwdFees ?? 0n,
+            storageFees: tx.description.storagePhase?.storageFeesCollected ?? 0n,
+          }
+          const totalFees = [fees.actionFees, fees.gasFees, fees.storageFees].reduce(
+            (a, b) => a + b,
+            0n,
+          )
+
+          console.log(
+            `Balance check for tx from ${addresses.get(tx.inMessage.info.src.toRawString())} to ${addresses.get(tx.inMessage.info.dest.toRawString())}:\n`,
+          )
+          // table format
+          console.table({
+            'In Value': inValue,
+            'Out Value': outValue,
+            'In Fwd Fee': fees.inFwdFee,
+            'Gas Fees': fees.gasFees,
+            'Action Fees': fees.actionFees,
+            'Fwd Fees': fees.fwdFees,
+            'Storage Fees': fees.storageFees,
+            'Total Fees': totalFees,
+            'In Value - Out Value - Fees': inValue - outValue - totalFees,
+          })
+        }
+      })
+
+      // Verify balance handling: OnRamp doesn't lose balance on messageSent fees
+      const finalOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
+      const rentFees = result.transactions
+        .filter((tx) => {
+          return (
+            tx.inMessage != null &&
+            tx.inMessage != undefined &&
+            tx.inMessage.info.dest != null &&
+            tx.inMessage.info.dest != undefined &&
+            tx.inMessage.info.dest instanceof Address &&
+            tx.inMessage.info.dest.equals(router.address)
+          )
+        })
+        .reduce((acc, tx) => {
+          switch (tx.description.type) {
+            case 'generic': {
+              const rentFee = tx.description.storagePhase?.storageFeesCollected ?? 0n
+              return acc + rentFee
+            }
+            case 'storage': {
+              const rentFee = tx.description.storagePhase.storageFeesCollected
+              return acc + rentFee
+            }
+          }
+          return acc
+        }, 0n)
+
+      // The final balance should be initial balance minus rent fees plus the fee that was paid
+      // (the fee comes from the validated fee calculation above)
+      expect(finalOnRampBalance).toBe(initialOnRampBalance - rentFees + amount.fee)
     }
   })
 
