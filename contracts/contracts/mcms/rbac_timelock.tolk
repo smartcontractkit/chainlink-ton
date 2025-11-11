@@ -1342,6 +1342,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 
     val id = timelock.data.opPendingInfo.opPendingId;
+    assert(timelock.isOperationDone(id)) throw Timelock_Error.OperationNotDone;
+
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
      // Store the updated contract data
