@@ -115,8 +115,8 @@ func (l TypedLog[T]) String() string {
 	return sb.String()
 }
 
-// FilterIndex maps filter keys to matching filter IDs for efficient lookup
-type FilterIndex map[FilterKey][]int64
+// FilterIndex maps filter key strings to matching filter IDs for efficient O(1) lookup
+type FilterIndex map[string][]int64
 
 // FilterKey uniquely identifies a filter by address, message type, and event signature
 type FilterKey struct {
@@ -125,11 +125,9 @@ type FilterKey struct {
 	EventSig uint32
 }
 
-// Equal compares two FilterKeys using Address.Equals()
-func (fk FilterKey) Equal(other FilterKey) bool {
-	return fk.Address.Equals(other.Address) &&
-		fk.MsgType == other.MsgType &&
-		fk.EventSig == other.EventSig
+// String returns a canonical string representation for use as a map key.
+func (fk FilterKey) String() string {
+	return fmt.Sprintf("%s:%s:%08x", fk.Address.String(), fk.MsgType, fk.EventSig)
 }
 
 // RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)

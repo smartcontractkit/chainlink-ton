@@ -115,15 +115,7 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transact
 		EventSig: eventSig,
 	}
 
-	// Find matching filters using Equal method
-	var filterIDs []int64
-	for key, ids := range filterIndex {
-		if key.Equal(filterKey) {
-			filterIDs = ids
-			break
-		}
-	}
-
+	filterIDs := filterIndex[filterKey.String()]
 	if len(filterIDs) == 0 {
 		return []models.Log{}, nil // no matching filters found
 	}
