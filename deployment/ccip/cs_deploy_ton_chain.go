@@ -122,7 +122,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// feequoter.addPriceUpdater(offramp)
 	addPriceUpdaterInput := operation.AddPriceUpdaterInput{
-		PriceUpdater: &ccipSeqReport.Output.OffRampAddress.TONAddress,
+		PriceUpdater: &s.OffRamp,
 	}
 	addPriceUpdaterReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.AddPriceUpdaterOp, deps, addPriceUpdaterInput)
 	if err != nil {
