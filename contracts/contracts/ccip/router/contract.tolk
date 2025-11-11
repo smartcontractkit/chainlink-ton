@@ -15,6 +15,7 @@ import "../offramp/messages"
 import "@stdlib/lisp-lists"
 import "types"
 import "../offramp/types"
+import "events"
 
 const CONTRACT_VERSION = "0.0.8";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -40,6 +41,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.curse(subject);
+                emit(
+                    CURSED_TOPIC,
+                    Cursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -66,6 +73,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.uncurse(subject);
+                emit(
+                    UNCURSED_TOPIC,
+                    Uncursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -181,7 +194,10 @@ fun updateOnRamps(onRampUpdates: OnRamps?) {
 
         st.store();
 
-        // TODO emit OnRampSet(onRampUpdate.destChainSelector, onRampUpdate.onRamp); // https://github.com/smartcontractkit/chainlink-ton/pull/331
+        emit(ON_RAMP_SET_TOPIC, OnRampSet {
+            destChainSelectors: onRampUpdates.destChainSelectors,
+            onRamp: onRampUpdates.onRamp,
+        });
     }
 }
 
@@ -194,9 +210,12 @@ fun updateOffRamps(offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
         while (!iter.empty()) {
             val selector = iter.next();
             st.offRamps.set(selector, offRampAdd);
-
-            // TODO emit OffRampAdded(sourceChainSelector, offRampAddress); // https://github.com/smartcontractkit/chainlink-ton/pull/331
         }
+
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
+            sourceChainSelectors: offRampAdds.sourceChainSelectors,
+            offRampAdded: offRampAdd,
+        });
     }
 
     if (offRampRemoves != null) {
@@ -207,9 +226,12 @@ fun updateOffRamps(offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
             val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector as int);
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
             st.offRamps.delete(selector);
-
-            // TODO emit OffRampRemoved(sourceChainSelector, offRampAddress); // https://github.com/smartcontractkit/chainlink-ton/pull/331
         }
+
+        emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
+            sourceChainSelectors: offRampRemoves.sourceChainSelectors,
+            offRampRemoved: offRampRemove,
+        });
     }
 
     // update RMN forwarding cache

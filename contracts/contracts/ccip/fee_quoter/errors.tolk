@@ -23,6 +23,7 @@ enum FeeQuoter_Error {
     FeeCalculationOverflow // Unreachable
     TokenPriceTooLow
     FeeOverflow
+    UnauthorizedPriceUpdater
 }
 
 

@@ -16,3 +16,9 @@ struct DestChainConfigUpdated {
     destChainSelector: uint64;
     destChainConfig: OnRamp_DestChainConfig;
 }
+
+const CONFIG_SET_TOPIC: int = stringCrc32("ConfigSet");
+struct ConfigSet {
+    chainSelector: uint64;
+    dynamicConfig: OnRamp_DynamicConfig;
+}

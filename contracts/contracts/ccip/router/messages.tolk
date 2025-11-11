@@ -1,6 +1,5 @@
 import "types"
 import "../common/types.tolk"
-import "../common/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable.tolk";
 import "../../lib/versioning/upgradeable"
@@ -8,7 +7,6 @@ import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/types"
 import "../onramp/messages"
-import "../../lib/access/ownable_2step"
 
 type Router_InMsg =
     | Router_CCIPSend
@@ -27,6 +25,8 @@ type Router_InMsg =
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
 
+//crc32("Router_ApplyRampUpdates")
+// update multiple chain selectors in batch to the same onramp/offramp address
 struct (0xf6b0a5ca) Router_ApplyRampUpdates {
     queryId: uint64;
     onRampUpdates: OnRamps?;

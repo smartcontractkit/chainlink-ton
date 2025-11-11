@@ -211,6 +211,7 @@ export class FeeQuoterSetup {
         owner: this.acc.owner.address,
         pendingOwner: null,
       },
+      allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
       maxFeeJuelsPerMsg: FeeQuoterSetup.MAX_MSG_FEES_JUELS,
       linkToken: ZERO_ADDRESS, // No LINK token in TON yet
       tokenPriceStalenessThreshold: BigInt(FeeQuoterSetup.TWELVE_HOURS),
@@ -326,6 +327,20 @@ export class FeeQuoterSetup {
         },
       ],
     }
+
+    // Allow us to updatePrices
+    const addPriceUpdaterResult = await this.bind.feeQuoter.sendAddPriceUpdater(
+      this.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { priceUpdater: this.acc.owner.address },
+      },
+    )
+
+    expect(addPriceUpdaterResult.transactions).toHaveTransaction({
+      to: this.bind.feeQuoter.address,
+      success: true,
+    })
 
     // Send updatePrices transaction
     const updateResult = await this.bind.feeQuoter.sendUpdatePrices(this.acc.owner.getSender(), {
