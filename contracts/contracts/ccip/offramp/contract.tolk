@@ -237,7 +237,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     }    
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit,
+        value: message.gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -253,7 +253,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
         }
     });
 
-    routeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    routeMessage.send(SEND_MODE_REGULAR);
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
@@ -573,16 +573,15 @@ fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2
 
 fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
     // Sends the rest of the message value minus the amount sent for executor deployment
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     val initExecMsg = createMessage ({
         bounce: true,
-        value: 0,
+        value: ReceiveExecutor_Costs.initExec(),
         dest: executorAddress,
         body: ReceiveExecutor_InitExecute {
             gasOverride,
         }
     });
-    initExecMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    initExecMsg.send(SEND_MODE_REGULAR);
 }
 
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {

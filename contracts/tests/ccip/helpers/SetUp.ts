@@ -41,7 +41,7 @@ export const setupTestFeeQuoter = async (
   } as TimestampedPrice)
   let feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
-  let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
+  let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('0.05'))
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: feeQuoter.address,

@@ -570,7 +570,7 @@ describe('OffRamp - Unit Tests', () => {
 
       offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
 
-      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('10000'))
+      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('0.05'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: offRamp.address,
@@ -633,7 +633,7 @@ describe('OffRamp - Unit Tests', () => {
           code,
         ),
       )
-      const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
+      const result = await receiver.sendDeploy(deployer.getSender(), toNano('0.05'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: receiver.address,
@@ -1341,7 +1341,7 @@ describe('OffRamp - Unit Tests', () => {
         code,
       ),
     )
-    const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
+    const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
