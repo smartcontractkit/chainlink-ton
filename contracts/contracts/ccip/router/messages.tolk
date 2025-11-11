@@ -28,7 +28,6 @@ type Router_BouncedMessage = Receiver_CCIPReceive;
 // update multiple chain selectors in batch to the same onramp address
 //crc32("Router_SetRamps")
 struct (0x20272c81) Router_SetRamps {
-    // TODO: support onramp and offramp, support list
     queryId: uint64;
     destChainSelectors: SnakedCell<uint64>;
     onRamp: address;
