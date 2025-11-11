@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	OpcodeSetRamps           = 0x20272c81
+	OpcodeApplyRampUpdates   = 0xf6b0a5ca
 	OpcodeCCIPSend           = 0x31768d95
-	OpcodeUpdateOffRamps     = 0x234110a7
 	OpcodeRouteMessage       = 0xfc69c50b
 	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
 	OpcodeMessageSent        = 0x6513f8e1
@@ -70,20 +69,23 @@ type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
-type SetRamps struct {
-	_                  tlb.Magic                       `tlb:"#20272c81"` //nolint:revive // Ignore opcode tag
-	QueryID            uint64                          `tlb:"## 64"`
+// crc32("ApplyRampUpdates")
+type ApplyRampUpdates struct {
+	_              tlb.Magic `tlb:"#f6b0a5ca"` //nolint:revive // Ignore opcode tag
+	QueryID        uint64    `tlb:"## 64"`
+	OnRampUpdates  *OnRamps  `tlb:"maybe ."`
+	OffRampAdds    *OffRamps `tlb:"maybe ."`
+	OffRampRemoves *OffRamps `tlb:"maybe ."`
+}
+
+type OnRamps struct {
 	DestChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
 	OnRamps            *address.Address                `tlb:"addr"`
 }
 
-type UpdateOffRamps struct {
-	_                         tlb.Magic                       `tlb:"#234110a7"` //nolint:revive // Ignore opcode tag
-	QueryID                   uint64                          `tlb:"## 64"`
-	SourceChainSelectorAdd    common.SnakeData[ChainSelector] `tlb:"^"`
-	OffRampAdd                *address.Address                `tlb:"maybe addr"`
-	SourceChainSelectorRemove common.SnakeData[ChainSelector] `tlb:"^"`
-	OffRampRemove             *address.Address                `tlb:"maybe addr"`
+type OffRamps struct {
+	SourceChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
+	OffRamp              *address.Address                `tlb:"addr"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.

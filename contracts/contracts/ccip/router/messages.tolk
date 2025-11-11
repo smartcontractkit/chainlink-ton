@@ -1,3 +1,4 @@
+import "types"
 import "../common/types.tolk"
 import "../common/messages"
 import "../../lib/utils"
@@ -11,8 +12,7 @@ import "../../lib/access/ownable_2step"
 
 type Router_InMsg =
     | Router_CCIPSend
-    | Router_SetRamps
-    | Router_UpdateOffRamps
+    | Router_ApplyRampUpdates
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
@@ -27,23 +27,11 @@ type Router_InMsg =
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
 
-// update multiple chain selectors in batch to the same onramp address
-//crc32("Router_SetRamps")
-struct (0x20272c81) Router_SetRamps {
-    // TODO: support onramp and offramp, support list
+struct (0xf6b0a5ca) Router_ApplyRampUpdates {
     queryId: uint64;
-    destChainSelectors: SnakedCell<uint64>;
-    onRamp: address;
-}
-
-//crc32("Router_UpdateOffRamps")
-struct (0x234110a7) Router_UpdateOffRamps {
-    queryId: uint64;
-    sourceChainSelectorsAdd: SnakedCell<uint64>;
-    offRampAdd: address?;
-
-    sourceChainSelectorsRemove: SnakedCell<uint64>;
-    offRampRemove: address?;
+    onRampUpdates: OnRamps?;
+    offRampAdds: OffRamps?;
+    offRampRemoves: OffRamps?;
 }
 
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
@@ -138,9 +126,6 @@ fun Router_Costs.MessageSent(): int {
 fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
 }
-
-
-
 
 // TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
 // TBD: Should we let the user define the callback opcode when creating the CCIPSend message?

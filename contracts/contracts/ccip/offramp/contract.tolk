@@ -414,7 +414,6 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
-
     assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
 
     // No execution batching so no need to use iterator
@@ -422,7 +421,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
-    // the i_chainSelector as the destChainSelector.
+    // the st.chainSelector as the destChainSelector.
     assert(message.header.destChainSelector == st.chainSelector, Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not

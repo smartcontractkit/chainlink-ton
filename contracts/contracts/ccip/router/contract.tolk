@@ -13,18 +13,17 @@ import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/messages"
 import "@stdlib/lisp-lists"
+import "types"
 import "../offramp/types"
 
-
-const CONTRACT_VERSION = "0.0.7";
+const CONTRACT_VERSION = "0.0.8";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Router_InMsg.fromSlice(in.body);
     match (msg) {
-        Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
-        Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
-        Router_CCIPSend => { 
+        Router_ApplyRampUpdates => { onApplyRampUpdates(msg, in.senderAddress) }
+        Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onSend(msg, in.senderAddress, in.valueCoins)
@@ -162,39 +161,54 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-fun onSetRamps(msg: Router_SetRamps, sender: address) {
+fun onApplyRampUpdates(msg: Router_ApplyRampUpdates, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    var selectors = msg.destChainSelectors.iter();
-    while (!selectors.empty()) {
-        val selector = selectors.next();
-        st.onRamps.set(selector, msg.onRamp);
-    }
-    st.store();
-    // TODO: emit(OnRampsSet)
+    updateOnRamps(msg.onRampUpdates);
+    updateOffRamps(msg.offRampAdds, msg.offRampRemoves);
 }
 
-fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
+fun updateOnRamps(onRampUpdates: OnRamps?) {
     var st = lazy Storage.load();
-    st.ownable.requireOwner(sender);
 
-    if (msg.offRampAdd != null) {
-        val offRampAdd = msg.offRampAdd!;
-        var iter = msg.sourceChainSelectorsAdd.iter();
+    if (onRampUpdates != null) {
+        var selectors = onRampUpdates.destChainSelectors.iter();
+        while (!selectors.empty()) {
+            val selector = selectors.next();
+            st.onRamps.set(selector, onRampUpdates.onRamp);
+        }
+
+        st.store();
+
+        // TODO emit OnRampSet(onRampUpdate.destChainSelector, onRampUpdate.onRamp); // https://github.com/smartcontractkit/chainlink-ton/pull/331
+    }
+}
+
+fun updateOffRamps(offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
+    var st = lazy Storage.load();
+
+    if (offRampAdds != null) {
+        val offRampAdd = offRampAdds.offRamp!;
+        var iter = offRampAdds.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
             st.offRamps.set(selector, offRampAdd);
+
+            // TODO emit OffRampAdded(sourceChainSelector, offRampAddress); // https://github.com/smartcontractkit/chainlink-ton/pull/331
         }
     }
-    if (msg.offRampRemove != null) {
-        val offRampRemove = msg.offRampRemove!;
-        var iter = msg.sourceChainSelectorsRemove.iter();
+
+    if (offRampRemoves != null) {
+        val offRampRemove = offRampRemoves.offRamp!;
+        var iter = offRampRemoves.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
             val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector as int);
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
             st.offRamps.delete(selector);
+
+            // TODO emit OffRampRemoved(sourceChainSelector, offRampAddress); // https://github.com/smartcontractkit/chainlink-ton/pull/331
         }
     }
 
