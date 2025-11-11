@@ -211,6 +211,7 @@ export class FeeQuoterSetup {
         owner: this.acc.owner.address,
         pendingOwner: null,
       },
+      allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
       maxFeeJuelsPerMsg: FeeQuoterSetup.MAX_MSG_FEES_JUELS,
       linkToken: ZERO_ADDRESS, // No LINK token in TON yet
       tokenPriceStalenessThreshold: BigInt(FeeQuoterSetup.TWELVE_HOURS),
@@ -326,6 +327,20 @@ export class FeeQuoterSetup {
         },
       ],
     }
+
+    // Allow us to updatePrices
+    const addPriceUpdaterResult = await this.bind.feeQuoter.sendAddPriceUpdater(
+      this.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { priceUpdater: this.acc.owner.address },
+      },
+    )
+
+    expect(addPriceUpdaterResult.transactions).toHaveTransaction({
+      to: this.bind.feeQuoter.address,
+      success: true,
+    })
 
     // Send updatePrices transaction
     const updateResult = await this.bind.feeQuoter.sendUpdatePrices(this.acc.owner.getSender(), {
@@ -528,16 +543,18 @@ export class FeeQuoterSetup {
     const resp = tx.inMessage
 
     const body = resp.body.beginParse()
-    try {
-      expect(body.preloadUint(32)).toBe(sendExecutor.Opcodes.messageValidated)
-    } catch (error) {
-      if (body.preloadUint(32) === sendExecutor.Opcodes.messageValidationFailed) {
+    const errorCode = body.preloadUint(32)
+    if (errorCode !== sendExecutor.Opcodes.messageValidated) {
+      if (errorCode === sendExecutor.Opcodes.messageValidationFailed) {
         const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
           resp.body.beginParse(),
         )
-        printErrorName(failure)
+        throw new Error(
+          `Message validation failed with error ${printErrorName(Number(failure.error))}`,
+        )
+      } else {
+        throw new Error(`Unexpected response opcode: ${errorCode}`)
       }
-      throw error
     }
     const messageValidated = feeQuoter.builder.message.out.messageValidated.load(
       resp.body.beginParse(),
@@ -595,7 +612,7 @@ export class FeeQuoterSetup {
                 if (msg.error === BigInt(expectedError)) {
                   return true
                 }
-                throw new Error(`Validation failed with error ${printErrorName(msg)}`)
+                throw new Error(`Validation failed with error ${printErrorName(Number(msg.error))}`)
                 return false
               },
             ],
@@ -604,7 +621,7 @@ export class FeeQuoterSetup {
       })
     } catch (error) {
       throw new Error(
-        `Expected error code ${expectedError}, but it was got a different error: ${error}`,
+        `Expected error code ${expectedError} (${printErrorName(expectedError)}), but it was got a different error: ${error}`,
       )
     }
   }
@@ -623,8 +640,8 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }
-function printErrorName(failure: sendExecutor.MessageValidationFailed): string {
-  switch (Number(failure.error)) {
+function printErrorName(error: number): string {
+  switch (error) {
     case feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector:
       return 'UnsupportedChainFamilySelector'
     case feeQuoter.FeeQuoterError.GasLimitTooHigh:
@@ -670,6 +687,6 @@ function printErrorName(failure: sendExecutor.MessageValidationFailed): string {
     case feeQuoter.FeeQuoterError.FeeOverflow:
       return 'FeeOverflow'
     default:
-      throw new Error(`Unknown error code: ${failure.error.toString()}`)
+      throw new Error(`Unknown error code: ${error.toString()}`)
   }
 }

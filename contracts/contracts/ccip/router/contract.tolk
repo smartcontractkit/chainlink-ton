@@ -102,6 +102,17 @@ fun onInternalMessage(in: InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        Router_RMNOwnableMessage => {
+            var st = lazy Storage.load();
+            var rmnRemote = st.rmnRemote.load();
+            val handled = rmnRemote.admin.onInternalMessage(in.senderAddress, msg.content);
+            if (handled) {
+                st.rmnRemote = rmnRemote.toCell();
+                st.store();
+                return;
+            }
+            throw 0xFFFF;
+        }
         Router_MessageSent => { onSendACK(msg, in.senderAddress) }
         Router_MessageRejected => { onSendNACK(msg, in.senderAddress) }
         Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }

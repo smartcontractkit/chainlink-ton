@@ -42,7 +42,7 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
 
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
-    msgId: uint224,
+    msgID: uint224,
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
     fee: coins

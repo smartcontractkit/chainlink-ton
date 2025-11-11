@@ -54,7 +54,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
-        messageID: st.messageId,
+        messageID: st.messageID,
         onrampSend: onrampSend,
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
@@ -165,7 +165,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
-            msgId: self.messageID,
+            msgID: self.messageID,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
             fee,
