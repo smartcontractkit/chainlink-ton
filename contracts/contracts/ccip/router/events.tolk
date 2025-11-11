@@ -1,7 +1,7 @@
 import "../../lib/utils"
 
-const RAMP_SET_TOPIC: int = stringCrc32("RampsSet");
-struct RampsSet {
+const ON_RAMP_SET_TOPIC: int = stringCrc32("OnRampsSet");
+struct OnRampsSet {
     destChainSelectors: SnakedCell<uint64>;
     onRamp: address;
 }

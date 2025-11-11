@@ -12,7 +12,7 @@ export const LogTypes = {
   DestChainSelectorAdded: 'DestChainSelectorAdded',
   DestChainConfigUpdated: 'DestChainConfigUpdated',
   ReceiverCCIPMessageReceived: 'Receiver_CCIPMessageReceived',
-  RampSet: `RampsSet`,
+  OnRampSet: `OnRampsSet`,
   OffRampAdded: `OffRampAdded`,
   OffRampRemoved: `OffRampRemoved`,
   RMNRemoteCursed: 'RMNRemoteCursed',
@@ -30,7 +30,7 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   DestChainSelectorAdded: crc32('DestChainSelectorAdded'),
   DestChainConfigUpdated: crc32('DestChainConfigUpdated'),
   Receiver_CCIPMessageReceived: crc32('Receiver_CCIPMessageReceived'),
-  RampsSet: crc32('RampsSet'),
+  OnRampsSet: crc32('OnRampsSet'),
   OffRampAdded: crc32('OffRampAdded'),
   OffRampRemoved: crc32('OffRampRemoved'),
   RMNRemoteCursed: crc32('RMNRemoteCursed'),
@@ -91,7 +91,7 @@ export type ReceiverCCIPMessageReceived = {
   message: Any2TVMMessage
 }
 
-export type RampsSet = {
+export type OnRampsSet = {
   destChainSelectors: bigint[]
   onRamp: Address
 }

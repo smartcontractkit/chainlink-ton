@@ -68,7 +68,7 @@ type LogTypeMap = {
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: CCIPLogs.ReceiverCCIPMessageReceived
-  [CCIPLogs.LogTypes.RampSet]: CCIPLogs.RampsSet
+  [CCIPLogs.LogTypes.OnRampSet]: CCIPLogs.OnRampsSet
   [CCIPLogs.LogTypes.OffRampAdded]: CCIPLogs.OffRampAdded
   [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
   [CCIPLogs.LogTypes.RMNRemoteCursed]: CCIPLogs.RMNRemoteCursed
@@ -119,8 +119,8 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: (x, from, match) =>
     testTransmittedLogMessage(x, from, match as Partial<OCR3Logs.OCR3BaseTransmitted>),
 
-  [CCIPLogs.LogTypes.RampSet]: (x, from, match) =>
-    testLogRampSet(x, from, match as CCIPLogs.RampsSet),
+  [CCIPLogs.LogTypes.OnRampSet]: (x, from, match) =>
+    testLogRampSet(x, from, match as CCIPLogs.OnRampsSet),
 
   [CCIPLogs.LogTypes.OffRampAdded]: (x, from, match) =>
     testLogOffRampAdded(x, from, match as CCIPLogs.OffRampAdded),
@@ -313,8 +313,8 @@ export const testTransmittedLogMessage = (
   })
 }
 
-export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.RampsSet) => {
-  return testLog(message, from, CCIPLogs.LogTypes.RampSet, (x) => {
+export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.OnRampsSet) => {
+  return testLog(message, from, CCIPLogs.LogTypes.OnRampSet, (x) => {
     const cs = x.beginParse()
     const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
     const addr = cs.loadAddress()

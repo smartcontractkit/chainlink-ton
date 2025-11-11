@@ -334,7 +334,7 @@ describe('Router', () => {
         success: true,
       })
 
-      assertLog(result.transactions, router.address, LogTypes.RampSet, {
+      assertLog(result.transactions, router.address, LogTypes.OnRampSet, {
         destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })

@@ -174,7 +174,7 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
         st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
-    emit(RAMP_SET_TOPIC, RampsSet {
+    emit(ON_RAMP_SET_TOPIC, OnRampsSet {
         destChainSelectors: msg.destChainSelectors,
         onRamp: msg.onRamp,
     });
