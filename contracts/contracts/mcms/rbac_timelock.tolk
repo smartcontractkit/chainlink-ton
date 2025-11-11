@@ -1242,6 +1242,8 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
         return;
     }
 
+    // TODO: support blocking msg bodies (data) < 32 bits
+
     // Load the function selector from the message body
     val selector = data.loadMessageOp(); // 32-bit integer
     var blocked = self.data.blockedFnSelectors.get(selector);
@@ -1341,9 +1343,8 @@ fun onBouncedMessage(in: InMessageBounced) {
         return; // noop
     }
 
+    // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     val id = timelock.data.opPendingInfo.opPendingId;
-    assert(timelock.isOperationDone(id)) throw Timelock_Error.OperationNotDone;
-
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
      // Store the updated contract data

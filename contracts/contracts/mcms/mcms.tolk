@@ -1365,6 +1365,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // TODO: emit an event with the bounce details?
 
+    // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     // Check the bounced message against the stored pending operation
     // If the received bounce does NOT equal expected, mark the root invalid.
     //
@@ -1372,6 +1373,13 @@ fun onBouncedMessage(in: InMessageBounced) {
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
     if (opPendingInfo.opPendingReceiver != in.senderAddress
         || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
+
+        // Check the case when a new root was just set and no ops yet executed
+        val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
+        if (opCount == rootInfo.rootMetadata.preOpCount) {
+            return; // prev root op bounced, don't expire the fresh new root
+        }
+
         // Mark root in error state (recover with new root + bypass)
         rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
         mcms.data.rootInfo = rootInfo.toCell();
