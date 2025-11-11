@@ -63,6 +63,8 @@ struct (0xe7fabde3) MCMS_SetRoot {
     metadataProof: cell; // vec<uint256>;
     /// The ECDSA signatures on (root, validUntil).
     signatures: cell; // vec<Signature>
+
+    // TODO: move opFinalizationTimeout to access controlled MCMS_SetConfig
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
 }
@@ -624,6 +626,10 @@ fun MCMS<T>.setRoot(
     metadata: RootMetadata,
     metadataProof: Iterator<uint256>,
     signatures: cell, // vec<Signature>
+
+    // TODO: move opFinalizationTimeout to access controlled setConfig
+    //      An arbitrary third party (not the signers) who learns a valid (root, validUntil) + signatures
+    //      can call MCMS_SetRoot with a malicious opFinalizationTimeout.
     opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT
 ) {
     /// Construct the message that should be signed by the signers.
