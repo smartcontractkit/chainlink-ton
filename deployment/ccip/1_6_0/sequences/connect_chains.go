@@ -113,8 +113,6 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		}
 		txs = append(txs, offRampReport.Output...)
 
-		// TODO update router with offramps. Let's add this functionality once vincent finishes the contract work
-
 		applyRampUpdatesConfig, err := intoUpdateRouterOfframpsConfig(input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router offramps config: %w", err)
