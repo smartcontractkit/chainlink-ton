@@ -449,7 +449,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
          bounce: true,
-         value: 0,
+         value: MerkleRoot_Costs.validate(),
          dest: {
              stateInit: {
                  code: st.deployables.load().deployer,
@@ -467,7 +467,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
             gasOverride,
          },
      });
-    executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    executeMsg.send(SEND_MODE_REGULAR);
 }
 
 //TODO: maybe it should be chainConfigs and take an array?
