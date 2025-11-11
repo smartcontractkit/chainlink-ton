@@ -308,7 +308,7 @@ export const testTransmittedLogMessage = (
 export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.RampsSet) => {
   return testLog(message, from, CCIPLogs.LogTypes.RampSet, (x) => {
     const cs = x.beginParse()
-    const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+    const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
     const addr = cs.loadAddress()
     const msg = {
       destChainSelectors: selectors,

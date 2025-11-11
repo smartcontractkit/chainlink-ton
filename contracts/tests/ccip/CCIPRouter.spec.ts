@@ -333,6 +333,11 @@ describe('Router', () => {
         to: router.address,
         success: true,
       })
+
+      assertLog(result.transactions, router.address, LogTypes.RampSet, {
+        destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+        onRamp: onRamp.address,
+      })
     }
   })
 
@@ -374,7 +379,7 @@ describe('Router', () => {
     }
   })
 
-  it('update router offramps event emission', async () => {
+  it('update router offRamp events emission', async () => {
     const offRampAddress1 = await generateRandomTonAddress()
     {
       // test update method wrapper
