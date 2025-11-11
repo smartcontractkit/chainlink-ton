@@ -148,14 +148,14 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
-        value: 0,
+        value: MerkleRoot_Costs.markState(),
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
             state,
         },
     });
-    markState.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    markState.send(SEND_MODE_REGULAR);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
@@ -200,7 +200,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
 
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.02"), //TODO how much do we need to send
+        value: 0, //TODO how much do we need to send
         dest: {
             stateInit: {
                 code: st.deployables.load().deployer,
@@ -214,7 +214,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
             receiver: msg.receiver,
         }, 
     });
-    receiveConfirm.send(SEND_MODE_REGULAR);
+    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 
