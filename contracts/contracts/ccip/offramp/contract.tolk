@@ -468,7 +468,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
             gasOverride,
          },
      });
-    executeMsg.send(SEND_MODE_REGULAR);
+    executeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 //TODO: maybe it should be chainConfigs and take an array?

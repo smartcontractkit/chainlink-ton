@@ -123,6 +123,7 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
 }
 
 const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.02");
+
 const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
 
 struct OffRamp_Costs{}
@@ -130,7 +131,7 @@ struct MerkleRoot_Costs{}
 struct ReceiveExecutor_Costs{}
 
 fun MerkleRoot_Costs.validate(isManualExec: bool){
-    val baseFee = ton("0.005"); // validateFees
+    val baseFee = ton("0.012"); // validateFees
     return baseFee + OffRamp_Costs.executeValidated(isManualExec);
 }
 
@@ -143,6 +144,7 @@ fun OffRamp_Costs.executeValidated(isManualExec: bool){
     }
 }
 
+// adds up to 0.03
 fun ReceiveExecutor_Costs.initExec(){
     val baseFee = ton("0.004");
     return baseFee + OffRamp_Costs.dispatchValidated();
