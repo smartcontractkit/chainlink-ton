@@ -390,6 +390,22 @@ export type CCIPReceiveConfirm = {
   rootId: bigint
 }
 
+const crossChainAddressCodec: CellCodec<Buffer> = {
+  encode: (addr: Buffer): Builder => {
+    if (addr.byteLength > 64) {
+      throw new Error('CrossChainAddress too long')
+    }
+    return beginCell().storeUint(addr.length, 8).storeBuffer(addr, addr.length)
+  },
+  load: (src: Slice): Buffer => {
+    const len = Number(src.loadUint(8))
+    if (len > 64) {
+      throw new Error('CrossChainAddress too long')
+    }
+    return src.loadBuffer(len)
+  },
+}
+
 export const builder = {
   data: (() => {
     const contractData: CellCodec<Storage> = {
@@ -496,33 +512,30 @@ export const builder = {
       extraArgs,
       onRamps,
       offRamps,
+      crossChainAddress: crossChainAddressCodec,
     }
   })(),
   message: {
     in: (() => {
       const ccipSend: CellCodec<CCIPSend> = {
         encode: (opts: CCIPSend): Builder => {
-          return (
-            beginCell()
-              .storeUint(Opcodes.ccipSend, 32)
-              .storeUint(opts.queryID ?? 0, 64)
-              .storeUint(opts.destChainSelector, 64)
-              // CrossChainAddress TODO: assert =< 64
-              .storeUint(opts.receiver.byteLength, 8)
-              .storeBuffer(opts.receiver, opts.receiver.byteLength)
-              .storeRef(opts.data)
-              .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
-              .storeAddress(opts.feeToken)
+          return beginCell()
+            .storeUint(Opcodes.ccipSend, 32)
+            .storeUint(opts.queryID ?? 0, 64)
+            .storeUint(opts.destChainSelector, 64)
+            .storeBuilder(crossChainAddressCodec.encode(opts.receiver))
+            .storeRef(opts.data)
+            .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
+            .storeAddress(opts.feeToken)
 
-              .storeRef(opts.extraArgs)
-          )
+            .storeRef(opts.extraArgs)
         },
         load: function (src: Slice): CCIPSend {
           src.skip(32)
           return {
             queryID: src.loadUint(64),
             destChainSelector: src.loadUintBig(64),
-            receiver: src.loadBuffer(src.loadUint(8)),
+            receiver: crossChainAddressCodec.load(src),
             data: src.loadRef(),
             tokenAmounts: fromSnakeData(src.loadRef(), tokenAmountCodec.load),
             feeToken: src.loadAddress(),
