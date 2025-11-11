@@ -34,10 +34,13 @@ describe('FeeQuoter UpdatePrices', () => {
     }
 
     // Send updatePrices transaction and expect it to succeed
-    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.deployer.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates },
-    })
+    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates },
+      },
+    )
     expect(updateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
       success: true,
@@ -57,20 +60,26 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // Send updatePrices transaction and expect it to fail
-    const updateFailResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.deployer.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates },
-    })
+    const updateFailResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates },
+      },
+    )
     expect(updateFailResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
       success: false,
     })
 
     // Owner can always update
-    const ownerUpdateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
-      value: toNano('1'),
-      msg: { updates: priceUpdates },
-    })
+    const ownerUpdateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates },
+      },
+    )
     expect(ownerUpdateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
       success: true,
