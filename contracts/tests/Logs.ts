@@ -344,11 +344,11 @@ export const testLogOffRampRemoved = (
 ) => {
   return testLog(message, from, CCIPLogs.LogTypes.OffRampRemoved, (x) => {
     const cs = x.beginParse()
-    const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+    const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
     const addr = cs.loadAddress()
     const msg = {
       sourceChainSelectors: selectors,
-      offRampRemoved: cs.loadAddress(),
+      offRampRemoved: addr,
     }
     equalsObject(msg, match)
     return true
