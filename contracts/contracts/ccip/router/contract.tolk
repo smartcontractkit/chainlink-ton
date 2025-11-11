@@ -192,8 +192,8 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             st.offRamps.set(selector, offRampAdd);
         }
         emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
-            sourceChainSelectorsAdd: msg.sourceChainSelectorsAdd,
-            offRampAdd: offRampAdd,
+            sourceChainSelectors: msg.sourceChainSelectorsAdd,
+            offRampAdded: offRampAdd,
         });
     }
     if (msg.offRampRemove != null) {
@@ -206,8 +206,8 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             st.offRamps.delete(selector);
         }
         emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
-            sourceChainSelectorsRemove: msg.sourceChainSelectorsRemove,
-            offRampRemove: offRampRemove,
+            sourceChainSelectors: msg.sourceChainSelectorsRemove,
+            offRampRemoved: offRampRemove,
         });
     }
 

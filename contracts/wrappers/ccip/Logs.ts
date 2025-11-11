@@ -93,11 +93,11 @@ export type RampsSet = {
 }
 
 export type OffRampAdded = {
-  sourceChainSelectorsAdd: bigint[]
-  offRampAdd: Address
+  sourceChainSelectors: bigint[]
+  offRampAdded: Address
 }
 
 export type OffRampRemoved = {
-  sourceChainSelectorsRemoved: bigint[]
+  sourceChainSelectors: bigint[]
   offRampRemoved: Address
 }

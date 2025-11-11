@@ -8,14 +8,14 @@ struct RampsSet {
 
 const OFF_RAMP_ADDED_TOPIC: int = stringCrc32("OffRampAdded");
 struct OffRampAdded {
-    sourceChainSelectorsAdd: SnakedCell<uint64>;
-    offRampAdd: address?;
+    sourceChainSelectors: SnakedCell<uint64>;
+    offRampAdded: address;
 }
 
 const OFF_RAMP_REMOVED_TOPIC: int = stringCrc32("OffRampRemoved");
 struct OffRampRemoved {
-    sourceChainSelectorsRemove: SnakedCell<uint64>;
-    offRampRemove: address?;
+    sourceChainSelectors: SnakedCell<uint64>;
+    offRampRemoved: address;
 }
 
 const RMN_REMOTE_CURSED_TOPIC: int = stringCrc32("RMNRemoteCursed");

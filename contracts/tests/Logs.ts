@@ -326,7 +326,7 @@ export const testLogOffRampAdded = (
 ) => {
   return testLog(message, from, CCIPLogs.LogTypes.OffRampAdded, (x) => {
     const cs = x.beginParse()
-    const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+    const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
     const addr = cs.loadAddress()
     const msg = {
       sourceChainSelectors: selectors,
