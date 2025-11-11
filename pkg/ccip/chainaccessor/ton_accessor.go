@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -329,15 +330,15 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	if len(logs) == 0 {
 		return 0, nil
 	}
+	log := logs[0]
 
-	// Decode the single log
-	typedLogs, err := query.DecodedLogs[onramp.CCIPMessageSent](logs)
-	if err != nil {
-		return 0, fmt.Errorf("failed to decode CCIPMessageSent event: %w", err)
+	var event onramp.CCIPMessageSent
+	const skipMagic = true // Always skip magic (opcode in msg) when parsing log cells, we only store message body
+	if parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), skipMagic); parseErr != nil {
+		return 0, fmt.Errorf("failed to decode log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), parseErr)
 	}
 
-	genericEvent := a.convertCCIPMessageSent(&typedLogs[0].TypedData)
-
+	genericEvent := a.convertCCIPMessageSent(&event)
 	if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, ccipocr3.NewSeqNumRange(genericEvent.Message.Header.SequenceNumber, genericEvent.Message.Header.SequenceNumber)); err != nil {
 		return 0, fmt.Errorf("message invalid msg %v: %w", genericEvent, err)
 	}

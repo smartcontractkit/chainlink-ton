@@ -616,18 +616,16 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller query with filter, events with odd values from emitter B", func(t *testing.T) {
 				t.Parallel()
 
-				// Filter for events where the counter value is odd
-				filter := func(event counter.CountIncreased) bool {
-					return event.Value%2 == 1 // odd numbers
-				}
-
 				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				result, queryErr := query.DecodedLogsWithFilter(logs, filter)
+				// Filter for events where the counter value is odd
+				result, queryErr := query.DecodedLogsWithFilter(logs, func(event counter.CountIncreased) bool {
+					return event.Value%2 == 1 // odd numbers
+				})
 				require.NoError(t, queryErr)
 
 				expectedOddCount := 5 // From 1-10, odd numbers are: 1, 3, 5, 7, 9
@@ -645,17 +643,15 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 				from, to := (1), (10)
 
-				filter := func(event counter.CountIncreased) bool {
-					return event.Value >= uint32(from) && event.Value <= uint32(to) //nolint:gosec // test code
-				}
-
 				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				result, queryErr := query.DecodedLogsWithFilter(logs, filter)
+				result, queryErr := query.DecodedLogsWithFilter(logs, func(event counter.CountIncreased) bool {
+					return event.Value >= uint32(from) && event.Value <= uint32(to) //nolint:gosec // test code
+				})
 				require.NoError(t, queryErr)
 
 				require.Len(t, result, to-from+1, "expected exactly 10 logs for the range 1-10")
