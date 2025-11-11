@@ -219,15 +219,12 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 
 	var wg sync.WaitGroup
 	for _, addr := range srcAddrs {
-		wg.Add(1)
-		go func(a *address.Address) {
-			defer wg.Done()
-
-			if err := lp.loader.LoadTxsForAddress(ctx, blockRange, a, lp.pageSize, txsOut, errsOut); err != nil {
-				lp.lggr.Warnf("Loader setup failed for address: %s, err: %v", a.String(), err)
+		wg.Go(func() {
+			if err := lp.loader.LoadTxsForAddress(ctx, blockRange, addr, lp.pageSize, txsOut, errsOut); err != nil {
+				lp.lggr.Warnf("Loader setup failed for address: %s, err: %v", addr.String(), err)
 				errsOut <- err
 			}
-		}(addr)
+		})
 	}
 
 	// close channels when all goroutines are done

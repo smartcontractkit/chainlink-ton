@@ -54,7 +54,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 	}
 
 	// Get transaction bounds
-	startLT, endLT, endHash, err := l.GetTransactionBounds(ctx, blockRange, addr)
+	startLT, endLT, endHash, err := l.GetTransactionLTBounds(ctx, blockRange, addr)
 	if err != nil {
 		return fmt.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
 	}
@@ -116,7 +116,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 	return nil
 }
 
-// GetTransactionBounds determines the logical time (LT) range for scanning transactions
+// GetTransactionLTBounds determines the logical time (LT) range for scanning transactions
 // between two blocks for a specific address on the TON blockchain.
 //
 // TON's account-based transaction model uses logical time (LT) to order transactions
@@ -131,7 +131,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 //
 // prevBlock: Block where the address was last seen(already processed)
 // toBlock: Block where the scan ends
-func (l *rawTxLoader) GetTransactionBounds(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (startLT, endLT uint64, endHash []byte, err error) {
+func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (startLT, endLT uint64, endHash []byte, err error) {
 	client, err := l.clientProvider(ctx)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to get client: %w", err)

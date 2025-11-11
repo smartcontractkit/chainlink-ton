@@ -34,13 +34,10 @@ func (lp *service) parseTransactions(
 	go func() {
 		for tx := range txsIn {
 			txCount.Add(1)
-			wg.Add(1)
-			go func(t models.Tx) {
-				defer wg.Done()
-
-				logs, err := lp.parseTx(t.Transaction, t.Block, chainID, filterIndex)
+			wg.Go(func() {
+				logs, err := lp.parseTx(tx.Transaction, tx.Block, chainID, filterIndex)
 				if err != nil {
-					errsOut <- fmt.Errorf("failed to process tx %x: %w", t.Transaction.Hash, err)
+					errsOut <- fmt.Errorf("failed to process tx %x: %w", tx.Transaction.Hash, err)
 					return
 				}
 
@@ -52,9 +49,8 @@ func (lp *service) parseTransactions(
 						return
 					}
 				}
-			}(tx)
+			})
 		}
-
 		wg.Wait()
 
 		close(logsOut)

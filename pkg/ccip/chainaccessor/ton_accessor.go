@@ -15,13 +15,15 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccip"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
+
+	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/logutil"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
@@ -79,11 +81,12 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 }
 
 func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
 	// Match old behaviour: if a contract isn't bound, we return an empty value so the nodes can achieve consensus on partial config
 	// https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
 
 	// TODO: pass in addresses we fetched so subsequent fetches don't fail (offramp->feeQuoter etc)
-	a.lggr.Debug("GetAllConfigsLegacy")
+	lggr.Debug("GetAllConfigsLegacy")
 	var config ccipocr3.ChainConfigSnapshot
 	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
 
@@ -213,6 +216,7 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
@@ -243,7 +247,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	if err != nil {
 		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
-	a.lggr.Infow("TONAccessor: queried MsgsBetweenSeqNums",
+	lggr.Infow("queried messages between sequence numbers",
 		"numMsgs", len(logs),
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
@@ -259,20 +263,32 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	for _, typedLog := range typedLogs {
 		genericEvent := a.convertCCIPMessageSent(&typedLog.TypedData)
 
-		if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, seqNumRange); err != nil {
-			a.lggr.Errorw("validate send requested event", "err", err, "message", genericEvent)
+		if err = chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, seqNumRange); err != nil {
+			lggr.Errorw("validate send requested event", "err", err, "message", genericEvent)
 			continue
 		}
 		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
 		genericEvent.Message.Header.OnRamp = rawOnrampAddr[:]
 		genericEvent.Message.Header.TxHash = hex.EncodeToString(typedLog.TxHash[:])
 		msgs = append(msgs, genericEvent.Message)
-		a.lggr.Debugw("MsgsBetweenSeqNums: found message and appended it to the output", "seqNum", genericEvent.SequenceNumber, "txHash", genericEvent.Message.Header.TxHash, "destChainSelector", dest, "sourceChainSelector", a.chainSelector)
 	}
+
+	msgsWithoutDataField := make([]ccipocr3.Message, len(msgs))
+	for i, msg := range msgs {
+		msgsWithoutDataField[i] = msg.CopyWithoutData()
+	}
+
+	lggr.Debugw("decoded messages between sequence numbers",
+		"msgsWithoutDataField", msgsWithoutDataField,
+		"sourceChainSelector", a.chainSelector,
+		"seqNumRange", seqNumRange.String(),
+	)
+
 	return msgs, nil
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
@@ -302,7 +318,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
 
-	a.lggr.Infow("TONAccessor: LatestMessageTo",
+	lggr.Debugw("queried latest message from source",
 		"numMsgs", len(logs),
 		"sourceChainSelector", a.chainSelector,
 	)
@@ -323,7 +339,6 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	genericEvent := a.convertCCIPMessageSent(&typedLogs[0].TypedData)
 
 	if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, ccipocr3.NewSeqNumRange(genericEvent.Message.Header.SequenceNumber, genericEvent.Message.Header.SequenceNumber)); err != nil {
-		a.lggr.Errorw("validate send requested event", "err", err, "message", genericEvent)
 		return 0, fmt.Errorf("message invalid msg %v: %w", genericEvent, err)
 	}
 
@@ -443,6 +458,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	confidence primitives.ConfidenceLevel,
 	limit int,
 ) ([]ccipocr3.CommitPluginReportWithMeta, error) {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
 	offrampAddr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return nil, fmt.Errorf("OffRamp not bound: %w", err)
@@ -474,16 +490,17 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		return nil, fmt.Errorf("failed to decode CommitReportAccepted events: %w", err)
 	}
 
-	a.lggr.Debugw("queried commit reports", "numReports", len(typedLogs),
+	lggr.Debugw("queried commit reports", "numReports", len(typedLogs),
 		"destChain", a.chainSelector,
 		"ts", ts,
 		"limit", limit,
 	)
-	reports := a.processCommitReports(typedLogs, ts)
+	reports := a.processCommitReports(ctx, typedLogs, ts)
 	return reports, nil
 }
 
-func (a *TONAccessor) processCommitReports(logs []lptypes.TypedLog[offramp.CommitReportAccepted], ts time.Time) []ccipocr3.CommitPluginReportWithMeta {
+func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.TypedLog[offramp.CommitReportAccepted], ts time.Time) []ccipocr3.CommitPluginReportWithMeta {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
 	reports := make([]ccipocr3.CommitPluginReportWithMeta, 0)
 	for _, log := range logs {
 		ev, err := a.validateCommitReportAcceptedEvent(log, ts)
@@ -491,10 +508,10 @@ func (a *TONAccessor) processCommitReports(logs []lptypes.TypedLog[offramp.Commi
 			continue
 		}
 		if ev.MerkleRoot == nil {
-			a.lggr.Debugw("skipping commit report with no merkle root", "report", ev)
+			lggr.Debugw("skipping commit report with no merkle root", "report", ev)
 			continue
 		}
-		a.lggr.Debugw("processing commit report", "report", ev, "item", log)
+		lggr.Debugw("processing commit report", "report", ev, "item", log)
 
 		mrc := a.processMerkleRoot(ev.MerkleRoot)
 
@@ -502,7 +519,7 @@ func (a *TONAccessor) processCommitReports(logs []lptypes.TypedLog[offramp.Commi
 		if ev.PriceUpdates != nil {
 			priceUpdates, err = a.processPriceUpdates(ev.PriceUpdates)
 			if err != nil {
-				a.lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
+				lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
 				continue
 			}
 		}
@@ -517,7 +534,7 @@ func (a *TONAccessor) processCommitReports(logs []lptypes.TypedLog[offramp.Commi
 			BlockNum:  uint64(log.MasterBlockSeqno),
 		})
 	}
-	a.lggr.Debugw("decoded commit reports", "reports", reports)
+	lggr.Debugw("decoded commit reports", "reports", reports)
 
 	return reports
 }
@@ -562,16 +579,17 @@ func (a *TONAccessor) ExecutedMessages(
 	ranges map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange,
 	confidence primitives.ConfidenceLevel,
 ) (map[ccipocr3.ChainSelector][]ccipocr3.SeqNum, error) {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
 	// trim empty ranges from rangesPerChain to avoid unnecessary queries
 	nonEmptyRangesPerChain := make(map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange)
-	for chain, ranges := range ranges {
+	for chain, seqRange := range ranges {
 		if len(ranges) > 0 {
-			nonEmptyRangesPerChain[chain] = ranges
+			nonEmptyRangesPerChain[chain] = seqRange
 		}
 	}
 
 	if len(nonEmptyRangesPerChain) == 0 {
-		a.lggr.Debugw("no sequence numbers to query", "nonEmptyRangesPerChain", nonEmptyRangesPerChain)
+		lggr.Debugw("no sequence numbers to query", "nonEmptyRangesPerChain", nonEmptyRangesPerChain)
 		return nil, nil
 	}
 
@@ -587,7 +605,7 @@ func (a *TONAccessor) ExecutedMessages(
 	// TODO(@jadepark-dev): Note: Currently iterating per chain/range - optimize with OR conditions
 	for chainSelector, ranges := range nonEmptyRangesPerChain {
 		for _, seqRange := range ranges {
-			a.lggr.Debugw("querying execution state changed events",
+			lggr.Debugw("querying execution state changed events",
 				"chainSelector", chainSelector, "seqRange", seqRange)
 
 			// Filter at database level using byte-level filtering
@@ -621,13 +639,13 @@ func (a *TONAccessor) ExecutedMessages(
 			// Parse the raw results into typed events (no filtering needed, already filtered at DB level)
 			typedLogs, err := query.DecodedLogs[offramp.ExecutionStateChanged](logs)
 			if err != nil {
-				a.lggr.Errorw("failed to decode ExecutionStateChanged events", "err", err)
+				lggr.Errorw("failed to decode ExecutionStateChanged events", "err", err)
 				continue
 			}
 
 			for _, typedLog := range typedLogs {
 				if err := a.validateExecutionStateChangedEvent(typedLog.TypedData, nonEmptyRangesPerChain); err != nil {
-					a.lggr.Errorw("validate execution state changed event",
+					lggr.Errorw("validate execution state changed event",
 						"err", err, "stateChange", typedLog.TypedData)
 					continue
 				}
@@ -676,8 +694,6 @@ func (a *TONAccessor) validateExecutionStateChangedEvent(
 
 func (a *TONAccessor) NextSeqNum(ctx context.Context, sources []ccipocr3.ChainSelector) (seqNum map[ccipocr3.ChainSelector]ccipocr3.SeqNum, err error) {
 	// NOTE: currently unused by ChainAccessor
-
-	// TODO(NONEVM-2365) implement me
 	return nil, errors.New("not implemented")
 }
 
@@ -702,7 +718,6 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
-		a.lggr.Warnw("failed to get current block", "err", err)
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 

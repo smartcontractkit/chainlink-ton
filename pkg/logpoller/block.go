@@ -108,7 +108,7 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 	if currentSeqNo > lookbackBlocks {
 		lookbackSeqNo = currentSeqNo - lookbackBlocks
 	} else {
-		// If lookback would go before genesis, start from 0(with localnet)
+		// If lookback went before genesis, start from 0(likely with localnet)
 		lookbackSeqNo = 0
 	}
 
