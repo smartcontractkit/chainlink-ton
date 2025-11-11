@@ -42,6 +42,13 @@ struct (0x1f3b3aba) SVMExtraArgsV1 {
 	accounts: SnakedCell<uint256>; // vec<slice>
 }
 
+struct (0x21ea4ca9) SuiExtraArgsV1 {
+    gasLimit: uint256;
+	allowOutOfOrderExecution: bool;
+	tokenReceiver: uint256;
+	receiverObjectIds: SnakedCell<uint256>; // vec<slice>
+}
+
 struct TokenBalance {
     amount: coins = 0;
     failed: bool = false; // if marked as failed, a retry will allow re-sending these

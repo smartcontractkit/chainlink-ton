@@ -74,6 +74,7 @@ const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
 
 const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
 const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
+const CHAIN_FAMILY_SELECTOR_TVM:   uint32 = 0x647e2ba9;
 const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
 const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 
@@ -87,6 +88,23 @@ struct DestChainConfig {
 
     tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
 }
+
+const SVM_EXTRA_ARGS_MAX_ACCOUNTS= 64;
+const SVM_MESSAGING_ACCOUNTS_OVERHEAD = 2;
+const SVM_ACCOUNT_BYTE_SIZE: uint256 = 32;
+/// @dev The expected static payload size of a token transfer when Borsh encoded and submitted to SVM.
+/// TokenPool extra data and offchain data sizes are dynamic, and should be accounted for separately.
+const SVM_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
++ 32 // token_address
++ 4 // gas_amount
++ 4 // extra_data overhead
++ 32 // amount
++ 32 // size of the token lookup table account
++ 32 // token-related accounts in the lookup table, over-estimated to 32, typically between 11 - 13
++ 32 // token account belonging to the token receiver, e.g ATA, not included in the token lookup table
++ 32 // per-chain token pool config, not included in the token lookup table
++ 32 // per-chain token billing config, not always included in the token lookup table
++ 32; // OffRamp pool signer PDA, not included in the token lookup table
 
 // TBD this should live in a different file
 const SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS = 64;
