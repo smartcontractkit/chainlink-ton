@@ -122,8 +122,8 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
     Failure = 3
 }
 
-const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.005");
-const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.005");
+const AMOUNT_PER_MESSAGE_IN_COMMIT_REPORT_DEPLOYMENT = ton("0.01");
+const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
 
 struct OffRamp_Costs{}
 struct MerkleRoot_Costs{}
