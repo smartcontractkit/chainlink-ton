@@ -305,18 +305,14 @@ export const testTransmittedLogMessage = (
   })
 }
 
-export const testLogRampSet = (
-  message: Message,
-  from: Address,
-  match: CCIPLogs.RampsSet,
-) => {
+export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.RampsSet) => {
   return testLog(message, from, CCIPLogs.LogTypes.RampSet, (x) => {
-     const cs = x.beginParse()
-     const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
-     const addr = cs.loadAddress()
-     const msg = {
-       destChainSelectors: selectors,
-       onRamp: addr,
+    const cs = x.beginParse()
+    const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+    const addr = cs.loadAddress()
+    const msg = {
+      destChainSelectors: selectors,
+      onRamp: addr,
     }
     equalsObject(msg, match)
     return true
@@ -333,8 +329,8 @@ export const testLogOffRampAdded = (
     const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
     const addr = cs.loadAddress()
     const msg = {
-        sourceChainSelectors: selectors,
-        offRampAdded: addr,
+      sourceChainSelectors: selectors,
+      offRampAdded: addr,
     }
     equalsObject(msg, match)
     return true
@@ -342,21 +338,21 @@ export const testLogOffRampAdded = (
 }
 
 export const testLogOffRampRemoved = (
-    message: Message,
-    from: Address,
-    match: CCIPLogs.OffRampRemoved,
-    ) => {
-    return testLog(message, from, CCIPLogs.LogTypes.OffRampRemoved, (x) => {
-        const cs = x.beginParse()
-        const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
-        const addr = cs.loadAddress()
-        const msg = {
-            sourceChainSelectors: selectors,
-            offRampRemoved: cs.loadAddress(),
-        }
-        equalsObject(msg, match)
-        return true
-    })
+  message: Message,
+  from: Address,
+  match: CCIPLogs.OffRampRemoved,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.OffRampRemoved, (x) => {
+    const cs = x.beginParse()
+    const selectors = fromSnakeData(cs.loadRef(), (x) => cs.loadUintBig(64))
+    const addr = cs.loadAddress()
+    const msg = {
+      sourceChainSelectors: selectors,
+      offRampRemoved: cs.loadAddress(),
+    }
+    equalsObject(msg, match)
+    return true
+  })
 }
 
 export const testLogReceiverCCIPMessageReceived = (

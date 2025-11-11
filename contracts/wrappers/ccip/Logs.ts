@@ -14,7 +14,7 @@ export const LogTypes = {
   ReceiverCCIPMessageReceived: 'Receiver_CCIPMessageReceived',
   RampSet: `RampsSet`,
   OffRampAdded: `OffRampAdded`,
-  OffRampRemoved: `OffRampRemoved`
+  OffRampRemoved: `OffRampRemoved`,
 } as const
 
 export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
@@ -30,7 +30,7 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   Receiver_CCIPMessageReceived: crc32('Receiver_CCIPMessageReceived'),
   RampsSet: crc32('RampsSet'),
   OffRampAdded: crc32('OffRampAdded'),
-  OffRampRemoved:   crc32('OffRampRemoved'),
+  OffRampRemoved: crc32('OffRampRemoved'),
 }
 
 export type CCIPMessageSent = {
@@ -88,16 +88,16 @@ export type ReceiverCCIPMessageReceived = {
 }
 
 export type RampsSet = {
-    destChainSelectors: bigint[];
-    onRamp: Address;
+  destChainSelectors: bigint[]
+  onRamp: Address
 }
 
 export type OffRampAdded = {
-    sourceChainSelectorsAdd: bigint[];
-    offRampAdd: Address;
+  sourceChainSelectorsAdd: bigint[]
+  offRampAdd: Address
 }
 
 export type OffRampRemoved = {
-    sourceChainSelectorsRemoved: bigint[];
-    offRampRemoved: Address;
+  sourceChainSelectorsRemoved: bigint[]
+  offRampRemoved: Address
 }
