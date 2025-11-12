@@ -105,8 +105,11 @@ func (c *ccipTransmitter) Transmit(
 	// falls back to seq-only format for commit reports or decode failures
 	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
 
+	// TODO: This is enough to cover commit and execute costs,
+	//	 but we should have a lower value for price-update only reports
+	//	 and these values should be configurable
 	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.05") // base amount, TODO: make configurable
+	baseAmount := tlb.MustFromTON("0.05") 
 	if gasLimit != nil {
 		finalAmount, err = baseAmount.Add(gasLimit)
 		if err != nil {
