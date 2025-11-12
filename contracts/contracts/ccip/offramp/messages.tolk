@@ -96,9 +96,7 @@ struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
     cursedSubjects: CursedSubjects
 }
 
-// TODO: add to offchain bindings
-// TODO: opcode
-struct (0x4ca1bcb3) OffRamp_SetDynamicConfig {
+struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
     queryId: uint64;
 
     feeQuoter: address;

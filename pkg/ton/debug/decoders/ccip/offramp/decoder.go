@@ -5,7 +5,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/ccipcommon"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -17,6 +16,7 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	offramp.Commit{},
 	offramp.Execute{},
 	offramp.CCIPReceive{},
+	offramp.SetDynamicConfig{},
 })
 
 type decoder struct {
@@ -44,5 +44,10 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	return ccipcommon.NewDecoder(d.tlbsCtx).ExitCodeInfo(exitCode)
+	ec, err := offramp.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
+		return "", &lib.UnknownMessageError{}
+	}
+
+	return ec.String(), nil
 }

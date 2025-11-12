@@ -9,6 +9,5 @@ enum Error {
     InsufficientFee
     SubjectCursed
     Unauthorized
-    // TODO: add to offchain bindings
     ZeroAddressNotAllowed
 }

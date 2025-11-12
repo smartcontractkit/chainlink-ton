@@ -12,6 +12,7 @@ import (
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const (
@@ -150,6 +151,13 @@ type Execute struct {
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
 }
 
+type SetDynamicConfig struct {
+	_                                       tlb.Magic        `tlb:"#95bc5a5c"` //nolint:revive // Ignore opcode tag
+	QueryID                                 uint64           `tlb:"## 64"`
+	FeeQuoter                               *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+}
+
 // Config types that implements getter fetching interface with rpc client
 
 // Config represents the offRamp contract configuration
@@ -253,3 +261,29 @@ func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
 	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c)
 }
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorMessageNotFromOwnedContract)
+		ecMax = int32(ErrorZeroAddressNotAllowed)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
+const (
+	ErrorMessageNotFromOwnedContract ExitCode = iota + 8400
+	ErrorSourceChainNotEnabled
+	ErrorEmptyExecutionReport
+	ErrorInvalidMessageDestChainSelector
+	ErrorSourceChainSelectorMismatch
+	ErrorInvalidOnRampUpdate
+	ErrorSenderIsNotRouter
+	ErrorSubjectCursed
+	ErrorUnauthorized
+	ErrorZeroAddressNotAllowed
+)
