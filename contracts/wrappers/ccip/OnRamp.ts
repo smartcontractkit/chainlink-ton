@@ -84,6 +84,10 @@ export type ExecutorFinishedWithError = {
   error: bigint
 }
 
+export type UpdateSendExecutor = {
+  code: Cell
+}
+
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
     return beginCell().storeAddress(data.sender).storeCoins(data.value)
@@ -211,6 +215,19 @@ export const builder = {
         },
       }
     })(),
+    updateSendExecutor: ((): CellCodec<UpdateSendExecutor> => {
+      return {
+        encode: function (data: UpdateSendExecutor): Builder {
+          return beginCell().storeUint(Opcodes.updateSendExecutor, 32).storeRef(data.code)
+        },
+        load: function (src: Slice): UpdateSendExecutor {
+          src.skip(32)
+          return {
+            code: src.loadRef(),
+          }
+        },
+      }
+    })(),
   },
 }
 export abstract class Params {}
@@ -222,6 +239,7 @@ export abstract class Opcodes {
   static onrampSend = 0x10000002
   static executorFinishedSuccessfully = 0xcfa6b336
   static executorFinishedWithError = 0xc4068e21
+  static updateSendExecutor = 0x82901c45
 }
 
 export abstract class Errors {}
