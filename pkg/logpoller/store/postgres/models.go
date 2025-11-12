@@ -24,7 +24,7 @@ type filterModel struct {
 	Address       string    `db:"address"` // TON address in user-friendly format
 	MsgType       string    `db:"msg_type"`
 	EventSig      []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
-	StartingSeqNo uint32    `db:"starting_seq_no"`
+	StartingSeqNo int64     `db:"starting_seq_no"`
 	CreatedAt     time.Time `db:"created_at"`
 }
 
@@ -38,7 +38,7 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
 		Address:       filter.Address.String(),
 		MsgType:       string(filter.MsgType),
 		EventSig:      eventSig,
-		StartingSeqNo: filter.StartingSeqNo,
+		StartingSeqNo: int64(filter.StartingSeqNo),
 	}
 }
 
@@ -60,7 +60,7 @@ func (f filterModel) ToFilter() (lptypes.Filter, error) {
 		Address:       addr,
 		MsgType:       tlb.MsgType(f.MsgType),
 		EventSig:      binary.BigEndian.Uint32(f.EventSig),
-		StartingSeqNo: f.StartingSeqNo,
+		StartingSeqNo: uint32(f.StartingSeqNo), //nolint:gosec // safe conversion
 	}, nil
 }
 
