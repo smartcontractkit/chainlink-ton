@@ -268,7 +268,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			if err != nil {
 				t.logger.Errorw("failed to wait for trace", "error", err)
 			}
-			t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
+			t.logger.Debugf("Msg tree trace :\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
 			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 			break
 		}

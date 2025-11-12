@@ -111,6 +111,7 @@ func (c *ccipTransmitter) Transmit(
 	var finalAmount *tlb.Coins
 	baseAmount := tlb.MustFromTON("0.05")
 	if gasLimit != nil {
+
 		finalAmount = baseAmount.MustAdd(gasLimit)
 		extraForExecute := tlb.MustFromTON("0.035")
 		finalAmount = finalAmount.MustAdd(&extraForExecute)
