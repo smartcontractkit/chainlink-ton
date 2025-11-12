@@ -15,7 +15,6 @@ import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
-import "../../lib/receiver/messages"
 import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
@@ -502,10 +501,9 @@ fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
 fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
     val st = Storage.load();
 
-    // Validate the message comes from an owned MerkleRoot contract
-
     val message = msg.message.load();
 
+    // Validate the message comes from an owned MerkleRoot contract
     assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.root, MERKLE_ROOT_ID_SIZE));
 
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -528,44 +526,37 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
         }
     };
 
-    if (msg.gasOverride == null) {
-        deployAndInitializeExecutor(st, sender, message, executorAddress, execId);
-    } else {
-        //gasOverride indicates manual exec
-        sendInitExecute(executorAddress, msg.gasOverride);
+    // Check if this is the first time the exec flow is running given that in that case we need to
+    // initialize the executor
+    if (msg.executionState == ExecutionState.Untouched) {
+        val deployMsg = createMessage({
+            bounce: true,
+            value: ton("0.5"), // TODO:
+            dest: executorAddress,
+            // TODO: toShard so it's collocated
+            body: Deployable_Initialize {
+                stateInit: {
+                    code: st.deployables.load().receiveExecutorCode,
+                    data: ReceiveExecutor_Storage {
+                        owner: contract.getAddress(),
+                        message: message.toCell(),
+                        root: sender,
+                        execId: execId,
+                    }.toCell(),
+                }
+            },
+        });
+        deployMsg.send(SEND_MODE_REGULAR);
     }
-}
 
-fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, executorAddress: AutoDeployAddress, execId: ReceiveExecutorId) {
-    val deployMsg = createMessage({
-        bounce: true, 
-        value: ton("0.5"), // TODO:
-        dest: executorAddress,
-        // TODO: toShard so it's collocated 
-        body: Deployable_Initialize {
-            stateInit: {
-                code: st.deployables.load().receiveExecutorCode,
-                data: ReceiveExecutor_Storage {
-                    owner: contract.getAddress(),
-                    message: message.toCell(), 
-                    root: rootAddress,
-                    execId: execId,
-                }.toCell(),
-            }
-        },
-    });
-    deployMsg.send(SEND_MODE_REGULAR);
-
-    sendInitExecute(executorAddress, null);
-}
-
-fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
+    // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
+    // means that is a manual exec flow
     val initExecMsg = createMessage ({
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: executorAddress,
         body: ReceiveExecutor_InitExecute {
-            gasOverride,
+            gasOverride: msg.gasOverride,
         }
     });
     initExecMsg.send(SEND_MODE_REGULAR);
