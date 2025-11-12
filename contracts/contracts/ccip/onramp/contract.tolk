@@ -56,6 +56,12 @@ fun onInternalMessage(in: InMessage) {
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
         }
+        OnRamp_UpdateSendExecutor => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.executorCode = msg.code;
+            st.store();
+        }
         Withdrawable_Withdraw => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);

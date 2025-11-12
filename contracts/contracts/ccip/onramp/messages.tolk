@@ -13,11 +13,11 @@ type OnRamp_InMessage =
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
+    | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade
     ;
-    // TODO | UpdateExecutorCode
 
 type OnRamp_NotificationInMessage =
     | OnRamp_Send
@@ -51,6 +51,10 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRamp_UpdateDestChainConfigs {
     updates: cell; // vec<OffRampUpdateDestChainConfig>
+}
+
+struct (0x82901c45) OnRamp_UpdateSendExecutor {
+    code: cell;
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
