@@ -1,13 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  Address,
-  beginCell,
-  Cell,
-  contractAddress,
-  Dictionary,
-  StateInit,
-  toNano,
-} from '@ton/core'
+import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -1422,7 +1414,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(manualExecFirstAttempt.transactions).toHaveTransaction({
       from: offRamp.address,
       success: false,
-      exitCode: MerkleRootError.ManualExecutionNotYetEnabled
+      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
     })
 
     // Almost there, still needs to fail
@@ -1432,7 +1424,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(manualExecSecondAttempt.transactions).toHaveTransaction({
       from: offRamp.address,
       success: false,
-      exitCode: MerkleRootError.ManualExecutionNotYetEnabled
+      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
     })
 
     // One more sec and we are ready to go
@@ -1446,22 +1438,32 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
 
-    assertLog(manualExecThirdAttempt.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
-    })
-
-    assertLog(manualExecThirdAttempt.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
-    })
+    assertLog(
+      manualExecThirdAttempt.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_IN_PROGRESS,
+      },
+    )
 
     assertLog(
-        manualExecThirdAttempt.transactions,
+      manualExecThirdAttempt.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_SUCCESS,
+      },
+    )
+
+    assertLog(
+      manualExecThirdAttempt.transactions,
       receiver.address,
       CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
@@ -1538,17 +1540,17 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     assertLog(
-        result4.transactions,
-        receiver.address,
-        CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
-        {
-          message: {
-            messageId: message.header.messageId,
-            sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-            sender: message.sender,
-            data: message.data,
-          },
+      result4.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
         },
+      },
     )
   })
 
