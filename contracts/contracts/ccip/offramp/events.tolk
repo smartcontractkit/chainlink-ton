@@ -7,7 +7,6 @@ struct ExecutionStateChanged {
     sequenceNumber: uint64,
     messageId: uint256,
     state: ExecutionState,
-    //returnData? probably not
 }
 
 const TOPIC_COMMIT_REPORT_ACCEPTED: int = stringCrc32("CommitReportAccepted");
