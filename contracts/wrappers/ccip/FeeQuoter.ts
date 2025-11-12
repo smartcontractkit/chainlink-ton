@@ -504,9 +504,29 @@ export class FeeQuoter
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
-  async getValidatedFee(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
+  async getValidatedFeeCell(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
     const result = await provider.get('validatedFeeCell', [
       { type: 'cell', cell: rt.builder.message.in.ccipSend.encode(msg).asCell() },
+    ])
+
+    return result.stack.readBigNumber()
+  }
+
+  async getValidatedFee(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
+    const result = await provider.get('validatedFee', [
+      { type: 'int', value: BigInt(msg.queryID ?? 0) },
+      { type: 'int', value: msg.destChainSelector },
+      {
+        type: 'slice',
+        cell: beginCell().storeBuffer(msg.receiver, msg.receiver.length).endCell(),
+      },
+      { type: 'cell', cell: msg.data },
+      {
+        type: 'cell',
+        cell: asSnakeData(msg.tokenAmounts, rt.builder.data.tokenAmount.encode),
+      },
+      { type: 'slice', cell: beginCell().storeAddress(msg.feeToken).endCell() },
+      { type: 'cell', cell: msg.extraArgs },
     ])
 
     return result.stack.readBigNumber()
