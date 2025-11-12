@@ -554,6 +554,8 @@ const DONE_TIMESTAMP = 1;
 /// Timestamp value used to mark an operation as error
 const ERROR_TIMESTAMP = 2;
 
+const DEFAULT_FINALIZATION_TIMEOUT = 10; // in seconds
+
 /// Error codes used by the Timelock contract.
 enum Timelock_Error {
     SelectorIsBlocked = 19300 // Timelock<T>.errorCode(0)
@@ -687,7 +689,7 @@ fun Timelock<T>.init(
     cancellers: cell, // vec<address>
     bypassers: cell,  // vec<address>
     executorRoleCheckEnabled: bool = true,
-    opFinalizationTimeout: uint32 = 10  // 10 seconds // TODO: replace with const
+    opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT,
 ): void {
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
@@ -964,17 +966,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryI
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
-    val reply = createMessage({
-        bounce: false,
-        value: 0,
-        dest: sender,
-        body: Timelock_OpFinalizationTimeoutChange{
-            queryId,
-            oldDuration: self.data.opPendingInfo.opFinalizationTimeout,
-            newDuration: newOpFinalizationTimeout
-        }
-    });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    val oldDuration = self.data.opPendingInfo.opFinalizationTimeout;
 
     // Update the op finalization timeout
     self.data.opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout;
@@ -984,6 +976,14 @@ fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryI
         // If the new timeout is shorter, we can update validAfter to the new time
         self.data.opPendingInfo.validAfter = newValidAfter;
     }
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: Timelock_OpFinalizationTimeoutChange{ queryId, oldDuration, newDuration: newOpFinalizationTimeout}
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// Blocks a function selector from being used, i.e. schedule

@@ -350,8 +350,6 @@ const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
 
-const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
-
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
@@ -827,6 +825,8 @@ fun MCMS<T>.setRoot(
         throw MCMS_Error.WrongPostOpCount;
     }
 
+    val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
     // done with validation, persist in in contract state
     // TODO (audit): note unbounded growth of seen signed hashes / roots map - what's the plan?
     //      - Do we add an onlyOwner cleanup operation? Need to be careful what/when to cleanup.
@@ -840,7 +840,7 @@ fun MCMS<T>.setRoot(
             // TON-specific additions below to support the async environment
             opPendingInfo: OpPendingInfo{
                 validAfter: blockchain.now(), // immediate
-                opFinalizationTimeout: 0, // TODO: use from storage if exists, or use default
+                opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
                 opPendingReceiver: createAddressNone(),
                 opPendingBodyTruncated: 0,
             }.toCell()
@@ -1141,6 +1141,8 @@ fun MCMS<T>.setConfig(
         // clearRoot is equivalent to overriding with a completely empty root
         val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
         val opCount = rootInfo.expiringRootAndOpCount.opCount;
+        val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
         self.data.rootInfo = RootInfo{
             expiringRootAndOpCount: ExpiringRootAndOpCount{
                 root: 0, // empty root
@@ -1149,7 +1151,7 @@ fun MCMS<T>.setConfig(
                 // TON-specific additions below to support the async environment
                 opPendingInfo: OpPendingInfo{
                     validAfter: blockchain.now(), // immediate
-                    opFinalizationTimeout: 0, // TODO: use from storage if exists, or use default
+                    opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
                     opPendingReceiver: createAddressNone(),
                     opPendingBodyTruncated: 0
                 }.toCell()
@@ -1193,8 +1195,9 @@ fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: u
         opPendingInfo.validAfter = newValidAfter;
     }
 
-    // Update the info for the pending op
+    // Update the info for the pending op, store the new root info
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
+    self.data.rootInfo = rootInfo.toCell();
 
     val reply = createMessage({
         bounce: false,
@@ -1203,9 +1206,6 @@ fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: u
         body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration, newDuration: newOpFinalizationTimeout}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-    // Finally store the new root info
-    self.data.rootInfo = rootInfo.toCell();
 }
 
 /// Submit an oracle error report, which marks the current root as invalid.
