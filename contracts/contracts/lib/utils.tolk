@@ -239,6 +239,11 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple? {
     return list;
 }
 
+
+// This type works as a wrapper for RemainingBitsAndRefs that implements
+// automatic serlialization/deserialization. It determines whether to store the
+// data directly as bits or as a reference to a cell, depending on available
+// space.
 type RemainingBitsOrRef<T> = T;
 
 fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {

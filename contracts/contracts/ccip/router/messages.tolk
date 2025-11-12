@@ -12,6 +12,8 @@ type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
     | Router_GetValidatedFee<RemainingBitsAndRefs>
+    | OnRamp_MessageValidated<Router_GetValidatedFeeContext>
+    | OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
     | Router_SetRamps
     | Router_UpdateOffRamps
     | Router_RouteMessage
@@ -109,13 +111,29 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
 }
 
 struct (0x4dd6aa82) Router_GetValidatedFee<T> {
-    ccipSend: Router_CCIPSend;
+    ccipSend: Cell<Router_CCIPSend>;
     context: T;
 }
 
 struct Router_GetValidatedFeeContext {
-    userContext: UnsafeBodyNoRef<slice>, // We know this fits because it arrived in Router_GetValidatedFee.context 
-    routerContext: RemainingBitsOrRef<address>; // sender
+    routerContext: address; // sender
+    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
+}
+
+// --- Outgoing messages ---
+
+// crc32('Router_MessageValidated')
+struct (0x9e2155ec) Router_MessageValidated<T> {
+    msg: Cell<Router_CCIPSend>
+    fee: coins
+    context: T
+}
+
+// crc32('Router_MessageValidationFailed')
+struct (0xec23c562) Router_MessageValidationFailed<T> {
+    msg: Cell<Router_CCIPSend>,
+    error: uint256,
+    context: T
 }
 
 // Costs associated with Router operations

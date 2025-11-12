@@ -30,7 +30,10 @@ export async function sendGetValidatedFee(
   })
 
   const tx = result.transactions.find(
-    (tx) => tx.inMessage?.info.type === 'internal' && tx.inMessage.info.src.equals(router.address),
+    (tx) =>
+      tx.inMessage?.info.type === 'internal' &&
+      tx.inMessage.info.src.equals(router.address) &&
+      tx.inMessage.info.dest.equals(sender.address!),
   )
 
   if (!tx || tx.inMessage === undefined || tx.inMessage?.info.type !== 'internal') {
@@ -39,7 +42,17 @@ export async function sendGetValidatedFee(
   const resp = tx.inMessage
 
   const body = resp.body.beginParse()
-  expect(body.preloadUint(32)).toBe(sx.Opcodes.messageValidated)
-  const messageValidated = fq.builder.message.out.messageValidated.load(resp.body.beginParse())
+  if (body.preloadUint(32) !== rt.OutOpcodes.messageValidated) {
+    if (body.preloadUint(32) === rt.OutOpcodes.messageValidationFailed) {
+      const msgValidationFailed = rt.builder.message.out.messageValidationFailed.load(
+        resp.body.beginParse(),
+      )
+      throw new Error(
+        `Message validation failed with error code: ${msgValidationFailed.error.toString(16)}`,
+      )
+    }
+    throw new Error('Unexpected response opcode')
+  }
+  const messageValidated = rt.builder.message.out.messageValidated.load(resp.body.beginParse())
   return messageValidated.fee
 }

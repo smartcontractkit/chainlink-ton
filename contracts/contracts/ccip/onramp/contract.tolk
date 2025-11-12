@@ -28,6 +28,12 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_GetValidatedFee<RemainingBitsAndRefs> => {
             onGetValidatedFee(msg, in.senderAddress)
         }
+        FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext> => {
+            onMessageValidated(msg, in.senderAddress)
+        }
+        FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext> => {
+            onMessageValidationFailed(msg, in.senderAddress)
+        }
         OnRamp_Send => {send(msg, in.senderAddress)}
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
@@ -93,15 +99,61 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender:
         value: 0,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee<OnRamp_GetValidatedFeeContext> {
-            msg: msg.ccipSend.toCell(),
+            msg: msg.ccipSend,
             context: {
-                userContext: { forceInline: msg.context },
-                onrampContext: sender as RemainingBitsOrRef<address>,
+                onrampContext: sender,
+                userContext: msg.context
             },
         }
     });
 
     getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>, sender: address) {
+    val st = lazy OnRamp_Storage.load();
+    val feeQuoterAddress = st.config.load().feeQuoter;
+
+    assert (sender == feeQuoterAddress, Error.Unauthorized);
+
+    val userContext = msg.context.userContext;
+    val userAddress = msg.context.onrampContext;
+
+    val confirmation = createMessage({
+        bounce: false,
+        value: 0,
+        dest: userAddress,
+        body: OnRamp_MessageValidated<RemainingBitsAndRefs> {
+            msg: msg.msg,
+            fee: msg.fee,
+            context: userContext,
+        }
+    });
+
+    confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>, sender: address) {
+    val st = lazy OnRamp_Storage.load();
+    val feeQuoterAddress = st.config.load().feeQuoter;
+
+    assert (sender == feeQuoterAddress, Error.Unauthorized);
+
+    val userContext = msg.context.userContext;
+    val userAddress = msg.context.onrampContext;
+
+    val rejection = createMessage({
+        bounce: false,
+        value: 0,
+        dest: userAddress,
+        body: OnRamp_MessageValidationFailed<RemainingBitsAndRefs> {
+            msg: msg.msg,
+            error: msg.error,
+            context: userContext,
+        }
+    });
+
+    rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {

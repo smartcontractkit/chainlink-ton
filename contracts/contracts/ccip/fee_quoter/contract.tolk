@@ -472,7 +472,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
             bounce: true,
             value: 0,
             dest: sender,
-            body: FeeQuoter_MessageValidated {
+            body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
                 msg: payload.msg,
                 fee: feeTokenAmount,
                 context: payload.context,
@@ -483,7 +483,7 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
             bounce: true,
             value: 0,
             dest: sender,
-            body: FeeQuoter_MessageValidationFailed {
+            body: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> {
                 msg: payload.msg,
                 error: e,
                 context: payload.context,

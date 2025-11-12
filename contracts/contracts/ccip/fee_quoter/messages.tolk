@@ -33,7 +33,7 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
     remove: SnakedCell<address>;
 }
 
-// OutGoing messages
+// --- Outgoing messages ---
 
 // crc32('FeeQuoter_MessageValidated')
 struct (0x1fa60374) FeeQuoter_MessageValidated<T> {

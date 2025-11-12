@@ -11,6 +11,8 @@ import "../fee_quoter/messages"
 type OnRamp_InMessage =
     | OnRamp_Send
     | OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+    | FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
+    | FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -32,13 +34,13 @@ struct (0x10000002) OnRamp_Send {
 }
 
 struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
-    ccipSend: Router_CCIPSend;
+    ccipSend: Cell<Router_CCIPSend>;
     context: T;
 }
 
 struct OnRamp_GetValidatedFeeContext {
-    userContext: UnsafeBodyNoRef<slice>, // We know this fits because it arrived in OnRamp_GetValidatedFee.context
-    onrampContext: RemainingBitsOrRef<address>; // onramp address
+    onrampContext: address; // onramp address
+    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
 }
 
 // crc32('OnRamp_WithdrawJettons')
@@ -77,7 +79,22 @@ struct (0x10000005) OnRamp_UpdateAllowlists {
     updates: cell; // vec<UpdateAllowlist>
 }
 
-struct WithdrawFeeTokens {}
+// --- Outgoing messages ---
+
+// crc32('OnRamp_MessageValidated')
+struct (0x2afb11bd) OnRamp_MessageValidated<T> {
+    msg: Cell<Router_CCIPSend>
+    fee: coins
+    context: T
+}
+
+// crc32('OnRamp_MessageValidationFailed')
+struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
+    msg: Cell<Router_CCIPSend>,
+    error: uint256,
+    context: T
+}
+
 
 
 // Costs associated with OnRamp operations

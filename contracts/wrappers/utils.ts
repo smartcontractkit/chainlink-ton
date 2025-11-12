@@ -35,6 +35,11 @@ export interface StackCodec<T> {
   load: (src: TupleItem[]) => T
 }
 
+// This is the codec for RemainingBitsOrRef<T> type in Tolk
+// It allows storing/loading a Slice either directly as bits or as a reference
+// to a cell, depending on available space.
+// It has a different interface than the usual CellCodec<T> because it needs
+// to access the Builder instance to check available bits.
 export const remainingBitsOrRefCodec = {
   encode: function (data: Slice, b: Builder) {
     const nBits = data.remainingBits

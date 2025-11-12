@@ -52,9 +52,14 @@ export abstract class Opcodes {
   static curse = 0x41e8c1dc
   static uncurse = 0x3c3f5e73
   static verifyNotCursed = 0xa6e4b7e1
-  static messageSent = 0x6513f8e1
-  static messageRejected = 0x8ae25114
+  static messageSent = 0x6513f8e1 // TODO move to OutOpcodes
+  static messageRejected = 0x8ae25114 // TODO move to OutOpcodes
   static getValidatedFee = 0x4dd6aa82
+}
+
+export abstract class OutOpcodes {
+  static messageValidated = 0x9e2155ec
+  static messageValidationFailed = 0xec23c562
 }
 
 export type Ramp = {
@@ -410,6 +415,18 @@ export type GetValidatedFee = {
   context: Slice
 }
 
+export type MessageValidated = {
+  msg: CCIPSend
+  fee: bigint
+  context: Slice
+}
+
+export type MessageValidationFailed = {
+  msg: CCIPSend
+  error: bigint
+  context: Slice
+}
+
 const crossChainAddressCodec: CellCodec<Buffer> = {
   encode: (addr: Buffer): Builder => {
     if (addr.byteLength > 64) {
@@ -535,8 +552,8 @@ export const builder = {
       crossChainAddress: crossChainAddressCodec,
     }
   })(),
-  message: {
-    in: (() => {
+  message: (() => {
+    const messageIn = (() => {
       const ccipSend: CellCodec<CCIPSend> = {
         encode: (opts: CCIPSend): Builder => {
           return beginCell()
@@ -639,13 +656,13 @@ export const builder = {
         encode: function (data: GetValidatedFee): Builder {
           return beginCell()
             .storeUint(Opcodes.getValidatedFee, 32)
-            .storeBuilder(ccipSend.encode(data.msg))
+            .storeRef(ccipSend.encode(data.msg))
             .storeSlice(data.context)
         },
         load: function (src: Slice): GetValidatedFee {
           src.skip(32)
           return {
-            msg: ccipSend.load(src),
+            msg: ccipSend.load(src.loadRef().beginParse()),
             context: src,
           }
         },
@@ -659,8 +676,8 @@ export const builder = {
         messageRejected,
         applyRampUpdates,
       }
-    })(),
-    out: (() => {
+    })()
+    const out = (() => {
       const ccipSendACK: CellCodec<CCIPSendACK> = {
         encode: (opts: CCIPSendACK): Builder => {
           return beginCell()
@@ -692,10 +709,50 @@ export const builder = {
         },
       }
 
+      const messageValidated: CellCodec<MessageValidated> = {
+        encode: (data: MessageValidated): Builder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeRef(messageIn.ccipSend.encode(data.msg))
+            .storeCoins(data.fee)
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidated => {
+          src.skip(32) // opcode
+          return {
+            msg: messageIn.ccipSend.load(src.loadRef().beginParse()),
+            fee: src.loadCoins(),
+            context: src,
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
+        encode: (data: MessageValidationFailed): Builder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeRef(messageIn.ccipSend.encode(data.msg))
+            .storeUint(data.error, 256)
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidationFailed => {
+          src.skip(32) // opcode
+          return {
+            msg: messageIn.ccipSend.load(src.loadRef().beginParse()),
+            error: src.loadUintBig(256),
+            context: src,
+          }
+        },
+      }
+
       return {
+        messageValidated,
+        messageValidationFailed,
         ccipSendACK,
         ccipSendNACK,
       }
-    })(),
-  },
+    })()
+
+    return { in: messageIn, out }
+  })(),
 }
