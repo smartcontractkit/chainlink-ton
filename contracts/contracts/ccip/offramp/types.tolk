@@ -131,12 +131,12 @@ struct MerkleRoot_Costs{}
 struct ReceiveExecutor_Costs{}
 
 fun MerkleRoot_Costs.validate(isManualExec: bool){
-    val baseFee = ton("0.015"); // validateFees
+    val baseFee = ton("0.012"); // validateFees
     return baseFee + OffRamp_Costs.executeValidated(isManualExec);
 }
 
 fun OffRamp_Costs.executeValidated(isManualExec: bool){
-    val baseFee = ton("0.015");
+    val baseFee = ton("0.012");
     if (!isManualExec) {
         return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec();
     } else {
@@ -166,7 +166,7 @@ fun OffRamp_Costs.notify() {
 }
 
 fun MerkleRoot_Costs.markState() {
-    return ton("0.004");
+    return ton("0.005");
 }
 
 fun ReceiveExecutor_Costs.confirmedOrBounced() {
