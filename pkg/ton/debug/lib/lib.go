@@ -18,7 +18,6 @@ import (
 type TxInfo struct {
 	Msg      MessageInfo
 	ExitCode string
-	ActionExitCode string
 }
 
 // Describes a decoded message or event.
