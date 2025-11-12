@@ -77,14 +77,6 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
 
     if (isManualExecute) {
         val isOldCommitReport = (blockchain.now() - st.timestamp > msg.permissionlessExecutionThresholdSeconds);
-
-        debug.printString("blockchain.now()");
-        debug.print(blockchain.now());
-
-        debug.printString("st.timestamp");
-        debug.print(st.timestamp);
-
-
         // Manual execution is fine if we previously failed or if the commit report is just too old.
         // (In that case the report will still be in UNTOUCHED state)
         assert(isOldCommitReport || state == ExecutionState.Failure, MerkleRoot_Error.ManualExecutionNotYetEnabled);
