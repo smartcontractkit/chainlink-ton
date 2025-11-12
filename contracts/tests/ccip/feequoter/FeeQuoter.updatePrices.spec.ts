@@ -117,7 +117,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should update only gas price', async () => {
     const gasPriceUpdate: feeQuoter.GasPriceUpdate = {
-      chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       executionGasPrice: 2000000000000000000000n, // 2000e18
       dataAvailabilityGasPrice: 1000000000000000000n, // 1e18
     }
@@ -140,7 +140,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
     // Verify the gas price was updated
     const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
     )
     expect(gasPrice.value.executionGasPrice).toEqual(gasPriceUpdate.executionGasPrice)
     expect(gasPrice.value.dataAvailabilityGasPrice).toEqual(gasPriceUpdate.dataAvailabilityGasPrice)
@@ -155,7 +155,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
     const gasPriceUpdates: feeQuoter.GasPriceUpdate[] = [
       {
-        chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         executionGasPrice: 2000000n, // 2e6
         dataAvailabilityGasPrice: 1000000n, // 1e6
       },
@@ -196,7 +196,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Note: For gas prices, we can only test the first one since the contract
     // only supports one destination chain config in our simplified setup
     const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
     )
     expect(gasPrice.value.executionGasPrice).toEqual(gasPriceUpdates[0].executionGasPrice)
     expect(gasPrice.value.dataAvailabilityGasPrice).toEqual(

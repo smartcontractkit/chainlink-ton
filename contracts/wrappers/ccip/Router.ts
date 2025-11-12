@@ -366,15 +366,24 @@ type SVMExtraArgsV1 = {
   computeUnits: bigint
   accountIsWritableBitMap: bigint
   allowOutOfOrderExecution: boolean
-  tokenReceiver: bigint
-  accounts: Cell
+  tokenReceiver: Buffer
+  accounts: Buffer[]
 }
 
-type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1
+type SuiExtraArgsV1 = {
+  kind: 'sui-v1'
+  gasLimit: bigint
+  allowOutOfOrderExecution: boolean
+  tokenReceiver: Buffer
+  receiverObjectIds: Buffer[]
+}
+
+export type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 
 export const ExtraArgsOpcodes = {
   genericV2: 0x181dcf10,
   svmV1: 0x1f3b3aba,
+  suiV1: 0x21ea4ca9,
 }
 
 export type CCIPReceiveConfirm = {
@@ -437,8 +446,15 @@ export const builder = {
               .storeUint(data.computeUnits, 32)
               .storeUint(data.accountIsWritableBitMap, 64)
               .storeBit(data.allowOutOfOrderExecution)
-              .storeUint(data.tokenReceiver, 256)
-              .storeRef(data.accounts)
+              .storeBuffer(data.tokenReceiver, 32)
+              .storeRef(asSnakeData(data.accounts, (account) => new Builder().storeBuffer(account, 32)))
+          case 'sui-v1':
+            return beginCell()
+              .storeUint(ExtraArgsOpcodes.suiV1, 32)
+              .storeUint(data.gasLimit, 256)
+              .storeBit(data.allowOutOfOrderExecution)
+              .storeBuffer(data.tokenReceiver, 32)
+              .storeRef(asSnakeData(data.receiverObjectIds, (objectId) => new Builder().storeBuffer(objectId, 32)))
         }
       },
       load: function (src: Slice): ExtraArgs {
