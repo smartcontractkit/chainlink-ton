@@ -14,8 +14,6 @@ type Router_InMsg =
     | Router_GetValidatedFee<RemainingBitsAndRefs>
     | OnRamp_MessageValidated<Router_GetValidatedFeeContext>
     | OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
-    | Router_SetRamps
-    | Router_UpdateOffRamps
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
