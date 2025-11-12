@@ -41,10 +41,9 @@ const (
 
 // CCIPSendExecutor_Execute message structure
 type Execute struct {
-	_                  tlb.Magic        `tlb:"#AF3C62B3"` //nolint:revive // Ignore opcode tag
-	OnRampSend         onramp.Send      `tlb:"."`
-	Config             *cell.Cell       `tlb:"^"`
-	OnRampJettonWallet *address.Address `tlb:"maybe addr"`
+	_          tlb.Magic   `tlb:"#AF3C62B3"` //nolint:revive // Ignore opcode tag
+	OnRampSend onramp.Send `tlb:"."`
+	Config     *cell.Cell  `tlb:"^"`
 }
 
 // CCIPSendExecutor_MessageValidated message structure
@@ -69,8 +68,7 @@ type Metadata struct {
 
 // CCIPSendExecutor_Config structure
 type Config struct {
-	FeeQuoter     *address.Address `tlb:"addr"`
-	TokenRegistry *address.Address `tlb:"maybe addr"`
+	FeeQuoter *address.Address `tlb:"addr"`
 }
 
 // Initial data structure for CCIPSend Executor
@@ -87,21 +85,9 @@ type Addresses struct {
 
 // State structures
 type StateInitialized struct {
-	TokenRegistry *address.Address `tlb:"maybe addr"`
-}
-
-type StateWaitingForJettons struct {
-	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 type StateOnGoingFeeValidation struct {
-	PendingJettonLock *PendingJettonLock `tlb:"maybe ."`
-}
-
-type PendingJettonLock struct {
-	TokenRegistry *address.Address `tlb:"addr"`
-	JettonWallet  *address.Address `tlb:"addr"`
-	TokenPool     *address.Address `tlb:"addr"`
 }
 
 // TokenAmount structure (reused from router package concept)
