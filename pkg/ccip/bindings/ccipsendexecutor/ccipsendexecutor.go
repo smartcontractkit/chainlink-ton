@@ -41,10 +41,9 @@ const (
 
 // CCIPSendExecutor_Execute message structure
 type Execute struct {
-	_                  tlb.Magic        `tlb:"#AF3C62B3"` //nolint:revive // Ignore opcode tag
-	OnRampSend         onramp.Send      `tlb:"."`
-	Config             *cell.Cell       `tlb:"^"`
-	OnRampJettonWallet *address.Address `tlb:"maybe addr"`
+	_          tlb.Magic   `tlb:"#AF3C62B3"` //nolint:revive // Ignore opcode tag
+	OnRampSend onramp.Send `tlb:"."`
+	Config     *cell.Cell  `tlb:"^"`
 }
 
 // CCIPSendExecutor_MessageValidated message structure
