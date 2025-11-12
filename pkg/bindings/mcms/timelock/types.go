@@ -44,7 +44,7 @@ type Init struct {
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
 	// The timeout required to finalize the currently executing op
-	OpFinalizationTimeout uint64 `tlb:"## 32"`
+	OpFinalizationTimeout uint32 `tlb:"## 32"`
 }
 
 // Schedule an operation containing a batch of transactions.

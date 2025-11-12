@@ -106,7 +106,7 @@ type SetConfig struct {
 type UpdateOpFinalizationTimeout struct {
 	_ tlb.Magic `tlb:"#9dcbbab1"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
-	QueryId uint64 `tlb:"## 64"`
+	QueryID uint64 `tlb:"## 64"`
 
 	// The timeout required to finalize the currently executing op
 	NewOpFinalizationTimeout uint32 `tlb:"## 32"`

@@ -110,7 +110,7 @@ func (r ReceiverParams) Validate() error {
 
 type TimelockParams struct {
 	ID         uint32
-	MinDelay   uint64
+	MinDelay   uint32
 	Admin      *address.Address
 	Proposers  []*address.Address
 	Executors  []*address.Address
