@@ -244,7 +244,7 @@ type RemainingBitsOrRef<T> = T;
 fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
     val serialized = (self as T).toCell();
     val nBits = serialized.remainingBitsCount();
-    if (b.remainingSpace() < nBits) {
+    if (b.remainingSpace() < nBits - 1) {
         // not enough space, create a new cell
         b.storeBit(1);
         b.storeRef(serialized);

@@ -54,6 +54,7 @@ export abstract class Opcodes {
   static verifyNotCursed = 0xa6e4b7e1
   static messageSent = 0x6513f8e1
   static messageRejected = 0x8ae25114
+  static getValidatedFee = 0x4dd6aa82
 }
 
 export type Ramp = {
@@ -155,6 +156,20 @@ export class Router
     body: upgradeable.Upgrade,
   ): Promise<void> {
     return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  sendGetValidatedFee(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    msg: CCIPSend,
+    context: Slice,
+  ): Promise<void> {
+    return provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.getValidatedFee.encode({ msg, context }).asCell(),
+    })
   }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
@@ -390,6 +405,11 @@ export type CCIPReceiveConfirm = {
   rootId: bigint
 }
 
+export type GetValidatedFee = {
+  msg: CCIPSend
+  context: Slice
+}
+
 const crossChainAddressCodec: CellCodec<Buffer> = {
   encode: (addr: Buffer): Builder => {
     if (addr.byteLength > 64) {
@@ -615,8 +635,25 @@ export const builder = {
         },
       }
 
+      const getValidatedFee: CellCodec<GetValidatedFee> = {
+        encode: function (data: GetValidatedFee): Builder {
+          return beginCell()
+            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeBuilder(ccipSend.encode(data.msg))
+            .storeSlice(data.context)
+        },
+        load: function (src: Slice): GetValidatedFee {
+          src.skip(32)
+          return {
+            msg: ccipSend.load(src),
+            context: src,
+          }
+        },
+      }
+
       return {
         ccipSend,
+        getValidatedFee,
         ccipReceiveConfirm,
         messageSent,
         messageRejected,

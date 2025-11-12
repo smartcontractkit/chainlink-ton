@@ -32,6 +32,9 @@ fun onInternalMessage(in: InMessage) {
         Router_GetValidatedFee<RemainingBitsAndRefs> => {
             val minValue = Router_Costs.GetValidatedFee();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            // msg.forceLoadLazyObject();
+            msg.ccipSend;
+            msg.context;
             onGetValidatedFee(msg, in.senderAddress)
         }
         Router_RouteMessage => { 
@@ -289,6 +292,7 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 }
 
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+    debug.printString("onGetValidatedFee");
     val st = lazy Storage.load();
     val onRamp = st.onRamps.mustGet(msg.ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
 
