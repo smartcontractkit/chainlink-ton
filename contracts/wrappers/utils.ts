@@ -1,4 +1,4 @@
-import { Builder, Slice } from '@ton/core'
+import { Builder, Slice, TupleItem } from '@ton/core'
 import { createHash } from 'crypto'
 
 /// Returns the facility ID for the given CRC16 key (e.g. stringCrc16("com.chainlink.ton.mcms.Timelock")).
@@ -28,4 +28,9 @@ export const sha256_32 = (input: string): bigint => {
 export interface CellCodec<T> {
   encode: (data: T) => Builder
   load: (src: Slice) => T
+}
+
+export interface StackCodec<T> {
+  encode: (data: T) => TupleItem[]
+  load: (src: TupleItem[]) => T
 }
