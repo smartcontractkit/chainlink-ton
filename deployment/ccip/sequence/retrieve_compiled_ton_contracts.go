@@ -39,11 +39,11 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	// Core CCIP Contracts
 	state.Router: ContractMappingMetadata{
 		CompiledVersionKey:             "Router.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		SuggestedTONCoinsForDeployment: "5",
 	},
 	state.FeeQuoter: ContractMappingMetadata{
 		CompiledVersionKey:             "FeeQuoter.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		SuggestedTONCoinsForDeployment: "5",
 	},
 	state.OnRamp: {
 		CompiledVersionKey:             "OnRamp.compiled.json",
@@ -51,7 +51,7 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	},
 	state.OffRamp: {
 		CompiledVersionKey:             "OffRamp.compiled.json",
-		SuggestedTONCoinsForDeployment: "1",
+		SuggestedTONCoinsForDeployment: "5",
 	},
 	// Internal contracts
 	state.SendExecutor: {
@@ -73,7 +73,7 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	// Utilities
 	state.TonReceiver: {
 		CompiledVersionKey:             "ccip.test.receiver.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		SuggestedTONCoinsForDeployment: "1",
 	},
 	state.Timelock: {
 		CompiledVersionKey:             "mcms.RBACTimelock.compiled.json",

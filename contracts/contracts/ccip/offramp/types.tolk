@@ -131,7 +131,7 @@ struct MerkleRoot_Costs{}
 struct ReceiveExecutor_Costs{}
 
 fun MerkleRoot_Costs.validate(isManualExec: bool){
-    val baseFee = ton("0.012"); // validateFees
+    val baseFee = ton("0.015"); // validateFees
     return baseFee + OffRamp_Costs.executeValidated(isManualExec);
 }
 
