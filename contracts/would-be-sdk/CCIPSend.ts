@@ -5,7 +5,7 @@ import * as fq from '../wrappers/ccip/FeeQuoter'
 import { Blockchain } from '@ton/sandbox'
 
 // Gets the validated fee for a CCIPSend message with off-chain getters
-export async function GetValidatedFee(
+export async function getValidatedFee(
   blockchain: Blockchain,
   router: Address,
   msg: rt.CCIPSend,
