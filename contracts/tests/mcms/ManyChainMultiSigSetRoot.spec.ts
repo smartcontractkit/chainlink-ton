@@ -1,14 +1,16 @@
-import { toNano, beginCell, Cell } from '@ton/core'
 import '@ton/test-utils'
+import { toNano, beginCell, Cell } from '@ton/core'
+import { sign } from '@ton/crypto/dist/primitives/nacl'
+
+import { merkleProof } from '../../src/mcms'
+import * as mcms from '../../wrappers/mcms/MCMS'
+import { uint8ArrayToBigInt } from '../../src/utils'
+
 import {
   MCMSBaseSetRootAndExecuteTestSetup,
   MCMSTestCode,
   TestSigner,
 } from './ManyChainMultiSigBaseTest'
-import { merkleProof } from '../../src/mcms'
-import * as mcms from '../../wrappers/mcms/MCMS'
-import { sign } from '@ton/crypto/dist/primitives/nacl'
-import { uint8ArrayToBigInt } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup

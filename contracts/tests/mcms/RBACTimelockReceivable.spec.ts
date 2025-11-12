@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Cell, toNano } from '@ton/core'
 
-import { rbactl } from '../../wrappers/mcms'
 import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockReceivable', () => {

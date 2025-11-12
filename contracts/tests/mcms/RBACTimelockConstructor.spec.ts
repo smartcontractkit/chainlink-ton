@@ -1,9 +1,9 @@
 import '@ton/test-utils'
+import { toNano } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { toNano } from '@ton/core'
 
 describe('MCMS - RBACTimelockConstructorTest', () => {
   let baseTest: BaseTestSetup
@@ -32,7 +32,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
         cancellers: [],
         bypassers: [],
         executorRoleCheckEnabled: true,
-        opFinalizationTimeout: 0n,
+        opFinalizationTimeout: 0,
       })
       .asCell()
 

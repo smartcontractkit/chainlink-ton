@@ -1,11 +1,11 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, beginCell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
-
-import { rbactl } from '../../wrappers/mcms'
-import { ac } from '../../wrappers/lib/access'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Cell, toNano } from '@ton/core'
+import { compile } from '@ton/blueprint'
 import { crc32 } from 'zlib'
+
+import { ac } from '../../wrappers/lib/access'
+import { rbactl } from '../../wrappers/mcms'
 import { asSnakeData } from '../../src/utils'
 import { errorCode } from '../../wrappers/utils'
 
@@ -24,13 +24,13 @@ describe('RBACTimelock', () => {
   let acContract: SandboxContract<ac.ContractClient>
   let timelock: SandboxContract<rbactl.ContractClient>
 
-  let minDelay: bigint
+  let minDelay: number
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     other = await blockchain.treasury('other')
-    minDelay = 7n
+    minDelay = 7
 
     const roleData: ac.RoleData = {
       adminRole: rbactl.roles.admin, // default admin role
@@ -56,7 +56,7 @@ describe('RBACTimelock', () => {
       executorRoleCheckEnabled: true,
       opPendingInfo: {
         validAfter: 0,
-        opFinalizationTimeout: 0n,
+        opFinalizationTimeout: 0,
         opPendingId: 0n,
       },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
@@ -162,7 +162,7 @@ describe('RBACTimelock', () => {
         cancellers: [deployer.address],
         bypassers: [deployer.address],
         executorRoleCheckEnabled: true,
-        opFinalizationTimeout: 0n,
+        opFinalizationTimeout: 0,
       })
       .asCell()
 
@@ -464,7 +464,7 @@ describe('RBACTimelock', () => {
       op: rbactl.opcodes.in.UpdateDelay,
     })
 
-    expect(await timelock.getMinDelay()).toEqual(100n)
+    expect(await timelock.getMinDelay()).toEqual(100)
   })
 
   it('invalid sender for update delay: wrong_op', async () => {

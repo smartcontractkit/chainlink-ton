@@ -709,7 +709,7 @@ export const builder = {
           )
           .storeBit(data.executorRoleCheckEnabled)
           .storeUint(data.opPendingInfo.validAfter, 32)
-          .storeUint(data.opPendingInfo.opFinalizationTimeout, 64)
+          .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
           .storeRef(data.rbac)
       },

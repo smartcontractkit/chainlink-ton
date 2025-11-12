@@ -840,7 +840,7 @@ fun MCMS<T>.setRoot(
             // TON-specific additions below to support the async environment
             opPendingInfo: OpPendingInfo{
                 validAfter: blockchain.now(), // immediate
-                opFinalizationTimeout: DEFAULT_FINALIZATION_TIMEOUT, // TODO: use from storage if exists, or use default
+                opFinalizationTimeout: 0, // TODO: use from storage if exists, or use default
                 opPendingReceiver: createAddressNone(),
                 opPendingBodyTruncated: 0,
             }.toCell()
@@ -1149,7 +1149,7 @@ fun MCMS<T>.setConfig(
                 // TON-specific additions below to support the async environment
                 opPendingInfo: OpPendingInfo{
                     validAfter: blockchain.now(), // immediate
-                    opFinalizationTimeout: DEFAULT_FINALIZATION_TIMEOUT, // TODO: use from storage if exists, or use default
+                    opFinalizationTimeout: 0, // TODO: use from storage if exists, or use default
                     opPendingReceiver: createAddressNone(),
                     opPendingBodyTruncated: 0
                 }.toCell()

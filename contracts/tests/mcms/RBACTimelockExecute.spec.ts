@@ -1,15 +1,14 @@
 import '@ton/test-utils'
 
 import { toNano, beginCell, Cell } from '@ton/core'
+import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { asSnakeData } from '../../src/utils'
-import { ERROR_TIMESTAMP } from '../../wrappers/mcms/RBACTimelock'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -473,7 +472,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
       const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
-      expect(timestamp).toEqual(ERROR_TIMESTAMP)
+      expect(timestamp).toEqual(rbactl.ERROR_TIMESTAMP)
     })
 
     it('should allow executor to execute scheduled operation', async () => {

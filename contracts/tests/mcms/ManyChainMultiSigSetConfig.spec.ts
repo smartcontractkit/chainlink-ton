@@ -2,11 +2,11 @@ import '@ton/test-utils'
 
 import { toNano } from '@ton/core'
 
+import { uint8ArrayToBigInt } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
-import { uint8ArrayToBigInt } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   let baseTest: MCMSBaseTestSetup

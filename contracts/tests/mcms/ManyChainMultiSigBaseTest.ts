@@ -6,11 +6,10 @@ import { compile } from '@ton/blueprint'
 import { KeyPair, sign } from '@ton/crypto'
 import { crc32 } from 'zlib'
 
+import { generateEd25519KeyPair, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
-
-import { generateEd25519KeyPair, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
 
 export type MCMSTestCode = {
   mcms: Cell

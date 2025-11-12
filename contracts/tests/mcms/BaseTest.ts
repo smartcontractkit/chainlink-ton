@@ -3,14 +3,13 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
+import { crc32 } from 'zlib'
 
 import { asSnakeData } from '../../src/utils'
 
 import { rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
-
-import { crc32 } from 'zlib'
 
 export type TestCode = {
   mcms: Cell

@@ -1,14 +1,15 @@
+import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import '@ton/test-utils'
-import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
+import { sha256, sign } from '@ton/crypto'
+import { crc32 } from 'zlib'
+
+import { generateEd25519KeyPair, uint8ArrayToBigInt } from '../../src/utils'
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as counter from '../../wrappers/examples/Counter'
-import { generateEd25519KeyPair, uint8ArrayToBigInt } from '../../src/utils'
-import { sha256, sign } from '@ton/crypto'
 import { ocr } from '../../wrappers/libraries/ocr'
-import { crc32 } from 'zlib'
+import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
 
 describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   let blockchain: Blockchain
