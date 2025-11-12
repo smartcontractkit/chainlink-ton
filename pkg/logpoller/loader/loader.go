@@ -48,9 +48,9 @@ func New(
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // This method executes synchronously - the caller should spawn goroutines for concurrent loading.
 func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32, txOut chan<- models.Tx, errOut chan<- error) error {
-	// Validation
-	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
-		return fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
+	// Validation: prevBlock must be before toBlock
+	if blockRange.FromSeqNo() >= blockRange.ToSeqNo() {
+		return fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.FromSeqNo(), blockRange.ToSeqNo())
 	}
 
 	// Get transaction bounds
@@ -139,7 +139,7 @@ func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *mo
 	switch {
 	case blockRange.Prev == nil:
 		startLT = 0
-	case blockRange.Prev.SeqNo > 0:
+	case blockRange.FromSeqNo() > 0:
 		accPrev, accErr := client.GetAccount(ctx, blockRange.Prev, addr)
 		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
@@ -151,9 +151,9 @@ func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *mo
 	}
 
 	// Get the account state at toBlock to find the end boundary
-	res, err := client.WaitForBlock(blockRange.To.SeqNo).GetAccount(ctx, blockRange.To, addr)
+	res, err := client.WaitForBlock(blockRange.ToSeqNo()).GetAccount(ctx, blockRange.To, addr)
 	if err != nil {
-		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), blockRange.To.SeqNo, err)
+		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), blockRange.ToSeqNo(), err)
 	}
 	return startLT, res.LastTxLT, res.LastTxHash, nil
 }

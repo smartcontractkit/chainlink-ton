@@ -46,8 +46,19 @@ type Tx struct {
 
 // BlockRange represents a range of blocks to process
 type BlockRange struct {
-	Prev *ton.BlockIDExt // previous block (nil for genesis)
+	Prev *ton.BlockIDExt // previous block (nil for unspecified:likely the first block in localnet)
 	To   *ton.BlockIDExt // target block to process up to
+}
+
+func (br *BlockRange) FromSeqNo() uint32 {
+	if br.Prev == nil {
+		return 0
+	}
+	return br.Prev.SeqNo
+}
+
+func (br *BlockRange) ToSeqNo() uint32 {
+	return br.To.SeqNo
 }
 
 // internal types for processing

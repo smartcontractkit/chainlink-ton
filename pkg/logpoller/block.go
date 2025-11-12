@@ -52,6 +52,7 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 	}
 
 	// TODO: get the latest processed seqno from log table when persistent storage is implemented
+	// TODO: need to implement a separate routine to fetch and cache the masterchain seqno from shard block in each message
 
 	if currentBlock.SeqNo == 0 {
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
@@ -117,37 +118,31 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 
 // applyReplayOverride checks for replay requests and modifies the block range if needed
 func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.BlockRange) error {
-	hasReplay, fromBlock := lp.checkForReplayRequest()
+	hasReplay, requestedBlock := lp.checkForReplayRequest()
 	if !hasReplay {
 		return nil
 	}
 
 	// Validate replay range
-	if fromBlock >= blockRange.To.SeqNo {
+	if requestedBlock >= blockRange.ToSeqNo() {
 		lp.lggr.Debugw("replay fromBlock is beyond current range, skipping override",
-			"fromBlock", fromBlock,
-			"toBlock", blockRange.To.SeqNo)
+			"fromBlock", requestedBlock,
+			"toBlock", blockRange.ToSeqNo())
 		return nil
 	}
 
 	// Lookup the block for replay starting point
-	originalFrom := func() uint32 {
-		if blockRange.Prev == nil {
-			return 0
-		}
-		return blockRange.Prev.SeqNo
-	}()
-
-	prevBlock, err := lp.getBlockForReplay(ctx, fromBlock)
+	prevBlock, err := lp.getBlockForReplay(ctx, requestedBlock)
 	if err != nil {
-		return fmt.Errorf("failed to get block for replay fromBlock=%d: %w", fromBlock, err)
+		return fmt.Errorf("failed to get block for replay fromBlock=%d: %w", requestedBlock, err)
 	}
 
 	blockRange.Prev = prevBlock
 	lp.lggr.Infow("block range overridden for replay",
-		"originalFrom", originalFrom,
-		"replayFrom", fromBlock,
-		"to", blockRange.To.SeqNo)
+		"originalFrom", blockRange.FromSeqNo(),
+		"replayFrom", requestedBlock,
+		"to", blockRange.ToSeqNo(),
+	)
 
 	return nil
 }

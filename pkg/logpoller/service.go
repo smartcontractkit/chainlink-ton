@@ -135,12 +135,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to apply replay override: %w", err)
 	}
 
-	lp.lggr.Tracew("processing block range", "fromSeq", func() uint32 {
-		if blockRange.Prev == nil {
-			return 0
-		}
-		return blockRange.Prev.SeqNo
-	}(), "toSeq", blockRange.To.SeqNo)
+	lp.lggr.Tracew("processing block range", "fromSeq", blockRange.FromSeqNo(), "toSeq", blockRange.ToSeqNo())
 
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
@@ -157,15 +152,10 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	// Mark replay as complete if it was active
 	if lp.replay.status == models.ReplayStatusPending {
-		lp.replayComplete(func() uint32 {
-			if blockRange.Prev == nil {
-				return 0
-			}
-			return blockRange.Prev.SeqNo
-		}(), blockRange.To.SeqNo)
+		lp.replayComplete(blockRange.FromSeqNo(), blockRange.ToSeqNo())
 	}
 
-	lp.lastProcessedBlock = blockRange.To.SeqNo
+	lp.lastProcessedBlock = blockRange.ToSeqNo()
 	return nil
 }
 
@@ -199,13 +189,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 
 	// Only log when we actually saved logs to reduce noise
 	if totalSaved > 0 {
-		if blockRange.Prev == nil {
-			lp.lggr.Debugf("processed range (unspecified, %d], saved %d logs from %d addresses",
-				blockRange.To.SeqNo, totalSaved, len(addresses))
-		} else {
-			lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses",
-				blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
-		}
+		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.FromSeqNo(), blockRange.ToSeqNo(), totalSaved, len(addresses))
 	}
 
 	return nil
