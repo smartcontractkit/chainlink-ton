@@ -12,7 +12,6 @@ type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | CCIPSendExecutor_MessageValidated<Metadata>
     | CCIPSendExecutor_MessageValidationFailed<Metadata>
-    | Common_JettonTransferNotification
    
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {

@@ -41,13 +41,11 @@ export type InitialData = {
 
 export type Config = {
   feeQuoter: Address
-  tokenRegistry?: Address
 }
 
 export type Execute = {
   onrampSend: or.OnRampSend
   config: Cell // Config
-  onrampJettonWallet?: Address
 }
 
 export type MessageValidated = {
@@ -71,16 +69,12 @@ export const builder = {
             .storeUint(Opcodes.execute, 32)
             .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
             .storeRef(data.config)
-            .storeMaybeBuilder(
-              data.onrampJettonWallet ? beginCell().storeAddress(data.onrampJettonWallet) : null,
-            )
         },
         load: (src: Slice): Execute => {
           src.skip(32) // opcode
           return {
             onrampSend: or.builder.messages.in.onrampSend.load(src),
             config: src.loadRef(),
-            onrampJettonWallet: src.loadMaybeAddress() || undefined,
           }
         },
       }

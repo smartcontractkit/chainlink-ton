@@ -69,8 +69,7 @@ type Metadata struct {
 
 // CCIPSendExecutor_Config structure
 type Config struct {
-	FeeQuoter     *address.Address `tlb:"addr"`
-	TokenRegistry *address.Address `tlb:"maybe addr"`
+	FeeQuoter *address.Address `tlb:"addr"`
 }
 
 // Initial data structure for CCIPSend Executor
@@ -87,21 +86,9 @@ type Addresses struct {
 
 // State structures
 type StateInitialized struct {
-	TokenRegistry *address.Address `tlb:"maybe addr"`
-}
-
-type StateWaitingForJettons struct {
-	TokenRegistry *address.Address `tlb:"addr"`
 }
 
 type StateOnGoingFeeValidation struct {
-	PendingJettonLock *PendingJettonLock `tlb:"maybe ."`
-}
-
-type PendingJettonLock struct {
-	TokenRegistry *address.Address `tlb:"addr"`
-	JettonWallet  *address.Address `tlb:"addr"`
-	TokenPool     *address.Address `tlb:"addr"`
 }
 
 // TokenAmount structure (reused from router package concept)

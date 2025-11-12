@@ -96,7 +96,6 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val config = st.config.load();
 
-    var tokenRegistry: address? = null;
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
@@ -105,7 +104,6 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
             onrampSend: payload,
             config: CCIPSendExecutor_Config {
                 feeQuoter: config.feeQuoter,
-                tokenRegistry,
             }.toCell(),
             onrampJettonWallet: jettonWallet,
         }
