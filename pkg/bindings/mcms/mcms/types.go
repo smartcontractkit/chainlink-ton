@@ -109,7 +109,7 @@ type UpdateOpFinalizationTimeout struct {
 	QueryId uint64 `tlb:"## 64"`
 
 	// The timeout required to finalize the currently executing op
-	NewOpFinalizationTimeout uint64 `tlb:"## 64"`
+	NewOpFinalizationTimeout uint32 `tlb:"## 32"`
 }
 
 // Submit an oracle error report, which marks the current root as invalid.
@@ -172,8 +172,8 @@ type OpFinalizationTimeoutChange struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	OldDuration uint64 `tlb:"## 64"` // Duration of the old timeout in seconds.
-	NewDuration uint64 `tlb:"## 64"` // Duration of the new timeout in seconds.
+	OldDuration uint32 `tlb:"## 32"` // Duration of the old timeout in seconds.
+	NewDuration uint32 `tlb:"## 32"` // Duration of the new timeout in seconds.
 }
 
 // Sent back to sender when an op gets successfully executed.

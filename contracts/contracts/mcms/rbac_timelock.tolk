@@ -75,7 +75,7 @@ struct (0x4982fcfd) Timelock_Init {
     queryId: uint64;
 
     /// Minimum delay in seconds for future operations.
-    minDelay: uint64;
+    minDelay: uint32;
 
     /// Address of the admin account.
     admin: address;
@@ -89,7 +89,7 @@ struct (0x4982fcfd) Timelock_Init {
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     executorRoleCheckEnabled: bool;
     /// The timeout required to finalize the currently executing op
-    opFinalizationTimeout: uint64;
+    opFinalizationTimeout: uint32;
 }
 
 /// Schedule an operation containing a batch of transactions.
@@ -112,7 +112,7 @@ struct (0x094718f4) Timelock_ScheduleBatch {
     // Salt used to derive the operation ID
     salt: uint256;
     // Delay in seconds before the operation can be executed
-    delay: uint64;
+    delay: uint32;
 }
 
 /// Cancel an operation.
@@ -162,7 +162,7 @@ struct (0x7a57a45c) Timelock_UpdateDelay {
     queryId: uint64;
 
     /// New minimum delay in seconds for future operations.
-    newDelay: uint64;
+    newDelay: uint32;
 }
 
 /// Changes the timeout required to finalize the currently executing op
@@ -178,7 +178,7 @@ struct (0x94278d4f) Timelock_UpdateOpFinalizationTimeout {
     queryId: uint64;
 
     /// The timeout required to finalize the currently executing op
-    newOpFinalizationTimeout: uint64;
+    newOpFinalizationTimeout: uint32;
 }
 
 /// Blocks a function selector from being used, i.e. schedule
@@ -306,7 +306,7 @@ struct (0xdf65b59e) Timelock_BatchScheduled {
     /// ID of the batch that was scheduled.
     id: uint256;
     /// Delay in seconds before the operation can be executed
-    delay: uint64;
+    delay: uint32;
 }
 
 /// Emitted when a call is scheduled as part of operation `id`.
@@ -322,7 +322,7 @@ struct (0xc55fca54) Timelock_CallScheduled {
     call: Cell<Timelock_Call>;
     predecessor: uint256;
     salt: uint256;
-    delay: uint64;
+    delay: uint32;
 }
 
 /// Replied to sender after a batch is executed.
@@ -380,9 +380,9 @@ struct (0x904b14e0) Timelock_MinDelayChange {
     queryId: uint64;
 
     /// Duration of the old minimum delay in seconds.
-    oldDuration: uint64;
+    oldDuration: uint32;
     /// Duration of the new minimum delay in seconds.
-    newDuration: uint64;
+    newDuration: uint32;
 }
 
 /// Replied to sender when the op finalization timeout is modified.
@@ -391,9 +391,9 @@ struct (0x1f102718) Timelock_OpFinalizationTimeoutChange {
     queryId: uint64;
 
     /// Duration of the old timeout in seconds.
-    oldDuration: uint64;
+    oldDuration: uint32;
     /// Duration of the new timeout in seconds.
-    newDuration: uint64;
+    newDuration: uint32;
 }
 
 /// Emitted when a function selector is blocked.
@@ -459,7 +459,7 @@ struct Timelock_Data {
     id: uint32;
 
     /// Minimum delay for operations in seconds
-    minDelay: uint64;
+    minDelay: uint32;
     /// Map of operation id to timestamp
     timestamps: map<uint256, uint64>;
 
@@ -518,7 +518,7 @@ struct Timelock_OpPendingInfo {
     /// meaning no bounce was received and we can continue executing.
     validAfter: uint32;
     /// The timeout required to finalize the currently executing op
-    opFinalizationTimeout: uint64;
+    opFinalizationTimeout: uint32;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
 }
@@ -659,7 +659,7 @@ fun Timelock<T>.getTimestamp(self, id: uint256): uint64 {
 /// Returns the minimum delay for an operation to become valid.
 ///
 /// This value can be changed by executing an operation that calls `updateDelay`.
-fun Timelock<T>.getMinDelay(self): uint64 {
+fun Timelock<T>.getMinDelay(self): uint32 {
     return self.data.minDelay;
 }
 
@@ -680,14 +680,14 @@ fun Timelock<T>.init(
     mutate self,
     sender: address,
     queryId: uint64,
-    minDelay: uint64,
+    minDelay: uint32,
     admin: address,
     proposers: cell,  // vec<address>
     executors: cell,  // vec<address>
     cancellers: cell, // vec<address>
     bypassers: cell,  // vec<address>
     executorRoleCheckEnabled: bool = true,
-    opFinalizationTimeout: uint64 = 10  // 10 seconds
+    opFinalizationTimeout: uint32 = 10  // 10 seconds // TODO: replace with const
 ): void {
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
@@ -762,7 +762,7 @@ fun Timelock<T>.scheduleBatch(
     calls: cell, // vec<Timelock_Call>
     predecessor: uint256,
     salt: uint256,
-    delay: uint64
+    delay: uint32
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(PROPOSER_ROLE, sender);
@@ -806,7 +806,7 @@ fun Timelock<T>.scheduleBatch(
 }
 
 /// Schedule an operation that becomes valid after a given delay.
-fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
+fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint32): void {
     assert(!self.isOperation(id)) throw Timelock_Error.OperationAlreadyScheduled;
     assert(delay >= self.getMinDelay()) throw Timelock_Error.InsufficientDelay;
 
@@ -936,7 +936,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 
 /// Changes the minimum timelock duration for future operations.
 /// @see {Timelock_UpdateDelay} for more information.
-fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint64): void {
+fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint32): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -959,7 +959,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
-fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint64): void {
+fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint32): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -1411,7 +1411,7 @@ get fun getTimestamp(id: int): uint64 {
 }
 
 /// @see <Timelock<T>.getMinDelay>
-get fun getMinDelay(): uint64 {
+get fun getMinDelay(): uint32 {
     return Timelock<bool>.load().getMinDelay();
 }
 

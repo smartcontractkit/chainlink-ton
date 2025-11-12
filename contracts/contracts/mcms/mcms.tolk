@@ -132,7 +132,7 @@ struct (0x9dcbbab1) MCMS_UpdateOpFinalizationTimeout {
     queryId: uint64;
 
     /// The timeout required to finalize the currently executing op
-    newOpFinalizationTimeout: uint64;
+    newOpFinalizationTimeout: uint32;
 }
 
 /// Submit an oracle error report, which marks the current root as invalid.
@@ -232,9 +232,9 @@ struct (0x16fc10e6) MCMS_OpFinalizationTimeoutChange {
     queryId: uint64;
 
     /// Duration of the old timeout in seconds.
-    oldDuration: uint64;
+    oldDuration: uint32;
     /// Duration of the new timeout in seconds.
-    newDuration: uint64;
+    newDuration: uint32;
 }
 
 /// Sent back to sender when an error report is successfully submitted.
@@ -1176,18 +1176,16 @@ fun MCMS<T>.setConfig(
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {MCMS_UpdateOpFinalizationTimeout} for more information.
-fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint64): void {
+fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint32): void {
     self.data.ownable.requireOwner(sender);
 
     // Unpack the root info from the contract data
-    val rootInfo = RootInfo.fromCell(self.data.rootInfo);
+    var rootInfo = RootInfo.fromCell(self.data.rootInfo);
     var opPendingInfo = OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
-    // TODO: uint32 vs uint64 mismatch (Timelock uses uint64)
-    val oldDuration = opPendingInfo.opFinalizationTimeout as uint64;
+    val oldDuration = opPendingInfo.opFinalizationTimeout;
 
     // Update the op finalization timeout
-    // TODO: uint32 vs uint64 mismatch (Timelock uses uint64)
-    opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout as uint32;
+    opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout;
     // Set the pending operation finalization timeout (if lower than current)
     val newValidAfter = blockchain.now() + opPendingInfo.opFinalizationTimeout;
     if (newValidAfter < opPendingInfo.validAfter) {
@@ -1196,8 +1194,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: u
     }
 
     // Update the info for the pending op
-    var expiringRootAndOpCount = rootInfo.expiringRootAndOpCount;
-    expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
+    rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
 
     val reply = createMessage({
         bounce: false,
@@ -1208,7 +1205,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: u
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     // Finally store the new root info
-    self.data.rootInfo = RootInfo{ expiringRootAndOpCount, rootMetadata: rootInfo.rootMetadata}.toCell();
+    self.data.rootInfo = rootInfo.toCell();
 }
 
 /// Submit an oracle error report, which marks the current root as invalid.

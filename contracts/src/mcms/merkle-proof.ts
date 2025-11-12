@@ -15,7 +15,7 @@ export function build(
   validUntil: bigint,
   metadata: mcms.RootMetadata,
   ops: mcms.Op[],
-  opFinalizationTimeout: bigint,
+  opFinalizationTimeout: number,
 ): [mcms.SetRoot, OpProofs] {
   const leaves = constructLeaves(ops, metadata)
 

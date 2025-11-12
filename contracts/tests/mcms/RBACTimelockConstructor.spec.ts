@@ -253,7 +253,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
 
   it('should set min delay', async () => {
     const minDelay = await baseTest.bind.timelock.getMinDelay()
-    expect(minDelay).toBe(BigInt(BaseTestSetup.MIN_DELAY))
+    expect(minDelay).toBe(BaseTestSetup.MIN_DELAY)
   })
 
   it('should have no blocked functions initially', async () => {

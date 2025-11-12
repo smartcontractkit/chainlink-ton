@@ -283,7 +283,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
 
       // Try to execute before delay is met (only advance a short time)
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 2n * 24n * 60n * 60n)) // 2 days short
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY - 2 * 24 * 60 * 60) // 2 days short
 
       const executeBody = rbactl.builder.message.in.executeBatch
         .encode({
@@ -375,7 +375,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
 
       // Wait for delay but don't execute predecessor
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n)) // 2 days extra
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 2 * 24 * 60 * 60) // 2 days extra
 
       // Try to execute dependent operation (should fail)
       const executeBody = rbactl.builder.message.in.executeBatch
@@ -428,7 +428,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 2 * 24 * 60 * 60)
 
       // Try to execute (should fail due to invalid call)
       const executeBody = rbactl.builder.message.in.executeBatch
@@ -515,7 +515,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
       // Execute operation
       const executeBody = rbactl.builder.message.in.executeBatch
@@ -609,7 +609,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
       // Update ExecutorRoleCheck to disabled
       expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
@@ -679,7 +679,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
       // Try to execute without disabling ExecutorRoleCheck
       expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()

@@ -33,7 +33,7 @@ export type SetRoot = {
   // The ECDSA signatures on (root, validUntil).
   signatures: Cell // vec<Signature>
   /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: bigint // uint32
+  opFinalizationTimeout: number // uint32
 }
 
 // @dev Executes an operation authenticated by the Merkle tree.
@@ -357,7 +357,7 @@ export type OpPendingInfo = {
   /// meaning no bounce was received and we can continue executing.
   validAfter: bigint // uint32
   /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: bigint // uint32
+  opFinalizationTimeout: number // uint32
   /// The address that the (pending) operation was sent to (and could bounce from).
   opPendingReceiver: Address
   /// The truncated body of the pending operation (256 bits from the original message),
@@ -486,7 +486,7 @@ export const builder = {
             metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
-            opFinalizationTimeout: src.loadUintBig(32),
+            opFinalizationTimeout: src.loadUint(32),
           }
         },
       },
@@ -553,13 +553,13 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
             .storeUint(msg.queryId, 64)
-            .storeUint(msg.newOpFinalizationTimeout, 64)
+            .storeUint(msg.newOpFinalizationTimeout, 32)
         },
         load: (src: Slice): UpdateOpFinalizationTimeout => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            newOpFinalizationTimeout: src.loadUint(64),
+            newOpFinalizationTimeout: src.loadUint(32),
           }
         },
       },
@@ -664,7 +664,7 @@ export const builder = {
       load: (src: Slice): OpPendingInfo => {
         return {
           validAfter: src.loadUintBig(32),
-          opFinalizationTimeout: src.loadUintBig(32),
+          opFinalizationTimeout: src.loadUint(32),
           opPendingReceiver: src.loadAddress(),
           opPendingBodyTruncated: src.loadUintBig(256),
         }
@@ -836,7 +836,7 @@ export const builder = {
             opCount: 0n, // no ops
             opPendingInfo: {
               validAfter: 0n, // no valid after
-              opFinalizationTimeout: 0n, // no op finalization timeout
+              opFinalizationTimeout: 0, // no op finalization timeout
               opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
               opPendingBodyTruncated: 0n, // no op pending body
             },
@@ -948,7 +948,7 @@ export class ContractClient implements Contract {
     return p.get('getOpPendingInfo', []).then((r) => {
       return {
         validAfter: r.stack.readBigNumber(),
-        opFinalizationTimeout: r.stack.readBigNumber(),
+        opFinalizationTimeout: r.stack.readNumber(),
         opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
         opPendingBodyTruncated: r.stack.readBigNumber(),
       }

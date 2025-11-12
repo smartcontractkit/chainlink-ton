@@ -235,7 +235,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Warp past the delay time (1 day extra)
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 24n * 60n * 60n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 24 * 60 * 60)
 
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -274,7 +274,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Warp to before the delay time (1 day before)
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 24n * 60n * 60n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY - 24 * 60 * 60)
 
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -482,7 +482,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
-      expect(operationTimestamp).toBe(BigInt(scheduleTime) + BaseTestSetup.MIN_DELAY)
+      expect(operationTimestamp).toBe(BigInt(scheduleTime) + BigInt(BaseTestSetup.MIN_DELAY))
     })
 
     it('should return DONE_TIMESTAMP if operation has been executed', async () => {
