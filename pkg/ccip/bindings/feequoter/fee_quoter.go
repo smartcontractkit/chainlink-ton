@@ -26,6 +26,8 @@ const (
 	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
 	OpcodeUpdateDestChainConfigs        = 0x29950BAA
 	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
+	OpcodeFeeQuoterAddPriceUpdater      = 0x71DF848A
+	OpcodeFeeQuoterRemovePriceUpdater   = 0x5DFBB1BC
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -60,6 +62,7 @@ const (
 type Storage struct {
 	ID                           uint32                  `tlb:"## 32"`
 	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
+	AllowedPriceUpdaters         *cell.Dictionary        `tlb:"dict 267"`
 	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
 	LinkToken                    *address.Address        `tlb:"addr"`
 	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
@@ -74,7 +77,7 @@ type USDPerUnitGas struct {
 	Timestamp                uint64   `tlb:"## 64"`
 }
 
-func (u *USDPerUnitGas) FromResult(result *ton.ExecutionResult) error {
+func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
 	c, err := result.Cell(0)
 	if err != nil {
 		return err
@@ -83,7 +86,7 @@ func (u *USDPerUnitGas) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (u *USDPerUnitGas) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u)
 }
 
 type DestChainConfig struct {
@@ -107,7 +110,7 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
-func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	isEnabledInt, err := result.Int(0)
 	if err != nil {
 		return err
@@ -206,7 +209,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c)
 }
 
 type TokenTransferFeeConfig struct {
@@ -224,7 +227,7 @@ type TimestampedPrice struct {
 }
 
 // TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
-func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
+func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 	value, err := result.Int(0)
 	if err != nil {
 		return err
@@ -242,7 +245,7 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p)
 }
 
 type TokenPriceUpdate struct {
@@ -267,6 +270,16 @@ type GetValidatedFee struct {
 	_        tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
 	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
 	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
+}
+
+type AddPriceUpdater struct {
+	_            tlb.Magic        `tlb:"#71DF848A"` //nolint:revive // Ignore opcode tag
+	PriceUpdater *address.Address `tlb:"addr"`
+}
+
+type RemovePriceUpdater struct {
+	_            tlb.Magic        `tlb:"#5DFBB1BC"` //nolint:revive // Ignore opcode tag
+	PriceUpdater *address.Address `tlb:"addr"`
 }
 
 type UpdatePrices struct {
@@ -308,7 +321,7 @@ type StaticConfig struct {
 	StalenessThreshold uint32
 }
 
-func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	maxFeeJuelsPerMsg, err := result.Int(0)
 	if err != nil {
 		return err
@@ -334,5 +347,5 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s)
 }

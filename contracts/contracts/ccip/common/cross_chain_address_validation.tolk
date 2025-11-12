@@ -16,9 +16,12 @@ struct EVMAddress {
 const TYPE_UINT160_MAX = (1 << 160) - 1; /* type(uint160).max */
 
 fun CrossChainAddress.validateEVMAddress(self) {
-    val evmAddr = EVMAddress.fromSlice(self, {
-        throwIfOpcodeDoesNotMatch: ERROR_INVALID_EVM_ADDRESS,
-    });
+    var evmAddr: EVMAddress;
+    try {
+        evmAddr = EVMAddress.fromSlice(self);
+    } catch {
+        throw ERROR_INVALID_EVM_ADDRESS;
+    }
     assert (evmAddr.value <= TYPE_UINT160_MAX) throw ERROR_INVALID_EVM_ADDRESS;
     assert (evmAddr.value >= EVM_PRECOMPILE_SPACE) throw ERROR_INVALID_EVM_ADDRESS;
 }

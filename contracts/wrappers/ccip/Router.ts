@@ -22,7 +22,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
-export const ROUTER_CONTRACT_VERSION = '0.0.7'
+export const ROUTER_CONTRACT_VERSION = '0.0.8'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
@@ -43,6 +43,7 @@ export type Storage = {
 export abstract class Params {}
 
 export abstract class Opcodes {
+  static applyRampUpdates = 0xf6b0a5ca
   static setRamps = 0x20272c81
   static ccipSend = 0x31768d95
   static updateOffRamps = 0x234110a7
@@ -178,6 +179,21 @@ export class Router
     return await compile('Router')
   }
 
+  async sendApplyRampUpdatesSetRamps(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      data: ApplyRampUpdates
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.applyRampUpdates.encode(opts.data).asCell(),
+    })
+  }
+
   async sendSetRamps(
     provider: ContractProvider,
     via: Sender,
@@ -197,40 +213,6 @@ export class Router
         .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
         .endCell(),
-    })
-  }
-
-  async sendUpdateOffRamps(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-      sourceChainSelectorAdd: bigint[]
-      offRampAdd?: Address
-      sourceChainSelectorRemove: bigint[]
-      offRampRemove?: Address
-    },
-  ) {
-    const bs = beginCell()
-      .storeUint(Opcodes.updateOffRamps, 32)
-      .storeUint(opts.queryId ?? 0, 64)
-      .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
-
-    bs.storeMaybeBuilder(opts.offRampAdd && beginCell().storeAddress(opts.offRampAdd))
-    bs.storeRef(asSnakeDataUint(opts.sourceChainSelectorRemove, 64))
-    if (!opts.offRampRemove) {
-      bs.storeBit(false)
-    } else {
-      bs.storeBit(true)
-      bs.storeAddress(opts.offRampRemove)
-    }
-    const body = bs.endCell()
-
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body,
     })
   }
 
@@ -303,6 +285,23 @@ export class Router
         .asCell(),
     })
   }
+}
+
+export type ApplyRampUpdates = {
+  queryID: bigint
+  onRamps?: OnRamps
+  offRampAdds?: OffRamps
+  offRampRemoves?: OffRamps
+}
+
+export type OnRamps = {
+  destChainSelectors: bigint[]
+  onRamp: Address
+}
+
+export type OffRamps = {
+  sourceChainSelectors: bigint[]
+  offRamp: Address
 }
 
 export type TokenAmount = {
@@ -447,10 +446,34 @@ export const builder = {
       },
     }
 
+    const onRamps: CellCodec<OnRamps> = {
+      encode: function (data: OnRamps): Builder {
+        return beginCell()
+          .storeRef(asSnakeDataUint(data.destChainSelectors, 64))
+          .storeAddress(data.onRamp)
+      },
+      load: function (src: Slice): OnRamps {
+        throw new Error('Function not implemented.')
+      },
+    }
+
+    const offRamps: CellCodec<OffRamps> = {
+      encode: function (data: OffRamps): Builder {
+        return beginCell()
+          .storeRef(asSnakeDataUint(data.sourceChainSelectors, 64))
+          .storeAddress(data.offRamp)
+      },
+      load: function (src: Slice): OffRamps {
+        throw new Error('Function not implemented.')
+      },
+    }
+
     return {
       contractData,
-      tokenAmountCodec,
+      tokenAmount: tokenAmountCodec,
       extraArgs,
+      onRamps,
+      offRamps,
     }
   })(),
   message: {
@@ -539,11 +562,30 @@ export const builder = {
         },
       }
 
+      const applyRampUpdates: CellCodec<ApplyRampUpdates> = {
+        encode: (opts: ApplyRampUpdates): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.applyRampUpdates, 32)
+            .storeUint(opts.queryID ?? 0, 64)
+            .storeMaybeBuilder(opts.onRamps ? builder.data.onRamps.encode(opts.onRamps) : null)
+            .storeMaybeBuilder(
+              opts.offRampAdds ? builder.data.offRamps.encode(opts.offRampAdds) : null,
+            )
+            .storeMaybeBuilder(
+              opts.offRampRemoves ? builder.data.offRamps.encode(opts.offRampRemoves) : null,
+            )
+        },
+        load: function (src: Slice): ApplyRampUpdates {
+          throw new Error('Function not implemented.')
+        },
+      }
+
       return {
         ccipSend,
         ccipReceiveConfirm,
         messageSent,
         messageRejected,
+        applyRampUpdates,
       }
     })(),
     out: (() => {

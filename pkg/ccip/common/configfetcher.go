@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -26,10 +27,9 @@ const (
 
 // ConfigFetcher is an interface for fetching and parsing contract configurations.
 type ConfigFetcher interface {
+	tvm.ResultUnmarshaler
 	// FetchResult fetches the configuration from the contract at the specified block and address.
 	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error
-	// FromResult parses the configuration from the execution result.
-	FromResult(result *ton.ExecutionResult) error
 }
 
 // FetchOnRampDestChainConfig retrieves destination chain configurations from the on-ramp contract.

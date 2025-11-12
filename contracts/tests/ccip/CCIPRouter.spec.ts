@@ -166,6 +166,7 @@ describe('Router', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
+        allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
         tokenPriceStalenessThreshold: 1000n,
@@ -188,6 +189,16 @@ describe('Router', () => {
         })
       }
       {
+        // Allow us to updatePrices
+        const addPriceUpdaterResult = await feeQuoter.sendAddPriceUpdater(deployer.getSender(), {
+          value: toNano('1'),
+          msg: { priceUpdater: deployer.address },
+        })
+        expect(addPriceUpdaterResult.transactions).toHaveTransaction({
+          to: feeQuoter.address,
+          success: true,
+        })
+
         const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
           value: toNano('1'),
           msg: {
@@ -322,27 +333,40 @@ describe('Router', () => {
 
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamps(deployer.getSender(), {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryID: 0,
-        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
-        onRamp: onRamp.address,
+        data: {
+          queryID: BigInt(0),
+          onRamps: {
+            destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            onRamp: onRamp.address,
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: router.address,
         success: true,
       })
+
+      assertLog(result.transactions, router.address, LogTypes.OnRampSet, {
+        destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+        onRamp: onRamp.address,
+      })
     }
   })
 
   it('update router onramps in batch', async () => {
     {
-      const result = await router.sendSetRamps(deployer.getSender(), {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryID: 0,
-        destChainSelector: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
-        onRamp: onRamp.address,
+        data: {
+          queryID: BigInt(0),
+          onRamps: {
+            destChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+            onRamp: onRamp.address,
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -374,21 +398,78 @@ describe('Router', () => {
     }
   })
 
-  it('update router offramps in batch with one offRamp address', async () => {
+  it('update router offRamp events emission', async () => {
     const offRampAddress1 = await generateRandomTonAddress()
     {
       // test update method wrapper
-      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryId: 0,
-        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
-        offRampAdd: offRampAddress1,
-        sourceChainSelectorRemove: [],
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+            offRamp: offRampAddress1,
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: router.address,
         success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
+        sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        offRampAdded: offRampAddress1,
+      })
+
+      // test update method wrapper
+      const result2 = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampRemoves: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+      expect(result2.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result2.transactions, router.address, LogTypes.OffRampRemoved, {
+        sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        offRampRemoved: offRampAddress1,
+      })
+    }
+  })
+
+  it('update router offramps in batch with one offRamp address', async () => {
+    const offRampAddress1 = await generateRandomTonAddress()
+    {
+      // test update method wrapper
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
+        sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        offRampAdded: offRampAddress1,
       })
     }
 
@@ -420,12 +501,15 @@ describe('Router', () => {
 
     {
       //test removing ramps wrapper
-      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryId: 0,
-        sourceChainSelectorAdd: [],
-        sourceChainSelectorRemove: [CHAINSEL_EVM_TEST_90000001],
-        offRampRemove: offRampAddress1,
+        data: {
+          queryID: BigInt(0),
+          offRampRemoves: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            offRamp: offRampAddress1,
+          },
+        },
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -446,13 +530,19 @@ describe('Router', () => {
     {
       const offRampAddress2 = await generateRandomTonAddress()
       //test adding and removing on the same call
-      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryId: 0,
-        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
-        offRampAdd: offRampAddress2,
-        sourceChainSelectorRemove: [CHAINSEL_EVM_TEST_90000002],
-        offRampRemove: offRampAddress1,
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            offRamp: offRampAddress2,
+          },
+          offRampRemoves: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000002],
+            offRamp: offRampAddress1,
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -482,6 +572,10 @@ describe('Router', () => {
         from: deployer.address,
         to: router.address,
         success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.Cursed, {
+        subject: CHAINSEL_EVM_TEST_90000001,
       })
     }
 
@@ -528,90 +622,16 @@ describe('Router', () => {
         to: router.address,
         success: true,
       })
+
+      assertLog(result.transactions, router.address, LogTypes.Uncursed, {
+        subject: CHAINSEL_EVM_TEST_90000001,
+      })
     }
-  })
-
-  it('doesnt lose balance on messageSent fees', async () => {
-    const initialOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
-
-    const ccipSend: rt.CCIPSend = {
-      queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
-      receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
-      tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
-      extraArgs: rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: 100n,
-          allowOutOfOrderExecution: true,
-        })
-        .asCell(),
-    }
-
-    const originalSentValue = toNano('0.5')
-    const valueFromExecutor = toNano('0.4')
-    const ccipFee = toNano('0.01')
-    const result = await onRamp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
-      value: valueFromExecutor,
-      body: {
-        messageID: 42n,
-        msg: rt.builder.message.in.ccipSend.encode(ccipSend).asCell(),
-        metadata: {
-          sender: deployer.address,
-          value: originalSentValue,
-        },
-        fee: ccipFee,
-      },
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: onRamp.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: router.address,
-      success: true,
-      op: rt.Opcodes.messageSent,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: deployer.address,
-      success: true,
-      op: rt.OutgoingOpcodes.ccipSendACK,
-    })
-
-    const finalOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
-
-    const relayTX = result.transactions.find((tx) => {
-      return (
-        tx.inMessage != null &&
-        tx.inMessage != undefined &&
-        tx.inMessage.info.src != null &&
-        tx.inMessage.info.src != undefined &&
-        tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(deployer.address) &&
-        tx.inMessage.info.dest != null &&
-        tx.inMessage.info.dest != undefined &&
-        tx.inMessage.info.dest instanceof Address &&
-        tx.inMessage.info.dest.equals(onRamp.address) &&
-        tx.description.type === 'generic'
-      )
-    }) as BlockchainTransaction & {
-      inMessage: Message & { info: CommonMessageInfoInternal }
-      description: TransactionDescriptionGeneric
-    }
-    const rentFee = relayTX.description.storagePhase?.storageFeesCollected ?? 0n
-
-    expect(finalOnRampBalance).toBe(initialOnRampBalance - rentFee + ccipFee)
   })
 
   it('onramp arbitrary message passing', async () => {
+    // Track initial balance to verify fees are handled correctly
+    const initialOnRampBalance = (await blockchain.getContract(onRamp.address)).balance
     const ccipSend: rt.CCIPSend = {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -904,7 +924,7 @@ async function setupJetton(
   }
 }
 
-function verifyBodyMessage<T>(
+export function verifyBodyMessage<T>(
   body: Cell | undefined,
   codec: CellCodec<T>,
   validations: ((message: T) => boolean)[] = [],

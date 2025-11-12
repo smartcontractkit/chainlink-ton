@@ -575,7 +575,7 @@ enum Timelock_Error {
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
+const MIN_TON_TO_RESERVE: int = ton("0.1");
 
 // --- Methods ---
 
@@ -890,6 +890,9 @@ fun Timelock<T>.executeBatch(
 
     self.afterCall(id);
 
+    // We reserve some TON coins on the balance for rent
+    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+
     val reply = createMessage({
         bounce: false,
         value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
@@ -908,7 +911,7 @@ fun Timelock<T>.execute(self, call: Timelock_Call): void {
         dest: call.target,
         body: call.data
     });
-    op.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Hook before execution of an operation's calls.
@@ -916,9 +919,6 @@ fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
     assert(self.isOperationReady(id)) throw Timelock_Error.OperationNotReady;
     assert(predecessor == 0 || self.isOperationDone(predecessor)) throw Timelock_Error.OperationMissingDependency;
     assert(self.isPendingOperationFinal()) throw Timelock_Error.PendingOperationNotFinal;
-
-    // We need to reserve TON coins on the balance to pay for storage fees
-    reserveToncoinsOnBalance(MIN_TON_FOR_STORAGE, RESERVE_MODE_EXACT_AMOUNT);
 }
 
 /// Hook after execution of an operation's calls.
@@ -1088,6 +1088,9 @@ fun Timelock<T>.bypasserExecuteBatch(
         emit(TOPIC_BYPASSER_CALL_EXECUTED, body);
         index += 1;
     }
+
+    // We reserve some TON coins on the balance for rent
+    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
 
     val reply = createMessage({
         bounce: false,

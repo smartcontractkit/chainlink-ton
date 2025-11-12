@@ -604,12 +604,15 @@ describe('OffRamp - Unit Tests', () => {
       })
 
       // setup ramp
-      const updateRampsResult = await router.sendUpdateOffRamps(deployer.getSender(), {
+      const updateRampsResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryId: 0,
-        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
-        offRampAdd: offRamp.address,
-        sourceChainSelectorRemove: [],
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            offRamp: offRamp.address,
+          },
+        },
       })
       expect(updateRampsResult.transactions).toHaveTransaction({
         from: deployer.address,

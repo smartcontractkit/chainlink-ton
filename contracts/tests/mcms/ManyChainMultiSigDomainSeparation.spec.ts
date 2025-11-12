@@ -1,5 +1,5 @@
-import { beginCell, Cell } from '@ton/core'
 import '@ton/test-utils'
+import { Cell } from '@ton/core'
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
@@ -75,19 +75,16 @@ describe('MCMS - ManyChainMultiSigDomainSeparationTest', () => {
     // Verify that the domain separators are properly included
     // The metadata preimage should start with the metadata domain separator
     const metadataBytes = rootMetadataPreimageCell.beginParse()
-    const separatorFromPreimage = metadataBytes.loadUint(256)
-    expect(separatorFromPreimage).toEqual(
-      Number(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA),
-    )
+    const separatorFromPreimage = metadataBytes.loadUintBig(256)
+    expect(separatorFromPreimage).toEqual(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA)
 
     // The op preimage should start with the op domain separator
     const opBytes = opPreimageCell.beginParse()
-    const opSeparatorFromPreimage = opBytes.loadUint(256)
-    expect(opSeparatorFromPreimage).toEqual(Number(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP))
+    const opSeparatorFromPreimage = opBytes.loadUintBig(256)
+    expect(opSeparatorFromPreimage).toEqual(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP)
 
     // Verify that the two domain separators are different
-    expect(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA).not.toEqual(
-      mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP,
-    )
+    expect(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA) // </br>
+      .not.toEqual(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP)
   })
 })

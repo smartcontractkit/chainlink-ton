@@ -425,7 +425,7 @@ describe('MCMS - IntegrationTest', () => {
     // Notice: using admin bypasser role to accept ownership transfer
     const result = await bind.timelock.sendInternal(
       acc.deployer.getSender(),
-      toNano('0.10'),
+      toNano('0.15'), // need 0.1 TON extra to reserve for rent
       rbactl.builder.message.in.bypasserExecuteBatch
         .encode({
           queryId: 1n,
@@ -563,7 +563,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.15'), // need 0.1 TON extra to reserve for rent
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -583,7 +583,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r2 = await bind.timelock.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
             queryId: 1n,
@@ -605,7 +605,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r3 = await bind.timelock.sendInternal(
         acc.deployer.getSender(),
-        toNano('1'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
             queryId: 2n,
@@ -690,7 +690,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.10'), // has enough reserve, no need for +1 TON
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -711,7 +711,7 @@ describe('MCMS - IntegrationTest', () => {
       // fails if predecessor isn't right
       const r2 = await bind.timelock.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
             queryId: 2n,
@@ -730,7 +730,7 @@ describe('MCMS - IntegrationTest', () => {
       // succeeds once we use right predecessor
       const r3 = await bind.timelock.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        toNano('0.10'), // has enough reserve, no need for +1 TON
         rbactl.builder.message.in.executeBatch
           .encode({
             queryId: 3n,
@@ -793,7 +793,7 @@ describe('MCMS - IntegrationTest', () => {
           multiSig: bind.mcmsBypass.address,
           nonce: 0n,
           to: bind.timelock.address,
-          value: toNano('0.05'),
+          value: toNano('0.05'), // has enough reserve, no need for +1 TON
           data: rbactl.builder.message.in.bypasserExecuteBatch
             .encode({ queryId: 1n, calls })
             .asCell(),
@@ -822,7 +822,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.15'), // need 0.1 TON extra to reserve for rent
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -953,7 +953,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.15'), // need 0.1 TON extra to reserve for rent
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -1037,7 +1037,7 @@ describe('MCMS - IntegrationTest', () => {
 
         const r1 = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
-          toNano('0.10'),
+          toNano('0.15'), // need 0.1 TON extra to reserve for rent
           mcms.builder.message.in.execute
             .encode({
               queryId: 1n,
@@ -1202,7 +1202,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r2 = await bind.timelock.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        toNano('0.45'),
         rbactl.builder.message.in.executeBatch
           .encode({
             queryId: 2n,

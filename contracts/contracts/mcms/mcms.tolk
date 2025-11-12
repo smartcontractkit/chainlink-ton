@@ -307,18 +307,23 @@ struct MCMS_Hooks<T> {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP =
-    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON");
+    stringSha256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON");
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
-    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON");
+    stringSha256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON");
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
 
 const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
+
+// --- Constants - storage ---
+
+/// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
+const MIN_TON_TO_RESERVE: int = ton("0.1");
 
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
@@ -998,7 +1003,7 @@ fun MCMS<T>.setConfig(
         repeat(NUM_GROUPS) {
             val i = NUM_GROUPS - 1 - j;
             // ensure we have a well-formed group tree. the root should have itself as parent
-            var gp: int = 0; // default parent for root group
+            var gp = 0; // default parent for root group
             {
                 var value = groupParents.get(i);
                 if (value.isFound) {
@@ -1130,11 +1135,7 @@ fun MCMS<T>.setConfig(
         bounce: false,
         value: 0,
         dest: sender,
-        body: MCMS_ConfigSet{
-            queryId: queryId,
-            config: Config.fromCell(self.data.config),
-            isRootCleared: clearRoot
-        }
+        body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1209,7 +1210,7 @@ fun MCMS<T>.submitErrorReport(
             opLeafHash: hashedLeaf,
             opTxHash,
             errorTxHash,
-            errorCode: errorCode,
+            errorCode,
             root,
             matchesPendingOp,
         }
@@ -1241,18 +1242,16 @@ fun MCMS<T>.transferOracleRole(
 }
 
 /// Execute an op's call. Performs a raw message send that can bounce on errors.
-fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
+fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
-        return self.hooks.execute(self.context, target, value, data); // extension hook
+        return self.hooks.execute(self.context, dest, value, body); // extension hook
     }
 
+    // We reserve some TON coins on the balance for rent
+    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+
     // Send a message to the target with the provided value and data
-    val op = createMessage({
-        bounce: true,
-        value: value,
-        dest: target,
-        body: data
-    });
+    val op = createMessage({bounce: true, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 

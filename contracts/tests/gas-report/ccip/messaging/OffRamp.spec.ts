@@ -363,11 +363,15 @@ describe('CCIP OffRamp Gas Estimation', () => {
       })
 
       // Add onRamp to router
-      const addResult = await router.sendSetRamps(deployer.getSender(), {
+      const addResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
         value: toNano('1'),
-        queryID: 0,
-        destChainSelector: [CHAINSEL_EVM_TEST],
-        onRamp: onRamp.address,
+        data: {
+          queryID: BigInt(0),
+          onRamps: {
+            destChainSelectors: [CHAINSEL_EVM_TEST],
+            onRamp: onRamp.address,
+          },
+        },
       })
       expect(addResult.transactions).toHaveTransaction({
         to: router.address,

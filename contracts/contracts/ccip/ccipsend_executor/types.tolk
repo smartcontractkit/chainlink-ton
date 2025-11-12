@@ -2,7 +2,7 @@ import "../onramp/messages.tolk";
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    messageId: uint224,
+    messageID: uint224,
 }
 
 struct CCIPSendExecutor_Data {

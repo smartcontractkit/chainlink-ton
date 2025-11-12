@@ -13,18 +13,18 @@ import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/messages"
 import "@stdlib/lisp-lists"
+import "types"
 import "../offramp/types"
+import "events"
 
-
-const CONTRACT_VERSION = "0.0.7";
+const CONTRACT_VERSION = "0.0.8";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Router_InMsg.fromSlice(in.body);
     match (msg) {
-        Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
-        Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
-        Router_CCIPSend => { 
+        Router_ApplyRampUpdates => { onApplyRampUpdates(msg, in.senderAddress) }
+        Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onSend(msg, in.senderAddress, in.valueCoins)
@@ -41,6 +41,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.curse(subject);
+                emit(
+                    CURSED_TOPIC,
+                    Cursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -67,6 +73,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.uncurse(subject);
+                emit(
+                    UNCURSED_TOPIC,
+                    Uncursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -101,6 +113,17 @@ fun onInternalMessage(in: InMessage) {
             Withdrawable{
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
+        }
+        Router_RMNOwnableMessage => {
+            var st = lazy Storage.load();
+            var rmnRemote = st.rmnRemote.load();
+            val handled = rmnRemote.admin.onInternalMessage(in.senderAddress, msg.content);
+            if (handled) {
+                st.rmnRemote = rmnRemote.toCell();
+                st.store();
+                return;
+            }
+            throw 0xFFFF;
         }
         Router_MessageSent => { onSendACK(msg, in.senderAddress) }
         Router_MessageRejected => { onSendNACK(msg, in.senderAddress) }
@@ -151,40 +174,64 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-fun onSetRamps(msg: Router_SetRamps, sender: address) {
+fun onApplyRampUpdates(msg: Router_ApplyRampUpdates, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    var selectors = msg.destChainSelectors.iter();
-    while (!selectors.empty()) {
-        val selector = selectors.next();
-        st.onRamps.set(selector, msg.onRamp);
-    }
-    st.store();
-    // TODO: emit(OnRampsSet)
+    updateOnRamps(msg.onRampUpdates);
+    updateOffRamps(msg.offRampAdds, msg.offRampRemoves);
 }
 
-fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
+fun updateOnRamps(onRampUpdates: OnRamps?) {
     var st = lazy Storage.load();
-    st.ownable.requireOwner(sender);
 
-    if (msg.offRampAdd != null) {
-        val offRampAdd = msg.offRampAdd!;
-        var iter = msg.sourceChainSelectorsAdd.iter();
+    if (onRampUpdates != null) {
+        var selectors = onRampUpdates.destChainSelectors.iter();
+        while (!selectors.empty()) {
+            val selector = selectors.next();
+            st.onRamps.set(selector, onRampUpdates.onRamp);
+        }
+
+        st.store();
+
+        emit(ON_RAMP_SET_TOPIC, OnRampSet {
+            destChainSelectors: onRampUpdates.destChainSelectors,
+            onRamp: onRampUpdates.onRamp,
+        });
+    }
+}
+
+fun updateOffRamps(offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
+    var st = lazy Storage.load();
+
+    if (offRampAdds != null) {
+        val offRampAdd = offRampAdds.offRamp!;
+        var iter = offRampAdds.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
             st.offRamps.set(selector, offRampAdd);
         }
+
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
+            sourceChainSelectors: offRampAdds.sourceChainSelectors,
+            offRampAdded: offRampAdd,
+        });
     }
-    if (msg.offRampRemove != null) {
-        val offRampRemove = msg.offRampRemove!;
-        var iter = msg.sourceChainSelectorsRemove.iter();
+
+    if (offRampRemoves != null) {
+        val offRampRemove = offRampRemoves.offRamp!;
+        var iter = offRampRemoves.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
             val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector as int);
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
             st.offRamps.delete(selector);
         }
+
+        emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
+            sourceChainSelectors: offRampRemoves.sourceChainSelectors,
+            offRampRemoved: offRampRemove,
+        });
     }
 
     // update RMN forwarding cache
@@ -384,4 +431,3 @@ get fun destChainSelectors(): tuple {
 get fun reserve(): coins {
     return RESERVE;
 }
-

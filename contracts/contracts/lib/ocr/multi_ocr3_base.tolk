@@ -178,7 +178,7 @@ fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
 }
 
 fun OCR3Base.verifySignature(
-	mutate self,
+	self,
 	signers: map<uint256, uint8>, // <signer -> index>
 	hashedReport: uint256,
 	signatures: SnakedCell<SignatureEd25519>

@@ -1,4 +1,5 @@
 import "errors"
+import "events"
 import "messages"
 import "types"
 import "storage"
@@ -8,6 +9,7 @@ import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
 import "../../deployable/types";
 import "../../lib/utils";
+import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
@@ -20,9 +22,22 @@ const RESERVE = ton("1"); // TODO: set correct value
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
     match (msg) {
-        FeeQuoter_UpdatePrices => {
-            // TODO: validate that price updates came from the offramp
+        FeeQuoter_AddPriceUpdater => {
             var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.allowedPriceUpdaters.addIfNotExists(msg.priceUpdater, ());
+            st.store();
+        },
+        FeeQuoter_RemovePriceUpdater => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.allowedPriceUpdaters.delete(msg.priceUpdater);
+            st.store();
+        },
+        FeeQuoter_UpdatePrices => {
+            var st = lazy Storage.load();
+            // either an allowed price updater or feeQuoter owner
+            assert(st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress, FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
         }
@@ -41,7 +56,7 @@ fun onInternalMessage(in: InMessage) {
         FeeQuoter_UpdateDestChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            updateDestChainConfigs(mutate st, msg.updates); // TODO: pass in st.destChainConfigs instead
+            updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
         FeeQuoter_GetValidatedFee<cell> => {
@@ -124,7 +139,6 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     }
 }
 
-// TODO: allow providing an array of these msgs to feeQuoter
 fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
     var iter = Iterator<FeeQuoter_UpdateDestChainConfig>.new(updates);
 
@@ -153,7 +167,6 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
 fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
     val timestamp = blockchain.now();
 
-    // TODO: assert cells are well-formed
     var iter = priceUpdates.tokenPriceUpdates.iter();
     while (!iter.empty()) {
         val update = iter.next();
@@ -161,8 +174,13 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
         st.usdPerToken.set(update.sourceToken, TimestampedPrice {
             value: update.usdPerToken,
             timestamp
+        });
+
+        emit(USD_PER_TOKEN_UPDATED_TOPIC, UsdPerTokenUpdated {
+            sourceToken: update.sourceToken,
+            usdPerToken: update.usdPerToken,
+            timestamp,
         })
-      //TODO: emit UsdPerTokenUpdated(update.sourceToken, update.usdPerToken, block.timestamp);
     }
 
     var iter2 = priceUpdates.gasPriceUpdates.iter();
@@ -180,7 +198,12 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
             }.toCell();
             st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
 
-          //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
+            emit(USD_PER_UNIT_GAS_UPDATED, UsdPerUnitGasUpdated {
+                destChainSelector: update.destChainSelector,
+                executionGasPrice: update.executionGasPrice,
+                dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
+                timestamp,
+            })
         }
     }
 }
@@ -205,7 +228,10 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 get fun validatedFee(msg: Router_CCIPSend): coins {
     var st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
+    assert (destChainConfigResult.isFound) throw FeeQuoter_Error.DestChainNotEnabled;
+    var destChainConfig = destChainConfigResult.loadValue();
+
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
 
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
@@ -213,52 +239,57 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
-    if (errorCode == ERROR_INVALID_DATA) {
-        throw FeeQuoter_Error.InvalidMsgData;
-    } else if (errorCode == 8) {
-        throw FeeQuoter_Error.MsgDataTooLarge;
+    match (errorCode) {
+        0 => { /* continue */ }
+        8 => {
+            throw FeeQuoter_Error.MsgDataTooLarge;
+        }
+        ERROR_INVALID_DATA => {
+            throw FeeQuoter_Error.InvalidMsgData;
+        }
+        else => {
+            throw errorCode;
+        }
     }
 
     var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
 
-    val (executionGasPrice, dataAvailabilityGasPrice) = destChainConfig.getValidatedGasPrice();
+    val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
     var tokensIter = msg.tokenAmounts.iter();
-    var (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = (0, destChainConfig.config.networkFeeUsdCents * VAL_1E16, 0, 0);
-    if (!tokensIter.empty()) {
-        (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(st, destChainConfig, mutate tokensIter);
-    }
+    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow as int);
+    assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     val dataAvailabilityCost = _dataAvailabilityCost(
         destChainConfig,
         dataAvailabilityGasPrice,
         msgDataLen,
-        tokenCount,
-        tokenTransferBytesOverhead,
+        0,
+        0,
     );
 
-    val calldataLen = msgDataLen + tokenTransferBytesOverhead;
-    var calldataGas = calldataLen * destChainConfig.config.destGasPerPayloadByteBase;
+    val calldataLen = msgDataLen; // + token transfer overheads, not supported in TON yet
+    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow as int);
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
     if (calldataLen > calldataThreshold) {
-        val baseCalldataGas = destChainConfig.config.destGasPerPayloadByteBase * calldataThreshold;
+        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow as int);
         val extraBytes = calldataLen - calldataThreshold;
-        val extraCalldataGas = extraBytes * destChainConfig.config.destGasPerPayloadByteHigh;
-        calldataGas = baseCalldataGas + extraCalldataGas;
+        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow as int);
+        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
     }
 
-    val executionGas = gasLimit + destChainConfig.config.destGasOverhead + calldataGas + tokenTransferGas;
+    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow as int), calldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
 
-    val executionCost = executionGasPrice
-        * executionGas
-        * destChainConfig.config.gasMultiplierWeiPerEth;
+    val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow as int), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow as int);
 
-    val feeTokenValue =
-        (premiumFeeUsdWei * premiumMultiplier) + executionCost + dataAvailabilityCost;
+    val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow as int);
+    val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow as int), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow as int);
 
+    // Check for division by zero (extremely small token prices)
+    assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
     val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
-    return feeTokenAmount;
+    return mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int);
 }
 
 fun _dataAvailabilityCost(
@@ -268,57 +299,52 @@ fun _dataAvailabilityCost(
     tokenCount: uint256,
     tokenTransferBytesOverhead: uint256,
 ): uint256 {
-     // Sums up byte lengths of fixed message fields and dynamic message fields.
+    assert (tokenCount == 0) throw FeeQuoter_Error.TokenTransfersNotSupported;
+    assert (tokenTransferBytesOverhead == 0) throw FeeQuoter_Error.TokenTransfersNotSupported;
+    // Sums up byte lengths of fixed message fields and dynamic message fields.
     // Fixed message fields do account for the offset and length slot of the dynamic fields.
     val dataAvailabilityLengthBytes = TON_2_EVM_MESSAGE_FIXED_BYTES
-        + msgDataLen
-        + tokenCount as uint256 * TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN
-        + tokenTransferBytesOverhead;
+        + msgDataLen;
+        // Token transfers not supported in TON yet
+        // + tokenCount as uint256 * TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN
+        // + tokenTransferBytesOverhead
 
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
     // the overhead data posted for OCR.
-    val dataAvailabilityGas = dataAvailabilityLengthBytes
-        * destChainConfig.config.destGasPerDataAvailabilityByte as uint256
-        + destChainConfig.config.destDataAvailabilityOverheadGas as uint256;
+    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 
     // data_availability_gas_price is in 18 decimals, dest_data_availability_multiplier_bps is in 4 decimals
     // We pad 14 decimals to bring the result to 36 decimals, in line with token bps and execution fee.
-    return dataAvailabilityGasPrice
-        * dataAvailabilityGas
-        * destChainConfig.config.destDataAvailabilityMultiplierBps as uint256
-        * VAL_1E14;
+    val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
     var tokenAmounts = message.tokenAmounts.iter();
-    var numberOfTokens = 0;
-    while (!tokenAmounts.empty()) {
-        var _ = tokenAmounts.next();
-        numberOfTokens += 1;
-    }
-    assert (numberOfTokens <= config.maxNumberOfTokensPerMsg) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
+    assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
-        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
         val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
         val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
-    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        // resolveSVMGasLimit()
-        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
-        val gasLimit = svmExtraArgs.computeUnits;
+    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
         // objectIds are 32 bytes long
-        val accounts = svmExtraArgs.accounts.iter();
-        val receiverObjectIdsLength = accounts.size(32);
+        val objectIds = suiExtraArgs.receiverObjectIds.iter();
+        val receiverObjectIdsLength = objectIds.size(SUI_ACCOUNT_BYTE_SIZE);
         // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
         var suiExpandedDataLength = msgDataLen;
@@ -330,31 +356,46 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         } else {
             // The messaging accounts needed for CCIP receiver on SUI are:
             // message receiver,
-            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            // plus remaining accounts specified in Sui extraArgs. Each receiverObjectId is 32 bytes.
             suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
         }
-         
-        if (numberOfTokens > 0 && svmExtraArgs.tokenReceiver == 0) {
-            throw FeeQuoter_Error.InvalidTokenReceiver;
-        }
 
+        // TODO: tokenReceiver validation
+         
         assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
-        suiExpandedDataLength += (numberOfTokens * SUI_TOKEN_TRANSFER_DATA_OVERHEAD);
-
-        // TBD this is not doable in TON. We cannot aford to have a map of every token to be sent to Solana.
-        // The token destBytesOverhead can be very different per token so we have to take it into account as well.
-        // for (uint256 i = 0; i < numberOfTokens; ++i) {
-        //   uint256 destBytesOverhead =
-        //     s_tokenTransferFeeConfig[destChainSelector][message.tokenAmounts[i].token].destBytesOverhead
-        //   // Pools get Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES by default, but if an override is set we use that instead.
-        //   if (destBytesOverhead > 0) {
-        //     suiExpandedDataLength += destBytesOverhead;
-        //   } else {
-        //     suiExpandedDataLength += Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES;
-        //   }
-        // }
         assert (suiExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
+
+        return gasLimit;
+    }
+    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val gasLimit = svmExtraArgs.computeUnits;
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+
+        // accounts are 32 bytes long
+        val accounts = svmExtraArgs.accounts.iter();
+        val accountsLength = accounts.size(SVM_ACCOUNT_BYTE_SIZE);
+        // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
+        // tokens. Below, token and account overhead will count towards maxDataBytes.
+        var svmExpandedDataLength = msgDataLen;
+
+        if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
+            // When message receiver is zero, CCIP receiver is not invoked on SVM.
+            // There should not be additional accounts specified for the receiver.
+            assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSuiReceiverAddress;
+        } else {
+            // The messaging accounts needed for CCIP receiver on SUI are:
+            // message receiver,
+            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
+        }
+         
+        // TODO: tokenReceiver validation
+
+        assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
+
+        assert (svmExpandedDataLength <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
 
         return gasLimit;
     } else {
@@ -367,18 +408,18 @@ fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsg
 }
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
-    val extra = parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
+    val extra = _parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
     assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
 }
 
-fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
+fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
     if (extraArgs.beginParse().isEmpty()) {
         return GenericExtraArgsV2 {
             gasLimit: defaultTxGasLimit as uint256,
-            allowOutOfOrderExecution: false, // TBD: isn't default true in TON?
+            allowOutOfOrderExecution: true,
         };
     }
     return GenericExtraArgsV2.fromCell(extraArgs);
@@ -389,6 +430,16 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV
         throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
+    // Out of order is always enforced because we don't do ordering on non-EVMs
+    assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
+    return extra;
+}
+
+fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV1 {
+    val extra = SuiExtraArgsV1.fromCell(extraArgs, {
+        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
+    });
+    assert (extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
     assert (extra.allowOutOfOrderExecution) throw FeeQuoter_Error.ExtraArgOutOfOrderExecutionMustBeTrue;
     return extra;
@@ -440,50 +491,6 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
         });
     }
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-// TODO: a lot of the as uint256 annotations seem to be unnecessary in this function
-fun getTokenTransferCost(
-    st: Storage,
-    destChainConfig: DestChainConfig,
-    mutate tokens: Iterator<TokenAmount>,
-): (int, uint256, uint32, uint32) {
-    var tokenTransferFeeWei: uint256 = 0;
-    var tokenTransferGas: uint32 = 0;
-    var tokenTransferBytesOverhead: uint32 = 0;
-
-    var count = 0;
-
-    while (!tokens.empty()) {
-        val tokenAmount = tokens.next();
-        count += 1;
-
-        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, FeeQuoter_Error.TokenNotSupported as int);
-        if (!transferFeeConfig.isEnabled) {
-            // If the token has no specific overrides configured, we use the global defaults.
-            tokenTransferFeeWei +=((destChainConfig.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
-            tokenTransferGas += destChainConfig.config.defaultTokenDestGasOverhead;
-            tokenTransferBytesOverhead += CCIP_LOCK_OR_BURN_V1_RET_BYTES;
-        } else {
-            var bpsFeeUsdWei = 0;
-            if (transferFeeConfig.deciBps > 0) {
-                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, FeeQuoter_Error.TokenNotSupported as int);
-
-                // Calculate token transfer value, then apply fee ratio
-                // ratio represents multiples of 0.1bps, or 1e-5
-                val tokenUsdValue = tokenAmount.amount as uint256 * tokenPrice.value / VAL_1E18;
-                bpsFeeUsdWei = (tokenUsdValue * (transferFeeConfig.deciBps as uint256)) / VAL_1E5;
-            };
-
-            tokenTransferGas += transferFeeConfig.destGasOverhead;
-            tokenTransferBytesOverhead += transferFeeConfig.destBytesOverhead;
-
-            var minFeeUsdWei = (transferFeeConfig.minFeeUsdCents as uint256) * VAL_1E16;
-            var maxFeeUsdWei = (transferFeeConfig.maxFeeUsdCents as uint256) * VAL_1E16;
-            tokenTransferFeeWei += min(maxFeeUsdWei, max(minFeeUsdWei, bpsFeeUsdWei));
-        }
-    }
-    return (count, tokenTransferFeeWei, tokenTransferGas, tokenTransferBytesOverhead);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {
@@ -540,8 +547,6 @@ get fun tokenTransferFeeConfig(
     val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
     return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported as int);
 }
-
-// TODO: processMessageArgs(), processPoolReturnData()?
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();

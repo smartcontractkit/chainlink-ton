@@ -1,13 +1,16 @@
 package codec
 
 import (
+	"fmt"
+
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type addressCodec struct{}
@@ -20,15 +23,8 @@ var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 // For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
 // the same address with different flags.
 
-const (
-	TONAddressLength  = 36
-	TONZeroAddressStr = "0:0000000000000000000000000000000000000000000000000000000000000000"
-)
-
-var TONZeroAddress = address.MustParseRawAddr(TONZeroAddressStr)
-
 // RawAddr is a fixed-size byte array representing a TON standard address
-type RawAddr [TONAddressLength]byte
+type RawAddr [tvm.AddressLength]byte
 
 // ToRawAddr converts an address.Address to a RawAddr.
 func ToRawAddr(addr *address.Address) (rawAddress RawAddr) {
@@ -43,8 +39,8 @@ func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
 
 // AddressBytesToString converts a byte slice representing a TON address into its string representation, only supporting standard TON addresses.
 func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
-	if len(bytes) != TONAddressLength {
-		return "", fmt.Errorf("invalid address length: expected %d bytes, got %d", TONAddressLength, len(bytes))
+	if len(bytes) != tvm.AddressLength {
+		return "", fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
@@ -87,8 +83,8 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 // This method is not part of the interface as it's TON specific
 // AddressBytesToAddress converts a byte slice representing a TON address into its ton address representation, only supporting standard TON addresses.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
-	if len(bytes) != TONAddressLength {
-		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", TONAddressLength, len(bytes))
+	if len(bytes) != tvm.AddressLength {
+		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)

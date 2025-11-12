@@ -14,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 )
 
@@ -69,12 +68,12 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		txs = append(txs, updatePricesReport.Output...)
 
 		// update router with onramps
-		updateRouterOnRampsConfig, err := intoUpdateRouterOnrampsConfig(input)
+		applyRampUpdatesConfig, err := intoUpdateRouterOnrampsConfig(input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router onramps config: %w", err)
 		}
-		b.Logger.Infow("Updating Router", "input", updateRouterOnRampsConfig)
-		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOnrampsOp, deps, updateRouterOnRampsConfig)
+		b.Logger.Infow("Updating Router Onramps", "input", applyRampUpdatesConfig)
+		routerReport, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, applyRampUpdatesConfig)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 		}
@@ -114,14 +113,12 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		}
 		txs = append(txs, offRampReport.Output...)
 
-		// TODO update router with offramps. Let's add this functionality once vincent finishes the contract work
-
-		updateRouterOffRampsConfig, err := intoUpdateRouterOfframpsConfig(input)
+		applyRampUpdatesConfig, err := intoUpdateRouterOfframpsConfig(input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router offramps config: %w", err)
 		}
-		b.Logger.Infow("Updating Router", "input", updateRouterOffRampsConfig)
-		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOfframpsOp, deps, updateRouterOffRampsConfig)
+		b.Logger.Infow("Updating Router OffRamps", "input", applyRampUpdatesConfig)
+		routerReport, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, applyRampUpdatesConfig)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 		}
@@ -240,37 +237,39 @@ func intoUpdateOffRampSourcesConfig(input lanes.UpdateLanesInput) operation.Upda
 	}
 }
 
-func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.UpdateRouterOnrampsInput, error) {
+func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
 	addressCodec := codec.NewAddressCodec()
 	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Source.OnRamp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert onramp address to string: %w", err)
+		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert onramp address to string: %w", err)
 	}
 
-	return operation.UpdateRouterOnrampsInput{
-		onRampAddrStr: []router.ChainSelector{
-			{
-				Value: input.Dest.Selector,
+	return operation.ApplyRampUpdatesInput{
+		OnRampUpdates: operation.RampUpdates{
+			onRampAddrStr: {
+				{
+					Value: input.Dest.Selector,
+				},
 			},
 		},
 	}, nil
 }
 
-func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.UpdateRouterOfframpsInput, error) {
+func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
 	addressCodec := codec.NewAddressCodec()
 	offRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OffRamp)
 	if err != nil {
-		return operation.UpdateRouterOfframpsInput{}, fmt.Errorf("failed to convert offramp address to string: %w", err)
+		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert offramp address to string: %w", err)
 	}
 
-	return operation.UpdateRouterOfframpsInput{
-		OffRampAdd: map[string][]router.ChainSelector{
-			offRampAddrStr: []router.ChainSelector{
+	return operation.ApplyRampUpdatesInput{
+		OffRampAdds: operation.RampUpdates{
+			offRampAddrStr: {
 				{
 					Value: input.Source.Selector,
 				},
 			},
 		},
-		OffRampRemove: nil,
+		OffRampRemoves: nil,
 	}, nil
 }

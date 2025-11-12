@@ -12,96 +12,52 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-type DeployRouterInput struct {
-	ID           uint32
-	ContractPath string
-	Coins        string
+type RampUpdates map[string][]router.ChainSelector
+
+type ApplyRampUpdatesInput struct {
+	OnRampUpdates  RampUpdates
+	OffRampAdds    RampUpdates
+	OffRampRemoves RampUpdates
 }
 
-type DeployRouterOutput struct {
-	Address *address.Address
+type ApplyRampUpdatesOutput struct {
 }
 
-var DeployRouterOp = operations.NewOperation(
-	"deploy-router-op",
+var ApplyRampUpdatesOp = operations.NewOperation(
+	"apply-ramp-updates-op",
 	semver.MustParse("0.1.0"),
-	"Deploys the Router contract",
-	deployRouter,
+	"Apply Ramp Updates operations including OnRampUpdates, OffRampAdds and/or OffRampRemoves",
+	applyRampUpdates,
 )
 
-// We use 0x1 as an internal value for native token. Can't be 0x0 because the CCIP plugin throws on zero addresses
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
+func applyRampUpdates(b operations.Bundle, deps TonDeps, in ApplyRampUpdatesInput) ([][]byte, error) {
+	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
-func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (DeployRouterOutput, error) {
-	output := DeployRouterOutput{}
-
-	// TODO wrap the code cell creation somewhere
-	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
+	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)
 	if err != nil {
-		return output, fmt.Errorf("failed to compile contract: %w", err)
+		return nil, err
 	}
 
-	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
-
-	storage := router.Storage{
-		ID: in.ID,
-		Ownable: common.Ownable2Step{
-			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
-		},
-		WrappedNative: TonTokenAddr,
-		RMNRemote: router.RMNRemote{
-			Admin: common.Ownable2Step{
-				Owner:        deps.TonChain.WalletAddress,
-				PendingOwner: nil,
-			},
-			CursedSubjects: nil,
-			ForwardUpdates: nil,
-		},
-		OnRamps: nil, // set afterwards
-	}
-	initData, err := tlb.ToCell(storage)
+	offramps, err := updateRouterOfframps(routerAddr, in.OffRampAdds, in.OffRampRemoves)
 	if err != nil {
-		return output, fmt.Errorf("failed to pack initData: %w", err)
+		return nil, err
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
-	if err != nil {
-		return output, fmt.Errorf("failed to deploy router contract: %w", err)
-	}
-	b.Logger.Infow("Deployed Router", "addr", contract.Address, "deployer wallet addr", deps.TonChain.WalletAddress.String())
-
-	output.Address = contract.Address
-	return output, nil
+	return append(onramps, offramps...), nil
 }
 
-type UpdateRouterOnrampsInput map[string][]router.ChainSelector
-
-type UpdateRouterDestOutput struct {
-}
-
-var UpdateRouterOnrampsOp = operations.NewOperation(
-	"update-router-onramps-op",
-	semver.MustParse("0.1.0"),
-	"Update router onramps",
-	updateRouterOnramps,
-)
-
-func updateRouterOnramps(b operations.Bundle, deps TonDeps, in UpdateRouterOnrampsInput) ([][]byte, error) {
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
-
+func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([][]byte, error) {
 	msgs := make([]*tlb.InternalMessage, 0)
-	for onRampAddrStr, selectors := range in {
+	for onRampAddrStr, selectors := range onRampUpdates {
 		rampAddr := address.MustParseAddr(onRampAddrStr)
-		input := router.SetRamps{
-			DestChainSelectors: selectors,
-			OnRamps:            rampAddr,
+		input := router.ApplyRampUpdates{
+			OnRampUpdates: &router.OnRamps{
+				DestChainSelectors: selectors,
+				OnRamps:            rampAddr,
+			},
 		}
 
 		payload, err := tlb.ToCell(input)
@@ -112,7 +68,7 @@ func updateRouterOnramps(b operations.Bundle, deps TonDeps, in UpdateRouterOnram
 		msg := tlb.InternalMessage{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &addr,
+			DstAddr: &routerAddr,
 			Body:    payload,
 		}
 		msgs = append(msgs, &msg)
@@ -121,35 +77,21 @@ func updateRouterOnramps(b operations.Bundle, deps TonDeps, in UpdateRouterOnram
 	return helpers.Serialize(msgs)
 }
 
-type UpdateRouterOfframpsInput struct {
-	OffRampAdd    map[string][]router.ChainSelector
-	OffRampRemove map[string][]router.ChainSelector
-}
-
-var UpdateRouterOfframpsOp = operations.NewOperation(
-	"update-router-offramps-op",
-	semver.MustParse("0.1.0"),
-	"Update router offramps",
-	updateRouterOfframps,
-)
-
-func updateRouterOfframps(b operations.Bundle, deps TonDeps, in UpdateRouterOfframpsInput) ([][]byte, error) {
-	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
-
+func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([][]byte, error) {
 	type change struct {
 		addr *address.Address
 		sels []router.ChainSelector
 	}
 
 	// Collect + sort keys so iteration is deterministic.
-	addKeys := make([]string, 0, len(in.OffRampAdd))
-	for k := range in.OffRampAdd {
+	addKeys := make([]string, 0, len(offRampAdds))
+	for k := range offRampAdds {
 		addKeys = append(addKeys, k)
 	}
 	sort.Strings(addKeys)
 
-	rmKeys := make([]string, 0, len(in.OffRampRemove))
-	for k := range in.OffRampRemove {
+	rmKeys := make([]string, 0, len(offRampRemoves))
+	for k := range offRampRemoves {
 		rmKeys = append(rmKeys, k)
 	}
 	sort.Strings(rmKeys)
@@ -159,7 +101,7 @@ func updateRouterOfframps(b operations.Bundle, deps TonDeps, in UpdateRouterOffr
 	for _, k := range addKeys {
 		adds = append(adds, change{
 			addr: address.MustParseAddr(k),
-			sels: in.OffRampAdd[k],
+			sels: offRampAdds[k],
 		})
 	}
 
@@ -167,7 +109,7 @@ func updateRouterOfframps(b operations.Bundle, deps TonDeps, in UpdateRouterOffr
 	for _, k := range rmKeys {
 		removes = append(removes, change{
 			addr: address.MustParseAddr(k),
-			sels: in.OffRampRemove[k],
+			sels: offRampRemoves[k],
 		})
 	}
 
@@ -180,20 +122,24 @@ func updateRouterOfframps(b operations.Bundle, deps TonDeps, in UpdateRouterOffr
 	msgs := make([]*tlb.InternalMessage, 0, n)
 
 	for i := 0; i < n; i++ {
-		var input router.UpdateOffRamps
+		var input router.ApplyRampUpdates
 
 		if i < len(adds) {
-			input.SourceChainSelectorAdd = adds[i].sels
-			input.OffRampAdd = adds[i].addr
+			input.OffRampAdds = &router.OffRamps{
+				SourceChainSelectors: adds[i].sels,
+				OffRamp:              adds[i].addr,
+			}
 		}
 
 		if i < len(removes) {
-			input.SourceChainSelectorRemove = removes[i].sels
-			input.OffRampRemove = removes[i].addr
+			input.OffRampRemoves = &router.OffRamps{
+				SourceChainSelectors: removes[i].sels,
+				OffRamp:              removes[i].addr,
+			}
 		}
 
 		// Skip emitting an empty op (shouldn't happen, but defensive)
-		if len(input.SourceChainSelectorAdd) == 0 && len(input.SourceChainSelectorRemove) == 0 {
+		if (input.OffRampAdds == nil || len(input.OffRampAdds.SourceChainSelectors) == 0) && (input.OffRampRemoves == nil || len(input.OffRampRemoves.SourceChainSelectors) == 0) {
 			continue
 		}
 

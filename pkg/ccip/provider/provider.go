@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
@@ -46,9 +47,6 @@ func NewCCIPProvider(
 	logPoller logpoller.Service,
 	cargs commontypes.CCIPProviderArgs,
 ) (*Provider, error) {
-	// TODO: clean up, too verbose
-	lggr.Info("Creating TON CCIPProvider", "chainSelector", chainSelector, "pluginType", cargs.PluginType, "offRampAddress", cargs.OffRampAddress)
-
 	// Validate offramp address
 	addressCodec := codec.NewAddressCodec()
 	var offRampAddrStr string
@@ -57,19 +55,18 @@ func NewCCIPProvider(
 	// NOTE: provider can still be initialized with an EVM offramp address, and AddressBytesToString will fail on addresses with len=20
 	// technically we only need the chainwriter to do fee estimation so this doesn't matter and we can use a zero address
 	// TODO: Should we even build the rest of the provider? Or just initialize the accessor with just the estimator.
-	if len(cargs.OffRampAddress) == codec.TONAddressLength {
+	if len(cargs.OffRampAddress) == tvm.AddressLength {
 		offRampAddrStr, err = addressCodec.AddressBytesToString(cargs.OffRampAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode TON offRamp address: %w", err)
 		}
 	} else {
-		// TODO: clean up, too verbose
 		// EVM address provided - use zero address as placeholder
-		lggr.Warnw("EVM offramp address provided to TON provider, using zero address placeholder",
+		lggr.Debug("EVM offramp address provided to TON provider, using zero address placeholder",
 			"providedLength", len(cargs.OffRampAddress),
-			"expectedLength", codec.TONAddressLength)
+			"expectedLength", tvm.AddressLength)
 		// Use a zero TON address as placeholder
-		offRampAddrStr = codec.TONZeroAddressStr
+		offRampAddrStr = tvm.ZeroAddressStr
 	}
 
 	var ct ocr3types.ContractTransmitter[[]byte]
@@ -101,6 +98,9 @@ func NewCCIPProvider(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON Accessor: %w", err)
 	}
+
+	lggr.Info("Returning TON CCIPProvider", "chainSelector", chainSelector, "pluginType", cargs.PluginType,
+		"cargs.offRampAddress", cargs.OffRampAddress, "offRampAddrStr", offRampAddrStr)
 
 	return &Provider{
 		lggr:  logger.Named(lggr, CCIPProviderName),
