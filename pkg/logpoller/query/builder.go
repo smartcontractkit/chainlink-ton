@@ -62,7 +62,7 @@ func (b *queryBuilder) WithSource(addr *address.Address) *queryBuilder {
 	addressFilter := &FieldFilter{
 		Field:    "address",
 		Operator: primitives.Eq,
-		Value:    addr.String(),
+		Value:    addr,
 	}
 	b.query.FieldFilters = append(b.query.FieldFilters, addressFilter)
 	return b

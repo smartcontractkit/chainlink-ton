@@ -110,7 +110,7 @@ func TestPgLogStore(t *testing.T) {
 			{
 				Field:    "address",
 				Operator: primitives.Eq,
-				Value:    testAddr.String(),
+				Value:    testAddr,
 			},
 			{
 				Field:    "event_sig",
@@ -139,7 +139,7 @@ func TestPgLogStore(t *testing.T) {
 				{
 					Field:    "address",
 					Operator: primitives.Eq,
-					Value:    testAddr.String(),
+					Value:    testAddr,
 				},
 				{
 					Field:    "event_sig",
@@ -167,7 +167,7 @@ func TestPgLogStore(t *testing.T) {
 				{
 					Field:    "address",
 					Operator: primitives.Eq,
-					Value:    testAddr.String(),
+					Value:    testAddr,
 				},
 				{
 					Field:    "event_sig",
@@ -207,7 +207,7 @@ func TestPgLogStore(t *testing.T) {
 				{
 					Field:    "address",
 					Operator: primitives.Eq,
-					Value:    testAddr.String(),
+					Value:    testAddr,
 				},
 				{
 					Field:    "event_sig",
@@ -237,7 +237,7 @@ func TestPgLogStore(t *testing.T) {
 				{
 					Field:    "address",
 					Operator: primitives.Eq,
-					Value:    testAddr.String(),
+					Value:    testAddr,
 				},
 				{
 					Field:    "event_sig",
@@ -260,7 +260,7 @@ func TestPgLogStore(t *testing.T) {
 				{
 					Field:    "address",
 					Operator: primitives.Eq,
-					Value:    testAddr.String(),
+					Value:    testAddr,
 				},
 				{
 					Field:    "event_sig",

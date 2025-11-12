@@ -56,7 +56,7 @@ func TestFilterModel_InvalidAddress(t *testing.T) {
 	dbFilter := filterModel{
 		ID:            1,
 		Name:          "test-filter",
-		Address:       "invalid-address-format", // Invalid TON address format
+		Address:       []byte{0x00}, // Invalid TON address
 		MsgType:       string(tlb.MsgTypeInternal),
 		EventSig:      eventSig,
 		StartingSeqNo: 100,

@@ -6,22 +6,21 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
 
-// TODO: consider use BYTEA for address field to avoid conversion overhead and improve consistency with raw address format
 // filterModel represents the 'ton_log_poller_filters' table schema.
 type filterModel struct {
 	ID            int64     `db:"id"`
 	ChainID       string    `db:"chain_id"`
 	Name          string    `db:"name"`
-	Address       string    `db:"address"` // TON address in user-friendly format
+	Address       []byte    `db:"address"` // TON address in raw byte format
 	MsgType       string    `db:"msg_type"`
 	EventSig      []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
 	StartingSeqNo int64     `db:"starting_seq_no"`
@@ -33,9 +32,10 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, filter.EventSig)
 
+	rawAddr := codec.ToRawAddr(filter.Address)
 	return filterModel{
 		Name:          filter.Name,
-		Address:       filter.Address.String(),
+		Address:       rawAddr[:],
 		MsgType:       string(filter.MsgType),
 		EventSig:      eventSig,
 		StartingSeqNo: int64(filter.StartingSeqNo),
@@ -48,8 +48,8 @@ func (f filterModel) ToFilter() (lptypes.Filter, error) {
 		return lptypes.Filter{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(f.EventSig))
 	}
 
-	// Parse address from string format
-	addr, err := address.ParseAddr(f.Address)
+	// Parse address from raw byte format
+	addr, err := codec.AddressBytesToTONAddress(f.Address)
 	if err != nil {
 		return lptypes.Filter{}, fmt.Errorf("failed to parse address %s: %w", f.Address, err)
 	}
@@ -69,7 +69,7 @@ type logModel struct {
 	ID               int64     `db:"id"`
 	FilterID         int64     `db:"filter_id"`
 	ChainID          string    `db:"chain_id"`
-	Address          string    `db:"address"`      // TON address in user-friendly format
+	Address          []byte    `db:"address"`      // TON address in raw byte format
 	EventSig         []byte    `db:"event_sig"`    // CRC32 hash as 4-byte binary
 	DataHeader       []byte    `db:"data_header"`  // BOC header (variable size)
 	DataPayload      []byte    `db:"data_payload"` // BOC payload (cell descriptor + data)
@@ -105,10 +105,11 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, log.EventSig)
 
+	rawAddr := codec.ToRawAddr(log.Address)
 	return logModel{
 		FilterID:         log.FilterID,
 		ChainID:          log.ChainID,
-		Address:          log.Address.String(),
+		Address:          rawAddr[:],
 		EventSig:         eventSig,
 		DataHeader:       dataHeader,
 		DataPayload:      dataPayload,
@@ -132,8 +133,8 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		return lptypes.Log{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(l.EventSig))
 	}
 
-	// Parse address from string format
-	addr, err := address.ParseAddr(l.Address)
+	// Parse address from raw byte format
+	addr, err := codec.AddressBytesToTONAddress(l.Address)
 	if err != nil {
 		return lptypes.Log{}, fmt.Errorf("failed to parse address %s: %w", l.Address, err)
 	}
@@ -157,6 +158,7 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		return lptypes.Log{}, fmt.Errorf("failed to parse TxLT %s: %w", l.TxLT, err)
 	}
 
+	// parse MsgLT from NUMERIC(20,0) string back to uint64
 	msgLT, err := strconv.ParseUint(l.MsgLT, 10, 64)
 	if err != nil {
 		return lptypes.Log{}, fmt.Errorf("failed to parse MsgLT %s: %w", l.MsgLT, err)
@@ -185,7 +187,7 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		TxLT:             txLT,
 		TxTimestamp:      l.TxTimestamp,
 		Block:            block,
-		MasterBlockSeqno: uint32(l.MasterBlockSeqno), //nolint:gosec // MasterBlockSeqno values are controlled and within uint32 range
+		MasterBlockSeqno: uint32(l.MasterBlockSeqno), //nolint:gosec // MasterBlockSeqno values are safe to convert to uint32
 		MsgLT:            msgLT,
 		MsgIndex:         l.MsgIndex,
 	}, nil

@@ -47,7 +47,7 @@ func TestBuildLogQuery_BasicQuery(t *testing.T) {
 			{
 				Field:    "address",
 				Operator: primitives.Eq,
-				Value:    addr.String(),
+				Value:    addr,
 			},
 			{
 				Field:    "event_sig",
@@ -63,10 +63,10 @@ func TestBuildLogQuery_BasicQuery(t *testing.T) {
 	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
-	// Check parameters
+	// Check parameters - address should be converted to bytea by queryParser
 	params := args.(map[string]any)
 	require.Equal(t, "test-chain", params["chain_id"])
-	require.Equal(t, "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF", params["address"])
+	require.IsType(t, []byte{}, params["address"]) // Should be bytea after conversion
 
 	// event_sig should be converted to []byte for DB query
 	expectedEventSig := make([]byte, 4)
@@ -91,7 +91,7 @@ func TestBuildLogQuery_WithByteFilters(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		ByteFilters:  byteFilters,
@@ -116,7 +116,7 @@ func TestBuildLogQuery_WithLimit(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		LimitAndSort: limitAndSort,
@@ -141,7 +141,7 @@ func TestBuildLogQuery_WithSorting(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		LimitAndSort: limitAndSort,
@@ -168,7 +168,7 @@ func TestBuildLogQuery_WithCursor(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		LimitAndSort: limitAndSort,
@@ -181,10 +181,10 @@ func TestBuildLogQuery_WithCursor(t *testing.T) {
 	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (address, msg_lt) > (:cursor_address, :cursor_msg_lt) ORDER BY address ASC, msg_lt ASC LIMIT 6`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
-	// Check parameters include cursor values
+	// Check parameters include cursor values (cursor is converted to bytea by queryParser)
 	params := args.(map[string]any)
 	require.Equal(t, "test-chain", params["chain_id"])
-	require.Equal(t, "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF", params["cursor_address"])
+	require.IsType(t, []byte{}, params["cursor_address"])
 	require.Equal(t, "1000", params["cursor_msg_lt"]) // 1000 from cursor (string for NUMERIC compatibility)
 }
 
@@ -205,7 +205,7 @@ func TestBuildLogQuery_InvalidByteFilter(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	_, _, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		ByteFilters:  byteFilters,
@@ -225,7 +225,7 @@ func TestBuildLogQuery_InvalidCursor(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	_, _, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		LimitAndSort: limitAndSort,
@@ -253,7 +253,7 @@ func TestBuildLogQuery_WithSingleBitFilter(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		BitFilters:   bitFilters,
@@ -289,7 +289,7 @@ func TestBuildLogQuery_WithMultiBitFilter(t *testing.T) {
 	addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
 		FieldFilters: []*query.FieldFilter{
-			{Field: "address", Operator: primitives.Eq, Value: addr.String()},
+			{Field: "address", Operator: primitives.Eq, Value: addr},
 			{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
 		},
 		BitFilters:   bitFilters,

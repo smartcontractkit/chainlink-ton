@@ -6,9 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/xssnick/tonutils-go/address"
+
 	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
@@ -141,6 +144,14 @@ func (p *queryParser) addFieldFilter(f *query.FieldFilter) error {
 	paramName := f.Field
 	paramValue := f.Value
 
+	// Special handling for address: convert to raw bytes for DB
+	if f.Field == "address" {
+		if addr, ok := f.Value.(*address.Address); ok {
+			rawAddr := codec.ToRawAddr(addr)
+			paramValue = rawAddr[:]
+		}
+	}
+
 	// Special handling for event_sig: convert uint32 to []byte
 	if f.Field == "event_sig" {
 		if eventSig, ok := f.Value.(uint32); ok {
@@ -180,7 +191,8 @@ func (p *queryParser) addCursorFilter(limitAndSort commonquery.LimitAndSort) err
 		cursorOp = ">"
 	}
 
-	p.params["cursor_address"] = addr.String()
+	rawAddr := codec.ToRawAddr(addr)
+	p.params["cursor_address"] = rawAddr[:]
 	p.params["cursor_msg_lt"] = strconv.FormatUint(msgLT, 10)
 
 	cursorCondition := fmt.Sprintf("(address, msg_lt) %s (:cursor_address, :cursor_msg_lt)", cursorOp)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
@@ -104,17 +105,17 @@ func (s *filterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Addr
 		FROM ton.log_poller_filters 
 		WHERE chain_id = :chain_id AND is_deleted = false
 	`
-	var addressStrs []string
-	err := s.orm.NamedSelectContext(ctx, &addressStrs, query, map[string]any{"chain_id": s.chainID})
+	var addressBytes [][]byte
+	err := s.orm.NamedSelectContext(ctx, &addressBytes, query, map[string]any{"chain_id": s.chainID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get distinct addresses: %w", err)
 	}
 
-	addresses := make([]*address.Address, 0, len(addressStrs))
-	for _, addrStr := range addressStrs {
-		addr, err := address.ParseAddr(addrStr)
+	addresses := make([]*address.Address, 0, len(addressBytes))
+	for _, addrBytes := range addressBytes {
+		addr, err := codec.AddressBytesToTONAddress(addrBytes)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse address %s: %w", addrStr, err)
+			return nil, fmt.Errorf("failed to parse address %v: %w", addrBytes, err)
 		}
 		addresses = append(addresses, addr)
 	}
@@ -128,10 +129,11 @@ func (s *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Add
 		FROM ton.log_poller_filters 
 		WHERE chain_id = :chain_id AND address = :address AND is_deleted = false
 	`
+	rawAddr := codec.ToRawAddr(addr)
 	var dbFilters []filterModel
 	err := s.orm.NamedSelectContext(ctx, &dbFilters, query, map[string]any{
 		"chain_id": s.chainID,
-		"address":  addr.String(),
+		"address":  rawAddr[:],
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get filters for address %s: %w", addr.String(), err)

@@ -31,7 +31,7 @@ func TestQueryBuilder_BasicQuery(t *testing.T) {
 	addressFilter := query.FieldFilters[0]
 	assert.Equal(t, "address", addressFilter.Field)
 	assert.Equal(t, primitives.Eq, addressFilter.Operator)
-	assert.Equal(t, addr.String(), addressFilter.Value)
+	assert.Equal(t, addr, addressFilter.Value)
 
 	// Check event_sig filter
 	eventSigFilter := query.FieldFilters[1]
@@ -62,7 +62,7 @@ func TestQueryBuilder_WithFields(t *testing.T) {
 
 	// Check address filter
 	assert.Equal(t, "address", query.FieldFilters[0].Field)
-	assert.Equal(t, addr.String(), query.FieldFilters[0].Value)
+	assert.Equal(t, addr, query.FieldFilters[0].Value)
 
 	// Check event_sig filter
 	assert.Equal(t, "event_sig", query.FieldFilters[1].Field)

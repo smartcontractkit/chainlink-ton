@@ -152,7 +152,7 @@ func (s *inMemoryLogs) applyFilters(log models.Log, logQuery *query.LogQuery) bo
 }
 
 var fieldExtractors = map[string]func(models.Log) any{
-	"address":            func(l models.Log) any { return l.Address.String() },
+	"address":            func(l models.Log) any { return l.Address },
 	"event_sig":          func(l models.Log) any { return l.EventSig },
 	"tx_lt":              func(l models.Log) any { return l.TxLT },
 	"tx_timestamp":       func(l models.Log) any { return l.TxTimestamp },
@@ -174,6 +174,21 @@ func (s *inMemoryLogs) matchFields(log models.Log, filter *query.FieldFilter) bo
 
 // compareValues compares two values using the specified operator
 func (s *inMemoryLogs) compareValues(logValue, filterValue any, operator primitives.ComparisonOperator) bool {
+	// Special handling for address equality (addresses are not orderable)
+	if logAddr, ok := logValue.(*address.Address); ok {
+		if filterAddr, ok := filterValue.(*address.Address); ok {
+			switch operator {
+			case primitives.Eq:
+				return logAddr.Equals(filterAddr)
+			case primitives.Neq:
+				return !logAddr.Equals(filterAddr)
+			default:
+				return false // Addresses don't support ordering operators
+			}
+		}
+		return false
+	}
+
 	cmp, ok := s.compareTypedValues(logValue, filterValue)
 	if !ok {
 		// fallback to simple equality for unsupported types
