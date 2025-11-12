@@ -327,6 +327,11 @@ get fun destChainSelectors(): tuple? {
     return keysLispList(d)!;
 }
 
+get fun sendExecutorCode(): cell {
+    val st = lazy OnRamp_Storage.load();
+    return st.executorCode;
+}
+
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
 }
