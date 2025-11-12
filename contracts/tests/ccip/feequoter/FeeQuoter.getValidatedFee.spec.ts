@@ -832,9 +832,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         data: beginCell().endCell(),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.builder.data.extraArgs
-          .encode(validEVMExtraArgs)
-          .endCell(),
+        extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
       }
 
       const result = await setup.getValidatedFee(message, beginCell().endCell())
@@ -846,24 +844,22 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   describe('SVMExtraArgs', () => {
     const validSVMExtraArgs: ExtraArgs = {
-        kind: 'svm-v1',
-        computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
-        accountIsWritableBitMap: 0n,
-        allowOutOfOrderExecution: true,
-        tokenReceiver: Buffer.alloc(32),
-        accounts: [Buffer.alloc(32)]
+      kind: 'svm-v1',
+      computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+      accountIsWritableBitMap: 0n,
+      allowOutOfOrderExecution: true,
+      tokenReceiver: Buffer.alloc(32),
+      accounts: [Buffer.alloc(32)],
     }
 
     it('valid extra args', async () => {
-        const message: rt.CCIPSend = {
+      const message: rt.CCIPSend = {
         destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.builder.data.extraArgs
-          .encode(validSVMExtraArgs)
-          .endCell(),
+        extraArgs: rt.builder.data.extraArgs.encode(validSVMExtraArgs).endCell(),
       }
 
       const result = await setup.getValidatedFee(message, beginCell().endCell())
@@ -879,7 +875,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: beginCell().endCell(),
       }
-      const result = await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.InvalidExtraArgsData)
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
     })
 
     it('reverts with invalid tag', async () => {
@@ -889,11 +888,12 @@ describe('FeeQuoter GetValidatedFee', () => {
         data: beginCell().endCell(),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.builder.data.extraArgs
-          .encode(validEVMExtraArgs)
-          .endCell(),
+        extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
       }
-      const result = await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.InvalidExtraArgsData)
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
     })
 
     it('reverts if out of order execution is false', async () => {
@@ -910,29 +910,30 @@ describe('FeeQuoter GetValidatedFee', () => {
           })
           .endCell(),
       }
-      const result = await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue)
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
+      )
     })
   })
 
   describe('SuiExtraArgs', () => {
     const validSVMExtraArgs: ExtraArgs = {
-        kind: 'sui-v1',
-        gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
-        allowOutOfOrderExecution: true,
-        tokenReceiver: Buffer.alloc(32),
-        receiverObjectIds: [Buffer.alloc(32)]
+      kind: 'sui-v1',
+      gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+      allowOutOfOrderExecution: true,
+      tokenReceiver: Buffer.alloc(32),
+      receiverObjectIds: [Buffer.alloc(32)],
     }
 
     it('valid extra args', async () => {
-        const message: rt.CCIPSend = {
+      const message: rt.CCIPSend = {
         destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.builder.data.extraArgs
-          .encode(validSVMExtraArgs)
-          .endCell(),
+        extraArgs: rt.builder.data.extraArgs.encode(validSVMExtraArgs).endCell(),
       }
 
       const result = await setup.getValidatedFee(message, beginCell().endCell())
@@ -948,7 +949,10 @@ describe('FeeQuoter GetValidatedFee', () => {
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
         extraArgs: beginCell().endCell(),
       }
-      const result = await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.InvalidExtraArgsData)
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
     })
 
     it('reverts with invalid tag', async () => {
@@ -958,11 +962,12 @@ describe('FeeQuoter GetValidatedFee', () => {
         data: beginCell().endCell(),
         tokenAmounts: [],
         feeToken: FeeQuoterSetup.NATIVE_TON.token,
-        extraArgs: rt.builder.data.extraArgs
-          .encode(validEVMExtraArgs)
-          .endCell(),
+        extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
       }
-      const result = await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.InvalidExtraArgsData)
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
     })
 
     it('reverts if out of order execution is false', async () => {
@@ -979,7 +984,10 @@ describe('FeeQuoter GetValidatedFee', () => {
           })
           .endCell(),
       }
-      const result = await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue)
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
+      )
     })
   })
 })

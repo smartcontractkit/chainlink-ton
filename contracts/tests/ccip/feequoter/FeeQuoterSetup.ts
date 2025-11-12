@@ -15,7 +15,11 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
-import { CHAIN_FAMILY_SELECTOR_EVM, CHAIN_FAMILY_SELECTOR_SVM, CHAIN_FAMILY_SELECTOR_SUI } from '../../gas-report/constants'
+import {
+  CHAIN_FAMILY_SELECTOR_EVM,
+  CHAIN_FAMILY_SELECTOR_SVM,
+  CHAIN_FAMILY_SELECTOR_SUI,
+} from '../../gas-report/constants'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -80,7 +84,7 @@ export class FeeQuoterSetup {
   static readonly CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
 
   static readonly DEST_CHAIN_SELECTOR_EVM = 909606746561742123n // EVM test chain (same as CHAINSEL_EVM_TEST_90000001)
-  static readonly DEST_CHAIN_SELECTOR_SVM = 16423721717087811551n// SVM test chain
+  static readonly DEST_CHAIN_SELECTOR_SVM = 16423721717087811551n // SVM test chain
   static readonly DEST_CHAIN_SELECTOR_SUI = 9762610643973837292n // SUI test chain
   static readonly SOURCE_CHAIN_SELECTOR = 13879075125137744094n // TON test chain
 
@@ -294,15 +298,15 @@ export class FeeQuoterSetup {
             destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
             config: {
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SVM
-             },
+              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SVM,
+            },
           },
           {
             destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
             config: {
               ...FeeQuoterSetup.destChainConfig,
-              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SUI 
-             },
+              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SUI,
+            },
           },
         ],
       },

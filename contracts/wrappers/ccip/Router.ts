@@ -447,14 +447,20 @@ export const builder = {
               .storeUint(data.accountIsWritableBitMap, 64)
               .storeBit(data.allowOutOfOrderExecution)
               .storeBuffer(data.tokenReceiver, 32)
-              .storeRef(asSnakeData(data.accounts, (account) => new Builder().storeBuffer(account, 32)))
+              .storeRef(
+                asSnakeData(data.accounts, (account) => new Builder().storeBuffer(account, 32)),
+              )
           case 'sui-v1':
             return beginCell()
               .storeUint(ExtraArgsOpcodes.suiV1, 32)
               .storeUint(data.gasLimit, 256)
               .storeBit(data.allowOutOfOrderExecution)
               .storeBuffer(data.tokenReceiver, 32)
-              .storeRef(asSnakeData(data.receiverObjectIds, (objectId) => new Builder().storeBuffer(objectId, 32)))
+              .storeRef(
+                asSnakeData(data.receiverObjectIds, (objectId) =>
+                  new Builder().storeBuffer(objectId, 32),
+                ),
+              )
         }
       },
       load: function (src: Slice): ExtraArgs {
