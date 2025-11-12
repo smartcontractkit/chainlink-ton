@@ -64,6 +64,7 @@ describe('MCMS', () => {
     expect(mcms.opcodes.in.SetRoot).toBe(0xe7fabde3)
     expect(mcms.opcodes.in.Execute).toBe(0x9b9ce96a)
     expect(mcms.opcodes.in.SetConfig).toBe(0x89277f4b)
+    expect(mcms.opcodes.in.UpdateOpFinalizationTimeout).toBe(0x9dcbbab1)
     expect(mcms.opcodes.in.SubmitErrorReport).toBe(0x4b3af0b5)
     expect(mcms.opcodes.in.TransferOracleRole).toBe(0xf275742f)
 
@@ -71,6 +72,7 @@ describe('MCMS', () => {
     expect(mcms.opcodes.out.NewRoot).toBe(0xa6533a3d)
     expect(mcms.opcodes.out.ConfigSet).toBe(0xd80be574)
     expect(mcms.opcodes.out.OpExecuted).toBe(0x7cf37cbf)
+    expect(mcms.opcodes.out.OpFinalizationTimeoutChange).toBe(0x16fc10e6)
     expect(mcms.opcodes.out.ErrorReportedSubmitted).toBe(0xbbc4deb4)
     expect(mcms.opcodes.out.OracleRoleTransferred).toBe(0xff4176a3)
   })

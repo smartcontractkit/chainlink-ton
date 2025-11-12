@@ -64,6 +64,21 @@ export type SetConfig = {
   clearRoot: boolean
 }
 
+/// Changes the timeout required to finalize the currently executing op
+///
+/// Replies with {MCMS_OpFinalizationTimeoutChange} message.
+///
+/// Requirements:
+///
+/// - the caller must be the owner
+export type UpdateOpFinalizationTimeout = {
+  // Query ID of the change request.
+  queryId: bigint
+
+  // The timeout required to finalize the currently executing op
+  newOpFinalizationTimeout: number
+}
+
 /// Submit an oracle error report, which marks the current root as invalid.
 ///
 /// The error report is used for a category of errors which might occur during execution
@@ -101,6 +116,7 @@ export type InMessage =
   | SetRoot // <br>
   | Execute
   | SetConfig
+  | UpdateOpFinalizationTimeout
   | SubmitErrorReport
   | TransferOracleRole
 
@@ -411,13 +427,15 @@ export const opcodes = {
     SetRoot: crc32('MCMS_SetRoot'),
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
+    UpdateOpFinalizationTimeout: crc32('MCMS_UpdateOpFinalizationTimeout'),
     SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
     TransferOracleRole: crc32('MCMS_TransferOracleRole'),
   },
   out: {
     NewRoot: crc32('MCMS_NewRoot'),
-    ConfigSet: crc32('MCMS_ConfigSet'),
     OpExecuted: crc32('MCMS_OpExecuted'),
+    ConfigSet: crc32('MCMS_ConfigSet'),
+    OpFinalizationTimeoutChange: crc32('MCMS_OpFinalizationTimeoutChange'),
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
     OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
   },
@@ -527,6 +545,21 @@ export const builder = {
               ),
             ),
             clearRoot: src.loadBoolean(),
+          }
+        },
+      },
+      updateOpFinalizationTimeout: {
+        encode: (msg: UpdateOpFinalizationTimeout): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.newOpFinalizationTimeout, 64)
+        },
+        load: (src: Slice): UpdateOpFinalizationTimeout => {
+          src.skip(32) // skip opcode
+          return {
+            queryId: src.loadUintBig(64),
+            newOpFinalizationTimeout: src.loadUint(64),
           }
         },
       },

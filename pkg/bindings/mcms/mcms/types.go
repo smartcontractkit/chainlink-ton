@@ -96,6 +96,22 @@ type SetConfig struct {
 	ClearRoot    bool                          `tlb:"bool"`
 }
 
+// Changes the timeout required to finalize the currently executing op
+//
+// Replies with {MCMS_OpFinalizationTimeoutChange} message.
+//
+// Requirements:
+//
+// - the caller must be the owner
+type UpdateOpFinalizationTimeout struct {
+	_ tlb.Magic `tlb:"#9dcbbab1"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryId uint64 `tlb:"## 64"`
+
+	// The timeout required to finalize the currently executing op
+	NewOpFinalizationTimeout uint64 `tlb:"## 64"`
+}
+
 // Submit an oracle error report, which marks the current root as invalid.
 //
 // The error report is used for a category of errors which might occur during execution
@@ -148,6 +164,16 @@ type ConfigSet struct {
 
 	Config        Config `tlb:"."`    // The new config.
 	IsRootCleared bool   `tlb:"bool"` // Whether the root was cleared.
+}
+
+// Replied to sender when the op finalization timeout is modified.
+type OpFinalizationTimeoutChange struct {
+	_ tlb.Magic `tlb:"#16fc10e6"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	OldDuration uint64 `tlb:"## 64"` // Duration of the old timeout in seconds.
+	NewDuration uint64 `tlb:"## 64"` // Duration of the new timeout in seconds.
 }
 
 // Sent back to sender when an op gets successfully executed.

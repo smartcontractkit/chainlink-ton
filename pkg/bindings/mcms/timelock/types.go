@@ -122,10 +122,10 @@ type UpdateDelay struct {
 // - the caller must have the 'admin' role.
 type UpdateOpFinalizationTimeout struct {
 	_ tlb.Magic `tlb:"#94278d4f"` //nolint:revive // (opcode) should stay uninitialized
-	/// Query ID of the change request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	/// The timeout required to finalize the currently executing op
+	// The timeout required to finalize the currently executing op
 	NewOpFinalizationTimeout uint64 `tlb:"## 64"`
 }
 
@@ -272,6 +272,16 @@ type MinDelayChange struct {
 
 	OldDuration uint64 `tlb:"## 64"` // Duration of the old minimum delay in seconds.
 	NewDuration uint64 `tlb:"## 64"` // Duration of the new minimum delay in seconds.
+}
+
+// Replied to sender when the op finalization timeout is modified.
+type OpFinalizationTimeoutChange struct {
+	_ tlb.Magic `tlb:"#1f102718"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	OldDuration uint64 `tlb:"## 64"` // Duration of the old timeout in seconds.
+	NewDuration uint64 `tlb:"## 64"` // Duration of the new timeout in seconds.
 }
 
 // Emitted when a function selector is blocked.
