@@ -17,7 +17,6 @@ type CCIPSendExecutor_InMessage =
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
     onrampSend: OnRamp_Send,
     config: Cell<CCIPSendExecutor_Config>,
-    onrampJettonWallet: address? = null,
 }
 
 // crc32('CCIPSendExecutor_MessageValidated')

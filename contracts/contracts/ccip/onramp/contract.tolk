@@ -78,7 +78,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
+fun send(payload: OnRamp_Send, sender: address) {
     var st = lazy OnRamp_Storage.load();
 
     val msg = payload.msg.load();
@@ -105,7 +105,6 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
             config: CCIPSendExecutor_Config {
                 feeQuoter: config.feeQuoter,
             }.toCell(),
-            onrampJettonWallet: jettonWallet,
         }
     });
 
