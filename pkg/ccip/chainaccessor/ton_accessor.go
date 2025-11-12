@@ -267,7 +267,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1).                              // only get the last one
+		Limit(1). // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -654,7 +654,6 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		err := gasPrice.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(selector)})
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
-			// TODO revisit the common error code, right now common.UnknownDestChainSelector doesn't match with on-chain
 			prices[selector] = ccipocr3.TimestampedUnixBig{
 				Timestamp: 0,
 				Value:     big.NewInt(0),
@@ -750,7 +749,6 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if err != nil {
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here
-				// TODO revisit the common error code, right now common.TokenNotSupported doesn't match with on-chain
 				prices[ccipocr3.UnknownEncodedAddress(strAddr)] = ccipocr3.TimestampedUnixBig{
 					Timestamp: 0,
 					Value:     big.NewInt(0),

@@ -38,13 +38,13 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorInsufficientFee)
+		ecMax = int32(ErrorUnauthorizedPriceUpdater)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	ErrorUnsupportedChainFamilySelector ExitCode = iota + 1001
+	ErrorUnsupportedChainFamilySelector ExitCode = ExitCode(24800 + iota)
 	ErrorGasLimitTooHigh
 	ExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
@@ -53,10 +53,22 @@ const (
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
 	ErrorMsgDataTooLarge
+	ErrorStaleGasPrice
+	ErrorDestChainNotEnabled
+	ErrorFeeTokenNotSupported
+	ErrorInvalidMsgData
+	ErrorTokenNotSupported
+	ErrorUnknownDestChainSelector
 	ErrorInsufficientFee
-
-	ErrorTokenNotSupported        ExitCode = ExitCode(24813)
-	ErrorUnknownDestChainSelector ExitCode = ExitCode(24814)
+	ErrorTokenTransfersNotSupported
+	// Overflow protection errors
+	ErrorExecutionCostOverflow
+	ErrorPremiumFeeOverflow
+	ErrorDataAvailabilityCostOverflow
+	ErrorFeeCalculationOverflow
+	ErrorTokenPriceTooLow
+	ErrorFeeOverflow
+	ErrorUnauthorizedPriceUpdater
 )
 
 type Storage struct {
