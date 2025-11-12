@@ -51,15 +51,15 @@ export type Execute = {
 }
 
 export type MessageValidated = {
+  fee: bigint
   msg: rt.CCIPSend
   metadata: Cell
-  fee: bigint
 }
 
 export type MessageValidationFailed = {
+  error: bigint
   msg: rt.CCIPSend
   metadata: Cell
-  error: bigint
 }
 
 export const builder = {
@@ -89,16 +89,16 @@ export const builder = {
         encode: (data: MessageValidated): TonBuilder => {
           return beginCell()
             .storeUint(Opcodes.messageValidated, 32)
+            .storeCoins(data.fee)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeRef(data.metadata)
-            .storeCoins(data.fee)
         },
         load: (src: Slice): MessageValidated => {
           src.skip(32) // opcode
           return {
+            fee: src.loadCoins(),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             metadata: src.loadRef(),
-            fee: src.loadCoins(),
           }
         },
       }
@@ -107,9 +107,9 @@ export const builder = {
         encode: (data: MessageValidationFailed): TonBuilder => {
           return beginCell()
             .storeUint(Opcodes.messageValidationFailed, 32)
+            .storeUint(data.error, 256)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeRef(data.metadata)
-            .storeUint(data.error, 256)
         },
         load: (src: Slice): MessageValidationFailed => {
           src.skip(32) // opcode

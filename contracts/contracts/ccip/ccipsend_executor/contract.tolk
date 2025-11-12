@@ -165,10 +165,10 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
+            fee,
             msgID: self.messageID,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-            fee,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);
@@ -188,9 +188,9 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, sender: address) {
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
             msgID: self.messageID,
+            error: error,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-            error: error,
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);

@@ -147,8 +147,8 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
         value: 0,
         dest: userAddress,
         body: OnRamp_MessageValidationFailed<RemainingBitsAndRefs> {
-            msg: msg.msg,
             error: msg.error,
+            msg: msg.msg,
             context: userContext,
         }
     });

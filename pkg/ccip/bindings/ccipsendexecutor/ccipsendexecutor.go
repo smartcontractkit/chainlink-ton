@@ -50,17 +50,17 @@ type Execute struct {
 // FeeQuoter_MessageValidated message structure
 type MessageValidated struct {
 	_        tlb.Magic        `tlb:"#cbc4af76"` //nolint:revive // Ignore opcode tag
+	Fee      *tlb.Coins       `tlb:"."`
 	Msg      *router.CCIPSend `tlb:"^"`
 	Metadata *cell.Cell       `tlb:"^"`
-	Fee      *tlb.Coins       `tlb:"."`
 }
 
 // FeeQuoter_MessageValidationFailed message structure
 type MessageValidationFailed struct {
-	_        tlb.Magic        `tlb:"#0f756150"` //nolint:revive // Ignore opcode tag
-	Msg      *router.CCIPSend `tlb:"^"`
-	Metadata *cell.Cell       `tlb:"^"`
-	Reason   string           `tlb:"str"`
+	_       tlb.Magic        `tlb:"#0f756150"` //nolint:revive // Ignore opcode tag
+	Error   big.Int          `tlb:"."`
+	Msg     *router.CCIPSend `tlb:"^"`
+	Context *cell.Cell       `tlb:"^"`
 }
 
 // Metadata structure

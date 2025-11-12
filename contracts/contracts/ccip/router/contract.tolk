@@ -326,8 +326,8 @@ fun onMessageValidated(msg: OnRamp_MessageValidated<Router_GetValidatedFeeContex
         value: 0,
         dest: userAddress,
         body: Router_MessageValidated {
-            msg: msg.msg,
             fee: msg.fee,
+            msg: msg.msg,
             context: msg.context.userContext,
         }
     });
@@ -346,8 +346,8 @@ fun onMessageValidationFailed(msg: OnRamp_MessageValidationFailed<Router_GetVali
         value: 0,
         dest: userAddress,
         body: Router_MessageValidationFailed {
-            msg: msg.msg,
             error: msg.error,
+            msg: msg.msg,
             context: msg.context.userContext,
         }
     });

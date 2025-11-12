@@ -37,15 +37,15 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 
 // crc32('FeeQuoter_MessageValidated')
 struct (0x1fa60374) FeeQuoter_MessageValidated<T> {
-    msg: Cell<Router_CCIPSend>
     fee: coins
+    msg: Cell<Router_CCIPSend>
     context: T
 }
 
 // crc32('FeeQuoter_MessageValidationFailed')
 struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
-    msg: Cell<Router_CCIPSend>,
     error: uint256,
+    msg: Cell<Router_CCIPSend>,
     context: T
 }
 

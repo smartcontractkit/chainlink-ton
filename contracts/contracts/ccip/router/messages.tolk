@@ -122,15 +122,15 @@ struct Router_GetValidatedFeeContext {
 
 // crc32('Router_MessageValidated')
 struct (0x9e2155ec) Router_MessageValidated<T> {
-    msg: Cell<Router_CCIPSend>
     fee: coins
+    msg: Cell<Router_CCIPSend>
     context: T
 }
 
 // crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed<T> {
-    msg: Cell<Router_CCIPSend>,
     error: uint256,
+    msg: Cell<Router_CCIPSend>,
     context: T
 }
 

@@ -57,16 +57,16 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     msgID: uint224,
+    fee: coins
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
-    fee: coins
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     msgID: uint224,
+    error: uint256,
     msg: Cell<Router_CCIPSend>,
     metadata: Metadata,
-    error: uint256,
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
@@ -83,15 +83,15 @@ struct (0x10000005) OnRamp_UpdateAllowlists {
 
 // crc32('OnRamp_MessageValidated')
 struct (0x2afb11bd) OnRamp_MessageValidated<T> {
-    msg: Cell<Router_CCIPSend>
     fee: coins
+    msg: Cell<Router_CCIPSend>
     context: T
 }
 
 // crc32('OnRamp_MessageValidationFailed')
 struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
-    msg: Cell<Router_CCIPSend>,
     error: uint256,
+    msg: Cell<Router_CCIPSend>,
     context: T
 }
 
