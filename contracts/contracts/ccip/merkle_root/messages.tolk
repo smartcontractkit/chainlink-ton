@@ -1,5 +1,5 @@
 import "../offramp/types"
-import "../receive_executor/types"
+import "../offramp/messages"
 
 type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_MarkState;
 
@@ -11,7 +11,23 @@ struct (0x038ede91) MerkleRoot_Validate {
     gasOverride: coins?,
 }
 
-struct (0x01234567) MerkleRoot_MarkState {
+//crc32('MerkleRoot_MarkState')
+struct (0x019f4cd2) MerkleRoot_MarkState {
     seqNum: uint64,
     state: ExecutionState
 }
+
+struct MerkleRoot_Costs{}
+
+fun MerkleRoot_Costs.validate(){
+    val baseFee = MERKLE_ROOT_COSTS_VALIDATE_FEE; // validateFees
+    return baseFee + OffRamp_Costs.executeValidated();
+}
+
+fun MerkleRoot_Costs.markState() {
+    return MERKLE_ROOT_COSTS_MARK_STATE_FEE;
+}
+
+const MERKLE_ROOT_COSTS_MARK_STATE_FEE = ton("0.005");
+const MERKLE_ROOT_COSTS_VALIDATE_FEE = ton("0.012");
+

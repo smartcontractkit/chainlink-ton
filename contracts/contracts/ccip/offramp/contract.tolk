@@ -52,7 +52,7 @@ fun onInternalMessage(in:InMessage) {
         } 
         // Permissionless
         OffRamp_ManuallyExecute => {
-            _manually_execute(msg, in.senderAddress, in.valueCoins)
+            _manually_execute(msg, in.valueCoins)
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => { 
@@ -368,19 +368,19 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
     );
 }
 
-fun _manually_execute(msg: OffRamp_ManuallyExecute, sender: address, value: coins) {
+fun _manually_execute(msg: OffRamp_ManuallyExecute, value: coins) {
     var st = Storage.load();
 
     val report = msg.report;
 
     // when_chain_not_forked assert
 
-    _execute_single_report(msg.report, msg.gasOverride, sender, value);
+    _execute_single_report(msg.report, msg.gasOverride, value);
 
 }
 
 fun _execute(msg: OffRamp_Execute, sender: address, value: coins) {
-    _execute_single_report(msg.report, null, sender, value);
+    _execute_single_report(msg.report, null, value);
 
     var st = Storage.load();
 
@@ -394,7 +394,7 @@ fun _execute(msg: OffRamp_Execute, sender: address, value: coins) {
 
 }
 
-fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address, value: coins) {
+fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, value: coins) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
@@ -406,16 +406,8 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    val isManualExec = gasOverride != null;
-    debug.printString("execute value");
-    debug.print(value);
-    debug.printString("required value");
-    debug.print(OffRamp_Costs.execute(isManualExec));
-    debug.printString("message gasLimit");
-    debug.print(message.gasLimit);
-
     // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
-    assert(value >= (OffRamp_Costs.execute(isManualExec) + message.gasLimit), Error.InsufficientFee);
+    assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
@@ -451,7 +443,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
          bounce: true,
-         value: MerkleRoot_Costs.validate(isManualExec),
+         value: MerkleRoot_Costs.validate(),
          dest: {
              stateInit: {
                  code: st.deployables.load().deployer,

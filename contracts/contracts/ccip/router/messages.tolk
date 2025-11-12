@@ -6,6 +6,7 @@ import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/types"
+import "../offramp/messages"
 import "../onramp/messages"
 
 type Router_InMsg =

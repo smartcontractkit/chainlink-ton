@@ -123,69 +123,6 @@ enum ExecutionState: uint8 { // TODO: compress to uint2?
 }
 
 const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.02");
-
 const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
 
-struct OffRamp_Costs{}
-struct MerkleRoot_Costs{}
-struct ReceiveExecutor_Costs{}
-
-fun MerkleRoot_Costs.validate(isManualExec: bool){
-    val baseFee = ton("0.012"); // validateFees
-    return baseFee + OffRamp_Costs.executeValidated(isManualExec);
-}
-
-fun OffRamp_Costs.executeValidated(isManualExec: bool){
-    val baseFee = ton("0.012");
-    if (!isManualExec) {
-        return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec();
-    } else {
-        return baseFee + ReceiveExecutor_Costs.initExec();
-    }
-}
-
-// adds up to 0.03
-fun ReceiveExecutor_Costs.initExec(){
-    val baseFee = ton("0.004");
-    return baseFee + OffRamp_Costs.dispatchValidated();
-}
-
-fun OffRamp_Costs.dispatchValidated(){
-    val baseFee = ton("0.005");
-    return baseFee + Router_Costs.routeMessage();
-}
-
-fun OffRamp_Costs.receiveConfirmOrDeny() {
-    val baseFee = ton("0.004");
-    return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
-}
-
-fun OffRamp_Costs.notify() {
-    val baseFee = ton("0.004");
-    return baseFee + MerkleRoot_Costs.markState();
-}
-
-fun MerkleRoot_Costs.markState() {
-    return ton("0.005");
-}
-
-fun ReceiveExecutor_Costs.confirmedOrBounced() {
-    val baseFee = ton("0.007");
-    return baseFee + OffRamp_Costs.notify();
-}
-
-fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool) {
-    val baseFee = ton("0.015");
-    if (priceUpdatesOnlyReport) {
-        return baseFee + FeeQuoter_Costs.updatePrices();
-    } else {
-        val totalAmountForRoot = AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT;
-        return baseFee + FeeQuoter_Costs.updatePrices() + totalAmountForRoot;
-    }
-}
-
-fun OffRamp_Costs.execute(isManualExec: bool) {
-    val baseFee = ton("0.0125");
-    return baseFee + MerkleRoot_Costs.validate(isManualExec);
-}
 
