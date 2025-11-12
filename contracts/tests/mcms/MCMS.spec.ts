@@ -7,7 +7,7 @@ import { crc32 } from 'zlib'
 
 import { mcms } from '../../wrappers/mcms'
 import { errorCode } from '../../wrappers/utils'
-import { Opcodes } from '../../wrappers/ccip/OffRamp'
+import { Opcodes, OpcodesOutgoing } from '../../wrappers/ccip/OffRamp'
 
 describe('MCMS', () => {
   let blockchain: Blockchain

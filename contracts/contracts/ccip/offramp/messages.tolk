@@ -29,6 +29,9 @@ type OffRamp_InMessage =
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw;
 
+type OffRamp_OutMessage =
+    | OffRamp_DynamicConfigSet;
+
 struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;
     reportContext: ReportContext;
@@ -97,6 +100,15 @@ struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
 }
 
 struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
+    queryId: uint64;
+
+    feeQuoter: address;
+    permissionlessExecutionThresholdSeconds: uint32,
+}
+
+// --- Messages - outgoing ---
+
+struct (0xf5f89140) OffRamp_DynamicConfigSet {
     queryId: uint64;
 
     feeQuoter: address;

@@ -158,6 +158,13 @@ type SetDynamicConfig struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
+type DynamicConfigSet struct {
+	_                                       tlb.Magic        `tlb:"#f5f89140"` //nolint:revive // Ignore opcode tag
+	QueryID                                 uint64           `tlb:"## 64"`
+	FeeQuoter                               *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+}
+
 // Config types that implements getter fetching interface with rpc client
 
 // Config represents the offRamp contract configuration
