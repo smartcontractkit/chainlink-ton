@@ -106,12 +106,12 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 	signedClientProvider := commonutils.NewLazyLoadCtx(func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
 		tonClient, err1 := ch.GetClient(ctx)
 		if err1 != nil {
-			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err1)
 		}
 
 		signerWallet, err1 := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
 		if err1 != nil {
-			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err1)
 		}
 
 		return tracetracking.SignedAPIClient{
