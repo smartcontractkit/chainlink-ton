@@ -109,11 +109,11 @@ func (c *ccipTransmitter) Transmit(
 	//	 but we should have a lower value for price-update only reports
 	//	 and these values should be configurable
 	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.05") 
+	baseAmount := tlb.MustFromTON("0.05")
 	if gasLimit != nil {
 		finalAmount = baseAmount.MustAdd(gasLimit)
 		extraForExecute := tlb.MustFromTON("0.035")
-		finalAmount= finalAmount.MustAdd(&extraForExecute)
+		finalAmount = finalAmount.MustAdd(&extraForExecute)
 	} else {
 		finalAmount = &baseAmount
 	}
