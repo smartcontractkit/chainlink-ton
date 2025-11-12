@@ -166,11 +166,11 @@ fun OffRamp_Costs.notify() {
 }
 
 fun MerkleRoot_Costs.markState() {
-    return ton("0.003");
+    return ton("0.004");
 }
 
 fun ReceiveExecutor_Costs.confirmedOrBounced() {
-    val baseFee = ton("0.004");
+    val baseFee = ton("0.007");
     return baseFee + OffRamp_Costs.notify();
 }
 
