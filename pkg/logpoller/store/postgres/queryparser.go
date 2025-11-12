@@ -16,6 +16,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
 )
 
+const (
+	sqlArrayIndexOffset = 1 // SQL uses 1-based indexing for array indices
+)
+
 // queryParser helps build SQL queries with named parameters for TON log retrieval
 type queryParser struct {
 	query         strings.Builder
@@ -114,8 +118,8 @@ func (p *queryParser) addByteFilter(filter *query.ByteFilter) error {
 	for _, condition := range filter.Conditions {
 		// Query operates on data_payload which starts with 2-byte cell descriptor
 		// Cell data starts at byte 2, so: offset + 1 (SQL 1-based) + 2 (descriptor)
-		sqlOffset := int(filter.Offset) + 1 + boc.CellDescriptorSize //nolint:gosec // byte filter offsets are small values
-		sqlSize := int(filter.Size)                                  //nolint:gosec // byte filter sizes are small values
+		sqlOffset := int(filter.Offset) + sqlArrayIndexOffset + boc.CellDescriptorSize //nolint:gosec // byte filter offsets are small values
+		sqlSize := int(filter.Size)                                                    //nolint:gosec // byte filter sizes are small values
 
 		operatorSQL, err := buildOperator(condition.Operator)
 		if err != nil {
@@ -263,6 +267,11 @@ func (p *queryParser) addBitFilter(f *query.BitFilter) error {
 
 // convertToPostgresBitOffset converts our bit numbering to PostgreSQL BYTEA's bit numbering.
 // PostgreSQL BYTEA: bit 0 = rightmost bit of byte 0(LSB), see https://www.postgresql.org/docs/16/functions-binarystring.html
+// Examples:
+//
+//	convertToPostgresBitOffset(0) = 7  // First bit of first byte
+//	convertToPostgresBitOffset(7) = 0  // Last bit of first byte
+//	convertToPostgresBitOffset(8) = 15 // First bit of second byte
 func convertToPostgresBitOffset(bit uint64) uint64 {
 	byteIndex := bit / 8
 	bitInByte := bit % 8
