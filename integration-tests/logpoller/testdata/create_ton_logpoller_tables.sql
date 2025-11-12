@@ -1,3 +1,13 @@
+-- NOTE: This is a duplicate of chainlink/core/store/migrate/migrations/XXXX_add_ton_schema.sql
+--
+-- TODO: Remove this file and use chainlink core migrations directly for database I/O tests
+--       This requires updating chainlink/v2 dependency to a version that includes migration for TON
+--       and using heavyweight.FullTestDBEmptyV2 + migrate.NewProvider pattern
+--       See: chainlink/core/utils/testutils/heavyweight/orm.go
+--
+-- Reason for duplicate: Currently exists to enable lightweight database I/O testing without
+--                       requiring CL_DATABASE_URL setup or heavyweight test infrastructure
+
 -- Create schema
 CREATE SCHEMA ton;
 
