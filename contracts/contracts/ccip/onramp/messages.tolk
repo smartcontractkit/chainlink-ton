@@ -29,13 +29,6 @@ struct (0x10000002) OnRamp_Send {
     metadata: Metadata
 }
 
-// crc32('OnRamp_WithdrawJettons')
-struct (0x266AEACF) OnRamp_WithdrawJettons {
-    msgId: uint224,
-    tokens: SnakedCell<TokenAmount>;
-    onrampJettonWallet: address;
-}
-
 struct (0x10000003) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
@@ -64,9 +57,6 @@ struct (0x10000004) OnRamp_UpdateDestChainConfigs {
 struct (0x10000005) OnRamp_UpdateAllowlists {
     updates: cell; // vec<UpdateAllowlist>
 }
-
-struct WithdrawFeeTokens {}
-
 
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}

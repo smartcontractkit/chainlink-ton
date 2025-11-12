@@ -158,7 +158,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
             receiver: ccipsend.receiver.toCell(),
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
-            tokenAmounts: createEmptyCell(), // TODO:
+            tokenAmounts: ccipsend.tokenAmounts,
             feeToken: ccipsend.feeToken,
             feeTokenAmount: payload.fee as uint256, // safe because it is 128 bits
         }.toCell(),

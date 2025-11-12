@@ -25,8 +25,6 @@ import "../../lib/receiver/types"
 const CONTRACT_VERSION = "0.0.12";
 const RESERVE = ton("5"); 
 
-// TODO: handle signals from MerkleRoot for releaseTokens
-
 // NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
