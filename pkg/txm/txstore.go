@@ -93,7 +93,7 @@ func (s *TxStore) GetUnconfirmed() []*UnconfirmedTx {
 
 	unconfirmed := maps.Values(s.unconfirmedTxs)
 
-	// TODO: should this be sorted by LT instead?
+	// TODO: consider sorting by LT instead
 	sort.Slice(unconfirmed, func(i, j int) bool {
 		return unconfirmed[i].ExpirationMs < unconfirmed[j].ExpirationMs
 	})

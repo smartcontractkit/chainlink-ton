@@ -127,11 +127,15 @@ describe('CCIP OnRamp Gas Estimation', () => {
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Configure Router
-    await router.sendSetRamps(deployer.getSender(), {
+    await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
       value: toNano('0.1'),
-      queryID: 0,
-      destChainSelector: [CHAINSEL_EVM_TEST],
-      onRamp: onRamp.address,
+      data: {
+        queryID: BigInt(0),
+        onRamps: {
+          destChainSelectors: [CHAINSEL_EVM_TEST],
+          onRamp: onRamp.address,
+        },
+      },
     })
 
     // Configure OnRamp

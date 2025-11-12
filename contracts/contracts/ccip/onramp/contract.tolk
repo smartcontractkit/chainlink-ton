@@ -16,6 +16,7 @@ import "../ccipsend_executor/messages"
 import "../router/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "events"
 
 const CONTRACT_VERSION = "0.0.9";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -35,6 +36,13 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             st.config = msg.config.toCell();
             st.store();
+            emit(
+                CONFIG_SET_TOPIC,
+                ConfigSet {
+                    chainSelector: st.chainSelector,
+                    dynamicConfig: msg.config,
+                }
+            )
         }
         OnRamp_UpdateDestChainConfigs => {
             var st = lazy OnRamp_Storage.load();
@@ -303,16 +311,10 @@ fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
     }
 }
 
-// calculateMetadataHash/calculateMessageHash
-
 get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
-}
-
-fun withdrawFeeTokens() {
-    
 }
 
 get fun typeAndVersion(): (slice, slice) {
