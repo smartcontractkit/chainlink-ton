@@ -311,16 +311,10 @@ fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
     }
 }
 
-// calculateMetadataHash/calculateMessageHash
-
 get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
-}
-
-fun withdrawFeeTokens() {
-    
 }
 
 get fun typeAndVersion(): (slice, slice) {
