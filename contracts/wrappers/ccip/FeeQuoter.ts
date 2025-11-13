@@ -457,7 +457,7 @@ export type RemovePriceUpdater = {
 
 export type UpdatePrices = {
   updates: PriceUpdates
-  sendExcessesTo: Address | undefined
+  sendExcessesTo: Address | null
 }
 
 export type UpdateFeeTokens = {

@@ -126,7 +126,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.deployer.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: undefined}
+        msg: { updates: priceUpdates, sendExcessesTo: null}
       },
     )
     expect(updateResult.transactions).toHaveTransaction({
