@@ -20,8 +20,8 @@ import "events"
 import "../../deployable/types"
 import "../fee_quoter/messages"
 
-const CONTRACT_VERSION = "0.0.9";
-const RESERVE = ton("1"); // TODO: set correct value
+const CONTRACT_VERSION = "1.6.0";
+const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
