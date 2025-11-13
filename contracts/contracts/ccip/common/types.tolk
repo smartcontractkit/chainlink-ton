@@ -1,5 +1,6 @@
 import "errors";
 import "../../lib/utils";
+import "../../deployable/types"
 
 // 1-byte length prefixed byte slice (up to 64 bytes)
 // Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits

@@ -13,26 +13,21 @@ func _() {
 	_ = x[SenderIsNotOffRamp-49602]
 	_ = x[OffRampNotSetForSelector-49603]
 	_ = x[OffRampAddressMismatch-49604]
-	_ = x[ErrorUnknownMessage-4098]
+	_ = x[ErrorSubjectCursed-49605]
+	_ = x[ErrorNotOnRamp-49606]
+	_ = x[ErrorMissingTokenAmounts-49607]
+	_ = x[ErrorNoMultiTokenTransfers-49608]
+	_ = x[ErrorInsufficientFee-49609]
 }
 
-const (
-	_ExitCode_name_0 = "ErrorUnknownMessage"
-	_ExitCode_name_1 = "ErrorDestChainNotEnabledErrorSourceChainNotEnabledSenderIsNotOffRampOffRampNotSetForSelectorOffRampAddressMismatch"
-)
+const _ExitCode_name = "ErrorDestChainNotEnabledErrorSourceChainNotEnabledSenderIsNotOffRampOffRampNotSetForSelectorOffRampAddressMismatchErrorSubjectCursedErrorNotOnRampErrorMissingTokenAmountsErrorNoMultiTokenTransfersErrorInsufficientFee"
 
-var (
-	_ExitCode_index_1 = [...]uint8{0, 24, 50, 68, 92, 114}
-)
+var _ExitCode_index = [...]uint8{0, 24, 50, 68, 92, 114, 132, 146, 170, 196, 216}
 
 func (i ExitCode) String() string {
-	switch {
-	case i == 4098:
-		return _ExitCode_name_0
-	case 49600 <= i && i <= 49604:
-		i -= 49600
-		return _ExitCode_name_1[_ExitCode_index_1[i]:_ExitCode_index_1[i+1]]
-	default:
+	idx := int(i) - 49600
+	if i < 49600 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
+	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]
 }

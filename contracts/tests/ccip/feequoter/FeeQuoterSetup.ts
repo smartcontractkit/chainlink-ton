@@ -15,6 +15,11 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
+import {
+  CHAIN_FAMILY_SELECTOR_EVM,
+  CHAIN_FAMILY_SELECTOR_SVM,
+  CHAIN_FAMILY_SELECTOR_SUI,
+} from '../../gas-report/constants'
 
 export type TestCode = {
   feeQuoter: Cell
@@ -78,7 +83,9 @@ export class FeeQuoterSetup {
   static readonly CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
   static readonly CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
 
-  static readonly DEST_CHAIN_SELECTOR = 909606746561742123n // EVM test chain (same as CHAINSEL_EVM_TEST_90000001)
+  static readonly DEST_CHAIN_SELECTOR_EVM = 909606746561742123n // EVM test chain (same as CHAINSEL_EVM_TEST_90000001)
+  static readonly DEST_CHAIN_SELECTOR_SVM = 16423721717087811551n // SVM test chain
+  static readonly DEST_CHAIN_SELECTOR_SUI = 9762610643973837292n // SUI test chain
   static readonly SOURCE_CHAIN_SELECTOR = 13879075125137744094n // TON test chain
 
   // Packed gas price (L1 gas price left-shifted + L2 gas price)
@@ -284,8 +291,22 @@ export class FeeQuoterSetup {
         value: toNano('1'),
         updates: [
           {
-            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
             config: FeeQuoterSetup.destChainConfig,
+          },
+          {
+            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+            config: {
+              ...FeeQuoterSetup.destChainConfig,
+              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SVM,
+            },
+          },
+          {
+            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+            config: {
+              ...FeeQuoterSetup.destChainConfig,
+              chainFamilySelector: CHAIN_FAMILY_SELECTOR_SUI,
+            },
           },
         ],
       },
@@ -321,7 +342,7 @@ export class FeeQuoterSetup {
       tokenPricesUpdates: pricedTokens,
       gasPricesUpdates: [
         {
-          chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+          chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
           executionGasPrice: FeeQuoterSetup.USD_PER_GAS,
           dataAvailabilityGasPrice: FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         },
@@ -361,7 +382,7 @@ export class FeeQuoterSetup {
         msg: {
           updates: new Map([
             [
-              FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+              FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
               {
                 add: new Map([
                   [
@@ -461,7 +482,7 @@ export class FeeQuoterSetup {
     feeToken?: Address
   }): rt.CCIPSend {
     return {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts,

@@ -3,7 +3,6 @@ import "storage"
 import "errors"
 import "../onramp/messages"
 import "../onramp/types"
-import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
 import "../../lib/access/ownable_2step"
@@ -13,22 +12,33 @@ import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/messages"
 import "@stdlib/lisp-lists"
+import "types"
 import "../offramp/types"
+import "events"
 
-
-const CONTRACT_VERSION = "0.0.7";
+const CONTRACT_VERSION = "0.0.8";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Router_InMsg.fromSlice(in.body);
     match (msg) {
-        Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
-        Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
-        Router_CCIPSend => { 
+        Router_ApplyRampUpdates => { onApplyRampUpdates(msg, in.senderAddress) }
+        Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onSend(msg, in.senderAddress, in.valueCoins)
-            }
+        }
+        Router_GetValidatedFee<RemainingBitsAndRefs> => {
+            val minValue = Router_Costs.GetValidatedFee();
+            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            onGetValidatedFee(msg, in.senderAddress)
+        }
+        OnRamp_MessageValidated<Router_GetValidatedFeeContext> => {
+            onMessageValidated(msg, in.senderAddress)
+        }
+        OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext> => {
+            onMessageValidationFailed(msg, in.senderAddress)
+        }
         Router_RouteMessage => { 
             routeMessage(msg, in.senderAddress)
             }
@@ -41,6 +51,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.curse(subject);
+                emit(
+                    CURSED_TOPIC,
+                    Cursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -67,6 +83,12 @@ fun onInternalMessage(in: InMessage) {
             while (!subjects.empty()) {
                 val subject = subjects.next();  
                 rmn.cursedSubjects.uncurse(subject);
+                emit(
+                    UNCURSED_TOPIC,
+                    Uncursed {
+                        subject: subject,
+                    }
+                )
             }
             st.rmnRemote = rmn.toCell();
             st.store();
@@ -162,40 +184,64 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
     messageForReceiver.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-fun onSetRamps(msg: Router_SetRamps, sender: address) {
+fun onApplyRampUpdates(msg: Router_ApplyRampUpdates, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    var selectors = msg.destChainSelectors.iter();
-    while (!selectors.empty()) {
-        val selector = selectors.next();
-        st.onRamps.set(selector, msg.onRamp);
-    }
-    st.store();
-    // TODO: emit(OnRampsSet)
+    updateOnRamps(msg.onRampUpdates);
+    updateOffRamps(msg.offRampAdds, msg.offRampRemoves);
 }
 
-fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
+fun updateOnRamps(onRampUpdates: OnRamps?) {
     var st = lazy Storage.load();
-    st.ownable.requireOwner(sender);
 
-    if (msg.offRampAdd != null) {
-        val offRampAdd = msg.offRampAdd!;
-        var iter = msg.sourceChainSelectorsAdd.iter();
+    if (onRampUpdates != null) {
+        var selectors = onRampUpdates.destChainSelectors.iter();
+        while (!selectors.empty()) {
+            val selector = selectors.next();
+            st.onRamps.set(selector, onRampUpdates.onRamp);
+        }
+
+        st.store();
+
+        emit(ON_RAMP_SET_TOPIC, OnRampSet {
+            destChainSelectors: onRampUpdates.destChainSelectors,
+            onRamp: onRampUpdates.onRamp,
+        });
+    }
+}
+
+fun updateOffRamps(offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
+    var st = lazy Storage.load();
+
+    if (offRampAdds != null) {
+        val offRampAdd = offRampAdds.offRamp!;
+        var iter = offRampAdds.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
             st.offRamps.set(selector, offRampAdd);
         }
+
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
+            sourceChainSelectors: offRampAdds.sourceChainSelectors,
+            offRampAdded: offRampAdd,
+        });
     }
-    if (msg.offRampRemove != null) {
-        val offRampRemove = msg.offRampRemove!;
-        var iter = msg.sourceChainSelectorsRemove.iter();
+
+    if (offRampRemoves != null) {
+        val offRampRemove = offRampRemoves.offRamp!;
+        var iter = offRampRemoves.sourceChainSelectors.iter();
         while (!iter.empty()) {
             val selector = iter.next();
             val existing = st.offRamps.mustGet(selector, Router_Error.OffRampNotSetForSelector as int);
             assert (existing == offRampRemove) throw Router_Error.OffRampAddressMismatch;
             st.offRamps.delete(selector);
         }
+
+        emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
+            sourceChainSelectors: offRampRemoves.sourceChainSelectors,
+            offRampRemoved: offRampRemove,
+        });
     }
 
     // update RMN forwarding cache
@@ -220,14 +266,14 @@ fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 
     val confirmMsg = createMessage({
         bounce: true,
-        value: ton("0"), 
+        value: OffRamp_Costs.receiveConfirmOrDeny(), 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
             execId: msg.execId,
             receiver: sender,
         },
     });
-    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    confirmMsg.send(SEND_MODE_REGULAR);
 }
 
 fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
@@ -237,7 +283,7 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.05"),
+        value: OffRamp_Costs.receiveConfirmOrDeny(),
         dest: offRamp,
         body: OffRamp_CCIPReceiveBounced {
             execId: execId,
@@ -245,6 +291,66 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
         }
     });
     receiveBounced.send(SEND_MODE_REGULAR);
+}
+
+fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+    val st = lazy Storage.load();
+    val ccipSend = lazy msg.ccipSend.load();
+    val onRamp = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+
+    val feeQuoterMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: onRamp,
+        body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
+            ccipSend: msg.ccipSend,
+            context: Router_GetValidatedFeeContext {
+                routerContext: sender,
+                userContext: msg.context,
+            },
+        }
+    });
+
+    feeQuoterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onMessageValidated(msg: OnRamp_MessageValidated<Router_GetValidatedFeeContext>, sender: address) {
+    val st = lazy Storage.load();
+    val ccipSend = lazy msg.msg.load();
+    val onRampAddress = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
+    val userAddress = msg.context.routerContext;
+    val replyMsg = createMessage({
+        bounce: false,
+        value: 0,
+        dest: userAddress,
+        body: Router_MessageValidated {
+            fee: msg.fee,
+            msg: msg.msg,
+            context: msg.context.userContext,
+        }
+    });
+    replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onMessageValidationFailed(msg: OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>, sender: address) {
+    val st = lazy Storage.load();
+    val ccipSend = lazy msg.msg.load();
+    val onRampAddress = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
+
+    val userAddress = msg.context.routerContext;
+    val replyMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: userAddress,
+        body: Router_MessageValidationFailed {
+            error: msg.error,
+            msg: msg.msg,
+            context: msg.context.userContext,
+        }
+    });
+    replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun onSend(msg: Router_CCIPSend, sender: address, value: coins) {
@@ -326,6 +432,18 @@ get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
     return rmn.cursedSubjects.isCursed(subject);
+}
+
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.ownable.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

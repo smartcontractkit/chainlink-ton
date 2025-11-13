@@ -15,70 +15,96 @@ import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
-import "../../lib/receiver/messages"
 import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../router/messages"
 import "../../lib/receiver/types"
+import "../../lib/deployable/namespace"
 
 const CONTRACT_VERSION = "0.0.12";
-const RESERVE = ton("5"); 
-
-// TODO: handle signals from MerkleRoot for releaseTokens
+const RESERVE = ton("5");
 
 // NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
-
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
+    
     match(msg) {
         // Sender must be OCR transmitter
         OffRamp_Commit => {
-            _commit(msg, in.senderAddress)
+            onCommit(msg, in.senderAddress, in.valueCoins)
         }
-        // Permissionless
+        // Sender must be OCR transmitter
         OffRamp_Execute => {
-            _execute(msg, in.senderAddress)
+            onExecute(msg, in.senderAddress, in.valueCoins)
         }
         // Sender must be MerkleRoot
         OffRamp_ExecuteValidated => {
-            _executeValidated(msg, in.senderAddress)
+            var st = lazy Storage.load();
+            assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
+            onExecuteValidated(st, msg, in.senderAddress)
         }
         // Sender must be ReceiveExecutor
         OffRamp_DispatchValidated => {
-            _dispatchValidated(msg, in.senderAddress)
-        } 
+            var st = lazy Storage.load();
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            onDispatchValidated(st, msg)
+        }
+        // Permissionless
         OffRamp_ManuallyExecute => {
-            _manually_execute(msg, in.senderAddress)
+            onManuallyExecute(msg, in.valueCoins)
         }
         // Sender must be owner
-        OCR3Base_SetOCR3Config => { 
-            _setOCR3Config(msg, in.senderAddress)
+        OCR3Base_SetOCR3Config => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onSetOCR3Config(msg)
         }
         // Sender must be owner
         OffRamp_UpdateSourceChainConfig => {
-            _updateSourceChainConfig(msg, in.senderAddress)
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onUpdateSourceChainConfig(msg)
         }
+        // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
-            _updateCursedSubjects(msg, in.senderAddress)
+            var st = lazy Storage.load();
+            assert(in.senderAddress == st.deployables.load().rmnRouter, Error.Unauthorized);
+            onUpdateCursedSubjects(msg)
         },
-        // Sender must be receiver
+        // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
-            _ccipReceiveConfirm(msg, in.senderAddress);
+            var st = lazy Storage.load();
+            assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
+            onCCIPReceiveConfirm(st, msg);
         }
+        // Sender must be router
         OffRamp_CCIPReceiveBounced => {
-            _bouncedCCIPReceive(msg, in.senderAddress);
+            var st = lazy Storage.load();
+            assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
+            onBouncedCCIPReceive(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
-            _notifySuccess(msg, in.senderAddress);
+            var st = lazy Storage.load();
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            onNotifySuccess(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
-            _notifyFailure(msg, in.senderAddress);
+            var st = lazy Storage.load();
+            assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
+            onNotifyFailure(msg);
         }
+        // Sender must be owner
+        OffRamp_SetDynamicConfig => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onSetDynamicConfig(msg);
+        }
+        // Sender must be owner
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -86,8 +112,11 @@ fun onInternalMessage(in:InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        // Sender must be owner
         Upgradeable_Upgrade => {
-            _upgrade(msg, in.senderAddress);
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onUpgrade(msg);
         }
         else => {
             // attempt to handle Ownable messages
@@ -104,9 +133,11 @@ fun onInternalMessage(in:InMessage) {
     }
 }
 
-fun _upgrade(msg: Upgradeable_Upgrade, sender: address) {
-    val st = Storage.load();
-    st.ownable.requireOwner(sender);
+/*
+Handles contract upgrade requests using the Upgradeable pattern. Invokes the
+upgrade process with the current migrate function and version metadata.
+*/
+fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{
         migrate: migrate,
         version: version,
@@ -119,48 +150,58 @@ fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.Versi
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
 
-fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
+/*
+Handles OffRamp_CCIPReceiveBounced messages from the Router, originating
+from the CCIP receiver. The OffRamp notifies the ReceiveExecutor to update
+the execution state via ReceiveExecutor_Bounced. Only the Router is
+authorized to call this function.
+
+Flow:
+    Receiver.Receiver_CCIPReceive (bounce) ->
+    Router.Receiver_CCIPReceive ->
+    OffRamp.OffRamp_CCIPReceiveBounced ->
+    ReceiveExecutor.ReceiveExecutor_Bounced
+*/
+fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
-    val sourceChainSelector = msg.execId.getSourceChainSelector();
-    val router = getRouterFromSelector(st, sourceChainSelector);
-    assert(sender == router, Error.SenderIsNotRouter);
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.02"),
-        dest: {
-            stateInit: { //ReceiveExecutor address
-                code: st.deployables.load().deployer,
-                data: Deployable<ReceiveExecutorId> {
-                    owner: contract.getAddress(),
-                    id: msg.execId,
-                }.toCell(), 
-            },
-        },
+        value: 0,
+        dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
             receiver: msg.receiver
         }
     });
-    receiveBounced.send(SEND_MODE_REGULAR);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/*
+Sends a MerkleRoot_MarkState message to update the execution state of a
+specific sequence number in a MerkleRoot contract.
+*/
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
-        value: ton("0.02"),
+        value: MerkleRoot_Costs.markState(),
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
             state,
         },
     });
-    markState.send(SEND_MODE_REGULAR);
+    markState.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-// Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
-fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
-    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
+/*
+Received from ReceiveExecutor after validating that the confirm message came from the correct
+receiver.
 
+Flow:
+    ReceiveExecutor.ReceiveExecutor_Confirm ->
+    OffRamp.OffRamp_NotifySuccess
+*/
+fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
 
@@ -173,10 +214,15 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
     });
 }
 
-// Received from ReceiveExecutor after validating that the bounce message came from the correct receiver and enabling manual execute to retry
-fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
-    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
+/*
+Received from ReceiveExecutor after validating that the bounce message came from the correct
+receiver and enabling manual execute to retry.
 
+Flow:
+    ReceiveExecutor.ReceiveExecutor_Bounced ->
+    OffRamp.OffRamp_NotifyFailure
+*/
+fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
 
@@ -189,41 +235,45 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
     });
 }
 
-// Sent by the receiver to confirm successful receipt of the message,
-// ReceiveExecutor must further validate that the sender is the intended receiver
-fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
-    val st = Storage.load();
-    val sourceChainSelector = msg.execId.getSourceChainSelector();
-    val router = getRouterFromSelector(st, sourceChainSelector);
-    assert(sender == router, Error.SenderIsNotRouter);
+/*
+Sent by the Receiver via the Router to confirm successful message receipt.
+ReceiveExecutor must verify that the sender matches the intended receiver.
+Only the Router is authorized to call this function.
 
+Flow:
+    Receiver.Receiver_CCIPReceive ->
+    Router.Router_CCIPReceiveConfirm ->
+    OffRamp.OffRamp_CCIPReceiveConfirm ->
+    ReceiveExecutor.ReceiveExecutor_Confirm
+*/
+fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.02"), //TODO how much do we need to send
-        dest: {
-            stateInit: {
-                code: st.deployables.load().deployer,
-                data: Deployable<ReceiveExecutorId> {
-                    owner: contract.getAddress(),
-                    id: msg.execId,
-                }.toCell(),
-            }
-        },
+        value: 0,
+        dest:  getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Confirm {
             receiver: msg.receiver,
-        }, 
+        },
     });
-    receiveConfirm.send(SEND_MODE_REGULAR);
+    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/*
+Dispatches a validated message to the receiver via the Router_RouteMessage.
+Verifies sender ownership which should be the corresponing receiver executor, resolves the Router from the source selector,
+and applies a gas override only if it exceeds the original gasLimit.
+Includes routing cost in value and forwards execId and receiver details.
 
-fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
-    val st = Storage.load();
-    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
-
+Flow:
+    ReceiveExecutor ->
+    OffRamp.OffRamp_DispatchValidated ->
+    Router.Router_RouteMessage ->
+    Receiver.Receiver_CCIPReceive
+ */
+fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
-    
+
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
     var gasLimit: coins = message.gasLimit;
@@ -233,10 +283,10 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
         } else {
             gasLimit = msg.gasOverride;
         }
-    }    
+    }
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + ton("0.1"),
+        value: message.gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -255,9 +305,11 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
+/*
+Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
+ */
+fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     var st = lazy Storage.load();
-    st.ownable.requireOwner(sender);
 
     var ocr3Base = st.ocr3Base.load();
     ocr3Base.setOcr3Config(msg);
@@ -266,40 +318,33 @@ fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
     st.store();
 }
 
-fun _commit(msg: OffRamp_Commit, sender: address) {
+/*
+Processes commit reports: refreshes prices if the OCR sequence is newer,
+initializes/updates MerkleRoot contract, validates OCR3 signatures, and
+emits CommitReportAccepted when everything is valid.
+
+Flow:
+    OffRamp.OffRamp_Commit ->
+        FeeQuoter.FeeQuoter_UpdatePrices (if the report contrains price updates)
+        MerkleRoot.Initialize
+*/
+fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var st = lazy Storage.load();
 
     val report = msg.report;
+    val priceUpdatesOnlyReport = report.merkleRoots.empty();
 
-    // update token/gas prices if any
-    if (report.priceUpdates != null) {
-        // extract OCR sequence number from report context (matches EVM implementation)
-        val ocrSequenceNumber = msg.reportContext.sequenceBytes;
+    var root: MerkleRoot? = null;
 
-        // check for price staleness based on the OCR sequence number
-        if (st.latestPriceSequenceNumber < ocrSequenceNumber) {
-            // if prices are not stale, update the latest sequence number
-            st.latestPriceSequenceNumber = ocrSequenceNumber;
-            
-            // and update the prices in the fee quoter
-            val updatePricesMsg = createMessage({
-                bounce: true,
-                value: ton("0.05"), // TODO:
-                dest: st.feeQuoter,
-                body: FeeQuoter_UpdatePrices {
-                    updates: report.priceUpdates!.load()
-                },
-            });
-            updatePricesMsg.send(SEND_MODE_REGULAR);
-        }
-        // note: if prices are stale, we continue to process merkle roots if any exist
+    if (!priceUpdatesOnlyReport) {
+        // no batching of roots supported for now, so no need for an iterator
+        root = MerkleRoot.fromCell(report.merkleRoots);
     }
 
-    var roots = report.merkleRoots.iter();
-    val priceUpdatesOnlyReport = roots.empty();
-    while (!roots.empty()) {
-        val root = roots.next();
+    // check that the amount attached is enough to cover message execution and delivery off outgoing messages
+    assert(value >= OffRamp_Costs.commit(priceUpdatesOnlyReport), Error.InsufficientFee);
 
+    if (root != null) {
         // validate lane not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
@@ -314,23 +359,14 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
-            bounce: true, // TODO: could bounce if root already exists but i don't think we should handle it
-            value: ton("0.5"), // TODO:
-            dest: {
-                stateInit: {
-                    code: st.deployables.load().deployer,
-                    data: Deployable<MerkleRootId> {
-                        owner: contract.getAddress(),
-                        id: root.merkleRoot,
-                    }.toCell(),
-                },
-                // TODO: toShard so it's collocated with offramp
-            },
+            bounce: true,
+            value: AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT,
+            dest: getMerkleRootDeployAddress(st, root.merkleRoot),
             body: Deployable_Initialize {
                 stateInit: {
                     code: st.deployables.load().merkleRootCode,
                     data: MerkleRoot_Storage {
-                        root: root.merkleRoot, 
+                        root: root.merkleRoot,
                         owner: contract.getAddress(),
                         timestamp: blockchain.now(),
                         minMsgNr: root.minSeqNr,
@@ -341,6 +377,29 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
             },
         });
         initMsg.send(SEND_MODE_REGULAR);
+    }
+
+    // update token/gas prices if any
+    if (report.priceUpdates != null) {
+        // extract OCR sequence number from report context (matches EVM implementation)
+        val ocrSequenceNumber = msg.reportContext.sequenceBytes;
+
+        // check for price staleness based on the OCR sequence number
+        if (st.latestPriceSequenceNumber < ocrSequenceNumber) {
+            // if prices are not stale, update the latest sequence number
+            st.latestPriceSequenceNumber = ocrSequenceNumber;
+
+            // and update the prices in the fee quoter
+            val updatePricesMsg = createMessage({
+                bounce: true,
+                value: FeeQuoter_Costs.updatePrices(),
+                dest: st.feeQuoter,
+                body: FeeQuoter_UpdatePrices {
+                    updates: report.priceUpdates!.load()
+                }
+            });
+            updatePricesMsg.send(SEND_MODE_REGULAR);
+        }
     }
 
     // store updated state (latestPriceSequenceNumber and sourceChainConfigs)
@@ -355,29 +414,32 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         msg.signatures
     );
 
-    var root: MerkleRoot? = null;
-    if (!priceUpdatesOnlyReport) {
-        root = MerkleRoot.fromCell(report.merkleRoots);
-    }
     emit(
         TOPIC_COMMIT_REPORT_ACCEPTED,
         CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
     );
 }
 
-fun _manually_execute(msg: OffRamp_ManuallyExecute, sender: address) {
-    var st = Storage.load();
+/*
+Manually executes a single cross-chain execution report.
 
-    val report = msg.report;
-
-    // when_chain_not_forked assert
-
-    _execute_single_report(msg.report, msg.gasOverride, sender);
-
+Flow:
+    OffRamp.OffRamp_ManuallyExecute ->
+    MerkleRoot.MerkleRoot_Validate
+ */
+fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
+    onExecuteSingleReport(msg.report, msg.gasOverride, value);
 }
 
-fun _execute(msg: OffRamp_Execute, sender: address) {
-    _execute_single_report(msg.report, null, sender);
+/*
+Executes a single cross-chain execution report.
+
+Flow:
+    OffRamp.OffRamp_Execute ->
+    MerkleRoot.MerkleRoot_Validate
+ */
+fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
+    onExecuteSingleReport(msg.report, null, value);
 
     var st = Storage.load();
 
@@ -388,15 +450,31 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
         msg.report.toCell(),
         createEmptyCell(),
     );
-
 }
 
-fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address) {
+/*
+Executes a single cross-chain execution report. Verifies source chain
+configuration, checks for curses, and ensures message integrity before
+sending it for MerkleRoot validation.
+
+Flow:
+    OffRamp.OffRamp_Execute | OffRamp.OffRamp_ManuallyExecute ->
+    MerkleRoot.MerkleRoot_Validate
+ */
+fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: coins) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
     val isCursed = st.cursedSubjects.isCursed(report.sourceChainSelector as uint128);
     assert(!isCursed, Error.SubjectCursed);
+
+    assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
+
+    // No execution batching so no need to use iterator
+    val message = Any2TVMRampMessage.fromCell(report.messages);
+
+    // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
+    assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
@@ -414,15 +492,9 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
-
-    assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
-
-    // No execution batching so no need to use iterator
-    val message = Any2TVMRampMessage.fromCell(report.messages);
-
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
-    // the i_chainSelector as the destChainSelector.
+    // the st.chainSelector as the destChainSelector.
     assert(message.header.destChainSelector == st.chainSelector, Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
@@ -437,33 +509,24 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
-         bounce: true,
-         value: ton("0.05"), // TODO:
-         dest: {
-             stateInit: {
-                 code: st.deployables.load().deployer,
-                 data: Deployable<MerkleRootId> {
-                     owner: contract.getAddress(),
-                     id: root,
-                 }.toCell(),
-             },
-             // TODO: toShard so it's collocated with offramp
-         },
-
-         body: MerkleRoot_Validate {
+        bounce: true,
+        value: MerkleRoot_Costs.validate(),
+        dest: getMerkleRootDeployAddress(st, root),
+        body: MerkleRoot_Validate {
             message: report.messages as Cell<Any2TVMRampMessage>,
             metadataHash: metadataHash,
             permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
             gasOverride,
-         },
-     });
-     executeMsg.send(SEND_MODE_REGULAR);
+        },
+    });
+    executeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-//TODO: maybe it should be chainConfigs and take an array?
-fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
+/*
+Updates or initializes a SourceChainConfig entry. Only the contract owner can call this function.
+*/
+fun onUpdateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig) {
     var st = lazy Storage.load();
-    st.ownable.requireOwner(sender);
     var config: SourceChainConfig;
     var existingConfigEntry = st.sourceChainConfigs.get(msg.sourceChainSelector);
     if (!existingConfigEntry.isFound) {
@@ -480,7 +543,7 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     } else {
         // OnRamp updates should only happen due to a misconfiguration.
         // If an OnRamp is misconfigured, no reports should have been
-        // committed and no messages should have been executed.        
+        // committed and no messages should have been executed.
         config = existingConfigEntry.loadValue();
         assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw Error.InvalidOnRampUpdate;
         config.isEnabled = msg.config.isEnabled;
@@ -494,22 +557,29 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     })
 }
 
-fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
+/*
+Updates the list of cursed subjects in storage. Only the Router contract is
+authorized to perform this action.
+*/
+fun onUpdateCursedSubjects(msg: OffRamp_UpdateCursedSubjects) {
     var st = Storage.load();
-    // Only allow updates to come through the router
-    assert(sender == st.deployables.load().router, Error.Unauthorized);
+
     st.cursedSubjects = msg.cursedSubjects;
     st.store();
 }
 
-fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
-    val st = Storage.load();
+/*
+Executes a validated OffRamp message after MerkleRoot verification.
+Ensures the sender is an owned MerkleRoot, emits execution state change,
+deploys the ReceiveExecutor if needed, and triggers execution flow.
 
-    // Validate the message comes from an owned MerkleRoot contract
-
+Flow:
+    MerkleRoot.MerkleRoot_Validate ->
+    OffRamp.OffRamp_ExecuteValidated ->
+    ReceiveExecutor.ReceiveExecutor_InitExecute
+*/
+fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: address) {
     val message = msg.message.load();
-
-    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.root, MERKLE_ROOT_ID_SIZE));
 
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: message.header.sourceChainSelector,
@@ -521,70 +591,61 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
     val messageId = message.generateMessageId(msg.metadataHash);
     val execId = getOwnedReceiveExecutorContractId(messageId, message.header.sourceChainSelector);
 
-    val executorAddress: AutoDeployAddress = {
-        stateInit: {
-            code: st.deployables.load().deployer,
-            data: Deployable<ReceiveExecutorId> {
-                owner: contract.getAddress(),
-                id: execId,
-            }.toCell()
-        }
-    };
+    val executorAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
 
-    if (msg.gasOverride == null) {
-        deployAndInitializeExecutor(st, sender, message, executorAddress, execId);
-    } else {
-        //gasOverride indicates manual exec
-        sendInitExecute(executorAddress, msg.gasOverride);
+    // Check if this is the first time the exec flow is running given that in that case we need to
+    // initialize the executor
+    if (msg.executionState == ExecutionState.Untouched) {
+        val deployMsg = createMessage({
+            bounce: false,
+            value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,
+            dest: executorAddress,
+            body: Deployable_Initialize {
+                stateInit: {
+                    code: st.deployables.load().receiveExecutorCode,
+                    data: ReceiveExecutor_Storage {
+                        owner: contract.getAddress(),
+                        message: message.toCell(),
+                        root: sender,
+                        execId: execId,
+                    }.toCell(),
+                }
+            },
+        });
+        deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
-}
 
-fun deployAndInitializeExecutor(st: Storage, rootAddress: address, message: Any2TVMRampMessage, executorAddress: AutoDeployAddress, execId: ReceiveExecutorId) {
-    val deployMsg = createMessage({
-        bounce: true, 
-        value: ton("0.5"), // TODO:
-        dest: executorAddress,
-        // TODO: toShard so it's collocated 
-        body: Deployable_Initialize {
-            stateInit: {
-                code: st.deployables.load().receiveExecutorCode,
-                data: ReceiveExecutor_Storage {
-                    owner: contract.getAddress(),
-                    message: message.toCell(), 
-                    root: rootAddress,
-                    execId: execId,
-                }.toCell(),
-            }
-        },
-    });
-    deployMsg.send(SEND_MODE_REGULAR);
-
-    sendInitExecute(executorAddress, null);
-}
-
-fun sendInitExecute(executorAddress: AutoDeployAddress, gasOverride: coins?) {
+    // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
+    // means that is a manual exec flow
     val initExecMsg = createMessage ({
         bounce: true,
-        value: ton("0.05"), // TODO:
+        value: ReceiveExecutor_Costs.initExec(),
         dest: executorAddress,
         body: ReceiveExecutor_InitExecute {
-            gasOverride,
+            gasOverride: msg.gasOverride,
         }
     });
-    initExecMsg.send(SEND_MODE_REGULAR);
+    initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
+/*
+Retrieves the Router address associated with a given sourceChainSelector.
+Throws an error if the source chain is not enabled in the stored configs.
+*/
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
     val sourceChainConfig = st.sourceChainConfigs.mustGet(sourceChainSelector, Error.SourceChainNotEnabled as int);
     return sourceChainConfig.router;
 }
 
-// ExecId is made from the sourceChainSelector + 160 bits of internal messageId
-@inline
+/*
+Generates a unique ReceiveExecutorId by combining the sourceChainSelector
+and the lower 160 bits of the internal messageId. Used to derive the
+ReceiveExecutor contract identifier for message execution tracking
+*/
 fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: uint64): ReceiveExecutorId {
     var cs = beginCell().storeUint(messageId, 256)
         .endCell().beginParse();
-    
+
     return beginCell()
         .storeUint(sourceChainSelector, 64)
         .storeUint(cs.loadUint(RECEIVE_EXECUTOR_ID_SIZE - 64), RECEIVE_EXECUTOR_ID_SIZE - 64)
@@ -593,18 +654,80 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: u
         .loadUint(RECEIVE_EXECUTOR_ID_SIZE);
 }
 
-@inline
-fun assertSenderIsOwnedContract(st: Storage, sender: address, contractId: builder) {
-    val expectedAddress: AutoDeployAddress = {
+/*
+Derives the receiver executor contract address from the execId
+*/
+fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): AutoDeployAddress {
+    return {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: Deployable {
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
-                id: contractId,
-            }.toCell()
+                id: execId,
+            }),
         }
-    };
+    }
+}
+
+/*
+Verifies that the caller corresponds to a receiver exector contract
+*/
+fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutorId, sender: address) {
+    val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
     assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
+}
+
+/*
+Derives the merkle root contract address from the merkleRootId
+*/
+fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeployAddress {
+    return {
+        stateInit: {
+            code: st.deployables.load().deployer,
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_MerkleRoot,
+                owner: contract.getAddress(),
+                id: merkleRoot
+            }),
+        }
+    }
+}
+
+/*
+Verifies that the caller corresponds to a merkle root contract
+*/
+fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
+    val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
+    assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
+}
+
+/*
+Verifies that the caller corresponds to the router asociated with the given chain selector
+*/
+fun assertSenderIsTheRouter(st: Storage, sourceChainSelector: uint64, sender: address) {
+    val router = getRouterFromSelector(st, sourceChainSelector);
+    assert(sender == router, Error.Unauthorized);
+}
+
+/*
+Updates the dynamic configuration parameters for the OffRamp contract.
+Validates that the feeQuoter address is non-zero, updates the stored
+configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
+*/
+fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
+    var st = Storage.load();
+
+    assert(!msg.feeQuoter.isNone()) throw Error.ZeroAddressNotAllowed;
+
+    st.feeQuoter = msg.feeQuoter;
+    st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;
+    st.store();
+
+    emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
+        feeQuoter: msg.feeQuoter,
+        permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds,
+    });
 }
 
 get fun latestPriceSequenceNumber(): uint64 {
@@ -616,10 +739,6 @@ get fun sourceChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.sourceChainConfigs;
     return keysLispList(d)!;
-}
-
-fun setDynamicConfig() {
-    
 }
 
 get fun ocr3Config(): OCR3Base {
@@ -647,6 +766,18 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 }
 
 fun applySourceChainConfigUpdates() {}
+
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.ownable.get_pendingOwner();
+}
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);

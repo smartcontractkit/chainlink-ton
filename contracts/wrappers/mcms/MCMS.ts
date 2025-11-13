@@ -25,15 +25,13 @@ export type SetRoot = {
   // The new expiring root.
   root: bigint // uint256
   // The time by which the root is valid.
-  validUntil: bigint // uint32
+  validUntil: number // uint32
   // The metadata about the root, which is stored as one of the leaves.
   metadata: RootMetadata
   // The MerkleProof of inclusion of the metadata in the Merkle tree.
   metadataProof: Cell // vec<uint256>
   // The ECDSA signatures on (root, validUntil).
   signatures: Cell // vec<Signature>
-  /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: bigint // uint32
 }
 
 // @dev Executes an operation authenticated by the Merkle tree.
@@ -62,6 +60,21 @@ export type SetConfig = {
   groupParents: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
   // Whether to clear the current root.
   clearRoot: boolean
+}
+
+/// Changes the timeout required to finalize the currently executing op
+///
+/// Replies with {MCMS_OpFinalizationTimeoutChange} message.
+///
+/// Requirements:
+///
+/// - the caller must be the owner
+export type UpdateOpFinalizationTimeout = {
+  // Query ID of the change request.
+  queryId: bigint
+
+  // The timeout required to finalize the currently executing op
+  newOpFinalizationTimeout: number
 }
 
 /// Submit an oracle error report, which marks the current root as invalid.
@@ -96,13 +109,26 @@ export type TransferOracleRole = {
   newOracle: Address
 }
 
+/// Delete expired roots from storage map to reduce rent
+export type CleanExpiredRoots = {
+  /// Query ID of the change request.
+  queryId: bigint
+
+  /// The roots to clean up
+  roots: bigint[] // vec<uint256>,
+  /// The validUntil times for respective roots
+  validUntils: number[] // vec<uint32>,
+}
+
 // @dev Union of all (input) messages.
 export type InMessage =
   | SetRoot // <br>
   | Execute
   | SetConfig
+  | UpdateOpFinalizationTimeout
   | SubmitErrorReport
   | TransferOracleRole
+  | CleanExpiredRoots
 
 // MCMS contract storage
 export type ContractData = {
@@ -225,6 +251,9 @@ export enum Error {
 
   /// Thrown when the error report sender is not the authorized oracle.
   UnauthorizedOracle,
+
+  /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
+  RootNotExpired,
 }
 
 // --- Data structures ---
@@ -341,7 +370,7 @@ export type OpPendingInfo = {
   /// meaning no bounce was received and we can continue executing.
   validAfter: bigint // uint32
   /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: bigint // uint32
+  opFinalizationTimeout: number // uint32
   /// The address that the (pending) operation was sent to (and could bounce from).
   opPendingReceiver: Address
   /// The truncated body of the pending operation (256 bits from the original message),
@@ -411,15 +440,19 @@ export const opcodes = {
     SetRoot: crc32('MCMS_SetRoot'),
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
+    UpdateOpFinalizationTimeout: crc32('MCMS_UpdateOpFinalizationTimeout'),
     SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
     TransferOracleRole: crc32('MCMS_TransferOracleRole'),
+    CleanExpiredRoots: crc32('MCMS_CleanExpiredRoots'),
   },
   out: {
     NewRoot: crc32('MCMS_NewRoot'),
-    ConfigSet: crc32('MCMS_ConfigSet'),
     OpExecuted: crc32('MCMS_OpExecuted'),
+    ConfigSet: crc32('MCMS_ConfigSet'),
+    OpFinalizationTimeoutChange: crc32('MCMS_OpFinalizationTimeoutChange'),
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
     OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
+    ExpiredRootsCleaned: crc32('MCMS_ExpiredRootsCleaned'),
   },
 }
 
@@ -457,18 +490,16 @@ export const builder = {
             .storeBuilder(rootMetadata.encode(msg.metadata))
             .storeRef(msg.metadataProof)
             .storeRef(msg.signatures)
-            .storeUint(msg.opFinalizationTimeout, 32)
         },
         load: (src: Slice): SetRoot => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
             root: src.loadUintBig(256),
-            validUntil: src.loadUintBig(32),
+            validUntil: src.loadUint(32),
             metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
-            opFinalizationTimeout: src.loadUintBig(32),
           }
         },
       },
@@ -530,6 +561,21 @@ export const builder = {
           }
         },
       },
+      updateOpFinalizationTimeout: {
+        encode: (msg: UpdateOpFinalizationTimeout): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.newOpFinalizationTimeout, 32)
+        },
+        load: (src: Slice): UpdateOpFinalizationTimeout => {
+          src.skip(32) // skip opcode
+          return {
+            queryId: src.loadUintBig(64),
+            newOpFinalizationTimeout: src.loadUint(32),
+          }
+        },
+      },
       submitErrorReport: {
         encode: (msg: SubmitErrorReport): Builder => {
           return beginCell()
@@ -565,6 +611,23 @@ export const builder = {
           return {
             queryId: src.loadUintBig(64),
             newOracle: src.loadAddress(),
+          }
+        },
+      },
+      cleanExpiredRoots: {
+        encode: (msg: CleanExpiredRoots): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.CleanExpiredRoots, 32)
+            .storeUint(msg.queryId, 64)
+            .storeRef(asSnakeData<bigint>(msg.roots, (v) => beginCell().storeUint(v, 256)))
+            .storeRef(asSnakeData<number>(msg.validUntils, (v) => beginCell().storeUint(v, 32)))
+        },
+        load: (src: Slice): CleanExpiredRoots => {
+          src.skip(32) // skip opcode
+          return {
+            queryId: src.loadUintBig(64),
+            roots: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
+            validUntils: fromSnakeData(src.loadRef(), (a) => a.loadUint(32)),
           }
         },
       },
@@ -631,7 +694,7 @@ export const builder = {
       load: (src: Slice): OpPendingInfo => {
         return {
           validAfter: src.loadUintBig(32),
-          opFinalizationTimeout: src.loadUintBig(32),
+          opFinalizationTimeout: src.loadUint(32),
           opPendingReceiver: src.loadAddress(),
           opPendingBodyTruncated: src.loadUintBig(256),
         }
@@ -803,7 +866,7 @@ export const builder = {
             opCount: 0n, // no ops
             opPendingInfo: {
               validAfter: 0n, // no valid after
-              opFinalizationTimeout: 0n, // no op finalization timeout
+              opFinalizationTimeout: 0, // no op finalization timeout
               opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
               opPendingBodyTruncated: 0n, // no op pending body
             },
@@ -915,7 +978,7 @@ export class ContractClient implements Contract {
     return p.get('getOpPendingInfo', []).then((r) => {
       return {
         validAfter: r.stack.readBigNumber(),
-        opFinalizationTimeout: r.stack.readBigNumber(),
+        opFinalizationTimeout: r.stack.readNumber(),
         opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
         opPendingBodyTruncated: r.stack.readBigNumber(),
       }

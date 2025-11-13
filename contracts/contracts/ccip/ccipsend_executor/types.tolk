@@ -1,12 +1,16 @@
 import "../onramp/messages.tolk";
+import "../../deployable/types"
+import "../../lib/deployable/namespace"
+
+type CCIPSendExecutor_ID = uint224
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    messageID: uint224,
+    id: CCIPSendExecutor_ID,
 }
 
 struct CCIPSendExecutor_Data {
-    messageId: uint224,
+    id: CCIPSendExecutor_ID,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
@@ -19,30 +23,16 @@ struct CCIPSendExecutor_Addresses {
 
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
-    | Cell<CCIPSendExecutor_State_WaitingForJettons>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
 
 struct CCIPSendExecutor_State_Initialized {
-    tokenRegistry: address?,
-}
-
-struct CCIPSendExecutor_State_WaitingForJettons {
-    tokenRegistry: address,
 }
 
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
-    pendingJettonLock: CCIPSendExecutor_PendingJettonLock?
-}
-
-struct CCIPSendExecutor_PendingJettonLock {
-    tokenRegistry: address,
-    jettonWallet: address,
-    tokenPool: address,
 }
 
 struct CCIPSendExecutor_Config {
     feeQuoter: address,
-    tokenRegistry: address?,
 }
 
 

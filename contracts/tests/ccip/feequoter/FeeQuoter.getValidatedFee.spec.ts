@@ -5,11 +5,13 @@ import { Blockchain } from '@ton/sandbox'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import { ExtraArgs } from '../../../wrappers/ccip/Router'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes, asSnakeData, ZERO_ADDRESS } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
+import { create } from 'domain'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -42,7 +44,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         premiumMultiplierWeiPerEth
       const calldataLen = BigInt(message.data.beginParse().remainingBits / 8)
       const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         calldataLen,
         BigInt(message.tokenAmounts.length),
@@ -57,7 +59,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should handle zero data availability multiplier', async () => {
     const destChainConfig = await setup.bind.feeQuoter.getDestChainConfig(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
     )
     // Update dest chain config to set data availability multiplier to 0
     {
@@ -67,7 +69,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           value: toNano('1'),
           updates: [
             {
-              destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+              destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
               config: {
                 ...destChainConfig,
                 destDataAvailabilityMultiplierBps: 0,
@@ -110,7 +112,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     for (const token of testTokens) {
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: asSnakeBytes(Buffer.alloc(customDataSize)),
         tokenAmounts: [],
@@ -150,7 +152,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         premiumMultiplierWeiPerEth
 
       const dataAvailabilityFeeUSD = await setup.bind.feeQuoter.getDataAvailabilityCost(
-        FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         FeeQuoterSetup.USD_PER_DATA_AVAILABILITY_GAS,
         calldataLen,
         BigInt(message.tokenAmounts.length),
@@ -166,7 +168,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should allow out of order execution when not enforced', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -188,7 +190,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should allow fail when allow out of order execution is false', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -209,7 +211,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
 
   it('should revert when destination chain not enabled', async () => {
-    const invalidChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR + 1n
+    const invalidChainSelector = FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM + 1n
     const message: rt.CCIPSend = {
       destChainSelector: invalidChainSelector,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
@@ -260,7 +262,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should revert when message too large', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: asSnakeBytes(Buffer.alloc(FeeQuoterSetup.MAX_DATA_SIZE + 1)),
       tokenAmounts: [],
@@ -310,7 +312,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const tooManyTokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN] // We don't support token transfers in TON yet
 
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: tooManyTokens.map((token) => ({
@@ -361,7 +363,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   it('should revert when gas limit too high', async () => {
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -411,7 +413,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     const notAFeeToken = FeeQuoterSetup.CUSTOM_TOKEN.token
 
     const message: rt.CCIPSend = {
-      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       receiver: FeeQuoterSetup.DEST_ADDRESS,
       data: beginCell().endCell(),
       tokenAmounts: [],
@@ -491,7 +493,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           overrides.dataAvailabilityGasPrice !== undefined
             ? [
                 {
-                  chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+                  chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
                   executionGasPrice: overrides.executionGasPrice ?? FeeQuoterSetup.USD_PER_GAS,
                   dataAvailabilityGasPrice:
                     overrides.dataAvailabilityGasPrice ??
@@ -548,7 +550,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             value: toNano('1'),
             updates: [
               {
-                destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+                destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
                 config: {
                   ...FeeQuoterSetup.destChainConfig,
                   ...destConfigOverrides,
@@ -605,7 +607,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
 
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: asSnakeBytes(Buffer.alloc(dataSize)),
         tokenAmounts: [],
@@ -635,7 +637,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const gasLimit = overrides.gasLimit ?? BigInt(FeeQuoterSetup.MAX_GAS_LIMIT)
 
       const message: rt.CCIPSend = {
-        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         receiver: FeeQuoterSetup.DEST_ADDRESS,
         data: asSnakeBytes(Buffer.alloc(dataSize)),
         tokenAmounts: [],
@@ -812,6 +814,179 @@ describe('FeeQuoter GetValidatedFee', () => {
           dataSize: 10000, // Large data size
           maxDataBytes: 10001,
         },
+      )
+    })
+  })
+
+  // extraArgs validation
+  const validEVMExtraArgs: ExtraArgs = {
+    kind: 'generic-v2',
+    gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+    allowOutOfOrderExecution: true,
+  }
+  describe('EVMExtraArgs', () => {
+    it('valid extra args', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
+      }
+
+      const result = await setup.getValidatedFee(message, beginCell().endCell())
+      expect(result.fee).toBeGreaterThan(0n)
+    })
+
+    // NOTE: GasLimitTooHigh already tested above as "should revert when gas limit too high"
+  })
+
+  describe('SVMExtraArgs', () => {
+    const validSVMExtraArgs: ExtraArgs = {
+      kind: 'svm-v1',
+      computeUnits: BigInt(FeeQuoterSetup.GAS_LIMIT),
+      accountIsWritableBitMap: 0n,
+      allowOutOfOrderExecution: true,
+      tokenReceiver: Buffer.alloc(32),
+      accounts: [Buffer.alloc(32)],
+    }
+
+    it('valid extra args', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs.encode(validSVMExtraArgs).endCell(),
+      }
+
+      const result = await setup.getValidatedFee(message, beginCell().endCell())
+      expect(result.fee).toBeGreaterThan(0n)
+    })
+
+    it('reverts with empty extra args', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: beginCell().endCell(),
+      }
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
+    })
+
+    it('reverts with invalid tag', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
+      }
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
+    })
+
+    it('reverts if out of order execution is false', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            ...validSVMExtraArgs,
+            allowOutOfOrderExecution: false,
+          })
+          .endCell(),
+      }
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
+      )
+    })
+  })
+
+  describe('SuiExtraArgs', () => {
+    const validSVMExtraArgs: ExtraArgs = {
+      kind: 'sui-v1',
+      gasLimit: BigInt(FeeQuoterSetup.GAS_LIMIT),
+      allowOutOfOrderExecution: true,
+      tokenReceiver: Buffer.alloc(32),
+      receiverObjectIds: [Buffer.alloc(32)],
+    }
+
+    it('valid extra args', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs.encode(validSVMExtraArgs).endCell(),
+      }
+
+      const result = await setup.getValidatedFee(message, beginCell().endCell())
+      expect(result.fee).toBeGreaterThan(0n)
+    })
+
+    it('reverts with empty extra args', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: beginCell().endCell(),
+      }
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
+    })
+
+    it('reverts with invalid tag', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
+      }
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
+      )
+    })
+
+    it('reverts if out of order execution is false', async () => {
+      const message: rt.CCIPSend = {
+        destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
+        receiver: FeeQuoterSetup.DEST_ADDRESS,
+        data: beginCell().endCell(),
+        tokenAmounts: [],
+        feeToken: FeeQuoterSetup.NATIVE_TON.token,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            ...validSVMExtraArgs,
+            allowOutOfOrderExecution: false,
+          })
+          .endCell(),
+      }
+      const result = await setup.assertGetFeeValidationError(
+        message,
+        feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
       )
     })
   })

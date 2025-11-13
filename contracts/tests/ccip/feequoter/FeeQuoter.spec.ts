@@ -5,6 +5,8 @@ import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import { Blockchain } from '@ton/sandbox'
+import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
@@ -26,8 +28,6 @@ describe('FeeQuoter - TypeAndVersion Tests', () => {
   })
   currentVersionSpec.run()
 })
-
-const CHAINSEL_TON = 13879075125137744094n // TODO this is copy/pasted from CCIPRouter.spec.ts. Isn't there a chainlink package that exports this constant?
 
 // TODO when we have a new version
 // describe('FeeQuoter - Upgrade Tests', () => {
@@ -56,6 +56,17 @@ const CHAINSEL_TON = 13879075125137744094n // TODO this is copy/pasted from CCIP
 //   )
 //   upgradeSpec.run()
 // })
+
+describe('FeeQuoter - Ownable Tests', () => {
+  it('supports ownable messages', async () => {
+    const blockchain = await Blockchain.create()
+    const deployer = await blockchain.treasury('deployer')
+    const other = await blockchain.treasury('other')
+    const feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
+
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, feeQuoter)
+  })
+})
 
 describe('FeeQuoter - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({

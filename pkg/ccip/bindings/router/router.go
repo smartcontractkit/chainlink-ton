@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	OpcodeSetRamps           = 0x20272c81
+	OpcodeApplyRampUpdates   = 0xf6b0a5ca
 	OpcodeCCIPSend           = 0x31768d95
-	OpcodeUpdateOffRamps     = 0x234110a7
 	OpcodeRouteMessage       = 0xfc69c50b
 	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
 	OpcodeMessageSent        = 0x6513f8e1
@@ -35,19 +34,22 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorDestChainNotEnabled)
-		ecMax = int32(ErrorUnknownMessage)
+		ecMax = int32(ErrorInsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	ErrorDestChainNotEnabled ExitCode = iota + ExitCode(49600)
+	ErrorDestChainNotEnabled ExitCode = ExitCode(49600 + iota)
 	ErrorSourceChainNotEnabled
 	SenderIsNotOffRamp
 	OffRampNotSetForSelector
 	OffRampAddressMismatch
-
-	ErrorUnknownMessage ExitCode = ExitCode(0x1002)
+	ErrorSubjectCursed
+	ErrorNotOnRamp
+	ErrorMissingTokenAmounts
+	ErrorNoMultiTokenTransfers
+	ErrorInsufficientFee
 )
 
 type Storage struct {
@@ -70,20 +72,23 @@ type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
-type SetRamps struct {
-	_                  tlb.Magic                       `tlb:"#20272c81"` //nolint:revive // Ignore opcode tag
-	QueryID            uint64                          `tlb:"## 64"`
+// crc32("ApplyRampUpdates")
+type ApplyRampUpdates struct {
+	_              tlb.Magic `tlb:"#f6b0a5ca"` //nolint:revive // Ignore opcode tag
+	QueryID        uint64    `tlb:"## 64"`
+	OnRampUpdates  *OnRamps  `tlb:"maybe ."`
+	OffRampAdds    *OffRamps `tlb:"maybe ."`
+	OffRampRemoves *OffRamps `tlb:"maybe ."`
+}
+
+type OnRamps struct {
 	DestChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
 	OnRamps            *address.Address                `tlb:"addr"`
 }
 
-type UpdateOffRamps struct {
-	_                         tlb.Magic                       `tlb:"#234110a7"` //nolint:revive // Ignore opcode tag
-	QueryID                   uint64                          `tlb:"## 64"`
-	SourceChainSelectorAdd    common.SnakeData[ChainSelector] `tlb:"^"`
-	OffRampAdd                *address.Address                `tlb:"maybe addr"`
-	SourceChainSelectorRemove common.SnakeData[ChainSelector] `tlb:"^"`
-	OffRampRemove             *address.Address                `tlb:"maybe addr"`
+type OffRamps struct {
+	SourceChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
+	OffRamp              *address.Address                `tlb:"addr"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
@@ -103,21 +108,19 @@ type CCIPSend struct {
 	ExtraArgs         *cell.Cell                   `tlb:"^"`
 }
 
-// crc32("Router_RouteMessage")
 type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b"` //nolint:revive // Ignore opcode tag
 	Message  offramp.Any2TVMMessage `tlb:"^"`
 	ExecID   big.Int                `tlb:"## 192"`
 	Receiver *address.Address       `tlb:"addr"`
+	GasLimit tlb.Coins              `tlb:"."`
 }
 
-// crc32("Router_CCIPReceiveConfirm")
 type CCIPReceiveConfirm struct {
 	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
 	ExecID big.Int   `tlb:"## 192"`
 }
 
-// 0x6513f8e1 = crc32b("Router_MessageSent")
 type MessageSent struct {
 	_                 tlb.Magic        `tlb:"#6513f8e1"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64           `tlb:"## 64"`

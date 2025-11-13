@@ -3,10 +3,7 @@ import "./exit_codes.tolk";
 import "./../utils.tolk";
 
 
-//crc32("OCR3Base_ConfigSet")
 const OCR3BASE_CONFIG_SET_TOPIC: int = stringCrc32("OCR3Base_ConfigSet");
-
-//crc32("OCR3Base_Transmitted")
 const OCR3BASE_TRANSMITTED: int = stringCrc32("OCR3Base_Transmitted");
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.

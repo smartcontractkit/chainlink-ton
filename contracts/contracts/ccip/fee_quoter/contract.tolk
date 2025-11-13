@@ -40,11 +40,20 @@ fun onInternalMessage(in: InMessage) {
             assert(st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress, FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
+
+            val returnValueResponse = createMessage({
+                bounce: false,
+                value: 0,
+                dest: in.senderAddress,
+                body: createEmptyCell(),
+            });
+            returnValueResponse.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         FeeQuoter_UpdateFeeTokens => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             updateFeeTokens(mutate st, msg);
+
             st.store();
         }
         FeeQuoter_UpdateTokenTransferFeeConfigs => {
@@ -59,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
-        FeeQuoter_GetValidatedFee<cell> => {
+        FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw FeeQuoter_Error.InsufficientFee;
             handleGetValidatedFee(msg, in.senderAddress)
         }
@@ -206,6 +215,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
             })
         }
     }
+
+
 }
 
 // apply_premium_multiplier_wei_per_eth_updates??
@@ -220,10 +231,10 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
     return (price.executionGasPrice, price.dataAvailabilityGasPrice)
 }
 
+// Note: Equivalent to validatedFee for cell encoding instead of using stack
 get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
     return validatedFee(msg.load());
 }
-
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
     var st = lazy Storage.load();
@@ -462,7 +473,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
 }
 
 
-fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
+fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
@@ -472,10 +483,10 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidated<cell> {
+            body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
                 msg: payload.msg,
-                metadata: payload.metadata,
                 fee: feeTokenAmount,
+                context: payload.context,
             }
         });
     } catch (e) {
@@ -483,10 +494,10 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidationFailed<cell> {
+            body: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> {
                 msg: payload.msg,
-                metadata: payload.metadata,
                 error: e,
+                context: payload.context,
             }
         });
     }
@@ -556,6 +567,18 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
 get fun staticConfig(): (uint96, address, uint64) {
     val st = lazy Storage.load();
     return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
+}
+
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.ownable.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

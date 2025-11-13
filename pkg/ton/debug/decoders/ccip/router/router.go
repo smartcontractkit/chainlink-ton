@@ -11,9 +11,8 @@ import (
 )
 
 var TLBs = lib.MustNewTLBMap([]interface{}{
-	router.SetRamps{},
+	router.ApplyRampUpdates{},
 	router.CCIPSend{},
-	router.UpdateOffRamps{},
 	router.RouteMessage{},
 	router.CCIPReceiveConfirm{},
 	router.CCIPSendACK{},

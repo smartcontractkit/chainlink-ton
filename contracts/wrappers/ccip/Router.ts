@@ -22,7 +22,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
-export const ROUTER_CONTRACT_VERSION = '0.0.7'
+export const ROUTER_CONTRACT_VERSION = '0.0.8'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
@@ -43,6 +43,7 @@ export type Storage = {
 export abstract class Params {}
 
 export abstract class Opcodes {
+  static applyRampUpdates = 0xf6b0a5ca
   static setRamps = 0x20272c81
   static ccipSend = 0x31768d95
   static updateOffRamps = 0x234110a7
@@ -51,8 +52,14 @@ export abstract class Opcodes {
   static curse = 0x41e8c1dc
   static uncurse = 0x3c3f5e73
   static verifyNotCursed = 0xa6e4b7e1
-  static messageSent = 0x6513f8e1
-  static messageRejected = 0x8ae25114
+  static messageSent = 0x6513f8e1 // TODO move to OutOpcodes
+  static messageRejected = 0x8ae25114 // TODO move to OutOpcodes
+  static getValidatedFee = 0x4dd6aa82
+}
+
+export abstract class OutOpcodes {
+  static messageValidated = 0x9e2155ec
+  static messageValidationFailed = 0xec23c562
 }
 
 export type Ramp = {
@@ -66,12 +73,20 @@ export abstract class OutgoingOpcodes {
 }
 
 export class Router
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+  implements
+    upgradeable.Interface,
+    withdrawable.Interface,
+    typeAndVersion.Interface,
+    ownable2step.ContractClient,
+    Contract
 {
+  private ownable: ownable2step.ContractClient
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    this.ownable = new ownable2step.ContractClient(address)
+  }
 
   static createFromAddress(address: Address) {
     return new Router(address)
@@ -156,6 +171,20 @@ export class Router
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
+  sendGetValidatedFee(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    msg: CCIPSend,
+    context: Slice,
+  ): Promise<void> {
+    return provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.getValidatedFee.encode({ msg, context }).asCell(),
+    })
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
@@ -178,6 +207,21 @@ export class Router
     return await compile('Router')
   }
 
+  async sendApplyRampUpdatesSetRamps(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      data: ApplyRampUpdates
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.applyRampUpdates.encode(opts.data).asCell(),
+    })
+  }
+
   async sendSetRamps(
     provider: ContractProvider,
     via: Sender,
@@ -197,40 +241,6 @@ export class Router
         .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
         .endCell(),
-    })
-  }
-
-  async sendUpdateOffRamps(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-      sourceChainSelectorAdd: bigint[]
-      offRampAdd?: Address
-      sourceChainSelectorRemove: bigint[]
-      offRampRemove?: Address
-    },
-  ) {
-    const bs = beginCell()
-      .storeUint(Opcodes.updateOffRamps, 32)
-      .storeUint(opts.queryId ?? 0, 64)
-      .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
-
-    bs.storeMaybeBuilder(opts.offRampAdd && beginCell().storeAddress(opts.offRampAdd))
-    bs.storeRef(asSnakeDataUint(opts.sourceChainSelectorRemove, 64))
-    if (!opts.offRampRemove) {
-      bs.storeBit(false)
-    } else {
-      bs.storeBit(true)
-      bs.storeAddress(opts.offRampRemove)
-    }
-    const body = bs.endCell()
-
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body,
     })
   }
 
@@ -303,6 +313,50 @@ export class Router
         .asCell(),
     })
   }
+
+  // Ownership methods
+  async getOwner(provider: ContractProvider): Promise<Address> {
+    return this.ownable.getOwner(provider)
+  }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    return this.ownable.getPendingOwner(provider)
+  }
+
+  async sendTransferOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.TransferOwnership,
+  ) {
+    return this.ownable.sendTransferOwnership(p, via, value, body)
+  }
+
+  async sendAcceptOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.AcceptOwnership,
+  ) {
+    return this.ownable.sendAcceptOwnership(p, via, value, body)
+  }
+}
+
+export type ApplyRampUpdates = {
+  queryID: bigint
+  onRamps?: OnRamps
+  offRampAdds?: OffRamps
+  offRampRemoves?: OffRamps
+}
+
+export type OnRamps = {
+  destChainSelectors: bigint[]
+  onRamp: Address
+}
+
+export type OffRamps = {
+  sourceChainSelectors: bigint[]
+  offRamp: Address
 }
 
 export type TokenAmount = {
@@ -367,19 +421,61 @@ type SVMExtraArgsV1 = {
   computeUnits: bigint
   accountIsWritableBitMap: bigint
   allowOutOfOrderExecution: boolean
-  tokenReceiver: bigint
-  accounts: Cell
+  tokenReceiver: Buffer
+  accounts: Buffer[]
 }
 
-type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1
+type SuiExtraArgsV1 = {
+  kind: 'sui-v1'
+  gasLimit: bigint
+  allowOutOfOrderExecution: boolean
+  tokenReceiver: Buffer
+  receiverObjectIds: Buffer[]
+}
+
+export type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1
 
 export const ExtraArgsOpcodes = {
   genericV2: 0x181dcf10,
   svmV1: 0x1f3b3aba,
+  suiV1: 0x21ea4ca9,
 }
 
 export type CCIPReceiveConfirm = {
   rootId: bigint
+}
+
+export type GetValidatedFee = {
+  msg: CCIPSend
+  context: Slice
+}
+
+export type MessageValidated = {
+  msg: CCIPSend
+  fee: bigint
+  context: Slice
+}
+
+export type MessageValidationFailed = {
+  msg: CCIPSend
+  error: bigint
+  context: Slice
+}
+
+const crossChainAddressCodec: CellCodec<Buffer> = {
+  encode: (addr: Buffer): Builder => {
+    if (addr.byteLength > 64) {
+      throw new Error('CrossChainAddress too long')
+    }
+    return beginCell().storeUint(addr.length, 8).storeBuffer(addr, addr.length)
+  },
+  load: (src: Slice): Buffer => {
+    const len = Number(src.loadUint(8))
+    if (len > 64) {
+      throw new Error('CrossChainAddress too long')
+    }
+    return src.loadBuffer(len)
+  },
 }
 
 export const builder = {
@@ -438,11 +534,46 @@ export const builder = {
               .storeUint(data.computeUnits, 32)
               .storeUint(data.accountIsWritableBitMap, 64)
               .storeBit(data.allowOutOfOrderExecution)
-              .storeUint(data.tokenReceiver, 256)
-              .storeRef(data.accounts)
+              .storeBuffer(data.tokenReceiver, 32)
+              .storeRef(
+                asSnakeData(data.accounts, (account) => new Builder().storeBuffer(account, 32)),
+              )
+          case 'sui-v1':
+            return beginCell()
+              .storeUint(ExtraArgsOpcodes.suiV1, 32)
+              .storeUint(data.gasLimit, 256)
+              .storeBit(data.allowOutOfOrderExecution)
+              .storeBuffer(data.tokenReceiver, 32)
+              .storeRef(
+                asSnakeData(data.receiverObjectIds, (objectId) =>
+                  new Builder().storeBuffer(objectId, 32),
+                ),
+              )
         }
       },
       load: function (src: Slice): ExtraArgs {
+        throw new Error('Function not implemented.')
+      },
+    }
+
+    const onRamps: CellCodec<OnRamps> = {
+      encode: function (data: OnRamps): Builder {
+        return beginCell()
+          .storeRef(asSnakeDataUint(data.destChainSelectors, 64))
+          .storeAddress(data.onRamp)
+      },
+      load: function (src: Slice): OnRamps {
+        throw new Error('Function not implemented.')
+      },
+    }
+
+    const offRamps: CellCodec<OffRamps> = {
+      encode: function (data: OffRamps): Builder {
+        return beginCell()
+          .storeRef(asSnakeDataUint(data.sourceChainSelectors, 64))
+          .storeAddress(data.offRamp)
+      },
+      load: function (src: Slice): OffRamps {
         throw new Error('Function not implemented.')
       },
     }
@@ -451,33 +582,32 @@ export const builder = {
       contractData,
       tokenAmount: tokenAmountCodec,
       extraArgs,
+      onRamps,
+      offRamps,
+      crossChainAddress: crossChainAddressCodec,
     }
   })(),
-  message: {
-    in: (() => {
+  message: (() => {
+    const messageIn = (() => {
       const ccipSend: CellCodec<CCIPSend> = {
         encode: (opts: CCIPSend): Builder => {
-          return (
-            beginCell()
-              .storeUint(Opcodes.ccipSend, 32)
-              .storeUint(opts.queryID ?? 0, 64)
-              .storeUint(opts.destChainSelector, 64)
-              // CrossChainAddress TODO: assert =< 64
-              .storeUint(opts.receiver.byteLength, 8)
-              .storeBuffer(opts.receiver, opts.receiver.byteLength)
-              .storeRef(opts.data)
-              .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
-              .storeAddress(opts.feeToken)
+          return beginCell()
+            .storeUint(Opcodes.ccipSend, 32)
+            .storeUint(opts.queryID ?? 0, 64)
+            .storeUint(opts.destChainSelector, 64)
+            .storeBuilder(crossChainAddressCodec.encode(opts.receiver))
+            .storeRef(opts.data)
+            .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
+            .storeAddress(opts.feeToken)
 
-              .storeRef(opts.extraArgs)
-          )
+            .storeRef(opts.extraArgs)
         },
         load: function (src: Slice): CCIPSend {
           src.skip(32)
           return {
             queryID: src.loadUint(64),
             destChainSelector: src.loadUintBig(64),
-            receiver: src.loadBuffer(src.loadUint(8)),
+            receiver: crossChainAddressCodec.load(src),
             data: src.loadRef(),
             tokenAmounts: fromSnakeData(src.loadRef(), tokenAmountCodec.load),
             feeToken: src.loadAddress(),
@@ -539,14 +669,50 @@ export const builder = {
         },
       }
 
+      const applyRampUpdates: CellCodec<ApplyRampUpdates> = {
+        encode: (opts: ApplyRampUpdates): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.applyRampUpdates, 32)
+            .storeUint(opts.queryID ?? 0, 64)
+            .storeMaybeBuilder(opts.onRamps ? builder.data.onRamps.encode(opts.onRamps) : null)
+            .storeMaybeBuilder(
+              opts.offRampAdds ? builder.data.offRamps.encode(opts.offRampAdds) : null,
+            )
+            .storeMaybeBuilder(
+              opts.offRampRemoves ? builder.data.offRamps.encode(opts.offRampRemoves) : null,
+            )
+        },
+        load: function (src: Slice): ApplyRampUpdates {
+          throw new Error('Function not implemented.')
+        },
+      }
+
+      const getValidatedFee: CellCodec<GetValidatedFee> = {
+        encode: function (data: GetValidatedFee): Builder {
+          return beginCell()
+            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeRef(ccipSend.encode(data.msg))
+            .storeSlice(data.context)
+        },
+        load: function (src: Slice): GetValidatedFee {
+          src.skip(32)
+          return {
+            msg: ccipSend.load(src.loadRef().beginParse()),
+            context: src,
+          }
+        },
+      }
+
       return {
         ccipSend,
+        getValidatedFee,
         ccipReceiveConfirm,
         messageSent,
         messageRejected,
+        applyRampUpdates,
       }
-    })(),
-    out: (() => {
+    })()
+    const out = (() => {
       const ccipSendACK: CellCodec<CCIPSendACK> = {
         encode: (opts: CCIPSendACK): Builder => {
           return beginCell()
@@ -578,10 +744,50 @@ export const builder = {
         },
       }
 
+      const messageValidated: CellCodec<MessageValidated> = {
+        encode: (data: MessageValidated): Builder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeRef(messageIn.ccipSend.encode(data.msg))
+            .storeCoins(data.fee)
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidated => {
+          src.skip(32) // opcode
+          return {
+            msg: messageIn.ccipSend.load(src.loadRef().beginParse()),
+            fee: src.loadCoins(),
+            context: src,
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
+        encode: (data: MessageValidationFailed): Builder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeRef(messageIn.ccipSend.encode(data.msg))
+            .storeUint(data.error, 256)
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidationFailed => {
+          src.skip(32) // opcode
+          return {
+            msg: messageIn.ccipSend.load(src.loadRef().beginParse()),
+            error: src.loadUintBig(256),
+            context: src,
+          }
+        },
+      }
+
       return {
+        messageValidated,
+        messageValidationFailed,
         ccipSendACK,
         ccipSendNACK,
       }
-    })(),
-  },
+    })()
+
+    return { in: messageIn, out }
+  })(),
 }

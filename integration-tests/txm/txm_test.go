@@ -52,18 +52,19 @@ func TestTxmLocal(t *testing.T) {
 	config := txm.DefaultConfigSet
 	config.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
 
-	runTxmTest(t, logger, config, tonChain, keystore, 5)
+	runTxmTest(t, logger, config, tonChain, string(chainsel.TON_LOCALNET.ChainID), keystore, 5)
 }
 
-func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain cldf_ton.Chain, keystore loop.Keystore, iterations int) {
+func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain cldf_ton.Chain, chainID string, keystore loop.Keystore, iterations int) {
 	signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
 		return tracetracking.SignedAPIClient{
 			Client: tonChain.Client,
 			Wallet: *tonChain.Wallet,
 		}, nil
 	}
-	tonTxm := txm.New(logger, keystore, signedClientProvider, config)
-	err := tonTxm.Start(t.Context())
+	tonTxm, err := txm.New(logger, chainID, keystore, signedClientProvider, config)
+	require.NoError(t, err)
+	err = tonTxm.Start(t.Context())
 	require.NoError(t, err)
 	defer func() {
 		_ = tonTxm.Close()

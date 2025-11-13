@@ -21,6 +21,7 @@ import { createMaxPayload, createExtraArgs } from './config'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
+import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -95,11 +96,13 @@ describe('CCIP OnRamp Gas Estimation', () => {
     // Deploy Router
     const routerCode = await compile('Router')
     const routerData: rt.Storage = {
-      id: 0,
+      id: 0n,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
       },
+      wrappedNative: ZERO_ADDRESS,
+      offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
     router = blockchain.openContract(rt.Router.createFromConfig(routerData, routerCode))
@@ -127,11 +130,15 @@ describe('CCIP OnRamp Gas Estimation', () => {
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
 
     // Configure Router
-    await router.sendSetRamps(deployer.getSender(), {
+    await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
       value: toNano('0.1'),
-      queryID: 0,
-      destChainSelector: [CHAINSEL_EVM_TEST],
-      onRamp: onRamp.address,
+      data: {
+        queryID: BigInt(0),
+        onRamps: {
+          destChainSelectors: [CHAINSEL_EVM_TEST],
+          onRamp: onRamp.address,
+        },
+      },
     })
 
     // Configure OnRamp

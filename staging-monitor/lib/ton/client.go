@@ -15,6 +15,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -140,7 +142,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		Receiver:          receiverBytes,
 		Data:              msg.Data,
 		TokenAmounts:      nil,
-		FeeToken:          address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
+		FeeToken:          tvm.TonTokenAddr,
 		ExtraArgs:         extraArgsCell,
 	}
 

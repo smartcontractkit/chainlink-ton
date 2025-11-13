@@ -7,7 +7,6 @@ struct ExecutionStateChanged {
     sequenceNumber: uint64,
     messageId: uint256,
     state: ExecutionState,
-    //returnData? probably not
 }
 
 const TOPIC_COMMIT_REPORT_ACCEPTED: int = stringCrc32("CommitReportAccepted");
@@ -27,4 +26,8 @@ struct SourceChainConfigUpdated {
     sourceChainConfig: SourceChainConfig;
 }
 
-
+const DYNAMIC_CONFIG_SET_TOPIC: int = stringCrc32("DynamicConfigSet");
+struct OffRamp_DynamicConfigSet {
+    feeQuoter: address;
+    permissionlessExecutionThresholdSeconds: uint32,
+}
