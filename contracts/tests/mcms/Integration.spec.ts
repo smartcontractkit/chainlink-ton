@@ -515,7 +515,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -635,7 +635,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -767,7 +767,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsBypass.address,
@@ -886,7 +886,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -972,7 +972,7 @@ describe('MCMS - IntegrationTest', () => {
           publicKey: v.publicKey,
           sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
         }))
-        const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+        const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
         const metadata = {
           chainId,
           multiSig: bind.mcmsVeto.address,
@@ -1103,7 +1103,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,

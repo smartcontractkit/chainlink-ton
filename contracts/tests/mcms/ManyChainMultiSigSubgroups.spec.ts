@@ -208,7 +208,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     const insufficientSigners = signers.slice(2)
     const [insufficientSetRoot] = merkleProof.build(
       insufficientSigners,
-      BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
+      MCMSBaseTestSetup.TEST_VALID_UNTIL,
       rootMetadata,
       testOps,
     )
@@ -233,7 +233,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     const sufficientSigners = signers.slice(1) // Remove 1 signer
     const [sufficientSetRoot] = merkleProof.build(
       sufficientSigners,
-      BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
+      MCMSBaseTestSetup.TEST_VALID_UNTIL,
       rootMetadata,
       testOps,
     )
@@ -364,7 +364,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
         ]
         const [reducedSetRoot, opProofs] = merkleProof.build(
           reducedSigners,
-          BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
+          MCMSBaseTestSetup.TEST_VALID_UNTIL,
           rootMetadata,
           testOps,
         )
@@ -399,7 +399,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const [overrideSetRoot] = merkleProof.build(
       signers,
-      BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
+      MCMSBaseTestSetup.TEST_VALID_UNTIL,
       overrideMetadata,
       testOps,
     )

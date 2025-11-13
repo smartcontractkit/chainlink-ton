@@ -25,7 +25,7 @@ export type SetRoot = {
   // The new expiring root.
   root: bigint // uint256
   // The time by which the root is valid.
-  validUntil: bigint // uint32
+  validUntil: number // uint32
   // The metadata about the root, which is stored as one of the leaves.
   metadata: RootMetadata
   // The MerkleProof of inclusion of the metadata in the Merkle tree.
@@ -496,7 +496,7 @@ export const builder = {
           return {
             queryId: src.loadUintBig(64),
             root: src.loadUintBig(256),
-            validUntil: src.loadUintBig(32),
+            validUntil: src.loadUint(32),
             metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
@@ -617,7 +617,7 @@ export const builder = {
       cleanExpiredRoots: {
         encode: (msg: CleanExpiredRoots): Builder => {
           return beginCell()
-            .storeUint(opcodes.in.TransferOracleRole, 32)
+            .storeUint(opcodes.in.CleanExpiredRoots, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(asSnakeData<bigint>(msg.roots, (v) => beginCell().storeUint(v, 256)))
             .storeRef(asSnakeData<number>(msg.validUntils, (v) => beginCell().storeUint(v, 32)))

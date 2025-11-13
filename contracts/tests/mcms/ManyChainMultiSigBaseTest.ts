@@ -541,7 +541,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
 
     const [setRoot, opProofs] = merkleProof.build(
       signers,
-      BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
+      MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
       rootMetadata,
       this.testOps,
     )
