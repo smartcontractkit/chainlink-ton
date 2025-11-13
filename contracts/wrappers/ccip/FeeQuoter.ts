@@ -12,11 +12,12 @@ import {
   SendMode,
   Builder,
   Slice,
+  TupleItem,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { CellCodec } from '../utils'
+import { CellCodec, StackCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
@@ -387,6 +388,36 @@ export const builder = {
     }
   })(),
 }
+
+export const stackBuilder = {
+  data: {
+    ccipSend: ((): StackCodec<rt.CCIPSend> => {
+      return {
+        encode: function (data: rt.CCIPSend): TupleItem[] {
+          return [
+            { type: 'int', value: BigInt(data.queryID ?? 0) },
+            { type: 'int', value: data.destChainSelector },
+            {
+              type: 'slice',
+              cell: beginCell().storeBuffer(data.receiver, data.receiver.length).endCell(),
+            },
+            { type: 'cell', cell: data.data },
+            {
+              type: 'cell',
+              cell: asSnakeData(data.tokenAmounts, rt.builder.data.tokenAmount.encode),
+            },
+            { type: 'slice', cell: beginCell().storeAddress(data.feeToken).endCell() },
+            { type: 'cell', cell: data.extraArgs },
+          ]
+        },
+        load: function (src: TupleItem[]): rt.CCIPSend {
+          throw new Error('Function not implemented.')
+        },
+      }
+    })(),
+  },
+}
+
 export abstract class Params {}
 
 export abstract class Opcodes {
@@ -502,6 +533,20 @@ export class FeeQuoter
     body: upgradeable.Upgrade,
   ): Promise<void> {
     return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  async getValidatedFeeCell(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
+    const result = await provider.get('validatedFeeCell', [
+      { type: 'cell', cell: rt.builder.message.in.ccipSend.encode(msg).asCell() },
+    ])
+
+    return result.stack.readBigNumber()
+  }
+
+  async getValidatedFee(provider: ContractProvider, msg: rt.CCIPSend): Promise<bigint> {
+    const result = await provider.get('validatedFee', stackBuilder.data.ccipSend.encode(msg))
+
+    return result.stack.readBigNumber()
   }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {

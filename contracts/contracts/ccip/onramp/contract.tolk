@@ -274,6 +274,13 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
     return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
 }
 
+// We are taking destChainSelector as param to enable future per-destination feeQuoters
+get fun feeQuoter(destChainSelector: int): address {
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+    return config.feeQuoter;
+}
+
 // vec<address>
 get fun allowedSendersList(destChainSelector: uint64): tuple? {
     val st = lazy OnRamp_Storage.load();

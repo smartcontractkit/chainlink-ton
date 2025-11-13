@@ -34,19 +34,22 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorDestChainNotEnabled)
-		ecMax = int32(ErrorUnknownMessage)
+		ecMax = int32(ErrorInsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	ErrorDestChainNotEnabled ExitCode = iota + ExitCode(49600)
+	ErrorDestChainNotEnabled ExitCode = ExitCode(49600 + iota)
 	ErrorSourceChainNotEnabled
 	SenderIsNotOffRamp
 	OffRampNotSetForSelector
 	OffRampAddressMismatch
-
-	ErrorUnknownMessage ExitCode = ExitCode(0x1002)
+	ErrorSubjectCursed
+	ErrorNotOnRamp
+	ErrorMissingTokenAmounts
+	ErrorNoMultiTokenTransfers
+	ErrorInsufficientFee
 )
 
 type Storage struct {

@@ -8,39 +8,40 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorUnsupportedChainFamilySelector-1001]
-	_ = x[ErrorGasLimitTooHigh-1002]
-	_ = x[ExtraArgOutOfOrderExecutionMustBeTrue-1003]
-	_ = x[ErrorInvalidExtraArgsData-1004]
-	_ = x[ErrorUnsupportedNumberOfTokens-1005]
-	_ = x[ErrorInvalidSuiReceiverAddress-1006]
-	_ = x[ErrorInvalidTokenReceiver-1007]
-	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-1008]
-	_ = x[ErrorMsgDataTooLarge-1009]
-	_ = x[ErrorInsufficientFee-1010]
+	_ = x[ErrorUnsupportedChainFamilySelector-24800]
+	_ = x[ErrorGasLimitTooHigh-24801]
+	_ = x[ExtraArgOutOfOrderExecutionMustBeTrue-24802]
+	_ = x[ErrorInvalidExtraArgsData-24803]
+	_ = x[ErrorUnsupportedNumberOfTokens-24804]
+	_ = x[ErrorInvalidSuiReceiverAddress-24805]
+	_ = x[ErrorInvalidTokenReceiver-24806]
+	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-24807]
+	_ = x[ErrorMsgDataTooLarge-24808]
+	_ = x[ErrorStaleGasPrice-24809]
+	_ = x[ErrorDestChainNotEnabled-24810]
+	_ = x[ErrorFeeTokenNotSupported-24811]
+	_ = x[ErrorInvalidMsgData-24812]
 	_ = x[ErrorTokenNotSupported-24813]
 	_ = x[ErrorUnknownDestChainSelector-24814]
+	_ = x[ErrorInsufficientFee-24815]
+	_ = x[ErrorTokenTransfersNotSupported-24816]
+	_ = x[ErrorExecutionCostOverflow-24817]
+	_ = x[ErrorPremiumFeeOverflow-24818]
+	_ = x[ErrorDataAvailabilityCostOverflow-24819]
+	_ = x[ErrorFeeCalculationOverflow-24820]
+	_ = x[ErrorTokenPriceTooLow-24821]
+	_ = x[ErrorFeeOverflow-24822]
+	_ = x[ErrorUnauthorizedPriceUpdater-24823]
 }
 
-const (
-	_ExitCode_name_0 = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorInsufficientFee"
-	_ExitCode_name_1 = "ErrorTokenNotSupportedErrorUnknownDestChainSelector"
-)
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorUnauthorizedPriceUpdater"
 
-var (
-	_ExitCode_index_0 = [...]uint16{0, 35, 55, 92, 117, 147, 177, 202, 243, 263, 283}
-	_ExitCode_index_1 = [...]uint8{0, 22, 51}
-)
+var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 202, 243, 263, 281, 305, 330, 349, 371, 400, 420, 451, 477, 500, 533, 560, 581, 597, 626}
 
 func (i ExitCode) String() string {
-	switch {
-	case 1001 <= i && i <= 1010:
-		i -= 1001
-		return _ExitCode_name_0[_ExitCode_index_0[i]:_ExitCode_index_0[i+1]]
-	case 24813 <= i && i <= 24814:
-		i -= 24813
-		return _ExitCode_name_1[_ExitCode_index_1[i]:_ExitCode_index_1[i+1]]
-	default:
+	idx := int(i) - 24800
+	if i < 24800 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
+	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]
 }

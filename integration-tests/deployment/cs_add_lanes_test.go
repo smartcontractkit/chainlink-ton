@@ -15,6 +15,8 @@ import (
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
@@ -97,7 +99,7 @@ func TestAddLanes(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			tonops.TonTokenAddr.String(): big.NewInt(99),
+			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,

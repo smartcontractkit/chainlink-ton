@@ -267,6 +267,12 @@ export class OnRamp implements Contract, withdrawable.Interface {
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
+  getFeeQuoter(provider: ContractProvider, destChainSelector: bigint): Promise<Address> {
+    return provider.get('feeQuoter', [{ type: 'int', value: destChainSelector }]).then((res) => {
+      return res.stack.readAddress()
+    })
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }

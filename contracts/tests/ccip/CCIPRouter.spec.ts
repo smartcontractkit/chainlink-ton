@@ -29,6 +29,7 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
+import { getValidatedFee } from '../../src/ccipSend/fee'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -119,7 +120,7 @@ describe('Router', () => {
       print: true,
       blockchainLogs: false,
       vmLogs: 'none',
-      debugLogs: false,
+      debugLogs: true,
     }
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
@@ -648,9 +649,9 @@ describe('Router', () => {
         .asCell(),
     }
 
-    const amount = await getValidatedFee(sender.getSender(), feeQuoter, ccipSend, Cell.EMPTY)
-    console.log('Validated fee:', amount.fee, 'TON')
-    const totalSendValue = amount.fee + toNano('0.5')
+    const fee = await getValidatedFee(blockchain, router.address, ccipSend)
+    console.log('Validated fee:', fee, 'TON')
+    const totalSendValue = fee + toNano('0.5')
 
     // router.ccipSend
     {
@@ -1053,50 +1054,4 @@ function verifyBodyIsRouterCCIPSendACK(
   const validations = validation ? [validation] : []
 
   return verifyBodyMessage(body, rt.builder.message.out.ccipSendACK, validations)
-}
-
-/**
- * Requests validateMessage
- */
-async function getValidatedFee(
-  sender: Sender,
-  feeQuoter: SandboxContract<fq.FeeQuoter>,
-  msg: rt.CCIPSend,
-  metadata: Cell,
-): Promise<sendExecutor.MessageValidated> {
-  const res = await feeQuoter.sendGetValidatedFee(sender, {
-    value: toNano('1'),
-    msg: {
-      msg,
-      metadata,
-    },
-  })
-
-  // request
-  expect(res.transactions).toHaveTransaction({
-    from: sender.address,
-    to: feeQuoter.address,
-    success: true,
-  })
-  // response
-  expect(res.transactions).toHaveTransaction({
-    from: feeQuoter.address,
-    to: sender.address,
-    success: true,
-  })
-
-  const tx = res.transactions.find(
-    (tx) =>
-      tx.inMessage?.info.type === 'internal' && tx.inMessage.info.src.equals(feeQuoter.address),
-  )
-
-  if (!tx || tx.inMessage === undefined || tx.inMessage?.info.type !== 'internal') {
-    throw new Error('Failed to find response transaction')
-  }
-  const resp = tx.inMessage
-
-  const body = resp.body.beginParse()
-  expect(body.preloadUint(32)).toBe(sendExecutor.Opcodes.messageValidated)
-  const messageValidated = fq.builder.message.out.messageValidated.load(resp.body.beginParse())
-  return messageValidated
 }

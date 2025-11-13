@@ -147,14 +147,10 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 			DestChainConfig: onRampDestChainConfig,
 		}
 
-		// TODO use a non-empty address for e2e test before we resolve the chainlink-ccip chain accessor event validation check
-		// TODO move the cs_test_helper.go fee token address somewhere else so we can import here rather than redeclar
-		var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 		// Router
 		config.Router = ccipocr3.RouterConfig{
-			// TODO: confirm address.NewAddressNone == zero address if fully written out (0:00000..)
 			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
-			WrappedNativeAddress: addrToBytes(TonTokenAddr),
+			WrappedNativeAddress: addrToBytes(tvm.TonTokenAddr),
 		}
 
 		// sourceChainConfigs represents sources on the *destination chain* contract, since this is the source chain
@@ -654,7 +650,6 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		err := gasPrice.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(selector)})
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
-			// TODO revisit the common error code, right now common.UnknownDestChainSelector doesn't match with on-chain
 			prices[selector] = ccipocr3.TimestampedUnixBig{
 				Timestamp: 0,
 				Value:     big.NewInt(0),
@@ -750,7 +745,6 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		if err != nil {
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here
-				// TODO revisit the common error code, right now common.TokenNotSupported doesn't match with on-chain
 				prices[ccipocr3.UnknownEncodedAddress(strAddr)] = ccipocr3.TimestampedUnixBig{
 					Timestamp: 0,
 					Value:     big.NewInt(0),
