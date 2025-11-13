@@ -2,5 +2,5 @@
 
 enum Common_Error {
     //Out of range?
-    CrossChainAddressOutOfRange = 5; 
+    CrossChainAddressOutOfRange = 5
 }

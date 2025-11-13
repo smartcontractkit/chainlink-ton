@@ -26,16 +26,28 @@ const RESERVE = ton("1");
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
+        // Permissionless
         OnRamp_GetValidatedFee<RemainingBitsAndRefs> => {
             onGetValidatedFee(msg, in.senderAddress)
         }
+        // Sender must be the FeeQuoter
         FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext> => {
-            onMessageValidated(msg, in.senderAddress)
+            val st = lazy OnRamp_Storage.load();
+            val feeQuoterAddress = st.config.load().feeQuoter;
+            assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
+            onMessageValidated(msg)
         }
+        // Sender must be the FeeQuoter
         FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext> => {
-            onMessageValidationFailed(msg, in.senderAddress)
+            val st = lazy OnRamp_Storage.load();
+            val feeQuoterAddress = st.config.load().feeQuoter;
+            assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
+            onMessageValidationFailed(msg)
         }
-        OnRamp_Send => {send(msg, in.senderAddress)}
+        // Permissionless
+        OnRamp_Send => {
+            onSend(msg, in.senderAddress)
+        }
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
         }
@@ -103,6 +115,15 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+/*
+Forwards a validated fee request from the OnRamp to the FeeQuoter contract
+for final fee validation.
+
+Flow:
+    OnRamp.OnRamp_GetValidatedFee ->
+    FeeQuoter.FeeQuoter_GetValidatedFee ->
+    FeeQuoter.FeeQuoter_MessageValidated | FeeQuoter.FeeQuoter_MessageValidationFailed ->
+*/
 fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
@@ -125,12 +146,16 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender:
     getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>, sender: address) {
-    val st = lazy OnRamp_Storage.load();
-    val feeQuoterAddress = st.config.load().feeQuoter;
+/*
+Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
 
-    assert (sender == feeQuoterAddress, Error.Unauthorized);
-
+Flow:
+    OnRamp.OnRamp_GetValidatedFee ->
+    FeeQuoter.FeeQuoter_GetValidatedFee ->
+    FeeQuoter.FeeQuoter_MessageValidated ->
+    OnRamp.FeeQuoter_MessageValidated
+*/
+fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>) {
     val userContext = msg.context.userContext;
     val userAddress = msg.context.onrampContext;
 
@@ -148,12 +173,17 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
     confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>, sender: address) {
-    val st = lazy OnRamp_Storage.load();
-    val feeQuoterAddress = st.config.load().feeQuoter;
+/*
+Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
+and replies back to the original caller.
 
-    assert (sender == feeQuoterAddress, Error.Unauthorized);
-
+Flow:
+    OnRamp.OnRamp_GetValidatedFee ->
+    FeeQuoter.FeeQuoter_GetValidatedFee ->
+    FeeQuoter.FeeQuoter_MessageValidationFailed ->
+    OnRamp.OnRamp_MessageValidationFailed
+*/
+fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>) {
     val userContext = msg.context.userContext;
     val userAddress = msg.context.onrampContext;
 
@@ -171,7 +201,12 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
     rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun send(payload: OnRamp_Send, sender: address) {
+/*
+Handles CCIP send messages forwarded by the Router. Validates that the
+destination chain configuration is enabled, enforces the optional allowlist,
+and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
+*/
+fun onSend(payload: OnRamp_Send, sender: address) {
     var st = lazy OnRamp_Storage.load();
 
     val msg = payload.msg.load();

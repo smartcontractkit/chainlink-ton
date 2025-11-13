@@ -25,7 +25,7 @@ export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
 export const ONRAMP_FACILITY_ID = 181
 export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
 
-export const ONRAMP_CONTRACT_VERSION = '0.0.9'
+export const ONRAMP_CONTRACT_VERSION = '1.6.0'
 
 export enum OnRampError {
   UnknownDestChainSelector = ONRAMP_ERROR_CODE,

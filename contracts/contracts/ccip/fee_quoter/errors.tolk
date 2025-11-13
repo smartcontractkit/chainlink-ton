@@ -24,5 +24,3 @@ enum FeeQuoter_Error {
     FeeOverflow
     UnauthorizedPriceUpdater
 }
-
-

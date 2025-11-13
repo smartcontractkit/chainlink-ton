@@ -26,7 +26,7 @@ import * as rt from './Router'
 import * as sendExecutor from './CCIPSendExecutor'
 import { crc32 } from 'zlib'
 
-export const FEE_QUOTER_CONTRACT_VERSION = '0.0.8'
+export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 
 export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
 export const FEE_QUOTER_FACILITY_ID = 248
