@@ -26,7 +26,7 @@ fun onInternalMessage(in: InMessage) {
         Router_ApplyRampUpdates => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            onApplyRampUpdates(st, msg)
+            onApplyRampUpdates(mutate st, msg)
         }
         // Permissionless
         Router_CCIPSend => {
@@ -189,12 +189,12 @@ fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
 /*
 Applies OnRamp and OffRamp updates. Restricted to contract owner.
 */
-fun onApplyRampUpdates(st: Storage, msg: Router_ApplyRampUpdates) {
-    updateOnRamps(st, msg.onRampUpdates);
-    updateOffRamps(st, msg.offRampAdds, msg.offRampRemoves);
+fun onApplyRampUpdates(mutate st: Storage, msg: Router_ApplyRampUpdates) {
+    updateOnRamps(mutate st, msg.onRampUpdates);
+    updateOffRamps(mutate st, msg.offRampAdds, msg.offRampRemoves);
 }
 
-fun updateOnRamps(st: Storage, onRampUpdates: OnRamps?) {
+fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
     if (onRampUpdates != null) {
         var selectors = onRampUpdates.destChainSelectors.iter();
         while (!selectors.empty()) {
@@ -211,7 +211,7 @@ fun updateOnRamps(st: Storage, onRampUpdates: OnRamps?) {
     }
 }
 
-fun updateOffRamps(st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
+fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
     if (offRampAdds != null) {
         val offRampAdd = offRampAdds.offRamp!;
         var iter = offRampAdds.sourceChainSelectors.iter();
