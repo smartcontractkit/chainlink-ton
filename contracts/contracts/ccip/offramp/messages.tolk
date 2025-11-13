@@ -46,6 +46,7 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     root: MerkleRootId;
     metadataHash: uint256;
     gasOverride: coins?;
+    executionState: ExecutionState;
 }
 
 //crc32('OffRamp_ManuallyExecute')

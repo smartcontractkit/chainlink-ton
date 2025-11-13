@@ -43,13 +43,6 @@ struct OnRamp_GetValidatedFeeContext {
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
 }
 
-// crc32('OnRamp_WithdrawJettons')
-struct (0x266AEACF) OnRamp_WithdrawJettons {
-    msgId: uint224,
-    tokens: SnakedCell<TokenAmount>;
-    onrampJettonWallet: address;
-}
-
 struct (0x10000003) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
@@ -94,8 +87,6 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     msg: Cell<Router_CCIPSend>,
     context: T
 }
-
-
 
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}

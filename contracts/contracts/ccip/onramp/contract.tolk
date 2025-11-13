@@ -156,7 +156,7 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
     rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
+fun send(payload: OnRamp_Send, sender: address) {
     var st = lazy OnRamp_Storage.load();
 
     val msg = payload.msg.load();
@@ -174,7 +174,6 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val config = st.config.load();
 
-    var tokenRegistry: address? = null;
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
@@ -183,9 +182,7 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
             onrampSend: payload,
             config: CCIPSendExecutor_Config {
                 feeQuoter: config.feeQuoter,
-                tokenRegistry,
             }.toCell(),
-            onrampJettonWallet: jettonWallet,
         }
     });
 
@@ -239,7 +236,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
             receiver: ccipsend.receiver.toCell(),
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
-            tokenAmounts: createEmptyCell(), // TODO:
+            tokenAmounts: ccipsend.tokenAmounts,
             feeToken: ccipsend.feeToken,
             feeTokenAmount: payload.fee as uint256, // safe because it is 128 bits
         }.toCell(),

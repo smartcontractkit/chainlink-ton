@@ -12,13 +12,12 @@ type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
-    | Common_JettonTransferNotification
-   
+    ;
+
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
     onrampSend: OnRamp_Send,
     config: Cell<CCIPSendExecutor_Config>,
-    onrampJettonWallet: address? = null,
 }
 
 // Costs associated with SendExecutor operations

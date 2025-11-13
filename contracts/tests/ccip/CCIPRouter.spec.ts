@@ -652,7 +652,6 @@ describe('Router', () => {
 
     const offchainFee = await getValidatedFee(blockchain, router.address, ccipSend)
     console.log('Validated fee:', offchainFee, 'TON')
-    const totalSendValue = offchainFee + toNano('0.5')
     const onchainFee = await sendGetValidatedFee(
       sender.getSender(),
       router,
@@ -661,6 +660,7 @@ describe('Router', () => {
     )
     expect(onchainFee).toBe(offchainFee)
 
+    const totalSendValue = offchainFee + toNano('0.5')
     // router.ccipSend
     {
       const result = await router.sendCcipSend(sender.getSender(), {

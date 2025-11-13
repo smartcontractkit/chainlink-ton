@@ -11,6 +11,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
@@ -157,7 +159,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
 					"TON": {
-						Address:                    TonTokenAddr,
+						Address:                    tvm.TonTokenAddr,
 						PremiumMultiplierWeiPerEth: 1,
 					},
 				},
@@ -225,7 +227,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): tonTokenPrice,
+				tvm.TonTokenAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
@@ -253,7 +255,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: to,
 			GasPrice: gasPrices[to],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): tonTokenPrice,
+				tvm.TonTokenAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:

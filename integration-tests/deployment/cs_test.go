@@ -12,6 +12,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -72,7 +74,7 @@ func TestDeploy(t *testing.T) {
 	// </redeploy>
 
 	// TODO: LINK token deployment
-	linkAddr := tonops.TonTokenAddr
+	linkAddr := tvm.TonTokenAddr
 
 	tonDefinition := config.ChainDefinition{
 		ConnectionConfig: config.ConnectionConfig{
@@ -82,7 +84,7 @@ func TestDeploy(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			tonops.TonTokenAddr.String(): big.NewInt(99),
+			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainConfig,
 		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},

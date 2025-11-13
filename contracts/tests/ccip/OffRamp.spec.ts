@@ -1,14 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  Address,
-  beginCell,
-  Cell,
-  contractAddress,
-  Dictionary,
-  fromNano,
-  StateInit,
-  toNano,
-} from '@ton/core'
+import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -26,7 +17,6 @@ import {
   SourceChainConfig,
   OffRamp,
   OffRampError,
-  ReceiveExecutorError,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
@@ -75,6 +65,7 @@ const CHAINSEL_TON = 13879075125137744094n
 const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
+const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = 60
 
 // These have to match the EVM states
 const EXECUTION_STATE_IN_PROGRESS = 1n
@@ -165,7 +156,7 @@ async function deployOffRampContract(
     feeQuoter: ZERO_ADDRESS,
     router: owner.address, // used to determine who can send RMN updates
     chainSelector: CHAINSEL_TON,
-    permissionlessExecutionThresholdSeconds: 60,
+    permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
     latestPriceSequenceNumber: 0n,
   }
 
@@ -1414,6 +1405,79 @@ describe('OffRamp - Unit Tests', () => {
       deploy: true,
       success: true,
     })
+  })
+
+  it('Manual execute after permissionlessExecutionThresholdSeconds', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+
+    // Try manual exec when is not enabled
+    const manualExecFirstAttempt = await manualExecuteReport(report)
+    expect(manualExecFirstAttempt.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: false,
+      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
+    })
+
+    // Almost there, still needs to fail
+    warpTime(PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS)
+
+    const manualExecSecondAttempt = await manualExecuteReport(report)
+    expect(manualExecSecondAttempt.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: false,
+      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
+    })
+
+    // One more sec and we are ready to go
+    warpTime(1)
+
+    const manualExecThirdAttempt = await manualExecuteReport(report, undefined, true)
+    expect(manualExecThirdAttempt.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      value: message.gasLimit,
+      success: true,
+    })
+
+    assertLog(
+      manualExecThirdAttempt.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_IN_PROGRESS,
+      },
+    )
+
+    assertLog(
+      manualExecThirdAttempt.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_SUCCESS,
+      },
+    )
+
+    assertLog(
+      manualExecThirdAttempt.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
   })
 
   it('Manual execute: receiver fails, then succeeds', async () => {
