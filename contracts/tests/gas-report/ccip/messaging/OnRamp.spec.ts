@@ -252,10 +252,14 @@ describe('CCIP OnRamp Gas Estimation', () => {
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
 
-    const resultTransferOwnership = await onRamp.sendTransferOwnership(deployer.getSender(), toNano('0.05'), {
-      queryId: 1n,
-      newOwner: other.address,
-    })
+    const resultTransferOwnership = await onRamp.sendTransferOwnership(
+      deployer.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+        newOwner: other.address,
+      },
+    )
     expect(resultTransferOwnership.transactions).toHaveTransaction({
       from: deployer.address,
       to: onRamp.address,
