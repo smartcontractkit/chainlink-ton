@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -154,8 +155,10 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
 		DestChainConfigs: nil,
-		ExecutorCode:     tonCompiledContracts[state.SendExecutor].Code,
-		CurrentMessageID: big.NewInt(0),
+		Executor: onramp.ExecutorDeployment{
+			DeployableCode: tonCompiledContracts[state.Deployer].Code,
+			ExecutorCode:   tonCompiledContracts[state.SendExecutor].Code,
+		},
 	}
 
 	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil, func(tonContractAddress *TONContractAddress) {
