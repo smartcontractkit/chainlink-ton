@@ -7,7 +7,6 @@ import { ZERO_ADDRESS } from '../../../src/utils'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { setupTestFeeQuoter } from '../helpers/SetUp'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 
 async function deployOnRampContract(
