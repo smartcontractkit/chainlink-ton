@@ -575,7 +575,8 @@ describe('OffRamp - Unit Tests', () => {
           value: toNano('0.01'),
           msg: {
             priceUpdater: offRamp.address,
-          }}
+          },
+        },
       )
       expect(resultFeeQuoterAddAuthorizedCaller.transactions).toHaveTransaction({
         from: deployer.address,
@@ -1112,7 +1113,6 @@ describe('OffRamp - Unit Tests', () => {
       to: transmitters[0].address,
       success: true,
     })
-
   })
 
   it('Can commit with both merkle root and price updates', async () => {
