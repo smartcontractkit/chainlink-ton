@@ -67,8 +67,11 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
 		DestChainConfigs: nil,
-		ExecutorCode:     executorCode,
-		CurrentMessageID: big.NewInt(0),
+		Executor: onramp.ExecutorDeployment{
+			DeployableCode: codeCell,
+			ExecutorCode:   executorCode,
+			CurrentID:      big.NewInt(0),
+		},
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {

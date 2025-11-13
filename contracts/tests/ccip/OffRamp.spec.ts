@@ -57,10 +57,14 @@ import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
-import * as or from '../../wrappers/ccip/OffRamp'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
+<<<<<<< HEAD
 import {CHAIN_FAMILY_SELECTOR_EVM} from "../gas-report/constants";
+=======
+import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
+import * as NameSpace from '../../wrappers/ccip/NameSpace'
+>>>>>>> 082bd18d77bb0770a5c959b0236f740ff5406f42
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -470,7 +474,10 @@ describe('OffRamp - Unit Tests', () => {
     const data = deployable.builder.data.contractData
       .encode({
         owner: offRamp.address,
-        id: getMerkleRootID(root.merkleRoot),
+        id: deployable.builder.data.namespaced.encode({
+          namespace: NameSpace.CCIPNamespace.MerkleRoot,
+          id: getMerkleRootID(root.merkleRoot),
+        }),
       })
       .endCell()
 
@@ -642,6 +649,11 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   }, 60_000) // setup can take a while, since we deploy contracts
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp)
+  })
 
   it('should deploy', async () => {
     // the check is done inside beforeEach

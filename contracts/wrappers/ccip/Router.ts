@@ -73,12 +73,20 @@ export abstract class OutgoingOpcodes {
 }
 
 export class Router
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+  implements
+    upgradeable.Interface,
+    withdrawable.Interface,
+    typeAndVersion.Interface,
+    ownable2step.ContractClient,
+    Contract
 {
+  private ownable: ownable2step.ContractClient
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    this.ownable = new ownable2step.ContractClient(address)
+  }
 
   static createFromAddress(address: Address) {
     return new Router(address)
@@ -304,6 +312,33 @@ export class Router
         .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
         .asCell(),
     })
+  }
+
+  // Ownership methods
+  async getOwner(provider: ContractProvider): Promise<Address> {
+    return this.ownable.getOwner(provider)
+  }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    return this.ownable.getPendingOwner(provider)
+  }
+
+  async sendTransferOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.TransferOwnership,
+  ) {
+    return this.ownable.sendTransferOwnership(p, via, value, body)
+  }
+
+  async sendAcceptOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.AcceptOwnership,
+  ) {
+    return this.ownable.sendAcceptOwnership(p, via, value, body)
   }
 }
 

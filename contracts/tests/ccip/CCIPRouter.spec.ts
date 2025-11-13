@@ -31,6 +31,7 @@ import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
+import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -284,8 +285,11 @@ describe('Router', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: await compile('CCIPSendExecutor'),
+        executor: {
+          deployableCode: await compile('Deployable'),
+          executorCode: await compile('CCIPSendExecutor'),
+          currentID: 0n,
+        },
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -791,6 +795,11 @@ describe('Router', () => {
     expect(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
       facilityId(crc32(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
     )
+  })
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, router)
   })
 })
 

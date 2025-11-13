@@ -65,6 +65,7 @@ type MessageValidationFailed struct {
 // Metadata structure
 type Metadata struct {
 	Sender *address.Address `tlb:"addr"`
+	Value  *tlb.Coins       `tlb:"."`
 }
 
 // CCIPSendExecutor_Config structure

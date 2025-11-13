@@ -76,7 +76,7 @@ type Storage struct {
 
 // Deployables holds the deployable code cells for the offRamp contract
 type Deployables struct {
-	Router              *address.Address `tlb:"addr"`
+	RMNRouter           *address.Address `tlb:"addr"`
 	Deployer            *cell.Cell       `tlb:"^"`
 	MerkleRootCode      *cell.Cell       `tlb:"^"`
 	ReceiveExecutorCode *cell.Cell       `tlb:"^"`

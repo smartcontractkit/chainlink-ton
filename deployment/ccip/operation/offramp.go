@@ -8,7 +8,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
@@ -16,98 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
-
-type DeployOffRampInput struct {
-	ID                                      uint32
-	ChainSelector                           uint64
-	FeeQuoter                               *address.Address
-	Router                                  *address.Address
-	PermissionlessExecutionThresholdSeconds uint32
-	ContractPath                            string
-	DeployerContractPath                    string
-	MerkleRootContractPath                  string
-	ReceiveExecutorContractPath             string
-	Coins                                   string
-}
-
-// TODO: single deploy output
-type DeployOffRampOutput struct {
-	Address *address.Address
-}
-
-var DeployOffRampOp = operations.NewOperation(
-	"deploy-offramp-op",
-	semver.MustParse("0.1.0"),
-	"Deploys the OffRamp contract",
-	deployOffRamp,
-)
-
-func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (DeployOffRampOutput, error) {
-	output := DeployOffRampOutput{}
-
-	// TODO wrap the code cell creation somewhere
-	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
-	if err != nil {
-		return output, fmt.Errorf("failed to compile contract: %w", err)
-	}
-
-	deployerCode, err := wrappers.ParseCompiledContract(in.DeployerContractPath)
-	if err != nil {
-		return output, fmt.Errorf("failed to compile deployer contract: %w", err)
-	}
-
-	merkleRootCode, err := wrappers.ParseCompiledContract(in.MerkleRootContractPath)
-	if err != nil {
-		return output, fmt.Errorf("failed to compile merkle root contract: %w", err)
-	}
-
-	receiveExecutorCode, err := wrappers.ParseCompiledContract(in.ReceiveExecutorContractPath)
-	if err != nil {
-		return output, fmt.Errorf("failed to compile receive executor contract: %w", err)
-	}
-	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
-
-	storage := offramp.Storage{
-		ID: in.ID,
-		Ownable: common.Ownable2Step{
-			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
-		},
-		Deployables: offramp.Deployables{
-			Router:              in.Router,
-			Deployer:            deployerCode,
-			MerkleRootCode:      merkleRootCode,
-			ReceiveExecutorCode: receiveExecutorCode,
-		},
-		FeeQuoter: in.FeeQuoter,
-		// empty OCR3Base
-		OCR3Base: cell.BeginCell().
-			MustStoreUInt(0, 8).
-			MustStoreBoolBit(false).
-			MustStoreBoolBit(false).
-			EndCell(),
-		ChainSelector:                           in.ChainSelector,
-		PermissionlessExecutionThresholdSeconds: in.PermissionlessExecutionThresholdSeconds,
-		SourceChainConfigs:                      nil,
-		LatestPriceSequenceNumber:               0,
-	}
-	initData, err := tlb.ToCell(storage)
-	if err != nil {
-		return output, fmt.Errorf("failed to pack initData: %w", err)
-	}
-
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
-	if err != nil {
-		return output, fmt.Errorf("failed to deploy offramp contract: %w", err)
-	}
-	b.Logger.Infow("Deployed OffRamp", "addr", contract.Address)
-
-	output.Address = contract.Address
-	return output, nil
-}
 
 type OffRampSourceUpdate struct {
 	IsEnabled  bool // If false, disables the source by setting router to 0x0.
