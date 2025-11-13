@@ -248,7 +248,6 @@ fun onCCIPReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm) {
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-<<<<<<< HEAD
 /*
 Dispatches a validated message to the receiver via the Router_RouteMessage.
 Verifies sender ownership which should be the corresponing receiver executor, resolves the Router from the source selector,
