@@ -506,7 +506,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     var leafTuple: tuple = createEmptyTuple();
     leafTuple.push(message.generateMessageId(metadataHash));
 
-    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), Iterator<uint256>.new(report.proofs), report.proofFlagBits);
+    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), report.proofs.iter(), report.proofFlagBits);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
