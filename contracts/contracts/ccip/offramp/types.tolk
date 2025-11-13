@@ -6,16 +6,16 @@ import "../fee_quoter/messages"
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
-    messages: cell; // vec<Any2TVMRampMessage>
-    offchainTokenData: cell; // TODO: vec<vec<u8>>, one per token
-    proofs: cell; // Proofs used to construct the merkle root TODO: vec<bytes32>
+    messages: cell; // single Any2TVMRampMessage, though interface is set up to possibly support vec<Any2TVMRampMessage> in the future
+    offchainTokenData: cell; // vec<vec<u8>>, one per token, right now this is just empty
+    proofs: cell; // Proofs used to construct the merkle root as vec<uint256>
     proofFlagBits: uint256;
 }
 
 // Matches the EVM struct
 struct CommitReport {
     priceUpdates: Cell<PriceUpdates>?; // Price updates for the fee_quoter
-    merkleRoots: SnakedCell<MerkleRoot>; // Merkle roots 
+    merkleRoots: SnakedCell<MerkleRoot>; // Merkle roots is always size one, but interface is set up to possibly support multiple in the future
 }
 
 struct MessageMetadata {

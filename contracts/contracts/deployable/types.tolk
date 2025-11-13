@@ -16,6 +16,7 @@ struct (0xba466447) Deployable_Initialize {
     stateInit: ContractState;
 }
 
-//TODO: crc32('Deployable_ErrorNotOwner')
-const ERROR_NOT_OWNER: int = 0x1;
+// facilityId(crc32('Deployable_ErrorNotOwner')) * 100
+const ERROR_NOT_OWNER: int = 37400;
+
 

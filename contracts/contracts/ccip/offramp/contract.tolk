@@ -412,10 +412,9 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, value: 
     val sourceChainConfig = sourceChainConfigResult.loadValue();
     assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-    // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
-    // message fields ensures that the message being executed is correct and not tampered with. Including the known
-    // OnRamp ensures that the message originates from the correct OnRamp version. We know the sourceChainSelector
-    // and destChainSelector are correct because we revert below when they are not.
+    //  Hashing all of the message fields ensures that the message being executed is correct and not tampered with.
+    //Including the known OnRamp ensures that the message originates from the correct OnRamp version.
+    //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
     val metadataHash = MessageMetadata {
         sourceChainSelector: report.sourceChainSelector,
         destChainSelector: st.chainSelector,

@@ -106,6 +106,20 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
+// TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
+// TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
+// crc32("Router_CCIPSendACK")
+struct (0x78d0f21e) Router_CCIPSendACK {
+    queryID: uint64;
+    messageId: uint256;
+}
+
+// crc32("Router_CCIPSendNACK")
+struct (0x5a45d434) Router_CCIPSendNACK {
+    queryID: uint64;
+    error: uint256;
+}
+
 // Costs associated with Router operations
 struct Router_Costs {}
 
@@ -128,26 +142,12 @@ fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
 }
 
-fun Router_Costs.routeMessage() {
+fun Router_Costs.routeMessage(): int {
     val baseFee = ton("0.004");
     return baseFee + Router_Costs.receiveConfirm();
 }
 
-fun Router_Costs.receiveConfirm() {
+fun Router_Costs.receiveConfirm(): int {
     val baseFee = ton("0.002");
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
-}
-
-// TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
-// TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
-// crc32("Router_CCIPSendACK")
-struct (0x78d0f21e) Router_CCIPSendACK {
-    queryID: uint64;
-    messageId: uint256;
-}
-
-// crc32("Router_CCIPSendNACK")
-struct (0x5a45d434) Router_CCIPSendNACK {
-    queryID: uint64;
-    error: uint256;
 }
