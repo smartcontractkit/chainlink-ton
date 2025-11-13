@@ -105,6 +105,10 @@ fun SnakedCell<T>.iter(self): Iterator<T> {
     return Iterator<T>.new(self)
 }
 
+fun SnakedCell<T>.empty(self): bool {
+    return self.beginParse().isEmpty();
+}
+
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
     data: slice;

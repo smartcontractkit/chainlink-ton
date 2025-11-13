@@ -12,7 +12,6 @@ import "../../lib/funding/withdrawable"
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
 const CONTRACT_VERSION = "0.0.9";
-const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -38,8 +37,6 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
 
     // only offramp owned message is allowed
     assert(sender == st.owner, MerkleRoot_Error.NotOwner);
-
-    // TODO: manually executing an inProgress message if the receiver doesn't correctly ack the message can be problematic
 
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
@@ -90,7 +87,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
 
     val executeValidated = createMessage({
         bounce: true,
-        value: ton("0.02"),
+        value: 0,
         dest: st.owner,
         body: OffRamp_ExecuteValidated {
             message: message.toCell(),
@@ -100,7 +97,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
             executionState: state,
         }
     });
-    executeValidated.send(SEND_MODE_REGULAR);
+    executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun typeAndVersion(): (slice, slice) {

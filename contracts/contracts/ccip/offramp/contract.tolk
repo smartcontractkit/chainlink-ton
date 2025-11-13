@@ -33,11 +33,11 @@ fun onInternalMessage(in:InMessage) {
     match(msg) {
         // Sender must be OCR transmitter
         OffRamp_Commit => {
-            _commit(msg, in.senderAddress)
+            _commit(msg, in.senderAddress, in.valueCoins)
         }
-        // Permissionless
+        // Sender must be OCR transmitter
         OffRamp_Execute => {
-            _execute(msg, in.senderAddress)
+            _execute(msg, in.senderAddress, in.valueCoins)
         }
         // Sender must be MerkleRoot
         OffRamp_ExecuteValidated => {
@@ -47,8 +47,9 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_DispatchValidated => {
             _dispatchValidated(msg, in.senderAddress)
         } 
+        // Permissionless
         OffRamp_ManuallyExecute => {
-            _manually_execute(msg, in.senderAddress)
+            _manually_execute(msg, in.valueCoins)
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => { 
@@ -124,7 +125,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.02"),
+        value: 0,
         dest: {
             stateInit: { //ReceiveExecutor address
                 code: st.deployables.load().deployer,
@@ -138,20 +139,21 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
             receiver: msg.receiver
         }
     });
-    receiveBounced.send(SEND_MODE_REGULAR);
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
+    
     val markState= createMessage({
         bounce: false,
-        value: ton("0.02"),
+        value: MerkleRoot_Costs.markState(),
         dest: root,
         body: MerkleRoot_MarkState {
             seqNum,
             state,
         },
     });
-    markState.send(SEND_MODE_REGULAR);
+    markState.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
@@ -196,7 +198,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
 
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.02"), //TODO how much do we need to send
+        value: 0,
         dest: {
             stateInit: {
                 code: st.deployables.load().deployer,
@@ -210,7 +212,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
             receiver: msg.receiver,
         }, 
     });
-    receiveConfirm.send(SEND_MODE_REGULAR);
+    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 
@@ -233,7 +235,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     }    
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + ton("0.1"),
+        value: message.gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -263,40 +265,23 @@ fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
     st.store();
 }
 
-fun _commit(msg: OffRamp_Commit, sender: address) {
+fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
     var st = lazy Storage.load();
 
     val report = msg.report;
+    val priceUpdatesOnlyReport = report.merkleRoots.empty();
+    
+    var root: MerkleRoot? = null;
 
-    // update token/gas prices if any
-    if (report.priceUpdates != null) {
-        // extract OCR sequence number from report context (matches EVM implementation)
-        val ocrSequenceNumber = msg.reportContext.sequenceBytes;
-
-        // check for price staleness based on the OCR sequence number
-        if (st.latestPriceSequenceNumber < ocrSequenceNumber) {
-            // if prices are not stale, update the latest sequence number
-            st.latestPriceSequenceNumber = ocrSequenceNumber;
-            
-            // and update the prices in the fee quoter
-            val updatePricesMsg = createMessage({
-                bounce: true,
-                value: ton("0.05"), // TODO:
-                dest: st.feeQuoter,
-                body: FeeQuoter_UpdatePrices {
-                    updates: report.priceUpdates!.load()
-                },
-            });
-            updatePricesMsg.send(SEND_MODE_REGULAR);
-        }
-        // note: if prices are stale, we continue to process merkle roots if any exist
+    if (!priceUpdatesOnlyReport) {
+        // no batching of roots supported for now, so no need for an iterator
+        root = MerkleRoot.fromCell(report.merkleRoots);
     }
 
-    var roots = report.merkleRoots.iter();
-    val priceUpdatesOnlyReport = roots.empty();
-    while (!roots.empty()) {
-        val root = roots.next();
+    // check that the amount attached is enough to cover message execution and delivery off outgoing messages
+    assert(value >= OffRamp_Costs.commit(priceUpdatesOnlyReport), Error.InsufficientFee);
 
+    if (root != null) {
         // validate lane not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
@@ -311,8 +296,8 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
-            bounce: true, // TODO: could bounce if root already exists but i don't think we should handle it
-            value: ton("0.5"), // TODO:
+            bounce: true,
+            value: AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT,
             dest: {
                 stateInit: {
                     code: st.deployables.load().deployer,
@@ -321,7 +306,6 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
                         id: root.merkleRoot,
                     }.toCell(),
                 },
-                // TODO: toShard so it's collocated with offramp
             },
             body: Deployable_Initialize {
                 stateInit: {
@@ -340,6 +324,29 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         initMsg.send(SEND_MODE_REGULAR);
     }
 
+    // update token/gas prices if any
+    if (report.priceUpdates != null) {
+        // extract OCR sequence number from report context (matches EVM implementation)
+        val ocrSequenceNumber = msg.reportContext.sequenceBytes;
+
+        // check for price staleness based on the OCR sequence number
+        if (st.latestPriceSequenceNumber < ocrSequenceNumber) {
+            // if prices are not stale, update the latest sequence number
+            st.latestPriceSequenceNumber = ocrSequenceNumber;
+            
+            // and update the prices in the fee quoter
+            val updatePricesMsg = createMessage({
+                bounce: true,
+                value: FeeQuoter_Costs.updatePrices(),
+                dest: st.feeQuoter,
+                body: FeeQuoter_UpdatePrices {
+                    updates: report.priceUpdates!.load()
+                }
+            });
+            updatePricesMsg.send(SEND_MODE_REGULAR);
+        }
+    }
+
     // store updated state (latestPriceSequenceNumber and sourceChainConfigs)
     st.store();
 
@@ -352,29 +359,25 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         msg.signatures
     );
 
-    var root: MerkleRoot? = null;
-    if (!priceUpdatesOnlyReport) {
-        root = MerkleRoot.fromCell(report.merkleRoots);
-    }
     emit(
         TOPIC_COMMIT_REPORT_ACCEPTED,
         CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
     );
 }
 
-fun _manually_execute(msg: OffRamp_ManuallyExecute, sender: address) {
+fun _manually_execute(msg: OffRamp_ManuallyExecute, value: coins) {
     var st = Storage.load();
 
     val report = msg.report;
 
     // when_chain_not_forked assert
 
-    _execute_single_report(msg.report, msg.gasOverride, sender);
+    _execute_single_report(msg.report, msg.gasOverride, value);
 
 }
 
-fun _execute(msg: OffRamp_Execute, sender: address) {
-    _execute_single_report(msg.report, null, sender);
+fun _execute(msg: OffRamp_Execute, sender: address, value: coins) {
+    _execute_single_report(msg.report, null, value);
 
     var st = Storage.load();
 
@@ -388,12 +391,20 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
 }
 
-fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender: address) {
+fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, value: coins) {
     var st = Storage.load();
 
     // check if chain was cursed by RMNRemote
     val isCursed = st.cursedSubjects.isCursed(report.sourceChainSelector as uint128);
     assert(!isCursed, Error.SubjectCursed);
+
+    assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
+
+    // No execution batching so no need to use iterator
+    val message = Any2TVMRampMessage.fromCell(report.messages);
+
+    // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
+    assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
@@ -410,11 +421,6 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
         destChainSelector: st.chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
-
-    assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
-
-    // No execution batching so no need to use iterator
-    val message = Any2TVMRampMessage.fromCell(report.messages);
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
@@ -434,7 +440,7 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
          bounce: true,
-         value: ton("0.05"), // TODO:
+         value: MerkleRoot_Costs.validate(),
          dest: {
              stateInit: {
                  code: st.deployables.load().deployer,
@@ -443,7 +449,6 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
                      id: root,
                  }.toCell(),
              },
-             // TODO: toShard so it's collocated with offramp
          },
 
          body: MerkleRoot_Validate {
@@ -453,10 +458,9 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, sender:
             gasOverride,
          },
      });
-     executeMsg.send(SEND_MODE_REGULAR);
+    executeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-//TODO: maybe it should be chainConfigs and take an array?
 fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
@@ -530,10 +534,9 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
         val deployMsg = createMessage({
-            bounce: true,
-            value: ton("0.5"), // TODO:
+            bounce: false,
+            value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,
             dest: executorAddress,
-            // TODO: toShard so it's collocated
             body: Deployable_Initialize {
                 stateInit: {
                     code: st.deployables.load().receiveExecutorCode,
@@ -546,20 +549,20 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
                 }
             },
         });
-        deployMsg.send(SEND_MODE_REGULAR);
+        deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
     // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
     // means that is a manual exec flow
     val initExecMsg = createMessage ({
         bounce: true,
-        value: ton("0.05"), // TODO:
+        value: ReceiveExecutor_Costs.initExec(),
         dest: executorAddress,
         body: ReceiveExecutor_InitExecute {
             gasOverride: msg.gasOverride,
         }
     });
-    initExecMsg.send(SEND_MODE_REGULAR);
+    initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
