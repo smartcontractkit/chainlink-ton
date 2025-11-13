@@ -208,6 +208,7 @@ describe('Router', () => {
               gasPricesUpdates: [],
               tokenPricesUpdates: [{ token: TEST_TOKEN_ADDR, price: BigInt(123e36) }],
             },
+              sendExcessesTo: undefined
           },
         })
         expect(result.transactions).toHaveTransaction({
