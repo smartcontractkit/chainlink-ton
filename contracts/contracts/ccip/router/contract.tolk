@@ -16,7 +16,7 @@ import "types"
 import "../offramp/types"
 import "events"
 
-const CONTRACT_VERSION = "0.0.8";
+const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
@@ -44,7 +44,7 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_MessageValidated<Router_GetValidatedFeeContext> => {
             val st = lazy Storage.load();
             val ccipSend = lazy msg.msg.load();
-            assertSenderIsTheOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
+            assertSenderIsOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
 
             onMessageValidatedFromOnRamp(msg)
         }
@@ -52,7 +52,7 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext> => {
             val st = lazy Storage.load();
             val ccipSend = lazy msg.msg.load();
-            assertSenderIsTheOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
+            assertSenderIsOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
 
             onMessageValidationFailedFromOnRamp(msg)
         }
@@ -126,14 +126,14 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be OnRamp
         Router_MessageSent => {
             val st = lazy Storage.load();
-            assertSenderIsTheOnRamp(st, msg.destChainSelector, in.senderAddress);
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
 
             onSendACK(msg)
         }
         // Sender must be OnRamp
         Router_MessageRejected => {
             val st = lazy Storage.load();
-            assertSenderIsTheOnRamp(st, msg.destChainSelector, in.senderAddress);
+            assertSenderIsOnRamp(st, msg.destChainSelector, in.senderAddress);
 
             onSendNACK(msg)
         }
@@ -258,7 +258,7 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
 /*
 Sends a CCIP receive confirmation to the OffRamp contract corresponding to
 the source chain. Triggered by the receiver after successful message
-handling. This operatio is permissionless at the router level and the offramp will validate
+handling. This operation is permissionless at the router level and the offramp will validate
 that this comes from a valid receiver
 
 Flow:
@@ -291,7 +291,7 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 /*
 Sends a CCIP receive confirmation to the OffRamp contract corresponding to
 the source chain. Triggered by the receiver after successful message
-handling. This operatio is permissionless at the router level and the offramp will validate
+handling. This operation is permissionless at the router level and the offramp will validate
 that this comes from a valid receiver
 
 Flow:
@@ -508,7 +508,7 @@ Flow:
     ...
     OnRamp.OnRamp_ExecutorFinishedSuccessfully ->
     Router.Router_MessageSent ->
-    msg.senger.Router_CCIPSendACK
+    msg.sender.Router_CCIPSendACK
 */
 fun onSendACK(msg: Router_MessageSent) {
     val ackMsg = createMessage({
@@ -532,7 +532,7 @@ Flow:
     ...
     OnRamp.OnRamp_ExecutorFinishedWithError ->
     Router.Router_MessageRejected ->
-    msg.senger.Router_CCIPSendNACK
+    msg.sender.Router_CCIPSendNACK
 */
 fun onSendNACK(msg: Router_MessageRejected) {
     val nackMsg = createMessage({
@@ -560,9 +560,9 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 }
 
 /*
-Verifies that the caller corresponds to the onramp asociated with the given chain selector
+Verifies that the caller corresponds to the onramp associated with the given chain selector
 */
-fun assertSenderIsTheOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
+fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address) {
     val onRampAddress = st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled as int);
     assert (sender == onRampAddress) throw Router_Error.NotOnRamp;
 }

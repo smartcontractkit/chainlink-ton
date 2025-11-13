@@ -168,7 +168,7 @@ fun Router_Costs.routeMessage(): int {
 }
 
 // Minimum value for calling Router_CCIPReceiveConfirm
-fun Router_Costs.receiveConfirm() {
+fun Router_Costs.receiveConfirm(): int {
     val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
