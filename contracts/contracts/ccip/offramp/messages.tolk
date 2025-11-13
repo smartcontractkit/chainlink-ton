@@ -53,7 +53,7 @@ struct (0xc73d5a8a) OffRamp_ExecuteValidated {
 struct (0xa00785cf) OffRamp_ManuallyExecute {
     queryId: uint64;
     report: ExecutionReport;
-    gasOverride: coins; // TODO: should this just be part of the added gas value passed into the call?
+    gasOverride: coins; 
 }
 
 //Must be sent by owner
@@ -105,27 +105,27 @@ struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
 
 struct OffRamp_Costs{}
 
-fun OffRamp_Costs.executeValidated(){
+fun OffRamp_Costs.executeValidated(): int {
     val baseFee = OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE;
     return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec();
 }
 
-fun OffRamp_Costs.dispatchValidated(){
+fun OffRamp_Costs.dispatchValidated(): int {
     val baseFee = OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE;
     return baseFee + Router_Costs.routeMessage();
 }
 
-fun OffRamp_Costs.receiveConfirmOrDeny() {
+fun OffRamp_Costs.receiveConfirmOrDeny(): int {
     val baseFee = OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE;
     return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
 }
 
-fun OffRamp_Costs.notify() {
+fun OffRamp_Costs.notify(): int {
     val baseFee = OFFRAMP_COSTS_NOTIFY_FEE;
     return baseFee + MerkleRoot_Costs.markState();
 }
 
-fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool) {
+fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool): int {
     val baseFee = OFFRAMP_COSTS_COMMIT_FEE;
     if (priceUpdatesOnlyReport) {
         return baseFee + FeeQuoter_Costs.updatePrices();
@@ -135,7 +135,7 @@ fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool) {
     }
 }
 
-fun OffRamp_Costs.execute() {
+fun OffRamp_Costs.execute(): int {
     val baseFee = OFFRAMP_COSTS_EXECUTE_FEE;
     return baseFee + MerkleRoot_Costs.validate();
 }

@@ -36,18 +36,13 @@ fun onInternalMessage(in: InMessage) {
         },
         FeeQuoter_UpdatePrices => {
             var st = lazy Storage.load();
+
             // either an allowed price updater or feeQuoter owner
             assert(st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress, FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
 
-            val returnValueResponse = createMessage({
-                bounce: false,
-                value: 0,
-                dest: in.senderAddress,
-                body: createEmptyCell(),
-            });
-            returnValueResponse.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            sendExcessesTo(msg.sendExcessesTo, in.senderAddress);
         }
         FeeQuoter_UpdateFeeTokens => {
             var st = lazy Storage.load();
@@ -502,6 +497,21 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
         });
     }
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
+    var receiver = sender;
+    if (sendExcessesTo != null) {
+        receiver = sendExcessesTo!;
+    }
+
+    val returnExcesses = createMessage({
+        bounce: false,
+        value: 0,
+        dest: receiver,
+        body: createEmptyCell(),
+    });
+    returnExcesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {

@@ -19,14 +19,17 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
+	postgresstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+
+	logpoller_testdata "github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
+	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"
 )
 
 const (
@@ -336,197 +339,303 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
+		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
-			Config:  logpoller.DefaultConfigSet,
-			Store:   inmemorystore.NewLogStore(logger.Test(t)),
-			Filters: inmemorystore.NewFilterStore(),
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
 
 		lp := logpoller.NewService(
-			logger.Test(t),
+			lggr,
+			"test-chain",
 			clientProvider,
 			opts,
 		)
 
-		// Set timestamp before saving the logs
-		baseTimestamp := time.Now()
-		queryTimestamp := baseTimestamp.Add(-1 * time.Minute)
-
-		// Save MIXED logs in chronological order to test filtering and limit functionality
-		t.Log("Saving mixed commit reports...")
-
-		// 1. MerkleRoot-only log (should be included)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        merkleRootOnlyCell,
-			TxLT:        1,
-			TxTimestamp: baseTimestamp.Add(1 * time.Second),
-		})
-
-		// 2. PriceUpdates-only log (should be filtered OUT)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        priceOnlyCell,
-			TxLT:        2,
-			TxTimestamp: baseTimestamp.Add(2 * time.Second),
-		})
-
-		// 3. Both MerkleRoot AND PriceUpdates (should be included)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        bothCell,
-			TxLT:        3,
-			TxTimestamp: baseTimestamp.Add(3 * time.Second),
-		})
-
-		// 4. Another PriceUpdates-only log (should be filtered OUT)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        priceOnlyCell,
-			TxLT:        4,
-			TxTimestamp: baseTimestamp.Add(4 * time.Second),
-		})
-
-		// 5. Another MerkleRoot-only log (should be included)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        merkleRootOnlyCell,
-			TxLT:        5,
-			TxTimestamp: baseTimestamp.Add(5 * time.Second),
-		})
-
-		t.Logf("Saved 5 logs total: 3 with MerkleRoot (should be included), 2 PriceUpdates-only (should be filtered out)")
-
-		// Setup accessor
-		addrCodec := codec.NewAddressCodec()
-		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
-		require.NoError(t, aerr)
-
-		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
-		require.NoError(t, err)
-		err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
-		require.NoError(t, err)
-
-		// Test 1: Query with high limit - should return all 3 MerkleRoot reports
-		t.Log("=== Test 1: Query with high limit (10) ===")
-		reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 10)
-		require.NoError(t, err, "failed to get commit reports")
-
-		// Should return exactly 3 reports (the ones with MerkleRoot), filtering out 2 PriceUpdates-only logs
-		require.Len(t, reports, 3, "Should return exactly 3 reports with MerkleRoot, filtering out PriceUpdates-only logs")
-
-		// Validate all returned reports have MerkleRoot
-		for i, report := range reports {
-			t.Logf("Report %d: timestamp=%v, merkleRoots=%d", i+1, report.Timestamp, len(report.Report.BlessedMerkleRoots))
-			require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Report %d should have at least 1 blessed merkle root", i+1)
-		}
-
-		// Test 2: Query with limit=2 - should return only first 2 MerkleRoot reports
-		t.Log("=== Test 2: Query with limit=2 ===")
-		limitedReports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 2)
-		require.NoError(t, err, "failed to get limited commit reports")
-
-		// Should return exactly 2 reports due to limit, and all should have MerkleRoot
-		require.Len(t, limitedReports, 2, "Should return exactly 2 reports due to limit=2")
-
-		// Validate the limited reports are the first 2 chronologically (with MerkleRoot)
-		for i, report := range limitedReports {
-			t.Logf("Limited Report %d: timestamp=%v, merkleRoots=%d", i+1, report.Timestamp, len(report.Report.BlessedMerkleRoots))
-			require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Limited report %d should have at least 1 blessed merkle root", i+1)
-		}
-
-		// Test 3: Query with limit=1 - should return only the first MerkleRoot report
-		t.Log("=== Test 3: Query with limit=1 ===")
-		singleReport, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
-		require.NoError(t, err, "failed to get single commit report")
-
-		require.Len(t, singleReport, 1, "Should return exactly 1 report due to limit=1")
-		require.NotEmpty(t, singleReport[0].Report.BlessedMerkleRoots, "Single report should have at least 1 blessed merkle root")
-
-		// Validate chronological ordering (reports should be ordered by timestamp ASC)
-		t.Log("=== Test 4: Validate chronological ordering ===")
-		for i := 1; i < len(reports); i++ {
-			require.True(t, reports[i-1].Timestamp.Before(reports[i].Timestamp) || reports[i-1].Timestamp.Equal(reports[i].Timestamp),
-				"Reports should be in chronological order (ASC)")
-		}
+		// Run test with in-memory store (filterID = 1 for in-memory)
+		testCommitReportsMixedHelper(t, lp, opts.LogStore, 1, merkleRootOnlyCell, priceOnlyCell, bothCell)
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
-		filterStore := inmemorystore.NewFilterStore()
+		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
-			Config:   logpoller.DefaultConfigSet,
-			Filters:  filterStore,
-			TxLoader: nil,
-			TxParser: nil,
-			Store:    inmemorystore.NewLogStore(logger.Test(t)),
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
 
 		lp := logpoller.NewService(
-			logger.Test(t),
+			lggr,
+			"test-chain",
 			clientProvider,
 			opts,
 		)
 
-		// Set timestamp before saving the log
-		logTimestamp := time.Now()
-		queryTimestamp := logTimestamp.Add(-1 * time.Minute) // Query from 1 minute before the log
-
-		// Save log
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        merkleRootOnlyCell,
-			TxLT:        100,
-			TxTimestamp: logTimestamp,
-		})
-
-		// Query report via ton accessor
-		addrCodec := codec.NewAddressCodec()
-		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
-		require.NoError(t, aerr)
-
-		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
-		require.NoError(t, err)
-		err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
-		require.NoError(t, err)
-
-		reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
-		require.NoError(t, err, "failed to get commit reports")
-		require.Len(t, reports, 1, "expected 1 commit report")
-
-		// Validate the returned report
-		report := reports[0]
-		t.Logf("Retrieved commit report:")
-		t.Logf("  Report timestamp: %v", report.Timestamp)
-		t.Logf("  Number of blessed merkle roots: %d", len(report.Report.BlessedMerkleRoots))
-		t.Logf("  Number of unblessed merkle roots: %d", len(report.Report.UnblessedMerkleRoots))
-
-		// Validate the report contains expected data from merkleRootOnlyCell
-		require.Len(t, report.Report.BlessedMerkleRoots, 1, "expected 1 blessed merkle root in the report")
-
-		merkleRoot := report.Report.BlessedMerkleRoots[0]
-		t.Logf("  BlessedMerkleRoot[0]:")
-		t.Logf("    ChainSelector: %d", merkleRoot.ChainSel)
-		t.Logf("    SeqNumsRange: %d-%d", merkleRoot.SeqNumsRange.Start(), merkleRoot.SeqNumsRange.End())
-		t.Logf("    MerkleRoot: %x", merkleRoot.MerkleRoot)
-
-		// Validate expected values match what we decoded in the BOC test
-		require.Equal(t, ccipocr3.ChainSelector(909606746561742123), merkleRoot.ChainSel, "ChainSelector should match")
-		require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.Start(), "MinSeqNr should be 1")
-		require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.End(), "MaxSeqNr should be 1")
-
-		expectedMerkleRootBytes, _ := hex.DecodeString("bea275bb6614f85036536bc670e540bc748118e90537b8441c950672f74607d5")
-		require.Equal(t, expectedMerkleRootBytes, merkleRoot.MerkleRoot[:], "MerkleRoot should match")
-
-		// Validate PriceUpdates should be empty for this test (since we used merkleRootOnlyCell)
-		require.Empty(t, report.Report.PriceUpdates.TokenPriceUpdates, "TokenPriceUpdates should be empty for merkle root only test")
-		require.Empty(t, report.Report.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should be empty for merkle root only test")
+		// Run test with in-memory store (filterID = 1 for in-memory)
+		testCommitReportsBasicHelper(t, lp, opts.LogStore, 1, merkleRootOnlyCell)
 	})
+
+	t.Run("Ton Accessor - CommitReportsGTETimestamp - WithPostgresStore - Mixed reports", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("Skipping postgres test in short mode")
+		}
+
+		lggr := logger.Test(t)
+		ds := pgtest.SetupTestDB(t)
+
+		err := pgtest.ExecuteSQL(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+		require.NoError(t, err, "failed to create TON tables")
+
+		orm := postgresstore.NewORM("test-chain", ds, lggr)
+		opts := &logpoller.ServiceOptions{
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: postgresstore.NewFilterStore("test-chain", orm, lggr),
+			LogStore:    postgresstore.NewLogStore("test-chain", orm, lggr),
+		}
+
+		lp := logpoller.NewService(
+			lggr,
+			"test-chain",
+			clientProvider,
+			opts,
+		)
+
+		// Register filter first (required for foreign key constraint)
+		filter := lptypes.Filter{
+			Name:     "CommitReportAccepted_Filter",
+			Address:  address.MustParseAddr(MockOffRampAddr),
+			MsgType:  tlb.MsgTypeExternalOut,
+			EventSig: hash.CRC32(consts.EventNameCommitReportAccepted),
+		}
+		filterID, err := lp.RegisterFilter(t.Context(), filter)
+		require.NoError(t, err, "failed to register filter")
+
+		// Run test with postgres store
+		testCommitReportsMixedHelper(t, lp, opts.LogStore, filterID, merkleRootOnlyCell, priceOnlyCell, bothCell)
+	})
+
+	t.Run("Ton Accessor - CommitReportsGTETimestamp - WithPostgresStore - Basic", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("Skipping postgres test in short mode")
+		}
+
+		lggr := logger.Test(t)
+		ds := pgtest.SetupTestDB(t)
+
+		err := pgtest.ExecuteSQL(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+		require.NoError(t, err, "failed to create TON tables")
+
+		orm := postgresstore.NewORM("test-chain", ds, lggr)
+		opts := &logpoller.ServiceOptions{
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: postgresstore.NewFilterStore("test-chain", orm, lggr),
+			LogStore:    postgresstore.NewLogStore("test-chain", orm, lggr),
+		}
+
+		lp := logpoller.NewService(
+			lggr,
+			"test-chain",
+			clientProvider,
+			opts,
+		)
+
+		// Register filter first (required for foreign key constraint)
+		filter := lptypes.Filter{
+			Name:     "CommitReportAccepted_Filter",
+			Address:  address.MustParseAddr(MockOffRampAddr),
+			MsgType:  tlb.MsgTypeExternalOut,
+			EventSig: hash.CRC32(consts.EventNameCommitReportAccepted),
+		}
+		filterID, err := lp.RegisterFilter(t.Context(), filter)
+		require.NoError(t, err, "failed to register filter")
+
+		// Run test with postgres store
+		testCommitReportsBasicHelper(t, lp, opts.LogStore, filterID, merkleRootOnlyCell)
+	})
+}
+
+// testCommitReportsMixedHelper tests CommitReportsGTETimestamp with mixed MerkleRoot and PriceUpdates logs.
+func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore logpoller.LogStore, filterID int64, merkleRootOnlyCell, priceOnlyCell, bothCell *cell.Cell) {
+	t.Helper()
+
+	// Set timestamp before saving the logs
+	baseTimestamp := time.Now()
+	queryTimestamp := baseTimestamp.Add(-1 * time.Minute)
+
+	// Save MIXED logs in chronological order to test filtering and limit functionality
+	savedCount, serr := logStore.SaveLogs(t.Context(), []lptypes.Log{
+		// 1. MerkleRoot-only log (should be included)
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:             merkleRootOnlyCell,
+			TxHash:           lptypes.TxHash{1, 2, 3, 4, 5},
+			TxLT:             1000,
+			TxTimestamp:      baseTimestamp.Add(1 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			MasterBlockSeqno: 200,
+			MsgIndex:         0,
+		},
+		// 2. PriceUpdates-only log (should be filtered OUT)
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:             priceOnlyCell,
+			TxHash:           lptypes.TxHash{2, 3, 4, 5, 6},
+			TxLT:             1001,
+			TxTimestamp:      baseTimestamp.Add(2 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			MasterBlockSeqno: 201,
+			MsgIndex:         1,
+		},
+		// 3. Both MerkleRoot AND PriceUpdates (should be included)
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:             bothCell,
+			TxHash:           lptypes.TxHash{3, 4, 5, 6, 7},
+			TxLT:             1002,
+			TxTimestamp:      baseTimestamp.Add(3 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			MasterBlockSeqno: 202,
+			MsgIndex:         2,
+		},
+		// 4. Another PriceUpdates-only log (should be filtered OUT)
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:             priceOnlyCell,
+			TxHash:           lptypes.TxHash{4, 5, 6, 7, 8},
+			TxLT:             1003,
+			TxTimestamp:      baseTimestamp.Add(4 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 103},
+			MasterBlockSeqno: 203,
+			MsgIndex:         3,
+		},
+		// 5. Another MerkleRoot-only log (should be included)
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:             merkleRootOnlyCell,
+			TxHash:           lptypes.TxHash{5, 6, 7, 8, 9},
+			TxLT:             1004,
+			TxTimestamp:      baseTimestamp.Add(5 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 104},
+			MasterBlockSeqno: 204,
+			MsgIndex:         4,
+		},
+	}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
+	require.NoError(t, serr, "failed to save logs")
+	require.Equal(t, int64(5), savedCount, "should have saved 5 logs")
+
+	// Setup accessor
+	addrCodec := codec.NewAddressCodec()
+	accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
+	require.NoError(t, aerr)
+
+	rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
+	require.NoError(t, err)
+	err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
+	require.NoError(t, err)
+
+	// Test 1: Query with high limit - should return all 3 MerkleRoot reports
+	reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 10)
+	require.NoError(t, err, "failed to get commit reports")
+	require.Len(t, reports, 3, "Should return exactly 3 reports with MerkleRoot, filtering out PriceUpdates-only logs")
+
+	// Validate all returned reports have MerkleRoot
+	for i, report := range reports {
+		require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Report %d should have at least 1 blessed merkle root", i+1)
+	}
+
+	// Test 2: Query with limit=2 - should return only first 2 MerkleRoot reports
+	limitedReports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 2)
+	require.NoError(t, err, "failed to get limited commit reports")
+	require.Len(t, limitedReports, 2, "Should return exactly 2 reports due to limit=2")
+
+	// Validate the limited reports are the first 2 chronologically (with MerkleRoot)
+	for i, report := range limitedReports {
+		require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Limited report %d should have at least 1 blessed merkle root", i+1)
+	}
+
+	// Test 3: Query with limit=1 - should return only the first MerkleRoot report
+	singleReport, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
+	require.NoError(t, err, "failed to get single commit report")
+	require.Len(t, singleReport, 1, "Should return exactly 1 report due to limit=1")
+	require.NotEmpty(t, singleReport[0].Report.BlessedMerkleRoots, "Single report should have at least 1 blessed merkle root")
+
+	// Validate chronological ordering (reports should be ordered by timestamp ASC)
+	for i := 1; i < len(reports); i++ {
+		require.True(t, reports[i-1].Timestamp.Before(reports[i].Timestamp) || reports[i-1].Timestamp.Equal(reports[i].Timestamp),
+			"Reports should be in chronological order (ASC)")
+	}
+}
+
+// testCommitReportsBasicHelper tests CommitReportsGTETimestamp basic functionality.
+func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore logpoller.LogStore, filterID int64, merkleRootOnlyCell *cell.Cell) {
+	t.Helper()
+
+	// Set timestamp before saving the log
+	logTimestamp := time.Now()
+	queryTimestamp := logTimestamp.Add(-1 * time.Minute)
+
+	// Save log
+	savedCount, saveErr := logStore.SaveLogs(t.Context(), []lptypes.Log{{
+		ChainID:          "test-chain",
+		FilterID:         filterID,
+		Address:          address.MustParseAddr(MockOffRampAddr),
+		EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+		Data:             merkleRootOnlyCell,
+		TxHash:           lptypes.TxHash{1, 2, 3, 4, 5},
+		TxLT:             1000,
+		TxTimestamp:      logTimestamp,
+		Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+		MasterBlockSeqno: 200,
+		MsgIndex:         0,
+	}}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
+	require.NoError(t, saveErr, "failed to save logs")
+	require.Equal(t, int64(1), savedCount, "should have saved 1 log")
+
+	// Query report via ton accessor
+	addrCodec := codec.NewAddressCodec()
+	accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
+	require.NoError(t, aerr)
+
+	rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
+	require.NoError(t, err)
+	err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
+	require.NoError(t, err)
+
+	reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
+	require.NoError(t, err, "failed to get commit reports")
+	require.Len(t, reports, 1, "expected 1 commit report")
+
+	// Validate the returned report
+	report := reports[0]
+	require.Len(t, report.Report.BlessedMerkleRoots, 1, "expected 1 blessed merkle root in the report")
+
+	merkleRoot := report.Report.BlessedMerkleRoots[0]
+	require.Equal(t, ccipocr3.ChainSelector(909606746561742123), merkleRoot.ChainSel, "ChainSelector should match")
+	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.Start(), "MinSeqNr should be 1")
+	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.End(), "MaxSeqNr should be 1")
+
+	expectedMerkleRootBytes, _ := hex.DecodeString("bea275bb6614f85036536bc670e540bc748118e90537b8441c950672f74607d5")
+	require.Equal(t, expectedMerkleRootBytes, merkleRoot.MerkleRoot[:], "MerkleRoot should match")
+
+	// Validate PriceUpdates should be empty for this test (since we used merkleRootOnlyCell)
+	require.Empty(t, report.Report.PriceUpdates.TokenPriceUpdates, "TokenPriceUpdates should be empty for merkle root only test")
+	require.Empty(t, report.Report.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should be empty for merkle root only test")
 }
 
 func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
@@ -581,18 +690,80 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return nil, nil
 	}
-	// Test ExecutedMessages integration with logpoller using ExecutionStateChanged BOCs
+
+	// Setup in-memory store
+	lggr := logger.Test(t)
 	opts := &logpoller.ServiceOptions{
-		Config:  logpoller.DefaultConfigSet,
-		Filters: inmemorystore.NewFilterStore(),
-		Store:   inmemorystore.NewLogStore(logger.Test(t)),
+		Config:      logpoller.DefaultConfigSet,
+		FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+		LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 	}
 
 	lp := logpoller.NewService(
-		logger.Test(t),
+		lggr,
+		"test-chain",
 		clientProvider,
 		opts,
 	)
+
+	// Run common test logic with in-memory store (filterID = 1 for in-memory)
+	testExecutedMessagesHelper(t, lp, opts.LogStore, 1)
+}
+
+func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
+	// Skip if no database available
+	if testing.Short() {
+		t.Skip("Skipping postgres test in short mode")
+	}
+
+	// Note: we don't test the API client interaction here, so we return empty client
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return nil, nil
+	}
+
+	// Setup postgres store using testcontainers
+	lggr := logger.Test(t)
+	ds := pgtest.SetupTestDB(t)
+
+	// Create TON tables
+	err := pgtest.ExecuteSQL(t.Context(), ds, logpoller_testdata.CreateLogPollerTables)
+	require.NoError(t, err, "failed to create TON tables")
+
+	orm := postgresstore.NewORM("test-chain", ds, lggr)
+	pgStore := postgresstore.NewLogStore("test-chain", orm, lggr)
+	pgFilterStore := postgresstore.NewFilterStore("test-chain", orm, lggr)
+
+	opts := &logpoller.ServiceOptions{
+		Config:      logpoller.DefaultConfigSet,
+		FilterStore: pgFilterStore,
+		LogStore:    pgStore,
+	}
+
+	lp := logpoller.NewService(
+		lggr,
+		"test-chain",
+		clientProvider,
+		opts,
+	)
+
+	// Register filter first (required for foreign key constraint)
+	filter := lptypes.Filter{
+		Name:     "ExecutionStateChanged_Filter",
+		Address:  address.MustParseAddr(MockOffRampAddr),
+		MsgType:  tlb.MsgTypeExternalOut,
+		EventSig: hash.CRC32(consts.EventNameExecutionStateChanged),
+	}
+	filterID, err := lp.RegisterFilter(t.Context(), filter)
+	require.NoError(t, err, "failed to register filter")
+
+	// Run common test logic with postgres store
+	testExecutedMessagesHelper(t, lp, opts.LogStore, filterID)
+}
+
+// testExecutedMessagesHelper contains the common test logic for ExecutedMessages query.
+// It is used by both in-memory and postgres store tests to avoid duplication.
+func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore logpoller.LogStore, filterID int64) {
+	t.Helper()
 
 	// Parse the ExecutionStateChanged BOCs and save them as logs
 	baseTimestamp := time.Now()
@@ -603,27 +774,11 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	inProgressCell, err := cell.FromBOC(inProgressBytes)
 	require.NoError(t, err)
 
-	lp.GetStore().SaveLog(types.Log{
-		Address:     address.MustParseAddr(MockOffRampAddr),
-		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
-		Data:        inProgressCell,
-		TxLT:        201,
-		TxTimestamp: baseTimestamp.Add(1 * time.Second),
-	})
-
 	// 2. Add SUCCESS event (should be included)
 	successBytes, err := hex.DecodeString(ExecutionStateChangedSuccessBOC)
 	require.NoError(t, err)
 	successCell, err := cell.FromBOC(successBytes)
 	require.NoError(t, err)
-
-	lp.GetStore().SaveLog(types.Log{
-		Address:     address.MustParseAddr(MockOffRampAddr),
-		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
-		Data:        successCell,
-		TxLT:        202,
-		TxTimestamp: baseTimestamp.Add(2 * time.Second),
-	})
 
 	// 3. Add FAILURE event (should be included)
 	failureBytes, err := hex.DecodeString(ExecutionStateChangedFailureBOC)
@@ -631,13 +786,53 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	failureCell, err := cell.FromBOC(failureBytes)
 	require.NoError(t, err)
 
-	lp.GetStore().SaveLog(types.Log{
-		Address:     address.MustParseAddr(MockOffRampAddr),
-		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
-		Data:        failureCell,
-		TxLT:        203,
-		TxTimestamp: baseTimestamp.Add(3 * time.Second),
-	})
+	// Save logs via logStore
+	savedCount, serr := logStore.SaveLogs(t.Context(), []lptypes.Log{
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
+			Data:             inProgressCell,
+			TxHash:           lptypes.TxHash{1, 2, 3, 4, 5},
+			TxLT:             1000,
+			TxTimestamp:      baseTimestamp.Add(1 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			MasterBlockSeqno: 200,
+			MsgLT:            1000,
+			MsgIndex:         0,
+		},
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
+			Data:             successCell,
+			TxHash:           lptypes.TxHash{2, 3, 4, 5, 6},
+			TxLT:             1001,
+			TxTimestamp:      baseTimestamp.Add(2 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			MasterBlockSeqno: 201,
+			MsgLT:            1001,
+			MsgIndex:         1,
+		},
+		{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
+			Data:             failureCell,
+			TxHash:           lptypes.TxHash{3, 4, 5, 6, 7},
+			TxLT:             1002,
+			TxTimestamp:      baseTimestamp.Add(3 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			MasterBlockSeqno: 202,
+			MsgLT:            1002,
+			MsgIndex:         2,
+		},
+	}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
+	require.NoError(t, serr, "failed to save logs")
+	require.Equal(t, int64(3), savedCount, "should have saved 3 logs")
 
 	// Setup accessor
 	addrCodec := codec.NewAddressCodec()
@@ -665,7 +860,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	executedSeqNums := executed[ccipocr3.ChainSelector(ChainSelEVMTest90000001)]
 	require.Len(t, executedSeqNums, 3, "should have 3 executed messages (IN_PROGRESS, SUCCESS and FAILURE)")
 
-	// Verify both sequence numbers are 1 (from our test BOCs)
+	// Verify all sequence numbers are 1 (from our test BOCs)
 	for _, seqNum := range executedSeqNums {
 		require.Equal(t, ccipocr3.SeqNum(1), seqNum, "sequence number should be 1")
 	}

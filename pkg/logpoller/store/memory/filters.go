@@ -5,35 +5,42 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
 var _ logpoller.FilterStore = (*inMemoryFilters)(nil)
 
 // inMemoryFilters is an in-memory implementation of the Filters interface.
 type inMemoryFilters struct {
+	chainID          string
+	lggr             logger.Logger
 	mu               sync.RWMutex
-	filtersByName    map[string]types.Filter        // filtersByName maps a filter's unique name to its definition.
+	filtersByName    map[string]models.Filter       // filtersByName maps a filter's unique name to its definition.
 	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event signature.
 }
 
 // NewFilterStore creates a new in-memory implementation of the Filters interface.
-// TODO(NONEVM-2187): implement ORM and remove in-memory store
-func NewFilterStore() logpoller.FilterStore {
+func NewFilterStore(chainID string, lggr logger.Logger) logpoller.FilterStore {
 	return &inMemoryFilters{
-		filtersByName:    make(map[string]types.Filter),
+		chainID:          chainID,
+		lggr:             lggr,
+		filtersByName:    make(map[string]models.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),
 	}
 }
 
 // RegisterFilter adds a filter to the in-memory store.
-func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) error {
+func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt models.Filter) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	// Generate ID for the filter
+	id := int64(len(f.filtersByName) + 1) // Start from 1
+	flt.ID = id
 
 	f.filtersByName[flt.Name] = flt
 
@@ -43,7 +50,7 @@ func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) er
 	}
 	f.filtersByAddress[a][flt.EventSig] = struct{}{}
 
-	return nil
+	return id, nil
 }
 
 // UnregisterFilter removes a filter from the in-memory store.
@@ -92,27 +99,13 @@ func (f *inMemoryFilters) GetDistinctAddresses(_ context.Context) ([]*address.Ad
 }
 
 // GetFiltersForAddress returns all filters registered for a given address.
-func (f *inMemoryFilters) GetFiltersForAddress(_ context.Context, addr *address.Address) ([]types.Filter, error) {
+func (f *inMemoryFilters) GetFiltersByAddress(_ context.Context, addr *address.Address) ([]models.Filter, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	var out []types.Filter
+	var out []models.Filter
 	for _, flt := range f.filtersByName {
 		if flt.Address.Equals(addr) {
-			out = append(out, flt)
-		}
-	}
-	return out, nil
-}
-
-// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
-func (f *inMemoryFilters) GetFiltersForAddressAndMsgType(_ context.Context, addr *address.Address, msgType tlb.MsgType) ([]types.Filter, error) {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-
-	var out []types.Filter
-	for _, flt := range f.filtersByName {
-		if flt.Address.Equals(addr) && flt.MsgType == msgType {
 			out = append(out, flt)
 		}
 	}

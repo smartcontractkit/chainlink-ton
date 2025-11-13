@@ -58,6 +58,7 @@ import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
+import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
@@ -571,6 +572,21 @@ describe('OffRamp - Unit Tests', () => {
         deploy: true,
         success: true,
       })
+
+      let resultFeeQuoterAddAuthorizedCaller = await feeQuoter.sendAddPriceUpdater(
+        deployer.getSender(),
+        {
+          value: toNano('0.01'),
+          msg: {
+            priceUpdater: offRamp.address,
+          },
+        },
+      )
+      expect(resultFeeQuoterAddAuthorizedCaller.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: feeQuoter.address,
+        success: true,
+      })
     }
     // setup router
     //
@@ -639,6 +655,11 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   }, 60_000) // setup can take a while, since we deploy contracts
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp)
+  })
 
   it('should deploy', async () => {
     // the check is done inside beforeEach
@@ -1091,6 +1112,16 @@ describe('OffRamp - Unit Tests', () => {
       ],
     }
     const result = await commitReport([], toNano('0.5'), 0x01, priceUpdates)
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      to: transmitters[0].address,
+      success: true,
+    })
   })
 
   it('Can commit with both merkle root and price updates', async () => {

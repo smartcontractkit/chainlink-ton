@@ -265,7 +265,7 @@ export abstract class Opcodes {
 
 export abstract class Errors {}
 
-export class OnRamp implements Contract, withdrawable.Interface {
+export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {
   public ownable: ownable2step.ContractClient
 
   constructor(

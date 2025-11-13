@@ -14,6 +14,7 @@
 #                         This command will be run from within the Chainlink Core directory.
 #   -c, --core-dir <core_dir>: Optional. Path to the Chainlink Core directory.
 #                              Defaults to ../chainlink relative to the script's root directory.
+#   --clean-logs: Optional. Clean up previous test logs before running tests. Default: false.
 #
 # Environment Variables:
 #   CL_DATABASE_URL: Required. The URL for the test database. This script checks for its presence.
@@ -32,9 +33,10 @@ source "${SCRIPT_DIR}/lib.sh"
 # configurable arguments
 ARG_CORE_DIR=""
 ARG_TEST_COMMAND=""
+ARG_CLEAN_LOGS=false
 
 print_usage_run() {
-  echo "Usage: $0 --test-command <cmd> [-c|--core-dir <core_dir>]" >&2
+  echo "Usage: $0 --test-command <cmd> [-c|--core-dir <core_dir>] [--clean-logs]" >&2
 }
 
 # argument parsing and validation
@@ -47,6 +49,10 @@ while [[ $# -gt 0 ]]; do
   --test-command)
     ARG_TEST_COMMAND="$2"
     shift 2
+    ;;
+  --clean-logs)
+    ARG_CLEAN_LOGS=true
+    shift
     ;;
   *)
     log_error "Unknown option: $1"
@@ -84,6 +90,21 @@ build_ton_binary
 if [ -z "${CL_DATABASE_URL:-}" ]; then
   log_error "CL_DATABASE_URL is not set. Please ensure CL_DATABASE_URL is exported (e.g. by running setup-env.sh)."
   exit 1
+fi
+
+# prepare test database schema
+log_info "Preparing test database schema..."
+(cd "$CHAINLINK_CORE_DIR" && go run ./core/store/cmd/preparetest)
+log_info "Test database schema prepared"
+
+# clean up previous test logs if requested
+if [ "$ARG_CLEAN_LOGS" = true ]; then
+  LOGS_DIR="${CHAINLINK_CORE_DIR}/integration-tests/smoke/ccip/logs"
+  if [ -d "$LOGS_DIR" ]; then
+    log_info "Cleaning up previous test logs in $LOGS_DIR"
+    rm -f "$LOGS_DIR"/*.log
+    log_info "Previous test logs cleaned"
+  fi
 fi
 
 log_info "=== CCIP Test Execution ==="

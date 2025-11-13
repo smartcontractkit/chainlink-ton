@@ -366,7 +366,7 @@ export class FeeQuoterSetup {
     // Send updatePrices transaction
     const updateResult = await this.bind.feeQuoter.sendUpdatePrices(this.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates },
+      msg: { updates: priceUpdates, sendExcessesTo: this.acc.owner.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({

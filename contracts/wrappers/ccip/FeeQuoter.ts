@@ -172,6 +172,9 @@ export const builder = {
             .storeUint(Opcodes.updatePrices, 32)
             .storeRef(tokenPrices)
             .storeRef(gasPrices)
+            .storeMaybeBuilder(
+              data.sendExcessesTo ? beginCell().storeAddress(data.sendExcessesTo) : null,
+            )
         },
         load: (src: Slice): UpdatePrices => {
           throw new Error('Not implemented') // TODO implement if needed
@@ -456,6 +459,7 @@ export type RemovePriceUpdater = {
 
 export type UpdatePrices = {
   updates: PriceUpdates
+  sendExcessesTo: Address | null
 }
 
 export type UpdateFeeTokens = {
@@ -493,7 +497,12 @@ export type UpdateDestChainConfigs = {
 export abstract class Errors {}
 
 export class FeeQuoter
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+  implements
+    upgradeable.Interface,
+    withdrawable.Interface,
+    typeAndVersion.Interface,
+    ownable2step.Interface,
+    Contract
 {
   private ownable: ownable2step.ContractClient
   constructor(

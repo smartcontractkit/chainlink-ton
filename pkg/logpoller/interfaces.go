@@ -4,117 +4,77 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 )
 
 // Service defines the public interface for the TON log polling service.
 type Service interface {
 	services.Service
-	RegisterFilter(ctx context.Context, flt types.Filter) error
+	RegisterFilter(ctx context.Context, flt models.Filter) (int64, error)
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) (bool, error)
-	GetStore() LogStore
 	Replay(ctx context.Context, fromBlock uint32) error
+	ReplayStatus() models.ReplayStatus
+	NewQuery() query.Builder
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.
 type FilterStore interface {
 	// RegisterFilter adds a new filter or overwrites an existing one with the same name.
-	RegisterFilter(ctx context.Context, flt types.Filter) error
+	// Returns the ID of the created filter.
+	RegisterFilter(ctx context.Context, flt models.Filter) (int64, error)
 	// UnregisterFilter removes a filter by its unique name.
 	UnregisterFilter(ctx context.Context, name string) error
 	// HasFilter checks if a filter with the given name exists.
 	HasFilter(ctx context.Context, name string) (bool, error)
 	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
 	GetDistinctAddresses(ctx context.Context) ([]*address.Address, error)
-	// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
-	GetFiltersForAddressAndMsgType(ctx context.Context, addr *address.Address, msgType tlb.MsgType) ([]types.Filter, error)
+	// GetFiltersByAddress returns all filters for a specific address.
+	GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error)
 }
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
 type TxLoader interface {
-	// LoadTxsForAddresses retrieves all transactions from multiple source addresses concurrently
-	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
-	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
-	// FetchTxsForAddress retrieves all transactions from single source address
-	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
-	FetchTxsForAddress(ctx context.Context, blockRange *types.BlockRange, addr *address.Address) ([]types.TxWithBlock, error)
-}
+	// LoadTxsForAddress retrieves transactions for a specific address within a block range.
+	// pageSize controls the number of transactions to fetch per TON API call for pagination.
+	// Transactions and runtime errors are written to the provided channels synchronously.
+	// Returns immediate validation/setup errors. The caller is responsible for spawning goroutines
+	// and managing channel lifecycle.
+	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32, txOut chan<- models.Tx, errOut chan<- error) error
 
-// TxParser defines the interface for parsing raw blockchain transactions into structured logs.
-type TxParser interface {
-	// It processes transactions by examining their messages, applying registered filters, and extracting
-	// relevant event data. The parser handles different message types (internal, external out) and
-	// extracts event signatures (opcodes for internal messages, topics for external out messages)
-	// along with the message body data to create structured log entries.
-	ParseTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
+	// GetTxsForAddress is a convenience wrapper around LoadTxsForAddress that returns
+	// transactions as a slice instead of streaming to a channel. This is suitable for
+	// bounded result sets where memory is not a concern.
+	// Use LoadTxsForAddress for streaming large result sets or when you need fine-grained
+	// control over concurrent processing.
+	//
+	// Warning: Be cautious about memory pressure when querying large ranges of blocks.
+	// For large ranges, consider using LoadTxsForAddress with streaming to process
+	// transactions incrementally.
+	GetTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) ([]models.Tx, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.
 type LogStore interface {
-	SaveLog(log types.Log)
-	// GetLogs retrieves raw logs for a given address and event signature without any parsing or filtering.
-	// This is a simple method that returns the raw cell data for further processing.
-	GetLogs(srcAddr *address.Address, sig uint32) ([]types.Log, error)
-}
-
-// QueryBuilder defines the interface for constructing and executing log queries.
-// The generic type T represents the expected event structure that logs will be parsed into.
-type QueryBuilder[T any] interface {
-	// WithSource sets the TON contract address to filter logs by.
-	WithSource(addr *address.Address) QueryBuilder[T]
-
-	// WithEventSig sets the event signature (topic or opcode) to filter logs by.
-	WithEventSig(sig uint32) QueryBuilder[T]
-
-	// --- Byte-Level Filtering ---
-	// Methods for filtering logs based on raw byte patterns before parsing.
-
-	// SkipBytes advances the internal byte cursor, ignoring a specified number of bytes.
-	SkipBytes(bytes uint) QueryBuilder[T]
-
-	// FilterBytes applies conditions to the next `sizeInBytes` at the current cursor position,
-	// then advances the cursor.
-	FilterBytes(sizeInBytes uint, conditions ...query.Condition) QueryBuilder[T]
-
-	// --- Typed Filtering ---
-	// Method for filtering logs after they have been parsed into the generic type T.
-
-	// FilterTyped adds a high-level filter function that operates on the parsed event data.
-	FilterTyped(filter func(T) bool) QueryBuilder[T]
-
-	// --- Timestamp Filtering ---
-	// Method for filtering logs based on their transaction timestamp.
-
-	// FilterTimestamp adds a timestamp-based filter to the query.
-	FilterTimestamp(filter query.TimestampFilter) QueryBuilder[T]
-
-	// --- Query Options ---
-	// Methods for controlling pagination and sorting of the final result set.
-
-	// Limit sets the maximum number of results to return.
-	Limit(limit int) QueryBuilder[T]
-
-	// Offset sets the number of results to skip from the beginning.
-	Offset(offset int) QueryBuilder[T]
-
-	// OrderBy specifies the sorting order for the results.
-	OrderBy(field query.SortField, order query.SortOrder) QueryBuilder[T]
-
-	// --- Execution ---
-
-	// Execute runs the constructed query and returns the results.
-	Execute(ctx context.Context, store LogStore) (query.Result[T], error)
+	// SaveLogs saves logs to storage with configurable batching behavior(with transaction support in PostgreSQL).
+	// batchInsertSize controls the maximum number of logs per database batch operation.
+	// minBatchSize sets the minimum batch size for retry attempts on timeout errors.
+	// Returns the number of logs successfully saved.
+	SaveLogs(ctx context.Context, logs []models.Log, batchInsertSize, minBatchSize uint32) (int64, error)
+	// QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
+	// sorting, and pagination. This method handles all filtering, sorting, and pagination.
+	// The LogStore is responsible for translating parameters to its optimal execution strategy.
+	// Uses chainlink-common's LimitAndSort for standardized pagination and sorting.
+	QueryLogs(ctx context.Context, query *query.LogQuery) (logs []models.Log, hasMore bool, nextCursor string, err error)
 }
 
 // RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)
 type RawLogProvider interface {
 	// GetLogs retrieves all external message outputs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
-	GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]types.RawLog, error)
+	GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]models.RawLog, error)
 }

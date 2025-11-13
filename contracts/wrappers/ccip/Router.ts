@@ -73,7 +73,12 @@ export abstract class OutgoingOpcodes {
 }
 
 export class Router
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+  implements
+    upgradeable.Interface,
+    withdrawable.Interface,
+    typeAndVersion.Interface,
+    ownable2step.ContractClient,
+    Contract
 {
   private ownable: ownable2step.ContractClient
   constructor(
