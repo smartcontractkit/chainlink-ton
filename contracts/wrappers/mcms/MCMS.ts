@@ -111,6 +111,17 @@ export type TransferOracleRole = {
   newOracle: Address
 }
 
+/// Delete expired roots from storage map to reduce rent
+export type CleanExpiredRoots = {
+  /// Query ID of the change request.
+  queryId: bigint
+
+  /// The roots to clean up
+  roots: bigint[] // vec<uint256>,
+  /// The validUntil times for respective roots
+  validUntils: number[] // vec<uint32>,
+}
+
 // @dev Union of all (input) messages.
 export type InMessage =
   | SetRoot // <br>
@@ -119,6 +130,7 @@ export type InMessage =
   | UpdateOpFinalizationTimeout
   | SubmitErrorReport
   | TransferOracleRole
+  | CleanExpiredRoots
 
 // MCMS contract storage
 export type ContractData = {
@@ -241,6 +253,9 @@ export enum Error {
 
   /// Thrown when the error report sender is not the authorized oracle.
   UnauthorizedOracle,
+
+  /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
+  RootNotExpired,
 }
 
 // --- Data structures ---
@@ -430,6 +445,7 @@ export const opcodes = {
     UpdateOpFinalizationTimeout: crc32('MCMS_UpdateOpFinalizationTimeout'),
     SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
     TransferOracleRole: crc32('MCMS_TransferOracleRole'),
+    CleanExpiredRoots: crc32('MCMS_CleanExpiredRoots'),
   },
   out: {
     NewRoot: crc32('MCMS_NewRoot'),
@@ -438,6 +454,7 @@ export const opcodes = {
     OpFinalizationTimeoutChange: crc32('MCMS_OpFinalizationTimeoutChange'),
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
     OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
+    ExpiredRootsCleaned: crc32('MCMS_ExpiredRootsCleaned'),
   },
 }
 
@@ -598,6 +615,23 @@ export const builder = {
           return {
             queryId: src.loadUintBig(64),
             newOracle: src.loadAddress(),
+          }
+        },
+      },
+      cleanExpiredRoots: {
+        encode: (msg: CleanExpiredRoots): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.TransferOracleRole, 32)
+            .storeUint(msg.queryId, 64)
+            .storeRef(asSnakeData<bigint>(msg.roots, (v) => beginCell().storeUint(v, 256)))
+            .storeRef(asSnakeData<number>(msg.validUntils, (v) => beginCell().storeUint(v, 32)))
+        },
+        load: (src: Slice): CleanExpiredRoots => {
+          src.skip(32) // skip opcode
+          return {
+            queryId: src.loadUintBig(64),
+            roots: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
+            validUntils: fromSnakeData(src.loadRef(), (a) => a.loadUint(32)),
           }
         },
       },

@@ -67,6 +67,7 @@ describe('MCMS', () => {
     expect(mcms.opcodes.in.UpdateOpFinalizationTimeout).toBe(0x9dcbbab1)
     expect(mcms.opcodes.in.SubmitErrorReport).toBe(0x4b3af0b5)
     expect(mcms.opcodes.in.TransferOracleRole).toBe(0xf275742f)
+    expect(mcms.opcodes.in.CleanExpiredRoots).toBe(0xa903c276)
 
     // Out opcodes
     expect(mcms.opcodes.out.NewRoot).toBe(0xa6533a3d)
@@ -75,6 +76,7 @@ describe('MCMS', () => {
     expect(mcms.opcodes.out.OpFinalizationTimeoutChange).toBe(0x16fc10e6)
     expect(mcms.opcodes.out.ErrorReportedSubmitted).toBe(0xbbc4deb4)
     expect(mcms.opcodes.out.OracleRoleTransferred).toBe(0xff4176a3)
+    expect(mcms.opcodes.out.ExpiredRootsCleaned).toBe(0xa86846d5)
   })
 
   it('should deploy', async () => {

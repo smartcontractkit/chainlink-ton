@@ -141,6 +141,22 @@ type TransferOracleRole struct {
 	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
 }
 
+// Delete expired roots from storage map to reduce rent
+//
+// Replies with {MCMS_ExpiredRootsCleaned} message.
+//
+// Requirements:
+//
+// - the caller must be the owner
+type CleanExpiredRoots struct {
+	_ tlb.Magic `tlb:"#903c276"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	Roots       common.SnakeData[Root]       `tlb:"^"` // The roots to clean up
+	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
+}
+
 // --- Messages - outgoing ---
 
 // Sent back to sender when a new root is set.
@@ -217,6 +233,16 @@ type OracleRoleTransferred struct {
 	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
 }
 
+// Sent back to sender once roots are cleaned from storage
+type ExpiredRootsCleaned struct {
+	_ tlb.Magic `tlb:"#a86846d5"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	Roots       common.SnakeData[Root]       `tlb:"^"` // The cleaned up roots
+	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
+}
+
 // --- Data (storage & structures) ---
 
 // MCMS contract storage, auto-serialized to/from cell.
@@ -242,33 +268,6 @@ type Data struct {
 
 	// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
 	RootInfo RootInfo `tlb:"^"`
-}
-
-type Proof struct {
-	Value *big.Int `tlb:"## 256"` // The value of the struct
-}
-
-type SignerKey struct {
-	Value *big.Int `tlb:"## 256"` // The value of the struct
-}
-
-type SignerGroup struct {
-	Value uint8 `tlb:"## 8"` // The value of the struct
-}
-
-// Config.GroupQuorums value wrapper
-type GroupQuorumItem struct {
-	Val uint8 `tlb:"## 8"`
-}
-
-// Config.GroupParents value wrapper
-type GroupParentItem struct {
-	Val uint8 `tlb:"## 8"`
-}
-
-// Data.SeenSignedHashes value wrapper
-type SeenSignedHashesItem struct {
-	Val bool `tlb:"bool"`
 }
 
 // Length of serialized signer structure in bytes.
@@ -428,6 +427,45 @@ type Op struct {
 	Data     *cell.Cell       `tlb:"^"`      // The data to be sent with the operation. // body
 }
 
+// --- Data (storage & structures) - value wrapper types ---
+
+type Proof struct {
+	Val *big.Int `tlb:"## 256"`
+}
+
+type SignerKey struct {
+	Val *big.Int `tlb:"## 256"`
+}
+
+type SignerGroup struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Config.GroupQuorums value wrapper
+type GroupQuorum struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Config.GroupParents value wrapper
+type GroupParent struct {
+	Val uint8 `tlb:"## 8"`
+}
+
+// Data.SeenSignedHashes value wrapper
+type SeenSignedHash struct {
+	Val bool `tlb:"bool"`
+}
+
+// Roots as vec<uint256> value wrapper
+type Root struct {
+	Val *big.Int `tlb:"## 256"`
+}
+
+// ValidUntils as vec<uint32> value wrapper
+type ValidUntil struct {
+	Val *big.Int `tlb:"## 32"`
+}
+
 // --- Constants ---
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
@@ -535,4 +573,7 @@ const (
 
 	// Thrown when the error report sender is not the authorized oracle.
 	ErrorUnauthorizedOracle
+
+	// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
+	ErrorRootNotExpired
 )

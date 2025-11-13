@@ -169,8 +169,26 @@ struct (0x4b3af0b5) MCMS_SubmitErrorReport {
 struct (0xf275742f) MCMS_TransferOracleRole {
     /// Query ID of the change request.
     queryId: uint64;
+
     /// The address of the new oracle.
     newOracle: address;
+}
+
+/// Delete expired roots from storage map to reduce rent
+///
+/// Replies with {MCMS_ExpiredRootsCleaned} message.
+///
+/// Requirements:
+///
+/// - the caller must be the owner
+struct (0xa903c276) MCMS_CleanExpiredRoots {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The roots to clean up
+    roots: cell, // vec<uint256>
+    /// The validUntil times for respective roots
+    validUntils: cell, // vec<uint32>,
 }
 
 /// @dev Union of all incoming messages.
@@ -181,9 +199,11 @@ type MCMS_InMessage =
     | MCMS_UpdateOpFinalizationTimeout
     | MCMS_SubmitErrorReport
     | MCMS_TransferOracleRole
-    // when mcms owns itself
+    | MCMS_CleanExpiredRoots
+    // when mcms owns itself (noop)
     | MCMS_ConfigSet
-    | MCMS_OracleRoleTransferred;
+    | MCMS_OracleRoleTransferred
+    | MCMS_ExpiredRootsCleaned;
 
 // --- Messages - outgoing ---
 
@@ -268,6 +288,17 @@ struct (0xff4176a3) MCMS_OracleRoleTransferred {
     newOracle: address;
 }
 
+/// Sent back to sender once roots are cleaned from storage
+struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The cleaned up roots
+    roots: cell, // vec<uint256>
+    /// The validUntil times for respective roots
+    validUntils: cell, // vec<uint32>,
+}
+
 /// @dev Union of all outgoing messages.
 type MCMS_OutMessage =
     | MCMS_NewRoot
@@ -275,7 +306,8 @@ type MCMS_OutMessage =
     | MCMS_ConfigSet
     | MCMS_OpFinalizationTimeoutChange
     | MCMS_ErrorReportSubmitted
-    | MCMS_OracleRoleTransferred;
+    | MCMS_OracleRoleTransferred
+    | MCMS_ExpiredRootsCleaned;
 
 // --- Storage ---
 
@@ -438,6 +470,9 @@ enum MCMS_Error {
 
     /// Thrown when the error report sender is not the authorized oracle.
     UnauthorizedOracle
+
+    /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
+    RootNotExpired
 }
 
 // --- Constants - storage ---
@@ -828,9 +863,7 @@ fun MCMS<T>.setRoot(
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
     // done with validation, persist in in contract state
-    // TODO (audit): note unbounded growth of seen signed hashes / roots map - what's the plan?
-    //      - Do we add an onlyOwner cleanup operation? Need to be careful what/when to cleanup.
-    //      - Or periodically rotate to a fresh instance?
+    // Note: unbounded growth of the seen hashes map, unless cleaned with <MCMS_CleanExpiredRoots>
     self.data.seenSignedHashes.set(signedHash, true);
     self.data.rootInfo = RootInfo {
         expiringRootAndOpCount: ExpiringRootAndOpCount{
@@ -1309,6 +1342,46 @@ fun MCMS<T>.transferOracleRole(
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Delete expired roots from storage map to reduce (accumulated) rent - requires owner.
+///
+/// @see <MCMS_CleanExpiredRoots> for more information.
+fun MCMS<T>.cleanExpiredRoots(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    roots: cell, // vec<uint256>
+    validUntils: cell, // vec<uint32>
+) {
+    self.data.ownable.requireOwner(sender);
+
+    var rootsIter = Iterator<uint256>.new(roots);
+    var validUntilsIter = Iterator<uint32>.new(validUntils);
+
+    while (!rootsIter.empty() && !validUntilsIter.empty()) {
+        var root = rootsIter.next();
+        var validUntil = validUntilsIter.next();
+
+        assert(validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
+
+        /// Construct the ID of the root
+        val signedHash = beginCell()
+            .storeUint(root, 256)
+            .storeUint(validUntil, 32)
+            .endCell()
+            .hash();
+
+        self.data.seenSignedHashes.delete(signedHash);
+    }
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ExpiredRootsCleaned{queryId, roots, validUntils}
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 /// Execute an op's call. Performs a raw message send that can bounce on errors.
 fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
@@ -1389,10 +1462,17 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         MCMS_TransferOracleRole => {
             self.transferOracleRole(msgSender, msg.queryId, msg.newOracle);
         }
+        MCMS_CleanExpiredRoots => {
+            self.cleanExpiredRoots(msgSender, msg.queryId, msg.roots, msg.validUntils);
+        }
+        // noop handlers (expected replies for ownable ops when owning self)
         MCMS_OracleRoleTransferred => {
             // noop
         }
         MCMS_ConfigSet => {
+            // noop
+        },
+        MCMS_ExpiredRootsCleaned => {
             // noop
         }
         else => {
