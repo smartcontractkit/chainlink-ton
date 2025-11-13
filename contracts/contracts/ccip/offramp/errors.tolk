@@ -9,5 +9,5 @@ enum Error {
     InsufficientFee
     SubjectCursed
     Unauthorized
+    ZeroAddressNotAllowed
 }
-

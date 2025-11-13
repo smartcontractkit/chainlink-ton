@@ -72,24 +72,28 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
-            onCCIPReceiveConfirm(msg, in.senderAddress);
+            onCCIPReceiveConfirm(msg);
         }
         // Sender must be router
         OffRamp_CCIPReceiveBounced => {
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
-            onBouncedCCIPReceive(msg, in.senderAddress);
+            onBouncedCCIPReceive(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            onNotifySuccess(msg, in.senderAddress);
+            onNotifySuccess(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            onNotifyFailure(msg, in.senderAddress);
+            onNotifyFailure(msg);
         }
         // Sender must be owner
+        OffRamp_SetDynamicConfig => {
+            st.ownable.requireOwner(in.senderAddress);
+            onSetDynamicConfig(msg);
+        }
         Withdrawable_Withdraw => {
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
@@ -145,11 +149,8 @@ Flow:
     OffRamp.OffRamp_CCIPReceiveBounced ->
     ReceiveExecutor.ReceiveExecutor_Bounced
 */
-fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
+fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
-    val sourceChainSelector = msg.execId.getSourceChainSelector();
-    val router = getRouterFromSelector(st, sourceChainSelector);
-    assert(sender == router, Error.SenderIsNotRouter);
 
     val receiveBounced = createMessage({
         bounce: true,
@@ -187,7 +188,7 @@ Flow:
     ReceiveExecutor.ReceiveExecutor_Confirm ->
     OffRamp.OffRamp_NotifySuccess
 */
-fun onNotifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
+fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
 
@@ -208,7 +209,7 @@ Flow:
     ReceiveExecutor.ReceiveExecutor_Bounced ->
     OffRamp.OffRamp_NotifyFailure
 */
-fun onNotifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
+fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
 
@@ -232,7 +233,7 @@ Flow:
     OffRamp.OffRamp_CCIPReceiveConfirm ->
     ReceiveExecutor.ReceiveExecutor_Confirm
 */
-fun onCCIPReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
+fun onCCIPReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm) {
     val st = Storage.load();
 
     val receiveConfirm = createMessage({
@@ -246,6 +247,7 @@ fun onCCIPReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+<<<<<<< HEAD
 /*
 Dispatches a validated message to the receiver via the Router_RouteMessage.
 Verifies sender ownership which should be the corresponing receiver executor, resolves the Router from the source selector,
@@ -418,12 +420,6 @@ Flow:
     MerkleRoot.MerkleRoot_Validate
  */
 fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
-    var st = Storage.load();
-
-    val report = msg.report;
-
-    // when_chain_not_forked assert
-
     onExecuteSingleReport(msg.report, msg.gasOverride, value);
 }
 
@@ -698,9 +694,32 @@ fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: addr
     assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
 }
 
+/*
+Verifies that the caller corresponds to the router asociated with the given chain selector
+*/
 fun assertSenderIsTheRouter(st: Storage, sourceChainSelector: uint64, sender: address) {
     val router = getRouterFromSelector(st, sourceChainSelector);
     assert(sender == router, Error.Unauthorized);
+}
+
+/*
+Updates the dynamic configuration parameters for the OffRamp contract.
+Validates that the feeQuoter address is non-zero, updates the stored
+configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
+*/
+fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
+    var st = Storage.load();
+
+    assert(!msg.feeQuoter.isNone()) throw Error.ZeroAddressNotAllowed;
+
+    st.feeQuoter = msg.feeQuoter;
+    st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;
+    st.store();
+
+    emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
+        feeQuoter: msg.feeQuoter,
+        permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds,
+    });
 }
 
 get fun latestPriceSequenceNumber(): uint64 {
@@ -712,10 +731,6 @@ get fun sourceChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.sourceChainConfigs;
     return keysLispList(d)!;
-}
-
-fun setDynamicConfig() {
-
 }
 
 get fun ocr3Config(): OCR3Base {

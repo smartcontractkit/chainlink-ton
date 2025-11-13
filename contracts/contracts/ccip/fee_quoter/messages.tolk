@@ -21,13 +21,11 @@ struct (0x20000001) FeeQuoter_UpdatePrices {
     updates: PriceUpdates
 }
 
-// crc32('FeeQuoter_GetValidatedFee')
 struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
     msg: Cell<Router_CCIPSend>
     context: T;
 }
 
-// crc32('FeeQuoter_UpdateFeeTokens')
 struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
     add: map<address, FeeToken>; // token -> config
     remove: SnakedCell<address>;
@@ -35,14 +33,12 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 
 // --- Outgoing messages ---
 
-// crc32('FeeQuoter_MessageValidated')
 struct (0x1fa60374) FeeQuoter_MessageValidated<T> {
     fee: coins
     msg: Cell<Router_CCIPSend>
     context: T
 }
 
-// crc32('FeeQuoter_MessageValidationFailed')
 struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
@@ -53,13 +49,11 @@ struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
 // NOTE: we just merged this into UpdateFeeTokens
 // struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
 
-// crc32('FeeQuoter_UpdateTokenTransferFeeConfigs')
 struct (0xB2826316) FeeQuoter_UpdateTokenTransferFeeConfigs {
     // TODO: would these be more efficient as snakedata (key, value)?
     updates: map<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
 }
 
-// crc32('FeeQuoter_UpdateDestChainConfig')
 struct (0x29950BAA) FeeQuoter_UpdateDestChainConfigs {
     updates: cell; // vec<FeeQuoter_UpdateDestChainConfig>
 }
@@ -90,4 +84,3 @@ fun FeeQuoter_Costs.updatePrices() {
     // when we support token transfers the message value amount will depend on the quantity of supported tokens
     return ton("0.002");
 }
-
