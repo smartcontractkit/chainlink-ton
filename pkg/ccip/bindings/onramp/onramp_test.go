@@ -189,7 +189,7 @@ func TestStorage(t *testing.T) {
 		Executor: ExecutorDeployment{
 			DeployableCode: DeployableCode,
 			ExecutorCode:   ExecutorCode,
-			CurrentID:      *big.NewInt(123),
+			CurrentID:      big.NewInt(123),
 		},
 	}
 
