@@ -41,11 +41,16 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be MerkleRoot
         OffRamp_ExecuteValidated => {
-            _executeValidated(msg, in.senderAddress)
+            val st = Storage.load();
+            // Validate the message comes from an owned MerkleRoot contract
+            assertSenderIsOwnedContract(st, in.senderAddress, MerkleRoot_DeployableData(contract.getAddress(), msg.root));
+            _executeValidated(st, msg, in.senderAddress)
         }
         // Sender must be ReceiveExecutor
         OffRamp_DispatchValidated => {
-            _dispatchValidated(msg, in.senderAddress)
+            val st = Storage.load();
+            assertSenderIsOwnedContract(st, in.senderAddress, ReceiveExecutor_DeployableData(contract.getAddress(), msg.execId));
+            _dispatchValidated(st, msg)
         } 
         // Permissionless
         OffRamp_ManuallyExecute => {
@@ -71,11 +76,13 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
-            _notifySuccess(msg, in.senderAddress);
+            assertSenderIsOwnedContract(Storage.load(), in.senderAddress, ReceiveExecutor_DeployableData(contract.getAddress(), msg.execId));
+            _notifySuccess(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
-            _notifyFailure(msg, in.senderAddress);
+            assertSenderIsOwnedContract(Storage.load(), in.senderAddress, ReceiveExecutor_DeployableData(contract.getAddress(), msg.execId));
+            _notifyFailure(msg);
         }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
@@ -129,10 +136,7 @@ fun _bouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced, sender: address) {
         dest: {
             stateInit: { //ReceiveExecutor address
                 code: st.deployables.load().deployer,
-                data: Deployable<ReceiveExecutorId> {
-                    owner: contract.getAddress(),
-                    id: msg.execId,
-                }.toCell(), 
+                data: ReceiveExecutor_DeployableData(contract.getAddress(), msg.execId),
             },
         },
         body: ReceiveExecutor_Bounced{
@@ -157,9 +161,7 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
 }
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
-fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
-    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
-
+fun _notifySuccess(msg: OffRamp_NotifySuccess) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
 
@@ -173,9 +175,7 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
 }
 
 // Received from ReceiveExecutor after validating that the bounce message came from the correct receiver and enabling manual execute to retry
-fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
-    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
-
+fun _notifyFailure(msg: OffRamp_NotifyFailure) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
 
@@ -202,10 +202,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
         dest: {
             stateInit: {
                 code: st.deployables.load().deployer,
-                data: Deployable<ReceiveExecutorId> {
-                    owner: contract.getAddress(),
-                    id: msg.execId,
-                }.toCell(),
+                data: ReceiveExecutor_DeployableData(contract.getAddress(), msg.execId),
             }
         },
         body: ReceiveExecutor_Confirm {
@@ -216,11 +213,8 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
 }
 
 
-fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
-    val st = Storage.load();
-    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
-
-    val message: Any2TVMRampMessage = msg.message.load();
+fun _dispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
+        val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
     
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
@@ -301,10 +295,7 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
             dest: {
                 stateInit: {
                     code: st.deployables.load().deployer,
-                    data: Deployable<MerkleRootId> {
-                        owner: contract.getAddress(),
-                        id: root.merkleRoot,
-                    }.toCell(),
+                    data: MerkleRoot_DeployableData(contract.getAddress(), root.merkleRoot),
                 },
             },
             body: Deployable_Initialize {
@@ -443,11 +434,8 @@ fun _execute_single_report(report: ExecutionReport, gasOverride: coins?, value: 
          value: MerkleRoot_Costs.validate(),
          dest: {
              stateInit: {
-                 code: st.deployables.load().deployer,
-                 data: Deployable<MerkleRootId> {
-                     owner: contract.getAddress(),
-                     id: root,
-                 }.toCell(),
+                code: st.deployables.load().deployer,
+                data: MerkleRoot_DeployableData(contract.getAddress(), root),
              },
          },
 
@@ -502,13 +490,9 @@ fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
     st.store();
 }
 
-fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
-    val st = Storage.load();
-
+fun _executeValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: address) {
     val message = msg.message.load();
 
-    // Validate the message comes from an owned MerkleRoot contract
-    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(msg.root, MERKLE_ROOT_ID_SIZE));
 
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: message.header.sourceChainSelector,
@@ -523,10 +507,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
     val executorAddress: AutoDeployAddress = {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: Deployable<ReceiveExecutorId> {
-                owner: contract.getAddress(),
-                id: execId,
-            }.toCell()
+            data: ReceiveExecutor_DeployableData(contract.getAddress(), execId),
         }
     };
 
@@ -585,14 +566,11 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: u
 }
 
 @inline
-fun assertSenderIsOwnedContract(st: Storage, sender: address, contractId: builder) {
+fun assertSenderIsOwnedContract(st: Storage, sender: address, deployableData: cell) {
     val expectedAddress: AutoDeployAddress = {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: Deployable {
-                owner: contract.getAddress(),
-                id: contractId,
-            }.toCell()
+            data: deployableData,
         }
     };
     assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;

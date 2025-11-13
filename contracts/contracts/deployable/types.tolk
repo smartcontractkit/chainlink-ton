@@ -3,10 +3,14 @@ struct Deployable<T> {
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
-enum CCIPNamespace: uint256 {
-    SendExecutor,
-    ReceiveExecutor,
-    MerkleRoot,
+const _CCIPSendExecutor = stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor")
+const _ReceiveExecutor = stringCrc32("com.chainlink.ton.ccip.ReceiveExecutor")
+const _MerkleRoot = stringCrc32("com.chainlink.ton.ccip.MerkleRoot")
+// Tolk compiler does not allow inlining stringCrc32 results into enum values, so we use constants as a workaround.
+enum CCIPNamespace: uint32 {
+    CCIPSendExecutor = _CCIPSendExecutor,
+    ReceiveExecutor = _ReceiveExecutor,
+    MerkleRoot = _MerkleRoot,
 }
 
 fun Deployable<Namespaced<T>>.new(namespace: CCIPNamespace, owner: address, id: T): Cell<Deployable<Namespaced<T>>> {

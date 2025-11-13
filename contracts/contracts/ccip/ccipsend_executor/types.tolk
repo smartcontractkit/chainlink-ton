@@ -5,7 +5,7 @@ type CCIPSendExecutor_ID = uint224
 
 fun CCIPSendExecutor_DeployableData(owner: address, id: CCIPSendExecutor_ID): cell {
     return Deployable<Namespaced<CCIPSendExecutor_ID>>.new(
-        CCIPNamespace.SendExecutor,
+        CCIPNamespace.CCIPSendExecutor,
         owner,
         id,
     ); 

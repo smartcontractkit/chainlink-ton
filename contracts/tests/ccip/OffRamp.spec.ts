@@ -59,6 +59,7 @@ import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OffRamp'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
+import { dump } from '../utils/prettyPrint'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -464,7 +465,10 @@ describe('OffRamp - Unit Tests', () => {
     const data = deployable.builder.data.contractData
       .encode({
         owner: offRamp.address,
-        id: getMerkleRootID(root.merkleRoot),
+        id: deployable.builder.data.namespaced.encode({
+          namespace: deployable.CCIPNamespace.MerkleRoot,
+          id: getMerkleRootID(root.merkleRoot),
+        }),
       })
       .endCell()
 
