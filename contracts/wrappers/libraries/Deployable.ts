@@ -26,12 +26,6 @@ export type Namespaced = {
   id: Builder
 }
 
-export enum CCIPNamespace {
-  CCIPSendExecutor = 0,
-  ReceiveExecutor,
-  MerkleRoot,
-}
-
 export const builder = {
   data: {
     contractData: ((): CellCodec<DeployableStorage> => {

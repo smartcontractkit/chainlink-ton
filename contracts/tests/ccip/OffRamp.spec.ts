@@ -56,10 +56,9 @@ import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
-import * as or from '../../wrappers/ccip/OffRamp'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
-import { dump } from '../utils/prettyPrint'
+import * as NameSpace from '../../wrappers/ccip/NameSpace'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -466,7 +465,7 @@ describe('OffRamp - Unit Tests', () => {
       .encode({
         owner: offRamp.address,
         id: deployable.builder.data.namespaced.encode({
-          namespace: deployable.CCIPNamespace.MerkleRoot,
+          namespace: NameSpace.CCIPNamespace.MerkleRoot,
           id: getMerkleRootID(root.merkleRoot),
         }),
       })

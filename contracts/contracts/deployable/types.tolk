@@ -3,14 +3,7 @@ struct Deployable<T> {
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
-// Tolk compiler does not allow inlining stringCrc32 results into enum values, so we use constants as a workaround.
-enum CCIPNamespace: uint32 {
-    CCIPSendExecutor = 0,
-    ReceiveExecutor,
-    MerkleRoot,
-}
-
-fun Deployable<Namespaced<T>>.new(namespace: CCIPNamespace, owner: address, id: T): Cell<Deployable<Namespaced<T>>> {
+fun Deployable<Namespaced<T>>.new(namespace: Namespace, owner: address, id: T): Cell<Deployable<Namespaced<T>>> {
     return Deployable<Namespaced<T>> {
         owner,
         id: Namespaced<T> {
@@ -21,9 +14,11 @@ fun Deployable<Namespaced<T>>.new(namespace: CCIPNamespace, owner: address, id: 
 }
 
 struct Namespaced<T> {
-    namespace: CCIPNamespace;
+    namespace: Namespace;
     id: T;
 }
+
+type Namespace = uint32;
 
 fun Deployable<T>.load() {
     return Deployable<T>.fromCell(contract.getData());

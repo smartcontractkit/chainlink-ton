@@ -112,7 +112,7 @@ type MerkleRootId = uint256;
 
 fun ReceiveExecutor_DeployableData(owner: address, id: ReceiveExecutorId): cell {
     return Deployable<Namespaced<ReceiveExecutorId>>.new(
-        CCIPNamespace.ReceiveExecutor,
+        CCIPNamespace_ReceiveExecutor,
         owner,
         id,
     );
@@ -120,7 +120,7 @@ fun ReceiveExecutor_DeployableData(owner: address, id: ReceiveExecutorId): cell 
 
 fun MerkleRoot_DeployableData(owner: address, id: MerkleRootId): cell {
     return Deployable<Namespaced<MerkleRootId>>.new(
-        CCIPNamespace.MerkleRoot,
+        CCIPNamespace_MerkleRoot,
         owner,
         id,
     );
