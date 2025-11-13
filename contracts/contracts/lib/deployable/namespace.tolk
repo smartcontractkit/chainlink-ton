@@ -4,16 +4,6 @@ const DeployableNamespace_CCIPSendExecutor: Namespace = 0;
 const DeployableNamespace_ReceiveExecutor: Namespace = 1;
 const DeployableNamespace_MerkleRoot: Namespace = 2;
 
-fun Deployable<Namespaced<T>>.new(namespace: Namespace, owner: address, id: T): Cell<Deployable<Namespaced<T>>> {
-    return Deployable<Namespaced<T>> {
-        owner,
-        id: Namespaced<T> {
-            namespace,
-            id,
-        },
-    }.toCell();
-}
-
 struct Namespaced<T> {
     namespace: Namespace;
     id: T;
@@ -28,5 +18,11 @@ struct NamespacedDeployableDataProps<T> {
 }
 
 fun NamespacedDeployableData<T>(props: NamespacedDeployableDataProps<T>): cell {
-    return Deployable<Namespaced<T>>.new(props.namespace, props.owner, props.id);
+    return Deployable<Namespaced<T>> {
+        owner: props.owner,
+        id: Namespaced<T> {
+            namespace: props.namespace,
+            id: props.id,
+        },
+    }.toCell();
 }
