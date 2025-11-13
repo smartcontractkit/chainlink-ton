@@ -112,7 +112,7 @@ fun send(payload: OnRamp_Send, sender: address) {
                 code: st.executor.executorCode,
                 data:  CCIPSendExecutor_InitialData {
                     onramp: contract.getAddress(),
-                    messageID: st.executor.currentID,
+                    id: st.executor.currentID,
                 }.toCell(),
             },
             selfMessage: {

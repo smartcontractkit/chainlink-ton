@@ -20,11 +20,11 @@ struct _CCIPSendExecutor_DeployableData {
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    messageID: CCIPSendExecutor_ID,
+    id: CCIPSendExecutor_ID,
 }
 
 struct CCIPSendExecutor_Data {
-    messageId: CCIPSendExecutor_ID,
+    id: CCIPSendExecutor_ID,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
