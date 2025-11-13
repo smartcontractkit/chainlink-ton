@@ -12,6 +12,9 @@ import "../onramp/messages"
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
+    | Router_GetValidatedFee<RemainingBitsAndRefs>
+    | OnRamp_MessageValidated<Router_GetValidatedFeeContext>
+    | OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
@@ -106,6 +109,32 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
+struct (0x4dd6aa82) Router_GetValidatedFee<T> {
+    ccipSend: Cell<Router_CCIPSend>;
+    context: T;
+}
+
+struct Router_GetValidatedFeeContext {
+    routerContext: address; // sender
+    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
+}
+
+// --- Outgoing messages ---
+
+// crc32('Router_MessageValidated')
+struct (0x9e2155ec) Router_MessageValidated<T> {
+    fee: coins
+    msg: Cell<Router_CCIPSend>
+    context: T
+}
+
+// crc32('Router_MessageValidationFailed')
+struct (0xec23c562) Router_MessageValidationFailed<T> {
+    error: uint256,
+    msg: Cell<Router_CCIPSend>,
+    context: T
+}
+
 // Costs associated with Router operations
 struct Router_Costs {}
 
@@ -126,6 +155,12 @@ fun Router_Costs.MessageSent(): int {
 @inline
 fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
+}
+
+// Minimum value for calling Router_GetValidatedFee
+@inline
+fun Router_Costs.GetValidatedFee(): int {
+    return ton("0.02"); // TODO
 }
 
 fun Router_Costs.routeMessage() {

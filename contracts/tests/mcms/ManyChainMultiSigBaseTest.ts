@@ -4,18 +4,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { KeyPair, sign } from '@ton/crypto'
+import { crc32 } from 'zlib'
 
+import { generateEd25519KeyPair, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
-
-import { crc32 } from 'zlib'
-import {
-  generateEd25519KeyPair,
-  asSnakeData,
-  uint8ArrayToBigInt,
-  ZERO_ADDRESS,
-} from '../../src/utils'
 
 export type MCMSTestCode = {
   mcms: Cell
@@ -58,7 +52,7 @@ export class MCMSBaseTestSetup {
   static readonly TEST_CHAIN_ID = -239n // TODO: blockchain global chain ID (will need to be signed int)
   static readonly TEST_VALID_UNTIL = 1000000
 
-  static readonly OP_FINALIZATION_TIMEOUT_ZERO = 0n
+  static readonly OP_FINALIZATION_TIMEOUT_ZERO = 0
 
   blockchain: Blockchain
   code: MCMSTestCode
@@ -547,10 +541,9 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
 
     const [setRoot, opProofs] = merkleProof.build(
       signers,
-      BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
+      MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
       rootMetadata,
       this.testOps,
-      MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
     // Store the operation proofs for later use in execute tests

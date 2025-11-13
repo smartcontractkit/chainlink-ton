@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, toNano } from '@ton/core'
+import { Address, Cell, toNano } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
@@ -60,10 +60,10 @@ describe('MCMS - IntegrationTest', () => {
   const VETO_COUNT = 22 + 7
   const VETO_QUORUM = Math.floor((VETO_COUNT - 1) / 3) + 1
 
-  const MIN_DELAY = 24n * 60n * 60n
+  const MIN_DELAY = 24 * 60 * 60
 
   // Notice: no finalization timeout between ops
-  const OP_FINALIZATION_TIMEOUT_ZERO = 0n
+  const OP_FINALIZATION_TIMEOUT_ZERO = 0
 
   let signerKeyPairs: KeyPair[] = []
 
@@ -177,7 +177,7 @@ describe('MCMS - IntegrationTest', () => {
         executorRoleCheckEnabled: true,
         opPendingInfo: {
           validAfter: 0,
-          opFinalizationTimeout: 0n,
+          opFinalizationTimeout: 0,
           opPendingId: 0n,
         },
         rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
@@ -212,7 +212,7 @@ describe('MCMS - IntegrationTest', () => {
           cancellers: [bind.mcmsVeto.address],
           bypassers: [bind.mcmsBypass.address],
           executorRoleCheckEnabled: true,
-          opFinalizationTimeout: 0n,
+          opFinalizationTimeout: 0,
         })
         .asCell()
       const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.2'), body)
@@ -515,7 +515,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -541,13 +541,7 @@ describe('MCMS - IntegrationTest', () => {
             .asCell(),
         },
       ]
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -641,7 +635,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -668,13 +662,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -756,7 +744,7 @@ describe('MCMS - IntegrationTest', () => {
       //
       // halve minDelay from bypasser
       //
-      const newDelay = Math.floor(Number(MIN_DELAY / 2n))
+      const newDelay = Math.floor(MIN_DELAY / 2)
       calls = asSnakeData<rbactl.Call>(
         [
           {
@@ -779,7 +767,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsBypass.address,
@@ -800,13 +788,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
@@ -852,7 +834,7 @@ describe('MCMS - IntegrationTest', () => {
         op: rbactl.opcodes.in.UpdateDelay,
       })
 
-      expect(await bind.timelock.getMinDelay()).toEqual(BigInt(newDelay))
+      expect(await bind.timelock.getMinDelay()).toEqual(newDelay)
     }
 
     {
@@ -904,7 +886,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -931,13 +913,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -996,7 +972,7 @@ describe('MCMS - IntegrationTest', () => {
           publicKey: v.publicKey,
           sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
         }))
-        const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+        const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
         const metadata = {
           chainId,
           multiSig: bind.mcmsVeto.address,
@@ -1015,13 +991,7 @@ describe('MCMS - IntegrationTest', () => {
           },
         ]
 
-        const [setRoot, opProofs] = merkleProof.build(
-          signers,
-          validUntil,
-          metadata,
-          ops,
-          OP_FINALIZATION_TIMEOUT_ZERO,
-        )
+        const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
         const r = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
@@ -1133,7 +1103,7 @@ describe('MCMS - IntegrationTest', () => {
         publicKey: v.publicKey,
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
       }))
-      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -1160,13 +1130,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),

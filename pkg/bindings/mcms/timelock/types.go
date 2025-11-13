@@ -30,7 +30,7 @@ type Init struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// Minimum delay in seconds for future operations.
-	MinDelay uint64 `tlb:"## 64"`
+	MinDelay uint32 `tlb:"## 32"`
 
 	// Address of the admin account.
 	Admin *address.Address `tlb:"addr"`
@@ -44,7 +44,7 @@ type Init struct {
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
 	// The timeout required to finalize the currently executing op
-	OpFinalizationTimeout uint64 `tlb:"## 64"`
+	OpFinalizationTimeout uint32 `tlb:"## 32"`
 }
 
 // Schedule an operation containing a batch of transactions.
@@ -63,7 +63,7 @@ type ScheduleBatch struct {
 	Calls       common.SnakeRef[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
 	Predecessor *big.Int              `tlb:"## 256"` // Predecessor operation ID
 	Salt        *big.Int              `tlb:"## 256"` // Salt used to derive the operation ID
-	Delay       uint64                `tlb:"## 64"`  // Delay in seconds before the operation can be executed
+	Delay       uint32                `tlb:"## 32"`  // Delay in seconds before the operation can be executed
 }
 
 // Cancel an operation.
@@ -110,7 +110,7 @@ type UpdateDelay struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// New minimum delay in seconds for future operations.
-	NewDelay uint64 `tlb:"## 64"`
+	NewDelay uint32 `tlb:"## 32"`
 }
 
 // Changes the timeout required to finalize the currently executing op
@@ -122,11 +122,11 @@ type UpdateDelay struct {
 // - the caller must have the 'admin' role.
 type UpdateOpFinalizationTimeout struct {
 	_ tlb.Magic `tlb:"#94278d4f"` //nolint:revive // (opcode) should stay uninitialized
-	/// Query ID of the change request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	/// The timeout required to finalize the currently executing op
-	NewOpFinalizationTimeout uint64 `tlb:"## 64"`
+	// The timeout required to finalize the currently executing op
+	NewOpFinalizationTimeout uint32 `tlb:"## 32"`
 }
 
 // Blocks a function selector from being used, i.e. schedule
@@ -227,7 +227,7 @@ type CallScheduled struct {
 	Call        Call     `tlb:"^"`      // Call to be executed as part of the operation.
 	Predecessor *big.Int `tlb:"## 256"` // Predecessor operation ID
 	Salt        *big.Int `tlb:"## 256"` // Salt used to derive the operation ID
-	Delay       uint64   `tlb:"## 64"`  // Delay in seconds before the operation can be executed
+	Delay       uint32   `tlb:"## 32"`  // Delay in seconds before the operation can be executed
 }
 
 // Emitted when a call is performed as part of operation `id`.
@@ -270,8 +270,18 @@ type MinDelayChange struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	OldDuration uint64 `tlb:"## 64"` // Duration of the old minimum delay in seconds.
-	NewDuration uint64 `tlb:"## 64"` // Duration of the new minimum delay in seconds.
+	OldDuration uint32 `tlb:"## 32"` // Duration of the old minimum delay in seconds.
+	NewDuration uint32 `tlb:"## 32"` // Duration of the new minimum delay in seconds.
+}
+
+// Replied to sender when the op finalization timeout is modified.
+type OpFinalizationTimeoutChange struct {
+	_ tlb.Magic `tlb:"#1f102718"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	OldDuration uint32 `tlb:"## 32"` // Duration of the old timeout in seconds.
+	NewDuration uint32 `tlb:"## 32"` // Duration of the new timeout in seconds.
 }
 
 // Emitted when a function selector is blocked.
@@ -312,7 +322,7 @@ type Data struct {
 	ID uint32 `tlb:"## 32"`
 
 	// Minimum delay for operations in seconds
-	MinDelay uint64 `tlb:"## 64"`
+	MinDelay uint32 `tlb:"## 32"`
 	// Map of operation id to timestamp
 	Timestamps *cell.Dictionary `tlb:"dict 256"` // map<uint256, uint64>
 
@@ -360,7 +370,7 @@ type OpPendingInfo struct {
 	// meaning no bounce was received and we can continue executing.
 	ValidAfter uint32 `tlb:"## 32"`
 	// The timeout required to finalize the currently executing op
-	OpFinalizationTimeout uint64 `tlb:"## 64"`
+	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *big.Int `tlb:"## 256"`
 }

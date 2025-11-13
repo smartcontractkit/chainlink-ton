@@ -68,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
-        FeeQuoter_GetValidatedFee<cell> => {
+        FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw FeeQuoter_Error.InsufficientFee;
             handleGetValidatedFee(msg, in.senderAddress)
         }
@@ -473,7 +473,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
 }
 
 
-fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
+fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
@@ -483,10 +483,10 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidated<cell> {
+            body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
                 msg: payload.msg,
-                metadata: payload.metadata,
                 fee: feeTokenAmount,
+                context: payload.context,
             }
         });
     } catch (e) {
@@ -494,10 +494,10 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidationFailed<cell> {
+            body: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> {
                 msg: payload.msg,
-                metadata: payload.metadata,
                 error: e,
+                context: payload.context,
             }
         });
     }

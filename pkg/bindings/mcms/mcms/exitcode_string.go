@@ -33,11 +33,12 @@ func _() {
 	_ = x[ErrorRootNotFinalized-39022]
 	_ = x[ErrorInsufficientValue-39023]
 	_ = x[ErrorUnauthorizedOracle-39024]
+	_ = x[ErrorRootNotExpired-39025]
 }
 
-const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatchErrorOutOfBoundsGroupErrorGroupTreeNotWellFormedErrorOutOfBoundsGroupQuorumErrorSignerInDisabledGroupErrorSignersKeysMustBeStrictlyIncreasingErrorInvalidSignerErrorInsufficientSignersErrorWrongChainIDErrorWrongMultiSigErrorWrongPostOpCountErrorPendingOpsErrorWrongPreOpCountErrorProofCannotBeVerifiedErrorRootExpiredErrorWrongNonceErrorPostOpCountReachedErrorCallRevertedErrorValidUntilHasAlreadyPassedErrorMissingConfigErrorSignedHashAlreadySeenErrorRootNotFinalizedErrorInsufficientValueErrorUnauthorizedOracle"
+const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatchErrorOutOfBoundsGroupErrorGroupTreeNotWellFormedErrorOutOfBoundsGroupQuorumErrorSignerInDisabledGroupErrorSignersKeysMustBeStrictlyIncreasingErrorInvalidSignerErrorInsufficientSignersErrorWrongChainIDErrorWrongMultiSigErrorWrongPostOpCountErrorPendingOpsErrorWrongPreOpCountErrorProofCannotBeVerifiedErrorRootExpiredErrorWrongNonceErrorPostOpCountReachedErrorCallRevertedErrorValidUntilHasAlreadyPassedErrorMissingConfigErrorSignedHashAlreadySeenErrorRootNotFinalizedErrorInsufficientValueErrorUnauthorizedOracleErrorRootNotExpired"
 
-var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 198, 216, 240, 257, 275, 296, 311, 331, 357, 373, 388, 411, 428, 459, 477, 503, 524, 546, 569}
+var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 198, 216, 240, 257, 275, 296, 311, 331, 357, 373, 388, 411, 428, 459, 477, 503, 524, 546, 569, 588}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 39000

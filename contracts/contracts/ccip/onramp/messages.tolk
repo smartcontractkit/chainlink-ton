@@ -6,9 +6,13 @@ import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
+import "../fee_quoter/messages"
 
 type OnRamp_InMessage =
     | OnRamp_Send
+    | OnRamp_GetValidatedFee<RemainingBitsAndRefs>
+    | FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>
+    | FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>
     | OnRamp_ExecutorFinishedSuccessfully
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
@@ -29,6 +33,16 @@ struct (0x10000002) OnRamp_Send {
     metadata: Metadata
 }
 
+struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
+    ccipSend: Cell<Router_CCIPSend>;
+    context: T;
+}
+
+struct OnRamp_GetValidatedFeeContext {
+    onrampContext: address; // onramp address
+    userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
+}
+
 struct (0x10000003) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
@@ -36,16 +50,16 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     msgID: uint224,
+    fee: coins
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
-    fee: coins
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     msgID: uint224,
+    error: uint256,
     msg: Cell<Router_CCIPSend>,
     metadata: Metadata,
-    error: uint256,
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
@@ -62,8 +76,32 @@ struct (0x10000005) OnRamp_UpdateAllowlists {
     updates: cell; // vec<UpdateAllowlist>
 }
 
+// --- Outgoing messages ---
+
+// crc32('OnRamp_MessageValidated')
+struct (0x2afb11bd) OnRamp_MessageValidated<T> {
+    fee: coins
+    msg: Cell<Router_CCIPSend>
+    context: T
+}
+
+// crc32('OnRamp_MessageValidationFailed')
+struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
+    error: uint256,
+    msg: Cell<Router_CCIPSend>,
+    context: T
+}
+
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}
+
+// Minimum value for calling OnRamp_GetValidatedFee
+@inline
+fun OnRamp_Costs.GetValidatedFee(): int {
+    return
+        + ton("0.02") // GetValidatedFee fwdFee
+        + FeeQuoter_Costs.GetValidatedFee()
+}
 
 // Minimum value for calling OnRamp_Send
 @inline
