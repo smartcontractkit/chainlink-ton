@@ -11,7 +11,7 @@ import {
 } from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
 import { crc32 } from 'zlib'
-import * as OR from '../wrappers/ccip/OnRamp'
+import * as onramp from '../wrappers/ccip/OnRamp'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -467,7 +467,7 @@ export const testLogDestChainConfigUpdated = (
     const cs = x.beginParse()
     const msg = {
       destChainSelector: cs.loadUintBig(64),
-      config: OR.builder.data.destChainConfig().load(cs),
+      config: onramp.builder.data.destChainConfig.load(cs),
     }
     matchesObject(msg, match)
     return true

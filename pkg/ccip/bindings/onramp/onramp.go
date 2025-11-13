@@ -26,6 +26,7 @@ const (
 	OpcodeSetDynamicConfig                   = 0x10000003
 	OpcodeUpdateDestChainConfigs             = 0x10000004
 	OpcodeUpdateAllowlists                   = 0x10000005
+	OpcodeUpdateSendExecutor                 = 0x82901c45
 )
 
 // Topics
@@ -71,8 +72,13 @@ type Storage struct {
 	ChainSelector    uint64              `tlb:"## 64"`
 	Config           DynamicConfig       `tlb:"^"`
 	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
-	ExecutorCode     *cell.Cell          `tlb:"^"`
-	CurrentMessageID *big.Int            `tlb:"## 224"`
+	Executor         ExecutorDeployment  `tlb:"."`
+}
+
+type ExecutorDeployment struct {
+	DeployableCode *cell.Cell `tlb:"^"`
+	ExecutorCode   *cell.Cell `tlb:"^"`
+	CurrentID      *big.Int   `tlb:"## 224"`
 }
 
 // Methods
@@ -155,6 +161,11 @@ type UpdateDestChainConfigsMessage struct {
 type UpdateAllowlistsMessage struct {
 	_       tlb.Magic  `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
 	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
+}
+
+type UpdateSendExecutorMessage struct {
+	_    tlb.Magic  `tlb:"#82901c45"` //nolint:revive // Ignore opcode tag
+	Code *cell.Cell `tlb:"^"`         // New executor code
 }
 
 // binding types that supports FetchResult interface with rpc client

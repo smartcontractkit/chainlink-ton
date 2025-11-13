@@ -1,12 +1,12 @@
 import '@ton/test-utils'
 
 import { Address, toNano } from '@ton/core'
+import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { rbactl } from '../../wrappers/mcms'
+import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import * as counter from '../../wrappers/examples/Counter'
 
 describe('MCMS - RBACTimelockCancelTest', () => {
   let baseTest: BaseTestSetup
@@ -78,7 +78,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     }
 
     // Wait for delay
-    baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+    baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
     // Execute operation
     {

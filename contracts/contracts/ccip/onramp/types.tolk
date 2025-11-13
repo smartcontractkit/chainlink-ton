@@ -1,5 +1,7 @@
 import "../common/types"
 import "../../lib/utils"
+import "../ccipsend_executor/types"
+import "../../deployable/types"
 
 struct OnRamp_DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.
@@ -19,6 +21,22 @@ struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
     router: address;
     allowlistEnabled: bool;
+}
+
+struct ExecutorDeployment {
+    deployableCode: cell;
+    executorCode: cell; // code for SendExecutor
+    currentID: uint224;
+}
+
+@inline
+fun ExecutorDeployment.autoDeployAddress(self, executorID: int): AutoDeployAddress {
+    return AutoDeployAddress {
+        stateInit: ContractState {
+            code: self.deployableCode,
+            data: CCIPSendExecutor_DeployableData(contract.getAddress(), executorID),
+        }
+    }
 }
 
 struct UpdateAllowlist {

@@ -18,7 +18,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
-            assert (in.senderAddress == this.addresses.load().onramp) throw CCIPSendExecutor_Error.Unauthorized;
+            assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
             assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute();
         }
@@ -49,7 +49,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
-        messageID: st.messageID,
+        id: st.id,
         onrampSend: onrampSend,
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
@@ -63,7 +63,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
 fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self) {
     getValidatedFee(self.addresses.load().feeQuoter, self.onrampSend);
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> {
-        messageID: self.messageID,
+        id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: CCIPSendExecutor_State_OnGoingFeeValidation {
@@ -105,7 +105,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
             fee,
-            msgID: self.messageID,
+            executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
         }
@@ -126,7 +126,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, sender: address) {
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
-            msgID: self.messageID,
+            executorID: self.id,
             error: error,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,

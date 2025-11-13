@@ -12,8 +12,7 @@ struct OnRamp_Storage {
     config: Cell<OnRamp_DynamicConfig>;
 
     destChainConfigs: map<uint64, OnRamp_DestChainConfig>; // chainSelector -> DestChainConfig
-    executorCode: cell; // code for CCIPSendExecutor
-    currentMessageId: uint224;
+    executor: ExecutorDeployment;
 }
 
 fun OnRamp_Storage.load(): OnRamp_Storage {

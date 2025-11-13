@@ -63,8 +63,6 @@ struct (0xe7fabde3) MCMS_SetRoot {
     metadataProof: cell; // vec<uint256>;
     /// The ECDSA signatures on (root, validUntil).
     signatures: cell; // vec<Signature>
-    /// The timeout required to finalize the currently executing op
-    opFinalizationTimeout: uint32;
 }
 
 /// Execute the received op after verifying the proof of its inclusion in the
@@ -122,6 +120,21 @@ struct (0x89277f4b) MCMS_SetConfig {
     clearRoot: bool;
 }
 
+/// Changes the timeout required to finalize the currently executing op
+///
+/// Replies with {MCMS_OpFinalizationTimeoutChange} message.
+///
+/// Requirements:
+///
+/// - the caller must be the owner
+struct (0x9dcbbab1) MCMS_UpdateOpFinalizationTimeout {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The timeout required to finalize the currently executing op
+    newOpFinalizationTimeout: uint32;
+}
+
 /// Submit an oracle error report, which marks the current root as invalid.
 ///
 /// The error report is used for a category of errors which might occur during execution
@@ -146,12 +159,36 @@ struct (0x4b3af0b5) MCMS_SubmitErrorReport {
     errorCode: uint32;
 }
 
-/// Message sent by the owner to transfer the oracle role.
+/// Transfer the oracle role.
+///
+/// Replies with {MCMS_OracleRoleTransferred} message.
+///
+/// Requirements:
+///
+/// - the caller must be the owner
 struct (0xf275742f) MCMS_TransferOracleRole {
     /// Query ID of the change request.
     queryId: uint64;
+
     /// The address of the new oracle.
     newOracle: address;
+}
+
+/// Delete expired roots from storage map to reduce rent
+///
+/// Replies with {MCMS_ExpiredRootsCleaned} message.
+///
+/// Requirements:
+///
+/// - the caller must be the owner
+struct (0xa903c276) MCMS_CleanExpiredRoots {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The roots to clean up
+    roots: cell, // vec<uint256>
+    /// The validUntil times for respective roots
+    validUntils: cell, // vec<uint32>,
 }
 
 /// @dev Union of all incoming messages.
@@ -159,11 +196,14 @@ type MCMS_InMessage =
     | MCMS_SetRoot
     | MCMS_Execute
     | MCMS_SetConfig
+    | MCMS_UpdateOpFinalizationTimeout
     | MCMS_SubmitErrorReport
     | MCMS_TransferOracleRole
-    // when mcms owns itself
+    | MCMS_CleanExpiredRoots
+    // when mcms owns itself (noop)
     | MCMS_ConfigSet
-    | MCMS_OracleRoleTransferred;
+    | MCMS_OracleRoleTransferred
+    | MCMS_ExpiredRootsCleaned;
 
 // --- Messages - outgoing ---
 
@@ -206,6 +246,17 @@ struct (0x7cf37cbf) MCMS_OpExecuted {
     value: coins;
 }
 
+/// Replied to sender when the op finalization timeout is modified.
+struct (0x16fc10e6) MCMS_OpFinalizationTimeoutChange {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// Duration of the old timeout in seconds.
+    oldDuration: uint32;
+    /// Duration of the new timeout in seconds.
+    newDuration: uint32;
+}
+
 /// Sent back to sender when an error report is successfully submitted.
 struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
     /// Query ID of the change request.
@@ -237,13 +288,26 @@ struct (0xff4176a3) MCMS_OracleRoleTransferred {
     newOracle: address;
 }
 
+/// Sent back to sender once roots are cleaned from storage
+struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The cleaned up roots
+    roots: cell, // vec<uint256>
+    /// The validUntil times for respective roots
+    validUntils: cell, // vec<uint32>,
+}
+
 /// @dev Union of all outgoing messages.
 type MCMS_OutMessage =
     | MCMS_NewRoot
-    | MCMS_ConfigSet
     | MCMS_OpExecuted
+    | MCMS_ConfigSet
+    | MCMS_OpFinalizationTimeoutChange
     | MCMS_ErrorReportSubmitted
-    | MCMS_OracleRoleTransferred;
+    | MCMS_OracleRoleTransferred
+    | MCMS_ExpiredRootsCleaned;
 
 // --- Storage ---
 
@@ -317,8 +381,6 @@ const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
-
-const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
 
 // --- Constants - storage ---
 
@@ -408,6 +470,9 @@ enum MCMS_Error {
 
     /// Thrown when the error report sender is not the authorized oracle.
     UnauthorizedOracle
+
+    /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
+    RootNotExpired
 }
 
 // --- Constants - storage ---
@@ -624,7 +689,6 @@ fun MCMS<T>.setRoot(
     metadata: RootMetadata,
     metadataProof: Iterator<uint256>,
     signatures: cell, // vec<Signature>
-    opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT
 ) {
     /// Construct the message that should be signed by the signers.
     val signedHash = beginCell()
@@ -796,7 +860,10 @@ fun MCMS<T>.setRoot(
         throw MCMS_Error.WrongPostOpCount;
     }
 
+    val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
     // done with validation, persist in in contract state
+    // Note: unbounded growth of the seen hashes map, unless cleaned with <MCMS_CleanExpiredRoots>
     self.data.seenSignedHashes.set(signedHash, true);
     self.data.rootInfo = RootInfo {
         expiringRootAndOpCount: ExpiringRootAndOpCount{
@@ -806,7 +873,7 @@ fun MCMS<T>.setRoot(
             // TON-specific additions below to support the async environment
             opPendingInfo: OpPendingInfo{
                 validAfter: blockchain.now(), // immediate
-                opFinalizationTimeout,
+                opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
                 opPendingReceiver: createAddressNone(),
                 opPendingBodyTruncated: 0,
             }.toCell()
@@ -1107,6 +1174,8 @@ fun MCMS<T>.setConfig(
         // clearRoot is equivalent to overriding with a completely empty root
         val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
         val opCount = rootInfo.expiringRootAndOpCount.opCount;
+        val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
         self.data.rootInfo = RootInfo{
             expiringRootAndOpCount: ExpiringRootAndOpCount{
                 root: 0, // empty root
@@ -1115,7 +1184,7 @@ fun MCMS<T>.setConfig(
                 // TON-specific additions below to support the async environment
                 opPendingInfo: OpPendingInfo{
                     validAfter: blockchain.now(), // immediate
-                    opFinalizationTimeout: 0,
+                    opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
                     opPendingReceiver: createAddressNone(),
                     opPendingBodyTruncated: 0
                 }.toCell()
@@ -1136,6 +1205,38 @@ fun MCMS<T>.setConfig(
         value: 0,
         dest: sender,
         body: MCMS_ConfigSet{ queryId, config, isRootCleared: clearRoot }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Changes the timeout required to finalize the currently executing op
+/// @see {MCMS_UpdateOpFinalizationTimeout} for more information.
+fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint32): void {
+    self.data.ownable.requireOwner(sender);
+
+    // Unpack the root info from the contract data
+    var rootInfo = RootInfo.fromCell(self.data.rootInfo);
+    var opPendingInfo = OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+    val oldDuration = opPendingInfo.opFinalizationTimeout;
+
+    // Update the op finalization timeout
+    opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout;
+    // Set the pending operation finalization timeout (if lower than current)
+    val newValidAfter = blockchain.now() + opPendingInfo.opFinalizationTimeout;
+    if (newValidAfter < opPendingInfo.validAfter) {
+        // If the new timeout is shorter, we can update validAfter to the new time
+        opPendingInfo.validAfter = newValidAfter;
+    }
+
+    // Update the info for the pending op, store the new root info
+    rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
+    self.data.rootInfo = rootInfo.toCell();
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration, newDuration: newOpFinalizationTimeout}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1241,6 +1342,46 @@ fun MCMS<T>.transferOracleRole(
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Delete expired roots from storage map to reduce (accumulated) rent - requires owner.
+///
+/// @see <MCMS_CleanExpiredRoots> for more information.
+fun MCMS<T>.cleanExpiredRoots(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    roots: cell, // vec<uint256>
+    validUntils: cell, // vec<uint32>
+) {
+    self.data.ownable.requireOwner(sender);
+
+    var rootsIter = Iterator<uint256>.new(roots);
+    var validUntilsIter = Iterator<uint32>.new(validUntils);
+
+    while (!rootsIter.empty() && !validUntilsIter.empty()) {
+        var root = rootsIter.next();
+        var validUntil = validUntilsIter.next();
+
+        assert(validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
+
+        /// Construct the ID of the root
+        val signedHash = beginCell()
+            .storeUint(root, 256)
+            .storeUint(validUntil, 32)
+            .endCell()
+            .hash();
+
+        self.data.seenSignedHashes.delete(signedHash);
+    }
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ExpiredRootsCleaned{queryId, roots, validUntils}
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 /// Execute an op's call. Performs a raw message send that can bounce on errors.
 fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
@@ -1301,7 +1442,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
     match (msg) {
         MCMS_SetRoot => {
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
-                Iterator<uint256>.new(msg.metadataProof), msg.signatures, msg.opFinalizationTimeout);
+                Iterator<uint256>.new(msg.metadataProof), msg.signatures);
         }
         MCMS_Execute => {
             self.execute(msgSender, msg.queryId, Op.fromCell(msg.op),
@@ -1311,6 +1452,9 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.setConfig(msgSender, msg.queryId, msg.signerKeys, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
+        MCMS_UpdateOpFinalizationTimeout => {
+            self.updateOpFinalizationTimeout(msgSender, msg.queryId, msg.newOpFinalizationTimeout);
+        }
         MCMS_SubmitErrorReport => {
             self.submitErrorReport(msgSender, msg.queryId, Op.fromCell(msg.op),
                 Iterator<uint256>.new(msg.proof), msg.opTxHash, msg.errorTxHash, msg.errorCode);
@@ -1318,10 +1462,17 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         MCMS_TransferOracleRole => {
             self.transferOracleRole(msgSender, msg.queryId, msg.newOracle);
         }
+        MCMS_CleanExpiredRoots => {
+            self.cleanExpiredRoots(msgSender, msg.queryId, msg.roots, msg.validUntils);
+        }
+        // noop handlers (expected replies for ownable ops when owning self)
         MCMS_OracleRoleTransferred => {
             // noop
         }
         MCMS_ConfigSet => {
+            // noop
+        },
+        MCMS_ExpiredRootsCleaned => {
             // noop
         }
         else => {
@@ -1356,6 +1507,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     // TODO: emit an event with the bounce details?
 
+    // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     // Check the bounced message against the stored pending operation
     // If the received bounce does NOT equal expected, mark the root invalid.
     //
@@ -1363,6 +1515,13 @@ fun onBouncedMessage(in: InMessageBounced) {
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
     if (opPendingInfo.opPendingReceiver != in.senderAddress
         || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
+
+        // Check the case when a new root was just set and no ops yet executed
+        val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
+        if (opCount == rootInfo.rootMetadata.preOpCount) {
+            return; // prev root op bounced, don't expire the fresh new root
+        }
+
         // Mark root in error state (recover with new root + bypass)
         rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
         mcms.data.rootInfo = rootInfo.toCell();

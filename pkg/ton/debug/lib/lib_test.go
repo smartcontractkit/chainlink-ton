@@ -3,7 +3,6 @@ package lib
 import (
 	"encoding/json"
 	"math/big"
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -299,9 +298,8 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			if gotType != tt.wantType {
 				t.Errorf("DecodeTLBValToJSON() gotType = %v, want %v", gotType, tt.wantType)
 			}
-			if !reflect.DeepEqual(gotMap, tt.wantMap) {
-				t.Errorf("DecodeTLBValToJSON() gotMap = %v, want %v", gotMap, tt.wantMap)
-			}
+
+			require.Equal(t, tt.wantMap, gotMap, "DecodeTLBValToJSON() gotMap = %v, want %v", gotMap, tt.wantMap)
 		})
 	}
 }
@@ -455,7 +453,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data":     "te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m",
+					"Data":     "te6cckECCAEAAZYAAaAJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAEDAAIDBAGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAO5rKAQBQGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdzWUAQBwGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAstBeAQBgAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMHAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUA+cVaY=",
 				},
 				"Proof": nil,
 			},
@@ -482,9 +480,8 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 			if gotType != tt.wantType {
 				t.Errorf("DecodeTLBValToJSON() gotType = %v, want %v", gotType, tt.wantType)
 			}
-			if !reflect.DeepEqual(gotMap, tt.wantMap) {
-				t.Errorf("DecodeTLBValToJSON() gotMap = %v, want %v", gotMap, tt.wantMap)
-			}
+
+			require.Equal(t, tt.wantMap, gotMap, "DecodeTLBValToJSON() gotMap = %v, want %v", gotMap, tt.wantMap)
 		})
 	}
 }

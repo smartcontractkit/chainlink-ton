@@ -2,10 +2,8 @@ import "types"
 import "storage"
 import "../../lib/versioning/upgradeable"
 
-import "../common/messages"
 import "../onramp/messages"
 import "../router/messages"
-import "../onramp/types"
 import "../fee_quoter/messages"
 
 type CCIPSendExecutor_InMessage =

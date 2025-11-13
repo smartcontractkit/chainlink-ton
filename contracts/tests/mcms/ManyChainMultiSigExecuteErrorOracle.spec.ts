@@ -1,11 +1,12 @@
 import '@ton/test-utils'
 import { toNano } from '@ton/core'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { ZERO_ADDRESS } from '../../src/utils'
-import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 
+import { ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+
+import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 
 describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup

@@ -162,9 +162,17 @@ func TestStorage(t *testing.T) {
 	err = destConfigMap.Set(k.EndCell(), c)
 	require.NoError(t, err)
 
-	b := cell.BeginCell()
-	require.NoError(t, b.StoreUInt(42, 32))
-	ExecutorCode := b.EndCell()
+	ExecutorCode := func() *cell.Cell {
+		b := cell.BeginCell()
+		require.NoError(t, b.StoreUInt(42, 32))
+		return b.EndCell()
+	}()
+
+	DeployableCode := func() *cell.Cell {
+		b := cell.BeginCell()
+		require.NoError(t, b.StoreUInt(52, 32))
+		return b.EndCell()
+	}()
 
 	s := Storage{
 		ID: 43,
@@ -178,8 +186,11 @@ func TestStorage(t *testing.T) {
 			AllowListAdmin: dummyAddr,
 		},
 		DestChainConfigs: destConfigMap,
-		ExecutorCode:     ExecutorCode,
-		CurrentMessageID: big.NewInt(123),
+		Executor: ExecutorDeployment{
+			DeployableCode: DeployableCode,
+			ExecutorCode:   ExecutorCode,
+			CurrentID:      big.NewInt(123),
+		},
 	}
 
 	c, err = tlb.ToCell(s)
@@ -191,8 +202,9 @@ func TestStorage(t *testing.T) {
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
-	require.Equal(t, ExecutorCode, decoded.ExecutorCode)
-	require.Equal(t, big.NewInt(123), decoded.CurrentMessageID)
+	require.Equal(t, DeployableCode, decoded.Executor.DeployableCode)
+	require.Equal(t, ExecutorCode, decoded.Executor.ExecutorCode)
+	require.Equal(t, big.NewInt(123), decoded.Executor.CurrentID) // zero value
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)

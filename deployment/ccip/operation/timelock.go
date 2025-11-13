@@ -24,7 +24,7 @@ type DeployTimelockInput struct {
 	ID           uint32
 	ContractPath string
 	Coins        string
-	MinDelay     uint64
+	MinDelay     uint32
 	Admin        *address.Address
 	Proposers    []*address.Address
 	Executors    []*address.Address

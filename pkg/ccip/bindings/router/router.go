@@ -108,7 +108,6 @@ type CCIPSend struct {
 	ExtraArgs         *cell.Cell                   `tlb:"^"`
 }
 
-// crc32("Router_RouteMessage")
 type RouteMessage struct {
 	_        tlb.Magic              `tlb:"#fc69c50b"` //nolint:revive // Ignore opcode tag
 	Message  offramp.Any2TVMMessage `tlb:"^"`
@@ -117,13 +116,11 @@ type RouteMessage struct {
 	GasLimit tlb.Coins              `tlb:"."`
 }
 
-// crc32("Router_CCIPReceiveConfirm")
 type CCIPReceiveConfirm struct {
 	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
 	ExecID big.Int   `tlb:"## 192"`
 }
 
-// 0x6513f8e1 = crc32b("Router_MessageSent")
 type MessageSent struct {
 	_                 tlb.Magic        `tlb:"#6513f8e1"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64           `tlb:"## 64"`
