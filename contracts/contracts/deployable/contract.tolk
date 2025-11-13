@@ -18,7 +18,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: contract.getAddress(),
                 body: inMsg.selfMessage.body,
             });
-            selfMsg.send( SEND_MODE_PAY_FEES_SEPARATELY);
+            selfMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
         }
     }
 }

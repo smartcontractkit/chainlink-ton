@@ -137,11 +137,11 @@ fun OCR3Base.transmit(
     ocrConfig = ocrConfig!;
     var configInfo: ConfigInfo = ocrConfig.configInfo;
     
-    // TODO: EVM checks transaction data length here, I think it's probably too expensive to do this in TON 
+    // EVM checks transaction data length here, it's probably too expensive to do this in TON 
     
     assert(reportContext.configDigest == configInfo.configDigest, ERROR_CONFIG_DIGEST_MISMATCH);
     
-    // TODO: EVM checks assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
+    // EVM checks assert_chain_not_forked, this is not necessary in TON
     
     val pluginTransmitters = ocrConfig.transmitters;
 

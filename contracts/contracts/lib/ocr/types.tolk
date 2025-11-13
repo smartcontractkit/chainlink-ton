@@ -27,7 +27,7 @@ fun OCRConfig.assignSignerOracles(
 	mutate self,
 	signers: SnakedCell<uint256>
 ) {
-	// TODO: Right now we cannot do ed25519 public key validation on chain. For now we assume valid keys.
+	// We cannot validate that ed25519 public keys are valid on chain. For now we assume valid keys.
 	var signersMap: map<uint256, uint8> = createEmptyMap<uint256, uint8>();
 	var signersIt = signers.iter();
 	var i = 0;
