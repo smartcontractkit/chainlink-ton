@@ -376,16 +376,16 @@ describe('OffRamp - Unit Tests', () => {
       assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000002,
       })
-    } else {
-      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: configs[0].config,
-      })
-      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: configs[1].config,
-      })
     }
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config: configs[0].config,
+    })
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config: configs[1].config,
+    })
 
     return result
   }

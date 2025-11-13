@@ -553,12 +553,12 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
             assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw Error.InvalidOnRampUpdate;
             config.isEnabled = configUpdate.config.isEnabled;
             config.onRamp = configUpdate.config.onRamp;
-            emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
-                sourceChainSelector: configUpdate.sourceChainSelector,
-                sourceChainConfig: config,
-            });
         }
         st.sourceChainConfigs.set(configUpdate.sourceChainSelector, config);
+        emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
+            sourceChainSelector: configUpdate.sourceChainSelector,
+            sourceChainConfig: config,
+        });
     }
     st.store();
 }
