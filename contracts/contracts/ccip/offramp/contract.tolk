@@ -611,18 +611,10 @@ fun _setDynamicConfig(msg: OffRamp_SetDynamicConfig, sender: address) {
     st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;
     st.store();
 
-    // Reply to sender config is set, return excess
-    val reply = createMessage({
-        bounce: false,
-        value: 0,
-        dest: sender,
-        body: OffRamp_DynamicConfigSet{
-            queryId: msg.queryId,
-            feeQuoter: msg.feeQuoter,
-            permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds
-        }
+    emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
+        feeQuoter: msg.feeQuoter,
+        permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds,
     });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun latestPriceSequenceNumber(): uint64 {

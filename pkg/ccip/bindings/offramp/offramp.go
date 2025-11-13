@@ -54,6 +54,12 @@ type SourceChainSelectorAdded struct {
 	SourceChainSelector uint64 `tlb:"## 64"`
 }
 
+// DynamicConfigSet represents the DynamicConfigSet event data
+type DynamicConfigSet struct {
+	FeeQuoter                               *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+}
+
 // Storage represents the offRamp contract storage state
 type Storage struct {
 	ID                                      uint32                  `tlb:"## 32"`
@@ -153,13 +159,6 @@ type Execute struct {
 
 type SetDynamicConfig struct {
 	_                                       tlb.Magic        `tlb:"#95bc5a5c"` //nolint:revive // Ignore opcode tag
-	QueryID                                 uint64           `tlb:"## 64"`
-	FeeQuoter                               *address.Address `tlb:"addr"`
-	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
-}
-
-type DynamicConfigSet struct {
-	_                                       tlb.Magic        `tlb:"#f5f89140"` //nolint:revive // Ignore opcode tag
 	QueryID                                 uint64           `tlb:"## 64"`
 	FeeQuoter                               *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`

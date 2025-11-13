@@ -35,10 +35,6 @@ export const Opcodes = {
   setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
 }
 
-export const OpcodesOutgoing = {
-  dynamicConfigSet: crc32('OffRamp_DynamicConfigSet'),
-}
-
 export const OFFRAMP_CONTRACT_VERSION = '0.0.12'
 
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'

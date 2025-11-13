@@ -26,4 +26,8 @@ struct SourceChainConfigUpdated {
     sourceChainConfig: SourceChainConfig;
 }
 
-
+const DYNAMIC_CONFIG_SET_TOPIC: int = stringCrc32("DynamicConfigSet");
+struct OffRamp_DynamicConfigSet {
+    feeQuoter: address;
+    permissionlessExecutionThresholdSeconds: uint32,
+}
