@@ -22,12 +22,12 @@ const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = ton("0.004");
 
 struct ReceiveExecutor_Costs{}
 
-fun ReceiveExecutor_Costs.initExec(){
+fun ReceiveExecutor_Costs.initExec(): int {
     val baseFee = RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE;
     return baseFee + OffRamp_Costs.dispatchValidated();
 }
 
-fun ReceiveExecutor_Costs.confirmedOrBounced() {
+fun ReceiveExecutor_Costs.confirmedOrBounced(): int {
     val baseFee = RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE;
     return baseFee + OffRamp_Costs.notify();
 }

@@ -101,6 +101,18 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
+// crc32("Router_CCIPSendACK")
+struct (0x78d0f21e) Router_CCIPSendACK {
+    queryID: uint64;
+    messageId: uint256;
+}
+
+// crc32("Router_CCIPSendNACK")
+struct (0x5a45d434) Router_CCIPSendNACK {
+    queryID: uint64;
+    error: uint256;
+}
+
 struct (0x4dd6aa82) Router_GetValidatedFee<T> {
     ccipSend: Cell<Router_CCIPSend>;
     context: T;
@@ -131,48 +143,35 @@ struct (0xec23c562) Router_MessageValidationFailed<T> {
 struct Router_Costs {}
 
 // Minimum value for calling Router_CCIPSend
-@inline
 fun Router_Costs.CCIPSend(): int {
     return ton("0.05") // Send fwdFee TODO 
         + OnRamp_Costs.Send()
 }
 
 // Minimum value for calling Router_MessageSent
-@inline
 fun Router_Costs.MessageSent(): int {
     return ton("0.05"); // TODO
 }
 
 // Minimum value for calling Router_MessageRejected
-@inline
 fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
 }
 
 // Minimum value for calling Router_GetValidatedFee
-@inline
 fun Router_Costs.GetValidatedFee(): int {
     return ton("0.02"); // TODO
 }
 
-fun Router_Costs.routeMessage() {
+// Minimum value for calling Router_RouteMessage
+fun Router_Costs.routeMessage(): int {
     val baseFee = ton("0.004");
     return baseFee + Router_Costs.receiveConfirm();
 }
 
-fun Router_Costs.receiveConfirm() {
+// Minimum value for calling Router_CCIPReceiveConfirm
+fun Router_Costs.receiveConfirm(): int {
     val baseFee = ton("0.002");
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
-// TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
-// TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
-struct (0x78d0f21e) Router_CCIPSendACK {
-    queryID: uint64;
-    messageId: uint256;
-}
-
-struct (0x5a45d434) Router_CCIPSendNACK {
-    queryID: uint64;
-    error: uint256;
-}

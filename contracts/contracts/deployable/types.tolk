@@ -20,7 +20,6 @@ type Deployable_InMessage =
 struct (0xba466447) Deployable_Initialize {
     stateInit: ContractState;
 }
-
 // This message initializes the Deployable contract and immediately sends a message to itself to execute some logic. It allows to carry the message value.
 struct (0xe95e1156) Deployable_InitializeAndSend {
     stateInit: ContractState;
@@ -32,6 +31,6 @@ struct Deployable_Message {
     body: cell;
 }
 
-//TODO: crc32('Deployable_ErrorNotOwner')
-const ERROR_NOT_OWNER: int = 0x1;
+// facilityId(crc32('Deployable_ErrorNotOwner')) * 100
+const ERROR_NOT_OWNER: int = 37400;
 
