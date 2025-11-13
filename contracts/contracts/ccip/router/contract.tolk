@@ -63,7 +63,7 @@ fun onInternalMessage(in: InMessage) {
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
 
-            onRouteMessage(msg)
+            onRouteMessage(msg, message)
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
@@ -168,10 +168,10 @@ Routes a validated message to its intended receiver contract.
 Flow:
     ReceiveExecutor ->
     OffRamp.OffRamp_DispatchValidated ->
-    Router.Router_RouteMessage -> Here is were we process this message
+    Router.Router_RouteMessage -> Here is where we process this message
     Receiver.Receiver_CCIPReceive
  */
-fun onRouteMessage(msg: Router_RouteMessage) {
+fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
     val ccipReceive: Receiver_CCIPReceive = {
         execId: msg.execId,
         message,
@@ -267,7 +267,7 @@ Flow:
     OffRamp.OffRamp_DispatchValidated ->
     Router.Router_RouteMessage ->
     Receiver.Receiver_CCIPReceive ->
-    Router.Router_CCIPReceiveConfirm -> Here is were we process this message
+    Router.Router_CCIPReceiveConfirm -> Here is where we process this message
     OffRamp.OffRamp_CCIPReceiveConfirm ->
     ReceiverExecutor.ReceiveExecutor_Confirm
 */
@@ -300,7 +300,7 @@ Flow:
     OffRamp.OffRamp_DispatchValidated ->
     Router.Router_RouteMessage ->
     Receiver.Receiver_CCIPReceive (bounce) ->
-    Router.Router_BouncedMessage.Receiver_CCIPReceive -> Here is were we process this message
+    Router.Router_BouncedMessage.Receiver_CCIPReceive -> Here is where we process this message
     OffRamp.OffRamp_CCIPReceiveBounced ->
     ReceiverExecutor.ReceiveExecutor_Bounced
 */
@@ -362,7 +362,7 @@ Flow:
     OnRamp.OnRamp_GetValidatedFee ->
     FeeQuoter.FeeQuoter_GetValidatedFee ->
     OnRamp.FeeQuoter_MessageValidated ->
-    Router.OnRamp_MessageValidated -> Here is were we process this message
+    Router.OnRamp_MessageValidated -> Here is where we process this message
     userAddres.Router_MessageValidated
 */
 fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidatedFeeContext>) {
@@ -389,7 +389,7 @@ Flow:
     OnRamp.OnRamp_GetValidatedFee ->
     FeeQuoter.FeeQuoter_GetValidatedFee ->
     OnRamp.FeeQuoter_MessageValidated ->
-    Router.OnRamp_MessageValidationFailed -> Here is were we process this message
+    Router.OnRamp_MessageValidationFailed -> Here is where we process this message
     userAddres.Router_MessageValidationFailed
 */
 fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>) {
