@@ -1,22 +1,8 @@
 import "../onramp/messages.tolk";
 import "../../deployable/types"
+import "../../lib/deployable/namespace"
 
 type CCIPSendExecutor_ID = uint224
-
-fun CCIPSendExecutor_DeployableData(owner: address, id: CCIPSendExecutor_ID): cell {
-    return Deployable<_CCIPSendExecutor_DeployableData> {
-        owner,
-        id: _CCIPSendExecutor_DeployableData {
-            id: id,
-            contractType: stringCrc32("CCIPSendExecutor"),
-        },
-    }.toCell(); 
-}
-
-struct _CCIPSendExecutor_DeployableData {
-    id: CCIPSendExecutor_ID;
-    contractType: uint256;
-}
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,

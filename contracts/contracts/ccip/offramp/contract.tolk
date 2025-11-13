@@ -20,6 +20,7 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../router/messages"
 import "../../lib/receiver/types"
+import "../../lib/deployable/namespace"
 
 const CONTRACT_VERSION = "0.0.12";
 const RESERVE = ton("5");
@@ -29,8 +30,7 @@ const RESERVE = ton("5");
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
-    var st = lazy Storage.load();
-
+    
     match(msg) {
         // Sender must be OCR transmitter
         OffRamp_Commit => {
@@ -42,13 +42,15 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be MerkleRoot
         OffRamp_ExecuteValidated => {
+            var st = lazy Storage.load();
             assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
-            onExecuteValidated(msg, in.senderAddress)
+            onExecuteValidated(st, msg, in.senderAddress)
         }
         // Sender must be ReceiveExecutor
         OffRamp_DispatchValidated => {
+            var st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
-            onDispatchValidated(msg)
+            onDispatchValidated(st, msg)
         }
         // Permissionless
         OffRamp_ManuallyExecute => {
@@ -56,46 +58,55 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => {
+            var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onSetOCR3Config(msg)
         }
         // Sender must be owner
         OffRamp_UpdateSourceChainConfig => {
+            var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpdateSourceChainConfig(msg)
         }
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
+            var st = lazy Storage.load();
             assert(in.senderAddress == st.deployables.load().rmnRouter, Error.Unauthorized);
             onUpdateCursedSubjects(msg)
         },
         // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
+            var st = lazy Storage.load();
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
-            onCCIPReceiveConfirm(msg);
+            onCCIPReceiveConfirm(st, msg);
         }
         // Sender must be router
         OffRamp_CCIPReceiveBounced => {
+            var st = lazy Storage.load();
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onBouncedCCIPReceive(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
+            var st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifySuccess(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
+            var st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifyFailure(msg);
         }
         // Sender must be owner
         OffRamp_SetDynamicConfig => {
+            var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onSetDynamicConfig(msg);
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
+            var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
@@ -103,6 +114,7 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be owner
         Upgradeable_Upgrade => {
+            var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -234,9 +246,7 @@ Flow:
     OffRamp.OffRamp_CCIPReceiveConfirm ->
     ReceiveExecutor.ReceiveExecutor_Confirm
 */
-fun onCCIPReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm) {
-    val st = Storage.load();
-
+fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
         bounce: true,
         value: 0,
@@ -260,9 +270,7 @@ Flow:
     Router.Router_RouteMessage ->
     Receiver.Receiver_CCIPReceive
  */
-fun onDispatchValidated(msg: OffRamp_DispatchValidated) {
-    val st = Storage.load();
-
+fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
 
@@ -570,9 +578,7 @@ Flow:
     OffRamp.OffRamp_ExecuteValidated ->
     ReceiveExecutor.ReceiveExecutor_InitExecute
 */
-fun onExecuteValidated(msg: OffRamp_ExecuteValidated, sender: address) {
-    val st = Storage.load();
-
+fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: address) {
     val message = msg.message.load();
 
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -655,10 +661,11 @@ fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): Au
     return {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: Deployable<ReceiveExecutorId> {
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_ReceiveExecutor,
                 owner: contract.getAddress(),
                 id: execId,
-            }.toCell(),
+            }),
         }
     }
 }
@@ -678,10 +685,11 @@ fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeplo
     return {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: Deployable<MerkleRootId> {
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_MerkleRoot,
                 owner: contract.getAddress(),
-                id: merkleRoot,
-            }.toCell(),
+                id: merkleRoot
+            }),
         }
     }
 }

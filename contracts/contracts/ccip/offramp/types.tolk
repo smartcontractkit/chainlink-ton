@@ -1,8 +1,8 @@
 import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
-import "../router/messages"
-import "../fee_quoter/messages"
+import "../../deployable/types"
+import "../../lib/deployable/namespace"
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
