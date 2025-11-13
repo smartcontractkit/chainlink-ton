@@ -125,7 +125,6 @@ func TestLogModel_Conversion(t *testing.T) {
 }
 
 // TestCalculateBOCHeaderLen verifies dynamic header calculation is type-agnostic
-// TODO: verify with CCIP events
 func TestCalculateBOCHeaderLen(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -22,10 +22,10 @@ const (
 
 // queryParser helps build SQL queries with named parameters for TON log retrieval
 type queryParser struct {
-	query         strings.Builder
-	params        map[string]any // all query parameters
-	byteFilterIdx int            // counter for byte filter parameters
-	chainID       string         // Chain ID for shared database scenarios
+	query         strings.Builder // parsed SQL result
+	params        map[string]any  // all query parameters
+	byteFilterIdx int             // counter for byte filter parameters
+	chainID       string          // Chain ID for shared database scenarios
 	hasWhere      bool
 }
 
