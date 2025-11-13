@@ -76,9 +76,9 @@ type Storage struct {
 }
 
 type ExecutorDeployment struct {
-	DeployableCode    *cell.Cell `tlb:"^"`
-	ExecutorCode      *cell.Cell `tlb:"^"`
-	CurrentExecutorID big.Int    `tlb:"## 224"`
+	DeployableCode *cell.Cell `tlb:"^"`
+	ExecutorCode   *cell.Cell `tlb:"^"`
+	CurrentID      big.Int    `tlb:"## 224"`
 }
 
 // Methods
