@@ -19,7 +19,7 @@ type FeeQuoter_InMessage =
 
 struct (0x20000001) FeeQuoter_UpdatePrices {
     updates: PriceUpdates
-    sendExcessesTo: address;
+    sendExcessesTo: address?;
 }
 
 struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
