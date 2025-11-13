@@ -138,7 +138,7 @@ export class ContractClient implements Contract {
   async sendTransferOwnership(
     p: ContractProvider,
     via: Sender,
-    value: bigint = 0n,
+    value: bigint = BigInt(0.01),
     body: TransferOwnership,
   ) {
     return this.sendInternal(
@@ -152,7 +152,7 @@ export class ContractClient implements Contract {
   async sendAcceptOwnership(
     p: ContractProvider,
     via: Sender,
-    value: bigint = 0n,
+    value: bigint = BigInt(0.01),
     body: AcceptOwnership,
   ) {
     return this.sendInternal(

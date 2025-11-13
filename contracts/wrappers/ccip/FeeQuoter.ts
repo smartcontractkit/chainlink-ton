@@ -791,7 +791,7 @@ export class FeeQuoter
   async sendTransferOwnership(
     p: ContractProvider,
     via: Sender,
-    value: bigint = 0n,
+    value: bigint,
     body: ownable2step.TransferOwnership,
   ) {
     return this.ownable.sendTransferOwnership(p, via, value, body)
@@ -800,7 +800,7 @@ export class FeeQuoter
   async sendAcceptOwnership(
     p: ContractProvider,
     via: Sender,
-    value: bigint = 0n,
+    value: bigint,
     body: ownable2step.AcceptOwnership,
   ) {
     return this.ownable.sendAcceptOwnership(p, via, value, body)
