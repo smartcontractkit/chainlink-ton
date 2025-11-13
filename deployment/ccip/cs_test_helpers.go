@@ -44,6 +44,8 @@ const (
 	CalldataGasPerByteThreshold = 3000
 )
 
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
+
 var (
 	// TODO Remove in favor of the canonical model
 	EvmFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
