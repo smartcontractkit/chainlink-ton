@@ -3,23 +3,6 @@ struct Deployable<T> {
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
-fun Deployable<Namespaced<T>>.new(namespace: Namespace, owner: address, id: T): Cell<Deployable<Namespaced<T>>> {
-    return Deployable<Namespaced<T>> {
-        owner,
-        id: Namespaced<T> {
-            namespace,
-            id,
-        },
-    }.toCell();
-}
-
-struct Namespaced<T> {
-    namespace: Namespace;
-    id: T;
-}
-
-type Namespace = uint32;
-
 fun Deployable<T>.load() {
     return Deployable<T>.fromCell(contract.getData());
 }

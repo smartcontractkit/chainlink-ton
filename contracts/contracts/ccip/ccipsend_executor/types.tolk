@@ -1,12 +1,12 @@
 import "../onramp/messages.tolk";
 import "../../deployable/types"
-import "../common/types"
+import "../../lib/deployable/namespace"
 
 type CCIPSendExecutor_ID = uint224
 
 fun CCIPSendExecutor_DeployableData(owner: address, id: CCIPSendExecutor_ID): cell {
     return Deployable<Namespaced<CCIPSendExecutor_ID>>.new(
-        CCIPNamespace_CCIPSendExecutor,
+        DeployableNamespace_CCIPSendExecutor,
         owner,
         id,
     );

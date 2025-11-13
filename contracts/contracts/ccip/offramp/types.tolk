@@ -1,9 +1,8 @@
 import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
-import "../router/messages"
-import "../fee_quoter/messages"
 import "../../deployable/types"
+import "../../lib/deployable/namespace"
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
@@ -112,7 +111,7 @@ type MerkleRootId = uint256;
 
 fun ReceiveExecutor_DeployableData(owner: address, id: ReceiveExecutorId): cell {
     return Deployable<Namespaced<ReceiveExecutorId>>.new(
-        CCIPNamespace_ReceiveExecutor,
+        DeployableNamespace_ReceiveExecutor,
         owner,
         id,
     );
@@ -120,7 +119,7 @@ fun ReceiveExecutor_DeployableData(owner: address, id: ReceiveExecutorId): cell 
 
 fun MerkleRoot_DeployableData(owner: address, id: MerkleRootId): cell {
     return Deployable<Namespaced<MerkleRootId>>.new(
-        CCIPNamespace_MerkleRoot,
+        DeployableNamespace_MerkleRoot,
         owner,
         id,
     );

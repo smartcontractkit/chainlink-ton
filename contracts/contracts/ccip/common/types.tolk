@@ -60,6 +60,3 @@ struct TokenAmount {
     token: address;
 }
 
-const CCIPNamespace_CCIPSendExecutor: Namespace = 0;
-const CCIPNamespace_ReceiveExecutor: Namespace = 1;
-const CCIPNamespace_MerkleRoot: Namespace = 2;
