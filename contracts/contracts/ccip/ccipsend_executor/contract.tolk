@@ -18,7 +18,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
-            assert (in.senderAddress == this.addresses.load().onramp) throw CCIPSendExecutor_Error.Unauthorized;
+            assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
             assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute();
         }

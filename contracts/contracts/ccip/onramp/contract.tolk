@@ -17,6 +17,7 @@ import "../router/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "events"
+import "../../deployable/types"
 
 const CONTRACT_VERSION = "0.0.9";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -59,7 +60,7 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_UpdateSendExecutor => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            st.executorCode = msg.code;
+            st.executor.executorCode = msg.code;
             st.store();
         }
         Withdrawable_Withdraw => {
@@ -105,37 +106,33 @@ fun send(payload: OnRamp_Send, sender: address) {
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: executorAddress(st.executorCode, st.currentMessageId),
-        body: CCIPSendExecutor_Execute {
-            onrampSend: payload,
-            config: CCIPSendExecutor_Config {
-                feeQuoter: config.feeQuoter,
+        dest: st.executor.autoDeployAddress(st.executor.currentExecutorID),
+        body: Deployable_InitializeAndExecute {
+            stateInit: {
+                code: st.executor.executorCode,
+                data:  CCIPSendExecutor_InitialData {
+                    onramp: contract.getAddress(),
+                    messageID: st.executor.currentExecutorID,
+                }.toCell(),
+            },
+            message: CCIPSendExecutor_Execute {
+                onrampSend: payload,
+                config: CCIPSendExecutor_Config {
+                    feeQuoter: config.feeQuoter,
+                }.toCell(),
             }.toCell(),
         }
     });
 
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    st.currentMessageId += 1;
+    st.executor.currentExecutorID += 1;
 
     st.store();
 }
 
-@inline
-fun executorAddress(executorCode: cell, messageID: int): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: executorCode,
-            data: CCIPSendExecutor_InitialData {
-                onramp: contract.getAddress(),
-                messageID: messageID
-            }.toCell(),
-        }
-    }
-}
-
 fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
+    assert(st.executor.autoDeployAddress(payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
@@ -202,7 +199,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
 
 fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
+    assert(st.executor.autoDeployAddress(payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
@@ -329,7 +326,7 @@ get fun destChainSelectors(): tuple? {
 
 get fun sendExecutorCode(): cell {
     val st = lazy OnRamp_Storage.load();
-    return st.executorCode;
+    return st.executor.executorCode;
 }
 
 get fun typeAndVersion(): (slice, slice) {

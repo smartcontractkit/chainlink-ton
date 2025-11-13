@@ -467,7 +467,7 @@ export const testLogDestChainConfigUpdated = (
     const cs = x.beginParse()
     const msg = {
       destChainSelector: cs.loadUintBig(64),
-      config: OR.builder.data.destChainConfig().load(cs),
+      config: OR.builder.data.destChainConfig.load(cs),
     }
     matchesObject(msg, match)
     return true

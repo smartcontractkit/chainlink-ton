@@ -11,9 +11,18 @@ fun Deployable<T>.store(self) {
     return contract.setData(self.toCell());
 }
 
+type Deployable_InMessage =
+    | Deployable_Initialize
+    | Deployable_InitializeAndExecute
+    ;
 
 struct (0xba466447) Deployable_Initialize {
     stateInit: ContractState;
+}
+
+struct (0xe95e1156) Deployable_InitializeAndExecute {
+    stateInit: ContractState;
+    message: cell;
 }
 
 //TODO: crc32('Deployable_ErrorNotOwner')

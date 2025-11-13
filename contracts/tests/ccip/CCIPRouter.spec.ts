@@ -283,8 +283,11 @@ describe('Router', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: await compile('CCIPSendExecutor'),
+        executor: {
+          deployableCode: await compile('Deployable'),
+          executorCode: await compile('CCIPSendExecutor'),
+          currentExecutorID: 0n,
+        },
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))

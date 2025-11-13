@@ -43,8 +43,13 @@ export type OnRampStorage = {
     allowlistAdmin: Address
   }
   destChainConfigs: Dictionary<bigint, Cell>
-  executor_code: Cell
-  currentMessageId: bigint
+  executor: ExecutorDeployment
+}
+
+export type ExecutorDeployment = {
+  deployableCode: Cell
+  executorCode: Cell
+  currentExecutorID: bigint
 }
 
 export type OnRampSend = {
@@ -98,54 +103,70 @@ const metadataCodec: CellCodec<Metadata> = {
 }
 
 export const builder = {
-  data: {
-    metadata: metadataCodec,
-    contractData: ((): CellCodec<OnRampStorage> => {
-      return {
-        encode: function (data: OnRampStorage): Builder {
-          return (
-            beginCell()
-              .storeUint(data.id, 32)
-              .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
-              .storeUint(data.chainSelector, 64)
-              // Cell<DynamicConfig>
-              .storeRef(
-                beginCell()
-                  .storeAddress(data.config.feeQuoter)
-                  .storeAddress(data.config.feeAggregator)
-                  .storeAddress(data.config.allowlistAdmin)
-                  .endCell(),
-              )
-              .storeDict(data.destChainConfigs)
-              .storeRef(data.executor_code)
-              .storeUint(data.currentMessageId, 224)
-          )
-        },
-        load: function (src: Slice): OnRampStorage {
-          throw new Error('Function not implemented.')
-        },
-      }
-    })(),
-    destChainConfig: (): CellCodec<DestChainConfig> => {
-      return {
-        encode: function (data: DestChainConfig): Builder {
-          return beginCell()
-            .storeAddress(data.router)
-            .storeUint(data.sequenceNumber, 64)
-            .storeBit(data.allowlistEnabled)
-            .storeDict(data.allowedSenders)
-        },
-        load: function (src: Slice): DestChainConfig {
-          return {
-            router: src.loadAddress(),
-            sequenceNumber: src.loadUintBig(64),
-            allowlistEnabled: src.loadBit(),
-            allowedSenders: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
-          }
-        },
-      }
-    },
-  },
+  data: (() => {
+    const executor: CellCodec<ExecutorDeployment> = {
+      encode: function (data: ExecutorDeployment): Builder {
+        return beginCell()
+          .storeRef(data.deployableCode)
+          .storeRef(data.executorCode)
+          .storeUint(data.currentExecutorID, 224)
+      },
+      load: function (src: Slice): ExecutorDeployment {
+        return {
+          deployableCode: src.loadRef(),
+          executorCode: src.loadRef(),
+          currentExecutorID: src.loadUintBig(224),
+        }
+      },
+    }
+    const metadata = metadataCodec
+    const contractData: CellCodec<OnRampStorage> = {
+      encode: function (data: OnRampStorage): Builder {
+        return (
+          beginCell()
+            .storeUint(data.id, 32)
+            .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
+            .storeUint(data.chainSelector, 64)
+            // Cell<DynamicConfig>
+            .storeRef(
+              beginCell()
+                .storeAddress(data.config.feeQuoter)
+                .storeAddress(data.config.feeAggregator)
+                .storeAddress(data.config.allowlistAdmin)
+                .endCell(),
+            )
+            .storeDict(data.destChainConfigs)
+            .storeBuilder(executor.encode(data.executor))
+        )
+      },
+      load: function (src: Slice): OnRampStorage {
+        throw new Error('Function not implemented.')
+      },
+    }
+    const destChainConfig: CellCodec<DestChainConfig> = {
+      encode: function (data: DestChainConfig): Builder {
+        return beginCell()
+          .storeAddress(data.router)
+          .storeUint(data.sequenceNumber, 64)
+          .storeBit(data.allowlistEnabled)
+          .storeDict(data.allowedSenders)
+      },
+      load: function (src: Slice): DestChainConfig {
+        return {
+          router: src.loadAddress(),
+          sequenceNumber: src.loadUintBig(64),
+          allowlistEnabled: src.loadBit(),
+          allowedSenders: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
+        }
+      },
+    }
+    return {
+      contractData,
+      destChainConfig,
+      executor,
+      metadata,
+    }
+  })(),
   messages: {
     in: {
       ccipSend: rt.builder.message.in.ccipSend,
