@@ -84,8 +84,8 @@ export type Deployables = {
 }
 
 export type UpdateSourceChainConfig = {
-    sourceChainSelector: bigint
-    config: SourceChainConfig
+  sourceChainSelector: bigint
+  config: SourceChainConfig
 }
 
 export type SourceChainConfig = {
@@ -409,12 +409,14 @@ export class OffRamp
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-          .storeUint(Opcodes.updateSourceChainConfigs, 32)
-          .storeUint(opts.queryID ?? 0, 64)
-          .storeRef(asSnakeData(opts.configs, (message) => {
-              return updateSourceChainConfigToBuilder(message)
-          }))
-          .endCell(),
+        .storeUint(Opcodes.updateSourceChainConfigs, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeRef(
+          asSnakeData(opts.configs, (message) => {
+            return updateSourceChainConfigToBuilder(message)
+          }),
+        )
+        .endCell(),
     })
   }
 
@@ -639,14 +641,14 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
 }
 
 export const updateSourceChainConfigToBuilder = (config: UpdateSourceChainConfig) => {
-    return beginCell()
-        .storeUint(config.sourceChainSelector, 64)
-        .storeAddress(config.config.router)
-        .storeBit(config.config.isEnabled)
-        .storeUint(config.config.minSeqNr, 64)
-        .storeBit(config.config.isRMNVerificationDisabled)
-        .storeUint(config.config.onRamp.byteLength, 8)
-        .storeBuffer(config.config.onRamp, config.config.onRamp.byteLength)
+  return beginCell()
+    .storeUint(config.sourceChainSelector, 64)
+    .storeAddress(config.config.router)
+    .storeBit(config.config.isEnabled)
+    .storeUint(config.config.minSeqNr, 64)
+    .storeBit(config.config.isRMNVerificationDisabled)
+    .storeUint(config.config.onRamp.byteLength, 8)
+    .storeBuffer(config.config.onRamp, config.config.onRamp.byteLength)
 }
 
 export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {

@@ -2,21 +2,24 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
-    Any2TVMRampMessage,
-    CommitReport,
-    commitReportToBuilder,
-    ExecutionReport,
-    MerkleRoot,
-    OFFRAMP_FACILITY_ID,
-    OFFRAMP_FACILITY_NAME,
-    OffRampStorage,
-    PriceUpdates,
-    RampMessageHeader,
-    RECEIVE_EXECUTOR_FACILITY_ID,
-    RECEIVE_EXECUTOR_FACILITY_NAME,
-    SourceChainConfig,
-    OffRamp,
-    OffRampError, Opcodes, sourceChainConfigToBuilder, UpdateSourceChainConfig,
+  Any2TVMRampMessage,
+  CommitReport,
+  commitReportToBuilder,
+  ExecutionReport,
+  MerkleRoot,
+  OFFRAMP_FACILITY_ID,
+  OFFRAMP_FACILITY_NAME,
+  OffRampStorage,
+  PriceUpdates,
+  RampMessageHeader,
+  RECEIVE_EXECUTOR_FACILITY_ID,
+  RECEIVE_EXECUTOR_FACILITY_NAME,
+  SourceChainConfig,
+  OffRamp,
+  OffRampError,
+  Opcodes,
+  sourceChainConfigToBuilder,
+  UpdateSourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
@@ -27,13 +30,13 @@ import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import {
-    asSnakeData,
-    bigIntToBuffer,
-    bigIntToUint8Array,
-    generateEd25519KeyPair,
-    generateMockTonAddress,
-    uint8ArrayToBigInt,
-    ZERO_ADDRESS,
+  asSnakeData,
+  bigIntToBuffer,
+  bigIntToUint8Array,
+  generateEd25519KeyPair,
+  generateMockTonAddress,
+  uint8ArrayToBigInt,
+  ZERO_ADDRESS,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
@@ -59,12 +62,9 @@ import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
-<<<<<<< HEAD
-import {CHAIN_FAMILY_SELECTOR_EVM} from "../gas-report/constants";
-=======
+
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
->>>>>>> 082bd18d77bb0770a5c959b0236f740ff5406f42
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -265,18 +265,19 @@ describe('OffRamp - Unit Tests', () => {
     ...overrides,
   })
 
-  const createDefaultUpdateSourceChainConfigs = (overrides = {}): UpdateSourceChainConfig[] => ([
-      {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: {
-            router: router.address,
-            isEnabled: true,
-            minSeqNr: 1n,
-            isRMNVerificationDisabled: true,
-            onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-            ...overrides}
+  const createDefaultUpdateSourceChainConfigs = (overrides = {}): UpdateSourceChainConfig[] => [
+    {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config: {
+        router: router.address,
+        isEnabled: true,
+        minSeqNr: 1n,
+        isRMNVerificationDisabled: true,
+        onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+        ...overrides,
       },
-  ])
+    },
+  ]
 
   const createTestMessage = (
     sequenceNumber = 1n,

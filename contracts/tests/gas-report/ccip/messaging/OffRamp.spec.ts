@@ -41,10 +41,11 @@ import {
 } from '../../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import {
-    CHAINSEL_TON,
-    CHAINSEL_EVM_TEST,
-    EVM_SENDER_ADDRESS_TEST,
-    EVM_ONRAMP_ADDRESS_TEST, CHAIN_FAMILY_SELECTOR_EVM,
+  CHAINSEL_TON,
+  CHAINSEL_EVM_TEST,
+  EVM_SENDER_ADDRESS_TEST,
+  EVM_ONRAMP_ADDRESS_TEST,
+  CHAIN_FAMILY_SELECTOR_EVM,
 } from '../../constants'
 import { createMaxPayload, createExtraArgs, MESSAGE_COUNT_IN_COMMIT } from './config'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
@@ -463,17 +464,19 @@ describe('CCIP OffRamp Gas Estimation', () => {
         deployer.getSender(),
         {
           value: toNano('0.5'),
-          configs: [{
-            sourceChainSelector: CHAINSEL_EVM_TEST,
-               config: {
-                    router: ROUTER_ADDRESS_TEST,
-                    isEnabled: true,
-                    minSeqNr: 1n,
-                    isRMNVerificationDisabled: false,
-                    onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-                },
-          }],
-        }
+          configs: [
+            {
+              sourceChainSelector: CHAINSEL_EVM_TEST,
+              config: {
+                router: ROUTER_ADDRESS_TEST,
+                isEnabled: true,
+                minSeqNr: 1n,
+                isRMNVerificationDisabled: false,
+                onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+              },
+            },
+          ],
+        },
       )
       expect(sourceChainConfigResult.transactions).toHaveTransaction({
         to: offRamp.address,
