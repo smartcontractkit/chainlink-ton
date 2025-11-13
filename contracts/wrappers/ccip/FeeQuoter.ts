@@ -498,7 +498,6 @@ export class FeeQuoter
     withdrawable.Interface,
     typeAndVersion.Interface,
     ownable2step.Interface,
-    ownable2step.ContractClient,
     Contract
 {
   private ownable: ownable2step.ContractClient
