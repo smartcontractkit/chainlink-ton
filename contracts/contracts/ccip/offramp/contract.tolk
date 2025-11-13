@@ -534,7 +534,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
         val deployMsg = createMessage({
-            bounce: true,
+            bounce: false,
             value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,
             dest: executorAddress,
             body: Deployable_Initialize {
@@ -549,7 +549,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
                 }
             },
         });
-        deployMsg.send(SEND_MODE_REGULAR);
+        deployMsg.send(SEND_PAY_FEES_SEPARATELY);
     }
 
     // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
