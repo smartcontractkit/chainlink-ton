@@ -549,7 +549,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
                 }
             },
         });
-        deployMsg.send(SEND_PAY_FEES_SEPARATELY);
+        deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
     // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
