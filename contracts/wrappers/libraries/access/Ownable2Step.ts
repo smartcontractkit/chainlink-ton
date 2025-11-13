@@ -11,6 +11,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
+import { Upgrade } from '../versioning/Upgradeable'
 
 export enum Errors {
   OnlyCallableByOwner = 132,
@@ -117,7 +118,7 @@ export const builder = {
   })(),
 }
 
-export class ContractClient implements Contract {
+export class ContractClient implements Contract, Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -172,4 +173,21 @@ export class ContractClient implements Contract {
     const result = await provider.get('pendingOwner', [])
     return result.stack.readAddressOpt()
   }
+}
+
+export interface Interface extends Contract {
+  getOwner(p: ContractProvider): Promise<Address>
+  getPendingOwner(p: ContractProvider): Promise<Address | null>
+  sendTransferOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: TransferOwnership,
+  ): Promise<void>
+  sendAcceptOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: AcceptOwnership,
+  ): Promise<void>
 }

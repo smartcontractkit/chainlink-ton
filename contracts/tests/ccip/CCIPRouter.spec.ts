@@ -31,6 +31,7 @@ import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
+import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -798,37 +799,7 @@ describe('Router', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-
-    const resultTransferOwnership = await router.sendTransferOwnership(
-      deployer.getSender(),
-      toNano('0.05'),
-      {
-        queryId: 1n,
-        newOwner: other.address,
-      },
-    )
-    expect(resultTransferOwnership.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-
-    const resultAcceptOwnership = await router.sendAcceptOwnership(
-      other.getSender(),
-      toNano('0.05'),
-      {
-        queryId: 1n,
-      },
-    )
-    expect(resultAcceptOwnership.transactions).toHaveTransaction({
-      from: other.address,
-      to: router.address,
-      success: true,
-    })
-
-    // Check that the owner is now the new one
-    const newOwner = await router.getOwner()
-    expect(newOwner.toString()).toBe(other.address.toString())
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, router)
   })
 })
 
