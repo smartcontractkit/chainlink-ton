@@ -23,7 +23,6 @@ fun merkleRoot<I>(
 ): uint256 {
     val leavesLen = leaves.size(32);
     val proofsLen = proofs.size(32);
-    // TODO: we need to call endParse() to ensure data was fully parsed
 
     assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
     assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);

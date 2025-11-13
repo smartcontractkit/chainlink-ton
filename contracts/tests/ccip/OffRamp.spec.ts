@@ -572,6 +572,21 @@ describe('OffRamp - Unit Tests', () => {
         deploy: true,
         success: true,
       })
+
+      let resultFeeQuoterAddAuthorizedCaller = await feeQuoter.sendAddPriceUpdater(
+        deployer.getSender(),
+        {
+          value: toNano('0.01'),
+          msg: {
+            priceUpdater: offRamp.address,
+          },
+        },
+      )
+      expect(resultFeeQuoterAddAuthorizedCaller.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: feeQuoter.address,
+        success: true,
+      })
     }
     // setup router
     //
@@ -1097,6 +1112,16 @@ describe('OffRamp - Unit Tests', () => {
       ],
     }
     const result = await commitReport([], toNano('0.5'), 0x01, priceUpdates)
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      to: transmitters[0].address,
+      success: true,
+    })
   })
 
   it('Can commit with both merkle root and price updates', async () => {

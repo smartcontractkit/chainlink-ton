@@ -20,12 +20,12 @@ struct (0x019f4cd2) MerkleRoot_MarkState {
 
 struct MerkleRoot_Costs{}
 
-fun MerkleRoot_Costs.validate(){
+fun MerkleRoot_Costs.validate(): int {
     val baseFee = MERKLE_ROOT_COSTS_VALIDATE_FEE; // validateFees
     return baseFee + OffRamp_Costs.executeValidated();
 }
 
-fun MerkleRoot_Costs.markState() {
+fun MerkleRoot_Costs.markState(): int {
     return MERKLE_ROOT_COSTS_MARK_STATE_FEE;
 }
 

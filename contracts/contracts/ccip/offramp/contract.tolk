@@ -390,15 +390,17 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             st.latestPriceSequenceNumber = ocrSequenceNumber;
 
             // and update the prices in the fee quoter
+
             val updatePricesMsg = createMessage({
                 bounce: true,
                 value: FeeQuoter_Costs.updatePrices(),
                 dest: st.feeQuoter,
                 body: FeeQuoter_UpdatePrices {
-                    updates: report.priceUpdates!.load()
+                    updates: report.priceUpdates!.load(),
+                    sendExcessesTo: sender,
                 }
             });
-            updatePricesMsg.send(SEND_MODE_REGULAR);
+            updatePricesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
         }
     }
 
@@ -482,10 +484,9 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     val sourceChainConfig = sourceChainConfigResult.loadValue();
     assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-    // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
-    // message fields ensures that the message being executed is correct and not tampered with. Including the known
-    // OnRamp ensures that the message originates from the correct OnRamp version. We know the sourceChainSelector
-    // and destChainSelector are correct because we revert below when they are not.
+    //  Hashing all of the message fields ensures that the message being executed is correct and not tampered with.
+    //Including the known OnRamp ensures that the message originates from the correct OnRamp version.
+    //We know the sourceChainSelector and destChainSelector are correct because we revert below when they are not.
     val metadataHash = MessageMetadata {
         sourceChainSelector: report.sourceChainSelector,
         destChainSelector: st.chainSelector,
@@ -505,7 +506,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     var leafTuple: tuple = createEmptyTuple();
     leafTuple.push(message.generateMessageId(metadataHash));
 
-    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), Iterator<uint256>.new(report.proofs), report.proofFlagBits);
+    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), report.proofs.iter(), report.proofFlagBits);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
