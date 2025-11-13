@@ -544,7 +544,6 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
       BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
       rootMetadata,
       this.testOps,
-      MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
     // Store the operation proofs for later use in execute tests

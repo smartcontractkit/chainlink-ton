@@ -541,13 +541,7 @@ describe('MCMS - IntegrationTest', () => {
             .asCell(),
         },
       ]
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -668,13 +662,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -800,13 +788,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
@@ -931,13 +913,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -1015,13 +991,7 @@ describe('MCMS - IntegrationTest', () => {
           },
         ]
 
-        const [setRoot, opProofs] = merkleProof.build(
-          signers,
-          validUntil,
-          metadata,
-          ops,
-          OP_FINALIZATION_TIMEOUT_ZERO,
-        )
+        const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
         const r = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
@@ -1160,13 +1130,7 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        validUntil,
-        metadata,
-        ops,
-        OP_FINALIZATION_TIMEOUT_ZERO,
-      )
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),

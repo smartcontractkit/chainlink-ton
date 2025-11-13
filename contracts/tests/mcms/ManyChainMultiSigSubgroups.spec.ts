@@ -211,7 +211,6 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
       rootMetadata,
       testOps,
-      MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
     const insufficientSetRootBody = mcms.builder.message.in.setRoot
@@ -237,7 +236,6 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
       rootMetadata,
       testOps,
-      MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
   })
 
@@ -369,7 +367,6 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
           BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
           rootMetadata,
           testOps,
-          MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
 
         const reducedSetRootBody = mcms.builder.message.in.setRoot.encode(reducedSetRoot).asCell()
@@ -405,7 +402,6 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
       overrideMetadata,
       testOps,
-      MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
     const overrideSetRootBody = mcms.builder.message.in.setRoot.encode(overrideSetRoot).asCell()

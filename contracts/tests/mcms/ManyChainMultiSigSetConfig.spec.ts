@@ -405,4 +405,30 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     expect(rootMetadata.preOpCount).toBe(opCount)
     expect(rootMetadata.postOpCount).toBe(opCount)
   })
+
+  it('should successfully set opFinalizationTimeout config', async () => {
+    const body = mcms.builder.message.in.updateOpFinalizationTimeout
+      .encode({ queryId: 1n, newOpFinalizationTimeout: 10 })
+      .asCell()
+
+    const sender = baseTest.acc.multisigOwner.getSender()
+    const result = await baseTest.bind.mcms.sendInternal(sender, toNano('0.1'), body)
+
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.acc.multisigOwner.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+
+    // Verify contract replied
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.bind.mcms.address,
+      op: mcms.opcodes.out.OpFinalizationTimeoutChange,
+    })
+
+    // Verify state was updated
+    const info = await baseTest.bind.mcms.getOpPendingInfo()
+    expect(info).not.toBeNull()
+    expect(info.opFinalizationTimeout).toBe(10)
+  })
 })

@@ -32,8 +32,6 @@ export type SetRoot = {
   metadataProof: Cell // vec<uint256>
   // The ECDSA signatures on (root, validUntil).
   signatures: Cell // vec<Signature>
-  /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: number // uint32
 }
 
 // @dev Executes an operation authenticated by the Merkle tree.
@@ -492,7 +490,6 @@ export const builder = {
             .storeBuilder(rootMetadata.encode(msg.metadata))
             .storeRef(msg.metadataProof)
             .storeRef(msg.signatures)
-            .storeUint(msg.opFinalizationTimeout, 32)
         },
         load: (src: Slice): SetRoot => {
           src.skip(32) // skip opcode
@@ -503,7 +500,6 @@ export const builder = {
             metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
-            opFinalizationTimeout: src.loadUint(32),
           }
         },
       },
