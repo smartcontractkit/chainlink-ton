@@ -7,6 +7,10 @@ import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "../rmn_remote/lib"
+import "../merkle_root/messages"
+import "../receive_executor/messages"
+import "../fee_quoter/messages"
+import "../router/messages"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -102,3 +106,48 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
 struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
     cursedSubjects: CursedSubjects
 }
+
+
+struct OffRamp_Costs{}
+
+fun OffRamp_Costs.executeValidated(){
+    val baseFee = OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE;
+    return baseFee + AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT + ReceiveExecutor_Costs.initExec();
+}
+
+fun OffRamp_Costs.dispatchValidated(){
+    val baseFee = OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE;
+    return baseFee + Router_Costs.routeMessage();
+}
+
+fun OffRamp_Costs.receiveConfirmOrDeny() {
+    val baseFee = OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE;
+    return baseFee + ReceiveExecutor_Costs.confirmedOrBounced();
+}
+
+fun OffRamp_Costs.notify() {
+    val baseFee = OFFRAMP_COSTS_NOTIFY_FEE;
+    return baseFee + MerkleRoot_Costs.markState();
+}
+
+fun OffRamp_Costs.commit(priceUpdatesOnlyReport: bool) {
+    val baseFee = OFFRAMP_COSTS_COMMIT_FEE;
+    if (priceUpdatesOnlyReport) {
+        return baseFee + FeeQuoter_Costs.updatePrices();
+    } else {
+        val totalAmountForRoot = AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT;
+        return baseFee + FeeQuoter_Costs.updatePrices() + totalAmountForRoot;
+    }
+}
+
+fun OffRamp_Costs.execute() {
+    val baseFee = OFFRAMP_COSTS_EXECUTE_FEE;
+    return baseFee + MerkleRoot_Costs.validate();
+}
+
+const OFFRAMP_COSTS_EXECUTE_VALIDATED_FEE = ton("0.012");
+const OFFRAMP_COSTS_DISPATCH_VALIDATED_FEE = ton("0.005");
+const OFFRAMP_COSTS_NOTIFY_FEE = ton("0.004");
+const OFFRAMP_COSTS_CONFIRM_OR_DENY_FEE = ton("0.004");
+const OFFRAMP_COSTS_COMMIT_FEE = ton("0.015");
+const OFFRAMP_COSTS_EXECUTE_FEE = ton("0.0125");

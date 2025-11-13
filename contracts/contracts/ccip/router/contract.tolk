@@ -256,14 +256,14 @@ fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 
     val confirmMsg = createMessage({
         bounce: true,
-        value: ton("0"), 
+        value: OffRamp_Costs.receiveConfirmOrDeny(), 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
             execId: msg.execId,
             receiver: sender,
         },
     });
-    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    confirmMsg.send(SEND_MODE_REGULAR);
 }
 
 fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
@@ -273,7 +273,7 @@ fun ccipReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.05"),
+        value: OffRamp_Costs.receiveConfirmOrDeny(),
         dest: offRamp,
         body: OffRamp_CCIPReceiveBounced {
             execId: execId,

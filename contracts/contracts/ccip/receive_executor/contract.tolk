@@ -41,7 +41,7 @@ fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
     createMessage(
         {
             bounce: true,
-            value: ton("0.05"),
+            value: 0,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
                 message: st.message,
@@ -49,7 +49,7 @@ fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
                 gasOverride,
             }
         }
-    ).send(SEND_MODE_REGULAR);
+    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract
@@ -96,7 +96,7 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
     val messageHeader = ccipMessage.header;
     val notifySuccess = createMessage({
         bounce: true,
-        value: ton("0.02"),
+        value: 0,
         dest: st.owner,
         body: OffRamp_NotifyFailure {
             header: messageHeader,
@@ -104,7 +104,7 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
             root: st.root,
         },
     });
-    notifySuccess.send(SEND_MODE_REGULAR);
+    notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
 }
 

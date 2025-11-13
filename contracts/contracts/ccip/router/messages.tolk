@@ -6,6 +6,7 @@ import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
 import "../offramp/types"
+import "../offramp/messages"
 import "../onramp/messages"
 
 type Router_InMsg =
@@ -125,6 +126,16 @@ fun Router_Costs.MessageSent(): int {
 @inline
 fun Router_Costs.MessageRejected(): int {
     return ton("0.05"); // TODO
+}
+
+fun Router_Costs.routeMessage() {
+    val baseFee = ton("0.004");
+    return baseFee + Router_Costs.receiveConfirm();
+}
+
+fun Router_Costs.receiveConfirm() {
+    val baseFee = ton("0.002");
+    return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
 // TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.

@@ -40,11 +40,20 @@ fun onInternalMessage(in: InMessage) {
             assert(st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress, FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
+
+            val returnValueResponse = createMessage({
+                bounce: false,
+                value: 0,
+                dest: in.senderAddress,
+                body: createEmptyCell(),
+            });
+            returnValueResponse.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         FeeQuoter_UpdateFeeTokens => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             updateFeeTokens(mutate st, msg);
+
             st.store();
         }
         FeeQuoter_UpdateTokenTransferFeeConfigs => {
@@ -206,6 +215,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
             })
         }
     }
+
+
 }
 
 // apply_premium_multiplier_wei_per_eth_updates??

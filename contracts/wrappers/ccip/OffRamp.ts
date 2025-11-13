@@ -52,7 +52,9 @@ export enum OffRampError {
   SourceChainSelectorMismatch,
   InvalidOnRampUpdate,
   SenderIsNotRouter,
+  InsufficientFee,
   SubjectCursed,
+  Unauthorized,
 }
 
 export enum ReceiveExecutorError {

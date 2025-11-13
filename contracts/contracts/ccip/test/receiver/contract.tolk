@@ -58,13 +58,13 @@ fun onInternalMessage(in: InMessage) {
 fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.05"), //TODO how much do we need to send
+        value: 0,
         dest: senderAddress,
         body: Router_CCIPReceiveConfirm {
             execId: msg.execId,
         }
     });
-    receiveConfirm.send(SEND_MODE_REGULAR);
+    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message,

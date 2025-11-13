@@ -1,6 +1,8 @@
 import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
+import "../router/messages"
+import "../fee_quoter/messages"
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
@@ -96,9 +98,9 @@ struct Any2TVMTokenTransfer {
 
 struct OffRamp_Deployables {
     router: address;
-    deployer: cell; // Deployable compiled code
-    merkleRootCode: cell; // use a library cell offchain to save space
-    receiveExecutorCode: cell; //TODO: use a library cell offchain to save space 
+    deployer: cell; // Deployable stub contract compiled code
+    merkleRootCode: cell; // MerkleRoot contract compiled code 
+    receiveExecutorCode: cell; // ReceiveExecutor contract compiled code
 }
 
 const MERKLE_ROOT_ID_SIZE = 256;
@@ -113,9 +115,14 @@ fun ReceiveExecutorId.getSourceChainSelector(self): uint64 {
 }
 
 // These have to match the EVM states
-enum ExecutionState: uint8 { // TODO: compress to uint2?
+enum ExecutionState: uint8 {
     Untouched = 0
     InProgress = 1
     Success = 2
     Failure = 3
 }
+
+const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.02");
+const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
+
+
