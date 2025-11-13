@@ -161,9 +161,11 @@ fun Router_Costs.routeMessage() {
 }
 
 fun Router_Costs.receiveConfirm() {
-    val baseFee = ton("0.002");
+    val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
+
+const ROUTER_RECEIVE_CONFIRM_FEE = ton("0.002");
 
 // TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
 // TBD: Should we let the user define the callback opcode when creating the CCIPSend message?

@@ -286,7 +286,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: data,
       receiver: receiverAddress,
-      gasLimit: toNano('0.01'), // 100_000_000 nanotons
+      gasLimit: toNano('0.02'), // 200_000_000 nanotons
     }
   }
 
@@ -409,7 +409,7 @@ describe('OffRamp - Unit Tests', () => {
     expectSuccess = true,
   ) => {
     const result = await offRamp.sendExecute(transmitters[0].getSender(), {
-      value: toNano('0.1'),
+      value: toNano('0.15'),
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
     })
@@ -1250,6 +1250,12 @@ describe('OffRamp - Unit Tests', () => {
       from: router.address,
       to: receiver.address,
       value: message.gasLimit,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: receiver.address,
+      to: router.address,
       success: true,
     })
 

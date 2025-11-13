@@ -67,8 +67,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
-            val minValue = Router_Costs.receiveConfirm();
-            assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
+            assert (in.valueCoins >= ROUTER_RECEIVE_CONFIRM_FEE) throw Router_Error.InsufficientFee;
             onCCIPReceiveConfirm(msg, in.senderAddress)
         }
         // Sender must RMN remote admin
