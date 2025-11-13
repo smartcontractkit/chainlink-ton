@@ -3,6 +3,27 @@ struct Deployable<T> {
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
+enum CCIPNamespace: uint256 {
+    SendExecutor,
+    ReceiveExecutor,
+    MerkleRoot,
+}
+
+fun Deployable<Namespaced<T>>.new(namespace: CCIPNamespace, owner: address, id: T): Cell<Deployable<Namespaced<T>>> {
+    return Deployable<Namespaced<T>> {
+        owner,
+        id: Namespaced<T> {
+            namespace,
+            id,
+        },
+    }.toCell();
+}
+
+struct Namespaced<T> {
+    namespace: CCIPNamespace;
+    id: T;
+}
+
 fun Deployable<T>.load() {
     return Deployable<T>.fromCell(contract.getData());
 }
