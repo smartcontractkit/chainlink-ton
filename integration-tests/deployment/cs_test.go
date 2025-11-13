@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	chainselectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
@@ -72,7 +73,7 @@ func TestDeploy(t *testing.T) {
 	// </redeploy>
 
 	// TODO: LINK token deployment
-	linkAddr := tonops.TonTokenAddr
+	linkAddr := tvm.TonTokenAddr
 
 	tonDefinition := config.ChainDefinition{
 		ConnectionConfig: config.ConnectionConfig{
@@ -82,7 +83,7 @@ func TestDeploy(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			tonops.TonTokenAddr.String(): big.NewInt(99),
+			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainConfig,
 		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
