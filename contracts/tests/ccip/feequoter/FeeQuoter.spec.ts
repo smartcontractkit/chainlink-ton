@@ -62,15 +62,19 @@ const CHAINSEL_TON = 13879075125137744094n // TODO this is copy/pasted from CCIP
 describe('FeeQuoter - Ownable Tests', () => {
   it('supports ownable messages', async () => {
     const blockchain = await Blockchain.create()
-    const deployer= await blockchain.treasury('deployer')
+    const deployer = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
 
-    const feeQuoter = await setupTestFeeQuoter(deployer, blockchain);
+    const feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
 
-    const resultTransferOwnership = await feeQuoter.sendTransferOwnership(deployer.getSender(), toNano('0.05'), {
-      queryId: 1n,
-      newOwner: other.address,
-    })
+    const resultTransferOwnership = await feeQuoter.sendTransferOwnership(
+      deployer.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+        newOwner: other.address,
+      },
+    )
     expect(resultTransferOwnership.transactions).toHaveTransaction({
       from: deployer.address,
       to: feeQuoter.address,
