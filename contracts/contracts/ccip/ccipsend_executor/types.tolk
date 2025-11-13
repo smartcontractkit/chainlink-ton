@@ -4,11 +4,18 @@ import "../../deployable/types"
 type CCIPSendExecutor_ID = uint224
 
 fun CCIPSendExecutor_DeployableData(owner: address, id: CCIPSendExecutor_ID): cell {
-    return Deployable<Namespaced<CCIPSendExecutor_ID>>.new(
-        CCIPNamespace.CCIPSendExecutor,
+    return Deployable<_CCIPSendExecutor_DeployableData> {
         owner,
-        id,
-    ); 
+        id: _CCIPSendExecutor_DeployableData {
+            id: id,
+            contractType: stringCrc32("CCIPSendExecutor"),
+        },
+    }.toCell(); 
+}
+
+struct _CCIPSendExecutor_DeployableData {
+    id: CCIPSendExecutor_ID;
+    contractType: uint256;
 }
 
 struct CCIPSendExecutor_InitialData {

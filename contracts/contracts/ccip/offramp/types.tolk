@@ -60,19 +60,19 @@ struct Any2TVMRampMessage {
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
-        return beginCell()
+    return beginCell()
         .storeSlice(LEAF_DOMAIN_SEPARATOR)
         .storeUint(metadataHash, 256)
         // header
         .storeRef(
-            beginCell()
+        beginCell()
             .storeUint(self.header.messageId, 256)
             .storeAddress(self.receiver)
             .storeUint(self.header.sequenceNumber, 64)
             .storeCoins(self.gasLimit)
             .storeUint(self.header.nonce, 64)
             .endCell()
-        )
+    )
         // message
         .storeRef(self.sender)
         .storeRef(self.data)
@@ -98,7 +98,7 @@ struct Any2TVMTokenTransfer {
 }
 
 struct OffRamp_Deployables {
-    router: address;
+    rmnRouter: address;
     deployer: cell; // Deployable stub contract compiled code
     merkleRootCode: cell; // MerkleRoot contract compiled code 
     receiveExecutorCode: cell; // ReceiveExecutor contract compiled code
@@ -141,5 +141,3 @@ enum ExecutionState: uint8 {
 
 const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.02");
 const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");
-
-

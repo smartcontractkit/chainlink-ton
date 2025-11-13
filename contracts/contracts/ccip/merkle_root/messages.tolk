@@ -1,9 +1,10 @@
 import "../offramp/types"
 import "../offramp/messages"
 
-type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_MarkState;
+type MerkleRoot_InMessage = 
+    | MerkleRoot_Validate
+    | MerkleRoot_MarkState;
 
-//crc32('MerkleRoot_Validate')
 struct (0x038ede91) MerkleRoot_Validate {
     message: Cell<Any2TVMRampMessage>,
     permissionlessExecutionThresholdSeconds: uint32,

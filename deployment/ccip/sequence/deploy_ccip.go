@@ -179,7 +179,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
-			Router:              &routerAddress,
+			RMNRouter:           &routerAddress,
 			Deployer:            tonCompiledContracts[state.Deployer].Code,
 			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
 			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,

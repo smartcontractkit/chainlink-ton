@@ -48,7 +48,6 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
 
-// crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     executorID: CCIPSendExecutor_ID,
     fee: coins
