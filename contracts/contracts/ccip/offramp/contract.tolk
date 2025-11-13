@@ -94,6 +94,7 @@ fun onInternalMessage(in:InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             onSetDynamicConfig(msg);
         }
+        // Sender must be owner
         Withdrawable_Withdraw => {
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
