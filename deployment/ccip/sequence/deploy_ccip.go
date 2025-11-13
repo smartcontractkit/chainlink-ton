@@ -158,6 +158,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		Executor: onramp.ExecutorDeployment{
 			DeployableCode: tonCompiledContracts[state.Deployer].Code,
 			ExecutorCode:   tonCompiledContracts[state.SendExecutor].Code,
+			CurrentID:      big.NewInt(0),
 		},
 	}
 
