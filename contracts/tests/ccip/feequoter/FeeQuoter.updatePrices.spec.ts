@@ -129,11 +129,11 @@ describe('FeeQuoter UpdatePrices', () => {
         msg: { updates: priceUpdates, sendExcessesTo: null}
       },
     )
-    expect(updateResult.transactions).toHaveTransaction({
+    expect(updateResult2.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
       success: true,
     })
-    expect(updateResult.transactions).toHaveTransaction({
+    expect(updateResult2.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
       to: setup.acc.deployer.address,
       success: true,
