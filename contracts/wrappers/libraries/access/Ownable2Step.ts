@@ -167,4 +167,9 @@ export class ContractClient implements Contract {
     const result = await provider.get('owner', [])
     return result.stack.readAddress()
   }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    const result = await provider.get('pendingOwner', [])
+    return result.stack.readAddressOpt()
+  }
 }

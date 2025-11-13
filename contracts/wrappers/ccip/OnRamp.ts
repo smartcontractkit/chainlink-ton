@@ -424,13 +424,11 @@ export class OnRamp implements Contract, withdrawable.Interface {
 
   // Ownership methods
   async getOwner(provider: ContractProvider): Promise<Address> {
-    const result = await provider.get('owner', [])
-    return result.stack.readAddress()
+    return this.ownable.getOwner(provider)
   }
 
   async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
-    const result = await provider.get('pendingOwner', [])
-    return result.stack.readAddressOpt()
+    return this.ownable.getPendingOwner(provider)
   }
 
   async sendTransferOwnership(
