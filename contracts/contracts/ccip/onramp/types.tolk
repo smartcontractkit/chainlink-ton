@@ -26,7 +26,7 @@ struct OnRampUpdateDestChainConfig {
 struct ExecutorDeployment {
     deployableCode: cell;
     executorCode: cell; // code for SendExecutor
-    currentExecutorID: uint224;
+    currentID: uint224;
 }
 
 @inline

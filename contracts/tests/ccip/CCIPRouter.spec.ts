@@ -286,7 +286,7 @@ describe('Router', () => {
         executor: {
           deployableCode: await compile('Deployable'),
           executorCode: await compile('CCIPSendExecutor'),
-          currentExecutorID: 0n,
+          currentID: 0n,
         },
       }
       // TODO: use deployable to make deterministic?

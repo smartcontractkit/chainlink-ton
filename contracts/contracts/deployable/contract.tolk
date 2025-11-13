@@ -3,22 +3,22 @@ import "types"
 fun onInternalMessage(in: InMessage) {
     val st = Deployable<RemainingBitsAndRefs>.load();
     assert(in.senderAddress == st.owner) throw ERROR_NOT_OWNER;
-    val msg = lazy Deployable_InMessage.fromSlice(in.body);
-    match (msg) {
+    val inMsg = lazy Deployable_InMessage.fromSlice(in.body);
+    match (inMsg) {
         Deployable_Initialize => {
-            contract.setCodePostponed(msg.stateInit.code);
-            contract.setData(msg.stateInit.data);
+            contract.setCodePostponed(inMsg.stateInit.code);
+            contract.setData(inMsg.stateInit.data);
         }
         Deployable_InitializeAndExecute => {
-            contract.setCodePostponed(msg.stateInit.code);
-            contract.setData(msg.stateInit.data);
-            val msg = createMessage({
+            contract.setCodePostponed(inMsg.stateInit.code);
+            contract.setData(inMsg.stateInit.data);
+            val selfMsg = createMessage({
                 bounce: false,
-                value: ton("0.4"), // TODO
+                value: inMsg.selfMessage.value,
                 dest: contract.getAddress(),
-                body: msg.message,
+                body: inMsg.selfMessage.body,
             });
-            msg.send( SEND_MODE_REGULAR);
+            selfMsg.send( SEND_MODE_PAY_FEES_SEPARATELY);
         }
     }
 }

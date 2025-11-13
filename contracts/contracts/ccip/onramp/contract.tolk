@@ -106,26 +106,29 @@ fun send(payload: OnRamp_Send, sender: address) {
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: st.executor.autoDeployAddress(st.executor.currentExecutorID),
+        dest: st.executor.autoDeployAddress(st.executor.currentID),
         body: Deployable_InitializeAndExecute {
             stateInit: {
                 code: st.executor.executorCode,
                 data:  CCIPSendExecutor_InitialData {
                     onramp: contract.getAddress(),
-                    messageID: st.executor.currentExecutorID,
+                    messageID: st.executor.currentID,
                 }.toCell(),
             },
-            message: CCIPSendExecutor_Execute {
-                onrampSend: payload,
-                config: CCIPSendExecutor_Config {
-                    feeQuoter: config.feeQuoter,
+            selfMessage: {
+                value: SendExecutor_Costs.Execute(),
+                body: CCIPSendExecutor_Execute {
+                    onrampSend: payload,
+                    config: CCIPSendExecutor_Config {
+                        feeQuoter: config.feeQuoter,
+                    }.toCell(),
                 }.toCell(),
-            }.toCell(),
+            },
         }
     });
 
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    st.executor.currentExecutorID += 1;
+    st.executor.currentID += 1;
 
     st.store();
 }

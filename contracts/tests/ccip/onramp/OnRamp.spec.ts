@@ -26,8 +26,11 @@ async function deployOnRampContract(
       allowlistAdmin: ZERO_ADDRESS,
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-    currentMessageId: 0n,
-    executor_code: beginCell().endCell(),
+    executor: {
+      deployableCode: beginCell().endCell(),
+      executorCode: beginCell().endCell(),
+      currentID: 0n,
+    },
   }
   // TODO: use deployable to make deterministic?
   const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))

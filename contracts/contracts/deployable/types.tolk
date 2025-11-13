@@ -22,7 +22,12 @@ struct (0xba466447) Deployable_Initialize {
 
 struct (0xe95e1156) Deployable_InitializeAndExecute {
     stateInit: ContractState;
-    message: cell;
+    selfMessage: SelfMessage;
+}
+
+struct SelfMessage {
+    value: coins;
+    body: cell;
 }
 
 //TODO: crc32('Deployable_ErrorNotOwner')
