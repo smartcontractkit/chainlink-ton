@@ -77,6 +77,10 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_NotifyFailure => {
             _notifyFailure(msg, in.senderAddress);
         }
+        // Sender must be owner
+        OffRamp_SetDynamicConfig => {
+            _setDynamicConfig(msg, in.senderAddress);
+        }
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -214,7 +218,6 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     });
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
-
 
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
     val st = Storage.load();
@@ -612,6 +615,22 @@ fun assertSenderIsOwnedContract(st: Storage, sender: address, contractId: builde
     assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
 }
 
+fun _setDynamicConfig(msg: OffRamp_SetDynamicConfig, sender: address) {
+    var st = Storage.load();
+    st.ownable.requireOwner(sender);
+
+    assert(!msg.feeQuoter.isNone()) throw Error.ZeroAddressNotAllowed;
+
+    st.feeQuoter = msg.feeQuoter;
+    st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;
+    st.store();
+
+    emit(DYNAMIC_CONFIG_SET_TOPIC, OffRamp_DynamicConfigSet{
+        feeQuoter: msg.feeQuoter,
+        permissionlessExecutionThresholdSeconds: msg.permissionlessExecutionThresholdSeconds,
+    });
+}
+
 get fun latestPriceSequenceNumber(): uint64 {
     var st = lazy Storage.load();
     return st.latestPriceSequenceNumber
@@ -621,10 +640,6 @@ get fun sourceChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.sourceChainConfigs;
     return keysLispList(d)!;
-}
-
-fun setDynamicConfig() {
-    
 }
 
 get fun ocr3Config(): OCR3Base {

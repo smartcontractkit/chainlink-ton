@@ -30,6 +30,7 @@ import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
+import { sendGetValidatedFee } from './helpers/GetValidatedFee'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -649,10 +650,17 @@ describe('Router', () => {
         .asCell(),
     }
 
-    const fee = await getValidatedFee(blockchain, router.address, ccipSend)
-    console.log('Validated fee:', fee, 'TON')
-    const totalSendValue = fee + toNano('0.5')
+    const offchainFee = await getValidatedFee(blockchain, router.address, ccipSend)
+    console.log('Validated fee:', offchainFee, 'TON')
+    const onchainFee = await sendGetValidatedFee(
+      sender.getSender(),
+      router,
+      ccipSend,
+      Cell.EMPTY.asSlice(),
+    )
+    expect(onchainFee).toBe(offchainFee)
 
+    const totalSendValue = offchainFee + toNano('0.5')
     // router.ccipSend
     {
       const result = await router.sendCcipSend(sender.getSender(), {

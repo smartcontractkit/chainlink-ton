@@ -1,15 +1,14 @@
 import '@ton/test-utils'
 
 import { toNano, beginCell, Cell } from '@ton/core'
+import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { asSnakeData } from '../../src/utils'
-import { ERROR_TIMESTAMP } from '../../wrappers/mcms/RBACTimelock'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -283,7 +282,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
 
       // Try to execute before delay is met (only advance a short time)
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 2n * 24n * 60n * 60n)) // 2 days short
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY - 2 * 24 * 60 * 60) // 2 days short
 
       const executeBody = rbactl.builder.message.in.executeBatch
         .encode({
@@ -375,7 +374,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
 
       // Wait for delay but don't execute predecessor
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n)) // 2 days extra
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 2 * 24 * 60 * 60) // 2 days extra
 
       // Try to execute dependent operation (should fail)
       const executeBody = rbactl.builder.message.in.executeBatch
@@ -428,7 +427,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 2 * 24 * 60 * 60)
 
       // Try to execute (should fail due to invalid call)
       const executeBody = rbactl.builder.message.in.executeBatch
@@ -473,7 +472,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
       const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
-      expect(timestamp).toEqual(ERROR_TIMESTAMP)
+      expect(timestamp).toEqual(rbactl.ERROR_TIMESTAMP)
     })
 
     it('should allow executor to execute scheduled operation', async () => {
@@ -515,7 +514,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
       // Execute operation
       const executeBody = rbactl.builder.message.in.executeBatch
@@ -609,7 +608,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
       // Update ExecutorRoleCheck to disabled
       expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
@@ -679,7 +678,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
       // Try to execute without disabling ExecutorRoleCheck
       expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()

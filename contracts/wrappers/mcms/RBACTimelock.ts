@@ -22,7 +22,7 @@ export type Init = {
   queryId: bigint
 
   // Minimum delay in seconds for future operations.
-  minDelay: bigint
+  minDelay: number
 
   // Address of the admin account.
   admin: Address
@@ -36,7 +36,7 @@ export type Init = {
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   executorRoleCheckEnabled: boolean
   // The timeout required to finalize the currently executing op
-  opFinalizationTimeout: bigint
+  opFinalizationTimeout: number
 }
 
 // Schedule an operation containing a batch of transactions.
@@ -51,7 +51,7 @@ export type ScheduleBatch = {
   // Salt used to derive the operation ID
   salt: bigint
   // Delay in seconds before the operation can be executed
-  delay: bigint
+  delay: number
 }
 
 // Cancel an operation.
@@ -170,7 +170,7 @@ export type ContractData = {
   id: number // uint32
 
   // Minimum delay for operations in seconds
-  minDelay: bigint
+  minDelay: number
   // Map of operation id to timestamp
   timestamps?: Dictionary<Buffer, Buffer>
 
@@ -217,7 +217,7 @@ export type OpPendingInfo = {
   /// meaning no bounce was received and we can continue executing.
   validAfter: number
   /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: bigint
+  opFinalizationTimeout: number
   /// The id of the currently pending operation (OperationBatch hash)
   opPendingId: bigint
 }
@@ -336,27 +336,27 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.Init, 32)
             .storeUint(msg.queryId, 64)
-            .storeUint(msg.minDelay, 64)
+            .storeUint(msg.minDelay, 32)
             .storeAddress(msg.admin)
             .storeRef(asSnakeData<Address>(msg.proposers, (a) => beginCell().storeAddress(a)))
             .storeRef(asSnakeData<Address>(msg.executors, (a) => beginCell().storeAddress(a)))
             .storeRef(asSnakeData<Address>(msg.cancellers, (a) => beginCell().storeAddress(a)))
             .storeRef(asSnakeData<Address>(msg.bypassers, (a) => beginCell().storeAddress(a)))
             .storeBit(msg.executorRoleCheckEnabled)
-            .storeUint(msg.opFinalizationTimeout, 64)
+            .storeUint(msg.opFinalizationTimeout, 32)
         },
         load: (src: Slice): Init => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            minDelay: src.loadUintBig(64),
+            minDelay: src.loadUint(32),
             admin: src.loadAddress(),
             proposers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             executors: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             cancellers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             bypassers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             executorRoleCheckEnabled: src.loadBit(),
-            opFinalizationTimeout: src.loadUintBig(64),
+            opFinalizationTimeout: src.loadUint(32),
           }
         },
       }
@@ -369,7 +369,7 @@ export const builder = {
             .storeRef(msg.calls)
             .storeUint(msg.predecessor, 256)
             .storeUint(msg.salt, 256)
-            .storeUint(msg.delay, 64)
+            .storeUint(msg.delay, 32)
         },
         load: (src: Slice): ScheduleBatch => {
           src.skip(32) // skip opcode
@@ -378,7 +378,7 @@ export const builder = {
             calls: src.loadRef(),
             predecessor: src.loadUintBig(256),
             salt: src.loadUintBig(256),
-            delay: src.loadUintBig(64),
+            delay: src.loadUint(32),
           }
         },
       }
@@ -424,14 +424,13 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.UpdateDelay, 32)
             .storeUint(msg.queryId, 64)
-            .storeUint(msg.newDelay, 64)
+            .storeUint(msg.newDelay, 32)
         },
         load: (src: Slice): UpdateDelay => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            newDelay: -1, // TODO: decode delay properly (number vs bigint mismatch)
-            // newDelay: src.loadUintBig(64),
+            newDelay: src.loadUint(32),
           }
         },
       }
@@ -441,14 +440,13 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
             .storeUint(msg.queryId, 64)
-            .storeUint(msg.newOpFinalizationTimeout, 64)
+            .storeUint(msg.newOpFinalizationTimeout, 32)
         },
         load: (src: Slice): UpdateOpFinalizationTimeout => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            newOpFinalizationTimeout: -1, // TODO: decode delay properly (number vs bigint mismatch)
-            // newOpFinalizationTimeout: src.loadUintBig(64),
+            newOpFinalizationTimeout: src.loadUint(32),
           }
         },
       }
@@ -564,7 +562,7 @@ export const builder = {
             .storeRef(event.call)
             .storeUint(event.predecessor, 256)
             .storeUint(event.salt, 256)
-            .storeUint(event.delay, 64)
+            .storeUint(event.delay, 32)
         },
         load: (src: Slice): CallScheduled => {
           src.skip(32) // skip opcode
@@ -575,7 +573,7 @@ export const builder = {
             call: src.loadRef(),
             predecessor: src.loadUintBig(256),
             salt: src.loadUintBig(256),
-            delay: src.loadUint(64),
+            delay: src.loadUint(32),
           }
         },
       }
@@ -643,15 +641,15 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.out.MinDelayChange, 32)
             .storeUint(event.queryId, 64)
-            .storeUint(event.oldDelay, 64)
-            .storeUint(event.newDelay, 64)
+            .storeUint(event.oldDelay, 32)
+            .storeUint(event.newDelay, 32)
         },
         load: (src: Slice): MinDelayChange => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUint(64),
-            oldDelay: src.loadUint(64),
-            newDelay: src.loadUint(64),
+            oldDelay: src.loadUint(32),
+            newDelay: src.loadUint(32),
           }
         },
       }
@@ -702,7 +700,7 @@ export const builder = {
       encode: (data: ContractData): Builder => {
         return beginCell()
           .storeUint(data.id, 32)
-          .storeUint(data.minDelay, 64)
+          .storeUint(data.minDelay, 32)
           .storeDict(data.timestamps)
           .storeUint(data.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
           .storeDict(
@@ -711,7 +709,7 @@ export const builder = {
           )
           .storeBit(data.executorRoleCheckEnabled)
           .storeUint(data.opPendingInfo.validAfter, 32)
-          .storeUint(data.opPendingInfo.opFinalizationTimeout, 64)
+          .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
           .storeRef(data.rbac)
       },
@@ -973,10 +971,10 @@ export class ContractClient implements Contract {
       .then((r) => r.stack.readBigNumber())
   }
 
-  async getMinDelay(p: ContractProvider): Promise<bigint> {
+  async getMinDelay(p: ContractProvider): Promise<number> {
     return p // break line
       .get('getMinDelay', [])
-      .then((result) => result.stack.readBigNumber())
+      .then((result) => result.stack.readNumber())
   }
 
   async getHashOperationBatch(p: ContractProvider, op: OperationBatch): Promise<bigint> {
@@ -1026,7 +1024,7 @@ export class ContractClient implements Contract {
       .get('getOpPendingInfo', [])
       .then((result) => ({
         validAfter: result.stack.readNumber(),
-        opFinalizationTimeout: result.stack.readBigNumber(),
+        opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
       }))
   }

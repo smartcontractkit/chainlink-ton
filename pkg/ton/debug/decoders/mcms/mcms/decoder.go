@@ -14,6 +14,7 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	mcms.SetRoot{},
 	mcms.Execute{},
 	mcms.SetConfig{},
+	mcms.UpdateOpFinalizationTimeout{},
 	mcms.SubmitErrorReport{},
 	mcms.TransferOracleRole{},
 	mcms.NewRoot{},

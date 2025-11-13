@@ -1,8 +1,10 @@
-import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
-import * as mcms from '../../wrappers/mcms/MCMS'
+import { Cell, toNano } from '@ton/core'
+
 import { ZERO_ADDRESS } from '../../src/utils'
+import * as mcms from '../../wrappers/mcms/MCMS'
+
+import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
