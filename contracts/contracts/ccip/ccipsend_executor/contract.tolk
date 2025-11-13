@@ -105,7 +105,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedSuccessfully {
             fee,
-            msgID: self.id,
+            executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
         }
@@ -126,7 +126,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, sender: address) {
         value: 0,
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
-            msgID: self.id,
+            executorID: self.id,
             error: error,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,

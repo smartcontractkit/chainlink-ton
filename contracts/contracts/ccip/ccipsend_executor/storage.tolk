@@ -3,7 +3,7 @@ import "types"
 import "../onramp/messages"
 
 struct CCIPSendExecutor<T> {
-    id: uint224,
+    id: CCIPSendExecutor_ID,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: Cell<T>,

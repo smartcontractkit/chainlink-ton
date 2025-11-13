@@ -7,6 +7,7 @@ import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
 import "../fee_quoter/messages"
+import "../ccipsend_executor/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -49,14 +50,14 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
 
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
-    msgID: uint224,
+    executorID: CCIPSendExecutor_ID,
     fee: coins
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
-    msgID: uint224,
+    executorID: CCIPSendExecutor_ID,
     error: uint256,
     msg: Cell<Router_CCIPSend>,
     metadata: Metadata,

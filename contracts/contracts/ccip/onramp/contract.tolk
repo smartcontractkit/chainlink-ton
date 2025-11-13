@@ -213,7 +213,7 @@ fun send(payload: OnRamp_Send, sender: address) {
 
 fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(st.executor.autoDeployAddress(payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
+    assert(st.executor.autoDeployAddress(payload.executorID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
@@ -280,7 +280,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
 
 fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(st.executor.autoDeployAddress(payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
+    assert(st.executor.autoDeployAddress(payload.executorID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
