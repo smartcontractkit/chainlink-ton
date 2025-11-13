@@ -71,7 +71,6 @@ struct (0x5DFBB1BC) FeeQuoter_RemovePriceUpdater {
 struct FeeQuoter_Costs {}
 
 // Minimum value for calling FeeQuoter_GetValidatedFee
-@inline
 fun FeeQuoter_Costs.GetValidatedFee(): int {
     return min(
         ton("0.05") // MessageValidated fwdFee
@@ -82,6 +81,6 @@ fun FeeQuoter_Costs.GetValidatedFee(): int {
 }
 
 fun FeeQuoter_Costs.updatePrices() {
-    // when we support token transfers the message value amount will depend on the quantity of supported tokens
-    return ton("0.002");
+    // when we support token transfers the message value amount should depend on the quantity of supported tokens
+    return ton("0.003");
 }

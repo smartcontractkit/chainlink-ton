@@ -101,8 +101,6 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
-// TBD: Should we move this to lib/sender/messages.tolk? I think it only makes the sender import more dependencies. Maybe we can move this and Router_CCIPSend there so the user only imports those two messages and doesn't get confused with internal ones.
-// TBD: Should we let the user define the callback opcode when creating the CCIPSend message?
 // crc32("Router_CCIPSendACK")
 struct (0x78d0f21e) Router_CCIPSendACK {
     queryID: uint64;
