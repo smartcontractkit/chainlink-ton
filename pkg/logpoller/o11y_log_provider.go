@@ -9,8 +9,8 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
-	txparserUtils "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser/utils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
 )
 
 var _ RawLogProvider = (*tonO11yLogProvider)(nil)
@@ -29,7 +29,7 @@ func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) RawLogP
 }
 
 // GetLogs retrieves all ExternalMsgOutLogs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
-func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]types.RawLog, error) {
+func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]models.RawLog, error) {
 	// No new logs to fetch
 	if to.SeqNo <= from {
 		return nil, nil
@@ -48,8 +48,8 @@ func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Addres
 	}
 
 	// Fetch tx for address on given blockRange
-	blockRange := &types.BlockRange{Prev: prevBlock, To: to}
-	txs, err := tlp.loader.FetchTxsForAddress(ctx, blockRange, addr)
+	blockRange := &models.BlockRange{Prev: prevBlock, To: to}
+	txs, err := tlp.loader.GetTxsForAddress(ctx, blockRange, addr, 100)
 	if err != nil {
 		// display "genesis" if nil and don't panic
 		fromSeqNoStr := "genesis"
@@ -69,11 +69,11 @@ func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Addres
 	return logs, nil
 }
 
-func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, txs []types.TxWithBlock) ([]types.RawLog, error) {
-	var allLogs []types.RawLog
+func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, txs []models.Tx) ([]models.RawLog, error) {
+	var allLogs []models.RawLog
 
 	for _, tx := range txs {
-		msgs, _ := tx.Tx.IO.Out.ToSlice()
+		msgs, _ := tx.Transaction.IO.Out.ToSlice()
 
 		blockData, err := tlp.client.GetBlockData(ctx, tx.Block)
 		if err != nil {
@@ -89,15 +89,15 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 			extMsg := msg.AsExternalOut()
 
 			// Fail hard so we don't skip events. We want at-least-once delivery guarantees on events
-			eventSig, body, err := txparserUtils.ParseExtMsgOut(extMsg)
+			eventSig, body, err := message.ParseExtMsgOut(extMsg)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse external message out for txHash=%v, LT=%d: %w", tx.Tx.Hash, tx.Tx.LT, err)
+				return nil, fmt.Errorf("failed to parse external message out for txHash=%v, LT=%d: %w", tx.Transaction.Hash, tx.Transaction.LT, err)
 			}
 
 			// If we got a valid event and body
 			if body != nil && eventSig != 0 {
-				log := types.RawLog{
-					Tx:    tx.Tx,
+				log := models.RawLog{
+					Tx:    tx.Transaction,
 					Block: blockData,
 					Data:  body,
 					Topic: eventSig,

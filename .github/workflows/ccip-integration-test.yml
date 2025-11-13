@@ -124,6 +124,14 @@ jobs:
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
 
+      - name: Upload e2e test logs on success
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccip-test-logs-${{ matrix.type.name }}
+          path: chainlink/integration-tests/smoke/ccip/logs/
+          retention-days: 3
+
       - name: Upload e2e test logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

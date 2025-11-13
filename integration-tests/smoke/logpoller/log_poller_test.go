@@ -20,14 +20,15 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
+	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 )
 
 func Test_LogPoller(t *testing.T) {
@@ -71,24 +72,26 @@ func Test_LogPoller(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		blockRange := &types.BlockRange{
+		blockRange := &models.BlockRange{
 			Prev: prevBlock,
 			To:   toBlock,
 		}
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := account.NewTxLoader(logger.Test(t), clientProvider, pageSize)
+			loader := txloader.New(logger.Test(t), clientProvider)
 
-			txs, berr := loader.LoadTxsForAddresses(
+			txs, gerr := loader.GetTxsForAddress(
 				t.Context(),
 				blockRange,
-				[]*address.Address{emitter.ContractAddress()},
+				emitter.ContractAddress(),
+				pageSize,
 			)
-			require.NoError(t, berr)
+			require.NoError(t, gerr)
+
 			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
-				msgs, _ := tx.Tx.IO.Out.ToSlice()
+				msgs, _ := tx.Transaction.IO.Out.ToSlice()
 				for _, msg := range msgs {
 					// test contract only emits ExternalMessageOut
 					if msg.MsgType == tlb.MsgTypeExternalOut {
@@ -104,7 +107,7 @@ func Test_LogPoller(t *testing.T) {
 		t.Run("loading block by block", func(t *testing.T) {
 			t.Parallel()
 			var allLoadedLogCells []*cell.Cell
-			loader := account.NewTxLoader(logger.Test(t), clientProvider, pageSize)
+			loader := txloader.New(logger.Test(t), clientProvider)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
@@ -118,21 +121,22 @@ func Test_LogPoller(t *testing.T) {
 				require.NoError(t, nberr)
 
 				// Create a block range for just this single block
-				iterRange := &types.BlockRange{
+				iterRange := &models.BlockRange{
 					Prev: currentBlock,
 					To:   nextBlock,
 				}
 
-				loadedTxs, berr := loader.LoadTxsForAddresses(
+				txs, gerr := loader.GetTxsForAddress(
 					t.Context(),
 					iterRange,
-					[]*address.Address{emitter.ContractAddress()},
+					emitter.ContractAddress(),
+					pageSize,
 				)
-				require.NoError(t, berr)
+				require.NoError(t, gerr)
 
 				// Extract messages from the loaded transactions
-				for _, tx := range loadedTxs {
-					msgs, _ := tx.Tx.IO.Out.ToSlice()
+				for _, tx := range txs {
+					msgs, _ := tx.Transaction.IO.Out.ToSlice()
 					for _, msg := range msgs {
 						if msg.MsgType == tlb.MsgTypeExternalOut {
 							if extOut := msg.AsExternalOut(); extOut != nil {
@@ -167,49 +171,47 @@ func Test_LogPoller(t *testing.T) {
 		const interval = 1 * time.Second
 		const timeout = 60 * time.Second
 
-		cfg := logpoller.DefaultConfigSet
-		fs := inmemorystore.NewFilterStore()
-
+		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
-			Config:   cfg,
-			Filters:  fs,
-			TxLoader: account.NewTxLoader(logger.Test(t), clientProvider, cfg.PageSize),
-			TxParser: txparser.NewTxParser(logger.Test(t), fs),
-			Store:    inmemorystore.NewLogStore(logger.Test(t)),
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+			TxLoader:    txloader.New(lggr, clientProvider),
+			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
 		lp := logpoller.NewService(
-			logger.Test(t),
+			lggr,
+			"test-chain",
 			clientProvider,
 			opts,
 		)
 
 		// register filters
-		filterA := types.Filter{
+		filterA := models.Filter{
 			Name:     "FilterA",
 			Address:  emitterA.ContractAddress(),
 			MsgType:  tlb.MsgTypeExternalOut,
 			EventSig: counter.TopicCountIncreased, // event topic
 		}
-		faerr := lp.RegisterFilter(t.Context(), filterA)
+		_, faerr := lp.RegisterFilter(t.Context(), filterA)
 		require.NoError(t, faerr)
 
-		filterB := types.Filter{
+		filterB := models.Filter{
 			Name:     "FilterB",
 			Address:  emitterB.ContractAddress(),
 			MsgType:  tlb.MsgTypeExternalOut,
 			EventSig: counter.TopicCountIncreased, // event topic
 		}
-		fberr := lp.RegisterFilter(t.Context(), filterB)
+		_, fberr := lp.RegisterFilter(t.Context(), filterB)
 		require.NoError(t, fberr)
 
 		// register filter for internal message
-		filterC := types.Filter{
+		filterC := models.Filter{
 			Name:     "FilterC",
 			Address:  emitterA.ContractAddress(),
 			MsgType:  tlb.MsgTypeInternal,
 			EventSig: 0x41c92746, // opcode
 		}
-		fcerr := lp.RegisterFilter(t.Context(), filterC)
+		_, fcerr := lp.RegisterFilter(t.Context(), filterC)
 		require.NoError(t, fcerr)
 
 		hasFilterA, aerr := lp.HasFilter(t.Context(), filterA.Name)
@@ -272,39 +274,49 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// get all logs
-			resA, resAErr := logpoller.NewQuery[counter.CountIncreased]().
+			logsA, _, _, resAErr := lp.NewQuery().
 				WithSource(emitterA.ContractAddress()).
 				WithEventSig(counter.TopicCountIncreased).
-				SkipBytes(4). // skip ID field to reach Counter field
-				FilterBytes(4,
-					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
-					query.LTE(binary.BigEndian.AppendUint32(nil, targetCounter)),
+				WithBocBytes(
+					query.SkipBytes(4), // skip ID field to reach Counter field
+					query.MatchBytes(4,
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+					),
 				).
-				Execute(t.Context(), lp.GetStore())
+				Execute(t.Context())
 			require.NoError(t, resAErr) // query should not fail
 
-			resB, resBErr := logpoller.NewQuery[counter.CountIncreased]().
+			resA, resAErr := query.DecodedLogs[counter.CountIncreased](logsA)
+			require.NoError(t, resAErr) // parsing should not fail
+
+			logsB, _, _, resBErr := lp.NewQuery().
 				WithSource(emitterB.ContractAddress()).
 				WithEventSig(counter.TopicCountIncreased).
-				SkipBytes(4). // skip ID field to reach Counter field
-				FilterBytes(4,
-					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
-					query.LTE(binary.BigEndian.AppendUint32(nil, targetCounter)),
+				WithBocBytes(
+					query.SkipBytes(4), // skip ID field to reach Counter field
+					query.MatchBytes(4,
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+					),
 				).
-				Execute(t.Context(), lp.GetStore())
+				Execute(t.Context())
 			require.NoError(t, resBErr) // query should not fail
 
-			t.Logf("emitterA logs count: %d, emitterB logs count: %d", len(resA.Logs), len(resB.Logs))
+			resB, resBErr := query.DecodedLogs[counter.CountIncreased](logsB)
+			require.NoError(t, resBErr) // parsing should not fail
+
+			t.Logf("emitterA logs count: %d, emitterB logs count: %d", len(resA), len(resB))
 
 			// Convert logs to messages for emitterA
 			var indexedLogsA []*cell.Cell
-			for _, log := range resA.Logs {
+			for _, log := range resA {
 				indexedLogsA = append(indexedLogsA, log.Data)
 			}
 
 			// Convert logs to messages for emitterB
 			var indexedLogsB []*cell.Cell
-			for _, log := range resB.Logs {
+			for _, log := range resB {
 				indexedLogsB = append(indexedLogsB, log.Data)
 			}
 
@@ -322,42 +334,47 @@ func Test_LogPoller(t *testing.T) {
 				return false
 			}
 
-			if len(resA.Logs) != targetCounter {
+			if len(resA) != targetCounter {
 				for _, data := range indexedLogsA {
 					var event counter.CountIncreased
 					err = tlb.LoadFromCell(&event, data.BeginParse())
 					require.NoError(t, err)
 					t.Logf("emitterA Event Counter=%d", event.Value)
 				}
-				t.Logf("waiting for logs A... have %d, want %d", len(resA.Logs), targetCounter)
+				t.Logf("waiting for logs A... have %d, want %d", len(resA), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
 			}
 
-			if len(resB.Logs) != targetCounter {
+			if len(resB) != targetCounter {
 				for _, data := range indexedLogsB {
 					var event counter.CountIncreased
 					err = tlb.LoadFromCell(&event, data.BeginParse())
 					require.NoError(t, err)
 					t.Logf("emitterB Event Counter=%d", event.Value)
 				}
-				t.Logf("waiting for logs B... have %d, want %d", len(resB.Logs), targetCounter)
+				t.Logf("waiting for logs B... have %d, want %d", len(resB), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
 			}
 
 			// verify stored internal messages
-			replyLogsRes, rlerr := logpoller.NewQuery[counter.CountIncreasedMsg]().
+			replyLogs, _, _, rlerr := lp.NewQuery().
 				WithSource(emitterA.ContractAddress()).
 				WithEventSig(0x41c92746). //TODO: how can we get opcode directly from binding?
-				SkipBytes(4).             // skip ID field to reach Counter field
-				FilterBytes(4,
-					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
-					query.LTE(binary.BigEndian.AppendUint32(nil, targetCounter)),
+				WithBocBytes(
+					query.SkipBytes(4), // skip ID field to reach Counter field
+					query.MatchBytes(4,
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+					),
 				).
-				Execute(t.Context(), lp.GetStore())
+				Execute(t.Context())
 			require.NoError(t, rlerr) // query should not fail
 
+			replyLogsRes, rlerr := query.DecodedLogs[counter.CountIncreasedMsg](replyLogs)
+			require.NoError(t, rlerr) // parsing should not fail
+
 			var indexedLogsFromInternalMsgs []*cell.Cell
-			for _, log := range replyLogsRes.Logs {
+			for _, log := range replyLogsRes {
 				indexedLogsFromInternalMsgs = append(indexedLogsFromInternalMsgs, log.Data)
 			}
 
@@ -367,8 +384,8 @@ func Test_LogPoller(t *testing.T) {
 				return false
 			}
 
-			if len(replyLogsRes.Logs) != targetCounter {
-				for _, log := range replyLogsRes.Logs {
+			if len(replyLogsRes) != targetCounter {
+				for _, log := range replyLogsRes {
 					t.Logf("emitterA Reply Log: %s", log.String())
 
 					var event counter.CountIncreasedMsg
@@ -377,7 +394,7 @@ func Test_LogPoller(t *testing.T) {
 
 					t.Logf("emitterA Reply Event Counter=%d", event.Value)
 				}
-				t.Logf("waiting for internal messages to be indexed... have %d, want %d", len(replyLogsRes.Logs), targetCounter)
+				t.Logf("waiting for internal messages to be indexed... have %d, want %d", len(replyLogsRes), targetCounter)
 				return false
 			}
 
@@ -387,19 +404,26 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("Stored Block validation", func(t *testing.T) {
 			// get all logs
-			result, qerr := logpoller.NewQuery[counter.CountIncreased]().
+			logs, _, _, qerr := lp.NewQuery().
 				WithSource(emitterA.ContractAddress()).
 				WithEventSig(counter.TopicCountIncreased).
-				SkipBytes(4). // skip ID field to reach Counter field
-				FilterBytes(4,
-					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
-					query.LTE(binary.BigEndian.AppendUint32(nil, targetCounter)),
+				WithBocBytes(
+					query.SkipBytes(4), // skip ID field to reach Counter field
+					query.MatchBytes(4,
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+					),
 				).
-				OrderBy(query.SortByTxLT, query.ASC).
-				Execute(t.Context(), lp.GetStore())
+				WithLimitAndSort(commonquery.LimitAndSort{
+					SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
+				}).
+				Execute(t.Context())
 			require.NoError(t, qerr)
 
-			for _, logEntry := range result.Logs {
+			result, qerr := query.DecodedLogs[counter.CountIncreased](logs)
+			require.NoError(t, qerr)
+
+			for _, logEntry := range result {
 				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				defer cancel()
 
@@ -423,21 +447,26 @@ func Test_LogPoller(t *testing.T) {
 			// TODO: with SQL we might need to implement a more efficient way to query logs.
 			t.Run("Cell Query, events from emitter A", func(t *testing.T) {
 				t.Parallel()
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					SkipBytes(4). // skip ID field to reach Counter field
-					FilterBytes(4,
-						query.GT(binary.BigEndian.AppendUint32(nil, 5)),
-						query.LTE(binary.BigEndian.AppendUint32(nil, 10)),
+					WithBocBytes(
+						query.SkipBytes(4), // skip ID field to reach Counter field
+						query.MatchBytes(4,
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 5), primitives.Gt),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 10), primitives.Lte),
+						),
 					).
-					Execute(t.Context(), lp.GetStore())
+					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Logs, 5, "expected exactly 5 logs for the range 6-10")
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+
+				require.Len(t, result, 5, "expected exactly 5 logs for the range 6-10")
 
 				// Parse the logs manually since FilterBytes doesn't parse events
-				for _, log := range result.Logs {
+				for _, log := range result {
 					var event counter.CountIncreased
 					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, lerr)
@@ -456,18 +485,23 @@ func Test_LogPoller(t *testing.T) {
 				senderBytes, sberr := testSlice.LoadSlice(267) // Load exactly 267 bits
 				require.NoError(t, sberr)
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					SkipBytes(8). // skip to sender address field
-					FilterBytes(uint(len(senderBytes)), query.EQ(senderBytes)).
-					Execute(t.Context(), lp.GetStore())
+					WithBocBytes(
+						query.SkipBytes(8), // skip to sender address field
+						query.MatchBytes(uint64(len(senderBytes)), query.WithCondition(senderBytes, primitives.Eq)),
+					).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Logs, targetCounter)
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+
+				require.Len(t, result, targetCounter)
 
 				// Parse events from logs to verify data
-				for _, log := range result.Logs {
+				for _, log := range result {
 					var event counter.CountIncreased
 					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, lerr)
@@ -479,21 +513,26 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Log Poller Query With CellFilter, events from emitter B", func(t *testing.T) {
 				t.Parallel()
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					SkipBytes(4). // skip ID field to reach Counter field
-					FilterBytes(4,
-						query.GTE(binary.BigEndian.AppendUint32(nil, 1)),
-						query.LTE(binary.BigEndian.AppendUint32(nil, 3)),
+					WithBocBytes(
+						query.SkipBytes(4), // skip ID field to reach Counter field
+						query.MatchBytes(4,
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 1), primitives.Gte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 3), primitives.Lte),
+						),
 					).
-					Execute(t.Context(), lp.GetStore())
+					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Logs, 3, "expected exactly 3 logs for the range 1-3")
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+
+				require.Len(t, result, 3, "expected exactly 3 logs for the range 1-3")
 
 				// Parse events from logs to verify data
-				for _, log := range result.Logs {
+				for _, log := range result {
 					var event counter.CountIncreased
 					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, lerr)
@@ -506,17 +545,22 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller Query With CellFilter, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				// the CounterIncreased event data layout is [ID (4 bytes), Counter (4 bytes)].
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					FilterBytes(4, query.EQ(binary.BigEndian.AppendUint32(nil, emitterB.GetID()))). // compare ID at offset 0
-					Execute(t.Context(), lp.GetStore())
+					WithBocBytes(
+						query.MatchBytes(4, query.WithCondition(binary.BigEndian.AppendUint32(nil, emitterB.GetID()), primitives.Eq)), // compare ID at offset 0
+					).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+
+				require.Len(t, result, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
 
 				seen := make(map[uint32]bool, targetCounter)
-				for _, log := range result.Logs {
+				for _, log := range result {
 					var event counter.CountIncreased
 					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
@@ -540,16 +584,19 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller query with parser pattern, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					Execute(t.Context(), lp.GetStore())
+					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+
+				require.Len(t, result, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
 
 				seen := make(map[uint32]bool, targetCounter)
-				for _, log := range result.Logs {
+				for _, log := range result {
 					require.GreaterOrEqual(t, log.TypedData.Value, uint32(1))
 					require.LessOrEqual(t, log.TypedData.Value, uint32(targetCounter))
 
@@ -569,23 +616,23 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller query with filter, events with odd values from emitter B", func(t *testing.T) {
 				t.Parallel()
 
-				// Filter for events where the counter value is odd
-				filter := func(event counter.CountIncreased) bool {
-					return event.Value%2 == 1 // odd numbers
-				}
-
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					FilterTyped(filter).
-					Execute(t.Context(), lp.GetStore())
+					Execute(t.Context())
+				require.NoError(t, queryErr)
+
+				// Filter for events where the counter value is odd
+				result, queryErr := query.DecodedLogsWithFilter(logs, func(event counter.CountIncreased) bool {
+					return event.Value%2 == 1 // odd numbers
+				})
 				require.NoError(t, queryErr)
 
 				expectedOddCount := 5 // From 1-10, odd numbers are: 1, 3, 5, 7, 9
-				require.Len(t, result.Logs, expectedOddCount, "expected exactly %d odd-valued logs", expectedOddCount)
+				require.Len(t, result, expectedOddCount, "expected exactly %d odd-valued logs", expectedOddCount)
 
 				// Verify all returned logs have odd values
-				for _, log := range result.Logs {
+				for _, log := range result {
 					require.Equal(t, uint32(1), log.TypedData.Value%2, "all returned logs should have odd values, got %d", log.TypedData.Value)
 					require.GreaterOrEqual(t, log.TypedData.Value, uint32(1))
 					require.LessOrEqual(t, log.TypedData.Value, uint32(targetCounter))
@@ -596,20 +643,20 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 				from, to := (1), (10)
 
-				filter := func(event counter.CountIncreased) bool {
-					return event.Value >= uint32(from) && event.Value <= uint32(to) //nolint:gosec // test code
-				}
-
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					FilterTyped(filter).
-					Execute(t.Context(), lp.GetStore())
+					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Logs, to-from+1, "expected exactly 10 logs for the range 1-10")
+				result, queryErr := query.DecodedLogsWithFilter(logs, func(event counter.CountIncreased) bool {
+					return event.Value >= uint32(from) && event.Value <= uint32(to) //nolint:gosec // test code
+				})
+				require.NoError(t, queryErr)
+
+				require.Len(t, result, to-from+1, "expected exactly 10 logs for the range 1-10")
 				seen := make(map[uint32]bool, to-from+1)
-				for _, log := range result.Logs {
+				for _, log := range result {
 					require.GreaterOrEqual(t, log.TypedData.Value, uint32(from)) //nolint:gosec // test code
 					require.LessOrEqual(t, log.TypedData.Value, uint32(to))      //nolint:gosec // test code
 
@@ -631,17 +678,22 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Sort by TxLT ascending", func(t *testing.T) {
 				t.Parallel()
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					OrderBy(query.SortByTxLT, query.ASC).
-					Execute(t.Context(), lp.GetStore())
+					WithLimitAndSort(commonquery.LimitAndSort{
+						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
+					}).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
-				require.Len(t, result.Logs, targetCounter)
+
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+				require.Len(t, result, targetCounter)
 
 				// verify ascending order by TxLT
-				for i := 1; i < len(result.Logs); i++ {
-					require.LessOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
+				for i := 1; i < len(result); i++ {
+					require.LessOrEqual(t, result[i-1].TxLT, result[i].TxLT,
 						"logs should be sorted by TxLT in ascending order at index %d", i)
 				}
 			})
@@ -649,17 +701,22 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Sort by TxLT descending", func(t *testing.T) {
 				t.Parallel()
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					OrderBy(query.SortByTxLT, query.DESC).
-					Execute(t.Context(), lp.GetStore())
+					WithLimitAndSort(commonquery.LimitAndSort{
+						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
+					}).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
-				require.Len(t, result.Logs, targetCounter)
+
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+				require.Len(t, result, targetCounter)
 
 				// Verify descending order by TxLT
-				for i := 1; i < len(result.Logs); i++ {
-					require.GreaterOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
+				for i := 1; i < len(result); i++ {
+					require.GreaterOrEqual(t, result[i-1].TxLT, result[i].TxLT,
 						"logs should be sorted by TxLT in descending order at index %d", i)
 				}
 			})
@@ -667,90 +724,20 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Pagination with limit", func(t *testing.T) {
 				t.Parallel()
 				const pageSize = 7
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, hasMore, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					OrderBy(query.SortByTxLT, query.ASC).
-					Limit(7).
-					Execute(t.Context(), lp.GetStore())
+					WithLimitAndSort(commonquery.LimitAndSort{
+						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
+						Limit:  commonquery.CountLimit(pageSize),
+					}).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
-				require.Len(t, result.Logs, pageSize)
-				require.True(t, result.HasMore, "should have more results")
-				require.Equal(t, targetCounter, result.Total)
-			})
 
-			t.Run("Pagination with offset", func(t *testing.T) {
-				t.Parallel()
-				const pageSize = 2
-				const offset = 8
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
-					WithSource(emitterA.ContractAddress()).
-					WithEventSig(counter.TopicCountIncreased).
-					OrderBy(query.SortByTxLT, query.ASC).
-					Offset(offset).
-					Limit(pageSize).
-					Execute(t.Context(), lp.GetStore())
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
 				require.NoError(t, queryErr)
-				require.Len(t, result.Logs, pageSize)
-
-				firstPageResult, frerr := logpoller.NewQuery[counter.CountIncreased]().
-					WithSource(emitterA.ContractAddress()).
-					WithEventSig(counter.TopicCountIncreased).
-					OrderBy(query.SortByTxLT, query.ASC).
-					Limit(offset+pageSize). // get first page for comparison
-					Execute(t.Context(), lp.GetStore())
-				require.NoError(t, frerr)
-
-				// Verify offset page starts where expected
-				for i := 0; i < pageSize; i++ {
-					require.Equal(t, firstPageResult.Logs[offset+i].TxLT, result.Logs[i].TxLT,
-						"offset page should match the correct slice of first page at index %d", i)
-				}
-			})
-
-			t.Run("Complete pagination test", func(t *testing.T) {
-				t.Parallel()
-
-				const pageSize = 6
-				var allLogs []types.TypedLog[counter.CountIncreased]
-				var pageCount int
-
-				for offset := 0; ; offset += pageSize {
-					result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
-						WithSource(emitterA.ContractAddress()).
-						WithEventSig(counter.TopicCountIncreased).
-						OrderBy(query.SortByTxLT, query.ASC).
-						Offset(offset).
-						Limit(pageSize).
-						Execute(t.Context(), lp.GetStore())
-					require.NoError(t, queryErr)
-
-					if len(result.Logs) == 0 {
-						break
-					}
-
-					allLogs = append(allLogs, result.Logs...)
-					pageCount++
-					if !result.HasMore {
-						break
-					}
-				}
-
-				// Verify we got all logs and no duplicates
-				require.Len(t, allLogs, targetCounter, "should have collected all logs through pagination")
-
-				// Verify no duplicates by checking TxLT uniqueness
-				seenLTs := make(map[uint64]bool)
-				for _, log := range allLogs {
-					require.False(t, seenLTs[log.TxLT], "found duplicate TxLT: %d", log.TxLT)
-					seenLTs[log.TxLT] = true
-				}
-
-				// Verify still sorted after combining pages
-				for i := 1; i < len(allLogs); i++ {
-					require.LessOrEqual(t, allLogs[i-1].TxLT, allLogs[i].TxLT,
-						"combined pages should maintain sort order at index %d", i)
-				}
+				require.Len(t, result, pageSize)
+				require.True(t, hasMore, "should have more results")
 			})
 
 			t.Run("Sorting + filtering + pagination", func(t *testing.T) {
@@ -759,23 +746,29 @@ func Test_LogPoller(t *testing.T) {
 				count := to - from + 1
 
 				// Filter for counters 4-8, then sort and paginate
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, _, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					SkipBytes(4). // skip ID field to reach Counter field
-					FilterBytes(4,
-						query.GTE(binary.BigEndian.AppendUint32(nil, uint32(from))),
-						query.LTE(binary.BigEndian.AppendUint32(nil, uint32(to))),
+					WithBocBytes(
+						query.SkipBytes(4), // skip ID field to reach Counter field
+						query.MatchBytes(4,
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, uint32(from)), primitives.Gte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, uint32(to)), primitives.Lte),
+						),
 					).
-					OrderBy(query.SortByTxLT, query.DESC). // Newest first
-					Offset(0).
-					Limit(count).
-					Execute(t.Context(), lp.GetStore())
+					WithLimitAndSort(commonquery.LimitAndSort{
+						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
+						Limit:  commonquery.CountLimit(uint64(count)), //nolint:gosec // test code with small values
+					}).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
-				require.Len(t, result.Logs, count)
+
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
+				require.NoError(t, queryErr)
+				require.Len(t, result, count)
 
 				// Verify the filtering worked
-				for _, log := range result.Logs {
+				for _, log := range result {
 					var event counter.CountIncreased
 					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
@@ -785,87 +778,150 @@ func Test_LogPoller(t *testing.T) {
 				}
 
 				// Verify descending sort order
-				for i := 1; i < len(result.Logs); i++ {
-					require.GreaterOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
+				for i := 1; i < len(result); i++ {
+					require.GreaterOrEqual(t, result[i-1].TxLT, result[i].TxLT,
 						"filtered results should be sorted in descending TxLT order at index %d", i)
-				}
-			})
-
-			t.Run("Cross-emitter pagination test", func(t *testing.T) {
-				t.Parallel()
-
-				// Test pagination with emitterB events
-				const pageSize = 4
-				var emitterBPages [][]types.TypedLog[counter.CountIncreased]
-
-				for offset := 0; offset < targetCounter; offset += pageSize {
-					result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
-						WithSource(emitterB.ContractAddress()).
-						WithEventSig(counter.TopicCountIncreased).
-						OrderBy(query.SortByTxLT, query.ASC).
-						Offset(offset).
-						Limit(pageSize).
-						Execute(t.Context(), lp.GetStore())
-					require.NoError(t, queryErr)
-
-					if len(result.Logs) > 0 {
-						emitterBPages = append(emitterBPages, result.Logs)
-					}
-				}
-
-				// Flatten all pages
-				var allEmitterBLogs []types.TypedLog[counter.CountIncreased]
-				for _, page := range emitterBPages {
-					allEmitterBLogs = append(allEmitterBLogs, page...)
-				}
-
-				require.Len(t, allEmitterBLogs, targetCounter, "should have all emitterB logs")
-
-				// Verify each log belongs to emitterB by checking the ID in cell data
-				for _, log := range allEmitterBLogs {
-					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
-					require.NoError(t, err)
-
-					require.Equal(t, emitterB.GetID(), event.ID, "log should belong to emitterB")
 				}
 			})
 
 			t.Run("Edge case: empty results pagination", func(t *testing.T) {
 				t.Parallel()
 				// filter for impossible range
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				logs, hasMore, _, queryErr := lp.NewQuery().
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
-					SkipBytes(4).                                                      // skip ID field to reach Counter field
-					FilterBytes(4, query.GT(binary.BigEndian.AppendUint32(nil, 100))). // No events should match
-					OrderBy(query.SortByTxLT, query.ASC).
-					Offset(0).
-					Limit(10).
-					Execute(t.Context(), lp.GetStore())
+					WithBocBytes(
+						query.SkipBytes(4), // skip ID field to reach Counter field
+						query.MatchBytes(4, query.WithCondition(binary.BigEndian.AppendUint32(nil, 100), primitives.Gt)), // No events should match
+					).
+					WithLimitAndSort(commonquery.LimitAndSort{
+						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
+						Limit:  commonquery.CountLimit(10),
+					}).
+					Execute(t.Context())
 				require.NoError(t, queryErr)
-				require.Empty(t, result.Logs)
-				require.False(t, result.HasMore)
-				require.Equal(t, 0, result.Total)
-			})
 
-			t.Run("Edge case: offset beyond total", func(t *testing.T) {
-				t.Parallel()
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
-					WithSource(emitterA.ContractAddress()).
-					WithEventSig(counter.TopicCountIncreased).
-					OrderBy(query.SortByTxLT, query.ASC).
-					Offset(targetCounter+10). // Way beyond available data
-					Limit(5).
-					Execute(t.Context(), lp.GetStore())
+				result, queryErr := query.DecodedLogs[counter.CountIncreased](logs)
 				require.NoError(t, queryErr)
-				require.Empty(t, result.Logs)
-				require.False(t, result.HasMore)
+				require.Empty(t, result)
+				require.False(t, hasMore)
 			})
 		})
 	})
 
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
-		t.Skip("TODO: Implement")
+		t.Parallel()
+
+		// 1. Setup: create new wallet and emitter
+		sender := test_utils.CreateRandomHighloadWallet(t, client)
+		test_utils.FundWallets(t, client, []*address.Address{sender.Address()},
+			[]tlb.Coins{tlb.MustFromTON("1000")})
+
+		emitter, err := helper.NewTestEventSource(client, sender, "replayEmitter",
+			rand.Uint32(), logger.Test(t))
+		require.NoError(t, err)
+
+		// 2. Emit events before logpoller starts
+		const preReplayEvents = 5
+		for i := 1; i <= preReplayEvents; i++ {
+			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
+			require.NoError(t, err)
+		}
+
+		// Wait for transactions to be confirmed by checking counter value
+		require.Eventually(t, func() bool {
+			counterValue, cerr := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+			if cerr != nil {
+				t.Logf("failed to get counter value: %v", err)
+				return false
+			}
+			return counterValue == preReplayEvents
+		}, 30*time.Second, 1*time.Second, "counter should reach expected value")
+
+		counterValue, _ := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+		require.Equal(t, preReplayEvents, int(counterValue))
+
+		// 3. Start LogPoller (with in-memory stores)
+		lggr := logger.Test(t)
+		opts := &logpoller.ServiceOptions{
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+			TxLoader:    txloader.New(lggr, clientProvider),
+			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
+		}
+		lp := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+
+		// 4. Register filter (without replay)
+		filter := models.Filter{
+			Name:     "ReplayFilter",
+			Address:  emitter.ContractAddress(),
+			MsgType:  tlb.MsgTypeExternalOut,
+			EventSig: counter.TopicCountIncreased,
+		}
+		_, err = lp.RegisterFilter(t.Context(), filter)
+		require.NoError(t, err)
+
+		require.NoError(t, lp.Start(t.Context()))
+		defer func() { require.NoError(t, lp.Close()) }()
+
+		// 5. Verify no logs before replay
+		logs, _, _, _ := lp.NewQuery().
+			WithSource(emitter.ContractAddress()).
+			WithEventSig(counter.TopicCountIncreased).
+			Execute(t.Context())
+		require.Empty(t, logs, "should have no logs before replay")
+
+		// 6. Request replay
+		currentBlock, err := client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err)
+		fromBlock := currentBlock.SeqNo - 100 // sufficiently old block
+
+		err = lp.Replay(t.Context(), fromBlock)
+		require.NoError(t, err)
+
+		// 7. Verify replay status
+		status := lp.ReplayStatus()
+		require.Contains(t, []models.ReplayStatus{
+			models.ReplayStatusRequested,
+			models.ReplayStatusPending,
+		}, status, "replay should be requested or pending")
+
+		// 8. Wait for replay completion and verify logs
+		require.Eventually(t, func() bool {
+			status := lp.ReplayStatus()
+			if status != models.ReplayStatusComplete {
+				t.Logf("waiting for replay to complete, current status: %v", status)
+				return false
+			}
+
+			logs, _, _, qerr := lp.NewQuery().
+				WithSource(emitter.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
+				Execute(t.Context())
+			if qerr != nil {
+				t.Logf("query error: %v", err)
+				return false
+			}
+
+			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
+			t.Logf("found %d logs after replay", len(result))
+			return len(result) == preReplayEvents
+		}, 60*time.Second, 2*time.Second, "replay should complete and index all events")
+
+		// 9. Emit additional events and verify normal polling works
+		const postReplayEvents = 3
+		for i := 1; i <= postReplayEvents; i++ {
+			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
+			require.NoError(t, err)
+		}
+
+		require.Eventually(t, func() bool {
+			logs, _, _, _ := lp.NewQuery().
+				WithSource(emitter.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
+				Execute(t.Context())
+			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
+			return len(result) == preReplayEvents+postReplayEvents
+		}, 30*time.Second, 2*time.Second, "should index new events after replay")
 	})
 }

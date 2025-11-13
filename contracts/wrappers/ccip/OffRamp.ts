@@ -241,7 +241,12 @@ export const builder = {
 export abstract class Params {}
 export class OffRamp
   extends OCR3Base
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+  implements
+    upgradeable.Interface,
+    withdrawable.Interface,
+    typeAndVersion.Interface,
+    ownable2step.ContractClient,
+    Contract
 {
   private ownable: ownable2step.ContractClient
   constructor(
