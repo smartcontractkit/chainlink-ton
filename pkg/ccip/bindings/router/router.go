@@ -114,6 +114,7 @@ type RouteMessage struct {
 	Message  offramp.Any2TVMMessage `tlb:"^"`
 	ExecID   big.Int                `tlb:"## 192"`
 	Receiver *address.Address       `tlb:"addr"`
+	GasLimit tlb.Coins              `tlb:"."`
 }
 
 // crc32("Router_CCIPReceiveConfirm")
