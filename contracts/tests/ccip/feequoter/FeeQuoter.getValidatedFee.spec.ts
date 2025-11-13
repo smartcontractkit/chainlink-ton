@@ -509,7 +509,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           setup.acc.owner.getSender(),
           {
             value: toNano('1'),
-            msg: { updates: priceUpdates , sendExcessesTo: setup.acc.deployer.address},
+            msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
           },
         )
         expect(updateResult.transactions).toHaveTransaction({

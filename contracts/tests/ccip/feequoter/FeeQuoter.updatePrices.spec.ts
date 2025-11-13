@@ -38,7 +38,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.deployer.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address}
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
     expect(updateResult.transactions).toHaveTransaction({
@@ -77,7 +77,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.owner.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates , sendExcessesTo: setup.acc.deployer.address},
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
     expect(ownerUpdateResult.transactions).toHaveTransaction({
@@ -109,7 +109,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.deployer.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.externalCaller.address}
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.externalCaller.address },
       },
     )
     expect(updateResult.transactions).toHaveTransaction({
@@ -126,7 +126,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.deployer.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates, sendExcessesTo: null}
+        msg: { updates: priceUpdates, sendExcessesTo: null },
       },
     )
     expect(updateResult2.transactions).toHaveTransaction({
@@ -138,7 +138,7 @@ describe('FeeQuoter UpdatePrices', () => {
       to: setup.acc.deployer.address,
       success: true,
     })
- })
+  })
 
   it('should update only token price', async () => {
     const tokenPriceUpdate: feeQuoter.TokenPriceUpdate = {
@@ -154,7 +154,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Send updatePrices transaction
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates , sendExcessesTo: setup.acc.deployer.address},
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({
@@ -184,7 +184,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Send updatePrices transaction
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates , sendExcessesTo: setup.acc.deployer.address},
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({
@@ -233,7 +233,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Send updatePrices transaction
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates , sendExcessesTo: setup.acc.deployer.address},
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({
@@ -273,7 +273,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.priceUpdaterOne.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates , sendExcessesTo: setup.acc.deployer.address},
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
 
