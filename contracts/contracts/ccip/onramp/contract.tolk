@@ -185,7 +185,7 @@ fun send(payload: OnRamp_Send, sender: address) {
         bounce: true,
         value: 0,
         dest: st.executor.autoDeployAddress(st.executor.currentID),
-        body: Deployable_InitializeAndExecute {
+        body: Deployable_InitializeAndSend {
             stateInit: {
                 code: st.executor.executorCode,
                 data:  CCIPSendExecutor_InitialData {

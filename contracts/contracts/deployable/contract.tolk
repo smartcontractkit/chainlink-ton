@@ -9,7 +9,7 @@ fun onInternalMessage(in: InMessage) {
             contract.setCodePostponed(inMsg.stateInit.code);
             contract.setData(inMsg.stateInit.data);
         }
-        Deployable_InitializeAndExecute => {
+        Deployable_InitializeAndSend => {
             contract.setCodePostponed(inMsg.stateInit.code);
             contract.setData(inMsg.stateInit.data);
             val selfMsg = createMessage({

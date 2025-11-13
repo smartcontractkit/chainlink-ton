@@ -13,7 +13,7 @@ fun Deployable<T>.store(self) {
 
 type Deployable_InMessage =
     | Deployable_Initialize
-    | Deployable_InitializeAndExecute
+    | Deployable_InitializeAndSend
     ;
 
 // Message for Initializing the Deployable contract. It sets the code and data of the contract.
@@ -22,12 +22,12 @@ struct (0xba466447) Deployable_Initialize {
 }
 
 // This message initializes the Deployable contract and immediately sends a message to itself to execute some logic. It allows to carry the message value.
-struct (0xe95e1156) Deployable_InitializeAndExecute {
+struct (0xe95e1156) Deployable_InitializeAndSend {
     stateInit: ContractState;
-    selfMessage: SelfMessage;
+    selfMessage: Deployable_Message;
 }
 
-struct SelfMessage {
+struct Deployable_Message {
     value: coins;
     body: cell;
 }
