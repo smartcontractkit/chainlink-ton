@@ -11,7 +11,6 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
-import { Upgrade } from '../versioning/Upgradeable'
 
 export enum Errors {
   OnlyCallableByOwner = 132,
