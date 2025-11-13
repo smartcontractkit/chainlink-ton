@@ -4,31 +4,34 @@ import "storage"
 import "errors"
 import "../fee_quoter/messages"
 import "../onramp/messages"
-import "../onramp/types"
-import "../common/messages"
 import "../../lib/utils"
 import "../onramp/errors"
 import "../router/messages"
 
-const CONTRACT_VERSION = "0.0.6";
+const CONTRACT_VERSION = "1.6.0";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
     match (msg) {
+        // Sender must be this contract (called when initializing the contract)
         CCIPSendExecutor_Execute => {
             var this = init(msg.onrampSend, msg.config.load());
             assert (in.senderAddress == contract.getAddress()) throw CCIPSendExecutor_Error.Unauthorized;
             assert (in.valueCoins >= SendExecutor_Costs.Execute()) throw CCIPSendExecutor_Error.InsufficientFee;
             this.onExecute();
         }
+        // Sender must be the Fee Quoter
         FeeQuoter_MessageValidated<RemainingBitsAndRefs> => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.onMessageValidated(msg, in.senderAddress);
+            assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            this.onMessageValidated(msg);
         }
+        // Sender must be the Fee Quoter
         FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.onMessageValidationFailed(msg, in.senderAddress);
+            assert(this.addresses.load().feeQuoter == in.senderAddress, CCIPSendExecutor_Error.Unauthorized);
+            this.onMessageValidationFailed(msg);
         }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
@@ -41,7 +44,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, in.senderAddress);
+            this.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
         }
     }
 }
@@ -85,13 +88,9 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     getValidatedFeeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>, sender: address) {
-    // notification must come from fee quoter
-    val addresses = lazy self.addresses.load();
-    assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
-
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
     if (msg.fee + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
-        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int, sender);
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
         return;
     }
     
@@ -113,14 +112,11 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>, sender: address) {
-    // notification must come from fee quoter
-    val addresses = lazy self.addresses.load();
-    assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
-    self.exitWithError(msg.error as uint256, sender);
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>) {
+    self.exitWithError(msg.error as uint256);
 }
 
-fun CCIPSendExecutor<T>.exitWithError(self, error: uint256, sender: address) {
+fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
     val sendMsg = createMessage({
         bounce: true,
         value: 0,

@@ -6,19 +6,31 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "1.6.0";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);
     match (msg) {
+        // Sender must be the owner (OffRamp)
         ReceiveExecutor_InitExecute => {
-            _initExecute(msg, in.senderAddress);
+            var st = ReceiveExecutor_Storage.load();
+            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            onInitExecute(mutate st, msg);
+            st.store();
         }
+        // Sender must be the owner (OffRamp)
         ReceiveExecutor_Confirm => {
-            _ccipReceiveConfirm(msg, in.senderAddress);
+            var st = ReceiveExecutor_Storage.load();
+            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            onCCIPReceiveConfirm(mutate st, msg);
+            st.store();
         }
+        // Sender must be the owner (OffRamp)
         ReceiveExecutor_Bounced => {
-            _ccipReceiveBounced(msg, in.senderAddress);
+            var st = ReceiveExecutor_Storage.load();
+            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            onCCIPReceiveBounced(mutate st, msg);
+            st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -27,17 +39,13 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
-    var st = ReceiveExecutor_Storage.load();
-
-    assert(sender == st.owner, Error.Unauthorized);
+fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) {
     st.lastExecutionTimestamp = blockchain.now();
-    _execute(st, msg.gasOverride);
+    execute(mutate st, msg.gasOverride);
 }
 
-fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
+fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
     st.state = ReceiveExecutor_MessageState.Execute;
-    st.store();
     createMessage(
         {
             bounce: true,
@@ -53,23 +61,19 @@ fun _execute(st: ReceiveExecutor_Storage, gasOverride: coins?) {
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract
-fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
-    var st = ReceiveExecutor_Storage.load();
-
+fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_Confirm) {
     assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
-    assert(sender == st.owner, Error.Unauthorized);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 
     assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.Success;
-    st.store();
 
     val messageHeader = ccipMessage.header;
     val notifySuccess = createMessage({
         bounce: true,
-        value: ton("0"),
+        value: 0,
         dest: st.owner,
         body: OffRamp_NotifySuccess {
             header: messageHeader,
@@ -80,10 +84,7 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
-    var st: ReceiveExecutor_Storage = ReceiveExecutor_Storage.load();
-
-    assert(sender == st.owner, Error.Unauthorized);
+fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_Bounced){
     assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
@@ -91,7 +92,6 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
     assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.ExecuteFailed;
-    st.store();
 
     val messageHeader = ccipMessage.header;
     val notifySuccess = createMessage({
@@ -105,7 +105,6 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
 }
 
 get fun typeAndVersion(): (slice, slice) {

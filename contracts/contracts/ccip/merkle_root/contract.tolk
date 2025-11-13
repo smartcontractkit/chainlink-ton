@@ -6,24 +6,31 @@ import "../offramp/types"
 import "../../lib/utils"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
+import "../router/storage"
 import "../../lib/funding/withdrawable"
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "0.0.9";
+const CONTRACT_VERSION = "1.6.0";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
     match (msg) {
-        // Sender must be OffRamp
+        // Sender must be the owner (OffRamp)
         MerkleRoot_Validate => {
-            // If we receive this message from the OffRamp then the merkle proof has already been validated
-            // and we know the message is part of the Commit Report. 
-            _initExecute(msg, in.senderAddress);
+            var st = lazy MerkleRoot_Storage.load();
+            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            onInitExecute(mutate st, msg);
+            st.store();
+
         }
+        // Sender must be the owner (OffRamp)
         MerkleRoot_MarkState => {
-            _markState(msg, in.senderAddress);
+            var st = lazy MerkleRoot_Storage.load();
+            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            onMarkState(mutate st, msg);
+            st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -32,12 +39,12 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun _markState(msg: MerkleRoot_MarkState, sender: address) {
-    var st = MerkleRoot_Storage.load();
-
-    // only offramp owned message is allowed
-    assert(sender == st.owner, MerkleRoot_Error.NotOwner);
-
+/*
+Marks the execution state of a message in a MerkleRoot contract.
+Ensures valid state transitions and finalizes the root once all messages are
+delivered by sending remaining balance back to the OffRamp owner.
+*/
+fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
     assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
@@ -46,13 +53,12 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
     if (msg.state == ExecutionState.Success) {
         st.deliveredMessageCount += 1;
     }
-    st.store();
-    
+
     if (st.deliveredMessageCount == st.expectedMessages()) {
         // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract
         val freezeRoot = createMessage({
             bounce: true,
-            value: ton("0"),
+            value: 0,
             dest: st.owner,
             body: createEmptyCell()
         });
@@ -60,12 +66,14 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
     }
 }
 
-// Responds to the OffRamp to validate existance of the message in the Execute report.
-// This triggers OffRamp deployment of the ReceiveExecutor contract that handles execution state for the message
-fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
-    var st = MerkleRoot_Storage.load();
+/*
+If we receive this message from the OffRamp then the merkle proof has already been validated
+and we know the message is part of the Commit Report.
 
-    assert(sender == st.owner, MerkleRoot_Error.NotOwner);
+Responds to the OffRamp to validate existance of the message in the Execute report.
+This triggers OffRamp deployment of the ReceiveExecutor contract that handles execution state for the message
+*/
+fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
     assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
@@ -83,7 +91,6 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     }
 
     st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
-    st.store();
 
     val executeValidated = createMessage({
         bounce: true,
