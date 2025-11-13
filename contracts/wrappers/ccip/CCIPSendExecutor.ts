@@ -20,7 +20,7 @@ import { compile } from '@ton/blueprint'
 import * as or from './OnRamp'
 import * as rt from './Router'
 
-export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '0.0.6'
+export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '1.6.0'
 
 export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
 export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436

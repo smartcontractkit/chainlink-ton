@@ -70,7 +70,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
 If we receive this message from the OffRamp then the merkle proof has already been validated
 and we know the message is part of the Commit Report.
 
-Responds to the OffRamp to validate existance of the message in the Execute report.
+Responds to the OffRamp to validate existence of the message in the Execute report.
 This triggers OffRamp deployment of the ReceiveExecutor contract that handles execution state for the message
 */
 fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
