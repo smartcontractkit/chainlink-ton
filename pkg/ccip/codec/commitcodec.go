@@ -30,7 +30,6 @@ func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
 func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
 	tpuSlice := make([]ocr.TokenPriceUpdate, len(report.PriceUpdates.TokenPriceUpdates))
 	for i, tpu := range report.PriceUpdates.TokenPriceUpdates {
-		// TODO: use address codec here?
 		addr, err := address.ParseAddr(string(tpu.TokenID))
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse token address %s: %w", tpu.TokenID, err)

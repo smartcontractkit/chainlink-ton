@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 
@@ -41,8 +42,6 @@ const (
 	CalldataGasPerByteHigh      = 40
 	CalldataGasPerByteThreshold = 3000
 )
-
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
 	// TODO Remove in favor of the canonical model
@@ -157,7 +156,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
 					"TON": {
-						Address:                    TonTokenAddr,
+						Address:                    tvm.TonTokenAddr,
 						PremiumMultiplierWeiPerEth: 1,
 					},
 				},
@@ -225,7 +224,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): tonTokenPrice,
+				tvm.TonTokenAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
@@ -253,7 +252,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: to,
 			GasPrice: gasPrices[to],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): tonTokenPrice,
+				tvm.TonTokenAddr.String(): tonTokenPrice,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:

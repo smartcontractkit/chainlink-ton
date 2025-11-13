@@ -238,7 +238,6 @@ type TimestampedPrice struct {
 	Timestamp uint32   `tlb:"## 32"`
 }
 
-// TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
 func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 	value, err := result.Int(0)
 	if err != nil {

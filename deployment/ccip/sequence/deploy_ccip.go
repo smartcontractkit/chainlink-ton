@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/Masterminds/semver/v3"
@@ -47,9 +48,6 @@ type DeployCCIPSeqOutput struct {
 	TimelockAddress  *TONContractAddress
 	Transactions     [][]byte
 }
-
-// We use 0x1 as an internal value for native token. Can't be 0x0 because the CCIP plugin throws on zero addresses
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var DeployCCIPSequence = operations.NewSequence(
 	"ton-deploy-ccip-seq",
@@ -96,7 +94,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		WrappedNative: TonTokenAddr,
+		WrappedNative: tvm.TonTokenAddr,
 		RMNRemote: router.RMNRemote{
 			Admin: common.Ownable2Step{
 				Owner:        deps.TonChain.WalletAddress,

@@ -2,6 +2,7 @@ package chainaccessor
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -168,8 +169,7 @@ func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
 		return errors.New("empty merkle root")
 	}
 	if len(merkleRoot.OnRampAddress) == 0 {
-		// TODO: better logging for address(currently it's raw byte)
-		return fmt.Errorf("invalid onramp address: %x", merkleRoot.OnRampAddress)
+		return fmt.Errorf("invalid onramp address: %x", hex.EncodeToString(merkleRoot.OnRampAddress))
 	}
 
 	return nil

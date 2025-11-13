@@ -12,6 +12,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
 
@@ -97,7 +98,7 @@ func TestAddLanes(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			tonops.TonTokenAddr.String(): big.NewInt(99),
+			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,

@@ -147,14 +147,10 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 			DestChainConfig: onRampDestChainConfig,
 		}
 
-		// TODO use a non-empty address for e2e test before we resolve the chainlink-ccip chain accessor event validation check
-		// TODO move the cs_test_helper.go fee token address somewhere else so we can import here rather than redeclar
-		var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 		// Router
 		config.Router = ccipocr3.RouterConfig{
-			// TODO: confirm address.NewAddressNone == zero address if fully written out (0:00000..)
 			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
-			WrappedNativeAddress: addrToBytes(TonTokenAddr),
+			WrappedNativeAddress: addrToBytes(tvm.TonTokenAddr),
 		}
 
 		// sourceChainConfigs represents sources on the *destination chain* contract, since this is the source chain
