@@ -82,5 +82,5 @@ fun FeeQuoter_Costs.GetValidatedFee(): int {
 
 fun FeeQuoter_Costs.updatePrices() {
     // when we support token transfers the message value amount should depend on the quantity of supported tokens
-    return ton("0.003");
+    return ton("0.01");
 }
