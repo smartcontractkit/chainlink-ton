@@ -109,22 +109,6 @@ const RECEIVE_EXECUTOR_ID_SIZE = 192;
 type ReceiveExecutorId = uint192;
 type MerkleRootId = uint256;
 
-fun ReceiveExecutor_DeployableData(owner: address, id: ReceiveExecutorId): cell {
-    return Deployable<Namespaced<ReceiveExecutorId>>.new(
-        DeployableNamespace_ReceiveExecutor,
-        owner,
-        id,
-    );
-}
-
-fun MerkleRoot_DeployableData(owner: address, id: MerkleRootId): cell {
-    return Deployable<Namespaced<MerkleRootId>>.new(
-        DeployableNamespace_MerkleRoot,
-        owner,
-        id,
-    );
-}
-
 fun ReceiveExecutorId.getSourceChainSelector(self): uint64 {
     var cs = beginCell().storeUint(self, RECEIVE_EXECUTOR_ID_SIZE).endCell().beginParse();
     return cs.loadUint(64);

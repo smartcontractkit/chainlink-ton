@@ -20,6 +20,7 @@ import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../router/messages"
 import "../../lib/receiver/types"
+import "../../lib/deployable/namespace"
 
 const CONTRACT_VERSION = "0.0.12";
 const RESERVE = ton("5");
@@ -660,7 +661,11 @@ fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): Au
     return {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: ReceiveExecutor_DeployableData(contract.getAddress(), execId)
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_ReceiveExecutor,
+                owner: contract.getAddress(),
+                id: execId,
+            }),
         }
     }
 }
@@ -680,7 +685,11 @@ fun getMerkleRootDeployAddress(st: Storage, merkleRoot: MerkleRootId): AutoDeplo
     return {
         stateInit: {
             code: st.deployables.load().deployer,
-            data: MerkleRoot_DeployableData(contract.getAddress(), merkleRoot)
+            data: NamespacedDeployableData({
+                namespace: DeployableNamespace_MerkleRoot,
+                owner: contract.getAddress(),
+                id: merkleRoot
+            }),
         }
     }
 }

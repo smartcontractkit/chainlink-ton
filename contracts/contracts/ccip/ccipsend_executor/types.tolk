@@ -4,14 +4,6 @@ import "../../lib/deployable/namespace"
 
 type CCIPSendExecutor_ID = uint224
 
-fun CCIPSendExecutor_DeployableData(owner: address, id: CCIPSendExecutor_ID): cell {
-    return Deployable<Namespaced<CCIPSendExecutor_ID>>.new(
-        DeployableNamespace_CCIPSendExecutor,
-        owner,
-        id,
-    );
-}
-
 struct CCIPSendExecutor_InitialData {
     onramp: address,
     id: CCIPSendExecutor_ID,

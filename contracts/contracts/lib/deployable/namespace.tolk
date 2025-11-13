@@ -20,3 +20,13 @@ struct Namespaced<T> {
 }
 
 type Namespace = uint32;
+
+struct NamespacedDeployableDataProps<T> {
+    namespace: Namespace;
+    owner: address;
+    id: T;
+}
+
+fun NamespacedDeployableData<T>(props: NamespacedDeployableDataProps<T>): cell {
+    return Deployable<Namespaced<T>>.new(props.namespace, props.owner, props.id);
+}
