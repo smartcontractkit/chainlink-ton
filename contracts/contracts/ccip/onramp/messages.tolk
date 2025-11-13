@@ -7,6 +7,7 @@ import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
 import "../fee_quoter/messages"
+import "../ccipsend_executor/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -17,11 +18,11 @@ type OnRamp_InMessage =
     | OnRamp_ExecutorFinishedWithError
     | OnRamp_SetDynamicConfig
     | OnRamp_UpdateDestChainConfigs
+    | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
     | Withdrawable_Withdraw
     | Upgradeable_Upgrade
     ;
-    // TODO | UpdateExecutorCode
 
 type OnRamp_NotificationInMessage =
     | OnRamp_Send
@@ -48,14 +49,14 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
 }
 
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
-    msgID: uint224,
+    executorID: CCIPSendExecutor_ID,
     fee: coins
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
 }
 
 struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
-    msgID: uint224,
+    executorID: CCIPSendExecutor_ID,
     error: uint256,
     msg: Cell<Router_CCIPSend>,
     metadata: Metadata,
@@ -64,6 +65,10 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRamp_UpdateDestChainConfigs {
     updates: cell; // vec<OffRampUpdateDestChainConfig>
+}
+
+struct (0x82901c45) OnRamp_UpdateSendExecutor {
+    code: cell;
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell

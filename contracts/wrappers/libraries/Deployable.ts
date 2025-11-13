@@ -11,9 +11,18 @@ import {
   Slice,
 } from '@ton/core'
 import { CellCodec } from '../utils'
+import { crc32 } from 'zlib'
+import { CCIP_SEND_EXECUTOR_FACILITY_NAME } from '../ccip/CCIPSendExecutor'
+import { RECEIVE_EXECUTOR_FACILITY_NAME } from '../ccip/OffRamp'
+import { MERKLE_ROOT_FACILITY_NAME } from '../ccip/MerkleRoot'
 
 export type DeployableStorage = {
   owner: Address
+  id: Builder
+}
+
+export type Namespaced = {
+  namespace: number
   id: Builder
 }
 
@@ -26,6 +35,16 @@ export const builder = {
         },
         load: (src: Slice): DeployableStorage => {
           return { owner: src.loadAddress(), id: src.asBuilder() }
+        },
+      }
+    })(),
+    namespaced: ((): CellCodec<Namespaced> => {
+      return {
+        encode: (data: Namespaced): Builder => {
+          return beginCell().storeUint(data.namespace, 32).storeBuilder(data.id)
+        },
+        load: (src: Slice): Namespaced => {
+          return { namespace: src.loadUint(32), id: src.asBuilder() }
         },
       }
     })(),

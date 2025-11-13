@@ -17,6 +17,7 @@ import "../router/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "events"
+import "../../deployable/types"
 import "../fee_quoter/messages"
 
 const CONTRACT_VERSION = "0.0.9";
@@ -66,6 +67,12 @@ fun onInternalMessage(in: InMessage) {
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
         }
+        OnRamp_UpdateSendExecutor => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.executor.executorCode = msg.code;
+            st.store();
+        }
         Withdrawable_Withdraw => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -82,6 +89,14 @@ fun onInternalMessage(in: InMessage) {
             }.upgrade(msg);
         }
         else => {
+            // attempt to handle Ownable messages
+            var st = lazy OnRamp_Storage.load();
+            val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+            if (handled) {
+                st.store();
+                return;
+            }
+
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
@@ -177,37 +192,36 @@ fun send(payload: OnRamp_Send, sender: address) {
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: executorAddress(st.executorCode, st.currentMessageId),
-        body: CCIPSendExecutor_Execute {
-            onrampSend: payload,
-            config: CCIPSendExecutor_Config {
-                feeQuoter: config.feeQuoter,
-            }.toCell(),
+        dest: st.executor.autoDeployAddress(st.executor.currentID),
+        body: Deployable_InitializeAndSend {
+            stateInit: {
+                code: st.executor.executorCode,
+                data:  CCIPSendExecutor_InitialData {
+                    onramp: contract.getAddress(),
+                    id: st.executor.currentID,
+                }.toCell(),
+            },
+            selfMessage: {
+                value: SendExecutor_Costs.Execute(),
+                body: CCIPSendExecutor_Execute {
+                    onrampSend: payload,
+                    config: CCIPSendExecutor_Config {
+                        feeQuoter: config.feeQuoter,
+                    }.toCell(),
+                }.toCell(),
+            },
         }
     });
 
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    st.currentMessageId += 1;
+    st.executor.currentID += 1;
 
     st.store();
 }
 
-@inline
-fun executorAddress(executorCode: cell, messageID: int): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: executorCode,
-            data: CCIPSendExecutor_InitialData {
-                onramp: contract.getAddress(),
-                messageID: messageID
-            }.toCell(),
-        }
-    }
-}
-
 fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
+    assert(st.executor.autoDeployAddress(payload.executorID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
@@ -274,7 +288,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
 
 fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
     var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
+    assert(st.executor.autoDeployAddress(payload.executorID).addressMatches(sender)) throw Error.Unauthorized;
 
     val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
@@ -397,6 +411,23 @@ get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
+}
+
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy OnRamp_Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy OnRamp_Storage.load();
+    return st.ownable.get_pendingOwner();
+}
+
+get fun sendExecutorCode(): cell {
+    val st = lazy OnRamp_Storage.load();
+    return st.executor.executorCode;
 }
 
 get fun typeAndVersion(): (slice, slice) {

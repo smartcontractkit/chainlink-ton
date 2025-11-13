@@ -5,6 +5,8 @@ import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import { Blockchain } from '@ton/sandbox'
+import { toNano } from '@ton/core'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
@@ -56,6 +58,47 @@ const CHAINSEL_TON = 13879075125137744094n // TODO this is copy/pasted from CCIP
 //   )
 //   upgradeSpec.run()
 // })
+
+describe('FeeQuoter - Ownable Tests', () => {
+  it('supports ownable messages', async () => {
+    const blockchain = await Blockchain.create()
+    const deployer = await blockchain.treasury('deployer')
+    const other = await blockchain.treasury('other')
+
+    const feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
+
+    const resultTransferOwnership = await feeQuoter.sendTransferOwnership(
+      deployer.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+        newOwner: other.address,
+      },
+    )
+    expect(resultTransferOwnership.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+
+    const resultAcceptOwnership = await feeQuoter.sendAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
+    expect(resultAcceptOwnership.transactions).toHaveTransaction({
+      from: other.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+
+    // Check that the owner is now the new one
+    const newOwner = await feeQuoter.getOwner()
+    expect(newOwner.toString()).toBe(other.address.toString())
+  })
+})
 
 describe('FeeQuoter - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({

@@ -284,8 +284,11 @@ describe('Router', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: await compile('CCIPSendExecutor'),
+        executor: {
+          deployableCode: await compile('Deployable'),
+          executorCode: await compile('CCIPSendExecutor'),
+          currentID: 0n,
+        },
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -791,6 +794,41 @@ describe('Router', () => {
     expect(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
       facilityId(crc32(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
     )
+  })
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+
+    const resultTransferOwnership = await router.sendTransferOwnership(
+      deployer.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+        newOwner: other.address,
+      },
+    )
+    expect(resultTransferOwnership.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+
+    const resultAcceptOwnership = await router.sendAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
+    expect(resultAcceptOwnership.transactions).toHaveTransaction({
+      from: other.address,
+      to: router.address,
+      success: true,
+    })
+
+    // Check that the owner is now the new one
+    const newOwner = await router.getOwner()
+    expect(newOwner.toString()).toBe(other.address.toString())
   })
 })
 

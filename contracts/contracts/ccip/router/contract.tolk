@@ -3,7 +3,6 @@ import "storage"
 import "errors"
 import "../onramp/messages"
 import "../onramp/types"
-import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
 import "../../lib/access/ownable_2step"
@@ -433,6 +432,18 @@ get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
     return rmn.cursedSubjects.isCursed(subject);
+}
+
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.ownable.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

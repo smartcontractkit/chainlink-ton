@@ -138,7 +138,7 @@ export class ContractClient implements Contract {
   async sendTransferOwnership(
     p: ContractProvider,
     via: Sender,
-    value: bigint = 0n,
+    value: bigint = BigInt(0.01),
     body: TransferOwnership,
   ) {
     return this.sendInternal(
@@ -152,7 +152,7 @@ export class ContractClient implements Contract {
   async sendAcceptOwnership(
     p: ContractProvider,
     via: Sender,
-    value: bigint = 0n,
+    value: bigint = BigInt(0.01),
     body: AcceptOwnership,
   ) {
     return this.sendInternal(
@@ -166,5 +166,10 @@ export class ContractClient implements Contract {
   async getOwner(provider: ContractProvider): Promise<Address> {
     const result = await provider.get('owner', [])
     return result.stack.readAddress()
+  }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    const result = await provider.get('pendingOwner', [])
+    return result.stack.readAddressOpt()
   }
 }

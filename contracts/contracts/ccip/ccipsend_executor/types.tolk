@@ -1,12 +1,16 @@
 import "../onramp/messages.tolk";
+import "../../deployable/types"
+import "../../lib/deployable/namespace"
+
+type CCIPSendExecutor_ID = uint224
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    messageID: uint224,
+    id: CCIPSendExecutor_ID,
 }
 
 struct CCIPSendExecutor_Data {
-    messageId: uint224,
+    id: CCIPSendExecutor_ID,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
