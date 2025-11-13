@@ -26,10 +26,10 @@ export type Namespaced = {
   id: Builder
 }
 
-export const CCIPNamespace = {
-  CCIPSendExecutor: crc32(CCIP_SEND_EXECUTOR_FACILITY_NAME),
-  ReceiveExecutor: crc32(RECEIVE_EXECUTOR_FACILITY_NAME),
-  MerkleRoot: crc32(MERKLE_ROOT_FACILITY_NAME),
+export enum CCIPNamespace {
+  CCIPSendExecutor = 0,
+  ReceiveExecutor,
+  MerkleRoot,
 }
 
 export const builder = {

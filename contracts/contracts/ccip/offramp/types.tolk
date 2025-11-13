@@ -115,7 +115,7 @@ fun ReceiveExecutor_DeployableData(owner: address, id: ReceiveExecutorId): cell 
         CCIPNamespace.ReceiveExecutor,
         owner,
         id,
-    ); 
+    );
 }
 
 fun MerkleRoot_DeployableData(owner: address, id: MerkleRootId): cell {
@@ -123,7 +123,7 @@ fun MerkleRoot_DeployableData(owner: address, id: MerkleRootId): cell {
         CCIPNamespace.MerkleRoot,
         owner,
         id,
-    ); 
+    );
 }
 
 fun ReceiveExecutorId.getSourceChainSelector(self): uint64 {
