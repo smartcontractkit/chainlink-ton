@@ -16,7 +16,7 @@ import "types"
 import "../offramp/types"
 import "events"
 
-const CONTRACT_VERSION = "0.0.8";
+const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
