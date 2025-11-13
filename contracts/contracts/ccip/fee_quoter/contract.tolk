@@ -41,13 +41,13 @@ fun onInternalMessage(in: InMessage) {
             updatePrices(mutate st, msg.updates);
             st.store();
 
-            val returnValueResponse = createMessage({
+            val returnExcesses = createMessage({
                 bounce: false,
                 value: 0,
-                dest: in.senderAddress,
+                dest: msg.sendExcessesTo,
                 body: createEmptyCell(),
             });
-            returnValueResponse.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            returnExcesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         FeeQuoter_UpdateFeeTokens => {
             var st = lazy Storage.load();

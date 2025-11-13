@@ -19,6 +19,7 @@ type FeeQuoter_InMessage =
 
 struct (0x20000001) FeeQuoter_UpdatePrices {
     updates: PriceUpdates
+    sendExcessesTo: address;
 }
 
 // crc32('FeeQuoter_GetValidatedFee')

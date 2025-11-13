@@ -340,10 +340,15 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
                 value: FeeQuoter_Costs.updatePrices(),
                 dest: st.feeQuoter,
                 body: FeeQuoter_UpdatePrices {
-                    updates: report.priceUpdates!.load()
+                    updates: report.priceUpdates!.load(),
+                    sendExcessesTo: sender,
                 }
             });
-            updatePricesMsg.send(SEND_MODE_REGULAR);
+            if (priceUpdatesOnlyReport) {
+                sendCarryAllRemainingMessageValueSafe(updatePricesMsg);
+            } else {
+                updatePricesMsg.send(SEND_MODE_REGULAR);
+            }
         }
     }
 
