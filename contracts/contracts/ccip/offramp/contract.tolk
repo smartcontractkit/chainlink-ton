@@ -335,20 +335,30 @@ fun _commit(msg: OffRamp_Commit, sender: address, value: coins) {
             st.latestPriceSequenceNumber = ocrSequenceNumber;
             
             // and update the prices in the fee quoter
-            val updatePricesMsg = createMessage({
-                bounce: true,
-                value: FeeQuoter_Costs.updatePrices(),
-                dest: st.feeQuoter,
-                body: FeeQuoter_UpdatePrices {
-                    updates: report.priceUpdates!.load(),
-                    sendExcessesTo: sender,
-                }
-            });
+
             if (priceUpdatesOnlyReport) {
+                val updatePricesMsg = createMessage({
+                    bounce: true,
+                    value: 0,
+                    dest: st.feeQuoter,
+                    body: FeeQuoter_UpdatePrices {
+                        updates: report.priceUpdates!.load(),
+                        sendExcessesTo: sender,
+                    }
+                });
                 sendCarryAllRemainingMessageValueSafe(updatePricesMsg);
             } else {
+                val updatePricesMsg = createMessage({
+                    bounce: true,
+                    value: FeeQuoter_Costs.updatePrices(),
+                    dest: st.feeQuoter,
+                    body: FeeQuoter_UpdatePrices {
+                        updates: report.priceUpdates!.load(),
+                        sendExcessesTo: sender,
+                    }
+                });
                 updatePricesMsg.send(SEND_MODE_REGULAR);
-            }
+                }
         }
     }
 
