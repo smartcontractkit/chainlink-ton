@@ -792,6 +792,38 @@ describe('Router', () => {
       facilityId(crc32(sendExecutor.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
     )
   })
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+
+    const resultTransferOwnership = await router.sendTransferOwnership(deployer.getSender(), toNano('0.05'), {
+      queryId: 1n,
+      newOwner: other.address,
+    })
+    expect(resultTransferOwnership.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+
+    const resultAcceptOwnership = await router.sendAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
+    expect(resultAcceptOwnership.transactions).toHaveTransaction({
+      from: other.address,
+      to: router.address,
+      success: true,
+    })
+
+    // Check that the owner is now the new one
+    const newOwner = await router.getOwner()
+    expect(newOwner.toString()).toBe(other.address.toString())
+  })
+
 })
 
 async function deployRouterContract(

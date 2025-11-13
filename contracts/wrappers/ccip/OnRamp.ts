@@ -227,10 +227,14 @@ export abstract class Opcodes {
 export abstract class Errors {}
 
 export class OnRamp implements Contract, withdrawable.Interface {
+  public ownable: ownable2step.ContractClient
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    this.ownable = new ownable2step.ContractClient(address)
+  }
 
   static createFromAddress(address: Address) {
     return new OnRamp(address)
@@ -377,5 +381,34 @@ export class OnRamp implements Contract, withdrawable.Interface {
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  // Ownership methods
+  async getOwner(provider: ContractProvider): Promise<Address> {
+    const result = await provider.get('owner', [])
+    return result.stack.readAddress()
+  }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    const result = await provider.get('pendingOwner', [])
+    return result.stack.readAddressOpt()
+  }
+
+  async sendTransferOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: ownable2step.TransferOwnership,
+  ) {
+    return this.ownable.sendTransferOwnership(p, via, value, body)
+  }
+
+  async sendAcceptOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: ownable2step.AcceptOwnership,
+  ) {
+    return this.ownable.sendAcceptOwnership(p, via, value, body)
   }
 }

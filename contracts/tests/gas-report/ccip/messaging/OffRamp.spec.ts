@@ -510,4 +510,35 @@ describe('CCIP OffRamp Gas Estimation', () => {
   it('should measure commit and execute flow (10 merkle roots)', async () => {
     await testCommitAndExecute(10)
   })
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+
+    const resultTransferOwnership = await offRamp.sendTransferOwnership(deployer.getSender(), toNano('0.05'), {
+      queryId: 1n,
+      newOwner: other.address,
+    })
+    expect(resultTransferOwnership.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    const resultAcceptOwnership = await offRamp.sendAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
+    expect(resultAcceptOwnership.transactions).toHaveTransaction({
+      from: other.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    // Check that the owner is now the new one
+    const newOwner = await offRamp.getOwner()
+    expect(newOwner.toString()).toBe(other.address.toString())
+  })
 })

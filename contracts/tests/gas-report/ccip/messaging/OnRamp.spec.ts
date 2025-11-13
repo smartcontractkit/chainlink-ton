@@ -21,6 +21,7 @@ import { createMaxPayload, createExtraArgs } from './config'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
+import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -95,11 +96,13 @@ describe('CCIP OnRamp Gas Estimation', () => {
     // Deploy Router
     const routerCode = await compile('Router')
     const routerData: rt.Storage = {
-      id: 0,
+      id: 0n,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
       },
+      wrappedNative: ZERO_ADDRESS,
+      offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
     router = blockchain.openContract(rt.Router.createFromConfig(routerData, routerCode))
@@ -244,5 +247,36 @@ describe('CCIP OnRamp Gas Estimation', () => {
     // Also print raw transaction fees for comparison
     console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
     printTransactionFees(result.transactions)
+  })
+
+  it('supports ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+
+    const resultTransferOwnership = await onRamp.sendTransferOwnership(deployer.getSender(), toNano('0.05'), {
+      queryId: 1n,
+      newOwner: other.address,
+    })
+    expect(resultTransferOwnership.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    const resultAcceptOwnership = await onRamp.sendAcceptOwnership(
+      other.getSender(),
+      toNano('0.05'),
+      {
+        queryId: 1n,
+      },
+    )
+    expect(resultAcceptOwnership.transactions).toHaveTransaction({
+      from: other.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    // Check that the owner is now the new one
+    const newOwner = await onRamp.getOwner()
+    expect(newOwner.toString()).toBe(other.address.toString())
   })
 })

@@ -639,6 +639,18 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 
 fun applySourceChainConfigUpdates() {}
 
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.ownable.get_pendingOwner();
+}
+
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
 }
