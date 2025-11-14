@@ -116,15 +116,17 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/*
-Forwards a validated fee request from the OnRamp to the FeeQuoter contract
-for final fee validation.
+// Forwards a validated fee request from the OnRamp to the FeeQuoter contract
+// for final fee validation.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_MessageValidated | FeeQuoter.FeeQuoter_MessageValidationFailed ->
-*/
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated | FeeQuoter_MessageValidationFailed
 fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
@@ -147,15 +149,17 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender:
     getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
+// Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_MessageValidated ->
-    OnRamp.FeeQuoter_MessageValidated
-*/
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
+//     OnRamp    ->> Router:    OnRamp_MessageValidated
 fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>) {
     val userContext = msg.context.userContext;
     val userAddress = msg.context.onrampContext;
@@ -174,16 +178,18 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
     confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
-and replies back to the original caller.
+// Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
+// and replies back to the original caller.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_MessageValidationFailed ->
-    OnRamp.OnRamp_MessageValidationFailed
-*/
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
+//     OnRamp    ->> Router:    OnRamp_MessageValidationFailed
 fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>) {
     val userContext = msg.context.userContext;
     val userAddress = msg.context.onrampContext;
