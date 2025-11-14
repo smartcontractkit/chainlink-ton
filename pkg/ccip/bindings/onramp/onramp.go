@@ -25,7 +25,7 @@ const (
 	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
 	OpcodeSetDynamicConfig                   = 0x10000003
 	OpcodeUpdateDestChainConfigs             = 0x10000004
-	OpcodeUpdateAllowlists                   = 0x10000005
+	OpcodeUpdateAllowlists                   = 0x9dc06185
 	OpcodeUpdateSendExecutor                 = 0x82901c45
 )
 
@@ -107,7 +107,7 @@ type UpdateAllowlist struct {
 }
 
 type UpdateAllowlists struct {
-	_       tlb.Magic                        `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                        `tlb:"#9dc06185"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
 }
 
@@ -159,7 +159,7 @@ type UpdateDestChainConfigsMessage struct {
 }
 
 type UpdateAllowlistsMessage struct {
-	_       tlb.Magic  `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic  `tlb:"#9dc06185"` //nolint:revive // Ignore opcode tag
 	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
 }
 
