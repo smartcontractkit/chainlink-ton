@@ -15,6 +15,7 @@ import (
 
 const (
 	dynamicConfigGetter = "dynamicConfig"
+	staticConfigGetter  = "staticConfig"
 )
 
 // OnRamp opcodes
@@ -249,6 +250,25 @@ func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+type StaticConfig struct {
+	ChainSelector uint64 `tlb:"## 64"`
+}
+
+func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
+	chainSelector, err := result.Int(0)
+	if err != nil {
+		return err
+	}
+	*c = StaticConfig{
+		ChainSelector: chainSelector.Uint64(),
+	}
+	return nil
+}
+
 func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
 	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c)
+}
+
+func (c *StaticConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
+	return common.FetchResultHelper(ctx, client, block, contractAddr, staticConfigGetter, nil, c)
 }
