@@ -47,16 +47,16 @@ fun onInternalMessage(in: InMessage) {
         OnRamp_Send => {
             onSend(msg, in.senderAddress)
         }
-        // Sender mut be Send Executor
+        // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
             var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress)) throw Error.Unauthorized;
+            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
             onExecutorFinishedSuccessfully(st, msg);
         }
-        // Sender mut be Send Executor
+        // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
             var st = lazy OnRamp_Storage.load();
-            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress)) throw Error.Unauthorized;
+            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
             onExecutorFinishedWithError(st, msg);
         }
         // Sender must be the owner
