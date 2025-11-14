@@ -15,7 +15,7 @@ import (
 
 const (
 	dynamicConfigGetter = "dynamicConfig"
-	staticConfigGetter = "staticConfig"
+	staticConfigGetter  = "staticConfig"
 )
 
 // OnRamp opcodes
