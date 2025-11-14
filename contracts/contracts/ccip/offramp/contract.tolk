@@ -375,10 +375,10 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         // validate lane not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
-
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-        // validate against sourceChainConfig etc
+        // hard cap of 128 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
