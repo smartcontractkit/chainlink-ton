@@ -762,7 +762,6 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   it('Test commit with more than 128 messages fails', async () => {
-
     await setupOCRConfig()
     await setupSourceChainConfig()
 
@@ -773,12 +772,18 @@ describe('OffRamp - Unit Tests', () => {
     // Commit with a 128 message gap should fail
     const root = createMerkleRoot(1n, 129n, rootBytes)
 
-    await commitReport([root], toNano('0.5'), 0x01, undefined,false, OffRampError.TooManyMessagesInReport)
+    await commitReport(
+      [root],
+      toNano('0.5'),
+      0x01,
+      undefined,
+      false,
+      OffRampError.TooManyMessagesInReport,
+    )
 
     // Commit with a 127 message gap should succeed
     const root2 = createMerkleRoot(130n, 130n + 127n, rootBytes)
     await commitReport([root2], toNano('0.5'), 0x02, undefined)
-
   })
 
   it('Test commit with two merkle roots with one message each', async () => {
