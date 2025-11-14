@@ -300,9 +300,22 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
     // Equivalent to processMessageArgs in Solidity FeeQuoter
+    val feeValueJuels = calculateFeeValueJuels(st, msg, feeTokenValue, feeTokenAmount);
+
+    return Fee {
+        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
+        feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
+    };
+}
+
+fun calculateFeeValueJuels(st: Storage, msg: Router_CCIPSend, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (msg.feeToken != st.linkToken) {
-        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+        val linkTokenPriceResult = st.usdPerToken.get(st.linkToken);
+        if (!linkTokenPriceResult.isFound) {
+            return 0;
+        }
+        val linkTokenPrice = linkTokenPriceResult.loadValue();
         // Check for division by zero (zero token prices)
         assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
         // convert from USD to juels
@@ -310,11 +323,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     }
 
     assert (feeValueJuels <= st.maxFeeJuelsPerMsg) throw FeeQuoter_Error.MessageFeeTooHigh;
-
-    return Fee {
-        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
-        feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
-    };
+    return feeValueJuels;
 }
 
 fun _dataAvailabilityCost(
