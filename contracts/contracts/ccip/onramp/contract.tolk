@@ -76,7 +76,9 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner
         OnRamp_UpdateAllowlists => {
             var st = lazy OnRamp_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
+            if (in.senderAddress != st.config.load().allowlistAdmin) {
+                st.ownable.requireOwner(in.senderAddress);
+            }
             onApplyAllowlistUpdates(mutate st, msg.updates);
             st.store();
         }

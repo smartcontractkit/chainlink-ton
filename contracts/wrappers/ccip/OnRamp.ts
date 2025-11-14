@@ -93,6 +93,16 @@ export type UpdateSendExecutor = {
   code: Cell
 }
 
+export type UpdateAllowlists = {
+  updates: UpdateAllowlist[]
+}
+
+export type UpdateAllowlist = {
+  destChainSelector: bigint
+  add: Address[]
+  remove: Address[]
+}
+
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
     return beginCell().storeAddress(data.sender).storeCoins(data.value)
@@ -160,11 +170,31 @@ export const builder = {
         }
       },
     }
+    const updateAllowlist: CellCodec<UpdateAllowlist> = {
+      encode: (data: UpdateAllowlist): Builder => {
+        return beginCell()
+          .storeUint(data.destChainSelector, 64)
+          .storeRef(
+            asSnakeData(data.add, (x) => {
+              return beginCell().storeAddress(x)
+            }),
+          )
+          .storeRef(
+            asSnakeData(data.remove, (x) => {
+              return beginCell().storeAddress(x)
+            }),
+          )
+      },
+      load: (_: Slice): UpdateAllowlist => {
+        throw new Error('Not implemented')
+      },
+    }
     return {
       contractData,
       destChainConfig,
       executor,
       metadata,
+      updateAllowlist,
     }
   })(),
   messages: {
@@ -249,6 +279,18 @@ export const builder = {
         },
       }
     })(),
+    updateAllowlists: ((): CellCodec<UpdateAllowlists> => {
+      return {
+        encode: (data: UpdateAllowlists): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.updateAllowlists, 32)
+            .storeRef(asSnakeData(data.updates, builder.data.updateAllowlist.encode))
+        },
+        load: (src: Slice): UpdateAllowlists => {
+          throw new Error('Not implemented') //TODO implement if needed
+        },
+      }
+    })(),
   },
 }
 export abstract class Params {}
@@ -261,6 +303,7 @@ export abstract class Opcodes {
   static executorFinishedSuccessfully = 0xcfa6b336
   static executorFinishedWithError = 0xc4068e21
   static updateSendExecutor = 0x82901c45
+  static updateAllowlists = 0x9dc06185
 }
 
 export abstract class Errors {}
@@ -405,6 +448,21 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.executorFinishedWithError.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendUpdateAllowlists(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      updateAllowlists: UpdateAllowlists
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.updateAllowlists.encode(opts.updateAllowlists).asCell(),
     })
   }
 
