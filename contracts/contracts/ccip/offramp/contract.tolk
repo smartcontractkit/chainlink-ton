@@ -427,24 +427,28 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     );
 }
 
-/*
-Manually executes a single cross-chain execution report.
+// Manually executes a single cross-chain execution report.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_ManuallyExecute ->
-    MerkleRoot.MerkleRoot_Validate
- */
+//     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
+//     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
     onExecuteSingleReport(msg.report, msg.gasOverride, value);
 }
 
-/*
-Executes a single cross-chain execution report.
+// Executes a single cross-chain execution report.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_Execute ->
-    MerkleRoot.MerkleRoot_Validate
- */
+//     Wallet  ->> OffRamp:    OffRamp_Execute
+//     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
     onExecuteSingleReport(msg.report, null, value);
 
@@ -459,15 +463,17 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
     );
 }
 
-/*
-Executes a single cross-chain execution report. Verifies source chain
-configuration, checks for curses, and ensures message integrity before
-sending it for MerkleRoot validation.
+// Executes a single cross-chain execution report. Verifies source chain
+// configuration, checks for curses, and ensures message integrity before
+// sending it for MerkleRoot validation.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_Execute | OffRamp.OffRamp_ManuallyExecute ->
-    MerkleRoot.MerkleRoot_Validate
- */
+//     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
+//     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: coins) {
     var st = Storage.load();
 
