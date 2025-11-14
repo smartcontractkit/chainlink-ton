@@ -174,10 +174,7 @@ fun onInternalMessage(in: InMessage) {
         Upgradeable_Upgrade => {
             // Authorization is up to the contract developer
             storage.ownable2Step.requireOwner(sender);
-            Upgradeable{
-                migrate: migrate,
-                version: version,
-            }.upgrade(msg);
+            Upgradeable{ migrate, version }.upgrade(msg);
         }
         // Handle your contract's custom messages
         // ...

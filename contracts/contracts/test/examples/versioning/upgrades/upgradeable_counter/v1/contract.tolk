@@ -39,10 +39,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Upgradeable_Upgrade => {
             storage.ownable2Step.requireOwner(sender);
-            Upgradeable{
-                migrate: migrate,
-                version: version,
-            }.upgrade(msg);
+            Upgradeable{ migrate, version }.upgrade(msg);
         }
         Step => {
             /// Instructs the contract to step the counter.
