@@ -125,7 +125,7 @@ describe('OnRamp - Unit Tests', () => {
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<OnRamp>
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     onramp = await deployOnRampContract(blockchain, deployer)
@@ -245,6 +245,11 @@ describe('OnRamp - Unit Tests', () => {
       to: onramp.address,
       success: false,
     })
+  })
+
+  it('getStaticConfig should return chain selector', async () => {
+    const result = await onramp.getStaticConfig()
+    expect(result).toBe(CHAINSEL_TON)
   })
 })
 
