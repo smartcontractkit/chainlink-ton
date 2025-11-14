@@ -277,11 +277,31 @@ type FeeToken struct {
 
 // Methods
 
-// Generic wrapper for fee quoter messages with metadata
+// Generic wrapper for fee quoter messages with context
 type GetValidatedFee struct {
-	_        tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
-	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
+	_       tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
+	Msg     *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
+	Context *cell.Cell `tlb:"^"`         // Cell containing context
+}
+
+// --- Response from GetValidatedFee ---
+type MessageValidated struct {
+	_       tlb.Magic  `tlb:"#1fa60374"` //nolint:revive // Ignore opcode tag
+	Fee     Fee        `tlb:"."`
+	Msg     *cell.Cell `tlb:"^"` // Original message
+	Context *cell.Cell `tlb:"^"` // Original context
+}
+
+type Fee struct {
+	FeeTokenAmount *tlb.Coins `tlb:"."`     // fee value in fee token
+	FeeValueJuels  *big.Int   `tlb:"## 96"` // fee value in juels
+}
+
+type MessageValidationFailed struct {
+	_         tlb.Magic  `tlb:"#bcf0ab0f"` //nolint:revive // Ignore opcode tag
+	errorCode *big.Int   `tlb:"## 256"`
+	msg       *cell.Cell `tlb:"^"` // Original message,
+	context   *cell.Cell `tlb:"^"` // Original context
 }
 
 type AddPriceUpdater struct {
