@@ -26,35 +26,34 @@ fun onInternalMessage(in: InMessage) {
         Router_ApplyRampUpdates => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            onApplyRampUpdates(mutate st, msg)
+            onApplyRampUpdates(mutate st, msg);
+            st.store();
         }
         // Permissionless
         Router_CCIPSend => {
             val minValue = Router_Costs.CCIPSend();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
-            onCCIPSend(msg, in.senderAddress, in.valueCoins)
+            onCCIPSend(msg, in.senderAddress, in.valueCoins);
         }
         // Permissionless
         Router_GetValidatedFee<RemainingBitsAndRefs> => {
             val minValue = Router_Costs.GetValidatedFee();
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
-            onGetValidatedFee(msg, in.senderAddress)
+            onGetValidatedFee(msg, in.senderAddress);
         }
         // Sender must be Onramp
         OnRamp_MessageValidated<Router_GetValidatedFeeContext> => {
             val st = lazy Storage.load();
             val ccipSend = lazy msg.msg.load();
             assertSenderIsOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
-
-            onMessageValidatedFromOnRamp(msg)
+            onMessageValidatedFromOnRamp(msg);
         }
         // Sender must be OnRamp
         OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext> => {
             val st = lazy Storage.load();
             val ccipSend = lazy msg.msg.load();
             assertSenderIsOnRamp(st, ccipSend.destChainSelector, in.senderAddress);
-
-            onMessageValidationFailedFromOnRamp(msg)
+            onMessageValidationFailedFromOnRamp(msg);
         }
         // Sender must be OffRamp
         Router_RouteMessage => {
@@ -62,20 +61,18 @@ fun onInternalMessage(in: InMessage) {
             val message: Any2TVMMessage = msg.message.load();
             val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
-
-            onRouteMessage(msg, message)
+            onRouteMessage(msg, message);
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
             assert (in.valueCoins >= ROUTER_RECEIVE_CONFIRM_FEE) throw Router_Error.InsufficientFee;
-            onCCIPReceiveConfirm(msg, in.senderAddress)
+            onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must RMN remote admin
         Router_RMNRemoteCurse => {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             rmn.admin.requireOwner(in.senderAddress);
-
             onRMNRemoteCurse(st, rmn, msg);
         }
         // Sender must RMN remote admin
@@ -83,7 +80,6 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             var rmn = st.rmnRemote.load();
             rmn.admin.requireOwner(in.senderAddress);
-
             onRMNRemoteUncurse(st, rmn, msg);
         }
         // Permissionless
@@ -201,8 +197,6 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
             st.onRamps.set(selector, onRampUpdates.onRamp);
         }
 
-        st.store();
-
         emit(ON_RAMP_SET_TOPIC, OnRampSet {
             destChainSelectors: onRampUpdates.destChainSelectors,
             onRamp: onRampUpdates.onRamp,
@@ -252,7 +246,6 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
     }
     rmn.forwardUpdates = forwardUpdates;
     st.rmnRemote = rmn.toCell();
-    st.store();
 }
 
 /*
