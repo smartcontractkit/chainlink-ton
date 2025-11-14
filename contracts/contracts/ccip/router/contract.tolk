@@ -345,18 +345,21 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender:
     feeQuoterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Handles a MessageValidated callback from the OnRamp contract. Only the onRamp can call this
-function.
+// Handles a MessageValidated callback from the OnRamp contract.
+// Only the onRamp can call this function.
+//
+// sequenceDiagram
+//     participant SenderAcc
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    Router.Router_GetValidatedFee ->
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    OnRamp.FeeQuoter_MessageValidated ->
-    Router.OnRamp_MessageValidated -> Here is where we process this message
-    userAddres.Router_MessageValidated
-*/
+//     SenderAcc ->> Router:    Router_GetValidatedFee
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
+//     OnRamp    ->> Router:    OnRamp_MessageValidated (process msg)
+//     Router    ->> SenderAcc: Router_MessageValidated
 fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidatedFeeContext>) {
     val userAddress = msg.context.routerContext;
     val replyMsg = createMessage({
@@ -372,18 +375,21 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidate
     replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Handles a MessageValidationFailed callback from the OnRamp contract. Only the onRamp can call this
-function.
+// Handles a MessageValidationFailed callback from the OnRamp contract.
+// Only the onRamp can call this function.
+//
+// sequenceDiagram
+//     participant SenderAcc
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    Router.Router_GetValidatedFee ->
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    OnRamp.FeeQuoter_MessageValidated ->
-    Router.OnRamp_MessageValidationFailed -> Here is where we process this message
-    userAddres.Router_MessageValidationFailed
-*/
+//     SenderAcc ->> Router:    Router_GetValidatedFee
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
+//     OnRamp    ->> Router:    OnRamp_MessageValidationFailed (process msg)
+//     Router    ->> SenderAcc: Router_MessageValidationFailed
 fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>) {
     val userAddress = msg.context.routerContext;
     val replyMsg = createMessage({
@@ -493,16 +499,18 @@ fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse
     }
 }
 
-/*
-Sends an ack to the CCIP sender once it finishes successfully. Only the OnRamp can call this
-function.
+// Sends an ack to the CCIP sender once it finishes successfully.
+// Only the OnRamp can call this function.
+//
+// sequenceDiagram
+//     participant SenderAcc
+//     participant Router
+//     participant OnRamp
+//     participant CCIPSendExecutor
 
-Flow:
-    ...
-    OnRamp.OnRamp_ExecutorFinishedSuccessfully ->
-    Router.Router_MessageSent ->
-    msg.sender.Router_CCIPSendACK
-*/
+//     CCIPSendExecutor ->> OnRamp:    OnRamp_ExecutorFinishedSuccessfully
+//     OnRamp           ->> Router:    Router_MessageSent
+//     Router           ->> SenderAcc: Router_CCIPSendACK
 fun onSendACK(msg: Router_MessageSent) {
     val ackMsg = createMessage({
         bounce: false,
@@ -517,16 +525,18 @@ fun onSendACK(msg: Router_MessageSent) {
     ackMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Sends an nack to the CCIP sender once it finishes with an error. Only the OnRamp can call this
-function.
+// Sends an nack to the CCIP sender once it finishes with an error.
+// Only the OnRamp can call this function.
+//
+// sequenceDiagram
+//     participant SenderAcc
+//     participant Router
+//     participant OnRamp
+//     participant CCIPSendExecutor
 
-Flow:
-    ...
-    OnRamp.OnRamp_ExecutorFinishedWithError ->
-    Router.Router_MessageRejected ->
-    msg.sender.Router_CCIPSendNACK
-*/
+//     CCIPSendExecutor ->> OnRamp:    OnRamp_ExecutorFinishedWithError
+//     OnRamp           ->> Router:    Router_MessageRejected
+//     Router           ->> SenderAcc: Router_CCIPSendNACK
 fun onSendNACK(msg: Router_MessageRejected) {
     val nackMsg = createMessage({
         bounce: true,
