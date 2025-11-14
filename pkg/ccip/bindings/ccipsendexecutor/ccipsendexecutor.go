@@ -25,18 +25,19 @@ type ExitCode tvm.ExitCode
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
-	return tvm.NewExitCodeInSet(ExitCode(ec), []ExitCode{
-		ErrorUnauthorized,
-		ErrorStateNotExpected,
-		InsufficientFee,
-	})
+	const (
+		ecMin = int32(ErrorStateNotExpected)
+		ecMax = int32(ErrorInsufficientFee)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 // CCIPSend Executor exit codes
 const (
-	ErrorUnauthorized     ExitCode = 265 // ERROR_UNAUTHORIZED from contract
-	ErrorStateNotExpected ExitCode = 500
-	InsufficientFee       ExitCode = 43602 // TODO this error codes are outdated
+	ErrorStateNotExpected ExitCode = iota + 43600
+	ErrorUnauthorized
+	ErrorInsufficientFunds
+	ErrorInsufficientFee
 )
 
 // CCIPSendExecutor_Execute message structure

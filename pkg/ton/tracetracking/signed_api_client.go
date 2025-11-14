@@ -58,7 +58,7 @@ func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr addre
 	if err != nil {
 		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
 	}
-	err = sentMessage.WaitForTrace(c.Client)
+	err = sentMessage.WaitForTrace(ctx, c.Client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}

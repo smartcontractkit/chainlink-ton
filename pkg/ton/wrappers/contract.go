@@ -45,7 +45,7 @@ func (c *Contract) CallWaitRecursively(message any, amount tlb.Coins) (*tracetra
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
-	err = sentMessage.WaitForTrace(c.Client.Client)
+	err = sentMessage.WaitForTrace(context.Background(), c.Client.Client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
@@ -212,8 +212,9 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // ```
 func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
+	ctx := context.Background() // TODO: use context from args
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
-		context.Background(), // TODO: use context from args
+		ctx,
 		amount,
 		msgBody,
 		codeCell,
@@ -227,7 +228,7 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
-	err = receivedMessage.WaitForTrace(client.Client)
+	err = receivedMessage.WaitForTrace(ctx, client.Client)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}

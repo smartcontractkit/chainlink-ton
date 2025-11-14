@@ -175,7 +175,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}
 
 	// Wait for trace
-	err = receivedMsg.WaitForTrace(c.client)
+	err = receivedMsg.WaitForTrace(ctx, c.client)
 	if err != nil {
 		return nil, fmt.Errorf("trace wait failed: %w", err)
 	}
