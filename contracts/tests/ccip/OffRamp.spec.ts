@@ -396,6 +396,8 @@ describe('OffRamp - Unit Tests', () => {
     value: bigint = toNano('0.5'),
     sequenceBytes = 0x01,
     priceUpdates: PriceUpdates | undefined = undefined,
+    expectSuccess = true,
+    exitCode = 0,
   ) => {
     const report: CommitReport = { merkleRoots, priceUpdates }
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes }
@@ -410,12 +412,16 @@ describe('OffRamp - Unit Tests', () => {
       report,
       signatures,
     })
-    expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
+    if (expectSuccess) {
+      expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CommitReportAccepted, {
-      merkleRoot: merkleRoots[0],
-      priceUpdates: priceUpdates,
-    })
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CommitReportAccepted, {
+        merkleRoot: merkleRoots[0],
+        priceUpdates: priceUpdates,
+      })
+    } else {
+      expectFailedTransaction(result, transmitters[0].address, offRamp.address, exitCode)
+    }
 
     return result
   }
@@ -753,6 +759,31 @@ describe('OffRamp - Unit Tests', () => {
       offRamp.address,
       OffRampError.SourceChainNotEnabled,
     )
+  })
+
+  it('Test commit with more than 128 messages fails', async () => {
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    const message = createTestMessage(1n, 1n)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+
+    // Commit with a 128 message gap should fail
+    const root = createMerkleRoot(1n, 129n, rootBytes)
+
+    await commitReport(
+      [root],
+      toNano('0.5'),
+      0x01,
+      undefined,
+      false,
+      OffRampError.TooManyMessagesInReport,
+    )
+
+    // Commit with a 127 message gap should succeed
+    const root2 = createMerkleRoot(130n, 130n + 127n, rootBytes)
+    await commitReport([root2], toNano('0.5'), 0x02, undefined)
   })
 
   it('Test commit with two merkle roots with one message each', async () => {
