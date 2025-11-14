@@ -59,13 +59,13 @@ func TestGetReportTxInfo(t *testing.T) {
 
 		// Verify gas limit is returned
 		require.NotNil(t, returnedGasLimit)
-		assert.True(t, returnedGasLimit.Nano().Cmp(gasLimit.Nano()) == 0,
+		assert.Equal(t, gasLimit.Nano(), returnedGasLimit.Nano(),
 			"expected gas limit %s, got %s", gasLimit.String(), returnedGasLimit.String())
 
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("0.6")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 
@@ -107,13 +107,13 @@ func TestGetReportTxInfo(t *testing.T) {
 
 		// Verify gas limit is returned
 		require.NotNil(t, returnedGasLimit)
-		assert.True(t, returnedGasLimit.Nano().Cmp(gasLimit.Nano()) == 0,
+		assert.Equal(t, gasLimit.Nano(), returnedGasLimit.Nano(),
 			"expected gas limit %s, got %s", gasLimit.String(), returnedGasLimit.String())
 
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("1.35")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 
@@ -151,7 +151,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("0.05")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 
@@ -189,7 +189,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("0.08")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 
@@ -243,7 +243,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("0.08")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 
@@ -302,7 +302,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("0.08")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 
@@ -363,7 +363,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		// Verify cost is returned
 		require.NotNil(t, cost)
 		expectedCost := tlb.MustFromTON("0.3")
-		assert.True(t, cost.Nano().Cmp(expectedCost.Nano()) == 0,
+		assert.Equal(t, expectedCost.Nano(), cost.Nano(),
 			"expected cost %s, got %s", expectedCost.String(), cost.String())
 	})
 }
