@@ -804,7 +804,7 @@ get fun deployableHashes() : DeployableHashes {
 get fun rmnRouter(): address {
     val st = lazy Storage.load();
     val deployables = st.deployables.load();
-    return deployables.rmnRouter();
+    return deployables.rmnRouter;
 }
 
 fun applySourceChainConfigUpdates() {}

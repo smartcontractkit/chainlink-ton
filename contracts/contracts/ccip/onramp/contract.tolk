@@ -511,7 +511,7 @@ get fun sendExecutorCode(): cell {
     return st.executor.executorCode;
 }
 
-get fun getCCIPSendExecutorCodeHash: uint256 {
+get fun getCCIPSendExecutorCodeHash(): uint256 {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode.hash();
 }
