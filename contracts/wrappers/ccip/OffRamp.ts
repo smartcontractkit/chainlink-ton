@@ -254,7 +254,11 @@ export const builder = {
         },
 
         load: (src: Slice): UpdateDeployables => {
-          throw new Error('Implement me')
+          return {
+            queryId: src.loadUintBig(64),
+            receiveExecutorCode: src.loadMaybeRef() ?? undefined,
+            merkleRootCode: src.loadMaybeRef() ?? undefined,
+          }
         },
       }
 
