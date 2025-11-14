@@ -1,5 +1,5 @@
 enum FeeQuoter_Error {
-    UnsupportedChainFamilySelector = 24800 // Facility ID * 100
+    UnsupportedChainFamilySelector = 1000 // Facility ID * 100
     GasLimitTooHigh
     ExtraArgOutOfOrderExecutionMustBeTrue
     InvalidExtraArgsData
