@@ -228,7 +228,7 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
 
 // Note: Equivalent to validatedFee for cell encoding instead of using stack
 get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
-    return calculateValidatedFee(msg.load()).feeTokenAmount;
+    return validatedFee(msg.load());
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
