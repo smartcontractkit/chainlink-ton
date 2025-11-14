@@ -139,10 +139,8 @@ fun onInternalMessage(in:InMessage) {
     }
 }
 
-/*
-Handles contract upgrade requests using the Upgradeable pattern. Invokes the
-upgrade process with the current migrate function and version metadata.
-*/
+// Handles contract upgrade requests using the Upgradeable pattern. Invokes the
+// upgrade process with the current migrate function and version metadata.
 fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version }.upgrade(msg);
 }
@@ -182,10 +180,8 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Sends a MerkleRoot_MarkState message to update the execution state of a
-specific sequence number in a MerkleRoot contract.
-*/
+// Sends a MerkleRoot_MarkState message to update the execution state of a
+// specific sequence number in a MerkleRoot contract.
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
@@ -319,9 +315,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-/*
-Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
- */
+// Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
 fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     var st = lazy Storage.load();
 
@@ -332,9 +326,7 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     st.store();
 }
 
-/*
-Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
-*/
+// Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
 fun onUpdateDeployables(msg: OffRamp_UpdateDeployables) {
     var st = lazy Storage.load();
 
