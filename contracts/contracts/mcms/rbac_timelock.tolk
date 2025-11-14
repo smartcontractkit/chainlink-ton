@@ -1238,14 +1238,18 @@ fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
 /// Checks to see if the function being scheduled is blocked.
 @inline
 fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
-    if (data.isEndOfBits() || data.remainingBitsCount() < 32) { // ignore all empty messages
-        return;
+    var selector: int;
+    if (data.isEndOfBits()) {
+        selector = 0; // empty messages
+    } else {
+        val bitsCount = data.remainingBitsCount();
+        if (bitsCount < 32) {
+            selector = data.loadUint(bitsCount); // tiny messages
+        } else {
+            selector = data.loadMessageOp(); // 32-bit opcode from the message body
+        }
     }
 
-    // TODO: support blocking msg bodies (data) < 32 bits
-
-    // Load the function selector from the message body
-    val selector = data.loadMessageOp(); // 32-bit integer
     var blocked = self.data.blockedFnSelectors.get(selector);
 
     if (blocked.isFound) {
