@@ -38,7 +38,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorUnauthorizedPriceUpdater)
+		ecMax = int32(ErrorMessageFeeTooHigh)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -61,6 +61,7 @@ const (
 	ErrorUnknownDestChainSelector
 	ErrorInsufficientFee
 	ErrorTokenTransfersNotSupported
+	ErrorUnauthorizedPriceUpdater
 	// Overflow protection errors
 	ErrorExecutionCostOverflow
 	ErrorPremiumFeeOverflow
@@ -68,7 +69,7 @@ const (
 	ErrorFeeCalculationOverflow
 	ErrorTokenPriceTooLow
 	ErrorFeeOverflow
-	ErrorUnauthorizedPriceUpdater
+	ErrorMessageFeeTooHigh
 )
 
 type Storage struct {

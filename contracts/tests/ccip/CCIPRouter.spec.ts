@@ -32,6 +32,7 @@ import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
+import * as Decimals from '../lib/pricing/Decimals'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -43,6 +44,9 @@ const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
 const CHAINSEL_TON = 13879075125137744094n
 const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
+)
+const TEST_LINK_TOKEN_ADDR = Address.parseRaw(
+  '0:0000000000000000000000000000000000000000000000000000000000000002',
 )
 
 const EVM_ADDRESS = Buffer.from(
@@ -170,8 +174,8 @@ describe('Router', () => {
           pendingOwner: null,
         },
         allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
-        maxFeeJuelsPerMsg: 1000000n,
-        linkToken: ZERO_ADDRESS,
+        maxFeeJuelsPerMsg: 100000000n,
+        linkToken: TEST_LINK_TOKEN_ADDR,
         tokenPriceStalenessThreshold: 1000n,
         usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
         premiumMultiplierWeiPerEth: Dictionary.empty(
@@ -207,7 +211,11 @@ describe('Router', () => {
           msg: {
             updates: {
               gasPricesUpdates: [],
-              tokenPricesUpdates: [{ token: TEST_TOKEN_ADDR, price: BigInt(123e36) }],
+              tokenPricesUpdates: [
+                { token: TEST_TOKEN_ADDR, price: Decimals.TESTING_VALUES.tokenPrice.eth },
+
+                { token: TEST_LINK_TOKEN_ADDR, price: Decimals.TESTING_VALUES.tokenPrice.link },
+              ],
             },
             sendExcessesTo: null,
           },
