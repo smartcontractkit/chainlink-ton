@@ -77,10 +77,7 @@ fun onInternalMessage(in: InMessage) {
         Upgradeable_Upgrade => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            Upgradeable{
-                migrate: migrate,
-                version: version,
-            }.upgrade(msg);
+            Upgradeable{ migrate, version }.upgrade(msg);
         }
         else => {
             // attempt to handle Ownable messages

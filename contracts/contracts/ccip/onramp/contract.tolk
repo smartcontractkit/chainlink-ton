@@ -433,10 +433,7 @@ Handles contract upgrade requests using the Upgradeable pattern. Invokes the
 upgrade process with the current migrate function and version metadata.
 */
 fun onUpgrade(msg: Upgradeable_Upgrade) {
-    Upgradeable{
-        migrate: migrate,
-        version: version,
-    }.upgrade(msg);
+    Upgradeable{ migrate, version}.upgrade(msg);
 }
 
 get fun isChainSupported(destChainSelector: uint64): bool {

@@ -138,10 +138,7 @@ Handles contract upgrade requests using the Upgradeable pattern. Invokes the
 upgrade process with the current migrate function and version metadata.
 */
 fun onUpgrade(msg: Upgradeable_Upgrade) {
-    Upgradeable{
-        migrate: migrate,
-        version: version,
-    }.upgrade(msg);
+    Upgradeable{ migrate, version }.upgrade(msg);
 }
 
 @method_id(1000)
@@ -235,17 +232,20 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     });
 }
 
-/*
-Sent by the Receiver via the Router to confirm successful message receipt.
-ReceiveExecutor must verify that the sender matches the intended receiver.
-Only the Router is authorized to call this function.
+// Sent by the Receiver via the Router to confirm successful message receipt.
+// ReceiveExecutor must verify that the sender matches the intended receiver.
+// Only the Router is authorized to call this function.
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    Receiver.Receiver_CCIPReceive ->
-    Router.Router_CCIPReceiveConfirm ->
-    OffRamp.OffRamp_CCIPReceiveConfirm ->
-    ReceiveExecutor.ReceiveExecutor_Confirm
-*/
+//     Receiver        ->> Router:          Receiver_CCIPReceive
+//     Router          ->> OffRamp:         Router_CCIPReceiveConfirm
+//     OffRamp         ->> ReceiveExecutor: OffRamp_CCIPReceiveConfirm
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
 fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
         bounce: true,
