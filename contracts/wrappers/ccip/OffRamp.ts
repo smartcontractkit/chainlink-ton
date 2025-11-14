@@ -484,6 +484,28 @@ export class OffRamp
     })
   }
 
+  async sendUpdateDeployables(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId: bigint
+      receiveExecutorCode?: Cell
+      merkleRootCode?: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateDeployables, 32)
+        .storeUint(opts.queryId, 64)
+        .storeMaybeRef(opts.receiveExecutorCode)
+        .storeMaybeRef(opts.merkleRootCode)
+        .endCell(),
+    })
+  }
+
   async sendDispatchValidated(
     provider: ContractProvider,
     via: Sender,
