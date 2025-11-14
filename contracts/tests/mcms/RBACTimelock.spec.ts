@@ -232,6 +232,42 @@ describe('RBACTimelock', () => {
     expect(await acContract.getHasRole(rbactl.roles.admin, other.address)).toEqual(true)
   })
 
+  it('successful update account - admin renounces role', async () => {
+    await deployInitTimelock()
+
+    const body = ac.builder.message.in.grantRole
+      .encode({
+        queryId: 1n,
+        role: rbactl.roles.admin,
+        account: other.address,
+      })
+      .asCell()
+    await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+
+    expect(await acContract.getHasRole(rbactl.roles.admin, other.address)).toEqual(true)
+
+    // Renounce role
+    {
+      const body = ac.builder.message.in.renounceRole
+        .encode({
+          queryId: 1n,
+          role: rbactl.roles.admin,
+          callerConfirmation: other.address,
+        })
+        .asCell()
+      const r = await timelock.sendInternal(other.getSender(), toNano('0.05'), body)
+
+      expect(r.transactions).toHaveTransaction({
+        from: other.address,
+        to: timelock.address,
+        success: true,
+        op: ac.opcodes.in.RenounceRole,
+      })
+
+      expect(await acContract.getHasRole(rbactl.roles.admin, other.address)).toEqual(false)
+    }
+  })
+
   it('successful update account - add proposer account', async () => {
     await deployInitTimelock()
 
