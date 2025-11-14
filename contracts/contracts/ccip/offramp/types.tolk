@@ -26,9 +26,9 @@ struct MessageMetadata {
 }
 
 struct DeployableHashes {
-    merkleRootCodeHash: uint256
-    receiveExecutorCodeHash: uint256
-    deployableCodeHash: uint256
+    merkleRootCodeHash: uint256;
+    receiveExecutorCodeHash: uint256;
+    deployableCodeHash: uint256;
 }
 
 struct Config {
