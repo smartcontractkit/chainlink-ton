@@ -132,12 +132,17 @@ type SetOCR3Config struct {
 	Transmitters                   ccipcommon.SnakeData[Transmitter] `tlb:"^"`
 }
 
-// UpdateSourceChainConfig represents the updateSourceChainConfig method call on the offRamp contract
+// UpdateSourceChainConfig represents the updateSourceChainConfig structure
 type UpdateSourceChainConfig struct {
-	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
-	QueryID             uint64            `tlb:"## 64"`
 	SourceChainSelector uint64            `tlb:"## 64"`
 	Config              SourceChainConfig `tlb:"."`
+}
+
+// UpdateSourceChainConfigs represents the updateSourceChainConfigs method call on the offRamp contract
+type UpdateSourceChainConfigs struct {
+	_       tlb.Magic                                     `tlb:"#22b4f05c"` //nolint:revive // Ignore opcode tag
+	QueryID uint64                                        `tlb:"## 64"`
+	Configs ccipcommon.SnakeData[UpdateSourceChainConfig] `tlb:"^"`
 }
 
 // Commit represents the commit method call on the offRamp contract

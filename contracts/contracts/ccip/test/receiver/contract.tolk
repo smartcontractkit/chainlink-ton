@@ -12,7 +12,7 @@ import "../../../lib/utils";
 import "../../router/messages"
 import "../../../lib/access/ownable_2step"
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "1.6.0";
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 

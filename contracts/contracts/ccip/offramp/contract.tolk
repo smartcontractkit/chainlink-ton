@@ -63,10 +63,10 @@ fun onInternalMessage(in:InMessage) {
             onSetOCR3Config(msg)
         }
         // Sender must be owner
-        OffRamp_UpdateSourceChainConfig => {
+        OffRamp_UpdateSourceChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            onUpdateSourceChainConfig(msg)
+            onUpdateSourceChainConfigs(msg)
         }
         // Sender must be the rmnRouter
         OffRamp_UpdateCursedSubjects => {
@@ -526,36 +526,42 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
 /*
 Updates or initializes a SourceChainConfig entry. Only the contract owner can call this function.
 */
-fun onUpdateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig) {
+fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
     var st = lazy Storage.load();
-    var config: SourceChainConfig;
-    var existingConfigEntry = st.sourceChainConfigs.get(msg.sourceChainSelector);
-    if (!existingConfigEntry.isFound) {
-        config = SourceChainConfig {
-            router: msg.config.router,
-            isEnabled: msg.config.isEnabled,
-            minSeqNr: 1,
-            isRMNVerificationDisabled: true, // RMN verification is always disabled
-            onRamp: msg.config.onRamp,
-        };
-        emit(SOURCE_CHAIN_SELECTOR_ADDED_TOPIC, SourceChainSelectorAdded {
-            sourceChainSelector: msg.sourceChainSelector,
-        })
-    } else {
-        // OnRamp updates should only happen due to a misconfiguration.
-        // If an OnRamp is misconfigured, no reports should have been
-        // committed and no messages should have been executed.
-        config = existingConfigEntry.loadValue();
-        assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw Error.InvalidOnRampUpdate;
-        config.isEnabled = msg.config.isEnabled;
-        config.onRamp = msg.config.onRamp;
+
+    var configIterator = msg.configs.iter();
+    while (!configIterator.empty()) {
+        var configUpdate = configIterator.next();
+        var config: SourceChainConfig;
+        var existingConfigEntry = st.sourceChainConfigs.get(configUpdate.sourceChainSelector);
+
+        if (!existingConfigEntry.isFound) {
+            config = SourceChainConfig {
+                router: configUpdate.config.router,
+                isEnabled: configUpdate.config.isEnabled,
+                minSeqNr: 1,
+                isRMNVerificationDisabled: true, // RMN verification is always disabled
+                onRamp: configUpdate.config.onRamp,
+            };
+            emit(SOURCE_CHAIN_SELECTOR_ADDED_TOPIC, SourceChainSelectorAdded {
+                sourceChainSelector: configUpdate.sourceChainSelector,
+            });
+        } else {
+            // OnRamp updates should only happen due to a misconfiguration.
+            // If an OnRamp is misconfigured, no reports should have been
+            // committed and no messages should have been executed.
+            config = existingConfigEntry.loadValue();
+            assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw Error.InvalidOnRampUpdate;
+            config.isEnabled = configUpdate.config.isEnabled;
+            config.onRamp = configUpdate.config.onRamp;
+        }
+        st.sourceChainConfigs.set(configUpdate.sourceChainSelector, config);
+        emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
+            sourceChainSelector: configUpdate.sourceChainSelector,
+            sourceChainConfig: config,
+        });
     }
-    st.sourceChainConfigs.set(msg.sourceChainSelector, config);
     st.store();
-    emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
-        sourceChainSelector: msg.sourceChainSelector,
-        sourceChainConfig: config,
-    })
 }
 
 /*

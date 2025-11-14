@@ -11,7 +11,7 @@ import (
 
 var TLBs = lib.MustNewTLBMap([]interface{}{
 	offramp.Execute{},
-	offramp.UpdateSourceChainConfig{},
+	offramp.UpdateSourceChainConfigs{},
 	offramp.SetOCR3Config{},
 	offramp.Commit{},
 	offramp.Execute{},

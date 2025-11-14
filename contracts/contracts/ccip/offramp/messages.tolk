@@ -17,7 +17,7 @@ type OffRamp_InMessage =
     | OffRamp_ExecuteValidated
     | OffRamp_ManuallyExecute
     | OffRamp_DispatchValidated
-    | OffRamp_UpdateSourceChainConfig
+    | OffRamp_UpdateSourceChainConfigs
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced
     | OffRamp_NotifyFailure
@@ -57,8 +57,12 @@ struct (0xa00785cf) OffRamp_ManuallyExecute {
 }
 
 //Must be sent by owner
-struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
+struct (0x22b4f05c) OffRamp_UpdateSourceChainConfigs {
     queryId: uint64;
+    configs: SnakedCell<SourceChainConfigUpdate>; // Array of configs
+}
+
+struct SourceChainConfigUpdate {
     sourceChainSelector: uint64;
     config: SourceChainConfig;
 }

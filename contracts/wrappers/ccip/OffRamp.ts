@@ -28,7 +28,7 @@ export const Opcodes = {
   commit: crc32('OffRamp_Commit'),
   execute: crc32('OffRamp_Execute'),
   manualExecute: crc32('OffRamp_ManuallyExecute'),
-  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
+  updateSourceChainConfigs: crc32('OffRamp_UpdateSourceChainConfigs'),
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
   updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
@@ -81,6 +81,11 @@ export type Deployables = {
   deployerCode: Cell
   merkleRootCode: Cell
   receiveExecutorCode: Cell
+}
+
+export type UpdateSourceChainConfig = {
+  sourceChainSelector: bigint
+  config: SourceChainConfig
 }
 
 export type SourceChainConfig = {
@@ -391,24 +396,26 @@ export class OffRamp
     })
   }
 
-  async sendUpdateSourceChainConfig(
+  async sendUpdateSourceChainConfigs(
     provider: ContractProvider,
     via: Sender,
     opts: {
       value: bigint
       queryID?: number
-      sourceChainSelector: bigint
-      config: SourceChainConfig
+      configs: UpdateSourceChainConfig[]
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.updateSourceChainConfig, 32)
+        .storeUint(Opcodes.updateSourceChainConfigs, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.sourceChainSelector, 64)
-        .storeBuilder(sourceChainConfigToBuilder(opts.config))
+        .storeRef(
+          asSnakeData(opts.configs, (message) => {
+            return updateSourceChainConfigToBuilder(message)
+          }),
+        )
         .endCell(),
     })
   }
@@ -631,6 +638,17 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBit(config.isRMNVerificationDisabled)
     .storeUint(config.onRamp.byteLength, 8)
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
+}
+
+export const updateSourceChainConfigToBuilder = (config: UpdateSourceChainConfig) => {
+  return beginCell()
+    .storeUint(config.sourceChainSelector, 64)
+    .storeAddress(config.config.router)
+    .storeBit(config.config.isEnabled)
+    .storeUint(config.config.minSeqNr, 64)
+    .storeBit(config.config.isRMNVerificationDisabled)
+    .storeUint(config.config.onRamp.byteLength, 8)
+    .storeBuffer(config.config.onRamp, config.config.onRamp.byteLength)
 }
 
 export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {

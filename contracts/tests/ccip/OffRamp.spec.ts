@@ -17,6 +17,9 @@ import {
   SourceChainConfig,
   OffRamp,
   OffRampError,
+  Opcodes,
+  sourceChainConfigToBuilder,
+  UpdateSourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
@@ -27,6 +30,7 @@ import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import {
+  asSnakeData,
   bigIntToBuffer,
   bigIntToUint8Array,
   generateEd25519KeyPair,
@@ -58,10 +62,12 @@ import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
+
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
 const CHAINSEL_TON = 13879075125137744094n
 const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
@@ -259,14 +265,30 @@ describe('OffRamp - Unit Tests', () => {
     ...overrides,
   })
 
-  const createDefaultSourceChainConfig = (overrides = {}): SourceChainConfig => ({
-    router: router.address,
-    isEnabled: true,
-    minSeqNr: 1n,
-    isRMNVerificationDisabled: true,
-    onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-    ...overrides,
-  })
+  const createDefaultUpdateSourceChainConfigs = (overrides = {}): UpdateSourceChainConfig[] => [
+    {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config: {
+        router: router.address,
+        isEnabled: true,
+        minSeqNr: 1n,
+        isRMNVerificationDisabled: true,
+        onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+        ...overrides,
+      },
+    },
+    {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000002,
+      config: {
+        router: router.address,
+        isEnabled: true,
+        minSeqNr: 1n,
+        isRMNVerificationDisabled: true,
+        onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+        ...overrides,
+      },
+    },
+  ]
 
   const createTestMessage = (
     sequenceNumber = 1n,
@@ -287,7 +309,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: data,
       receiver: receiverAddress,
-      gasLimit: toNano('0.01'), // 100_000_000 nanotons
+      gasLimit: toNano('0.02'), // 200_000_000 nanotons
     }
   }
 
@@ -340,11 +362,10 @@ describe('OffRamp - Unit Tests', () => {
   }
 
   const setupSourceChainConfig = async (overrides = {}, isInitialSetup = true) => {
-    const config = createDefaultSourceChainConfig({ ...overrides })
-    const result = await offRamp.sendUpdateSourceChainConfig(deployer.getSender(), {
+    const configs = createDefaultUpdateSourceChainConfigs({ ...overrides })
+    const result = await offRamp.sendUpdateSourceChainConfigs(deployer.getSender(), {
       value: toNano('0.5'),
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      config,
+      configs: configs,
     })
     expectSuccessfulTransaction(result, deployer.address, offRamp.address)
 
@@ -352,12 +373,20 @@ describe('OffRamp - Unit Tests', () => {
       assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       })
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000002,
+      })
     }
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      config: config,
+      config: configs[0].config,
     })
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config: configs[1].config,
+    })
+
     return result
   }
 
@@ -410,7 +439,7 @@ describe('OffRamp - Unit Tests', () => {
     expectSuccess = true,
   ) => {
     const result = await offRamp.sendExecute(transmitters[0].getSender(), {
-      value: toNano('0.1'),
+      value: toNano('0.15'),
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
     })
@@ -1281,6 +1310,12 @@ describe('OffRamp - Unit Tests', () => {
       from: router.address,
       to: receiver.address,
       value: message.gasLimit,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: receiver.address,
+      to: router.address,
       success: true,
     })
 

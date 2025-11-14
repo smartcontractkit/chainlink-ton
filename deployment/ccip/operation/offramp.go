@@ -46,7 +46,6 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	}
 
 	configs := make([]offramp.UpdateSourceChainConfig, 0, len(in.Updates))
-
 	for selector, update := range in.Updates {
 		if update.OnRamp == nil {
 			return nil, errors.New("onramp.UpdateSourceChainConfigs: OnRamp address should not be nil")
@@ -58,19 +57,15 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Config: offramp.SourceChainConfig{
 				Router:                    &router,
 				IsEnabled:                 update.IsEnabled,
-				MinSeqNr:                  0, // TODO: this field should not be set on update
 				IsRMNVerificationDisabled: update.IsRMNVerificationDisabled,
-				OnRamp:                    common.CrossChainAddress(update.OnRamp),
+				OnRamp:                    update.OnRamp,
 			},
 		})
 	}
 
-	// TODO: TEMP workaround
-	input := configs[0]
-	// input := offramp.UpdateSourceChainConfigs{
-	// 	Updates: common.SnakeData[offramp.UpdateSourceChainConfig](configs),
-	// }
-
+	input := offramp.UpdateSourceChainConfigs{
+		Configs: configs,
+	}
 	payload, err := tlb.ToCell(input)
 	if err != nil {
 		return nil, err

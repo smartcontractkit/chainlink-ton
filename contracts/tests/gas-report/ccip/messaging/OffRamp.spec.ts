@@ -45,6 +45,7 @@ import {
   CHAINSEL_EVM_TEST,
   EVM_SENDER_ADDRESS_TEST,
   EVM_ONRAMP_ADDRESS_TEST,
+  CHAIN_FAMILY_SELECTOR_EVM,
 } from '../../constants'
 import { createMaxPayload, createExtraArgs, MESSAGE_COUNT_IN_COMMIT } from './config'
 import { MerkleHelper } from '../../../lib/merkle_proof/helpers/MerkleMultiProofHelper'
@@ -459,18 +460,22 @@ describe('CCIP OffRamp Gas Estimation', () => {
       })
 
       // Setup source chain config
-      const sourceChainConfigResult = await offRamp.sendUpdateSourceChainConfig(
+      const sourceChainConfigResult = await offRamp.sendUpdateSourceChainConfigs(
         deployer.getSender(),
         {
           value: toNano('0.5'),
-          sourceChainSelector: CHAINSEL_EVM_TEST,
-          config: {
-            router: ROUTER_ADDRESS_TEST,
-            isEnabled: true,
-            minSeqNr: 1n,
-            isRMNVerificationDisabled: false,
-            onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-          },
+          configs: [
+            {
+              sourceChainSelector: CHAINSEL_EVM_TEST,
+              config: {
+                router: ROUTER_ADDRESS_TEST,
+                isEnabled: true,
+                minSeqNr: 1n,
+                isRMNVerificationDisabled: false,
+                onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+              },
+            },
+          ],
         },
       )
       expect(sourceChainConfigResult.transactions).toHaveTransaction({

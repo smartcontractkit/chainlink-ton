@@ -1,13 +1,12 @@
 enum Router_Error {
-    DestChainNotEnabled = 49600; // Facility ID * 100
-    SourceChainNotEnabled;
-    SenderIsNotOffRamp;
-    OffRampNotSetForSelector;
-    OffRampAddressMismatch;
-    SubjectCursed;
-    NotOnRamp;
-    MissingTokenAmounts;
-    NoMultiTokenTransfers;
-    InsufficientFee;
+    DestChainNotEnabled = 49600
+    SourceChainNotEnabled
+    SenderIsNotOffRamp
+    OffRampNotSetForSelector
+    OffRampAddressMismatch
+    SubjectCursed
+    NotOnRamp
+    MissingTokenAmounts
+    NoMultiTokenTransfers
+    InsufficientFee
 }
-

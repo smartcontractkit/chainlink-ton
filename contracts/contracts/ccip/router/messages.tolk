@@ -101,13 +101,11 @@ struct (0xaf7a9ac6) Router_RMNOwnableMessage {
     content: RemainingBitsAndRefs; // Ownable2Step_Messages
 }
 
-// crc32("Router_CCIPSendACK")
 struct (0x78d0f21e) Router_CCIPSendACK {
     queryID: uint64;
     messageId: uint256;
 }
 
-// crc32("Router_CCIPSendNACK")
 struct (0x5a45d434) Router_CCIPSendNACK {
     queryID: uint64;
     error: uint256;
@@ -171,7 +169,8 @@ fun Router_Costs.routeMessage(): int {
 
 // Minimum value for calling Router_CCIPReceiveConfirm
 fun Router_Costs.receiveConfirm(): int {
-    val baseFee = ton("0.002");
+    val baseFee = ROUTER_RECEIVE_CONFIRM_FEE;
     return baseFee + OffRamp_Costs.receiveConfirmOrDeny();
 }
 
+const ROUTER_RECEIVE_CONFIRM_FEE = ton("0.002");
