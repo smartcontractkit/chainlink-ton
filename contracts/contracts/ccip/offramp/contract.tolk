@@ -66,7 +66,7 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_UpdateDeployables => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            onUpdateDeployables(msg)
+            onUpdateDeployables(st, msg)
         }
         // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
@@ -327,9 +327,7 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
 }
 
 // Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
-fun onUpdateDeployables(msg: OffRamp_UpdateDeployables) {
-    var st = lazy Storage.load();
-
+fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
     var deployables = st.deployables.load();
 
     if (msg.receiveExecutorCode != null) {
