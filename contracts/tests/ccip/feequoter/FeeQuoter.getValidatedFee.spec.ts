@@ -786,7 +786,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
         dataSize: 16000, // Data size to calculate DA cost
         maxDataBytes: 2 ** 32 - 1, // Max allowed data size
-        tokenPrice: 2n ** 200n, // Very high token price (so final division doesn't overflow)
+        feeTokenPrice: 2n ** 200n, // Very high token price (so final division doesn't overflow)
         linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
       }
 
