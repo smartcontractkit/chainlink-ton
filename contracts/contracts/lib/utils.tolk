@@ -128,8 +128,8 @@ fun Iterator<T>.empty(self): bool {
 fun Iterator<T>.next(mutate self): T {
     var (bits, refs) = self.data.remainingBitsAndRefsCount();
     if (bits == 0) {
-        // TODO: assert refs == 1
-        // TODO: load vs preload?
+        // for snakeData to be well formed, there should only be one reference
+        assert(refs == 1, ERROR_INVALID_DATA);
         self.data = self.data.loadRef().beginParse();
     }
     return self.data.loadAny<T>();

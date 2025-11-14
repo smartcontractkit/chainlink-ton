@@ -83,8 +83,7 @@ const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 struct DestChainConfig {
     config: FeeQuoterDestChainConfig;
 
-    // TODO: split this out since updates are more frequent?
-    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
+    usdPerUnitGas: Cell<GasPrice>;
 
     tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
 }

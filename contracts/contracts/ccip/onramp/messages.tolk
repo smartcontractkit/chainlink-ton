@@ -62,18 +62,16 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     metadata: Metadata,
 }
 
-// TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRamp_UpdateDestChainConfigs {
-    updates: cell; // vec<OffRampUpdateDestChainConfig>
+    updates: SnakedCell<OnRampUpdateDestChainConfig>;
 }
 
 struct (0x82901c45) OnRamp_UpdateSendExecutor {
     code: cell;
 }
 
-// TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000005) OnRamp_UpdateAllowlists {
-    updates: cell; // vec<UpdateAllowlist>
+    updates: SnakedCell<UpdateAllowlist>;
 }
 
 // --- Outgoing messages ---

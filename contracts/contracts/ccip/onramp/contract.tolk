@@ -291,7 +291,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             feeToken: ccipsend.feeToken,
             feeTokenAmount: msg.fee as uint256, // safe because it is 128 bits
         }.toCell(),
-        feeValueJuels: 0, // TODO:
+        feeValueJuels: 0, // TODO: this needs to be juels rather than TON?
     };
 
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
@@ -367,8 +367,8 @@ fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) 
 Applies destination chain configuration updates by creating new configurations or updating
 existing ones. Only the owner is authorized to call this function.
 */
-fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
-    var iter = Iterator<OnRampUpdateDestChainConfig>.new(updates);
+fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: SnakedCell<OnRampUpdateDestChainConfig>) {
+    var iter = updates.iter();
 
     while (!iter.empty()) {
         val update = iter.next();
@@ -404,8 +404,8 @@ Applies allowlist updates for destination chain configurations in the
 OnRamp contract. Adds or removes sender addresses from each chain’s
 allowedSenders map. Only the owner is authorized to call this function.
 */
-fun onApplyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
-    var iter = Iterator<UpdateAllowlist>.new(updates);
+fun onApplyAllowlistUpdates(mutate st: OnRamp_Storage, updates: SnakedCell<UpdateAllowlist>) {
+    var iter = updates.iter();
 
     while (!iter.empty()) {
         val update = iter.next();

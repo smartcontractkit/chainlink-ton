@@ -143,8 +143,8 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     }
 }
 
-fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
-    var iter = Iterator<FeeQuoter_UpdateDestChainConfig>.new(updates);
+fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>) {
+    var iter = updates.iter();
 
     while (!iter.empty()) {
         val update = iter.next();

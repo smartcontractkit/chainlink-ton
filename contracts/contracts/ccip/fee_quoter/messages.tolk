@@ -48,15 +48,14 @@ struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
 
 
 // NOTE: we just merged this into UpdateFeeTokens
-// struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
+// UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
 
 struct (0xB2826316) FeeQuoter_UpdateTokenTransferFeeConfigs {
-    // TODO: would these be more efficient as snakedata (key, value)?
     updates: map<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
 }
 
 struct (0x29950BAA) FeeQuoter_UpdateDestChainConfigs {
-    updates: cell; // vec<FeeQuoter_UpdateDestChainConfig>
+    updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>;
 }
 
 struct (0x71DF848A) FeeQuoter_AddPriceUpdater {
