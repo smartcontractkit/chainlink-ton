@@ -157,15 +157,17 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-/*
-Routes a validated message to its intended receiver contract.
+// Routes a validated message to its intended receiver contract.
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    ReceiveExecutor ->
-    OffRamp.OffRamp_DispatchValidated ->
-    Router.Router_RouteMessage -> Here is where we process this message
-    Receiver.Receiver_CCIPReceive
- */
+//     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
+//     OffRamp         ->> Router:   Router_RouteMessage (process)
+//     Router          ->> Receiver: Receiver_CCIPReceive
 fun onRouteMessage(msg: Router_RouteMessage, message: Any2TVMMessage) {
     val ccipReceive: Receiver_CCIPReceive = {
         execId: msg.execId,
@@ -248,21 +250,23 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
     st.rmnRemote = rmn.toCell();
 }
 
-/*
-Sends a CCIP receive confirmation to the OffRamp contract corresponding to
-the source chain. Triggered by the receiver after successful message
-handling. This operation is permissionless at the router level and the offramp will validate
-that this comes from a valid receiver
+// Sends a CCIP receive confirmation to the OffRamp contract corresponding to
+// the source chain. Triggered by the receiver after successful message
+// handling. This operation is permissionless at the router level and the offramp will validate
+// that this comes from a valid receiver
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    ReceiveExecutor ->
-    OffRamp.OffRamp_DispatchValidated ->
-    Router.Router_RouteMessage ->
-    Receiver.Receiver_CCIPReceive ->
-    Router.Router_CCIPReceiveConfirm -> Here is where we process this message
-    OffRamp.OffRamp_CCIPReceiveConfirm ->
-    ReceiverExecutor.ReceiveExecutor_Confirm
-*/
+//     ReceiveExecutor ->> OffRamp:         OffRamp_DispatchValidated
+//     OffRamp         ->> Router:          Router_RouteMessage
+//     Router          ->> Receiver:        Receiver_CCIPReceive
+//     Receiver        ->> Router:          Router_CCIPReceiveConfirm (process)
+//     Router          ->> OffRamp:         OffRamp_CCIPReceiveConfirm
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
 fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     val st = lazy Storage.load();
     val sourceChainSelector = msg.execId.getSourceChainSelector();
@@ -281,21 +285,23 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
     confirmMsg.send(SEND_MODE_REGULAR);
 }
 
-/*
-Sends a CCIP receive confirmation to the OffRamp contract corresponding to
-the source chain. Triggered by the receiver after successful message
-handling. This operation is permissionless at the router level and the offramp will validate
-that this comes from a valid receiver
+// Sends a CCIP receive confirmation to the OffRamp contract corresponding to
+// the source chain. Triggered by the receiver after successful message
+// handling. This operation is permissionless at the router level and the offramp will validate
+// that this comes from a valid receiver
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    ReceiveExecutor ->
-    OffRamp.OffRamp_DispatchValidated ->
-    Router.Router_RouteMessage ->
-    Receiver.Receiver_CCIPReceive (bounce) ->
-    Router.Router_BouncedMessage.Receiver_CCIPReceive -> Here is where we process this message
-    OffRamp.OffRamp_CCIPReceiveBounced ->
-    ReceiverExecutor.ReceiveExecutor_Bounced
-*/
+//     ReceiveExecutor ->> OffRamp:         OffRamp_DispatchValidated
+//     OffRamp         ->> Router:          Router_RouteMessage
+//     Router          ->> Receiver:        Receiver_CCIPReceive
+//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce, process)
+//     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
 fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     val st = Storage.load();
     val sourceChainSelector = execId.getSourceChainSelector();
@@ -313,17 +319,20 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
     receiveBounced.send(SEND_MODE_REGULAR);
 }
 
-/*
-Entrypoint to get a validated fee from the FeeQuoter.
+// Entrypoint to get a validated fee from the FeeQuoter.
+//
+// sequenceDiagram
+//     participant SenderAcc
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    Router.Router_GetValidatedFee ->
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    OnRamp.FeeQuoter_MessageValidated ->
-    Router.OnRamp_MessageValidated ->
-    userAddres.Router_MessageValidated
- */
+//     SenderAcc ->> Router:    Router_GetValidatedFee
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
+//     OnRamp    ->> Router:    OnRamp_MessageValidated
+//     Router    ->> SenderAcc: Router_MessageValidated
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy Storage.load();
     val ccipSend = lazy msg.ccipSend.load();
