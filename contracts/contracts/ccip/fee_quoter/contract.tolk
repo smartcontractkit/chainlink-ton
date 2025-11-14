@@ -15,7 +15,7 @@ import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 
-const CONTRACT_VERSION = "0.0.8";
+const CONTRACT_VERSION = "1.6.0";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 const RESERVE = ton("1"); // TODO: set correct value
 
@@ -36,15 +36,19 @@ fun onInternalMessage(in: InMessage) {
         },
         FeeQuoter_UpdatePrices => {
             var st = lazy Storage.load();
+
             // either an allowed price updater or feeQuoter owner
             assert(st.allowedPriceUpdaters.exists(in.senderAddress) || st.ownable.owner == in.senderAddress, FeeQuoter_Error.UnauthorizedPriceUpdater);
             updatePrices(mutate st, msg.updates);
             st.store();
+
+            sendExcessesTo(msg.sendExcessesTo, in.senderAddress);
         }
         FeeQuoter_UpdateFeeTokens => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             updateFeeTokens(mutate st, msg);
+
             st.store();
         }
         FeeQuoter_UpdateTokenTransferFeeConfigs => {
@@ -59,7 +63,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfigs(mutate st, msg.updates);
             st.store();
         }
-        FeeQuoter_GetValidatedFee<cell> => {
+        FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             assert (in.valueCoins >= FeeQuoter_Costs.GetValidatedFee()) throw FeeQuoter_Error.InsufficientFee;
             handleGetValidatedFee(msg, in.senderAddress)
         }
@@ -73,10 +77,7 @@ fun onInternalMessage(in: InMessage) {
         Upgradeable_Upgrade => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            Upgradeable{
-                migrate: migrate,
-                version: version,
-            }.upgrade(msg);
+            Upgradeable{ migrate, version }.upgrade(msg);
         }
         else => {
             // attempt to handle Ownable messages
@@ -139,8 +140,8 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
     }
 }
 
-fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
-    var iter = Iterator<FeeQuoter_UpdateDestChainConfig>.new(updates);
+fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>) {
+    var iter = updates.iter();
 
     while (!iter.empty()) {
         val update = iter.next();
@@ -206,6 +207,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
             })
         }
     }
+
+
 }
 
 // apply_premium_multiplier_wei_per_eth_updates??
@@ -220,10 +223,10 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
     return (price.executionGasPrice, price.dataAvailabilityGasPrice)
 }
 
+// Note: Equivalent to validatedFee for cell encoding instead of using stack
 get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
     return validatedFee(msg.load());
 }
-
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
     var st = lazy Storage.load();
@@ -462,7 +465,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
 }
 
 
-fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
+fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
@@ -472,10 +475,10 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidated<cell> {
+            body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
                 msg: payload.msg,
-                metadata: payload.metadata,
                 fee: feeTokenAmount,
+                context: payload.context,
             }
         });
     } catch (e) {
@@ -483,14 +486,29 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: addr
             bounce: true,
             value: 0,
             dest: sender,
-            body: CCIPSendExecutor_MessageValidationFailed<cell> {
+            body: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs> {
                 msg: payload.msg,
-                metadata: payload.metadata,
                 error: e,
+                context: payload.context,
             }
         });
     }
     response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
+    var receiver = sender;
+    if (sendExcessesTo != null) {
+        receiver = sendExcessesTo!;
+    }
+
+    val returnExcesses = createMessage({
+        bounce: false,
+        value: 0,
+        dest: receiver,
+        body: createEmptyCell(),
+    });
+    returnExcesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {
@@ -556,6 +574,18 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
 get fun staticConfig(): (uint96, address, uint64) {
     val st = lazy Storage.load();
     return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
+}
+
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.ownable.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

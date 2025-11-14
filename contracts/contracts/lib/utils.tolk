@@ -105,6 +105,10 @@ fun SnakedCell<T>.iter(self): Iterator<T> {
     return Iterator<T>.new(self)
 }
 
+fun SnakedCell<T>.empty(self): bool {
+    return self.beginParse().isEmpty();
+}
+
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
     data: slice;
@@ -124,8 +128,8 @@ fun Iterator<T>.empty(self): bool {
 fun Iterator<T>.next(mutate self): T {
     var (bits, refs) = self.data.remainingBitsAndRefsCount();
     if (bits == 0) {
-        // TODO: assert refs == 1
-        // TODO: load vs preload?
+        // for snakeData to be well formed, there should only be one reference
+        assert(refs == 1, ERROR_INVALID_DATA);
         self.data = self.data.loadRef().beginParse();
     }
     return self.data.loadAny<T>();
@@ -237,4 +241,34 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple? {
         entry = dict.iterateNext(entry);
     } ;
     return list;
+}
+
+
+// This type works as a wrapper for RemainingBitsAndRefs that implements
+// automatic serialization/deserialization. It determines whether to store the
+// data directly as bits or as a reference to a cell, depending on available
+// space.
+type RemainingBitsOrRef<T> = T;
+
+fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
+    val serialized = (self as T).toCell();
+    val nBits = serialized.remainingBitsCount();
+    if (b.remainingSpace() < nBits - 1) {
+        // not enough space, create a new cell
+        b.storeBit(1);
+        b.storeRef(serialized);
+    } else {
+        b.storeBit(0);
+        b.storeSlice(serialized.beginParse());
+    }
+}
+
+fun RemainingBitsOrRef<T>.unpackFromSlice(mutate s: slice): RemainingBitsOrRef<T> {
+    val isRef = s.loadBit();
+    if (isRef) {
+        val c = s.loadRef();
+        return T.fromCell(c) as RemainingBitsOrRef<T>;
+    } else {
+        return T.fromSlice(s) as RemainingBitsOrRef<T>;
+    }
 }

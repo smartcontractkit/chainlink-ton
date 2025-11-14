@@ -1,4 +1,4 @@
-import { Builder, Slice } from '@ton/core'
+import { Builder, Slice, TupleItem } from '@ton/core'
 import { createHash } from 'crypto'
 
 /// Returns the facility ID for the given CRC16 key (e.g. stringCrc16("com.chainlink.ton.mcms.Timelock")).
@@ -28,4 +28,36 @@ export const sha256_32 = (input: string): bigint => {
 export interface CellCodec<T> {
   encode: (data: T) => Builder
   load: (src: Slice) => T
+}
+
+export interface StackCodec<T> {
+  encode: (data: T) => TupleItem[]
+  load: (src: TupleItem[]) => T
+}
+
+// This is the codec for RemainingBitsOrRef<T> type in Tolk
+// It allows storing/loading a Slice either directly as bits or as a reference
+// to a cell, depending on available space.
+// It has a different interface than the usual CellCodec<T> because it needs
+// to access the Builder instance to check available bits.
+export const remainingBitsOrRefCodec = {
+  encode: function (data: Slice, b: Builder) {
+    const nBits = data.remainingBits
+    if (b.availableBits < nBits - 1) {
+      b.storeBit(1) // ref
+      b.storeRef(data.asCell())
+    } else {
+      b.storeBit(0) // bits
+      b.storeSlice(data)
+    }
+  },
+  load: function (src: Slice): Slice {
+    const isRef = src.loadBit()
+    if (isRef) {
+      const ref = src.loadRef()
+      return ref.beginParse()
+    } else {
+      return src
+    }
+  },
 }

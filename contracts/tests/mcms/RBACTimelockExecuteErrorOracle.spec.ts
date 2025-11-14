@@ -1,14 +1,13 @@
 import '@ton/test-utils'
 
-import { toNano, beginCell, Cell } from '@ton/core'
+import { toNano, Cell } from '@ton/core'
+import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { ERROR_TIMESTAMP } from '../../wrappers/mcms/RBACTimelock'
 
 describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   let baseTest: BaseTestSetup
@@ -135,7 +134,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
     )
 
     // Wait for delay
-    baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+    baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
 
     const executeBody = rbactl.builder.message.in.executeBatch
       .encode({
@@ -199,7 +198,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       success: true,
     })
 
-    expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(ERROR_TIMESTAMP)
+    expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.ERROR_TIMESTAMP)
 
     // Try to re-execute the same op - should fail with OperationNotReady
     const r3 = await baseTest.bind.timelock.sendInternal(

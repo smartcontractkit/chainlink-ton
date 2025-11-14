@@ -3,9 +3,9 @@ import '@ton/test-utils'
 import { toNano, beginCell, Cell, Address } from '@ton/core'
 import { BaseTestSetup, TestCode } from './BaseTest'
 
+import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
 import * as counter from '../../wrappers/examples/Counter'
-import { ac } from '../../wrappers/lib/access'
 
 describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   let baseTest: BaseTestSetup

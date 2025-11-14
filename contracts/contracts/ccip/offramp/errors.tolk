@@ -6,7 +6,8 @@ enum Error {
     SourceChainSelectorMismatch
     InvalidOnRampUpdate
     SenderIsNotRouter
+    InsufficientFee
     SubjectCursed
     Unauthorized
+    ZeroAddressNotAllowed
 }
-

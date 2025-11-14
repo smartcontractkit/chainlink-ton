@@ -16,7 +16,7 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 import * as or from './OffRamp'
 
-export const MERKLE_ROOT_CONTRACT_VERSION = '0.0.9'
+export const MERKLE_ROOT_CONTRACT_VERSION = '1.6.0'
 
 export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479

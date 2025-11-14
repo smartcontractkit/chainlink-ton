@@ -38,13 +38,13 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorInsufficientFee)
+		ecMax = int32(ErrorUnauthorizedPriceUpdater)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	ErrorUnsupportedChainFamilySelector ExitCode = iota + 1001
+	ErrorUnsupportedChainFamilySelector ExitCode = ExitCode(24800 + iota)
 	ErrorGasLimitTooHigh
 	ExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
@@ -53,10 +53,22 @@ const (
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
 	ErrorMsgDataTooLarge
+	ErrorStaleGasPrice
+	ErrorDestChainNotEnabled
+	ErrorFeeTokenNotSupported
+	ErrorInvalidMsgData
+	ErrorTokenNotSupported
+	ErrorUnknownDestChainSelector
 	ErrorInsufficientFee
-
-	ErrorTokenNotSupported        ExitCode = ExitCode(24813)
-	ErrorUnknownDestChainSelector ExitCode = ExitCode(24814)
+	ErrorTokenTransfersNotSupported
+	// Overflow protection errors
+	ErrorExecutionCostOverflow
+	ErrorPremiumFeeOverflow
+	ErrorDataAvailabilityCostOverflow
+	ErrorFeeCalculationOverflow
+	ErrorTokenPriceTooLow
+	ErrorFeeOverflow
+	ErrorUnauthorizedPriceUpdater
 )
 
 type Storage struct {
@@ -226,7 +238,6 @@ type TimestampedPrice struct {
 	Timestamp uint32   `tlb:"## 32"`
 }
 
-// TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
 func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 	value, err := result.Int(0)
 	if err != nil {
@@ -283,9 +294,10 @@ type RemovePriceUpdater struct {
 }
 
 type UpdatePrices struct {
-	_           tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
-	TokenPrices ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices   ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	_              tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	TokenPrices    ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices      ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	SendExcessesTo *address.Address                       `tlb:"maybe addr"`
 }
 
 type UpdateFeeTokens struct {

@@ -7,6 +7,7 @@ import { ZERO_ADDRESS } from '../../../src/utils'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 
 async function deployOnRampContract(
   blockchain: Blockchain,
@@ -26,8 +27,11 @@ async function deployOnRampContract(
       allowlistAdmin: ZERO_ADDRESS,
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-    currentMessageId: 0n,
-    executor_code: beginCell().endCell(),
+    executor: {
+      deployableCode: beginCell().endCell(),
+      executorCode: beginCell().endCell(),
+      currentID: 0n,
+    },
   }
   // TODO: use deployable to make deterministic?
   const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
@@ -84,6 +88,17 @@ describe('OnRamp - Withdrawable Tests', () => {
 //   )
 //   upgradeSpec.run()
 // })
+
+describe('OnRamp - Ownable Tests', () => {
+  it('supports ownable messages', async () => {
+    const blockchain = await Blockchain.create()
+    const deployer = await blockchain.treasury('deployer')
+    const other = await blockchain.treasury('other')
+    const onramp = await deployOnRampContract(blockchain, deployer)
+
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, onramp)
+  })
+})
 
 describe('OnRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({

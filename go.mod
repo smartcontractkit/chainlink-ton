@@ -10,6 +10,7 @@ require (
 	github.com/ethereum/go-ethereum v1.16.2
 	github.com/gagliardetto/solana-go v1.13.0
 	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/prometheus/client_golang v1.23.0
 	github.com/smartcontractkit/chain-selectors v1.0.72
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251024142759-093ed1b4017f
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251003171904-99a82a53b142
@@ -17,6 +18,8 @@ require (
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
+	go.opentelemetry.io/otel v1.37.0
+	go.opentelemetry.io/otel/metric v1.37.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
 	golang.org/x/net v0.42.0
@@ -89,7 +92,6 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.23.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
@@ -109,7 +111,6 @@ require (
 	go.mongodb.org/mongo-driver v1.17.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
-	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.12.2 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.12.2 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.36.0 // indirect
@@ -121,7 +122,6 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.36.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.36.0 // indirect
 	go.opentelemetry.io/otel/log v0.13.0 // indirect
-	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/sdk/log v0.13.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.37.0 // indirect

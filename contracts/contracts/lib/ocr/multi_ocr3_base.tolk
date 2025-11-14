@@ -3,10 +3,7 @@ import "./exit_codes.tolk";
 import "./../utils.tolk";
 
 
-//crc32("OCR3Base_ConfigSet")
 const OCR3BASE_CONFIG_SET_TOPIC: int = stringCrc32("OCR3Base_ConfigSet");
-
-//crc32("OCR3Base_Transmitted")
 const OCR3BASE_TRANSMITTED: int = stringCrc32("OCR3Base_Transmitted");
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.
@@ -140,11 +137,11 @@ fun OCR3Base.transmit(
     ocrConfig = ocrConfig!;
     var configInfo: ConfigInfo = ocrConfig.configInfo;
     
-    // TODO: EVM checks transaction data length here, I think it's probably too expensive to do this in TON 
+    // EVM checks transaction data length here, it's probably too expensive to do this in TON 
     
     assert(reportContext.configDigest == configInfo.configDigest, ERROR_CONFIG_DIGEST_MISMATCH);
     
-    // TODO: EVM checks assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
+    // EVM checks assert_chain_not_forked, this is not necessary in TON
     
     val pluginTransmitters = ocrConfig.transmitters;
 

@@ -16,7 +16,6 @@ enum FeeQuoter_Error {
     UnknownDestChainSelector
     InsufficientFee
     TokenTransfersNotSupported
-    // Overflow protection errors
     ExecutionCostOverflow // Unreachable
     PremiumFeeOverflow // Unreachable
     DataAvailabilityCostOverflow // Unreachable
@@ -25,5 +24,3 @@ enum FeeQuoter_Error {
     FeeOverflow
     UnauthorizedPriceUpdater
 }
-
-

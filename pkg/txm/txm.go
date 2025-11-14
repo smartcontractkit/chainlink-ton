@@ -39,6 +39,8 @@ type Txm struct {
 	logger   logger.Logger
 	keystore loop.Keystore
 	config   Config
+	chainID  string
+	metrics  *tonTxmMetrics
 
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
 	broadcastChan  chan *Tx
@@ -59,18 +61,31 @@ type Request struct {
 	ID              *string         // Optional: unique ID for transaction tracking
 }
 
-func New(lgr logger.Logger, keystore loop.Keystore, clientProvider func(context.Context) (tracetracking.SignedAPIClient, error), config Config) *Txm {
+func New(
+	lggr logger.Logger,
+	chainID string,
+	keystore loop.Keystore,
+	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error),
+	config Config,
+) (*Txm, error) {
+	metrics, err := newTonTxmMetrics(chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
+	}
+
 	txm := &Txm{
-		logger:         logger.Named(lgr, "Txm"),
+		logger:         logger.Named(lggr, "Txm"),
 		keystore:       keystore,
 		config:         config,
+		chainID:        chainID,
+		metrics:        metrics,
 		clientProvider: clientProvider,
 		broadcastChan:  make(chan *Tx, config.BroadcastChanSize),
 		accountStore:   NewAccountStore(),
 		stop:           make(chan struct{}),
 	}
 
-	return txm
+	return txm, nil
 }
 
 func (t *Txm) Name() string {
@@ -240,11 +255,21 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"hasBody", msg.InternalMessage.Body != nil)
 		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
 
+		if receivedMessage.ExitCode != 0 {
+			t.logger.Errorw("transaction failed", "exitcode", receivedMessage.ExitCode, "description", receivedMessage.ExitCode.Describe())
+		}
+
 		if err == nil {
 			t.logger.Infow("transaction broadcasted",
 				"txID", txID,
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
+			err = receivedMessage.WaitForTrace(client.Client)
+			if err != nil {
+				t.logger.Errorw("failed to wait for trace", "error", err)
+			}
+			t.logger.Debugf("Msg tree trace :\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
+			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 			break
 		}
 
@@ -263,6 +288,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	}
 
 	if err != nil {
+		t.metrics.IncrementFailedToBroadcastTxs(ctx)
 		t.logger.Errorw("failed to broadcast tx after retries",
 			"txID", txID,
 			"err", err,
@@ -367,13 +393,24 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				continue
 			}
 
+			t.metrics.IncrementFinalizedTxs(ctx)
 			if traceSucceeded {
+				t.metrics.IncrementSuccessTxs(ctx)
 				t.logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
+				t.metrics.IncrementRevertTxs(ctx)
 				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
 		}
 	}
+
+	// Update pending transactions metric after processing
+	allUnconfirmedTxsByAccounts := t.accountStore.GetAllUnconfirmed()
+	totalPending := 0
+	for _, unconfirmedTxs := range allUnconfirmedTxsByAccounts {
+		totalPending += len(unconfirmedTxs)
+	}
+	t.metrics.SetPendingTxs(ctx, totalPending)
 }
 
 // Periodically cleans up finalized and expired transactions from the TxStore.

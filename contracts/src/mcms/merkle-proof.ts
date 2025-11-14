@@ -12,10 +12,9 @@ export type OpProofs = bigint[][]
 
 export function build(
   signers: ocr.Signer[],
-  validUntil: bigint,
+  validUntil: number,
   metadata: mcms.RootMetadata,
   ops: mcms.Op[],
-  opFinalizationTimeout: bigint,
 ): [mcms.SetRoot, OpProofs] {
   const leaves = constructLeaves(ops, metadata)
 
@@ -40,7 +39,6 @@ export function build(
       metadata,
       metadataProof: asSnakeData<bigint>(metadataProof, encodeProof),
       signatures: asSnakeData<mcms.Signature>(signatures, encodeSignature),
-      opFinalizationTimeout,
     },
     opProofs,
   ]
@@ -138,7 +136,7 @@ export function getLeafIndexOfOp(opIndex: number): number {
 
 export function constructAnsSignRootAndProof(
   leaves: bigint[],
-  validUntil: bigint,
+  validUntil: number,
   signers: ocr.Signer[],
 ): {
   root: bigint
@@ -159,7 +157,7 @@ export function computeRoot(leaves: bigint[]): bigint {
   return currentLayer[0]
 }
 
-function fillSignatures(root: bigint, validUntil: bigint, signers: ocr.Signer[]): mcms.Signature[] {
+function fillSignatures(root: bigint, validUntil: number, signers: ocr.Signer[]): mcms.Signature[] {
   const signatures: mcms.Signature[] = []
   const data = beginCell() // TODO: implement as type + CellCodec<T>
     .storeUint(root, 256)

@@ -12,21 +12,22 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	_ "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/v1_6_0/sequences"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	cs_core "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -52,16 +53,6 @@ func TestAddLanes(t *testing.T) {
 	t.Log("TON deployer: ", tonChain.Wallet.WalletAddress().String())
 
 	toolingAPIVersion := semver.MustParse("1.6.0")
-
-	// <deploy-ton>
-	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
-	contractID, err := tonops.RandomUint32()
-	require.NoError(t, err)
-	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
-
-	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
-	require.NoError(t, err, "failed to deploy ccip")
-	// </deploy-ton>
 
 	// <deploy-evm>
 	mcmsRegistry := cs_core.NewMCMSReaderRegistry()
@@ -94,11 +85,21 @@ func TestAddLanes(t *testing.T) {
 	)[0].Address
 	// </deploy-evm>
 
+	// <deploy-ton>
+	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
+	contractID, err := tonops.RandomUint32()
+	require.NoError(t, err)
+	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
+
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	require.NoError(t, err, "failed to deploy ccip")
+	// </deploy-ton>
+
 	tonDefinition := lanes.ChainDefinition{
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			tonops.TonTokenAddr.String(): big.NewInt(99),
+			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,

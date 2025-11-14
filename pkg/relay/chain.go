@@ -16,10 +16,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -34,6 +30,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
+	lppgstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -105,14 +103,14 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 
 	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
 	signedClientProvider := commonutils.NewLazyLoadCtx(func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
-		tonClient, err := ch.GetClient(ctx)
-		if err != nil {
-			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
+		tonClient, err1 := ch.GetClient(ctx)
+		if err1 != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err1)
 		}
 
-		signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
-		if err != nil {
-			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
+		signerWallet, err1 := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
+		if err1 != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err1)
 		}
 
 		return tracetracking.SignedAPIClient{
@@ -121,7 +119,10 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		}, nil
 	})
 
-	ch.txm = txm.New(lggr, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
+	ch.txm, err = txm.New(lggr, ch.id, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TON TXM for chain ID %s: %w", cfg.ChainID, err)
+	}
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		signedClient, err := signedClientProvider.Get(ctx)
@@ -130,19 +131,17 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		}
 		return signedClient.Client, nil
 	}
+	lggr.Infow("Creating new chain", "chainID", ch.ID())
 
-	// Get LogPoller configuration from chain config
-	lpCfg := *ch.cfg.LogPollerConfig()
-	fs := inmemorystore.NewFilterStore()
+	orm := lppgstore.NewORM(ch.ID(), ds, lggr)
 	lgOpts := &logpoller.ServiceOptions{
-		Config:   lpCfg,
-		Filters:  fs,
-		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
-		TxParser: txparser.NewTxParser(lggr, fs),
-		Store:    inmemorystore.NewLogStore(lggr),
+		Config:      *ch.cfg.LogPollerConfig(), // get LogPoller configuration from chain config
+		TxLoader:    txloader.New(lggr, clientProvider),
+		FilterStore: lppgstore.NewFilterStore(ch.ID(), orm, lggr),
+		LogStore:    lppgstore.NewLogStore(ch.ID(), orm, lggr),
 	}
 
-	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)
+	ch.lp = logpoller.NewService(lggr, ch.ID(), clientProvider, lgOpts)
 
 	// TODO: Setup accounts balance monitor
 
@@ -248,12 +247,10 @@ func (c *chain) ListNodeStatuses(ctx context.Context, pageSize int32, pageToken 
 }
 
 func (c *chain) Transact(ctx context.Context, from, to string, amount *big.Int, balanceCheck bool) error {
-	// TODO(NONEVM-1460): implement
 	return errors.ErrUnsupported
 }
 
 func (c *chain) Replay(ctx context.Context, fromBlock string, _ map[string]any) error {
-	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
 	fromBlockNum, err := strconv.ParseUint(fromBlock, 10, 32)
 	if err != nil {
 		return fmt.Errorf("invalid fromBlock: %w", err)

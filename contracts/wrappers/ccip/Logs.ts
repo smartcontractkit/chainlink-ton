@@ -9,9 +9,15 @@ export const LogTypes = {
   ExecutionStateChanged: 'ExecutionStateChanged',
   SourceChainSelectorAdded: 'SourceChainSelectorAdded',
   SourceChainConfigUpdated: 'SourceChainConfigUpdated',
+  DynamicConfigSet: 'DynamicConfigSet',
   DestChainSelectorAdded: 'DestChainSelectorAdded',
   DestChainConfigUpdated: 'DestChainConfigUpdated',
   ReceiverCCIPMessageReceived: 'Receiver_CCIPMessageReceived',
+  OnRampSet: `OnRampSet`,
+  OffRampAdded: `OffRampAdded`,
+  OffRampRemoved: `OffRampRemoved`,
+  Cursed: 'Cursed',
+  Uncursed: 'Uncursed',
 } as const
 
 export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
@@ -22,9 +28,15 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   ExecutionStateChanged: crc32('ExecutionStateChanged'),
   SourceChainSelectorAdded: crc32('SourceChainSelectorAdded'),
   SourceChainConfigUpdated: crc32('SourceChainConfigUpdated'),
+  DynamicConfigSet: crc32('DynamicConfigSet'),
   DestChainSelectorAdded: crc32('DestChainSelectorAdded'),
   DestChainConfigUpdated: crc32('DestChainConfigUpdated'),
   Receiver_CCIPMessageReceived: crc32('Receiver_CCIPMessageReceived'),
+  OnRampSet: crc32('OnRampSet'),
+  OffRampAdded: crc32('OffRampAdded'),
+  OffRampRemoved: crc32('OffRampRemoved'),
+  Cursed: crc32('Cursed'),
+  Uncursed: crc32('Uncursed'),
 }
 
 export type CCIPMessageSent = {
@@ -79,4 +91,27 @@ export type DestChainConfigUpdated = {
 
 export type ReceiverCCIPMessageReceived = {
   message: Any2TVMMessage
+}
+
+export type OnRampSet = {
+  destChainSelectors: bigint[]
+  onRamp: Address
+}
+
+export type OffRampAdded = {
+  sourceChainSelectors: bigint[]
+  offRampAdded: Address
+}
+
+export type OffRampRemoved = {
+  sourceChainSelectors: bigint[]
+  offRampRemoved: Address
+}
+
+export type Cursed = {
+  subject: bigint
+}
+
+export type Uncursed = {
+  subject: bigint
 }

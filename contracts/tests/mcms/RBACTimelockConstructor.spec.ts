@@ -1,9 +1,9 @@
 import '@ton/test-utils'
+import { toNano } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { toNano } from '@ton/core'
 
 describe('MCMS - RBACTimelockConstructorTest', () => {
   let baseTest: BaseTestSetup
@@ -32,7 +32,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
         cancellers: [],
         bypassers: [],
         executorRoleCheckEnabled: true,
-        opFinalizationTimeout: 0n,
+        opFinalizationTimeout: 0,
       })
       .asCell()
 
@@ -253,7 +253,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
 
   it('should set min delay', async () => {
     const minDelay = await baseTest.bind.timelock.getMinDelay()
-    expect(minDelay).toBe(BigInt(BaseTestSetup.MIN_DELAY))
+    expect(minDelay).toBe(BaseTestSetup.MIN_DELAY)
   })
 
   it('should have no blocked functions initially', async () => {

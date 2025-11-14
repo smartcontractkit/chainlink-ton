@@ -465,7 +465,7 @@ fun AccessControl<T>.renounceRole(
     }
 
     // Renouncing a role is equivalent to revoking it from the caller
-    return self.revokeRole(queryId, sender, role, callerConfirmation, returnExcess);
+    return self._revokeRole(queryId, sender, role, callerConfirmation, returnExcess);
 }
 
 /// @dev Sets `adminRole` as `role`'s admin role.

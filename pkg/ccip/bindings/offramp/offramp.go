@@ -12,6 +12,7 @@ import (
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const (
@@ -53,6 +54,12 @@ type SourceChainSelectorAdded struct {
 	SourceChainSelector uint64 `tlb:"## 64"`
 }
 
+// DynamicConfigSet represents the DynamicConfigSet event data
+type DynamicConfigSet struct {
+	FeeQuoter                               *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+}
+
 // Storage represents the offRamp contract storage state
 type Storage struct {
 	ID                                      uint32                  `tlb:"## 32"`
@@ -69,7 +76,7 @@ type Storage struct {
 
 // Deployables holds the deployable code cells for the offRamp contract
 type Deployables struct {
-	Router              *address.Address `tlb:"addr"`
+	RMNRouter           *address.Address `tlb:"addr"`
 	Deployer            *cell.Cell       `tlb:"^"`
 	MerkleRootCode      *cell.Cell       `tlb:"^"`
 	ReceiveExecutorCode *cell.Cell       `tlb:"^"`
@@ -89,7 +96,7 @@ const CCIPReceiveOpCode = 0xb3126df1
 
 // CCIPReceive represents the CCIP message received on TON
 type CCIPReceive struct {
-	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
+	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
 	Message Any2TVMMessage `tlb:"."`
 }
@@ -125,12 +132,17 @@ type SetOCR3Config struct {
 	Transmitters                   ccipcommon.SnakeData[Transmitter] `tlb:"^"`
 }
 
-// UpdateSourceChainConfig represents the updateSourceChainConfig method call on the offRamp contract
+// UpdateSourceChainConfig represents the updateSourceChainConfig structure
 type UpdateSourceChainConfig struct {
-	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
-	QueryID             uint64            `tlb:"## 64"`
 	SourceChainSelector uint64            `tlb:"## 64"`
 	Config              SourceChainConfig `tlb:"."`
+}
+
+// UpdateSourceChainConfigs represents the updateSourceChainConfigs method call on the offRamp contract
+type UpdateSourceChainConfigs struct {
+	_       tlb.Magic                                     `tlb:"#22b4f05c"` //nolint:revive // Ignore opcode tag
+	QueryID uint64                                        `tlb:"## 64"`
+	Configs ccipcommon.SnakeData[UpdateSourceChainConfig] `tlb:"^"`
 }
 
 // Commit represents the commit method call on the offRamp contract
@@ -148,6 +160,13 @@ type Execute struct {
 	QueryID       uint64            `tlb:"## 64"`
 	ConfigDigest  []byte            `tlb:"bits 512"`
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
+}
+
+type SetDynamicConfig struct {
+	_                                       tlb.Magic        `tlb:"#95bc5a5c"` //nolint:revive // Ignore opcode tag
+	QueryID                                 uint64           `tlb:"## 64"`
+	FeeQuoter                               *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
 // Config types that implements getter fetching interface with rpc client
@@ -253,3 +272,29 @@ func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
 	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c)
 }
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorMessageNotFromOwnedContract)
+		ecMax = int32(ErrorZeroAddressNotAllowed)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
+const (
+	ErrorMessageNotFromOwnedContract ExitCode = iota + 8400
+	ErrorSourceChainNotEnabled
+	ErrorEmptyExecutionReport
+	ErrorInvalidMessageDestChainSelector
+	ErrorSourceChainSelectorMismatch
+	ErrorInvalidOnRampUpdate
+	ErrorSenderIsNotRouter
+	ErrorSubjectCursed
+	ErrorUnauthorized
+	ErrorZeroAddressNotAllowed
+)

@@ -2,6 +2,7 @@ package chainaccessor
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -18,7 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
@@ -56,26 +57,14 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 
 // registerFilter registers a filter for the given event if it doesn't already exist.
 func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *address.Address) error {
-	hasFilter, err := a.logPoller.HasFilter(ctx, name)
-	if err != nil {
-		return fmt.Errorf("failed to check for filter: %w", err)
-	}
-	// If filter exists, unregister it first to handle address changes
-	if hasFilter {
-		if err := a.logPoller.UnregisterFilter(ctx, name); err != nil {
-			return fmt.Errorf("failed to unregister logpoller filter: %w", err)
-		}
-	}
-
-	filter := types.Filter{
+	filter := lptypes.Filter{
 		Name:     name,
 		Address:  address,
 		MsgType:  tlb.MsgTypeExternalOut,
 		EventSig: hash.CRC32(name),
-		// TODO: add starting signo
 	}
 
-	if err := a.logPoller.RegisterFilter(ctx, filter); err != nil {
+	if _, err := a.logPoller.RegisterFilter(ctx, filter); err != nil {
 		return fmt.Errorf("failed to register logpoller filter: %w", err)
 	}
 
@@ -116,7 +105,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 }
 
 func (a *TONAccessor) validateCommitReportAcceptedEvent(
-	log types.TypedLog[offramp.CommitReportAccepted], gteTimestamp time.Time,
+	log lptypes.TypedLog[offramp.CommitReportAccepted], gteTimestamp time.Time,
 ) (*offramp.CommitReportAccepted, error) {
 	ev := &log.TypedData
 
@@ -168,8 +157,7 @@ func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
 		return errors.New("empty merkle root")
 	}
 	if len(merkleRoot.OnRampAddress) == 0 {
-		// TODO: better logging for address(currently it's raw byte)
-		return fmt.Errorf("invalid onramp address: %x", merkleRoot.OnRampAddress)
+		return fmt.Errorf("invalid onramp address: %x", hex.EncodeToString(merkleRoot.OnRampAddress))
 	}
 
 	return nil

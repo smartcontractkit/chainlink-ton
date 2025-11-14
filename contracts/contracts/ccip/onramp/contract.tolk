@@ -6,7 +6,6 @@ import "storage"
 import "errors"
 import "messages"
 
-import "@stdlib/lisp-lists";
 import "../common/types";
 import "../../lib/access/ownable_2step";
 import "../../lib/utils";
@@ -16,38 +15,79 @@ import "../ccipsend_executor/messages"
 import "../router/messages"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "events"
+import "../../deployable/types"
+import "../fee_quoter/messages"
 
-const CONTRACT_VERSION = "0.0.9";
-const RESERVE = ton("1"); // TODO: set correct value
+const CONTRACT_VERSION = "1.6.0";
+const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
-        OnRamp_Send => {send(msg, in.senderAddress)}
+        // Permissionless
+        OnRamp_GetValidatedFee<RemainingBitsAndRefs> => {
+            onGetValidatedFee(msg, in.senderAddress)
+        }
+        // Sender must be the FeeQuoter
+        FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext> => {
+            val st = lazy OnRamp_Storage.load();
+            val feeQuoterAddress = st.config.load().feeQuoter;
+            assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
+            onMessageValidated(msg)
+        }
+        // Sender must be the FeeQuoter
+        FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext> => {
+            val st = lazy OnRamp_Storage.load();
+            val feeQuoterAddress = st.config.load().feeQuoter;
+            assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
+            onMessageValidationFailed(msg)
+        }
+        // Permissionless
+        OnRamp_Send => {
+            onSend(msg, in.senderAddress)
+        }
+        // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
-            commit(msg, in.senderAddress);
+            var st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
+            onExecutorFinishedSuccessfully(st, msg);
         }
+        // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
-            replyWithError(msg, in.senderAddress);
+            var st = lazy OnRamp_Storage.load();
+            assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
+            onExecutorFinishedWithError(st, msg);
         }
+        // Sender must be the owner
         OnRamp_SetDynamicConfig => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            st.config = msg.config.toCell();
+            onSetDynamicConfig(mutate st, msg);
             st.store();
         }
+        // Sender must be the owner
         OnRamp_UpdateDestChainConfigs => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            applyDestChainConfigUpdates(mutate st, msg.updates);
+            onApplyDestChainConfigUpdates(mutate st, msg.updates);
             st.store();
         }
+        // Sender must be the owner
         OnRamp_UpdateAllowlists => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            applyAllowlistUpdates(mutate st, msg.updates);
+            onApplyAllowlistUpdates(mutate st, msg.updates);
             st.store();
         }
+        // Sender must be the owner
+        OnRamp_UpdateSendExecutor => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.executor.executorCode = msg.code;
+            st.store();
+        }
+        // Sender must be the owner
         Withdrawable_Withdraw => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -55,22 +95,125 @@ fun onInternalMessage(in: InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        // Sender must be owner
         Upgradeable_Upgrade => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            Upgradeable{
-                migrate: migrate,
-                version: version,
-            }.upgrade(msg);
+            onUpgrade(msg);
         }
         else => {
+            // attempt to handle Ownable messages
+            var st = lazy OnRamp_Storage.load();
+            val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+            if (handled) {
+                st.store();
+                return;
+            }
+
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
 }
 
-fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
+// Forwards a validated fee request from the OnRamp to the FeeQuoter contract
+// for final fee validation.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
+
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated | FeeQuoter_MessageValidationFailed
+fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+
+    val feeQuoter = config.feeQuoter;
+
+    val getFeeMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: feeQuoter,
+        body: FeeQuoter_GetValidatedFee<OnRamp_GetValidatedFeeContext> {
+            msg: msg.ccipSend,
+            context: {
+                onrampContext: sender,
+                userContext: msg.context
+            },
+        }
+    });
+
+    getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+// Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
+
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
+//     OnRamp    ->> Router:    OnRamp_MessageValidated
+fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>) {
+    val userContext = msg.context.userContext;
+    val userAddress = msg.context.onrampContext;
+
+    val confirmation = createMessage({
+        bounce: false,
+        value: 0,
+        dest: userAddress,
+        body: OnRamp_MessageValidated<RemainingBitsAndRefs> {
+            msg: msg.msg,
+            fee: msg.fee,
+            context: userContext,
+        }
+    });
+
+    confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+// Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
+// and replies back to the original caller.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
+
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
+//     OnRamp    ->> Router:    OnRamp_MessageValidationFailed
+fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>) {
+    val userContext = msg.context.userContext;
+    val userAddress = msg.context.onrampContext;
+
+    val rejection = createMessage({
+        bounce: false,
+        value: 0,
+        dest: userAddress,
+        body: OnRamp_MessageValidationFailed<RemainingBitsAndRefs> {
+            error: msg.error,
+            msg: msg.msg,
+            context: userContext,
+        }
+    });
+
+    rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/*
+Handles CCIP send messages forwarded by the Router. Validates that the
+destination chain configuration is enabled, enforces the optional allowlist,
+and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
+*/
+fun onSend(payload: OnRamp_Send, sender: address) {
     var st = lazy OnRamp_Storage.load();
 
     val msg = payload.msg.load();
@@ -88,46 +231,43 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val config = st.config.load();
 
-    var tokenRegistry: address? = null;
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: executorAddress(st.executorCode, st.currentMessageId),
-        body: CCIPSendExecutor_Execute {
-            onrampSend: payload,
-            config: CCIPSendExecutor_Config {
-                feeQuoter: config.feeQuoter,
-                tokenRegistry,
-            }.toCell(),
-            onrampJettonWallet: jettonWallet,
+        dest: st.executor.autoDeployAddress(st.executor.currentID),
+        body: Deployable_InitializeAndSend {
+            stateInit: {
+                code: st.executor.executorCode,
+                data:  CCIPSendExecutor_InitialData {
+                    onramp: contract.getAddress(),
+                    id: st.executor.currentID,
+                }.toCell(),
+            },
+            selfMessage: {
+                value: SendExecutor_Costs.Execute(),
+                body: CCIPSendExecutor_Execute {
+                    onrampSend: payload,
+                    config: CCIPSendExecutor_Config {
+                        feeQuoter: config.feeQuoter,
+                    }.toCell(),
+                }.toCell(),
+            },
         }
     });
 
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    st.currentMessageId += 1;
+    st.executor.currentID += 1;
 
     st.store();
 }
 
-@inline
-fun executorAddress(executorCode: cell, messageID: int): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: executorCode,
-            data: CCIPSendExecutor_InitialData {
-                onramp: contract.getAddress(),
-                messageID: messageID
-            }.toCell(),
-        }
-    }
-}
-
-fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
-    var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
-
-    val ccipsend: Router_CCIPSend = payload.msg.load();
-    val metadata = payload.metadata;
+/*
+Handles successful completion of a CCIPSendExecutor. Assigns a new sequence
+number and notifies the Router of the successful send.
+*/
+fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedSuccessfully) {
+    val ccipsend: Router_CCIPSend = msg.msg.load();
+    val metadata = msg.metadata;
 
     // validate user transferred enough value
     // else refund and notify
@@ -153,11 +293,11 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
             receiver: ccipsend.receiver.toCell(),
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
-            tokenAmounts: createEmptyCell(), // TODO:
+            tokenAmounts: ccipsend.tokenAmounts,
             feeToken: ccipsend.feeToken,
-            feeTokenAmount: payload.fee as uint256, // safe because it is 128 bits
+            feeTokenAmount: msg.fee as uint256, // safe because it is 128 bits
         }.toCell(),
-        feeValueJuels: 0, // TODO:
+        feeValueJuels: 0, // TODO: this needs to be juels rather than TON?
     };
 
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
@@ -182,19 +322,21 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
             queryID: ccipsend.queryID,
             messageId: rampMessage.header.messageId,
             destChainSelector: ccipsend.destChainSelector,
-            sender: payload.metadata.sender,
+            sender: metadata.sender,
         },
     });
-    reserveToncoinsOnBalance(payload.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveToncoinsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
-    var st = lazy OnRamp_Storage.load();
-    assert(executorAddress(st.executorCode, payload.msgID).addressMatches(sender)) throw Error.Unauthorized;
-
-    val ccipsend: Router_CCIPSend = payload.msg.load();
-    val metadata = payload.metadata;
+/*
+Handles execution failures reported by a CCIPSendExecutor. Forwards a
+Router_MessageRejected notification to the Router on the destination chain
+with error details for tracking and recovery.
+*/
+fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
+    val ccipsend: Router_CCIPSend = msg.msg.load();
+    val metadata = msg.metadata;
 
     val errorMsg = createMessage({
         bounce: false,
@@ -204,36 +346,35 @@ fun replyWithError(payload: OnRamp_ExecutorFinishedWithError, sender: address) {
             queryID: ccipsend.queryID,
             destChainSelector: ccipsend.destChainSelector,
             sender: metadata.sender,
-            error: payload.error,
+            error: msg.error,
         },
     });
     errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/*
+Sets the dynamic configuration for the OnRamp contract and emits an update
+event. Updates are stored directly from the provided message payload.
+Only the owner is authorized to call this function.
+*/
+fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
+    st.config = msg.config.toCell();
 
-get fun isChainSupported(destChainSelector: uint64): bool {
-    val st = lazy OnRamp_Storage.load();
-    val entry = st.destChainConfigs.get(destChainSelector);
-    return entry.isFound;
+    emit(
+        CONFIG_SET_TOPIC,
+        ConfigSet {
+            chainSelector: st.chainSelector,
+            dynamicConfig: msg.config,
+        }
+    )
 }
 
-get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
-    val st = lazy OnRamp_Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
-    return config.sequenceNumber + 1;
-}
-
-get fun staticConfig() {
-    // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
-}
-
-get fun dynamicConfig(): OnRamp_DynamicConfig {
-    val st = lazy OnRamp_Storage.load();
-    return st.config.load()
-}
-
-fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
-    var iter = Iterator<OnRampUpdateDestChainConfig>.new(updates);
+/*
+Applies destination chain configuration updates by creating new configurations or updating
+existing ones. Only the owner is authorized to call this function.
+*/
+fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: SnakedCell<OnRampUpdateDestChainConfig>) {
+    var iter = updates.iter();
 
     while (!iter.empty()) {
         val update = iter.next();
@@ -264,23 +405,13 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
     }
 }
 
-get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
-    val st = lazy OnRamp_Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
-}
-
-// vec<address>
-get fun allowedSendersList(destChainSelector: uint64): tuple? {
-    val st = lazy OnRamp_Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
-    var allowedSenders = config.allowedSenders;
-
-    // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
-    return keysLispList(allowedSenders);
-}
-
-fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
-    var iter = Iterator<UpdateAllowlist>.new(updates);
+/*
+Applies allowlist updates for destination chain configurations in the
+OnRamp contract. Adds or removes sender addresses from each chain’s
+allowedSenders map. Only the owner is authorized to call this function.
+*/
+fun onApplyAllowlistUpdates(mutate st: OnRamp_Storage, updates: SnakedCell<UpdateAllowlist>) {
+    var iter = updates.iter();
 
     while (!iter.empty()) {
         val update = iter.next();
@@ -303,7 +434,56 @@ fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
     }
 }
 
-// calculateMetadataHash/calculateMessageHash
+/*
+Handles contract upgrade requests using the Upgradeable pattern. Invokes the
+upgrade process with the current migrate function and version metadata.
+*/
+fun onUpgrade(msg: Upgradeable_Upgrade) {
+    Upgradeable{ migrate, version}.upgrade(msg);
+}
+
+get fun isChainSupported(destChainSelector: uint64): bool {
+    val st = lazy OnRamp_Storage.load();
+    val entry = st.destChainConfigs.get(destChainSelector);
+    return entry.isFound;
+}
+
+get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
+    val st = lazy OnRamp_Storage.load();
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
+    return config.sequenceNumber + 1;
+}
+
+get fun staticConfig() {
+    // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
+}
+
+get fun dynamicConfig(): OnRamp_DynamicConfig {
+    val st = lazy OnRamp_Storage.load();
+    return st.config.load()
+}
+
+get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
+    val st = lazy OnRamp_Storage.load();
+    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
+}
+
+// We are taking destChainSelector as param to enable future per-destination feeQuoters
+get fun feeQuoter(destChainSelector: int): address {
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+    return config.feeQuoter;
+}
+
+// vec<address>
+get fun allowedSendersList(destChainSelector: uint64): tuple? {
+    val st = lazy OnRamp_Storage.load();
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
+    var allowedSenders = config.allowedSenders;
+
+    // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
+    return keysLispList(allowedSenders);
+}
 
 get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
@@ -311,8 +491,21 @@ get fun destChainSelectors(): tuple? {
     return keysLispList(d)!;
 }
 
-fun withdrawFeeTokens() {
-    
+/// Gets the current owner of the contract.
+get fun owner(): address {
+    val st = lazy OnRamp_Storage.load();
+    return st.ownable.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun pendingOwner(): address? {
+    val st = lazy OnRamp_Storage.load();
+    return st.ownable.get_pendingOwner();
+}
+
+get fun sendExecutorCode(): cell {
+    val st = lazy OnRamp_Storage.load();
+    return st.executor.executorCode;
 }
 
 get fun typeAndVersion(): (slice, slice) {

@@ -164,7 +164,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		Sender:       common.CrossChainAddress(msg.Sender),
 		Data:         common.SnakeBytes(msg.Data),
 		Receiver:     tonReceiverAddr,
-		GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal.
+		GasLimit:     gasLimit,
 		TokenAmounts: tokenAmounts,
 	}
 

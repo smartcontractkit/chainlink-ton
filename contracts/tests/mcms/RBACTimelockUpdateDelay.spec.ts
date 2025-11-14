@@ -68,7 +68,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
 
     // Verify the delay was updated
     const minDelay = await baseTest.bind.timelock.getMinDelay()
-    expect(minDelay).toBe(BigInt(newDelay))
+    expect(minDelay).toBe(newDelay)
   })
 
   async function updateTimelockDelay(sender: SandboxContract<TreasuryContract>) {

@@ -12,7 +12,7 @@ import "../../../lib/utils";
 import "../../router/messages"
 import "../../../lib/access/ownable_2step"
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "1.6.0";
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
@@ -58,13 +58,13 @@ fun onInternalMessage(in: InMessage) {
 fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
     val receiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.05"), //TODO how much do we need to send
+        value: 0,
         dest: senderAddress,
         body: Router_CCIPReceiveConfirm {
             execId: msg.execId,
         }
     });
-    receiveConfirm.send(SEND_MODE_REGULAR);
+    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message,

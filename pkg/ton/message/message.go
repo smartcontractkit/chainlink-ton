@@ -1,4 +1,4 @@
-package txparserutils
+package message
 
 import (
 	"errors"

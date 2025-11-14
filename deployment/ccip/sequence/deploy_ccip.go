@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"math/big"
 
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
@@ -47,9 +50,6 @@ type DeployCCIPSeqOutput struct {
 	TimelockAddress  *TONContractAddress
 	Transactions     [][]byte
 }
-
-// We use 0x1 as an internal value for native token. Can't be 0x0 because the CCIP plugin throws on zero addresses
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var DeployCCIPSequence = operations.NewSequence(
 	"ton-deploy-ccip-seq",
@@ -96,7 +96,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		WrappedNative: TonTokenAddr,
+		WrappedNative: tvm.TonTokenAddr,
 		RMNRemote: router.RMNRemote{
 			Admin: common.Ownable2Step{
 				Owner:        deps.TonChain.WalletAddress,
@@ -155,8 +155,11 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
 		DestChainConfigs: nil,
-		ExecutorCode:     tonCompiledContracts[state.SendExecutor].Code,
-		CurrentMessageID: big.NewInt(0),
+		Executor: onramp.ExecutorDeployment{
+			DeployableCode: tonCompiledContracts[state.Deployer].Code,
+			ExecutorCode:   tonCompiledContracts[state.SendExecutor].Code,
+			CurrentID:      big.NewInt(0),
+		},
 	}
 
 	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil, func(tonContractAddress *TONContractAddress) {
@@ -176,7 +179,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		Deployables: offramp.Deployables{
-			Router:              &routerAddress,
+			RMNRouter:           &routerAddress,
 			Deployer:            tonCompiledContracts[state.Deployer].Code,
 			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
 			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,

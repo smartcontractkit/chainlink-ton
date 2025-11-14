@@ -22,7 +22,7 @@ func main() {
 	s := loop.MustNewStartedServer(loggerName)
 	defer s.Stop()
 
-	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}}
+	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}, ds: s.DataSource}
 	defer s.Logger.ErrorIfFn(p.Close, "failed to close")
 
 	s.MustRegister(p)

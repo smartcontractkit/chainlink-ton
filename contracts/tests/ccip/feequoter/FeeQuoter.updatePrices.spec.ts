@@ -38,7 +38,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.deployer.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates },
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
     expect(updateResult.transactions).toHaveTransaction({
@@ -64,7 +64,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.deployer.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates },
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
     expect(updateFailResult.transactions).toHaveTransaction({
@@ -77,11 +77,65 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.owner.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates },
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
     expect(ownerUpdateResult.transactions).toHaveTransaction({
       to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+  })
+
+  it('should return excess to specified address', async () => {
+    // Allow us to updatePrices again
+    const addPriceUpdaterResult = await setup.bind.feeQuoter.sendAddPriceUpdater(
+      setup.acc.owner.getSender(),
+      {
+        value: toNano('1'),
+        msg: { priceUpdater: setup.acc.deployer.address },
+      },
+    )
+    expect(addPriceUpdaterResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+
+    const priceUpdates: feeQuoter.PriceUpdates = {
+      tokenPricesUpdates: [],
+      gasPricesUpdates: [],
+    }
+
+    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.externalCaller.address },
+      },
+    )
+    expect(updateResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+    expect(updateResult.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      to: setup.acc.externalCaller.address,
+      success: true,
+    })
+
+    const updateResult2 = await setup.bind.feeQuoter.sendUpdatePrices(
+      setup.acc.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: { updates: priceUpdates, sendExcessesTo: null },
+      },
+    )
+    expect(updateResult2.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+    expect(updateResult2.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      to: setup.acc.deployer.address,
       success: true,
     })
   })
@@ -100,7 +154,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Send updatePrices transaction
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates },
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({
@@ -117,7 +171,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should update only gas price', async () => {
     const gasPriceUpdate: feeQuoter.GasPriceUpdate = {
-      chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
       executionGasPrice: 2000000000000000000000n, // 2000e18
       dataAvailabilityGasPrice: 1000000000000000000n, // 1e18
     }
@@ -130,7 +184,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Send updatePrices transaction
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates },
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({
@@ -140,7 +194,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
     // Verify the gas price was updated
     const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
     )
     expect(gasPrice.value.executionGasPrice).toEqual(gasPriceUpdate.executionGasPrice)
     expect(gasPrice.value.dataAvailabilityGasPrice).toEqual(gasPriceUpdate.dataAvailabilityGasPrice)
@@ -155,7 +209,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
     const gasPriceUpdates: feeQuoter.GasPriceUpdate[] = [
       {
-        chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+        chainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
         executionGasPrice: 2000000n, // 2e6
         dataAvailabilityGasPrice: 1000000n, // 1e6
       },
@@ -179,7 +233,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Send updatePrices transaction
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
       value: toNano('1'),
-      msg: { updates: priceUpdates },
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
     expect(updateResult.transactions).toHaveTransaction({
@@ -196,7 +250,7 @@ describe('FeeQuoter UpdatePrices', () => {
     // Note: For gas prices, we can only test the first one since the contract
     // only supports one destination chain config in our simplified setup
     const gasPrice = await setup.bind.feeQuoter.getDestinationChainGasPrice(
-      FeeQuoterSetup.DEST_CHAIN_SELECTOR,
+      FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
     )
     expect(gasPrice.value.executionGasPrice).toEqual(gasPriceUpdates[0].executionGasPrice)
     expect(gasPrice.value.dataAvailabilityGasPrice).toEqual(
@@ -219,7 +273,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.priceUpdaterOne.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates },
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
 
@@ -248,7 +302,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.owner.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates },
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
 
@@ -262,7 +316,7 @@ describe('FeeQuoter UpdatePrices', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { updates: priceUpdates },
+        msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
       },
     )
 

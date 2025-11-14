@@ -12,29 +12,30 @@ import {
   ContractABI,
   Contract,
 } from '@ton/core'
+import { Maybe } from '@ton/core/dist/utils/maybe'
+import { compile } from '@ton/blueprint'
+import { crc32 } from 'zlib'
 
+import { CellCodec } from '../utils'
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { crc32 } from 'zlib'
-import { CellCodec } from '../utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { Maybe } from '@ton/core/dist/utils/maybe'
-import { compile } from '@ton/blueprint'
 
 export const Opcodes = {
   commit: crc32('OffRamp_Commit'),
   execute: crc32('OffRamp_Execute'),
   manualExecute: crc32('OffRamp_ManuallyExecute'),
-  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
+  updateSourceChainConfigs: crc32('OffRamp_UpdateSourceChainConfigs'),
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
   updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
+  setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
 }
 
-export const OFFRAMP_CONTRACT_VERSION = '0.0.12'
+export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
@@ -52,7 +53,10 @@ export enum OffRampError {
   SourceChainSelectorMismatch,
   InvalidOnRampUpdate,
   SenderIsNotRouter,
+  InsufficientFee,
   SubjectCursed,
+  Unauthorized,
+  ZeroAddressNotAllowed,
 }
 
 export enum ReceiveExecutorError {
@@ -77,6 +81,11 @@ export type Deployables = {
   deployerCode: Cell
   merkleRootCode: Cell
   receiveExecutorCode: Cell
+}
+
+export type UpdateSourceChainConfig = {
+  sourceChainSelector: bigint
+  config: SourceChainConfig
 }
 
 export type SourceChainConfig = {
@@ -237,13 +246,20 @@ export const builder = {
 export abstract class Params {}
 export class OffRamp
   extends OCR3Base
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
+  implements
+    upgradeable.Interface,
+    withdrawable.Interface,
+    typeAndVersion.Interface,
+    ownable2step.ContractClient,
+    Contract
 {
+  private ownable: ownable2step.ContractClient
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
     super()
+    this.ownable = new ownable2step.ContractClient(address)
   }
   abi?: Maybe<ContractABI>
 
@@ -380,24 +396,26 @@ export class OffRamp
     })
   }
 
-  async sendUpdateSourceChainConfig(
+  async sendUpdateSourceChainConfigs(
     provider: ContractProvider,
     via: Sender,
     opts: {
       value: bigint
       queryID?: number
-      sourceChainSelector: bigint
-      config: SourceChainConfig
+      configs: UpdateSourceChainConfig[]
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.updateSourceChainConfig, 32)
+        .storeUint(Opcodes.updateSourceChainConfigs, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.sourceChainSelector, 64)
-        .storeBuilder(sourceChainConfigToBuilder(opts.config))
+        .storeRef(
+          asSnakeData(opts.configs, (message) => {
+            return updateSourceChainConfigToBuilder(message)
+          }),
+        )
         .endCell(),
     })
   }
@@ -422,7 +440,28 @@ export class OffRamp
     })
   }
 
-  //should throw if not called by an owned MerkleRoot contract
+  async setDynamicConfig(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId: bigint
+      feeQuoter: Address
+      permissionlessExecutionThresholdSeconds: number
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.setDynamicConfig, 32)
+        .storeUint(opts.queryId, 64)
+        .storeAddress(opts.feeQuoter)
+        .storeUint(opts.permissionlessExecutionThresholdSeconds, 32)
+        .endCell(),
+    })
+  }
+
   async sendDispatchValidated(
     provider: ContractProvider,
     via: Sender,
@@ -487,6 +526,33 @@ export class OffRamp
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  // Ownership methods
+  async getOwner(provider: ContractProvider): Promise<Address> {
+    return this.ownable.getOwner(provider)
+  }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    return this.ownable.getPendingOwner(provider)
+  }
+
+  async sendTransferOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.TransferOwnership,
+  ) {
+    return this.ownable.sendTransferOwnership(p, via, value, body)
+  }
+
+  async sendAcceptOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.AcceptOwnership,
+  ) {
+    return this.ownable.sendAcceptOwnership(p, via, value, body)
   }
 }
 
@@ -572,6 +638,17 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBit(config.isRMNVerificationDisabled)
     .storeUint(config.onRamp.byteLength, 8)
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
+}
+
+export const updateSourceChainConfigToBuilder = (config: UpdateSourceChainConfig) => {
+  return beginCell()
+    .storeUint(config.sourceChainSelector, 64)
+    .storeAddress(config.config.router)
+    .storeBit(config.config.isEnabled)
+    .storeUint(config.config.minSeqNr, 64)
+    .storeBit(config.config.isRMNVerificationDisabled)
+    .storeUint(config.config.onRamp.byteLength, 8)
+    .storeBuffer(config.config.onRamp, config.config.onRamp.byteLength)
 }
 
 export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {

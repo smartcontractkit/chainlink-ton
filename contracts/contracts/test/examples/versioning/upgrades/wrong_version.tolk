@@ -27,10 +27,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Upgradeable_Upgrade => {
             // Should check owner here if it was a real contract
-            Upgradeable{
-                migrate: migrate,
-                version: version,
-            }.upgrade(msg);
+            Upgradeable{ migrate, version }.upgrade(msg);
         }
         else => {
             in.body.isEmpty()

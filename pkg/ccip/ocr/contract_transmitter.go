@@ -114,6 +114,21 @@ func (c *ccipTransmitter) Transmit(
 		return fmt.Errorf("failed to calculate gas cost amount: %w", err)
 	}
 
+	// Vicente's changes =========================================
+	// TODO: This is enough to cover commit and execute costs,
+	//	 but we should have a lower value for price-update only reports
+	//	 and these values should be configurable
+	var finalAmount *tlb.Coins
+	baseAmount := tlb.MustFromTON("0.05")
+	if gasLimit != nil {
+		finalAmount = baseAmount.MustAdd(gasLimit)
+		extraForExecute := tlb.MustFromTON("0.035")
+		finalAmount = finalAmount.MustAdd(&extraForExecute)
+	} else {
+		finalAmount = &baseAmount
+	}
+	// ============================================================
+
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,

@@ -1,8 +1,10 @@
 import '@ton/test-utils'
 import { Cell } from '@ton/core'
-import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
+
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
+
+import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 
 describe('MCMS - ManyChainMultiSigDomainSeparationTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup

@@ -1,16 +1,15 @@
 import '@ton/test-utils'
 
-import { Address, Cell, ExternalAddress, toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
+import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { asSnakeData } from '../../src/utils'
 
-import { rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
+import { rbactl } from '../../wrappers/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { EventMessageSent, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { crc32 } from 'zlib'
 
 describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   let baseTest: BaseTestSetup
@@ -370,7 +369,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
         salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY - 1n, // Less than minimum delay
+        delay: BaseTestSetup.MIN_DELAY - 1, // Less than minimum delay
       })
       .asCell()
 
