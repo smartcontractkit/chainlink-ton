@@ -369,6 +369,7 @@ fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) 
     )
 }
 
+
 /*
 Applies destination chain configuration updates by creating new configurations or updating
 existing ones. Only the owner is authorized to call this function.
@@ -454,8 +455,10 @@ get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     return config.sequenceNumber + 1;
 }
 
-get fun staticConfig() {
-    // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
+// Note: getStaticConfig name is kept to match EVM implementation, but only chain selector is part of that original static config
+get fun staticConfig(): uint64 {
+    val st = lazy OnRamp_Storage.load();
+    return st.chainSelector;
 }
 
 get fun dynamicConfig(): OnRamp_DynamicConfig {

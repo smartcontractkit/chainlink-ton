@@ -310,6 +310,12 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
+  getStaticConfig(provider: ContractProvider): Promise<bigint> {
+    return provider.get('staticConfig', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
   getFeeQuoter(provider: ContractProvider, destChainSelector: bigint): Promise<Address> {
     return provider.get('feeQuoter', [{ type: 'int', value: destChainSelector }]).then((res) => {
       return res.stack.readAddress()
