@@ -248,12 +248,14 @@ export const builder = {
       const updateDeployables: CellCodec<UpdateDeployables> = {
         encode: (message: UpdateDeployables): Builder => {
           return beginCell()
+            .storeUint(Opcodes.updateDeployables, 32)
             .storeUint(message.queryId, 64)
             .storeMaybeRef(message.receiveExecutorCode)
             .storeMaybeRef(message.merkleRootCode)
         },
 
         load: (src: Slice): UpdateDeployables => {
+          src.skip(32) //opcode
           return {
             queryId: src.loadUintBig(64),
             receiveExecutorCode: src.loadMaybeRef() ?? undefined,
@@ -501,11 +503,11 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.updateDeployables, 32)
-        .storeUint(opts.queryId, 64)
-        .storeMaybeRef(opts.receiveExecutorCode)
-        .storeMaybeRef(opts.merkleRootCode)
+      body: builder.message.in.updateDeployables
+        .encode({
+          queryId: opts.queryId,
+          receiveExecutorCode: opts.receiveExecutorCode,
+        })
         .endCell(),
     })
   }
