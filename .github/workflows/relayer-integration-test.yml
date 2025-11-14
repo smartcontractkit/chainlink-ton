@@ -12,7 +12,7 @@ permissions:
 jobs:
   integration-test:
     name: Integration Test - ${{ matrix.test-suite }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4cores-16GB
     strategy:
       # run both suites even if one fails
       fail-fast: false
