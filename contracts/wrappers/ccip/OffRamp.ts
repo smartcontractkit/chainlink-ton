@@ -46,17 +46,17 @@ export const RECEIVE_EXECUTOR_FACILITY_ID = 338
 export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
 
 export enum OffRampError {
-  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
-  SourceChainNotEnabled,
-  EmptyExecutionReport,
-  InvalidMessageDestChainSelector,
-  SourceChainSelectorMismatch,
-  InvalidOnRampUpdate,
-  SenderIsNotRouter,
-  InsufficientFee,
-  SubjectCursed,
-  Unauthorized,
-  ZeroAddressNotAllowed,
+    MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
+    SourceChainNotEnabled,
+    EmptyExecutionReport,
+    InvalidMessageDestChainSelector,
+    SourceChainSelectorMismatch,
+    InvalidOnRampUpdate,
+    InsufficientFee,
+    SubjectCursed,
+    Unauthorized,
+    ZeroAddressNotAllowed,
+    TooManyMessagesInReport,
 }
 
 export enum ReceiveExecutorError {
