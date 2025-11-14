@@ -1270,10 +1270,6 @@ fun MCMS<T>.submitErrorReport(
 
     var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
-    if (blockchain.now() > rootInfo.expiringRootAndOpCount.validUntil) {
-        throw MCMS_Error.RootExpired;
-    }
-
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
     val hashedLeaf =
@@ -1288,8 +1284,11 @@ fun MCMS<T>.submitErrorReport(
     }
 
     // Mark root in error state (recover with new root + bypass)
-    rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
-    self.data.rootInfo = rootInfo.toCell();
+    if (blockchain.now() < rootInfo.expiringRootAndOpCount.validUntil) {
+        // expire root immediately, if not already expired
+        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now();
+        self.data.rootInfo = rootInfo.toCell();
+    }
 
     // Check the reported error against the stored pending operation
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
