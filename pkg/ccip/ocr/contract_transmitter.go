@@ -104,37 +104,17 @@ func (c *ccipTransmitter) Transmit(
 	}
 	w := client.Wallet
 
-	// extract CCIP-specific txID for enhanced tracking (includes messageID if execute report)
-	// falls back to seq-only format for commit reports or decode failures
-	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
-
-	// Determine the appropriate gas cost based on report type
-	finalAmount, err := getGasCostAmount(reportWithInfo.Report, c.cfg)
+	txID, finalAmount, gasLimit, err := getReportTxInfo(reportWithInfo.Report, seqNr, c.cfg)
 	if err != nil {
-		return fmt.Errorf("failed to calculate gas cost amount: %w", err)
+		return fmt.Errorf("failed to extract report metadata: %w", err)
 	}
-
-	// Vicente's changes =========================================
-	// TODO: This is enough to cover commit and execute costs,
-	//	 but we should have a lower value for price-update only reports
-	//	 and these values should be configurable
-	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.05")
-	if gasLimit != nil {
-		finalAmount = baseAmount.MustAdd(gasLimit)
-		extraForExecute := tlb.MustFromTON("0.035")
-		finalAmount = finalAmount.MustAdd(&extraForExecute)
-	} else {
-		finalAmount = &baseAmount
-	}
-	// ============================================================
 
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          finalAmount,
+		Amount:          *finalAmount,
 		ID:              &txID,
 	}
 
@@ -236,96 +216,57 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 	return result
 }
 
-// extractCCIPTxID is a CCIP-specific helper that attempts to extract messageID from execute reports
-// for better debugging and transaction tracking.
+// getReportTxInfo extracts transaction ID, calculates gas cost, and retrieves gas limit
+// from a report in a single decode operation to avoid redundant processing.
 //
 // Returns:
-//   - For execute reports: "seq-{seqNum}-msg-{messageID}"
-//   - For commit reports or decode failures: "seq-{seqNum}"
-//   - Gas limit from execute report, or nil if not applicable
+//   - txID: Transaction identifier string (e.g., "seq-{seqNum}-msg-{messageID}" or "seq-{seqNum}")
+//   - gasCost: Total cost in TON coins based on report type
+//   - gasLimit: Gas limit from execute reports (nil for commit reports)
+//   - err: Any error encountered during processing
 //
-// Note: This is a "hacky" convenience function that makes assumptions about report structure.
-func extractCCIPTxIDAndGasLimit(reportBytes []byte, seqNr uint64) (string, *tlb.Coins) {
-	reportCell, err := cell.FromBOC(reportBytes)
-	if err != nil {
-		return fmt.Sprintf("seq-%d", seqNr), nil
-	}
-
-	var executeReport ocr.ExecuteReport
-	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
-		// Not an execute report (likely commit report)
-		return fmt.Sprintf("seq-%d", seqNr), nil
-	}
-
-	messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
-	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex), &executeReport.Message.GasLimit
-}
-
-// getGasCostAmount determines the appropriate gas cost based on the report type.
-//
-// Report Type Logic:
+// Tx cost breakdown:
 //   - Execute Report: Returns ExecuteCostTON + message gas limit
-//   - Commit Report with messages: Returns CommitPriceUpdateOnlyCostTON + (CommitPerMessageCostTON * num messages)
-//   - Commit Report (price-only): Returns CommitPriceUpdateOnlyCostTON
-//
-// The function attempts to decode the report to determine its type and calculates
-// the appropriate cost from the configuration.
-func getGasCostAmount(reportBytes []byte, cfg *Config) (tlb.Coins, error) {
+//   - Commit Report with merkle roots: Returns CommitPriceAndRootCostTON
+//   - Commit Report (price-only, no merkle roots): Returns CommitPriceUpdateOnlyCostTON
+func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string, gasCost *tlb.Coins, gasLimit *tlb.Coins, err error) {
 	reportCell, err := cell.FromBOC(reportBytes)
 	if err != nil {
-		return tlb.Coins{}, fmt.Errorf("failed to decode report BOC: %w", err)
+		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode report BOC: %w", err)
 	}
 
-	// Try to decode as ExecuteReport first
+	// Check ExecuteReport first
 	var executeReport ocr.ExecuteReport
 	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err == nil {
 		// This is an execute report
-		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
+		messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
+		txID = fmt.Sprintf("seq-%d-msg-%s", seqNr, messageIDHex)
 
-		// Add the message's gas limit to the base execute cost
+		// Calculate cost: ExecuteCostTON + message gas limit
+		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
 		totalCost, err := baseCost.Add(&executeReport.Message.GasLimit)
 		if err != nil {
-			return tlb.Coins{}, fmt.Errorf("failed to add gas limit to execute cost: %w", err)
+			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err)
 		}
-		return *totalCost, nil
+
+		return txID, totalCost, &executeReport.Message.GasLimit, nil
 	}
 
 	// Not an execute report, try to decode as CommitReport
 	var commitReport ocr.CommitReport
 	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
-		return tlb.Coins{}, fmt.Errorf("failed to decode as commit report: %w", err)
+		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode as commit report: %w", err)
 	}
 
-	// Calculate cost based on number of messages in the commit report
-	numMessages := len(commitReport.MerkleRoots)
-
-	if numMessages == 0 {
-		// Price-only update (no messages)
-		return tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON)), nil
+	// Commit report
+	txID = fmt.Sprintf("seq-%d", seqNr)
+	if len(commitReport.MerkleRoots) == 0 {
+		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON))
+		gasCost = &cost
+	} else {
+		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceAndRootCostTON))
+		gasCost = &cost
 	}
 
-	// Commit with messages: base cost + per-message cost
-	baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON))
-	perMessageCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPerMessageCostTON))
-
-	// Calculate total per-message cost
-	var totalPerMessageCost tlb.Coins
-	for i := 0; i < numMessages; i++ {
-		if i == 0 {
-			totalPerMessageCost = perMessageCost
-		} else {
-			cost, err := totalPerMessageCost.Add(&perMessageCost)
-			if err != nil {
-				return tlb.Coins{}, fmt.Errorf("failed to calculate per-message cost: %w", err)
-			}
-			totalPerMessageCost = *cost
-		}
-	}
-
-	totalCost, err := baseCost.Add(&totalPerMessageCost)
-	if err != nil {
-		return tlb.Coins{}, fmt.Errorf("failed to add per-message cost to base cost: %w", err)
-	}
-
-	return *totalCost, nil
+	return txID, gasCost, nil, nil
 }

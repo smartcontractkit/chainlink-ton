@@ -37,7 +37,7 @@ BlockTime = '1200ms'
 
 [ContractTransmitter]
 CommitPriceUpdateOnlyCostTON = 0.08
-CommitPerMessageCostTON = 0.02
+CommitPriceAndRootCostTON = 0.12
 ExecuteCostTON = 0.15
 
 [[Nodes]]
@@ -69,7 +69,7 @@ URL = 'http://localhost:8081'
 
 		require.NotNil(t, cfg.ContractTransmitter)
 		assert.Equal(t, 0.08, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON)
-		assert.Equal(t, 0.02, cfg.ContractTransmitter.CommitPerMessageCostTON)
+		assert.Equal(t, 0.12, cfg.ContractTransmitter.CommitPriceAndRootCostTON)
 		assert.Equal(t, 0.15, cfg.ContractTransmitter.ExecuteCostTON)
 
 		require.Len(t, cfg.Nodes, 1)
@@ -107,7 +107,7 @@ URL = 'http://localhost:8081'
 
 		require.NotNil(t, cfg.ContractTransmitter)
 		assert.Equal(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON)
-		assert.Equal(t, ocr.DefaultConfigSet.CommitPerMessageCostTON, cfg.ContractTransmitter.CommitPerMessageCostTON)
+		assert.Equal(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON)
 		assert.Equal(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON)
 	})
 
@@ -150,7 +150,7 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
 
-		assert.Equal(t, ocr.DefaultConfigSet.CommitPerMessageCostTON, cfg.ContractTransmitter.CommitPerMessageCostTON)
+		assert.Equal(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON)
 		assert.Equal(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON)
 	})
 
@@ -193,7 +193,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		// Verify all ContractTransmitter fields got defaults
 		require.NotNil(t, cfg.ContractTransmitter)
 		assert.Equal(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON)
-		assert.Equal(t, ocr.DefaultConfigSet.CommitPerMessageCostTON, cfg.ContractTransmitter.CommitPerMessageCostTON)
+		assert.Equal(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON)
 		assert.Equal(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON)
 
 		assert.Equal(t, "ton-testnet", cfg.NetworkNameFull)
@@ -242,7 +242,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 
-		assert.Equal(t, ocr.DefaultConfigSet.CommitPerMessageCostTON, cfg.ContractTransmitter.CommitPerMessageCostTON)
+		assert.Equal(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON)
 
 		assert.Equal(t, "custom-name", cfg.NetworkNameFull)
 	})
