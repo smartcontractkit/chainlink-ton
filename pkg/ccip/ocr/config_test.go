@@ -12,9 +12,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		cfg := &Config{}
 		cfg.ApplyDefaults()
 
-		assert.Equal(t, DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.CommitPriceUpdateOnlyCostTON)
-		assert.Equal(t, DefaultConfigSet.CommitPriceAndRootCostTON, cfg.CommitPriceAndRootCostTON)
-		assert.Equal(t, DefaultConfigSet.ExecuteCostTON, cfg.ExecuteCostTON)
+		assert.InEpsilon(t, DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, DefaultConfigSet.CommitPriceAndRootCostTON, cfg.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, DefaultConfigSet.ExecuteCostTON, cfg.ExecuteCostTON, 0)
 	})
 
 	t.Run("preserves custom values", func(t *testing.T) {
@@ -25,9 +25,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		}
 		cfg.ApplyDefaults()
 
-		assert.Equal(t, 0.2, cfg.CommitPriceUpdateOnlyCostTON)
-		assert.Equal(t, 0.3, cfg.CommitPriceAndRootCostTON)
-		assert.Equal(t, 0.25, cfg.ExecuteCostTON)
+		assert.InEpsilon(t, 0.2, cfg.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, 0.3, cfg.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, 0.25, cfg.ExecuteCostTON, 0)
 	})
 
 	t.Run("applies defaults for some zero fields", func(t *testing.T) {
@@ -37,9 +37,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		}
 		cfg.ApplyDefaults()
 
-		assert.Equal(t, 0.3, cfg.CommitPriceUpdateOnlyCostTON)
-		assert.Equal(t, DefaultConfigSet.CommitPriceAndRootCostTON, cfg.CommitPriceAndRootCostTON)
-		assert.Equal(t, 0.4, cfg.ExecuteCostTON)
+		assert.InEpsilon(t, 0.3, cfg.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, DefaultConfigSet.CommitPriceAndRootCostTON, cfg.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, 0.4, cfg.ExecuteCostTON, 0)
 	})
 }
 
@@ -109,4 +109,3 @@ func TestDefaultConfigSet(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
-
