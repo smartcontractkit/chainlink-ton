@@ -236,8 +236,8 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
     var destChainConfig = destChainConfigResult.loadValue();
 
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
-
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken!, FeeQuoter_Error.FeeTokenNotSupported as int);
     val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
 
     val it = (msg.data as SnakedCell<uint8>).iter();

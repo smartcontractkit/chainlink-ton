@@ -425,8 +425,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     val isCursed = rmn.cursedSubjects.isCursed(msg.destChainSelector as uint128);
     assert(!isCursed, Router_Error.SubjectCursed);
 
-    // TODO: the feeToken typing will need to change to `address?` and comparing with `null` in upcoming Tolk 1.2
-    if (msg.feeToken.isNone()) {
+    if (msg.feeToken == null) {
         msg.feeToken = st.wrappedNative
     }
 

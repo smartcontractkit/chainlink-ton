@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "@stdlib/common.tolk"
 import "../lib/utils.tolk"

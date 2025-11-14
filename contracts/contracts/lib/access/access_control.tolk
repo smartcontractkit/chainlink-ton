@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "../utils.tolk";
 
@@ -311,17 +311,17 @@ fun AccessControl<T>.getRoleAdmin(self, role: int): int {
 ///
 /// Role bearers are not sorted in any particular way, and their ordering may change at any point.
 @inline
-fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
+fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
-        return createAddressNone(); // role does not exist
+        return null; // role does not exist
     }
 
     // Check if the account exists in the role data
     var d = lazy AccessControl_RoleData.fromCell(data.loadValue());
     if (index >= d.membersLen) {
-        return createAddressNone(); // index out of bounds
+        return null; // index out of bounds
     }
 
     // Notice: we need to iterate through the dictionary to get the account at the specified index.
@@ -353,16 +353,16 @@ fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
 }
 
 @inline
-fun AccessControl<T>.getRoleMemberFirst(self, role: int): address {
+fun AccessControl<T>.getRoleMemberFirst(self, role: int): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
-        return createAddressNone(); // role does not exist
+        return null; // role does not exist
     }
 
     val d = lazy AccessControl_RoleData.fromCell(data.loadValue());
     if (d.membersLen == 0) {
-        return createAddressNone(); // no members in the role
+        return null; // no members in the role
     }
 
     // Get the first account in the role data
@@ -371,18 +371,18 @@ fun AccessControl<T>.getRoleMemberFirst(self, role: int): address {
 }
 
 @inline
-fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address {
+fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
-        return createAddressNone(); // role does not exist
+        return null; // role does not exist
     }
 
     // Get the next account in the role data after the pivot
     val d = lazy AccessControl_RoleData.fromCell(data.loadValue());
     var acc = d.hasRole.findKeyGreater(pivot);
     if (!acc.isFound) {
-        return createAddressNone(); // no next account
+        return null; // no next account
     }
 
     return acc.getKey();
