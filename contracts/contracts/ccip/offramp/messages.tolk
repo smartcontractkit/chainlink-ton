@@ -102,7 +102,6 @@ struct (0x4ca1bcb3) OffRamp_UpdateCursedSubjects {
 
 struct (0x95bc5a5c) OffRamp_SetDynamicConfig {
     queryId: uint64;
-
     feeQuoter: address;
     permissionlessExecutionThresholdSeconds: uint32,
 }
