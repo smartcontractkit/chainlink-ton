@@ -263,18 +263,21 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Dispatches a validated message to the receiver via the Router_RouteMessage.
-Verifies sender ownership which should be the corresponing receiver executor, resolves the Router from the source selector,
-and applies a gas override only if it exceeds the original gasLimit.
-Includes routing cost in value and forwards execId and receiver details.
+// Dispatches a validated message to the receiver via the Router_RouteMessage.
+// Verifies sender ownership which should be the corresponing receiver executor,
+// resolves the Router from the source selector, and applies a gas override only
+// if it exceeds the original gasLimit.
+//
+// Includes routing cost in value and forwards execId and receiver details.
+//
+// sequenceDiagram
+//     participant ReceiveExecutor
+//     participant OffRamp
+//     participant Router
 
-Flow:
-    ReceiveExecutor ->
-    OffRamp.OffRamp_DispatchValidated ->
-    Router.Router_RouteMessage ->
-    Receiver.Receiver_CCIPReceive
- */
+//     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
+//     OffRamp         ->> Router:   Router_RouteMessage
+//     Router          ->> Receiver: Receiver_CCIPReceive
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
@@ -323,16 +326,19 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     st.store();
 }
 
-/*
-Processes commit reports: refreshes prices if the OCR sequence is newer,
-initializes/updates MerkleRoot contract, validates OCR3 signatures, and
-emits CommitReportAccepted when everything is valid.
+// Processes commit reports: refreshes prices if the OCR sequence is newer,
+// initializes/updates MerkleRoot contract, validates OCR3 signatures, and
+// emits CommitReportAccepted when everything is valid.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant FeeQuoter
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_Commit ->
-        FeeQuoter.FeeQuoter_UpdatePrices (if the report contrains price updates)
-        MerkleRoot.Initialize
-*/
+//     Wallet  ->> OffRamp:    OffRamp_Commit
+//     OffRamp ->> FeeQuoter:  FeeQuoter_UpdatePrices (if contrains price updates)
+//     OffRamp ->> MerkleRoot: Deployable_Initialize
 fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var st = lazy Storage.load();
 
@@ -586,16 +592,18 @@ fun onUpdateCursedSubjects(msg: OffRamp_UpdateCursedSubjects) {
     st.store();
 }
 
-/*
-Executes a validated OffRamp message after MerkleRoot verification.
-Ensures the sender is an owned MerkleRoot, emits execution state change,
-deploys the ReceiveExecutor if needed, and triggers execution flow.
+// Executes a validated OffRamp message after MerkleRoot verification.
+// Ensures the sender is an owned MerkleRoot, emits execution state change,
+// deploys the ReceiveExecutor if needed, and triggers execution flow.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant MerkleRoot
+//     participant ReceiveExecutor
 
-Flow:
-    MerkleRoot.MerkleRoot_Validate ->
-    OffRamp.OffRamp_ExecuteValidated ->
-    ReceiveExecutor.ReceiveExecutor_InitExecute
-*/
+//     OffRamp    ->> MerkleRoot:      MerkleRoot_Validate
+//     MerkleRoot ->> OffRamp:         OffRamp_ExecuteValidated
+//     OffRamp    ->> ReceiveExecutor: ReceiveExecutor_InitExecute
 fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: address) {
     val message = msg.message.load();
 
