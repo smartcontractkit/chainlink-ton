@@ -511,6 +511,11 @@ get fun sendExecutorCode(): cell {
     return st.executor.executorCode;
 }
 
+get fun getCCIPSendExecutorCodeHash(): uint256 {
+    val st = lazy OnRamp_Storage.load();
+    return st.executor.executorCode.hash();
+}
+
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
 }

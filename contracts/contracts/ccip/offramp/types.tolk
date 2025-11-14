@@ -25,6 +25,12 @@ struct MessageMetadata {
     onRamp: Cell<CrossChainAddress>;
 }
 
+struct DeployableHashes {
+    merkleRoot: uint256;
+    receiveExecutor: uint256;
+    deployer: uint256;
+}
+
 struct Config {
     // -- Static config
     chainSelector: uint64

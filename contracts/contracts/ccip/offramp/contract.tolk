@@ -807,6 +807,22 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     return st.sourceChainConfigs;
 }
 
+get fun deployableHashes() : DeployableHashes {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return DeployableHashes {
+        merkleRoot: deployables.merkleRootCode.hash(),
+        receiveExecutor: deployables.receiveExecutorCode.hash(),
+        deployer: deployables.deployer.hash(),
+    }
+}
+
+get fun rmnRouter(): address {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return deployables.rmnRouter;
+}
+
 fun applySourceChainConfigUpdates() {}
 
 /// Gets the current owner of the contract.
