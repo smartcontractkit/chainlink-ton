@@ -807,8 +807,6 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     return st.sourceChainConfigs;
 }
 
-fun applySourceChainConfigUpdates() {}
-
 /// Gets the current owner of the contract.
 get fun owner(): address {
     val st = lazy Storage.load();
