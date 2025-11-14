@@ -1346,6 +1346,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     val id = timelock.data.opPendingInfo.opPendingId;
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
+    timelock.data.opPendingInfo.validAfter = blockchain.now(); // Mark the operation as final
 
      // Store the updated contract data
     timelock.data.storeAsContractData();
