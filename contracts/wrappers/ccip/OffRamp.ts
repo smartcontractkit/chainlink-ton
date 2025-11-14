@@ -33,6 +33,7 @@ export const Opcodes = {
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
   updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
   setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
+  updateDeployables: crc32('OffRamp_UpdateDeployables'),
 }
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
@@ -160,6 +161,12 @@ export type MerkleRoot = {
   merkleRoot: bigint
 }
 
+export type UpdateDeployables = {
+  queryId: bigint
+  receiveExecutorCode?: Cell
+  merkleRootCode?: Cell
+}
+
 //TODO: Refactor these with the CellCodec<T> pattern
 
 export const builder = {
@@ -238,7 +245,22 @@ export const builder = {
   })(),
   message: {
     in: (() => {
-      return {}
+      const updateDeployables: CellCodec<UpdateDeployables> = {
+        encode: (message: UpdateDeployables): Builder => {
+          return beginCell()
+            .storeUint(message.queryId, 64)
+            .storeMaybeRef(message.receiveExecutorCode)
+            .storeMaybeRef(message.merkleRootCode)
+        },
+
+        load: (src: Slice): UpdateDeployables => {
+          throw new Error('Implement me')
+        },
+      }
+
+      return {
+        updateDeployables,
+      }
     })(),
   },
 }
