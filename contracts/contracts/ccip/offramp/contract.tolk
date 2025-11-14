@@ -147,18 +147,21 @@ fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.Versi
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
 
-/*
-Handles OffRamp_CCIPReceiveBounced messages from the Router, originating
-from the CCIP receiver. The OffRamp notifies the ReceiveExecutor to update
-the execution state via ReceiveExecutor_Bounced. Only the Router is
-authorized to call this function.
+// Handles OffRamp_CCIPReceiveBounced messages from the Router, originating
+// from the CCIP receiver. The OffRamp notifies the ReceiveExecutor to update
+// the execution state via ReceiveExecutor_Bounced. Only the Router is
+// authorized to call this function.
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    Receiver.Receiver_CCIPReceive (bounce) ->
-    Router.Receiver_CCIPReceive ->
-    OffRamp.OffRamp_CCIPReceiveBounced ->
-    ReceiveExecutor.ReceiveExecutor_Bounced
-*/
+//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
+//     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
 
@@ -190,14 +193,15 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     markState.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-/*
-Received from ReceiveExecutor after validating that the confirm message came from the correct
-receiver.
-
-Flow:
-    ReceiveExecutor.ReceiveExecutor_Confirm ->
-    OffRamp.OffRamp_NotifySuccess
-*/
+// Received from ReceiveExecutor after validating that the confirm message
+// came from the correct receiver.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant ReceiveExecutor
+//
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
 fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
@@ -211,14 +215,15 @@ fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
     });
 }
 
-/*
-Received from ReceiveExecutor after validating that the bounce message came from the correct
-receiver and enabling manual execute to retry.
-
-Flow:
-    ReceiveExecutor.ReceiveExecutor_Bounced ->
-    OffRamp.OffRamp_NotifyFailure
-*/
+// Received from ReceiveExecutor after validating that the bounce message came from the correct
+// receiver and enabling manual execute to retry.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant ReceiveExecutor
+//
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
