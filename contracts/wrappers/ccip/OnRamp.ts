@@ -10,6 +10,7 @@ import {
   SendMode,
   Slice,
   Builder,
+  TupleItem,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -357,6 +358,20 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return provider.get('feeQuoter', [{ type: 'int', value: destChainSelector }]).then((res) => {
       return res.stack.readAddress()
     })
+  }
+
+  getAllowedSendersList(provider: ContractProvider, destChainSelector: bigint): Promise<Address[]> {
+    return provider
+      .get('allowedSendersList', [{ type: 'int', value: destChainSelector }])
+      .then((res) => {
+        const stack = res.stack
+        return stack.readLispList().map((t: TupleItem) => {
+          if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+            throw Error('Not a cell: ' + t.type)
+          }
+          return t.cell.beginParse().loadAddress()
+        })
+      })
   }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {

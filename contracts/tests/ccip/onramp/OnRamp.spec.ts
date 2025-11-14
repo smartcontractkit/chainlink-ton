@@ -1,6 +1,6 @@
 import { compile } from '@ton/blueprint'
 import { OnRamp, OnRampStorage, UpdateAllowlists } from '../../../wrappers/ccip/OnRamp'
-import { beginCell, Dictionary, toNano } from '@ton/core'
+import { Address, beginCell, Dictionary, toNano } from '@ton/core'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
@@ -198,6 +198,12 @@ describe('OnRamp - Unit Tests', () => {
       success: true,
     })
 
+    const resultCheckAdd1 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST)
+    assertAddressesMatch([randomAddresses[0], randomAddresses[1]], resultCheckAdd1)
+
+    const resultCheckAdd2 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST_90000002)
+    assertAddressesMatch([randomAddresses[2], randomAddresses[3]], resultCheckAdd2)
+
     const updateAllowlists2: UpdateAllowlists = {
       updates: [
         {
@@ -212,6 +218,7 @@ describe('OnRamp - Unit Tests', () => {
         },
       ],
     }
+
     const result2 = await onramp.sendUpdateAllowlists(allowlistAdmin.getSender(), {
       value: toNano('0.5'),
       updateAllowlists: updateAllowlists2,
@@ -221,6 +228,12 @@ describe('OnRamp - Unit Tests', () => {
       to: onramp.address,
       success: true,
     })
+
+    const resultCheckRemove1 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST)
+    expect(resultCheckRemove1).toEqual([])
+
+    const resultCheckRemove2 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST_90000002)
+    expect(resultCheckRemove2).toEqual([])
 
     const randomSender = await blockchain.treasury('randomSender')
     const result3 = await onramp.sendUpdateAllowlists(randomSender.getSender(), {
@@ -234,3 +247,13 @@ describe('OnRamp - Unit Tests', () => {
     })
   })
 })
+
+const assertAddressesMatch = (expected: Address[], actual: Address[]) => {
+  expect(actual.map((x) => x.toString()).sort()).toEqual(
+    expected
+      .map((x) => {
+        return x.toString()
+      })
+      .sort(),
+  )
+}
