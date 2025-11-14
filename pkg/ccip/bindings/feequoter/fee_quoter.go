@@ -299,9 +299,9 @@ type Fee struct {
 
 type MessageValidationFailed struct {
 	_         tlb.Magic  `tlb:"#bcf0ab0f"` //nolint:revive // Ignore opcode tag
-	errorCode *big.Int   `tlb:"## 256"`
-	msg       *cell.Cell `tlb:"^"` // Original message,
-	context   *cell.Cell `tlb:"^"` // Original context
+	ErrorCode *big.Int   `tlb:"## 256"`
+	Msg       *cell.Cell `tlb:"^"` // Original message,
+	Context   *cell.Cell `tlb:"^"` // Original context
 }
 
 type AddPriceUpdater struct {
