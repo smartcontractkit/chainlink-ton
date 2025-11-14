@@ -795,9 +795,9 @@ get fun deployableHashes() : DeployableHashes {
     val st = lazy Storage.load();
     val deployables = st.deployables.load();
     return DeployableHashes {
-        merkleRootCodeHash: deployables.merkleRootCode.hash(),
-        receiveExecutorCodeHash: deployables.receiveExecutorCode.hash(),
-        deployableCodeHash: st.deployables.hash(),
+        merkleRoot: deployables.merkleRootCode.hash(),
+        receiveExecutor: deployables.receiveExecutorCode.hash(),
+        deployer: deployables.deployer.hash(),
     }
 }
 
