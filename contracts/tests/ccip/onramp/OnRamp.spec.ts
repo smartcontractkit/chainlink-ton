@@ -110,3 +110,20 @@ describe('OnRamp - Current Version Tests', () => {
   })
   currentVersionSpec.run()
 })
+
+describe('OnRamp - Unit Tests', () => {
+  let blockchain: Blockchain
+  let deployer: SandboxContract<TreasuryContract>
+  let onramp: SandboxContract<OnRamp>
+
+  beforeEach(async () => {
+    blockchain = await Blockchain.create()
+    deployer = await blockchain.treasury('deployer')
+    onramp = await deployOnRampContract(blockchain, deployer)
+  })
+
+  it('getStaticConfig should return chain selector', async () => {
+    const result = await onramp.getStaticConfig()
+    expect(result).toBe(CHAINSEL_TON)
+  })
+})
