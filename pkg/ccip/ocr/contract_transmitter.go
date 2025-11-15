@@ -126,7 +126,7 @@ func (c *ccipTransmitter) Transmit(
 		"seqNr", seqNr,
 		"reportBytes", len(reportWithInfo.Report),
 		"signatures", len(sigs),
-		"gasLimit", gasLimit,
+		"gasLimit", gasLimit.String(),
 		"finalAmountTON", finalAmount.String(),
 	)
 	if err := c.txm.Enqueue(request); err != nil {
