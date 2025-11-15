@@ -49,9 +49,16 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		if gpu.GasPrice.IsEmpty() {
 			return nil, fmt.Errorf("empty gas price for chain selector %d", gpu.ChainSel)
 		}
+
+		// The GasPrice is packed as: (DA << 112) | Exec
+		// We need to unpack it into two separate 112-bit fields
+		packedPrice := gpu.GasPrice.Int
+		daFee, execFee := fromPackedFee(packedPrice)
+
 		gpuSlice[i] = ocr.GasPriceUpdate{
-			DestChainSelector: uint64(gpu.ChainSel),
-			UsdPerUnitGas:     gpu.GasPrice.Int,
+			DestChainSelector:        uint64(gpu.ChainSel),
+			ExecutionGasPrice:        execFee,
+			DataAvailabilityGasPrice: daFee,
 		}
 	}
 
@@ -127,15 +134,29 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	if len(priceUpdate.GasPriceUpdates) > 0 {
 		gpuSlice = make([]cciptypes.GasPriceChain, len(priceUpdate.GasPriceUpdates))
 		for i, update := range priceUpdate.GasPriceUpdates {
-			var gasPrice *big.Int
-			if update.UsdPerUnitGas != nil && update.UsdPerUnitGas.Sign() != 0 {
-				gasPrice = update.UsdPerUnitGas
-			} else if update.UsdPerUnitGas != nil {
-				gasPrice = big.NewInt(0)
+			// Pack the two 112-bit fields back into a single 224-bit value
+			// Packed format: (DA << 112) | Exec
+			var packedPrice *big.Int
+			if (update.ExecutionGasPrice != nil && update.ExecutionGasPrice.Sign() != 0) ||
+				(update.DataAvailabilityGasPrice != nil && update.DataAvailabilityGasPrice.Sign() != 0) {
+				execFee := update.ExecutionGasPrice
+				if execFee == nil {
+					execFee = big.NewInt(0)
+				}
+				daFee := update.DataAvailabilityGasPrice
+				if daFee == nil {
+					daFee = big.NewInt(0)
+				}
+				// Pack: (DA << 112) | Exec
+				daShifted := new(big.Int).Lsh(daFee, 112)
+				packedPrice = new(big.Int).Or(daShifted, execFee)
+			} else {
+				packedPrice = big.NewInt(0)
 			}
+
 			gpuSlice[i] = cciptypes.GasPriceChain{
 				ChainSel: cciptypes.ChainSelector(update.DestChainSelector),
-				GasPrice: cciptypes.NewBigInt(gasPrice),
+				GasPrice: cciptypes.NewBigInt(packedPrice),
 			}
 		}
 	}
@@ -163,4 +184,15 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		UnblessedMerkleRoots: merkleRoots,
 		RMNSignatures:        nil,
 	}, nil
+}
+
+func fromPackedFee(packedFee *big.Int) (daFee, execFee *big.Int) {
+	ones112 := big.NewInt(0)
+	for i := 0; i < 112; i++ {
+		ones112 = ones112.SetBit(ones112, i, 1)
+	}
+
+	execFee = new(big.Int).And(packedFee, ones112)
+	daFee = new(big.Int).Rsh(packedFee, 112)
+	return daFee, execFee
 }

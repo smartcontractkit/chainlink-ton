@@ -126,12 +126,13 @@ func TestGetReportTxInfo(t *testing.T) {
 						UsdPerToken: big.NewInt(1000000),
 					},
 				},
-				GasPriceUpdates: common.SnakeData[ocr.GasPriceUpdate]{
-					{
-						DestChainSelector: 456,
-						UsdPerUnitGas:     big.NewInt(500000),
-					},
+			GasPriceUpdates: common.SnakeData[ocr.GasPriceUpdate]{
+				{
+					DestChainSelector:        456,
+					ExecutionGasPrice:        big.NewInt(500000),
+					DataAvailabilityGasPrice: big.NewInt(0),
 				},
+			},
 			},
 			MerkleRoots: common.SnakeData[ocr.MerkleRoot]{}, // No merkle roots
 		}
@@ -259,12 +260,13 @@ func TestGetReportTxInfo(t *testing.T) {
 						UsdPerToken: big.NewInt(1000000),
 					},
 				},
-				GasPriceUpdates: common.SnakeData[ocr.GasPriceUpdate]{
-					{
-						DestChainSelector: 456,
-						UsdPerUnitGas:     big.NewInt(500000),
-					},
+			GasPriceUpdates: common.SnakeData[ocr.GasPriceUpdate]{
+				{
+					DestChainSelector:        456,
+					ExecutionGasPrice:        big.NewInt(500000),
+					DataAvailabilityGasPrice: big.NewInt(0),
 				},
+			},
 			},
 			MerkleRoots: common.SnakeData[ocr.MerkleRoot]{
 				{

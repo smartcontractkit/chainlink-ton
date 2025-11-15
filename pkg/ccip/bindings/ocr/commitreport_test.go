@@ -41,23 +41,28 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 
 	gasPriceSlice := []GasPriceUpdate{
 		{
-			DestChainSelector: 1,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        1,
+			ExecutionGasPrice:        big.NewInt(1000000),
+			DataAvailabilityGasPrice: big.NewInt(1000000),
 		},
 		{
-			DestChainSelector: 2,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        2,
+			ExecutionGasPrice:        big.NewInt(1000000),
+			DataAvailabilityGasPrice: big.NewInt(1000000),
 		},
 		{
-			DestChainSelector: 3,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        3,
+			ExecutionGasPrice:        big.NewInt(1000000),
+			DataAvailabilityGasPrice: big.NewInt(1000000),
 		}, {
-			DestChainSelector: 4,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        4,
+			ExecutionGasPrice:        big.NewInt(1000000),
+			DataAvailabilityGasPrice: big.NewInt(1000000),
 		},
 		{
-			DestChainSelector: 5,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        5,
+			ExecutionGasPrice:        big.NewInt(1000000),
+			DataAvailabilityGasPrice: big.NewInt(1000000),
 		},
 	}
 	require.NoError(t, err)

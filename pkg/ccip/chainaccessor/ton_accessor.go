@@ -562,9 +562,14 @@ func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipo
 	}
 
 	for _, gasPriceUpdate := range priceUpdates.GasPriceUpdates {
+		// Pack the two 112-bit fields into a single 224-bit value
+		// Packed format: (DA << 112) | Exec
+		daShifted := new(big.Int).Lsh(gasPriceUpdate.DataAvailabilityGasPrice, 112)
+		packedPrice := new(big.Int).Or(daShifted, gasPriceUpdate.ExecutionGasPrice)
+		
 		updates.GasPriceUpdates = append(updates.GasPriceUpdates, ccipocr3.GasPriceChain{
 			ChainSel: ccipocr3.ChainSelector(gasPriceUpdate.DestChainSelector),
-			GasPrice: ccipocr3.NewBigInt(gasPriceUpdate.UsdPerUnitGas),
+			GasPrice: ccipocr3.NewBigInt(packedPrice),
 		})
 	}
 

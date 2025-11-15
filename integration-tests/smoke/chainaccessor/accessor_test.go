@@ -274,16 +274,22 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		require.NotNil(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should not be nil")
 		require.Len(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, 1, "Should have exactly 1 gas price update")
 
-		gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
-		t.Logf("    GasPriceUpdate[0]:")
-		t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
-		t.Logf("      UsdPerUnitGas: %s", gasUpdate.UsdPerUnitGas.String())
+	gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
+	t.Logf("    GasPriceUpdate[0]:")
+	t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
+	t.Logf("      ExecutionGasPrice: %s", gasUpdate.ExecutionGasPrice.String())
+	t.Logf("      DataAvailabilityGasPrice: %s", gasUpdate.DataAvailabilityGasPrice.String())
 
-		// Validate expected values from the TypeScript test
-		require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
-		expectedGasPrice := new(big.Int)
-		expectedGasPrice.SetString("5192296858534827628530496329220097", 10)
-		require.Equal(t, expectedGasPrice, gasUpdate.UsdPerUnitGas, "UsdPerUnitGas should match expected value")
+	// Validate expected values from the TypeScript test
+	require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
+	// The expected packed value is 5192296858534827628530496329220097
+	// This should unpack to:
+	// - ExecutionGasPrice (lower 112 bits): 1
+	// - DataAvailabilityGasPrice (upper 112 bits): 1
+	expectedExecPrice := new(big.Int).SetString("1", 10)
+	expectedDAPrice := new(big.Int).SetString("1", 10)
+	require.Equal(t, expectedExecPrice, gasUpdate.ExecutionGasPrice, "ExecutionGasPrice should match expected value")
+	require.Equal(t, expectedDAPrice, gasUpdate.DataAvailabilityGasPrice, "DataAvailabilityGasPrice should match expected value")
 	})
 
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
@@ -329,13 +335,14 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		require.NotNil(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should not be nil")
 		require.Len(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, 1, "Should have exactly 1 gas price update")
 
-		gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
-		t.Logf("    GasPriceUpdate[0]:")
-		t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
-		t.Logf("      UsdPerUnitGas: %s", gasUpdate.UsdPerUnitGas.String())
+	gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
+	t.Logf("    GasPriceUpdate[0]:")
+	t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
+	t.Logf("      ExecutionGasPrice: %s", gasUpdate.ExecutionGasPrice.String())
+	t.Logf("      DataAvailabilityGasPrice: %s", gasUpdate.DataAvailabilityGasPrice.String())
 
-		// Validate expected values from the TypeScript test
-		require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
+	// Validate expected values from the TypeScript test
+	require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
