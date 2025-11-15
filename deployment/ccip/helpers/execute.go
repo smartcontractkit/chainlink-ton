@@ -46,7 +46,7 @@ func ExecuteTransactions(context context.Context, logger logger.Logger, client *
 	if err != nil {
 		return fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
-	err = msg.WaitForTrace(client)
+	err = msg.WaitForTrace(context, client)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}

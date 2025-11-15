@@ -34,7 +34,7 @@ type TokenPriceUpdate struct {
 // GasPriceUpdate represents a gas price update for a chain.
 type GasPriceUpdate struct {
 	DestChainSelector uint64   `tlb:"## 64"`
-	UsdPerUnitGas     *big.Int `tlb:"## 224"` // TODO: this can be split into two 112s
+	UsdPerUnitGas     *big.Int `tlb:"## 224"`
 }
 
 // MerkleRoot represents a Merkle root for a chain's data.
