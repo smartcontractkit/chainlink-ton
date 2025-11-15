@@ -278,7 +278,7 @@ func (c *chain) LogPoller() logpoller.Service {
 }
 
 func (c *chain) ContractTransmitterConfig() *ocr.Config {
-	return c.cfg.Chain.ContractTransmitter
+	return c.cfg.ContractTransmitter
 }
 
 func (c *chain) ChainID() string {
