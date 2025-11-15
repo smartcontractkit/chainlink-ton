@@ -133,7 +133,6 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 	}
 
 	// TODO: check if rargs.ContractID is offramp address ?
-	chainConfig := r.chain.ContractTransmitterConfig()
 	return provider.NewCCIPProvider(
 		r.lggr,
 		ccipocr3.ChainSelector(chainSelector),
@@ -141,6 +140,6 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		r.chain.TxManager(),
 		r.chain.LogPoller(),
 		cargs,
-		chainConfig.ContractTransmitterConfig(),
+		r.chain.ContractTransmitterConfig(),
 	)
 }

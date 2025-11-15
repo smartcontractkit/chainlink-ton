@@ -27,6 +27,7 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -45,7 +46,7 @@ type Chain interface {
 	TxManager() TxManager
 	LogPoller() logpoller.Service
 	GetClient(ctx context.Context) (*ton.APIClient, error)
-	ContractTransmitterConfig() *config.Chain
+	ContractTransmitterConfig() *ocr.Config
 }
 
 type ChainOpts struct {
@@ -276,8 +277,8 @@ func (c *chain) LogPoller() logpoller.Service {
 	return c.lp
 }
 
-func (c *chain) ContractTransmitterConfig() *config.Chain {
-	return &c.cfg.Chain
+func (c *chain) ContractTransmitterConfig() *ocr.Config {
+	return c.cfg.Chain.ContractTransmitter
 }
 
 func (c *chain) ChainID() string {
