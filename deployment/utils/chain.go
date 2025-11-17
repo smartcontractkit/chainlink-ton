@@ -234,12 +234,11 @@ func getExistingNetworkConnection(ctx context.Context) (ton.APIClientWrapped, er
 // createNewNetwork provisions a new, temporary TON network for the test's duration.
 // It handles port allocation and automatic container cleanup.
 func createNewNetwork(ctx context.Context, chainID uint64, port int) (client ton.APIClientWrapped, cleanup func(), err error) {
-	// port := freeport.GetOne(t)
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
 		Port:    strconv.Itoa(port),
-		Image:   "ghcr.io/neodix42/mylocalton-docker:v3.7",
+		Image:   "ghcr.io/neodix42/mylocalton-docker:v3.96",
 		CustomEnv: map[string]string{
 			"NEXT_BLOCK_GENERATION_DELAY":    "0.5",
 			"EMBEDDED_FILE_HTTP_SERVER":      "true",
