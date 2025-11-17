@@ -51,8 +51,8 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 			return nil, fmt.Errorf("empty gas price for chain selector %d", gpu.ChainSel)
 		}
 
-		// The GasPrice is packed as: (DA << 112) | Exec
-		// We need to unpack it into two separate 112-bit fields
+		// The GasPrice is packed as: (DA << 112) | Exec by the plugin.
+		// We need to unpack it into two separate 112-bit fields for the TON onchain struct.
 		execFee, daFee := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
 
 		gpuSlice[i] = ocr.GasPriceUpdate{

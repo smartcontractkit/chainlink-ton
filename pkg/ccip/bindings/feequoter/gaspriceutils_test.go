@@ -9,10 +9,10 @@ import (
 
 func TestPackUnpackGasPrice(t *testing.T) {
 	tests := []struct {
-		name                     string
-		execPrice                *big.Int
-		daPrice                  *big.Int
-		expectedPacked           *big.Int
+		name           string
+		execPrice      *big.Int
+		daPrice        *big.Int
+		expectedPacked *big.Int
 	}{
 		{
 			name:           "both zero",
@@ -62,8 +62,8 @@ func TestPackUnpackGasPrice(t *testing.T) {
 
 			// Test unpacking
 			unpackedExec, unpackedDA := UnpackGasPrice(packed)
-			require.True(t, tt.execPrice.Cmp(unpackedExec) == 0, "unpacked exec price should match original: expected %s, got %s", tt.execPrice, unpackedExec)
-			require.True(t, tt.daPrice.Cmp(unpackedDA) == 0, "unpacked DA price should match original: expected %s, got %s", tt.daPrice, unpackedDA)
+			require.Equal(t, tt.execPrice, unpackedExec, "unpacked exec price should match original: expected %s, got %s", tt.execPrice, unpackedExec)
+			require.Equal(t, tt.daPrice, unpackedDA, "unpacked DA price should match original: expected %s, got %s", tt.daPrice, unpackedDA)
 
 			// Verify round-trip
 			repacked := PackGasPrice(unpackedExec, unpackedDA)
@@ -77,7 +77,7 @@ func TestUnpackGasPrice_Examples(t *testing.T) {
 		// This is the value (1 << 112) | 1
 		packed := mustParseBigInt("5192296858534827628530496329220097")
 		exec, da := UnpackGasPrice(packed)
-		
+
 		require.Equal(t, big.NewInt(1), exec, "exec should be 1")
 		require.Equal(t, big.NewInt(1), da, "DA should be 1")
 	})
@@ -85,7 +85,7 @@ func TestUnpackGasPrice_Examples(t *testing.T) {
 	t.Run("unpack 4919992000 (exec only)", func(t *testing.T) {
 		packed := big.NewInt(4919992000)
 		exec, da := UnpackGasPrice(packed)
-		
+
 		require.Equal(t, big.NewInt(4919992000), exec, "exec should be 4919992000")
 		require.Equal(t, big.NewInt(0), da, "DA should be 0")
 	})
@@ -104,4 +104,3 @@ func maxUint112() *big.Int {
 	// 2^112 - 1
 	return new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 112), big.NewInt(1))
 }
-

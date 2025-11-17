@@ -562,8 +562,9 @@ func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipo
 	}
 
 	for _, gasPriceUpdate := range priceUpdates.GasPriceUpdates {
-		// Pack the two 112-bit fields into a single 224-bit value
-		// Packed format: (DA << 112) | Exec
+		// The plugin still expects the prices to be packed into the single 224 bit value since the EVM contracts
+		// don't store split prices the way the TON contracts do so we need to re-pack the prices here again:
+		// (DA << 112) | Exec
 		packedPrice := feequoter.PackGasPrice(
 			gasPriceUpdate.ExecutionGasPrice,
 			gasPriceUpdate.DataAvailabilityGasPrice,
