@@ -121,6 +121,7 @@ jobs:
 
       - name: Setup Environment and Run Tests
         run: |
+          rm -rf “${GITHUB_WORKSPACE}/chainlink/integration-tests/smoke/ccip/logs”
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
 
