@@ -104,7 +104,7 @@ func (c *ccipTransmitter) Transmit(
 	}
 	w := client.Wallet
 
-	txID, finalAmount, gasLimit, err := getReportTxInfo(reportWithInfo.Report, seqNr, c.cfg)
+	txID, finalAmount, gasLimit, err := getReportTxInfo(c.lggr, reportWithInfo.Report, seqNr, c.cfg)
 	if err != nil {
 		return fmt.Errorf("failed to extract report metadata: %w", err)
 	}
@@ -229,7 +229,7 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 //   - Execute Report: Returns ExecuteCostTON + message gas limit
 //   - Commit Report with merkle roots: Returns CommitPriceAndRootCostTON
 //   - Commit Report (price-only, no merkle roots): Returns CommitPriceUpdateOnlyCostTON
-func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string, gasCost *tlb.Coins, gasLimit *tlb.Coins, err error) {
+func getReportTxInfo(lggr logger.Logger, reportBytes []byte, seqNr uint64, cfg *Config) (txID string, gasCost *tlb.Coins, gasLimit *tlb.Coins, err error) {
 	reportCell, err := cell.FromBOC(reportBytes)
 	if err != nil {
 		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode report BOC: %w", err)
@@ -254,10 +254,16 @@ func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string
 
 	// Not an execute report, try to decode as CommitReport
 	var commitReport ocr.CommitReport
+	lggr.Debugw("OGT Debug getReportTxInfo: trying as CommitReport")
 	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
 		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode as commit report: %w", err)
 	}
 
+	lggr.Debugw("OGT got commit report successfully, prices are:",
+		"gasPriceUpdates", commitReport.PriceUpdates,
+		"tokenPriceUpdates", commitReport.PriceUpdates,
+		"merkleRoots", commitReport.MerkleRoots,
+	)
 	// Commit report
 	txID = fmt.Sprintf("seq-%d", seqNr)
 	if len(commitReport.MerkleRoots) == 0 {

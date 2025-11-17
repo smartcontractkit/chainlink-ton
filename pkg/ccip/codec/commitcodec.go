@@ -55,6 +55,10 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		// We need to unpack it into two separate 112-bit fields for the TON onchain struct.
 		execFee, daFee := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
 
+		// DEBUG: Log what we're unpacking
+		fmt.Printf("OGT DEBUG Encode: chain=%d, packed=%s, exec=%s, da=%s\n",
+			gpu.ChainSel, gpu.GasPrice.Int.String(), execFee.String(), daFee.String())
+
 		gpuSlice[i] = ocr.GasPriceUpdate{
 			DestChainSelector:        uint64(gpu.ChainSel),
 			ExecutionGasPrice:        execFee,
