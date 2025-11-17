@@ -270,7 +270,7 @@ func getReportTxInfo(lggr logger.Logger, reportBytes []byte, seqNr uint64, cfg *
 	lggr.Debugw("OGT Debug getReportTxInfo: START",
 		"seqNr", seqNr,
 		"reportBytesLen", len(reportBytes),
-		"reportBytesHex", hex.EncodeToString(reportBytes[:min(len(reportBytes), 32)]),
+		"reportBytesHex", hex.EncodeToString(reportBytes),
 	)
 
 	reportCell, err := cell.FromBOC(reportBytes)
@@ -332,6 +332,16 @@ func getReportTxInfo(lggr logger.Logger, reportBytes []byte, seqNr uint64, cfg *
 		"numTokenPriceUpdates", len(commitReport.PriceUpdates.TokenPriceUpdates),
 		"numMerkleRoots", len(commitReport.MerkleRoots),
 	)
+
+	lggr.Debugw("OGT Debug IMMEDIATELY after TLB decode",
+		"numGasPriceUpdates", len(commitReport.PriceUpdates.GasPriceUpdates))
+	for idx, gpu := range commitReport.PriceUpdates.GasPriceUpdates {
+		lggr.Debugw("OGT Debug gas price update detail",
+			"index", idx,
+			"chain", gpu.DestChainSelector,
+			"execGasPrice", gpu.ExecutionGasPrice.String(),
+			"daGasPrice", gpu.DataAvailabilityGasPrice.String())
+	}
 
 	// Log details about the price updates
 	lggr.Debugw("OGT Debug getReportTxInfo: CommitReport gas prices",
