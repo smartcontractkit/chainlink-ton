@@ -94,13 +94,13 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ID: in.CCIPConfig.RouterParams.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		WrappedNative: tvm.TonTokenAddr,
 		RMNRemote: router.RMNRemote{
 			Admin: common.Ownable2Step{
 				Owner:        deps.TonChain.WalletAddress,
-				PendingOwner: nil,
+				PendingOwner: address.NewAddressNone(),
 			},
 			CursedSubjects: nil,
 			ForwardUpdates: nil,
@@ -123,7 +123,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ID: in.CCIPConfig.FeeQuoterParams.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		MaxFeeJuelsPerMsg:            in.CCIPConfig.FeeQuoterParams.MaxFeeJuelsPerMsg,
 		LinkToken:                    &linkTokenAddress,
@@ -147,7 +147,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ID: in.CCIPConfig.OnRampParams.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		ChainSelector: in.ChainSelector,
 		Config: onramp.DynamicConfig{
@@ -177,7 +177,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ID: in.CCIPConfig.OffRampParams.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		Deployables: offramp.Deployables{
 			RMNRouter:           &routerAddress,
@@ -211,7 +211,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ID: in.CCIPConfig.ReceiverParams.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		AuthorizedCaller: &routerAddress,
 		Behavior:         receiver.Accept,
