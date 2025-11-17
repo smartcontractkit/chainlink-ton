@@ -60,12 +60,17 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	s := states[selector]
 
+	// TODO: deploy MCMS
+	// TODO: deploy LINK
+	linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
+	s.LinkTokenAddress = *linkTokenAddress
+
 	deps := operation.TonDeps{
 		TonChain:         chain,
 		CCIPOnChainState: states,
 	}
 
-	// TODO: deploy MCMS
+	deps.CCIPOnChainState[selector] = s
 
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
@@ -82,10 +87,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 	// mcmsOperations = append(mcmsOperations, ccipSeqReport.Output.MCMSOperations...)
-
-	// TODO: deploy LINK
-	address := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
-	s.LinkTokenAddress = *address
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()

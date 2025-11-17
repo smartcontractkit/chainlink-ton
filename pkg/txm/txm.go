@@ -264,7 +264,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				"txID", txID,
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
-			err = receivedMessage.WaitForTrace(client.Client)
+			err = receivedMessage.WaitForTrace(ctx, client.Client)
 			if err != nil {
 				t.logger.Errorw("failed to wait for trace", "error", err)
 			}
@@ -368,7 +368,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Errorw("failed to get client", "error", err)
 				continue
 			}
-			err = receivedMessage.WaitForTrace(client.Client)
+			err = receivedMessage.WaitForTrace(ctx, client.Client)
 			if err != nil {
 				t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue
