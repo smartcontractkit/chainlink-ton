@@ -62,8 +62,8 @@ func TestPackUnpackGasPrice(t *testing.T) {
 
 			// Test unpacking
 			unpackedExec, unpackedDA := UnpackGasPrice(packed)
-			require.Equal(t, tt.execPrice, unpackedExec, "unpacked exec price should match original: expected %s, got %s", tt.execPrice, unpackedExec)
-			require.Equal(t, tt.daPrice, unpackedDA, "unpacked DA price should match original: expected %s, got %s", tt.daPrice, unpackedDA)
+			require.True(t, tt.execPrice.Cmp(unpackedExec) == 0, "unpacked exec price should match original: expected %s, got %s", tt.execPrice, unpackedExec) //nolint:testifylint // big.Int requires value comparison not struct comparison
+			require.True(t, tt.daPrice.Cmp(unpackedDA) == 0, "unpacked DA price should match original: expected %s, got %s", tt.daPrice, unpackedDA)           //nolint:testifylint // big.Int requires value comparison not struct comparison
 
 			// Verify round-trip
 			repacked := PackGasPrice(unpackedExec, unpackedDA)
