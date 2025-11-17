@@ -31,12 +31,14 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 
 	gasPriceSlice := []ocr.GasPriceUpdate{
 		{
-			DestChainSelector: 1,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        1,
+			ExecutionGasPrice:        big.NewInt(1000000),
+			DataAvailabilityGasPrice: big.NewInt(2000000),
 		},
 		{
-			DestChainSelector: 2,
-			UsdPerUnitGas:     big.NewInt(2000000),
+			DestChainSelector:        2,
+			ExecutionGasPrice:        big.NewInt(3000000),
+			DataAvailabilityGasPrice: big.NewInt(4000000),
 		},
 	}
 	require.NoError(t, err)

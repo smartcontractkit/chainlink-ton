@@ -53,11 +53,11 @@ export enum OffRampError {
   InvalidMessageDestChainSelector,
   SourceChainSelectorMismatch,
   InvalidOnRampUpdate,
-  SenderIsNotRouter,
   InsufficientFee,
   SubjectCursed,
   Unauthorized,
   ZeroAddressNotAllowed,
+  TooManyMessagesInReport,
 }
 
 export enum ReceiveExecutorError {

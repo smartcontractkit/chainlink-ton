@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
@@ -35,8 +36,21 @@ func TestChain_LogPollerConfig(t *testing.T) {
 	assert.Equal(t, &logpoller.DefaultConfigSet, chain.LogPollerConfig())
 }
 
+func TestChain_ContractTransmitterConfig(t *testing.T) {
+	customConfig := &ocr.Config{CommitPriceUpdateOnlyCostTON: 0.1}
+	chain := &Chain{ContractTransmitter: customConfig}
+
+	// Returns configured config when set
+	assert.Equal(t, customConfig, chain.ContractTransmitterConfig())
+
+	// Returns default when nil
+	chain.ContractTransmitter = nil
+	assert.Equal(t, &ocr.DefaultConfigSet, chain.ContractTransmitterConfig())
+}
+
 func TestDefaultConfigSet(t *testing.T) {
 	require.NotNil(t, DefaultConfigSet.TransactionManager)
 	require.NotNil(t, DefaultConfigSet.LogPoller)
+	require.NotNil(t, DefaultConfigSet.ContractTransmitter)
 	assert.Equal(t, 10*time.Minute, DefaultConfigSet.ClientTTL)
 }

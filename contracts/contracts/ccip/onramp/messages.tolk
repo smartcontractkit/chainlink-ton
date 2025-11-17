@@ -70,7 +70,7 @@ struct (0x82901c45) OnRamp_UpdateSendExecutor {
     code: cell;
 }
 
-struct (0x10000005) OnRamp_UpdateAllowlists {
+struct (0x9dc06185) OnRamp_UpdateAllowlists {
     updates: SnakedCell<UpdateAllowlist>;
 }
 

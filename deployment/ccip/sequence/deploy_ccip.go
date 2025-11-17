@@ -117,6 +117,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 
 	// FeeQuoter
+	linkTokenAddress := deps.CCIPOnChainState[in.ChainSelector].LinkTokenAddress
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter
 	feeQuoterStorage := feequoter.Storage{
 		ID: in.CCIPConfig.FeeQuoterParams.ID,
@@ -125,7 +126,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			PendingOwner: nil,
 		},
 		MaxFeeJuelsPerMsg:            in.CCIPConfig.FeeQuoterParams.MaxFeeJuelsPerMsg,
-		LinkToken:                    address.NewAddressNone(), // TODO use real LINK address
+		LinkToken:                    &linkTokenAddress,
 		TokenPriceStalenessThreshold: in.CCIPConfig.FeeQuoterParams.TokenPriceStalenessThreshold,
 		UsdPerToken:                  nil,
 		PremiumMultiplierWeiPerEth:   nil,

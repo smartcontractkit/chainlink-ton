@@ -8,26 +8,20 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorUnauthorized-265]
-	_ = x[ErrorStateNotExpected-500]
-	_ = x[InsufficientFee-43602]
+	_ = x[ErrorStateNotExpected-43600]
+	_ = x[ErrorUnauthorized-43601]
+	_ = x[ErrorInsufficientFunds-43602]
+	_ = x[ErrorInsufficientFee-43603]
 }
 
-const (
-	_ExitCode_name_0 = "ErrorUnauthorized"
-	_ExitCode_name_1 = "ErrorStateNotExpected"
-	_ExitCode_name_2 = "InsufficientFee"
-)
+const _ExitCode_name = "ErrorStateNotExpectedErrorUnauthorizedErrorInsufficientFundsErrorInsufficientFee"
+
+var _ExitCode_index = [...]uint8{0, 21, 38, 60, 80}
 
 func (i ExitCode) String() string {
-	switch {
-	case i == 265:
-		return _ExitCode_name_0
-	case i == 500:
-		return _ExitCode_name_1
-	case i == 43602:
-		return _ExitCode_name_2
-	default:
+	idx := int(i) - 43600
+	if i < 43600 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
+	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]
 }
