@@ -126,7 +126,7 @@ func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name
 		Value: 0,  // initial value as zero
 		Ownable: common.Ownable2Step{
 			Owner:        wallet.WalletAddress(),
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 	})
 
