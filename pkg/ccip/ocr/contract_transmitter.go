@@ -78,9 +78,18 @@ func (c *ccipTransmitter) Transmit(
 	reportWithInfo ocr3types.ReportWithInfo[[]byte],
 	sigs []ocrtypes.AttributedOnchainSignature,
 ) error {
+	c.lggr.Debugw("OGT Debug Transmit: START",
+		"seqNr", seqNr,
+		"configDigest", hex.EncodeToString(configDigest[:]),
+		"reportLen", len(reportWithInfo.Report),
+		"numSigs", len(sigs),
+	)
+
 	if len(sigs) > 32 {
 		return errors.New("too many signatures, maximum is 32")
 	}
+
+	c.lggr.Debugw("OGT Debug Transmit: signatures validated, building raw context")
 
 	rawContextBytes := rawReportContext(configDigest, seqNr)
 	signatures := make([][96]byte, 0, len(sigs))
@@ -93,21 +102,38 @@ func (c *ccipTransmitter) Transmit(
 		signatures = append(signatures, fixedSig)
 	}
 
+	c.lggr.Debugw("OGT Debug Transmit: calling toEd25519CalldataFn")
+
 	argsCell, err := c.toEd25519CalldataFn(rawContextBytes, reportWithInfo, signatures)
 	if err != nil {
+		c.lggr.Errorw("OGT Debug Transmit: toEd25519CalldataFn FAILED", "err", err)
 		return fmt.Errorf("failed to generate call data: %w", err)
 	}
 
+	c.lggr.Debugw("OGT Debug Transmit: toEd25519CalldataFn succeeded, getting client")
+
 	client, err := c.txm.GetClient(ctx)
 	if err != nil {
+		c.lggr.Errorw("OGT Debug Transmit: GetClient FAILED", "err", err)
 		return fmt.Errorf("failed to get client: %w", err)
 	}
 	w := client.Wallet
 
+	c.lggr.Debugw("OGT Debug Transmit: client obtained, calling getReportTxInfo",
+		"walletAddr", w.WalletAddress().String(),
+	)
+
 	txID, finalAmount, gasLimit, err := getReportTxInfo(c.lggr, reportWithInfo.Report, seqNr, c.cfg)
 	if err != nil {
+		c.lggr.Errorw("OGT Debug Transmit: getReportTxInfo FAILED", "err", err)
 		return fmt.Errorf("failed to extract report metadata: %w", err)
 	}
+
+	c.lggr.Debugw("OGT Debug Transmit: getReportTxInfo succeeded",
+		"txID", txID,
+		"finalAmount", finalAmount,
+		"gasLimit", gasLimit,
+	)
 
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
@@ -117,6 +143,11 @@ func (c *ccipTransmitter) Transmit(
 		Amount:          *finalAmount,
 		ID:              &txID,
 	}
+
+	c.lggr.Debugw("OGT Debug Transmit: request built, about to log and enqueue",
+		"txID", txID,
+		"offrampAddress", c.offrampAddress,
+	)
 
 	c.lggr.Infow("Transmitting OCR report",
 		"txID", txID,
@@ -129,10 +160,16 @@ func (c *ccipTransmitter) Transmit(
 		"gasLimit", gasLimit,
 		"finalAmountTON", finalAmount,
 	)
+
+	c.lggr.Debugw("OGT Debug Transmit: calling txm.Enqueue")
+
 	if err := c.txm.Enqueue(request); err != nil {
+		c.lggr.Errorw("OGT Debug Transmit: txm.Enqueue FAILED", "err", err, "txID", txID)
 		return fmt.Errorf("failed to enqueue transaction (txID=%s, seqNr=%d): %w",
 			txID, seqNr, err)
 	}
+
+	c.lggr.Debugw("OGT Debug Transmit: SUCCESS - transaction enqueued", "txID", txID)
 
 	return nil
 }
@@ -230,49 +267,105 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 //   - Commit Report with merkle roots: Returns CommitPriceAndRootCostTON
 //   - Commit Report (price-only, no merkle roots): Returns CommitPriceUpdateOnlyCostTON
 func getReportTxInfo(lggr logger.Logger, reportBytes []byte, seqNr uint64, cfg *Config) (txID string, gasCost *tlb.Coins, gasLimit *tlb.Coins, err error) {
+	lggr.Debugw("OGT Debug getReportTxInfo: START",
+		"seqNr", seqNr,
+		"reportBytesLen", len(reportBytes),
+		"reportBytesHex", hex.EncodeToString(reportBytes[:min(len(reportBytes), 32)]),
+	)
+
 	reportCell, err := cell.FromBOC(reportBytes)
 	if err != nil {
+		lggr.Errorw("OGT Debug getReportTxInfo: FromBOC FAILED", "err", err)
 		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode report BOC: %w", err)
 	}
 
+	lggr.Debugw("OGT Debug getReportTxInfo: BOC decoded successfully",
+		"cellBits", reportCell.BitsSize(),
+		"cellRefs", reportCell.RefsNum(),
+	)
+
 	// Check ExecuteReport first
+	lggr.Debugw("OGT Debug getReportTxInfo: trying to decode as ExecuteReport")
 	var executeReport ocr.ExecuteReport
 	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err == nil {
 		// This is an execute report
 		messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
 		txID = fmt.Sprintf("seq-%d-msg-%s", seqNr, messageIDHex)
 
+		lggr.Debugw("OGT Debug getReportTxInfo: SUCCESSFULLY decoded as ExecuteReport",
+			"messageID", messageIDHex,
+			"txID", txID,
+			"gasLimit", executeReport.Message.GasLimit,
+		)
+
 		// Calculate cost: ExecuteCostTON + message gas limit
 		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
 		totalCost, err1 := baseCost.Add(&executeReport.Message.GasLimit)
 		if err1 != nil {
+			lggr.Errorw("OGT Debug getReportTxInfo: failed to add gas limit", "err", err1)
 			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err1)
 		}
+
+		lggr.Debugw("OGT Debug getReportTxInfo: ExecuteReport cost calculated",
+			"baseCost", baseCost,
+			"gasLimit", executeReport.Message.GasLimit,
+			"totalCost", totalCost,
+		)
 
 		return txID, totalCost, &executeReport.Message.GasLimit, nil
 	}
 
+	lggr.Debugw("OGT Debug getReportTxInfo: NOT an ExecuteReport, error was",
+		"err", err,
+	)
+
 	// Not an execute report, try to decode as CommitReport
+	lggr.Debugw("OGT Debug getReportTxInfo: trying to decode as CommitReport")
 	var commitReport ocr.CommitReport
-	lggr.Debugw("OGT Debug getReportTxInfo: trying as CommitReport")
 	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
+		lggr.Errorw("OGT Debug getReportTxInfo: CommitReport decode FAILED", "err", err)
 		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode as commit report: %w", err)
 	}
 
-	lggr.Debugw("OGT got commit report successfully, prices are:",
-		"gasPriceUpdates", commitReport.PriceUpdates,
-		"tokenPriceUpdates", commitReport.PriceUpdates,
+	lggr.Debugw("OGT Debug getReportTxInfo: SUCCESSFULLY decoded as CommitReport",
+		"numGasPriceUpdates", len(commitReport.PriceUpdates.GasPriceUpdates),
+		"numTokenPriceUpdates", len(commitReport.PriceUpdates.TokenPriceUpdates),
+		"numMerkleRoots", len(commitReport.MerkleRoots),
+	)
+
+	// Log details about the price updates
+	lggr.Debugw("OGT Debug getReportTxInfo: CommitReport gas prices",
+		"gasPriceUpdates", commitReport.PriceUpdates.GasPriceUpdates,
+	)
+	lggr.Debugw("OGT Debug getReportTxInfo: CommitReport token prices",
+		"tokenPriceUpdates", commitReport.PriceUpdates.TokenPriceUpdates,
+	)
+	lggr.Debugw("OGT Debug getReportTxInfo: CommitReport merkle roots",
 		"merkleRoots", commitReport.MerkleRoots,
 	)
+
 	// Commit report
 	txID = fmt.Sprintf("seq-%d", seqNr)
 	if len(commitReport.MerkleRoots) == 0 {
+		lggr.Debugw("OGT Debug getReportTxInfo: CommitReport has NO merkle roots - price update only",
+			"costTON", cfg.CommitPriceUpdateOnlyCostTON,
+		)
 		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON))
 		gasCost = &cost
 	} else {
+		lggr.Debugw("OGT Debug getReportTxInfo: CommitReport HAS merkle roots",
+			"numRoots", len(commitReport.MerkleRoots),
+			"costTON", cfg.CommitPriceAndRootCostTON,
+		)
 		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceAndRootCostTON))
 		gasCost = &cost
 	}
+
+	lggr.Debugw("OGT Debug getReportTxInfo: RETURNING CommitReport info",
+		"txID", txID,
+		"gasCost", gasCost,
+		"gasLimit", "nil",
+	)
 
 	return txID, gasCost, nil, nil
 }
