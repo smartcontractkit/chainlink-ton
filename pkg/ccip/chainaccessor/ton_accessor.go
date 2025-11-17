@@ -564,9 +564,11 @@ func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipo
 	for _, gasPriceUpdate := range priceUpdates.GasPriceUpdates {
 		// Pack the two 112-bit fields into a single 224-bit value
 		// Packed format: (DA << 112) | Exec
-		daShifted := new(big.Int).Lsh(gasPriceUpdate.DataAvailabilityGasPrice, 112)
-		packedPrice := new(big.Int).Or(daShifted, gasPriceUpdate.ExecutionGasPrice)
-		
+		packedPrice := feequoter.PackGasPrice(
+			gasPriceUpdate.ExecutionGasPrice,
+			gasPriceUpdate.DataAvailabilityGasPrice,
+		)
+
 		updates.GasPriceUpdates = append(updates.GasPriceUpdates, ccipocr3.GasPriceChain{
 			ChainSel: ccipocr3.ChainSelector(gasPriceUpdate.DestChainSelector),
 			GasPrice: ccipocr3.NewBigInt(packedPrice),
@@ -741,9 +743,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
 		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
 		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
-		// The below is a is a bitwise operation: (dataAvFeeUSD << 112) | executionFeeUSD
-		daShifted := new(big.Int).Lsh(gasPrice.DataAvailabilityGasPrice, 112)
-		packedValue := new(big.Int).Or(daShifted, gasPrice.ExecutionGasPrice)
+		packedValue := feequoter.PackGasPrice(gasPrice.ExecutionGasPrice, gasPrice.DataAvailabilityGasPrice)
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115

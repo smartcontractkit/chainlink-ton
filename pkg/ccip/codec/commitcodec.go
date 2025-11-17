@@ -13,6 +13,7 @@ import (
 	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
@@ -52,8 +53,7 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 		// The GasPrice is packed as: (DA << 112) | Exec
 		// We need to unpack it into two separate 112-bit fields
-		packedPrice := gpu.GasPrice.Int
-		daFee, execFee := fromPackedFee(packedPrice)
+		execFee, daFee := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
 
 		gpuSlice[i] = ocr.GasPriceUpdate{
 			DestChainSelector:        uint64(gpu.ChainSel),
@@ -147,9 +147,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 				if daFee == nil {
 					daFee = big.NewInt(0)
 				}
-				// Pack: (DA << 112) | Exec
-				daShifted := new(big.Int).Lsh(daFee, 112)
-				packedPrice = new(big.Int).Or(daShifted, execFee)
+				packedPrice = feequoter.PackGasPrice(execFee, daFee)
 			} else {
 				packedPrice = big.NewInt(0)
 			}
@@ -184,15 +182,4 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		UnblessedMerkleRoots: merkleRoots,
 		RMNSignatures:        nil,
 	}, nil
-}
-
-func fromPackedFee(packedFee *big.Int) (daFee, execFee *big.Int) {
-	ones112 := big.NewInt(0)
-	for i := 0; i < 112; i++ {
-		ones112 = ones112.SetBit(ones112, i, 1)
-	}
-
-	execFee = new(big.Int).And(packedFee, ones112)
-	daFee = new(big.Int).Rsh(packedFee, 112)
-	return daFee, execFee
 }
