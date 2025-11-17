@@ -46,6 +46,7 @@ func NewCCIPProvider(
 	txm txm.TxManager,
 	logPoller logpoller.Service,
 	cargs commontypes.CCIPProviderArgs,
+	contractTransmitterCfg *ocr.Config,
 ) (*Provider, error) {
 	// Validate offramp address
 	addressCodec := codec.NewAddressCodec()
@@ -72,13 +73,13 @@ func NewCCIPProvider(
 	var ct ocr3types.ContractTransmitter[[]byte]
 	switch cargs.PluginType {
 	case CCIPPluginTypeCommit:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.CommitCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.CommitCallData, contractTransmitterCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for commit plugin: %w", err)
 		}
 
 	case CCIPPluginTypeExecute:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.ExecuteCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.ExecuteCallData, contractTransmitterCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for execute plugin: %w", err)
 		}

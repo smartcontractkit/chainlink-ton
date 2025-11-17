@@ -375,10 +375,10 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         // validate lane not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
-
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-        // validate against sourceChainConfig etc
+        // hard cap of 128 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
@@ -805,6 +805,22 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     val st = lazy Storage.load();
     return st.sourceChainConfigs;
+}
+
+get fun deployableHashes() : DeployableHashes {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return DeployableHashes {
+        merkleRoot: deployables.merkleRootCode.hash(),
+        receiveExecutor: deployables.receiveExecutorCode.hash(),
+        deployer: deployables.deployer.hash(),
+    }
+}
+
+get fun rmnRouter(): address {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return deployables.rmnRouter;
 }
 
 /// Gets the current owner of the contract.

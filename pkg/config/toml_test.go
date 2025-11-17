@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
@@ -33,6 +34,11 @@ PollPeriod = '10s'
 PageSize = 50
 LogPollerStartingLookback = '1h'
 BlockTime = '1200ms'
+
+[ContractTransmitter]
+CommitPriceUpdateOnlyCostTON = 0.08
+CommitPriceAndRootCostTON = 0.12
+ExecuteCostTON = 0.15
 
 [[Nodes]]
 Name = 'ton-testnet-1'
@@ -60,6 +66,11 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, 10*time.Second, cfg.LogPoller.PollPeriod.Duration())
 		assert.Equal(t, 1*time.Hour, cfg.LogPoller.LogPollerStartingLookback.Duration())
 		assert.Equal(t, 1200*time.Millisecond, cfg.LogPoller.BlockTime.Duration())
+
+		require.NotNil(t, cfg.ContractTransmitter)
+		assert.InEpsilon(t, 0.08, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, 0.12, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, 0.15, cfg.ContractTransmitter.ExecuteCostTON, 0)
 
 		require.Len(t, cfg.Nodes, 1)
 		assert.Equal(t, "ton-testnet-1", *cfg.Nodes[0].Name)
@@ -93,6 +104,11 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, logpoller.DefaultConfigSet.PageSize, cfg.LogPoller.PageSize)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
+
+		require.NotNil(t, cfg.ContractTransmitter)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON, 0)
 	})
 
 	t.Run("partial configs get field-by-field defaults", func(t *testing.T) {
@@ -107,6 +123,9 @@ BroadcastChanSize = 300
 [LogPoller]
 PageSize = 200
 
+[ContractTransmitter]
+CommitPriceUpdateOnlyCostTON = 0.12
+
 [[Nodes]]
 Name = 'ton-testnet-1'
 URL = 'http://localhost:8081'
@@ -118,6 +137,7 @@ URL = 'http://localhost:8081'
 		// Custom values preserved
 		assert.Equal(t, uint(300), cfg.TransactionManager.BroadcastChanSize)
 		assert.Equal(t, uint32(200), cfg.LogPoller.PageSize)
+		assert.InEpsilon(t, 0.12, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
 
 		// Missing fields get defaults applied (field-by-field)
 		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
@@ -129,6 +149,9 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
+
+		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON, 0)
 	})
 
 	t.Run("validation errors", func(t *testing.T) {
@@ -167,6 +190,12 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
 
+		// Verify all ContractTransmitter fields got defaults
+		require.NotNil(t, cfg.ContractTransmitter)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
+		assert.InEpsilon(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON, 0)
+
 		assert.Equal(t, "ton-testnet", cfg.NetworkNameFull)
 	})
 
@@ -180,13 +209,18 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 			PageSize:  777,
 			BlockTime: config.MustNewDuration(3 * time.Second),
 		}
+		customCT := &ocr.Config{
+			CommitPriceUpdateOnlyCostTON: 0.25,
+			ExecuteCostTON:               0.5,
+		}
 
 		cfg := &TOMLConfig{
 			NetworkName:     "mainnet",
 			NetworkNameFull: "custom-name",
 			Chain: Chain{
-				TransactionManager: customTxm,
-				LogPoller:          customLP,
+				TransactionManager:  customTxm,
+				LogPoller:           customLP,
+				ContractTransmitter: customCT,
 			},
 		}
 		cfg.SetDefaults()
@@ -196,6 +230,8 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, 10*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
 		assert.Equal(t, uint32(777), cfg.LogPoller.PageSize)
 		assert.Equal(t, 3*time.Second, cfg.LogPoller.BlockTime.Duration())
+		assert.InEpsilon(t, 0.25, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
+		assert.InEpsilon(t, 0.5, cfg.ContractTransmitter.ExecuteCostTON, 0)
 
 		// Verify missing fields got defaults
 		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
@@ -205,6 +241,8 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
+
+		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
 
 		assert.Equal(t, "custom-name", cfg.NetworkNameFull)
 	})

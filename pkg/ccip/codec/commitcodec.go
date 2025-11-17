@@ -13,6 +13,7 @@ import (
 	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
@@ -49,9 +50,15 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		if gpu.GasPrice.IsEmpty() {
 			return nil, fmt.Errorf("empty gas price for chain selector %d", gpu.ChainSel)
 		}
+
+		// The GasPrice is packed as: (DA << 112) | Exec by the plugin.
+		// We need to unpack it into two separate 112-bit fields for the TON onchain struct.
+		execFee, daFee := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
+
 		gpuSlice[i] = ocr.GasPriceUpdate{
-			DestChainSelector: uint64(gpu.ChainSel),
-			UsdPerUnitGas:     gpu.GasPrice.Int,
+			DestChainSelector:        uint64(gpu.ChainSel),
+			ExecutionGasPrice:        execFee,
+			DataAvailabilityGasPrice: daFee,
 		}
 	}
 
@@ -127,15 +134,27 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	if len(priceUpdate.GasPriceUpdates) > 0 {
 		gpuSlice = make([]cciptypes.GasPriceChain, len(priceUpdate.GasPriceUpdates))
 		for i, update := range priceUpdate.GasPriceUpdates {
-			var gasPrice *big.Int
-			if update.UsdPerUnitGas != nil && update.UsdPerUnitGas.Sign() != 0 {
-				gasPrice = update.UsdPerUnitGas
-			} else if update.UsdPerUnitGas != nil {
-				gasPrice = big.NewInt(0)
+			// Pack the two 112-bit fields back into a single 224-bit value
+			// Packed format: (DA << 112) | Exec
+			var packedPrice *big.Int
+			if (update.ExecutionGasPrice != nil && update.ExecutionGasPrice.Sign() != 0) ||
+				(update.DataAvailabilityGasPrice != nil && update.DataAvailabilityGasPrice.Sign() != 0) {
+				execFee := update.ExecutionGasPrice
+				if execFee == nil {
+					execFee = big.NewInt(0)
+				}
+				daFee := update.DataAvailabilityGasPrice
+				if daFee == nil {
+					daFee = big.NewInt(0)
+				}
+				packedPrice = feequoter.PackGasPrice(execFee, daFee)
+			} else {
+				packedPrice = big.NewInt(0)
 			}
+
 			gpuSlice[i] = cciptypes.GasPriceChain{
 				ChainSel: cciptypes.ChainSelector(update.DestChainSelector),
-				GasPrice: cciptypes.NewBigInt(gasPrice),
+				GasPrice: cciptypes.NewBigInt(packedPrice),
 			}
 		}
 	}

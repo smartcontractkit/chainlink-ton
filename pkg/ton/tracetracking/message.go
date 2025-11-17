@@ -335,13 +335,12 @@ func (m *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 // or if there are issues with transaction monitoring.
 //
 // TODO: This could be optimized by grouping outgoing messages by recipient address
-func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(c ton.APIClientWrapped) error {
+func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Context, c ton.APIClientWrapped) error {
 	for len(m.OutgoingInternalSentMessages) != 0 {
 		sentMessage := m.OutgoingInternalSentMessages[0]
 		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		transactionsReceived := make(chan *tlb.Transaction)
-		// TODO: pass through context
-		go c.SubscribeOnTransactions(context.Background(), sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
+		go c.SubscribeOnTransactions(ctx, sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
 
 		var receivedMessage *ReceivedMessage
 		for rTX := range transactionsReceived {
@@ -420,7 +419,7 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 //
 // The function returns immediately if the message is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
-func (m *ReceivedMessage) WaitForTrace(c ton.APIClientWrapped) error {
+func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapped) error {
 	if m.Status() == Finalized {
 		return nil
 	}
@@ -431,7 +430,7 @@ func (m *ReceivedMessage) WaitForTrace(c ton.APIClientWrapped) error {
 	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
 		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
 		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
-		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(c)
+		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ctx, c)
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}
