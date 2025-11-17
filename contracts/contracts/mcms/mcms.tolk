@@ -60,9 +60,9 @@ struct (0xe7fabde3) MCMS_SetRoot {
     /// The metadata about the root, which is stored as one of the leaves.
     metadata: RootMetadata;
     /// The MerkleProof of inclusion of the metadata in the Merkle tree.
-    metadataProof: cell; // vec<uint256>;
+    metadataProof: SnakedCell<uint256>;
     /// The ECDSA signatures on (root, validUntil).
-    signatures: cell; // vec<Signature>
+    signatures: SnakedCell<Signature>;
 }
 
 /// Execute the received op after verifying the proof of its inclusion in the
@@ -89,7 +89,7 @@ struct (0x9b9ce96a) MCMS_Execute {
     /// The op to be executed.
     op: Cell<Op>; // @dev split out as cell to avoid size limits
     /// The MerkleProof for the op's inclusion in the MerkleTree
-    proof: cell; // vec<uint256>,
+    proof: SnakedCell<uint256>;
 }
 
 /// Sets a new data.config. If clearRoot is true, then it also invalidates
@@ -113,8 +113,8 @@ struct (0x89277f4b) MCMS_SetConfig {
     /// Query ID of the change request.
     queryId: uint64;
 
-    signerKeys: cell;   // vec<uint256> (public keys)
-    signerGroups: cell; // vec<uint8>
+    signerKeys: SnakedCell<uint256>; // public keys
+    signerGroups: SnakedCell<uint8>;
     groupQuorums: map<uint8, uint8>; // indexed, iterable backwards
     groupParents: map<uint8, uint8>; // indexed, iterable backwards
     clearRoot: bool;
@@ -149,7 +149,7 @@ struct (0x4b3af0b5) MCMS_SubmitErrorReport {
     /// The operation which produced the MCMS_Error.
     op: Cell<Op>;
     /// The MerkleProof for the op's inclusion in the MerkleTree
-    proof: cell; // vec<uint256>,
+    proof: SnakedCell<uint256>;
     /// The hash of the execute transaction.
     opTxHash: uint256;
 
@@ -185,10 +185,8 @@ struct (0xa903c276) MCMS_CleanExpiredRoots {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The roots to clean up
-    roots: cell, // vec<uint256>
-    /// The validUntil times for respective roots
-    validUntils: cell, // vec<uint32>,
+    /// The roots to clean up - RootDescriptor{root, validUntil}
+    roots: SnakedCell<RootDescriptor>;
 }
 
 /// @dev Union of all incoming messages.
@@ -293,10 +291,8 @@ struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The cleaned up roots
-    roots: cell, // vec<uint256>
-    /// The validUntil times for respective roots
-    validUntils: cell, // vec<uint32>,
+    /// The cleaned up roots - RootDescriptor{root, validUntil}
+    roots: SnakedCell<RootDescriptor>;
 }
 
 /// @dev Union of all outgoing messages.
@@ -645,6 +641,14 @@ struct Op {
     data: cell; // body of the operation
 }
 
+// Data container used to derive the root ID (hash)
+struct RootDescriptor {
+  // The merkle tree root
+  root: uint256;
+  // The time until which root is valid
+  validUntil: uint32;
+}
+
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
@@ -687,15 +691,11 @@ fun MCMS<T>.setRoot(
     root: uint256,
     validUntil: uint32,
     metadata: RootMetadata,
-    metadataProof: Iterator<uint256>,
-    signatures: cell, // vec<Signature>
+    metadataProof: SnakedCell<uint256>,
+    signatures: SnakedCell<Signature>,
 ) {
     /// Construct the message that should be signed by the signers.
-    val signedHash = beginCell()
-        .storeUint(root, 256)
-        .storeUint(validUntil, 32)
-        .endCell()
-        .hash();
+    val signedHash = RootDescriptor{root, validUntil}.toCell().hash();
 
     // Each (root, validUntil) tuple can only bet set once. For example, this prevents a
     // scenario where there are two signed roots with overridePreviousRoot = true and
@@ -729,7 +729,7 @@ fun MCMS<T>.setRoot(
         var i = 0;
         var signer: Signer;
         var prevSigner: uint256 = 0; // start with zero key
-        var ss = Iterator<Signature>.new(signatures);
+        var ss = signatures.iter();
         var groupVoteCounts: map<uint8, uint8> = createEmptyMap(); // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
@@ -826,7 +826,7 @@ fun MCMS<T>.setRoot(
                 .endCell()
                 .hash();
         // "../lib/crypto/merkle_proof.tolk"
-        if (!verify(metadataProof, root, hashedLeaf)) {
+        if (!verify(metadataProof.iter(), root, hashedLeaf)) {
             throw MCMS_Error.ProofCannotBeVerified;
         }
     }
@@ -913,7 +913,7 @@ fun MCMS<T>.execute(
     sender: address,
     queryId: uint64,
     op: Op,
-    proof: Iterator<uint256>,
+    proof: SnakedCell<uint256>,
 ) {
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -961,7 +961,7 @@ fun MCMS<T>.execute(
             .endCell()
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
-    if (!verify(proof, currentExpiringRootAndOpCount.root, hashedLeaf)) {
+    if (!verify(proof.iter(), currentExpiringRootAndOpCount.root, hashedLeaf)) {
         throw MCMS_Error.ProofCannotBeVerified;
     }
 
@@ -1024,8 +1024,8 @@ fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
     queryId: uint64,
-    signerKeys: cell,   // vec<uint256> (public keys)
-    signerGroups: cell, // vec<uint8>
+    signerKeys: SnakedCell<uint256>, // public keys
+    signerGroups: SnakedCell<uint8>,
     groupQuorums: map<uint8, uint8>, // indexed, iterable backwards
     groupParents: map<uint8, uint8>, // indexed, iterable backwards
     clearRoot: bool,
@@ -1033,13 +1033,13 @@ fun MCMS<T>.setConfig(
     self.data.ownable.requireOwner(sender);
 
     // Validate input lengths
-    var signerKeyIterator = Iterator<uint256>.new(signerKeys);
+    var signerKeyIterator = signerKeys.iter();
     val numSigners = signerKeyIterator.size(32); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
         throw MCMS_Error.OutOfBoundsNumSigners;
     }
 
-    var signerGroupIterator = Iterator<uint8>.new(signerGroups);
+    var signerGroupIterator = signerGroups.iter();
     if (numSigners != signerGroupIterator.size(1)) { // notice size in bytes
         throw MCMS_Error.SignerGroupsLengthMismatch;
     }
@@ -1148,7 +1148,7 @@ fun MCMS<T>.setConfig(
     var i = 0;
     var prevSigner: uint256 = 0; // start with a zero key
     // Reset the signers group iterator
-    signerGroupIterator = Iterator<uint8>.new(signerGroups);
+    signerGroupIterator = signerGroups.iter();
     while (!signerKeyIterator.empty()) {
         var key = signerKeyIterator.next();
         if (prevSigner >= key) {
@@ -1249,7 +1249,7 @@ fun MCMS<T>.submitErrorReport(
     sender: address,
     queryId: uint64,
     op: Op,
-    proof: Iterator<uint256>,
+    proof: SnakedCell<uint256>,
     opTxHash: uint256,
     errorTxHash: uint256,
     errorCode: uint32
@@ -1270,10 +1270,6 @@ fun MCMS<T>.submitErrorReport(
 
     var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
-    if (blockchain.now() > rootInfo.expiringRootAndOpCount.validUntil) {
-        throw MCMS_Error.RootExpired;
-    }
-
     // verify that the op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
     val hashedLeaf =
@@ -1283,13 +1279,16 @@ fun MCMS<T>.submitErrorReport(
             .endCell()
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
-    if (!verify(proof, rootInfo.expiringRootAndOpCount.root, hashedLeaf)) {
+    if (!verify(proof.iter(), rootInfo.expiringRootAndOpCount.root, hashedLeaf)) {
         throw MCMS_Error.ProofCannotBeVerified;
     }
 
     // Mark root in error state (recover with new root + bypass)
-    rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
-    self.data.rootInfo = rootInfo.toCell();
+    if (blockchain.now() < rootInfo.expiringRootAndOpCount.validUntil) {
+        // expire root immediately, if not already expired
+        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now();
+        self.data.rootInfo = rootInfo.toCell();
+    }
 
     // Check the reported error against the stored pending operation
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
@@ -1349,27 +1348,17 @@ fun MCMS<T>.cleanExpiredRoots(
     mutate self,
     sender: address,
     queryId: uint64,
-    roots: cell, // vec<uint256>
-    validUntils: cell, // vec<uint32>
+    roots: SnakedCell<RootDescriptor>,
 ) {
     self.data.ownable.requireOwner(sender);
 
-    var rootsIter = Iterator<uint256>.new(roots);
-    var validUntilsIter = Iterator<uint32>.new(validUntils);
+    var rootsIter = roots.iter();
+    while (!rootsIter.empty()) {
+        val rd = rootsIter.next();
+        assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
 
-    while (!rootsIter.empty() && !validUntilsIter.empty()) {
-        var root = rootsIter.next();
-        var validUntil = validUntilsIter.next();
-
-        assert(validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
-
-        /// Construct the ID of the root
-        val signedHash = beginCell()
-            .storeUint(root, 256)
-            .storeUint(validUntil, 32)
-            .endCell()
-            .hash();
-
+        /// Construct the ID (hash) of the root
+        val signedHash = rd.toCell().hash();
         self.data.seenSignedHashes.delete(signedHash);
     }
 
@@ -1377,7 +1366,7 @@ fun MCMS<T>.cleanExpiredRoots(
         bounce: false,
         value: 0,
         dest: sender,
-        body: MCMS_ExpiredRootsCleaned{queryId, roots, validUntils}
+        body: MCMS_ExpiredRootsCleaned{queryId, roots}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -1442,11 +1431,10 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
     match (msg) {
         MCMS_SetRoot => {
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
-                Iterator<uint256>.new(msg.metadataProof), msg.signatures);
+                msg.metadataProof, msg.signatures);
         }
         MCMS_Execute => {
-            self.execute(msgSender, msg.queryId, Op.fromCell(msg.op),
-                Iterator<uint256>.new(msg.proof));
+            self.execute(msgSender, msg.queryId, Op.fromCell(msg.op), msg.proof);
         }
         MCMS_SetConfig => {
             self.setConfig(msgSender, msg.queryId, msg.signerKeys, msg.signerGroups,
@@ -1457,13 +1445,13 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
         }
         MCMS_SubmitErrorReport => {
             self.submitErrorReport(msgSender, msg.queryId, Op.fromCell(msg.op),
-                Iterator<uint256>.new(msg.proof), msg.opTxHash, msg.errorTxHash, msg.errorCode);
+                msg.proof, msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
         MCMS_TransferOracleRole => {
             self.transferOracleRole(msgSender, msg.queryId, msg.newOracle);
         }
         MCMS_CleanExpiredRoots => {
-            self.cleanExpiredRoots(msgSender, msg.queryId, msg.roots, msg.validUntils);
+            self.cleanExpiredRoots(msgSender, msg.queryId, msg.roots);
         }
         // noop handlers (expected replies for ownable ops when owning self)
         MCMS_OracleRoleTransferred => {
@@ -1505,7 +1493,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
     var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
-    // TODO: emit an event with the bounce details?
+    // TODO: emit an event with the bounce info (for observability)?
 
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     // Check the bounced message against the stored pending operation
