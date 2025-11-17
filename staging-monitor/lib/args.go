@@ -34,6 +34,7 @@ type Client interface {
 // MessageToSend contains all params needed to send a CCIP message
 type MessageToSend struct {
 	Router       string
+	FeeQuoter    string
 	Receiver     string
 	DestChainSel uint64
 	Data         []byte
@@ -65,6 +66,7 @@ type TestArgs struct {
 	DestChainSel uint64 // Destination chain selector (for SendMessage)
 
 	SrcRouter    string
+	SrcFeeQuoter string
 	SrcWalletKey string
 	SrcEndpoint  string
 
@@ -92,6 +94,7 @@ type SendResult struct {
 func (tc *TestContext) SendMessage(ctx context.Context, lggr logger.Logger, data []byte) (*SendResult, error) {
 	msg := MessageToSend{
 		Router:       tc.Args.SrcRouter,
+		FeeQuoter:    tc.Args.SrcFeeQuoter,
 		Receiver:     tc.Args.DestReceiver,
 		DestChainSel: tc.Args.DestChainSel,
 		Data:         data,
@@ -135,6 +138,7 @@ func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 		SrcChainSel:  srcChainSel,
 		DestChainSel: destChainSel,
 		SrcRouter:    mustGetEnv(srcPrefix + "_ROUTER"),
+		SrcFeeQuoter: mustGetEnv(srcPrefix + "_FEE_QUOTER"),
 		SrcWalletKey: mustGetEnv(srcPrefix + "_WALLET_KEY"),
 		SrcEndpoint:  mustGetEnv(srcPrefix + "_ENDPOINT"),
 		DestReceiver: mustGetEnv(destPrefix + "_RECEIVER"),
