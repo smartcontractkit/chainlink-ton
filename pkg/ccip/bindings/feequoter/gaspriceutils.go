@@ -28,6 +28,6 @@ func UnpackGasPrice(packedPrice *big.Int) (executionGasPrice, dataAvailabilityGa
 
 	executionGasPrice = new(big.Int).And(packedPrice, ones112)
 	dataAvailabilityGasPrice = new(big.Int).Rsh(packedPrice, 112)
-	
+
 	return executionGasPrice, dataAvailabilityGasPrice
 }
