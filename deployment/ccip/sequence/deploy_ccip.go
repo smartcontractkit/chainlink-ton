@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
