@@ -21,13 +21,13 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
-	tonmessage "github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
+	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
@@ -325,33 +325,53 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 			// Process transactions
 			for txWithBlock := range txsCh {
-				if txWithBlock.Transaction == nil || txWithBlock.Transaction.IO.In == nil {
+				if txWithBlock.Transaction == nil || txWithBlock.Transaction.IO.Out == nil {
 					continue
 				}
 
 				tx := txWithBlock.Transaction
 
-				// Check if this is a CCIPReceive message
-				if tx.IO.In.MsgType == tlb.MsgTypeInternal {
-					intMsg := tx.IO.In.AsInternal()
+				// Check for external out messages (emitted events)
+				outMsgs, err := tx.IO.Out.ToSlice()
+				if err != nil {
+					lggr.Warnw("Failed to parse out messages", "error", err)
+					continue
+				}
 
-					// Use tonmessage utility to extract opcode and validate
-					sig, _, err := tonmessage.ParseInternalMsg(intMsg)
-					if err != nil || sig != offramp.CCIPReceiveOpCode {
-						continue // Not a CCIPReceive message or parse error
+				for _, msg := range outMsgs {
+					// Only process external out messages (events)
+					if msg.MsgType != tlb.MsgTypeExternalOut {
+						continue
 					}
 
-					// Decode full CCIPReceive message (including magic tag)
-					var ccipMsg offramp.CCIPReceive
-					if err := tlb.LoadFromCell(&ccipMsg, intMsg.Body.BeginParse()); err != nil {
-						lggr.Errorw("Failed to decode CCIPReceive",
+					extOut := msg.AsExternalOut()
+					if extOut == nil {
+						continue
+					}
+
+					// Extract event topic from destination address
+					bucket := tonevent.NewExtOutLogBucket(extOut.DestAddr())
+					topic, err := bucket.DecodeEventTopic()
+					if err != nil {
+						continue
+					}
+
+					// Check if this is a Receiver_CCIPMessageReceived event
+					if topic != ccip_receiver.CCIPMessageReceivedEventTopic {
+						continue
+					}
+
+					// Decode the CCIPMessageReceived event
+					var event ccip_receiver.CCIPMessageReceived
+					if err := tlb.LoadFromCell(&event, extOut.Body.BeginParse()); err != nil {
+						lggr.Errorw("Failed to decode CCIPMessageReceived event",
 							"error", err,
 							"txHash", hex.EncodeToString(tx.Hash),
 							"block", txWithBlock.Block.SeqNo)
-						return fmt.Errorf("failed to decode CCIPReceive (struct mismatch?): %w", err)
+						return fmt.Errorf("failed to decode CCIPMessageReceived event (struct mismatch?): %w", err)
 					}
 
-					receivedMessageID := hex.EncodeToString(ccipMsg.Message.MessageID[:])
+					receivedMessageID := hex.EncodeToString(event.Message.MessageID[:])
 
 					// Match on messageID if provided
 					if messageID != "" && receivedMessageID != messageID {
@@ -359,8 +379,8 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 					}
 
 					// Decode and match data if expectedData provided
-					if expectedData != "" && ccipMsg.Message.Data != nil {
-						dataSlice := ccipMsg.Message.Data.BeginParse()
+					if expectedData != "" && event.Message.Data != nil {
+						dataSlice := event.Message.Data.BeginParse()
 						if dataSlice.BitsLeft() > 0 {
 							dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
 							if err == nil {
@@ -372,7 +392,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 						}
 					}
 
-					lggr.Infow("CCIPReceive found", "messageID", receivedMessageID, "block", txWithBlock.Block.SeqNo)
+					lggr.Infow("CCIPMessageReceived event found", "messageID", receivedMessageID, "block", txWithBlock.Block.SeqNo)
 					return nil
 				}
 			}
