@@ -72,8 +72,10 @@ func TestDeploy(t *testing.T) {
 	require.Empty(t, addresses, "expected no new addresses on redeploy, got: %v", addresses)
 	// </redeploy>
 
-	// TODO: LINK token deployment
-	linkAddr := tvm.TonTokenAddr
+	state, err := tonstate.LoadOnchainState(env)
+	require.NoError(t, err)
+
+	linkAddr := state[chainSelector].LinkTokenAddress
 
 	tonDefinition := config.ChainDefinition{
 		ConnectionConfig: config.ConnectionConfig{
@@ -84,6 +86,7 @@ func TestDeploy(t *testing.T) {
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
+			linkAddr.String():         big.NewInt(20),
 		},
 		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainConfig,
 		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
@@ -170,7 +173,7 @@ func TestDeploy(t *testing.T) {
 	})
 	require.NoError(t, err, "failed to set ocr3 config")
 
-	state, err := tonstate.LoadOnchainState(env)
+	state, err = tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
 	// -- TON Accessor tests
