@@ -115,6 +115,10 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
 		s.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
 	}
+	if ccipSeqReport.Output.MCMSAddress != nil {
+		_ = dataStore.Addresses().Add(ccipSeqReport.Output.MCMSAddress.CLDFAddressRef)
+		s.MCMS = ccipSeqReport.Output.MCMSAddress.TONAddress
+	}
 
 	deps.CCIPOnChainState[selector] = s
 
@@ -154,6 +158,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
 	ab, _ := dataStoreToAddressBook(dataStore)
+
+	// TODO: Add and run setConfigMCMS operation
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{

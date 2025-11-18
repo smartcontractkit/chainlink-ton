@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -48,6 +49,7 @@ type DeployCCIPSeqOutput struct {
 	OffRampAddress   *TONContractAddress
 	ReceiverAddress  *TONContractAddress
 	TimelockAddress  *TONContractAddress
+	MCMSAddress      *TONContractAddress
 	Transactions     [][]byte
 }
 
@@ -78,6 +80,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			state.Deployer,
 			state.MerkleRoot,
 			state.ReceiveExecutor,
+			state.MCMS,
 		},
 	}
 
@@ -258,6 +261,50 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, timelockAddress, tonCompiledContracts[state.Timelock], timelockStorage, timelockMessageBody, func(tonContractAddress *TONContractAddress) {
 		timelockAddress = tonContractAddress.TONAddress
 		output.TimelockAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
+	}
+
+	mcmsAddress := deps.CCIPOnChainState[in.ChainSelector].MCMS
+	mcmsStorage := mcms.Data{
+		ID: in.CCIPConfig.MCMSParams.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		Signers: cell.NewDict(256),
+		Config: mcms.Config{
+			Signers:      cell.NewDict(8),
+			GroupQuorums: cell.NewDict(8),
+			GroupParents: cell.NewDict(8),
+		},
+		SeenSignedHashes: cell.NewDict(256),
+		RootInfo: mcms.RootInfo{
+			ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
+				Root:       big.NewInt(0),
+				ValidUntil: 0,
+				OpCount:    0,
+				OpPendingInfo: mcms.OpPendingInfo{
+					ValidAfter:             0,
+					OpFinalizationTimeout:  0,
+					OpPendingReceiver:      tvm.ZeroAddress,
+					OpPendingBodyTruncated: big.NewInt(0),
+				},
+			},
+			RootMetadata: mcms.RootMetadata{
+				ChainID:              big.NewInt(0),
+				MultiSig:             tvm.ZeroAddress,
+				PreOpCount:           0,
+				PostOpCount:          0,
+				OverridePreviousRoot: false,
+			},
+		},
+	}
+
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, mcmsAddress, tonCompiledContracts[state.MCMS], mcmsStorage, nil, func(tonContractAddress *TONContractAddress) {
+		receiverAddress = tonContractAddress.TONAddress
+		output.MCMSAddress = tonContractAddress
 	})
 	if err != nil {
 		return output, err

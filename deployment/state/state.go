@@ -27,6 +27,7 @@ var (
 	OnRamp    ds.ContractType = "OnRamp"
 	OffRamp   ds.ContractType = "OffRamp"
 	FeeQuoter ds.ContractType = "FeeQuoter"
+	MCMS      ds.ContractType = "MCMS"
 	// Internal contracts
 	Deployer        ds.ContractType = "Deployer"
 	MerkleRoot      ds.ContractType = "MerkleRoot"
@@ -48,6 +49,7 @@ type CCIPChainState struct {
 	FeeQuoter        address.Address
 	Timelock         address.Address
 	ReceiverAddress  address.Address
+	MCMS             address.Address
 }
 
 type TONChainView struct {
@@ -203,6 +205,8 @@ func loadChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 			state.FeeQuoter = *contractAddress
 		case Timelock:
 			state.Timelock = *contractAddress
+		case MCMS:
+			state.MCMS = *contractAddress
 		default:
 			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue

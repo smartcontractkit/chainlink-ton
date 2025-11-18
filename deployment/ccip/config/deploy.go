@@ -19,6 +19,7 @@ type ChainContractParams struct {
 	RouterParams    RouterParams
 	ReceiverParams  ReceiverParams
 	TimelockParams  TimelockParams
+	MCMSParams      MCMSParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -31,6 +32,18 @@ func (c ChainContractParams) Validate() error {
 	}
 	if err := c.OnRampParams.Validate(); err != nil {
 		return fmt.Errorf("invalid OnRampParams: %w", err)
+	}
+	if err := c.RouterParams.Validate(); err != nil {
+		return fmt.Errorf("invalid RouterParams: %w", err)
+	}
+	if err := c.ReceiverParams.Validate(); err != nil {
+		return fmt.Errorf("invalid ReceiverParams: %w", err)
+	}
+	if err := c.TimelockParams.Validate(); err != nil {
+		return fmt.Errorf("invalid TimelockParams: %w", err)
+	}
+	if err := c.MCMSParams.Validate(); err != nil {
+		return fmt.Errorf("invalid MCMSParams: %w", err)
 	}
 	return nil
 }
@@ -123,5 +136,17 @@ func (t TimelockParams) Validate() error {
 		return errors.New("timelock admin should be specified")
 	}
 
+	return nil
+}
+
+type MCMSParams struct {
+	ID                uint32
+	BypasserTimelock  *address.Address
+	CancellerTimelock *address.Address
+	ProposerTimelock  *address.Address
+}
+
+func (m MCMSParams) Validate() error {
+	// No specific validation for now
 	return nil
 }

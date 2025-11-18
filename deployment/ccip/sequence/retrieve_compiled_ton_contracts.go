@@ -79,6 +79,10 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 		CompiledVersionKey:             "mcms.RBACTimelock.compiled.json",
 		SuggestedTONCoinsForDeployment: "0.5",
 	},
+	state.MCMS: {
+		CompiledVersionKey:             "mcms.MCMS.compiled.json",
+		SuggestedTONCoinsForDeployment: "0.5",
+	},
 	state.Counter: {
 		CompiledVersionKey:             "examples.Counter.compiled.json",
 		SuggestedTONCoinsForDeployment: "0.05",
