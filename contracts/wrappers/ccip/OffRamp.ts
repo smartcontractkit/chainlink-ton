@@ -391,11 +391,7 @@ export const builder = {
       encode: (data: ExecutionReport): Builder => {
         return beginCell()
           .storeUint(data.sourceChainSelector, 64)
-          .storeRef(
-            asSnakeData(data.messages, (message) => {
-              return any2TVMRampMessage.encode(message)
-            }),
-          )
+          .storeRef(asSnakeData(data.messages, any2TVMRampMessage.encode))
           .storeRef(Cell.EMPTY) //TODO: offchainTokenData
           .storeRef(
             asSnakeData(data.proofs, (proof) => {
