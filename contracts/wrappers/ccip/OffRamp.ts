@@ -279,16 +279,12 @@ export const builder = {
       load: (src: Slice): MerkleRoot => {
         const sourceChainSelector = src.loadUintBig(64)
         const onRampAddressLength = src.loadUint(8)
-        const onRampAddress = Buffer.from(bigIntToUint8Array(src.loadUintBig(onRampAddressLength * 8)))
-        const minSeqNr = src.loadUintBig(64)
-        const maxSeqNr = src.loadUintBig(64)
-        const merkleRoot = src.loadUintBig(256)
         return {
           sourceChainSelector,
-          onRampAddress,
-          minSeqNr,
-          maxSeqNr,
-          merkleRoot,
+          onRampAddress: Buffer.from(bigIntToUint8Array(src.loadUintBig(onRampAddressLength * 8))),
+          minSeqNr: src.loadUintBig(64),
+          maxSeqNr: src.loadUintBig(64),
+          merkleRoot: src.loadUintBig(256),
         }
       },
     }
