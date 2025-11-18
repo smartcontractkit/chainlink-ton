@@ -823,8 +823,6 @@ get fun rmnRouter(): address {
     return deployables.rmnRouter;
 }
 
-fun applySourceChainConfigUpdates() {}
-
 /// Gets the current owner of the contract.
 get fun owner(): address {
     val st = lazy Storage.load();
