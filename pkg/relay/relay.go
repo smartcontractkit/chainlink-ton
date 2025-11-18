@@ -140,5 +140,6 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		r.chain.TxManager(),
 		r.chain.LogPoller(),
 		cargs,
+		r.chain.ContractTransmitterConfig(),
 	)
 }

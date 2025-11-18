@@ -358,7 +358,7 @@ func SendTonRequest(
 	}
 
 	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
-	err = receivedMsg.WaitForTrace(clientConn)
+	err = receivedMsg.WaitForTrace(e.GetContext(), clientConn)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
@@ -422,7 +422,7 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 				e.Logger.Errorf("Outgoing message %d was bounced", i)
 			}
 
-			err := outMsg.WaitForTrace(clientConn)
+			err := outMsg.WaitForTrace(e.GetContext(), clientConn)
 			if err != nil {
 				e.Logger.Errorf("failed to wait for trace: %v", err)
 				continue

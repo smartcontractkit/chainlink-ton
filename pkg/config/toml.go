@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 	relaytypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
@@ -63,6 +64,11 @@ func (c *TOMLConfig) SetDefaults() {
 	}
 	c.LogPoller.ApplyDefaults()
 
+	if c.ContractTransmitter == nil {
+		c.ContractTransmitter = &ocr.Config{}
+	}
+	c.ContractTransmitter.ApplyDefaults()
+
 	// Set network name full defaults
 	if c.NetworkNameFull == "" {
 		c.NetworkNameFull = fmt.Sprintf("%s-%s", ChainFamilyName, c.NetworkName)
@@ -104,6 +110,9 @@ func setFromChain(c, f *Chain) {
 	if f.LogPoller != nil {
 		c.LogPoller = f.LogPoller
 	}
+	if f.ContractTransmitter != nil {
+		c.ContractTransmitter = f.ContractTransmitter
+	}
 }
 
 func (c *TOMLConfig) ValidateConfig() (err error) {
@@ -121,6 +130,7 @@ func (c *TOMLConfig) ValidateConfig() (err error) {
 
 	err = errors.Join(err, c.TransactionManager.ValidateConfig())
 	err = errors.Join(err, c.LogPoller.ValidateConfig())
+	err = errors.Join(err, c.ContractTransmitter.ValidateConfig())
 
 	return
 }

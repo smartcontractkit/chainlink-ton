@@ -63,6 +63,12 @@ fun onInternalMessage(in:InMessage) {
             onSetOCR3Config(msg)
         }
         // Sender must be owner
+        OffRamp_UpdateDeployables => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onUpdateDeployables(st, msg)
+        }
+        // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -133,15 +139,10 @@ fun onInternalMessage(in:InMessage) {
     }
 }
 
-/*
-Handles contract upgrade requests using the Upgradeable pattern. Invokes the
-upgrade process with the current migrate function and version metadata.
-*/
+// Handles contract upgrade requests using the Upgradeable pattern. Invokes the
+// upgrade process with the current migrate function and version metadata.
 fun onUpgrade(msg: Upgradeable_Upgrade) {
-    Upgradeable{
-        migrate: migrate,
-        version: version,
-    }.upgrade(msg);
+    Upgradeable{ migrate, version }.upgrade(msg);
 }
 
 @method_id(1000)
@@ -150,18 +151,21 @@ fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.Versi
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
 
-/*
-Handles OffRamp_CCIPReceiveBounced messages from the Router, originating
-from the CCIP receiver. The OffRamp notifies the ReceiveExecutor to update
-the execution state via ReceiveExecutor_Bounced. Only the Router is
-authorized to call this function.
+// Handles OffRamp_CCIPReceiveBounced messages from the Router, originating
+// from the CCIP receiver. The OffRamp notifies the ReceiveExecutor to update
+// the execution state via ReceiveExecutor_Bounced. Only the Router is
+// authorized to call this function.
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    Receiver.Receiver_CCIPReceive (bounce) ->
-    Router.Receiver_CCIPReceive ->
-    OffRamp.OffRamp_CCIPReceiveBounced ->
-    ReceiveExecutor.ReceiveExecutor_Bounced
-*/
+//     Receiver        ->> Router:          Receiver_CCIPReceive (bounce)
+//     Router          ->> OffRamp:         OffRamp_CCIPReceiveBounced
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
 
@@ -176,10 +180,8 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Sends a MerkleRoot_MarkState message to update the execution state of a
-specific sequence number in a MerkleRoot contract.
-*/
+// Sends a MerkleRoot_MarkState message to update the execution state of a
+// specific sequence number in a MerkleRoot contract.
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
@@ -193,14 +195,15 @@ fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     markState.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-/*
-Received from ReceiveExecutor after validating that the confirm message came from the correct
-receiver.
-
-Flow:
-    ReceiveExecutor.ReceiveExecutor_Confirm ->
-    OffRamp.OffRamp_NotifySuccess
-*/
+// Received from ReceiveExecutor after validating that the confirm message
+// came from the correct receiver.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant ReceiveExecutor
+//
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Confirm
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess
 fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Success);
@@ -214,14 +217,15 @@ fun onNotifySuccess(msg: OffRamp_NotifySuccess) {
     });
 }
 
-/*
-Received from ReceiveExecutor after validating that the bounce message came from the correct
-receiver and enabling manual execute to retry.
-
-Flow:
-    ReceiveExecutor.ReceiveExecutor_Bounced ->
-    OffRamp.OffRamp_NotifyFailure
-*/
+// Received from ReceiveExecutor after validating that the bounce message came from the correct
+// receiver and enabling manual execute to retry.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant ReceiveExecutor
+//
+//     OffRamp         ->> ReceiveExecutor: ReceiveExecutor_Bounced
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifyFailure
 fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     // propagate state change to root
     markStateOnRoot(msg.root, msg.header.sequenceNumber, ExecutionState.Failure);
@@ -235,17 +239,20 @@ fun onNotifyFailure(msg: OffRamp_NotifyFailure) {
     });
 }
 
-/*
-Sent by the Receiver via the Router to confirm successful message receipt.
-ReceiveExecutor must verify that the sender matches the intended receiver.
-Only the Router is authorized to call this function.
+// Sent by the Receiver via the Router to confirm successful message receipt.
+// ReceiveExecutor must verify that the sender matches the intended receiver.
+// Only the Router is authorized to call this function.
+//
+// sequenceDiagram
+//     participant Receiver
+//     participant Router
+//     participant OffRamp
+//     participant ReceiveExecutor
 
-Flow:
-    Receiver.Receiver_CCIPReceive ->
-    Router.Router_CCIPReceiveConfirm ->
-    OffRamp.OffRamp_CCIPReceiveConfirm ->
-    ReceiveExecutor.ReceiveExecutor_Confirm
-*/
+//     Receiver        ->> Router:          Receiver_CCIPReceive
+//     Router          ->> OffRamp:         Router_CCIPReceiveConfirm
+//     OffRamp         ->> ReceiveExecutor: OffRamp_CCIPReceiveConfirm
+//     ReceiveExecutor ->> OffRamp:         OffRamp_NotifySuccess/Failure
 fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     val receiveConfirm = createMessage({
         bounce: true,
@@ -258,18 +265,21 @@ fun onCCIPReceiveConfirm(st: Storage, msg: OffRamp_CCIPReceiveConfirm) {
     receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Dispatches a validated message to the receiver via the Router_RouteMessage.
-Verifies sender ownership which should be the corresponing receiver executor, resolves the Router from the source selector,
-and applies a gas override only if it exceeds the original gasLimit.
-Includes routing cost in value and forwards execId and receiver details.
+// Dispatches a validated message to the receiver via the Router_RouteMessage.
+// Verifies sender ownership which should be the corresponing receiver executor,
+// resolves the Router from the source selector, and applies a gas override only
+// if it exceeds the original gasLimit.
+//
+// Includes routing cost in value and forwards execId and receiver details.
+//
+// sequenceDiagram
+//     participant ReceiveExecutor
+//     participant OffRamp
+//     participant Router
 
-Flow:
-    ReceiveExecutor ->
-    OffRamp.OffRamp_DispatchValidated ->
-    Router.Router_RouteMessage ->
-    Receiver.Receiver_CCIPReceive
- */
+//     ReceiveExecutor ->> OffRamp:  OffRamp_DispatchValidated
+//     OffRamp         ->> Router:   Router_RouteMessage
+//     Router          ->> Receiver: Receiver_CCIPReceive
 fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     val message: Any2TVMRampMessage = msg.message.load();
     val router = getRouterFromSelector(st, message.header.sourceChainSelector);
@@ -305,9 +315,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-/*
-Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
- */
+// Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
 fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     var st = lazy Storage.load();
 
@@ -318,16 +326,35 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     st.store();
 }
 
-/*
-Processes commit reports: refreshes prices if the OCR sequence is newer,
-initializes/updates MerkleRoot contract, validates OCR3 signatures, and
-emits CommitReportAccepted when everything is valid.
+// Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
+fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
+    var deployables = st.deployables.load();
 
-Flow:
-    OffRamp.OffRamp_Commit ->
-        FeeQuoter.FeeQuoter_UpdatePrices (if the report contrains price updates)
-        MerkleRoot.Initialize
-*/
+    if (msg.receiveExecutorCode != null) {
+        deployables.receiveExecutorCode = msg.receiveExecutorCode!;
+    }
+
+    if (msg.merkleRootCode != null) {
+        deployables.merkleRootCode = msg.merkleRootCode!;
+    }
+
+    st.deployables = deployables.toCell();
+    st.store();
+}
+
+// Processes commit reports: refreshes prices if the OCR sequence is newer,
+// initializes/updates MerkleRoot contract, validates OCR3 signatures, and
+// emits CommitReportAccepted when everything is valid.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant FeeQuoter
+//     participant MerkleRoot
+
+//     Wallet  ->> OffRamp:    OffRamp_Commit
+//     OffRamp ->> FeeQuoter:  FeeQuoter_UpdatePrices (if contrains price updates)
+//     OffRamp ->> MerkleRoot: Deployable_Initialize
 fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var st = lazy Storage.load();
 
@@ -348,10 +375,10 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         // validate lane not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
-
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-        // validate against sourceChainConfig etc
+        // hard cap of 128 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
@@ -422,24 +449,28 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     );
 }
 
-/*
-Manually executes a single cross-chain execution report.
+// Manually executes a single cross-chain execution report.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_ManuallyExecute ->
-    MerkleRoot.MerkleRoot_Validate
- */
+//     Wallet  ->> OffRamp:    OffRamp_ManuallyExecute
+//     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onManuallyExecute(msg: OffRamp_ManuallyExecute, value: coins) {
     onExecuteSingleReport(msg.report, msg.gasOverride, value);
 }
 
-/*
-Executes a single cross-chain execution report.
+// Executes a single cross-chain execution report.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_Execute ->
-    MerkleRoot.MerkleRoot_Validate
- */
+//     Wallet  ->> OffRamp:    OffRamp_Execute
+//     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
     onExecuteSingleReport(msg.report, null, value);
 
@@ -454,15 +485,17 @@ fun onExecute(msg: OffRamp_Execute, sender: address, value: coins) {
     );
 }
 
-/*
-Executes a single cross-chain execution report. Verifies source chain
-configuration, checks for curses, and ensures message integrity before
-sending it for MerkleRoot validation.
+// Executes a single cross-chain execution report. Verifies source chain
+// configuration, checks for curses, and ensures message integrity before
+// sending it for MerkleRoot validation.
+//
+// sequenceDiagram
+//     participant Wallet
+//     participant OffRamp
+//     participant MerkleRoot
 
-Flow:
-    OffRamp.OffRamp_Execute | OffRamp.OffRamp_ManuallyExecute ->
-    MerkleRoot.MerkleRoot_Validate
- */
+//     Wallet  ->> OffRamp:    OffRamp_Execute/ManuallyExecute
+//     OffRamp ->> MerkleRoot: MerkleRoot_Validate
 fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: coins) {
     var st = Storage.load();
 
@@ -575,16 +608,18 @@ fun onUpdateCursedSubjects(msg: OffRamp_UpdateCursedSubjects) {
     st.store();
 }
 
-/*
-Executes a validated OffRamp message after MerkleRoot verification.
-Ensures the sender is an owned MerkleRoot, emits execution state change,
-deploys the ReceiveExecutor if needed, and triggers execution flow.
+// Executes a validated OffRamp message after MerkleRoot verification.
+// Ensures the sender is an owned MerkleRoot, emits execution state change,
+// deploys the ReceiveExecutor if needed, and triggers execution flow.
+//
+// sequenceDiagram
+//     participant OffRamp
+//     participant MerkleRoot
+//     participant ReceiveExecutor
 
-Flow:
-    MerkleRoot.MerkleRoot_Validate ->
-    OffRamp.OffRamp_ExecuteValidated ->
-    ReceiveExecutor.ReceiveExecutor_InitExecute
-*/
+//     OffRamp    ->> MerkleRoot:      MerkleRoot_Validate
+//     MerkleRoot ->> OffRamp:         OffRamp_ExecuteValidated
+//     OffRamp    ->> ReceiveExecutor: ReceiveExecutor_InitExecute
 fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: address) {
     val message = msg.message.load();
 
@@ -772,7 +807,21 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     return st.sourceChainConfigs;
 }
 
-fun applySourceChainConfigUpdates() {}
+get fun deployableHashes() : DeployableHashes {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return DeployableHashes {
+        merkleRoot: deployables.merkleRootCode.hash(),
+        receiveExecutor: deployables.receiveExecutorCode.hash(),
+        deployer: deployables.deployer.hash(),
+    }
+}
+
+get fun rmnRouter(): address {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return deployables.rmnRouter;
+}
 
 /// Gets the current owner of the contract.
 get fun owner(): address {

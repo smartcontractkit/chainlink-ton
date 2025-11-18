@@ -153,8 +153,8 @@ type CleanExpiredRoots struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Roots       common.SnakeData[Root]       `tlb:"^"` // The roots to clean up
-	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
+	/// The roots to clean up - RootDescriptor{root, validUntil}
+	Roots common.SnakeData[RootDescriptor] `tlb:"^"`
 }
 
 // --- Messages - outgoing ---
@@ -425,6 +425,12 @@ type Op struct {
 	To       *address.Address `tlb:"addr"`   // The address to which the operation is directed.
 	Value    tlb.Coins        `tlb:"."`      // The value to be sent with the operation. // coins
 	Data     *cell.Cell       `tlb:"^"`      // The data to be sent with the operation. // body
+}
+
+// Data container used to derive the root ID (hash)
+type RootDescriptor struct {
+	Root       *big.Int `tlb:"## 256"` // The merkle tree root
+	ValidUntil uint32   `tlb:"## 32"`  // The time until which root is valid
 }
 
 // --- Data (storage & structures) - value wrapper types ---

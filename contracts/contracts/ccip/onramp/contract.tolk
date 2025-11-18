@@ -77,7 +77,9 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be the owner
         OnRamp_UpdateAllowlists => {
             var st = lazy OnRamp_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
+            if (in.senderAddress != st.config.load().allowlistAdmin) {
+                st.ownable.requireOwner(in.senderAddress);
+            }
             onApplyAllowlistUpdates(mutate st, msg.updates);
             st.store();
         }
@@ -117,15 +119,17 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-/*
-Forwards a validated fee request from the OnRamp to the FeeQuoter contract
-for final fee validation.
+// Forwards a validated fee request from the OnRamp to the FeeQuoter contract
+// for final fee validation.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_MessageValidated | FeeQuoter.FeeQuoter_MessageValidationFailed ->
-*/
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated | FeeQuoter_MessageValidationFailed
 fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
@@ -148,15 +152,17 @@ fun onGetValidatedFee(msg: OnRamp_GetValidatedFee<RemainingBitsAndRefs>, sender:
     getFeeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
+// Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee and replies back to the original caller.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_MessageValidated ->
-    OnRamp.FeeQuoter_MessageValidated
-*/
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidated
+//     OnRamp    ->> Router:    OnRamp_MessageValidated
 fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeContext>) {
     val userContext = msg.context.userContext;
     val userAddress = msg.context.onrampContext;
@@ -175,16 +181,18 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
     confirmation.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
-and replies back to the original caller.
+// Handles the reply from FeeQuoter.FeeQuoter_GetValidatedFee when FeeQuoter replies with an error
+// and replies back to the original caller.
+//
+// sequenceDiagram
+//     participant Router
+//     participant OnRamp
+//     participant FeeQuoter
 
-Flow:
-    OnRamp.OnRamp_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_GetValidatedFee ->
-    FeeQuoter.FeeQuoter_MessageValidationFailed ->
-    OnRamp.OnRamp_MessageValidationFailed
-*/
+//     Router    ->> OnRamp:    OnRamp_GetValidatedFee
+//     OnRamp    ->> FeeQuoter: FeeQuoter_GetValidatedFee
+//     FeeQuoter ->> OnRamp:    FeeQuoter_MessageValidationFailed
+//     OnRamp    ->> Router:    OnRamp_MessageValidationFailed
 fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetValidatedFeeContext>) {
     val userContext = msg.context.userContext;
     val userAddress = msg.context.onrampContext;
@@ -364,6 +372,7 @@ fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) 
     )
 }
 
+
 /*
 Applies destination chain configuration updates by creating new configurations or updating
 existing ones. Only the owner is authorized to call this function.
@@ -434,10 +443,7 @@ Handles contract upgrade requests using the Upgradeable pattern. Invokes the
 upgrade process with the current migrate function and version metadata.
 */
 fun onUpgrade(msg: Upgradeable_Upgrade) {
-    Upgradeable{
-        migrate: migrate,
-        version: version,
-    }.upgrade(msg);
+    Upgradeable{ migrate, version}.upgrade(msg);
 }
 
 get fun isChainSupported(destChainSelector: uint64): bool {
@@ -452,8 +458,10 @@ get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     return config.sequenceNumber + 1;
 }
 
-get fun staticConfig() {
-    // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
+// Note: getStaticConfig name is kept to match EVM implementation, but only chain selector is part of that original static config
+get fun staticConfig(): uint64 {
+    val st = lazy OnRamp_Storage.load();
+    return st.chainSelector;
 }
 
 get fun dynamicConfig(): OnRamp_DynamicConfig {
@@ -504,6 +512,11 @@ get fun pendingOwner(): address? {
 get fun sendExecutorCode(): cell {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode;
+}
+
+get fun getCCIPSendExecutorCodeHash(): uint256 {
+    val st = lazy OnRamp_Storage.load();
+    return st.executor.executorCode.hash();
 }
 
 get fun typeAndVersion(): (slice, slice) {

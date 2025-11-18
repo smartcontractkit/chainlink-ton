@@ -336,7 +336,7 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 
 	c.lggr.Info("waiting for full trace...")
 
-	err = recvMsg.WaitForTrace(c.connection)
+	err = recvMsg.WaitForTrace(ctx, c.connection)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
