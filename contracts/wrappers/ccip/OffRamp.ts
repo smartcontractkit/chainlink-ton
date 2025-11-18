@@ -198,7 +198,7 @@ export const builder = {
         )
       },
 
-      load: (src: Slice): OffRampStorage => {
+      load: (_: Slice): OffRampStorage => {
         throw new Error('Implement me')
       },
     }
@@ -307,7 +307,7 @@ export const builder = {
           )
       },
 
-      load: (src: Slice): CommitReport => {
+      load: (_: Slice): CommitReport => {
         throw new Error('Implement me')
       },
     }
@@ -346,7 +346,7 @@ export const builder = {
           .storeBuffer(data.config.onRamp, data.config.onRamp.byteLength)
       },
 
-      load: (src: Slice): UpdateSourceChainConfig => {
+      load: (_: Slice): UpdateSourceChainConfig => {
         throw new Error('Implement me')
       },
     }
@@ -361,7 +361,7 @@ export const builder = {
           .storeUint(data.nonce, 64)
       },
 
-      load: (src: Slice): RampMessageHeader => {
+      load: (_: Slice): RampMessageHeader => {
         throw new Error('Implement me')
       },
     }
@@ -382,7 +382,7 @@ export const builder = {
           .storeMaybeRef(data.tokenAmounts)
       },
 
-      load: (src: Slice): Any2TVMRampMessage => {
+      load: (_: Slice): Any2TVMRampMessage => {
         throw new Error('Implement me')
       },
     }
@@ -405,7 +405,7 @@ export const builder = {
           .storeUint(data.proofFlagBits, 256)
       },
 
-      load: (src: Slice): ExecutionReport => {
+      load: (_: Slice): ExecutionReport => {
         throw new Error('Implement me')
       },
     }
@@ -423,9 +423,149 @@ export const builder = {
       executionReport,
     }
   })(),
-  message: {
+  messages: {
     in: (() => {
-      return {}
+      const commit: CellCodec<{
+        queryID?: number
+        reportContext: ReportContext
+        report: CommitReport
+        signatures: SignatureEd25519[]
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.commit, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeUint(data.reportContext.configDigest, 256)
+            .storeUint(data.reportContext.padding, 192) //should be zero
+            .storeUint(data.reportContext.sequenceBytes, 64)
+            .storeBuilder(builder.data.commitReport.encode(data.report))
+            .storeRef(
+              asSnakeData(data.signatures, (item) =>
+                beginCell()
+                  .storeUint(item.signer, 256)
+                  .storeUint(item.r, 256)
+                  .storeUint(item.s, 256),
+              ),
+            )
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const execute: CellCodec<{
+        queryID?: number
+        reportContext: ReportContext
+        report: ExecutionReport
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.execute, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeUint(data.reportContext.configDigest, 256)
+            .storeUint(data.reportContext.padding, 192) //should be zero
+            .storeUint(data.reportContext.sequenceBytes, 64)
+            .storeBuilder(builder.data.executionReport.encode(data.report))
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const manualExecute: CellCodec<{
+        queryID?: number
+        report: ExecutionReport
+        gasOverride?: bigint
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.manualExecute, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeBuilder(builder.data.executionReport.encode(data.report))
+            .storeCoins(data.gasOverride ?? 0)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const updateSourceChainConfigs: CellCodec<{
+        queryID?: number
+        configs: UpdateSourceChainConfig[]
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.updateSourceChainConfigs, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeRef(
+              asSnakeData(data.configs, (message) => {
+                return builder.data.updateSourceChainConfig.encode(message)
+              }),
+            )
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const updateCursedSubjects: CellCodec<{
+        subjects: bigint[]
+      }> = {
+        encode: (data): Builder => {
+          let subjects = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
+          for (const subject of data.subjects) {
+            subjects.set(subject, true)
+          }
+          return beginCell().storeUint(Opcodes.updateCursedSubjects, 32).storeDict(subjects)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const setDynamicConfig: CellCodec<{
+        queryId: bigint
+        feeQuoter: Address
+        permissionlessExecutionThresholdSeconds: number
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.setDynamicConfig, 32)
+            .storeUint(data.queryId, 64)
+            .storeAddress(data.feeQuoter)
+            .storeUint(data.permissionlessExecutionThresholdSeconds, 32)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const dispatchValidated: CellCodec<{
+        message: Any2TVMRampMessage
+        execId: bigint
+        gasOverride?: bigint
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.dispatchValidated, 32)
+            .storeRef(builder.data.any2TVMRampMessage.encode(data.message))
+            .storeUint(data.execId, 192)
+            .storeMaybeUint(data.gasOverride, 64)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      return {
+        commit,
+        execute,
+        manualExecute,
+        updateSourceChainConfigs,
+        updateCursedSubjects,
+        setDynamicConfig,
+        dispatchValidated,
+      }
     })(),
   },
 }
@@ -521,19 +661,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.commit, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.reportContext.configDigest, 256)
-        .storeUint(opts.reportContext.padding, 192) //should be zero
-        .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeBuilder(builder.data.commitReport.encode(opts.report))
-        .storeRef(
-          asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.signer, 256).storeUint(item.r, 256).storeUint(item.s, 256),
-          ),
-        )
-        .endCell(),
+      body: builder.messages.in.commit.encode(opts).endCell(),
     })
   }
 
@@ -550,14 +678,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.execute, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.reportContext.configDigest, 256)
-        .storeUint(opts.reportContext.padding, 192) //should be zero
-        .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeBuilder(builder.data.executionReport.encode(opts.report))
-        .endCell(),
+      body: builder.messages.in.execute.encode(opts).endCell(),
     })
   }
 
@@ -574,12 +695,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.manualExecute, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeBuilder(builder.data.executionReport.encode(opts.report))
-        .storeCoins(opts.gasOverride ?? 0)
-        .endCell(),
+      body: builder.messages.in.manualExecute.encode(opts).endCell(),
     })
   }
 
@@ -595,15 +711,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.updateSourceChainConfigs, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(
-          asSnakeData(opts.configs, (message) => {
-            return builder.data.updateSourceChainConfig.encode(message)
-          }),
-        )
-        .endCell(),
+      body: builder.messages.in.updateSourceChainConfigs.encode(opts).endCell(),
     })
   }
 
@@ -615,19 +723,14 @@ export class OffRamp
       subjects: bigint[]
     },
   ) {
-    let subjects = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
-    for (const subject of opts.subjects) {
-      subjects.set(subject, true)
-    }
-
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(Opcodes.updateCursedSubjects, 32).storeDict(subjects).endCell(),
+      body: builder.messages.in.updateCursedSubjects.encode(opts).endCell(),
     })
   }
 
-  async setDynamicConfig(
+  async sendSetDynamicConfig(
     provider: ContractProvider,
     via: Sender,
     opts: {
@@ -640,12 +743,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.setDynamicConfig, 32)
-        .storeUint(opts.queryId, 64)
-        .storeAddress(opts.feeQuoter)
-        .storeUint(opts.permissionlessExecutionThresholdSeconds, 32)
-        .endCell(),
+      body: builder.messages.in.setDynamicConfig.encode(opts).endCell(),
     })
   }
 
@@ -662,12 +760,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.dispatchValidated, 32)
-        .storeRef(builder.data.any2TVMRampMessage.encode(opts.message))
-        .storeUint(opts.execId, 192)
-        .storeMaybeUint(opts.gasOverride, 64)
-        .endCell(),
+      body: builder.messages.in.dispatchValidated.encode(opts).endCell(),
     })
   }
 
