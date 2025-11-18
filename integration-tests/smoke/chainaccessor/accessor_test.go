@@ -277,13 +277,17 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
 		t.Logf("    GasPriceUpdate[0]:")
 		t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
-		t.Logf("      UsdPerUnitGas: %s", gasUpdate.UsdPerUnitGas.String())
+		t.Logf("      ExecutionGasPrice: %s", gasUpdate.ExecutionGasPrice.String())
+		t.Logf("      DataAvailabilityGasPrice: %s", gasUpdate.DataAvailabilityGasPrice.String())
 
 		// Validate expected values from the TypeScript test
 		require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
-		expectedGasPrice := new(big.Int)
-		expectedGasPrice.SetString("5192296858534827628530496329220097", 10)
-		require.Equal(t, expectedGasPrice, gasUpdate.UsdPerUnitGas, "UsdPerUnitGas should match expected value")
+		// The expected packed value is 5192296858534827628530496329220097
+		// This should unpack to:
+		// - ExecutionGasPrice (lower 112 bits): 1
+		// - DataAvailabilityGasPrice (upper 112 bits): 1
+		require.Equal(t, big.NewInt(1), gasUpdate.ExecutionGasPrice, "ExecutionGasPrice should match expected value")
+		require.Equal(t, big.NewInt(1), gasUpdate.DataAvailabilityGasPrice, "DataAvailabilityGasPrice should match expected value")
 	})
 
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
@@ -332,7 +336,8 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
 		t.Logf("    GasPriceUpdate[0]:")
 		t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
-		t.Logf("      UsdPerUnitGas: %s", gasUpdate.UsdPerUnitGas.String())
+		t.Logf("      ExecutionGasPrice: %s", gasUpdate.ExecutionGasPrice.String())
+		t.Logf("      DataAvailabilityGasPrice: %s", gasUpdate.DataAvailabilityGasPrice.String())
 
 		// Validate expected values from the TypeScript test
 		require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")

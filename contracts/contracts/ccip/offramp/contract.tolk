@@ -63,6 +63,12 @@ fun onInternalMessage(in:InMessage) {
             onSetOCR3Config(msg)
         }
         // Sender must be owner
+        OffRamp_UpdateDeployables => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onUpdateDeployables(st, msg)
+        }
+        // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -133,10 +139,8 @@ fun onInternalMessage(in:InMessage) {
     }
 }
 
-/*
-Handles contract upgrade requests using the Upgradeable pattern. Invokes the
-upgrade process with the current migrate function and version metadata.
-*/
+// Handles contract upgrade requests using the Upgradeable pattern. Invokes the
+// upgrade process with the current migrate function and version metadata.
 fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version }.upgrade(msg);
 }
@@ -176,10 +180,8 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/*
-Sends a MerkleRoot_MarkState message to update the execution state of a
-specific sequence number in a MerkleRoot contract.
-*/
+// Sends a MerkleRoot_MarkState message to update the execution state of a
+// specific sequence number in a MerkleRoot contract.
 fun markStateOnRoot(root: address, seqNum: uint64, state: ExecutionState) {
     val markState= createMessage({
         bounce: false,
@@ -313,9 +315,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     routeMessage.send(SEND_MODE_REGULAR);
 }
 
-/*
-Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
- */
+// Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
 fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     var st = lazy Storage.load();
 
@@ -323,6 +323,22 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     ocr3Base.setOcr3Config(msg);
 
     st.ocr3Base = ocr3Base.toCell();
+    st.store();
+}
+
+// Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
+fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
+    var deployables = st.deployables.load();
+
+    if (msg.receiveExecutorCode != null) {
+        deployables.receiveExecutorCode = msg.receiveExecutorCode!;
+    }
+
+    if (msg.merkleRootCode != null) {
+        deployables.merkleRootCode = msg.merkleRootCode!;
+    }
+
+    st.deployables = deployables.toCell();
     st.store();
 }
 
@@ -359,10 +375,10 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         // validate lane not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
-
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-        // validate against sourceChainConfig etc
+        // hard cap of 128 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
@@ -791,7 +807,21 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     return st.sourceChainConfigs;
 }
 
-fun applySourceChainConfigUpdates() {}
+get fun deployableHashes() : DeployableHashes {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return DeployableHashes {
+        merkleRoot: deployables.merkleRootCode.hash(),
+        receiveExecutor: deployables.receiveExecutorCode.hash(),
+        deployer: deployables.deployer.hash(),
+    }
+}
+
+get fun rmnRouter(): address {
+    val st = lazy Storage.load();
+    val deployables = st.deployables.load();
+    return deployables.rmnRouter;
+}
 
 /// Gets the current owner of the contract.
 get fun owner(): address {

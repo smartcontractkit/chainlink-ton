@@ -38,6 +38,7 @@ type ccipTransmitter struct {
 	offrampAddress      string
 	toEd25519CalldataFn ToEd25519CalldataFunc
 	lggr                logger.Logger
+	cfg                 *Config
 }
 
 func NewCCIPTransmitter(
@@ -45,8 +46,9 @@ func NewCCIPTransmitter(
 	lggr logger.Logger,
 	offrampAddress string,
 	toEd25519CalldataFn ToEd25519CalldataFunc,
+	cfg *Config,
 ) (ocr3types.ContractTransmitter[[]byte], error) {
-	if txm == nil || lggr == nil {
+	if txm == nil || lggr == nil || cfg == nil {
 		return nil, errors.New("invalid transmitter args")
 	}
 
@@ -55,6 +57,7 @@ func NewCCIPTransmitter(
 		offrampAddress:      offrampAddress,
 		toEd25519CalldataFn: toEd25519CalldataFn,
 		lggr:                lggr,
+		cfg:                 cfg,
 	}, nil
 }
 
@@ -101,21 +104,9 @@ func (c *ccipTransmitter) Transmit(
 	}
 	w := client.Wallet
 
-	// extract CCIP-specific txID for enhanced tracking (includes messageID if execute report)
-	// falls back to seq-only format for commit reports or decode failures
-	txID, gasLimit := extractCCIPTxIDAndGasLimit(reportWithInfo.Report, seqNr)
-
-	// TODO: This is enough to cover commit and execute costs,
-	//	 but we should have a lower value for price-update only reports
-	//	 and these values should be configurable
-	var finalAmount *tlb.Coins
-	baseAmount := tlb.MustFromTON("0.05")
-	if gasLimit != nil {
-		finalAmount = baseAmount.MustAdd(gasLimit)
-		extraForExecute := tlb.MustFromTON("0.035")
-		finalAmount = finalAmount.MustAdd(&extraForExecute)
-	} else {
-		finalAmount = &baseAmount
+	txID, finalAmount, gasLimit, err := getReportTxInfo(reportWithInfo.Report, seqNr, c.cfg)
+	if err != nil {
+		return fmt.Errorf("failed to extract report metadata: %w", err)
 	}
 
 	request := txm.Request{
@@ -129,7 +120,7 @@ func (c *ccipTransmitter) Transmit(
 
 	c.lggr.Infow("Transmitting OCR report",
 		"txID", txID,
-		"from", w.Address().String(),
+		"from", w.WalletAddress().String(),
 		"to", c.offrampAddress,
 		"configDigest", hex.EncodeToString(configDigest[:]),
 		"seqNr", seqNr,
@@ -225,27 +216,57 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 	return result
 }
 
-// extractCCIPTxID is a CCIP-specific helper that attempts to extract messageID from execute reports
-// for better debugging and transaction tracking.
+// getReportTxInfo extracts transaction ID, calculates gas cost, and retrieves gas limit
+// from a report in a single decode operation to avoid redundant processing.
 //
 // Returns:
-//   - For execute reports: "seq-{seqNum}-msg-{messageID}"
-//   - For commit reports or decode failures: "seq-{seqNum}"
-//   - Gas limit from execute report, or nil if not applicable
+//   - txID: Transaction identifier string (e.g., "seq-{seqNum}-msg-{messageID}" or "seq-{seqNum}")
+//   - gasCost: Total cost in TON coins based on report type
+//   - gasLimit: Gas limit from execute reports (nil for commit reports)
+//   - err: Any error encountered during processing
 //
-// Note: This is a "hacky" convenience function that makes assumptions about report structure.
-func extractCCIPTxIDAndGasLimit(reportBytes []byte, seqNr uint64) (string, *tlb.Coins) {
+// Tx cost breakdown:
+//   - Execute Report: Returns ExecuteCostTON + message gas limit
+//   - Commit Report with merkle roots: Returns CommitPriceAndRootCostTON
+//   - Commit Report (price-only, no merkle roots): Returns CommitPriceUpdateOnlyCostTON
+func getReportTxInfo(reportBytes []byte, seqNr uint64, cfg *Config) (txID string, gasCost *tlb.Coins, gasLimit *tlb.Coins, err error) {
 	reportCell, err := cell.FromBOC(reportBytes)
 	if err != nil {
-		return fmt.Sprintf("seq-%d", seqNr), nil
+		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode report BOC: %w", err)
 	}
 
+	// Check ExecuteReport first
 	var executeReport ocr.ExecuteReport
-	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
-		// Not an execute report (likely commit report)
-		return fmt.Sprintf("seq-%d", seqNr), nil
+	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err == nil {
+		// This is an execute report
+		messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
+		txID = fmt.Sprintf("seq-%d-msg-%s", seqNr, messageIDHex)
+
+		// Calculate cost: ExecuteCostTON + message gas limit
+		baseCost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.ExecuteCostTON))
+		totalCost, err1 := baseCost.Add(&executeReport.Message.GasLimit)
+		if err1 != nil {
+			return txID, nil, &executeReport.Message.GasLimit, fmt.Errorf("failed to add gas limit to execute cost: %w", err1)
+		}
+
+		return txID, totalCost, &executeReport.Message.GasLimit, nil
 	}
 
-	messageIDHex := hex.EncodeToString(executeReport.Message.Header.MessageID)
-	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Message.Header.SequenceNumber, messageIDHex), &executeReport.Message.GasLimit
+	// Not an execute report, try to decode as CommitReport
+	var commitReport ocr.CommitReport
+	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
+		return fmt.Sprintf("seq-%d", seqNr), nil, nil, fmt.Errorf("failed to decode as commit report: %w", err)
+	}
+
+	// Commit report
+	txID = fmt.Sprintf("seq-%d", seqNr)
+	if len(commitReport.MerkleRoots) == 0 {
+		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceUpdateOnlyCostTON))
+		gasCost = &cost
+	} else {
+		cost := tlb.MustFromTON(fmt.Sprintf("%.6f", cfg.CommitPriceAndRootCostTON))
+		gasCost = &cost
+	}
+
+	return txID, gasCost, nil, nil
 }

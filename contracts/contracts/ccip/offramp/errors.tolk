@@ -5,9 +5,9 @@ enum Error {
     InvalidMessageDestChainSelector
     SourceChainSelectorMismatch
     InvalidOnRampUpdate
-    SenderIsNotRouter
     InsufficientFee
     SubjectCursed
     Unauthorized
     ZeroAddressNotAllowed
+    TooManyMessagesInReport
 }

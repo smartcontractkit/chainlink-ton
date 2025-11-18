@@ -7,6 +7,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
@@ -15,15 +16,17 @@ import (
 const ChainFamilyName = "ton"
 
 var DefaultConfigSet = Chain{
-	TransactionManager: &txm.DefaultConfigSet,
-	LogPoller:          &logpoller.DefaultConfigSet,
-	ClientTTL:          10 * time.Minute,
+	TransactionManager:  &txm.DefaultConfigSet,
+	LogPoller:           &logpoller.DefaultConfigSet,
+	ContractTransmitter: &ocr.DefaultConfigSet,
+	ClientTTL:           10 * time.Minute,
 }
 
 type Chain struct {
-	TransactionManager *txm.Config
-	LogPoller          *logpoller.Config
-	ClientTTL          time.Duration
+	TransactionManager  *txm.Config
+	LogPoller           *logpoller.Config
+	ContractTransmitter *ocr.Config
+	ClientTTL           time.Duration
 }
 
 // TxManager returns the transaction manager configuration
@@ -40,6 +43,14 @@ func (c *Chain) LogPollerConfig() *logpoller.Config {
 		return c.LogPoller
 	}
 	return &logpoller.DefaultConfigSet
+}
+
+// ContractTransmitterConfig returns the contract transmitter configuration
+func (c *Chain) ContractTransmitterConfig() *ocr.Config {
+	if c.ContractTransmitter != nil {
+		return c.ContractTransmitter
+	}
+	return &ocr.DefaultConfigSet
 }
 
 type Node struct {

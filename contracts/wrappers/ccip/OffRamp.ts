@@ -33,6 +33,7 @@ export const Opcodes = {
   ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
   updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
   setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
+  updateDeployables: crc32('OffRamp_UpdateDeployables'),
 }
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
@@ -52,11 +53,11 @@ export enum OffRampError {
   InvalidMessageDestChainSelector,
   SourceChainSelectorMismatch,
   InvalidOnRampUpdate,
-  SenderIsNotRouter,
   InsufficientFee,
   SubjectCursed,
   Unauthorized,
   ZeroAddressNotAllowed,
+  TooManyMessagesInReport,
 }
 
 export enum ReceiveExecutorError {
@@ -158,6 +159,13 @@ export type MerkleRoot = {
   minSeqNr: bigint
   maxSeqNr: bigint
   merkleRoot: bigint
+}
+
+
+export type UpdateDeployables = {
+  queryId: bigint
+  receiveExecutorCode?: Cell
+  merkleRootCode?: Cell
 }
 
 export const builder = {
@@ -548,6 +556,24 @@ export const builder = {
           throw new Error('Implement me')
         },
       }
+      const updateDeployables: CellCodec<UpdateDeployables> = {
+        encode: (message: UpdateDeployables): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.updateDeployables, 32)
+            .storeUint(message.queryId, 64)
+            .storeMaybeRef(message.receiveExecutorCode)
+            .storeMaybeRef(message.merkleRootCode)
+        },
+
+        load: (src: Slice): UpdateDeployables => {
+          src.skip(32) //opcode
+          return {
+            queryId: src.loadUintBig(64),
+            receiveExecutorCode: src.loadMaybeRef() ?? undefined,
+            merkleRootCode: src.loadMaybeRef() ?? undefined,
+          }
+        },
+      }
 
       return {
         commit,
@@ -557,6 +583,7 @@ export const builder = {
         updateCursedSubjects,
         setDynamicConfig,
         dispatchValidated,
+        updateDeployables,
       }
     })(),
   },
@@ -736,6 +763,28 @@ export class OffRamp
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.setDynamicConfig.encode(opts).endCell(),
+    })
+  }
+
+  async sendUpdateDeployables(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId: bigint
+      receiveExecutorCode?: Cell
+      merkleRootCode?: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.updateDeployables
+        .encode({
+          queryId: opts.queryId,
+          receiveExecutorCode: opts.receiveExecutorCode,
+        })
+        .endCell(),
     })
   }
 
