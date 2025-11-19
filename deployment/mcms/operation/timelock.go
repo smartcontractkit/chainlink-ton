@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
@@ -21,19 +22,20 @@ import (
 )
 
 type DeployTimelockInput struct {
-	ID           uint32
-	ContractPath string
-	Coins        string
-	MinDelay     uint32
-	Admin        *address.Address
-	Proposers    []*address.Address
-	Executors    []*address.Address
-	Cancellers   []*address.Address
-	Bypassers    []*address.Address
+	ID            uint32
+	ChainSelector uint64
+	ContractPath  string
+	Coins         string
+	MinDelay      uint32
+	Admin         *address.Address
+	Proposers     []*address.Address
+	Executors     []*address.Address
+	Cancellers    []*address.Address
+	Bypassers     []*address.Address
 }
 
 type DeployTimelockOutput struct {
-	Address *address.Address
+	Address address.Address
 }
 
 var DeployTimelockOp = operations.NewOperation(
@@ -43,7 +45,11 @@ var DeployTimelockOp = operations.NewOperation(
 	deployTimelock,
 )
 
-func deployTimelock(b operations.Bundle, deps TonDeps, in DeployTimelockInput) (DeployTimelockOutput, error) {
+func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelockInput) (DeployTimelockOutput, error) {
+	if currentAddr := deps.CCIPOnChainState[in.ChainSelector].Timelock; !currentAddr.IsAddrNone() {
+		b.Logger.Infof("Timelock contract is already deployed at address: %s. Skipping...", currentAddr.String())
+		return DeployTimelockOutput{}, nil
+	}
 	output := DeployTimelockOutput{}
 
 	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
@@ -107,6 +113,6 @@ func deployTimelock(b operations.Bundle, deps TonDeps, in DeployTimelockInput) (
 	}
 	b.Logger.Infow("Deployed Timelock", "addr", contract.Address, "deployer wallet addr", deps.TonChain.WalletAddress.String())
 
-	output.Address = contract.Address
+	output.Address = *contract.Address
 	return output, nil
 }

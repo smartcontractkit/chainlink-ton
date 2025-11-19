@@ -11,12 +11,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -89,14 +88,6 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	},
 }
 
-type CompiledContractData struct {
-	Type                           ds.ContractType
-	Code                           *cell.Cell
-	SuggestedTONCoinsForDeployment string
-	ContractVersionSha             string
-	ContractSemver                 *semver.Version
-}
-
 type RetrieveCompiledContractsSeqInput struct {
 	ContractsVersionSha string
 	ContractsSemver     *semver.Version
@@ -116,7 +107,7 @@ func (i *RetrieveCompiledContractsSeqInput) Validate() error {
 }
 
 type RetrieveCompiledContractsSeqOutput struct {
-	CompiledContracts map[ds.ContractType]CompiledContractData
+	CompiledContracts map[ds.ContractType]utils.CompiledContractData
 }
 
 var RetrieveContractsSequence = operations.NewSequence(
@@ -146,14 +137,14 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 	if in.ContractsVersionSha != ContractsLocalVersion {
 		// Download contracts
 		// TODO we could optimize this even more by passing the file names to extract from the release package
-		downloadArtifactsInput := operation.DownloadArtifactsInput{
+		downloadArtifactsInput := operation2.DownloadArtifactsInput{
 			Organization:        contractsGithubOrganization,
 			Repository:          contractsGithubRepository,
 			Release:             contractsGithubReleasePrefix + in.ContractsVersionSha,
 			Asset:               contractsGithubAssetPrefix + in.ContractsVersionSha,
 			FilesSuffixToFilter: contractsFileNameSuffix,
 		}
-		downloadArtifactsOutput, err := operations.ExecuteOperation(b, operation.DownloadArtifactsOp, deps, downloadArtifactsInput)
+		downloadArtifactsOutput, err := operations.ExecuteOperation(b, operation2.DownloadArtifactsOp, deps, downloadArtifactsInput)
 
 		if err != nil {
 			return output, err
@@ -183,7 +174,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 		contractToLookFor = in.Contracts
 	}
 
-	output.CompiledContracts = make(map[ds.ContractType]CompiledContractData)
+	output.CompiledContracts = make(map[ds.ContractType]utils.CompiledContractData)
 	for _, contractType := range contractToLookFor {
 		contractMetadata, ok := contractsMapping[contractType]
 
@@ -191,17 +182,19 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 			return output, fmt.Errorf("unknown contractType: %s", contractType)
 		}
 
-		contractCode, err := wrappers.ParseCompiledContract(helpers.GetBuildDir(b.GetContext(), contractMetadata.CompiledVersionKey))
+		contractPath := helpers.GetBuildDir(b.GetContext(), contractMetadata.CompiledVersionKey)
+		contractCode, err := wrappers.ParseCompiledContract(contractPath)
 		if err != nil {
 			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)
 		}
 
-		output.CompiledContracts[contractType] = CompiledContractData{
+		output.CompiledContracts[contractType] = utils.CompiledContractData{
 			Code:                           contractCode,
 			SuggestedTONCoinsForDeployment: contractMetadata.SuggestedTONCoinsForDeployment,
 			ContractVersionSha:             in.ContractsVersionSha,
 			ContractSemver:                 in.ContractsSemver,
 			Type:                           contractType,
+			ContractPath:                   contractPath,
 		}
 	}
 

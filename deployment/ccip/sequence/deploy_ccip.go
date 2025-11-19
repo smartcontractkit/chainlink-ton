@@ -1,23 +1,19 @@
 package sequence
 
 import (
-	"fmt"
 	"math/big"
 
+	mcmsOps "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/xssnick/tonutils-go/address"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -38,19 +34,14 @@ type DeployCCIPSeqInput struct {
 	ChainSelector       uint64
 }
 
-type TONContractAddress struct {
-	TONAddress     address.Address
-	CLDFAddressRef ds.AddressRef
-}
-
 type DeployCCIPSeqOutput struct {
-	RouterAddress    *TONContractAddress
-	FeeQuoterAddress *TONContractAddress
-	OnRampAddress    *TONContractAddress
-	OffRampAddress   *TONContractAddress
-	ReceiverAddress  *TONContractAddress
-	TimelockAddress  *TONContractAddress
-	MCMSAddress      *TONContractAddress
+	RouterAddress    *utils.TONContractAddress
+	FeeQuoterAddress *utils.TONContractAddress
+	OnRampAddress    *utils.TONContractAddress
+	OffRampAddress   *utils.TONContractAddress
+	ReceiverAddress  *utils.TONContractAddress
+	TimelockAddress  *utils.TONContractAddress
+	MCMSAddress      *utils.TONContractAddress
 	Transactions     [][]byte
 }
 
@@ -67,7 +58,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// Initialize the output
 	output := DeployCCIPSeqOutput{}
 
-	retrieveContractsInput := RetrieveCompiledContractsSeqInput{
+	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
 		ContractsSemver:     in.ContractsSemver,
 		ContractsVersionSha: in.ContractsVersionSha,
 		Contracts: []ds.ContractType{
@@ -85,7 +76,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		},
 	}
 
-	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, RetrieveContractsSequence, deps, retrieveContractsInput)
+	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, sequence.RetrieveContractsSequence, deps, retrieveContractsInput)
 	if err != nil {
 		return output, err
 	}
@@ -112,7 +103,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		OnRamps: nil, // set afterward
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, routerAddress, tonCompiledContracts[state.Router], routerStorage, nil, func(tonContractAddress *TONContractAddress) {
+	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, routerAddress, tonCompiledContracts[state.Router], routerStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
 		routerAddress = tonContractAddress.TONAddress
 		output.RouterAddress = tonContractAddress
 	})
@@ -137,7 +128,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		DestChainConfigs:             nil,
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, feeQuoterAddress, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, func(tonContractAddress *TONContractAddress) {
+	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, feeQuoterAddress, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
 		feeQuoterAddress = tonContractAddress.TONAddress
 		output.FeeQuoterAddress = tonContractAddress
 	})
@@ -167,7 +158,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		},
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil, func(tonContractAddress *TONContractAddress) {
+	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
 		onRampAddress = tonContractAddress.TONAddress
 		output.OnRampAddress = tonContractAddress
 	})
@@ -201,7 +192,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		LatestPriceSequenceNumber: 0,
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, offRampAddress, tonCompiledContracts[state.OffRamp], offRampStorage, nil, func(tonContractAddress *TONContractAddress) {
+	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, offRampAddress, tonCompiledContracts[state.OffRamp], offRampStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
 		offRampAddress = tonContractAddress.TONAddress
 		output.OffRampAddress = tonContractAddress
 	})
@@ -221,7 +212,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		Behavior:         receiver.Accept,
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, func(tonContractAddress *TONContractAddress) {
+	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
 		receiverAddress = tonContractAddress.TONAddress
 		output.ReceiverAddress = tonContractAddress
 	})
@@ -229,126 +220,61 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		return output, err
 	}
 
-	// Timelock
-	timelockAddress := deps.CCIPOnChainState[in.ChainSelector].Timelock
-	timelockStorage := timelock.Data{
-		ID:                       in.CCIPConfig.TimelockParams.ID,
-		MinDelay:                 in.CCIPConfig.TimelockParams.MinDelay,
-		Timestamps:               cell.NewDict(256),
-		BlockedFnSelectorsLen:    0,
-		BlockedFnSelectors:       cell.NewDict(32),
-		ExecutorRoleCheckEnabled: true,
-		OpPendingInfo: timelock.OpPendingInfo{
-			ValidAfter:            0,
-			OpFinalizationTimeout: 0,
-			OpPendingID:           big.NewInt(0),
-		},
-		RBAC: rbac.Data{
-			Roles: cell.NewDict(256),
-		},
-	}
-	timelockMessageBody := timelock.Init{
-		QueryID:                  0,
-		MinDelay:                 in.CCIPConfig.TimelockParams.MinDelay,
-		Admin:                    in.CCIPConfig.TimelockParams.Admin,
-		Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Proposers)),
-		Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Executors)),
-		Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Cancellers)),
-		Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Bypassers)),
-		ExecutorRoleCheckEnabled: true,
-		OpFinalizationTimeout:    0,
+	deployTimelockInput := mcmsOps.DeployTimelockInput{
+		ContractPath:  tonCompiledContracts[state.Timelock].ContractPath,
+		ID:            in.CCIPConfig.TimelockParams.ID,
+		ChainSelector: in.ChainSelector,
+		Coins:         tonCompiledContracts[state.Timelock].SuggestedTONCoinsForDeployment,
+		MinDelay:      in.CCIPConfig.TimelockParams.MinDelay,
+		Admin:         in.CCIPConfig.TimelockParams.Admin,
+		Proposers:     in.CCIPConfig.TimelockParams.Proposers,
+		Executors:     in.CCIPConfig.TimelockParams.Executors,
+		Cancellers:    in.CCIPConfig.TimelockParams.Cancellers,
+		Bypassers:     in.CCIPConfig.TimelockParams.Bypassers,
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, timelockAddress, tonCompiledContracts[state.Timelock], timelockStorage, timelockMessageBody, func(tonContractAddress *TONContractAddress) {
-		timelockAddress = tonContractAddress.TONAddress
-		output.TimelockAddress = tonContractAddress
-	})
+	deployTimelockOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployTimelockOp, deps, deployTimelockInput)
 	if err != nil {
 		return output, err
 	}
 
-	mcmsAddress := deps.CCIPOnChainState[in.ChainSelector].MCMS
-	mcmsStorage := mcms.Data{
-		ID: in.CCIPConfig.MCMSParams.ID,
-		Ownable: common.Ownable2Step{
-			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
-		},
-		Signers: cell.NewDict(256),
-		Config: mcms.Config{
-			Signers:      cell.NewDict(8),
-			GroupQuorums: cell.NewDict(8),
-			GroupParents: cell.NewDict(8),
-		},
-		SeenSignedHashes: cell.NewDict(256),
-		RootInfo: mcms.RootInfo{
-			ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
-				Root:       big.NewInt(0),
-				ValidUntil: 0,
-				OpCount:    0,
-				OpPendingInfo: mcms.OpPendingInfo{
-					ValidAfter:             0,
-					OpFinalizationTimeout:  0,
-					OpPendingReceiver:      tvm.ZeroAddress,
-					OpPendingBodyTruncated: big.NewInt(0),
-				},
+	if !deployTimelockOutput.Output.Address.IsAddrNone() {
+		output.TimelockAddress = &utils.TONContractAddress{
+			TONAddress: deployTimelockOutput.Output.Address,
+			CLDFAddressRef: ds.AddressRef{
+				Address:       deployTimelockOutput.Output.Address.String(),
+				ChainSelector: in.ChainSelector,
+				Type:          state.Timelock,
+				Version:       in.ContractsSemver,
+				Labels:        ds.NewLabelSet("sha:" + in.ContractsVersionSha),
 			},
-			RootMetadata: mcms.RootMetadata{
-				ChainID:              big.NewInt(0),
-				MultiSig:             tvm.ZeroAddress,
-				PreOpCount:           0,
-				PostOpCount:          0,
-				OverridePreviousRoot: false,
-			},
-		},
+		}
 	}
 
-	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, mcmsAddress, tonCompiledContracts[state.MCMS], mcmsStorage, nil, func(tonContractAddress *TONContractAddress) {
-		receiverAddress = tonContractAddress.TONAddress
-		output.MCMSAddress = tonContractAddress
-	})
+	deployMCMSInput := mcmsOps.DeployMCMSInput{
+		ContractPath:  tonCompiledContracts[state.MCMS].ContractPath,
+		ID:            in.CCIPConfig.TimelockParams.ID,
+		ChainSelector: in.ChainSelector,
+		Coins:         tonCompiledContracts[state.Timelock].SuggestedTONCoinsForDeployment,
+	}
+
+	deployMCMSOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
 	if err != nil {
 		return output, err
+	}
+
+	if !deployMCMSOutput.Output.Address.IsAddrNone() {
+		output.TimelockAddress = &utils.TONContractAddress{
+			TONAddress: deployMCMSOutput.Output.Address,
+			CLDFAddressRef: ds.AddressRef{
+				Address:       deployMCMSOutput.Output.Address.String(),
+				ChainSelector: in.ChainSelector,
+				Type:          state.Timelock,
+				Version:       in.ContractsSemver,
+				Labels:        ds.NewLabelSet("sha:" + in.ContractsVersionSha),
+			},
+		}
 	}
 
 	return output, nil
-}
-
-// InvokeDeployContractOperation deploys a TON contract if it's not already deployed.
-// It checks the current address, executes the deployment operation if needed,
-// and invokes the provided callback with the new contract address.
-// Returns an error if the deployment fails.
-func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, currentAddress address.Address, compiledContract CompiledContractData, storage any, messageBody any, callback func(*TONContractAddress)) error {
-	if !currentAddress.IsAddrNone() {
-		b.Logger.Infof("%s contract is already deployed at address: %s. Skipping...", compiledContract.Type, currentAddress.String())
-	} else {
-		deployContractInput := operation.DeployContractInput{
-			Name:         compiledContract.Type.String(),
-			Storage:      storage,
-			MessageBody:  messageBody,
-			ContractCode: compiledContract.Code,
-			Coins:        compiledContract.SuggestedTONCoinsForDeployment,
-		}
-
-		deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, deps, deployContractInput)
-		if err != nil {
-			return err
-		}
-
-		contractAddress := *deployContractReport.Output.Address
-		tonContractAddress := &TONContractAddress{
-			TONAddress: contractAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       contractAddress.String(),
-				ChainSelector: chainSelector,
-				Type:          compiledContract.Type,
-				Version:       compiledContract.ContractSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
-			},
-		}
-
-		callback(tonContractAddress)
-	}
-
-	return nil
 }
