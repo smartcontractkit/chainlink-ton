@@ -253,9 +253,9 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 
 	deployMCMSInput := mcmsOps.DeployMCMSInput{
 		ContractPath:  tonCompiledContracts[state.MCMS].ContractPath,
-		ID:            in.CCIPConfig.TimelockParams.ID,
+		ID:            in.CCIPConfig.MCMSParams.ID,
 		ChainSelector: in.ChainSelector,
-		Coins:         tonCompiledContracts[state.Timelock].SuggestedTONCoinsForDeployment,
+		Coins:         tonCompiledContracts[state.MCMS].SuggestedTONCoinsForDeployment,
 	}
 
 	deployMCMSOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
@@ -264,12 +264,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 
 	if !deployMCMSOutput.Output.Address.IsAddrNone() {
-		output.TimelockAddress = &utils.TONContractAddress{
+		output.MCMSAddress = &utils.TONContractAddress{
 			TONAddress: deployMCMSOutput.Output.Address,
 			CLDFAddressRef: ds.AddressRef{
 				Address:       deployMCMSOutput.Output.Address.String(),
 				ChainSelector: in.ChainSelector,
-				Type:          state.Timelock,
+				Type:          state.MCMS,
 				Version:       in.ContractsSemver,
 				Labels:        ds.NewLabelSet("sha:" + in.ContractsVersionSha),
 			},
