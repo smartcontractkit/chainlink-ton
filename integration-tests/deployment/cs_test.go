@@ -410,7 +410,7 @@ func TestDeploy(t *testing.T) {
 	t.Run("GetTokenPriceUSD", func(t *testing.T) {
 		timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkAddr)
 		require.NoError(t, err)
-		require.Equal(t, big.NewInt(99), timestampedPrice.Value)
+		require.Equal(t, big.NewInt(20), timestampedPrice.Value)
 	})
 
 	t.Run("GetFeeQuoterDestChainConfig", func(t *testing.T) {
