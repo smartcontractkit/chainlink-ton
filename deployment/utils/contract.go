@@ -1,4 +1,4 @@
-package utils
+package utils //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
 	"fmt"
