@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
