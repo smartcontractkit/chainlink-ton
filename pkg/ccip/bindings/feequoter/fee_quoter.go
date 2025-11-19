@@ -281,15 +281,15 @@ type FeeToken struct {
 type GetValidatedFee struct {
 	_       tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
 	Msg     *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
-	Context *cell.Cell `tlb:"^"`         // Cell containing context
+	Context *cell.Cell `tlb:"maybe ^"`   // Cell containing context
 }
 
 // --- Response from GetValidatedFee ---
 type MessageValidated struct {
 	_       tlb.Magic  `tlb:"#1fa60374"` //nolint:revive // Ignore opcode tag
 	Fee     Fee        `tlb:"."`
-	Msg     *cell.Cell `tlb:"^"` // Original message
-	Context *cell.Cell `tlb:"^"` // Original context
+	Msg     *cell.Cell `tlb:"^"`       // Original message
+	Context *cell.Cell `tlb:"maybe ^"` // Original context
 }
 
 type Fee struct {
@@ -300,8 +300,8 @@ type Fee struct {
 type MessageValidationFailed struct {
 	_         tlb.Magic  `tlb:"#bcf0ab0f"` //nolint:revive // Ignore opcode tag
 	ErrorCode *big.Int   `tlb:"## 256"`
-	Msg       *cell.Cell `tlb:"^"` // Original message,
-	Context   *cell.Cell `tlb:"^"` // Original context
+	Msg       *cell.Cell `tlb:"^"`       // Original message,
+	Context   *cell.Cell `tlb:"maybe ^"` // Original context
 }
 
 type AddPriceUpdater struct {
