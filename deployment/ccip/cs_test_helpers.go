@@ -302,7 +302,7 @@ func SendTonRequest(
 		DestChainSelector: destChain,
 		Receiver:          msg.Receiver,
 		Data:              msg.Data,
-		TokenAmounts:      nil, // TODO: add token amounts when token transfer enabled
+		TokenAmounts:      []router.TokenAmount{}, // TODO: add token amounts when token transfer enabled
 		FeeToken:          msg.FeeToken,
 		ExtraArgs:         msg.ExtraArgs,
 	}
