@@ -90,6 +90,15 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
+	if !s.LinkTokenAddress.IsAddrNone() {
+		_ = dataStore.Addresses().Add(ds.AddressRef{
+			Address:       s.LinkTokenAddress.String(),
+			ChainSelector: selector,
+			Labels:        ds.LabelSet{},
+			Type:          state.LinkToken,
+			Version:       &state.Version1_6_0,
+		})
+	}
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)
