@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -20,10 +21,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
+
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"

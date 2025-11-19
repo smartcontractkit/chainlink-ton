@@ -3,6 +3,7 @@ package operation
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -23,6 +24,10 @@ type DeployMCMSInput struct {
 	ChainSelector uint64
 	ContractPath  string
 	Coins         string
+	OpsCount      uint64
+	PreOpsCount   uint64
+	PostOpsCount  uint64
+	ChainID       string
 }
 
 type DeployMCMSOutput struct {
@@ -51,6 +56,12 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
+	chainIDInt, err := strconv.ParseInt(in.ChainID, 10, 64)
+	if err != nil {
+		return output, fmt.Errorf("invalid ChainID: %w", err)
+	}
+	chainID := big.NewInt(chainIDInt)
+
 	initStorage := mcms.Data{
 		ID: in.ID,
 		Ownable: common.Ownable2Step{
@@ -69,7 +80,7 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 			ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
 				Root:       big.NewInt(0),
 				ValidUntil: 0,
-				OpCount:    17,
+				OpCount:    in.OpsCount,
 				OpPendingInfo: mcms.OpPendingInfo{
 					ValidAfter:             0,
 					OpFinalizationTimeout:  0,
@@ -78,10 +89,10 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 				},
 			},
 			RootMetadata: mcms.RootMetadata{
-				ChainID:              big.NewInt(-217),
+				ChainID:              chainID,
 				MultiSig:             tvm.ZeroAddress,
-				PreOpCount:           17,
-				PostOpCount:          17,
+				PreOpCount:           in.PreOpsCount,
+				PostOpCount:          in.PostOpsCount,
 				OverridePreviousRoot: false,
 			},
 		},
