@@ -91,7 +91,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 	if !s.LinkTokenAddress.IsAddrNone() {
-		_ = dataStore.Addresses().Add(ds.AddressRef{
+		_ = dataStore.Addresses().Upsert(ds.AddressRef{
 			Address:       s.LinkTokenAddress.String(),
 			ChainSelector: selector,
 			Labels:        ds.LabelSet{},
