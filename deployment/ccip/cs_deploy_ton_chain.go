@@ -61,9 +61,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	s := states[selector]
 
 	// TODO: deploy MCMS
-	// TODO: deploy LINK
-	linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
-	s.LinkTokenAddress = *linkTokenAddress
 
 	deps := operation.TonDeps{
 		TonChain:         chain,
@@ -90,9 +87,13 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
-	if !s.LinkTokenAddress.IsAddrNone() {
+
+	linkToken := deps.CCIPOnChainState[selector].LinkTokenAddress
+	if linkToken.IsAddrNone() {
+		// TODO: deploy LINK
+		linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
 		_ = dataStore.Addresses().Upsert(ds.AddressRef{
-			Address:       s.LinkTokenAddress.String(),
+			Address:       linkTokenAddress.String(),
 			ChainSelector: selector,
 			Labels:        ds.LabelSet{},
 			Type:          state.LinkToken,
