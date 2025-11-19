@@ -6,6 +6,7 @@ import (
 	mcmsOps "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -220,6 +221,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		return output, err
 	}
 
+	// Invoke deploy Timelock changeset operation
 	deployTimelockInput := mcmsOps.DeployTimelockInput{
 		ContractPath:  tonCompiledContracts[state.Timelock].ContractPath,
 		ID:            in.CCIPConfig.TimelockParams.ID,
@@ -236,21 +238,11 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	deployTimelockOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployTimelockOp, deps, deployTimelockInput)
 	if err != nil {
 		return output, err
+	} else if !deployTimelockOutput.Output.Address.IsAddrNone() {
+		output.TimelockAddress = newTONContractAddress(deployTimelockOutput.Output.Address, in.ChainSelector, state.Timelock, in.ContractsSemver, in.ContractsVersionSha)
 	}
 
-	if !deployTimelockOutput.Output.Address.IsAddrNone() {
-		output.TimelockAddress = &utils.TONContractAddress{
-			TONAddress: deployTimelockOutput.Output.Address,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       deployTimelockOutput.Output.Address.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.Timelock,
-				Version:       in.ContractsSemver,
-				Labels:        ds.NewLabelSet("sha:" + in.ContractsVersionSha),
-			},
-		}
-	}
-
+	// Invoke deploy MCMS changeset operation
 	deployMCMSInput := mcmsOps.DeployMCMSInput{
 		ContractPath:  tonCompiledContracts[state.MCMS].ContractPath,
 		ID:            in.CCIPConfig.MCMSParams.ID,
@@ -261,20 +253,22 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	deployMCMSOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
 	if err != nil {
 		return output, err
-	}
-
-	if !deployMCMSOutput.Output.Address.IsAddrNone() {
-		output.MCMSAddress = &utils.TONContractAddress{
-			TONAddress: deployMCMSOutput.Output.Address,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       deployMCMSOutput.Output.Address.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.MCMS,
-				Version:       in.ContractsSemver,
-				Labels:        ds.NewLabelSet("sha:" + in.ContractsVersionSha),
-			},
-		}
+	} else if !deployMCMSOutput.Output.Address.IsAddrNone() {
+		output.MCMSAddress = newTONContractAddress(deployMCMSOutput.Output.Address, in.ChainSelector, state.MCMS, in.ContractsSemver, in.ContractsVersionSha)
 	}
 
 	return output, nil
+}
+
+func newTONContractAddress(addr address.Address, chainSelector uint64, contractType ds.ContractType, version *semver.Version, sha string) *utils.TONContractAddress {
+	return &utils.TONContractAddress{
+		TONAddress: addr,
+		CLDFAddressRef: ds.AddressRef{
+			Address:       addr.String(),
+			ChainSelector: chainSelector,
+			Type:          contractType,
+			Version:       version,
+			Labels:        ds.NewLabelSet("sha:" + sha),
+		},
+	}
 }
