@@ -30,10 +30,10 @@ type TONContractAddress struct {
 // It checks the current address, executes the deployment operation if needed,
 // and invokes the provided callback with the new contract address.
 // Returns an error if the deployment fails.
-func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, currentAddress address.Address, compiledContract CompiledContractData, storage any, messageBody any, callback func(*TONContractAddress)) error {
+func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, currentAddress address.Address, compiledContract CompiledContractData, storage any, messageBody any) (*TONContractAddress, error) {
 	if !currentAddress.IsAddrNone() {
 		b.Logger.Infof("%s contract is already deployed at address: %s. Skipping...", compiledContract.Type, currentAddress.String())
-		return nil
+		return nil, nil
 	}
 
 	deployContractInput := operation.DeployContractInput{
@@ -46,7 +46,7 @@ func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, 
 
 	deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, deps, deployContractInput)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	contractAddress := *deployContractReport.Output.Address
@@ -61,7 +61,5 @@ func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, 
 		},
 	}
 
-	callback(tonContractAddress)
-
-	return nil
+	return tonContractAddress, nil
 }

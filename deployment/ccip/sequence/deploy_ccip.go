@@ -106,12 +106,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		OnRamps: nil, // set afterward
 	}
 
-	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, routerAddress, tonCompiledContracts[state.Router], routerStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
-		routerAddress = tonContractAddress.TONAddress
-		output.RouterAddress = tonContractAddress
-	})
+	tonContractAddress, err := utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, routerAddress, tonCompiledContracts[state.Router], routerStorage, nil)
 	if err != nil {
 		return output, err
+	} else if tonContractAddress != nil {
+		routerAddress = tonContractAddress.TONAddress
+		output.RouterAddress = tonContractAddress
 	}
 
 	// FeeQuoter
@@ -131,12 +131,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		DestChainConfigs:             nil,
 	}
 
-	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, feeQuoterAddress, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
-		feeQuoterAddress = tonContractAddress.TONAddress
-		output.FeeQuoterAddress = tonContractAddress
-	})
+	tonContractAddress, err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, feeQuoterAddress, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil)
 	if err != nil {
 		return output, err
+	} else if tonContractAddress != nil {
+		feeQuoterAddress = tonContractAddress.TONAddress
+		output.FeeQuoterAddress = tonContractAddress
 	}
 
 	// OnRamp
@@ -161,12 +161,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		},
 	}
 
-	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
-		onRampAddress = tonContractAddress.TONAddress
-		output.OnRampAddress = tonContractAddress
-	})
+	tonContractAddress, err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil)
 	if err != nil {
 		return output, err
+	} else if tonContractAddress != nil {
+		onRampAddress = tonContractAddress.TONAddress
+		output.OnRampAddress = tonContractAddress
 	}
 
 	// OffRamp
@@ -195,12 +195,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		LatestPriceSequenceNumber: 0,
 	}
 
-	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, offRampAddress, tonCompiledContracts[state.OffRamp], offRampStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
-		offRampAddress = tonContractAddress.TONAddress
-		output.OffRampAddress = tonContractAddress
-	})
+	tonContractAddress, err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, offRampAddress, tonCompiledContracts[state.OffRamp], offRampStorage, nil)
 	if err != nil {
 		return output, err
+	} else if tonContractAddress != nil {
+		offRampAddress = tonContractAddress.TONAddress
+		output.OffRampAddress = tonContractAddress
 	}
 
 	// Receiver
@@ -215,12 +215,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		Behavior:         receiver.Accept,
 	}
 
-	err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, func(tonContractAddress *utils.TONContractAddress) {
-		receiverAddress = tonContractAddress.TONAddress
-		output.ReceiverAddress = tonContractAddress
-	})
+	tonContractAddress, err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil)
 	if err != nil {
 		return output, err
+	} else if tonContractAddress != nil {
+		receiverAddress = tonContractAddress.TONAddress
+		output.ReceiverAddress = tonContractAddress
 	}
 
 	// Invoke deploy Timelock changeset operation
