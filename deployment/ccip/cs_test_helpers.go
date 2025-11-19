@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/stretchr/testify/require"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -143,8 +141,6 @@ var (
 func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployCCIPContractsCfg {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
-	chainID, err := chainsel.GetChainIDFromSelector(tonChain.ChainSelector())
-	require.NoError(t, err)
 
 	// if contractVersion is not set, use local version
 	if contractVersion == "" {
@@ -193,8 +189,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				Bypassers:  []*address.Address{deployer.WalletAddress()},
 			},
 			MCMSParams: config.MCMSParams{
-				ID:      idForContracts,
-				ChainID: chainID,
+				ID: idForContracts,
 			},
 		},
 		ContractsVersion: contractVersion,

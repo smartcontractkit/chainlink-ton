@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Masterminds/semver/v3"
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -20,15 +21,9 @@ import (
 )
 
 type DeployMCMSInput struct {
-	ID            uint32
-	ChainSelector uint64
-	ContractPath  string
-	Coins         string
-	ChainID       string
-}
-
-type DeployMCMSOutput struct {
-	Address address.Address
+	ID           uint32
+	ContractPath string
+	Coins        string
 }
 
 var DeployMCMSOp = operations.NewOperation(
@@ -38,26 +33,31 @@ var DeployMCMSOp = operations.NewOperation(
 	deployMCMS,
 )
 
-func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput) (DeployMCMSOutput, error) {
-	if currentAddr := deps.CCIPOnChainState[in.ChainSelector].MCMS; !currentAddr.IsAddrNone() {
+func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput) (*address.Address, error) {
+	chainSelector := deps.TonChain.ChainSelector()
+	if currentAddr := deps.CCIPOnChainState[chainSelector].MCMS; !currentAddr.IsAddrNone() {
 		b.Logger.Infof("MCMS contract is already deployed at address: %s. Skipping...", currentAddr.String())
-		return DeployMCMSOutput{}, nil
+		return nil, nil
 	}
 
-	output := DeployMCMSOutput{}
+	chainIDStr, err := chainsel.GetChainIDFromSelector(chainSelector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+	}
+
+	chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ChainID: %w", err)
+	}
+
+	chainID := big.NewInt(chainIDInt)
 
 	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
-		return output, fmt.Errorf("failed to compile contract: %w", err)
+		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
-
-	chainIDInt, err := strconv.ParseInt(in.ChainID, 10, 64)
-	if err != nil {
-		return output, fmt.Errorf("invalid ChainID: %w", err)
-	}
-	chainID := big.NewInt(chainIDInt)
 
 	initStorage := mcms.Data{
 		ID: in.ID,
@@ -66,13 +66,13 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 			PendingOwner: nil,
 		},
 		Oracle:  tvm.ZeroAddress,
-		Signers: must(tvm.MakeDict(map[*big.Int]mcms.Signer{}, tvm.KeyUINT256)),
+		Signers: cell.NewDict(256),
 		Config: mcms.Config{
-			Signers:      must(tvm.MakeDictFrom([]mcms.Signer{}, tvm.KeyUINT8)),
-			GroupQuorums: must(tvm.MakeDictFrom([]mcms.GroupQuorum{}, tvm.KeyUINT8)),
-			GroupParents: must(tvm.MakeDictFrom([]mcms.GroupParent{}, tvm.KeyUINT8)),
+			Signers:      cell.NewDict(8),
+			GroupQuorums: cell.NewDict(8),
+			GroupParents: cell.NewDict(8),
 		},
-		SeenSignedHashes: must(tvm.MakeDict(map[*big.Int]mcms.SeenSignedHash{}, tvm.KeyUINT256)),
+		SeenSignedHashes: cell.NewDict(256),
 		RootInfo: mcms.RootInfo{
 			ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
 				Root:       big.NewInt(0),
@@ -96,7 +96,7 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 	}
 	initData, err := tlb.ToCell(initStorage)
 	if err != nil {
-		return output, fmt.Errorf("failed to pack initData: %w", err)
+		return nil, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
 	bodyCell := cell.BeginCell().EndCell()
@@ -108,17 +108,9 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 		bodyCell,
 	)
 	if err != nil {
-		return output, fmt.Errorf("failed to deploy mcms contract: %w", err)
+		return nil, fmt.Errorf("failed to deploy mcms contract: %w", err)
 	}
 	b.Logger.Infow("Deployed MCMS", "addr", contract.Address, "deployer wallet addr", deps.TonChain.WalletAddress.String())
 
-	output.Address = *contract.Address
-	return output, nil
-}
-
-func must[E any](out E, err error) E {
-	if err != nil {
-		panic(err)
-	}
-	return out
+	return contract.Address, nil
 }

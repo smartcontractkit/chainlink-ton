@@ -23,20 +23,15 @@ import (
 )
 
 type DeployTimelockInput struct {
-	ID            uint32
-	ChainSelector uint64
-	ContractPath  string
-	Coins         string
-	MinDelay      uint32
-	Admin         *address.Address
-	Proposers     []*address.Address
-	Executors     []*address.Address
-	Cancellers    []*address.Address
-	Bypassers     []*address.Address
-}
-
-type DeployTimelockOutput struct {
-	Address address.Address
+	ID           uint32
+	ContractPath string
+	Coins        string
+	MinDelay     uint32
+	Admin        *address.Address
+	Proposers    []*address.Address
+	Executors    []*address.Address
+	Cancellers   []*address.Address
+	Bypassers    []*address.Address
 }
 
 var DeployTimelockOp = operations.NewOperation(
@@ -46,16 +41,15 @@ var DeployTimelockOp = operations.NewOperation(
 	deployTimelock,
 )
 
-func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelockInput) (DeployTimelockOutput, error) {
-	if currentAddr := deps.CCIPOnChainState[in.ChainSelector].Timelock; !currentAddr.IsAddrNone() {
+func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelockInput) (*address.Address, error) {
+	if currentAddr := deps.CCIPOnChainState[deps.TonChain.ChainSelector()].Timelock; !currentAddr.IsAddrNone() {
 		b.Logger.Infof("Timelock contract is already deployed at address: %s. Skipping...", currentAddr.String())
-		return DeployTimelockOutput{}, nil
+		return nil, nil
 	}
-	output := DeployTimelockOutput{}
 
 	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
-		return output, fmt.Errorf("failed to compile contract: %w", err)
+		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
@@ -79,7 +73,7 @@ func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelo
 
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
-		return output, fmt.Errorf("failed to pack initData: %w", err)
+		return nil, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
 	// When deploying the contract, send the Init message to initialize the Timelock contract
@@ -99,7 +93,7 @@ func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelo
 
 	bodyCell, err := tlb.ToCell(body)
 	if err != nil {
-		return output, fmt.Errorf("failed to pack body: %w", err)
+		return nil, fmt.Errorf("failed to pack body: %w", err)
 	}
 
 	contract, _, err := wrappers.Deploy(
@@ -110,10 +104,9 @@ func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelo
 		bodyCell,
 	)
 	if err != nil {
-		return output, fmt.Errorf("failed to deploy timelock contract: %w", err)
+		return nil, fmt.Errorf("failed to deploy timelock contract: %w", err)
 	}
 	b.Logger.Infow("Deployed Timelock", "addr", contract.Address, "deployer wallet addr", deps.TonChain.WalletAddress.String())
 
-	output.Address = *contract.Address
-	return output, nil
+	return contract.Address, nil
 }
