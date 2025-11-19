@@ -76,6 +76,7 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	linkAddr := state[chainSelector].LinkTokenAddress
+	t.Log("Link Token Addr: ", linkAddr.String())
 
 	tonDefinition := config.ChainDefinition{
 		ConnectionConfig: config.ConnectionConfig{
