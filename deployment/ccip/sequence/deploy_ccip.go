@@ -250,10 +250,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ID:            in.CCIPConfig.MCMSParams.ID,
 		ChainSelector: in.ChainSelector,
 		Coins:         tonCompiledContracts[state.MCMS].SuggestedTONCoinsForDeployment,
-		OpsCount:      in.CCIPConfig.MCMSParams.OpsCount,
 		ChainID:       in.CCIPConfig.MCMSParams.ChainID,
-		PreOpsCount:   in.CCIPConfig.MCMSParams.PreOpsCount,
-		PostOpsCount:  in.CCIPConfig.MCMSParams.PostOpsCount,
 	}
 
 	deployMCMSOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)

@@ -24,9 +24,6 @@ type DeployMCMSInput struct {
 	ChainSelector uint64
 	ContractPath  string
 	Coins         string
-	OpsCount      uint64
-	PreOpsCount   uint64
-	PostOpsCount  uint64
 	ChainID       string
 }
 
@@ -80,7 +77,7 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 			ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
 				Root:       big.NewInt(0),
 				ValidUntil: 0,
-				OpCount:    in.OpsCount,
+				OpCount:    0,
 				OpPendingInfo: mcms.OpPendingInfo{
 					ValidAfter:             0,
 					OpFinalizationTimeout:  0,
@@ -91,8 +88,8 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 			RootMetadata: mcms.RootMetadata{
 				ChainID:              chainID,
 				MultiSig:             tvm.ZeroAddress,
-				PreOpCount:           in.PreOpsCount,
-				PostOpCount:          in.PostOpsCount,
+				PreOpCount:           0,
+				PostOpCount:          0,
 				OverridePreviousRoot: false,
 			},
 		},

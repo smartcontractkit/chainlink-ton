@@ -193,11 +193,8 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				Bypassers:  []*address.Address{deployer.WalletAddress()},
 			},
 			MCMSParams: config.MCMSParams{
-				ID:           idForContracts,
-				ChainID:      chainID,
-				OpsCount:     17,
-				PostOpsCount: 17,
-				PreOpsCount:  17,
+				ID:      idForContracts,
+				ChainID: chainID,
 			},
 		},
 		ContractsVersion: contractVersion,

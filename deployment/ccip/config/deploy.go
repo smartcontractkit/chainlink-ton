@@ -140,11 +140,8 @@ func (t TimelockParams) Validate() error {
 }
 
 type MCMSParams struct {
-	ID           uint32
-	ChainID      string
-	OpsCount     uint64
-	PreOpsCount  uint64
-	PostOpsCount uint64
+	ID      uint32
+	ChainID string
 }
 
 func (m MCMSParams) Validate() error {
