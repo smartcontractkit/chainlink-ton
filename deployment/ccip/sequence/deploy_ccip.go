@@ -118,6 +118,9 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 
 	// FeeQuoter
 	linkTokenAddress := deps.CCIPOnChainState[in.ChainSelector].LinkTokenAddress
+	if linkTokenAddress.IsAddrNone() {
+		return output, fmt.Errorf("LINK address cannot be zero")
+	}
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter
 	feeQuoterStorage := feequoter.Storage{
 		ID: in.CCIPConfig.FeeQuoterParams.ID,
