@@ -194,7 +194,6 @@ export const builder = {
             // empty OCR3Base::
             .storeRef(
               beginCell()
-                .storeUint(1, 8) //chainId
                 .storeBit(false)
                 .storeBit(false)
                 .endCell(),
