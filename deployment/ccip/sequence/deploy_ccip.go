@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	mcmsOps "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
