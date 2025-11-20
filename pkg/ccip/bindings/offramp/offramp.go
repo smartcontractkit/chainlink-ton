@@ -193,7 +193,7 @@ func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to get ChainID: %w", err)
 	}
-	c.ChainID = uint8(chainIDInt.Uint64())
+	c.ChainID = uint8(chainIDInt.Uint64()) //nolint:gosec // this type is uint8 onchain
 
 	// commit (index 1)
 	isNil, err := result.IsNil(1)
