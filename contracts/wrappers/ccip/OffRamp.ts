@@ -776,7 +776,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.message.in.updateDeployables
+      body: builder.messages.in.updateDeployables
         .encode({
           queryId: opts.queryId,
           receiveExecutorCode: opts.receiveExecutorCode,
