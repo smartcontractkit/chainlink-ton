@@ -187,11 +187,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		},
 		FeeQuoter: &feeQuoterAddress,
 		// empty OCR3Base
-		OCR3Base: cell.BeginCell().
-			MustStoreUInt(0, 8).
-			MustStoreBoolBit(false).
-			MustStoreBoolBit(false).
-			EndCell(),
+		OCR3Base:                                offramp.OCR3Base{},
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 		LatestPriceSequenceNumber: 0,
