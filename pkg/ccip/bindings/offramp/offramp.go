@@ -187,7 +187,7 @@ func (c *OCR3Base) FetchResult(ctx context.Context, client ton.APIClientWrapped,
 }
 
 func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
-	// commit (index 1)
+	// commit (index 0)
 	isNil, err := result.IsNil(0)
 	if err != nil {
 		return err
@@ -206,6 +206,7 @@ func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
 		c.Commit = &config
 	}
 
+	// execute (index 1)
 	isNil, err = result.IsNil(1)
 	if err != nil {
 		return err
