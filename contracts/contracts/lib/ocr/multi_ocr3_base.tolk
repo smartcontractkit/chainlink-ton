@@ -49,7 +49,6 @@ struct (0x2B78359F) OCR3Base_SetOCR3Config {
 }
 
 struct OCR3Base {
-	chainId: uint8; 
 	commit: Cell<OCRConfig>?;
 	execute: Cell<OCRConfig>?;
 }
