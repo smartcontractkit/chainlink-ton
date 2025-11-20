@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+
+	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
