@@ -171,7 +171,9 @@ function testLogCCIPCommitReportAccepted(
     const priceUpdatesCell = bs.loadMaybeRef()
 
     const priceUpdates =
-      priceUpdatesCell != undefined ? offRamp.builder.data.priceUpdates.load(priceUpdatesCell.beginParse()) : undefined
+      priceUpdatesCell != undefined
+        ? offRamp.builder.data.priceUpdates.load(priceUpdatesCell.beginParse())
+        : undefined
 
     const reportAccepted: CCIPLogs.CommitReportAccepted = {
       merkleRoot,

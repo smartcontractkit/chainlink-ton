@@ -161,7 +161,6 @@ export type MerkleRoot = {
   merkleRoot: bigint
 }
 
-
 export type UpdateDeployables = {
   queryId: bigint
   receiveExecutorCode?: Cell
@@ -306,9 +305,7 @@ export const builder = {
 
         return beginCell()
           .storeMaybeRef(priceUpdatesCell)
-          .storeRef(
-            asSnakeData(data.merkleRoots, (item) => merkleRoot.encode(item)),
-          )
+          .storeRef(asSnakeData(data.merkleRoots, (item) => merkleRoot.encode(item)))
       },
 
       load: (_: Slice): CommitReport => {
