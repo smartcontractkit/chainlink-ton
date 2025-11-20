@@ -178,6 +178,7 @@ type UpdateDeployables struct {
 
 // OCR3Base represents the OCR3 base configuration stored on-chain
 type OCR3Base struct {
+	ChainID uint8       `tlb:"## 8"`
 	Commit  *OCR3Config `tlb:"maybe ^"`
 	Execute *OCR3Config `tlb:"maybe ^"`
 }
@@ -187,14 +188,20 @@ func (c *OCR3Base) FetchResult(ctx context.Context, client ton.APIClientWrapped,
 }
 
 func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
-	// commit (index 0)
-	isNil, err := result.IsNil(0)
+	// chainID (index 0)
+	chainIDInt, err := result.Int(0)
+	if err != nil {
+		return fmt.Errorf("failed to get ChainID: %w", err)
+	}
+	c.ChainID = uint8(chainIDInt.Uint64())
+
+	// commit (index 1)
+	isNil, err := result.IsNil(1)
 	if err != nil {
 		return err
 	}
-
 	if !isNil {
-		configCell, err1 := result.Cell(0)
+		configCell, err1 := result.Cell(1)
 		if err1 != nil {
 			return err1
 		}
@@ -206,13 +213,13 @@ func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
 		c.Commit = &config
 	}
 
-	// execute (index 1)
-	isNil, err = result.IsNil(1)
+	// execute (index 2)
+	isNil, err = result.IsNil(2)
 	if err != nil {
 		return err
 	}
 	if !isNil {
-		configCell, err2 := result.Cell(1)
+		configCell, err2 := result.Cell(2)
 		if err2 != nil {
 			return err2
 		}
