@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -119,7 +120,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// FeeQuoter
 	linkTokenAddress := deps.CCIPOnChainState[in.ChainSelector].LinkTokenAddress
 	if linkTokenAddress.IsAddrNone() {
-		return output, fmt.Errorf("LINK address cannot be zero")
+		return output, errors.New("LINK address cannot be zero")
 	}
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter
 	feeQuoterStorage := feequoter.Storage{
