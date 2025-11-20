@@ -104,6 +104,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         sequenceNumber: 1n,
         nonce: 0n,
       },
+      gasLimit: 500000n,
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: maxPayload,
       receiver: receiver.address,
@@ -202,9 +203,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     printTransactionFees(commitResult.transactions)
 
     // Step 4: Execute phase
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
+    const merkleHelper = new MerkleHelper()
 
     const messageIdForProof = uint8ArrayToBigInt(messageIdBytes)
     const { proof, root: proofRoot } = merkleHelper.createTreeAndProve([messageIdForProof], [0])
@@ -351,8 +350,11 @@ describe('CCIP OffRamp Gas Estimation', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: await compile('CCIPSendExecutor'),
+        executor: {
+          currentID: 0n,
+          executorCode: await compile('CCIPSendExecutor'),
+          deployableCode: await compile('Deployable'),
+        },
       }
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
       const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
