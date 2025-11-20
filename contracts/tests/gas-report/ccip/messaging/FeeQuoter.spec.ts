@@ -8,11 +8,11 @@ import {
   ContractDatabase,
   resetMetricStore,
 } from '@ton/sandbox'
-import { toNano, Cell, Dictionary, Address } from '@ton/core'
+import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/ccip/OnRamp'
-import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { ZERO_ADDRESS } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
@@ -21,7 +21,8 @@ import { createMaxPayload, createExtraArgs } from './config'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
-import { getValidatedFee } from '../../../../src/ccipSend/fee'
+import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
+import { OpMapFunc } from '@ton/sandbox/dist/utils/printTransactionFees'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -39,12 +40,12 @@ const contractDatabase = ContractDatabase.from(contractDatabaseData)
 // Initialize metric store
 const store = createMetricStore()
 
-describe('CCIP OnRamp Gas Estimation', () => {
+describe('CCIP FeeQuoter Gas Estimation', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let onRamp: SandboxContract<or.OnRamp>
-  let feeQuoter: SandboxContract<FeeQuoter>
+  let feeQuoter: SandboxContract<fq.FeeQuoter>
   let sender: SandboxContract<TreasuryContract>
 
   beforeEach(() => {
@@ -157,27 +158,24 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
   })
 
-  it('should measure message passing only', async () => {
+  it('should measure fee validation', async () => {
     // Reset metric store before measurement
     resetMetricStore()
 
-    const msg = {
-      queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST,
-      receiver: EVM_ADDRESS,
-      data: createMaxPayload(),
-      tokenAmounts: [],
-      feeToken: ZERO_ADDRESS,
-      extraArgs: createExtraArgs(),
-    }
-
-    const fee = await getValidatedFee(blockchain, router.address, msg)
-    console.log(`Validated fee for message: ${fee.toString()} nanotons`)
-
-    const result = await router.sendCcipSend(sender.getSender(), {
-      value: fee + toNano('0.5'),
-      body: msg,
-    })
+    const result = await router.sendGetValidatedFee(
+      sender.getSender(),
+      toNano('0.11'),
+      {
+        queryID: 1,
+        destChainSelector: CHAINSEL_EVM_TEST,
+        receiver: EVM_ADDRESS,
+        data: createMaxPayload(),
+        tokenAmounts: [],
+        feeToken: ZERO_ADDRESS,
+        extraArgs: createExtraArgs(),
+      },
+      beginCell().asSlice(),
+    )
 
     // Assert all expected transactions
     expect(result.transactions).toHaveTransaction({
@@ -192,52 +190,10 @@ describe('CCIP OnRamp Gas Estimation', () => {
       success: true,
     })
 
-    // Find executor address
-    const executorAddress = ((): Address => {
-      for (const tx of result.transactions) {
-        if (
-          tx.inMessage != null &&
-          tx.inMessage.info.type === 'internal' &&
-          tx.inMessage.info.src instanceof Address &&
-          tx.inMessage.info.src.equals(onRamp.address) &&
-          tx.inMessage.info.dest instanceof Address &&
-          !tx.inMessage.info.dest.equals(feeQuoter.address)
-        ) {
-          return tx.inMessage.info.dest
-        }
-      }
-      throw Error('Executor address not found')
-    })()
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: executorAddress,
-      deploy: true,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: executorAddress,
-      to: feeQuoter.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: executorAddress,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: executorAddress,
-      to: onRamp.address,
-      success: true,
-    })
-
     // Analyze with metrics API
     const snapshot = makeSnapshotMetric(store, {
       contractDatabase,
-      label: 'OnRamp Flow',
+      label: 'Fee Validation Flow',
     })
 
     // Create address to name mapping
@@ -246,14 +202,27 @@ describe('CCIP OnRamp Gas Estimation', () => {
       [router.address.toString()]: 'Router',
       [onRamp.address.toString()]: 'OnRamp',
       [feeQuoter.address.toString()]: 'FeeQuoter',
-      [executorAddress.toString()]: 'Executor',
     }
 
     const flowAnalysis = analyzeSnapshot(snapshot, addressMap, result)
     printFlowAnalysis(flowAnalysis)
 
+    const opcodeMap = new Map<number, string>()
+    Object.entries(fq.Opcodes).forEach(([name, code]) => {
+      opcodeMap.set(code, `FeeQuoter::${name}`)
+    })
+    Object.entries(or.Opcodes).forEach(([name, code]) => {
+      opcodeMap.set(code, `OnRamp::${name}`)
+    })
+    Object.entries(rt.Opcodes).forEach(([name, code]) => {
+      opcodeMap.set(code, `Router::${name}`)
+    })
+    const mapFunc: OpMapFunc = (op: number) => {
+      return opcodeMap.get(op)
+    }
+
     // Also print raw transaction fees for comparison
     console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(result.transactions)
+    printTransactionFees(result.transactions, mapFunc)
   })
 })
