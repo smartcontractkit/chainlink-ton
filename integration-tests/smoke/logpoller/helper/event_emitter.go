@@ -30,9 +30,12 @@ import (
 
 func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
 	// event sending wallet
-	sender := test_utils.CreateRandomHighloadWallet(t, client)
-	test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	sender, err := test_utils.CreateRandomHighloadWallet(client)
+	require.NoError(t, err)
 	require.NotNil(t, sender)
+
+	ferr := test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	require.NoError(t, ferr)
 	// deploy event emitter counter contract
 	emitter, err := NewTestEventSource(client, sender, "emitter", rand.Uint32(), logger.Test(t))
 	require.NoError(t, err)

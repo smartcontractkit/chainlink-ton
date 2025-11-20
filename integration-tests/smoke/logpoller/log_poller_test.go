@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"math/rand/v2"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,10 +33,11 @@ import (
 )
 
 func Test_LogPoller(t *testing.T) {
-	client, cerr := test_utils.CreateTestAPIClient(t, chainsel.TON_LOCALNET.Selector)
-	require.NoError(t, cerr)
+	var setupOnce sync.Once
+	tonChain, err := test_utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
+	require.NoError(t, err)
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return client, nil
+		return tonChain.Client, nil
 	}
 
 	t.Run("log poller:Loader event ingestion", func(t *testing.T) {
@@ -52,11 +54,11 @@ func Test_LogPoller(t *testing.T) {
 		const pageSize = 5
 
 		expectedEvents := batchCount * txPerBatch * msgPerTx
-		emitter, txs := helper.SendBulkTestEventTxs(t, client, batchCount, txPerBatch, msgPerTx)
+		emitter, txs := helper.SendBulkTestEventTxs(t, tonChain.Client, batchCount, txPerBatch, msgPerTx)
 
 		firstTx, lastTx := txs[0], txs[len(txs)-1]
 
-		prevBlock, err := client.LookupBlock(
+		prevBlock, err := tonChain.Client.LookupBlock(
 			t.Context(),
 			address.MasterchainID,
 			firstTx.Block.Shard,
@@ -64,7 +66,7 @@ func Test_LogPoller(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo+blockBuffer).LookupBlock(
+		toBlock, err := tonChain.Client.WaitForBlock(lastTx.Block.SeqNo+blockBuffer).LookupBlock(
 			t.Context(),
 			address.MasterchainID,
 			lastTx.Block.Shard,
@@ -112,7 +114,7 @@ func Test_LogPoller(t *testing.T) {
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
 			for seqNo := prevBlock.SeqNo + 1; seqNo <= toBlock.SeqNo; seqNo++ {
-				nextBlock, nberr := client.WaitForBlock(seqNo).LookupBlock(
+				nextBlock, nberr := tonChain.Client.WaitForBlock(seqNo).LookupBlock(
 					t.Context(),
 					firstTx.Block.Workchain,
 					firstTx.Block.Shard,
@@ -156,15 +158,18 @@ func Test_LogPoller(t *testing.T) {
 
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
 		t.Parallel()
-		senderA := test_utils.CreateRandomHighloadWallet(t, client)
-		senderB := test_utils.CreateRandomHighloadWallet(t, client)
-		test_utils.FundWallets(t, client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
-		require.NotNil(t, senderA)
+		senderA, saerr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		require.NoError(t, saerr)
+		senderB, sberr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		require.NoError(t, sberr)
 
-		emitterA, err := helper.NewTestEventSource(client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
+		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
+		require.NoError(t, ferr)
+
+		emitterA, err := helper.NewTestEventSource(tonChain.Client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		emitterB, err := helper.NewTestEventSource(client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
+		emitterB, err := helper.NewTestEventSource(tonChain.Client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
 		const targetCounter = 10
@@ -250,7 +255,7 @@ func Test_LogPoller(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			// Check emitterA
-			counterA, caerr := counter.GetValue(t.Context(), client, emitterA.ContractAddress())
+			counterA, caerr := counter.GetValue(t.Context(), tonChain.Client, emitterA.ContractAddress())
 			if caerr != nil {
 				t.Logf("failed to get on-chain counter for emitterA, retrying: %v", caerr)
 				return false
@@ -262,7 +267,7 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// Check emitterB
-			counterB, cberr := counter.GetValue(t.Context(), client, emitterB.ContractAddress())
+			counterB, cberr := counter.GetValue(t.Context(), tonChain.Client, emitterB.ContractAddress())
 			if cberr != nil {
 				t.Logf("failed to get on-chain counter for emitterB, retrying: %v", cberr)
 				return false
@@ -428,8 +433,8 @@ func Test_LogPoller(t *testing.T) {
 				defer cancel()
 
 				// call GetTransaction to fetch the transaction and verify the proof.
-				// The API client must have proof checking enabled for this to work.
-				tx, terr := client.GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
+				// The API tonChain.Client must have proof checking enabled for this to work.
+				tx, terr := tonChain.Client.GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
 				require.NoError(t, terr, "Transaction verification failed for lt %d", logEntry.TxLT)
 
 				// final check: ensure the hash of the fetched transaction matches the hash from the log.
@@ -813,12 +818,14 @@ func Test_LogPoller(t *testing.T) {
 		t.Parallel()
 
 		// 1. Setup: create new wallet and emitter
-		sender := test_utils.CreateRandomHighloadWallet(t, client)
-		test_utils.FundWallets(t, client, []*address.Address{sender.Address()},
-			[]tlb.Coins{tlb.MustFromTON("1000")})
+		sender, serr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		require.NoError(t, serr)
 
-		emitter, err := helper.NewTestEventSource(client, sender, "replayEmitter",
-			rand.Uint32(), logger.Test(t))
+		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{sender.Address()},
+			[]tlb.Coins{tlb.MustFromTON("1000")})
+		require.NoError(t, ferr)
+
+		emitter, err := helper.NewTestEventSource(tonChain.Client, sender, "replayEmitter", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
 		// 2. Emit events before logpoller starts
@@ -830,7 +837,7 @@ func Test_LogPoller(t *testing.T) {
 
 		// Wait for transactions to be confirmed by checking counter value
 		require.Eventually(t, func() bool {
-			counterValue, cerr := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+			counterValue, cerr := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
 			if cerr != nil {
 				t.Logf("failed to get counter value: %v", err)
 				return false
@@ -838,7 +845,7 @@ func Test_LogPoller(t *testing.T) {
 			return counterValue == preReplayEvents
 		}, 30*time.Second, 1*time.Second, "counter should reach expected value")
 
-		counterValue, _ := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+		counterValue, _ := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
 		require.Equal(t, preReplayEvents, int(counterValue))
 
 		// 3. Start LogPoller (with in-memory stores)
@@ -872,7 +879,7 @@ func Test_LogPoller(t *testing.T) {
 		require.Empty(t, logs, "should have no logs before replay")
 
 		// 6. Request replay
-		currentBlock, err := client.CurrentMasterchainInfo(t.Context())
+		currentBlock, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
 		require.NoError(t, err)
 		fromBlock := currentBlock.SeqNo - 100 // sufficiently old block
 
