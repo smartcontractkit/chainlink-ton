@@ -16,11 +16,9 @@ import (
 )
 
 const (
-	configGetter         = "config"
-	srcChainConfigGetter = "sourceChainConfig"
+	configGetter   = "config"
+	ocr3BaseGetter = "ocr3Config"
 )
-
-// Types
 
 // OCR3Config represents the OCR3 configuration stored on-chain
 type OCR3Config struct {
@@ -66,7 +64,7 @@ type Storage struct {
 	Ownable                                 ccipcommon.Ownable2Step `tlb:"."`
 	Deployables                             Deployables             `tlb:"^"`
 	FeeQuoter                               *address.Address        `tlb:"addr"`
-	OCR3Base                                *cell.Cell              `tlb:"^"` // TODO:
+	OCR3Base                                OCR3Base                `tlb:"^"`
 	CursedSubjects                          *cell.Dictionary        `tlb:"dict 128"`
 	ChainSelector                           uint64                  `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32                  `tlb:"## 32"`
@@ -177,6 +175,64 @@ type UpdateDeployables struct {
 }
 
 // Config types that implements getter fetching interface with rpc client
+
+// OCR3Base represents the OCR3 base configuration stored on-chain
+type OCR3Base struct {
+	ChainID uint8       `tlb:"## 8"`
+	Commit  *OCR3Config `tlb:"maybe ^"`
+	Execute *OCR3Config `tlb:"maybe ^"`
+}
+
+func (c *OCR3Base) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ocr3BaseGetter, nil, c)
+}
+
+func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
+	// chainID (index 0)
+	chainIDInt, err := result.Int(0)
+	if err != nil {
+		return fmt.Errorf("failed to get ChainID: %w", err)
+	}
+	c.ChainID = uint8(chainIDInt.Uint64()) //nolint:gosec // this type is uint8 onchain
+
+	// commit (index 1)
+	isNil, err := result.IsNil(1)
+	if err != nil {
+		return err
+	}
+	if !isNil {
+		configCell, err1 := result.Cell(1)
+		if err1 != nil {
+			return err1
+		}
+
+		var config OCR3Config
+		if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
+			return fmt.Errorf("load OCR3Config from cell: %w", err)
+		}
+		c.Commit = &config
+	}
+
+	// execute (index 2)
+	isNil, err = result.IsNil(2)
+	if err != nil {
+		return err
+	}
+	if !isNil {
+		configCell, err2 := result.Cell(2)
+		if err2 != nil {
+			return err2
+		}
+
+		var config OCR3Config
+		if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
+			return fmt.Errorf("load OCR3Config from cell: %w", err)
+		}
+		c.Execute = &config
+	}
+
+	return nil
+}
 
 // Config represents the offRamp contract configuration
 type Config struct {

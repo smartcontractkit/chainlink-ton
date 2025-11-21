@@ -167,8 +167,6 @@ export type UpdateDeployables = {
   merkleRootCode?: Cell
 }
 
-//TODO: Refactor these with the CellCodec<T> pattern
-
 export const builder = {
   data: (() => {
     const contractData: CellCodec<OffRampStorage> = {
@@ -207,7 +205,7 @@ export const builder = {
         )
       },
 
-      load: (src: Slice): OffRampStorage => {
+      load: (_: Slice): OffRampStorage => {
         throw new Error('Implement me')
       },
     }
@@ -238,13 +236,323 @@ export const builder = {
       },
     }
 
+    const priceUpdates: CellCodec<PriceUpdates> = {
+      encode: (data: PriceUpdates): Builder => {
+        return beginCell()
+          .storeRef(
+            asSnakeData(data.tokenPriceUpdates, (item) =>
+              beginCell().storeAddress(item.sourceToken).storeUint(item.usdPerToken, 224),
+            ),
+          )
+          .storeRef(
+            asSnakeData(data.gasPriceUpdates, (item) =>
+              beginCell()
+                .storeUint(item.destChainSelector, 64)
+                .storeUint(item.executionGasPrice, 112)
+                .storeUint(item.dataAvailabilityGasPrice, 112),
+            ),
+          )
+      },
+
+      load: (src: Slice): PriceUpdates => {
+        const tokenPriceUpdates: TokenPriceUpdate[] = fromSnakeData(src.loadRef(), (x) => {
+          const sourceToken = x.loadAddress()
+          const usdPerToken = x.loadUintBig(224)
+          return { sourceToken, usdPerToken }
+        })
+
+        const gasPriceUpdates: GasPriceUpdate[] = fromSnakeData(src.loadRef(), (x) => {
+          const destChainSelector = x.loadUintBig(64)
+          const executionGasPrice = x.loadUintBig(112)
+          const dataAvailabilityGasPrice = x.loadUintBig(112)
+          return { destChainSelector, executionGasPrice, dataAvailabilityGasPrice }
+        })
+
+        return { tokenPriceUpdates, gasPriceUpdates }
+      },
+    }
+
+    const merkleRoot: CellCodec<MerkleRoot> = {
+      encode: (data: MerkleRoot): Builder => {
+        return beginCell()
+          .storeUint(data.sourceChainSelector, 64)
+          .storeUint(data.onRampAddress.byteLength, 8)
+          .storeBuffer(data.onRampAddress, data.onRampAddress.byteLength)
+          .storeUint(data.minSeqNr, 64)
+          .storeUint(data.maxSeqNr, 64)
+          .storeUint(data.merkleRoot, 256)
+      },
+
+      load: (src: Slice): MerkleRoot => {
+        const sourceChainSelector = src.loadUintBig(64)
+        const onRampAddressLength = src.loadUint(8)
+        return {
+          sourceChainSelector,
+          onRampAddress: Buffer.from(bigIntToUint8Array(src.loadUintBig(onRampAddressLength * 8))),
+          minSeqNr: src.loadUintBig(64),
+          maxSeqNr: src.loadUintBig(64),
+          merkleRoot: src.loadUintBig(256),
+        }
+      },
+    }
+
+    const commitReport: CellCodec<CommitReport> = {
+      encode: (data: CommitReport): Builder => {
+        let priceUpdatesCell: Cell | undefined = undefined
+        if (data.priceUpdates != undefined) {
+          priceUpdatesCell = priceUpdates.encode(data.priceUpdates).endCell()
+        }
+
+        return beginCell()
+          .storeMaybeRef(priceUpdatesCell)
+          .storeRef(asSnakeData(data.merkleRoots, (item) => merkleRoot.encode(item)))
+      },
+
+      load: (_: Slice): CommitReport => {
+        throw new Error('Implement me')
+      },
+    }
+
+    const sourceChainConfig: CellCodec<SourceChainConfig> = {
+      encode: (data: SourceChainConfig): Builder => {
+        return beginCell()
+          .storeAddress(data.router)
+          .storeBit(data.isEnabled)
+          .storeUint(data.minSeqNr, 64)
+          .storeBit(data.isRMNVerificationDisabled)
+          .storeUint(data.onRamp.byteLength, 8)
+          .storeBuffer(data.onRamp, data.onRamp.byteLength)
+      },
+
+      load: (src: Slice): SourceChainConfig => {
+        return {
+          router: src.loadAddress(),
+          isEnabled: src.loadBit(),
+          minSeqNr: src.loadUintBig(64),
+          isRMNVerificationDisabled: src.loadBit(),
+          onRamp: src.loadBuffer(src.loadUint(8)),
+        }
+      },
+    }
+
+    const updateSourceChainConfig: CellCodec<UpdateSourceChainConfig> = {
+      encode: (data: UpdateSourceChainConfig): Builder => {
+        return beginCell()
+          .storeUint(data.sourceChainSelector, 64)
+          .storeAddress(data.config.router)
+          .storeBit(data.config.isEnabled)
+          .storeUint(data.config.minSeqNr, 64)
+          .storeBit(data.config.isRMNVerificationDisabled)
+          .storeUint(data.config.onRamp.byteLength, 8)
+          .storeBuffer(data.config.onRamp, data.config.onRamp.byteLength)
+      },
+
+      load: (_: Slice): UpdateSourceChainConfig => {
+        throw new Error('Implement me')
+      },
+    }
+
+    const rampMessageHeader: CellCodec<RampMessageHeader> = {
+      encode: (data: RampMessageHeader): Builder => {
+        return beginCell()
+          .storeUint(data.messageId, 256)
+          .storeUint(data.sourceChainSelector, 64)
+          .storeUint(data.destChainSelector, 64)
+          .storeUint(data.sequenceNumber, 64)
+          .storeUint(data.nonce, 64)
+      },
+
+      load: (_: Slice): RampMessageHeader => {
+        throw new Error('Implement me')
+      },
+    }
+
+    const any2TVMRampMessage: CellCodec<Any2TVMRampMessage> = {
+      encode: (data: Any2TVMRampMessage): Builder => {
+        return beginCell()
+          .storeBuilder(rampMessageHeader.encode(data.header))
+          .storeRef(
+            beginCell()
+              .storeUint(data.sender.byteLength, 8)
+              .storeBuffer(data.sender, data.sender.byteLength)
+              .endCell(),
+          )
+          .storeRef(data.data)
+          .storeAddress(data.receiver)
+          .storeCoins(data.gasLimit)
+          .storeMaybeRef(data.tokenAmounts)
+      },
+
+      load: (_: Slice): Any2TVMRampMessage => {
+        throw new Error('Implement me')
+      },
+    }
+
+    const executionReport: CellCodec<ExecutionReport> = {
+      encode: (data: ExecutionReport): Builder => {
+        return beginCell()
+          .storeUint(data.sourceChainSelector, 64)
+          .storeRef(asSnakeData(data.messages, any2TVMRampMessage.encode))
+          .storeRef(Cell.EMPTY) //TODO: offchainTokenData
+          .storeRef(
+            asSnakeData(data.proofs, (proof) => {
+              return beginCell().storeUint(proof, 256)
+            }),
+          )
+          .storeUint(data.proofFlagBits, 256)
+      },
+
+      load: (_: Slice): ExecutionReport => {
+        throw new Error('Implement me')
+      },
+    }
+
     return {
       contractData,
       any2TVMMessage,
+      priceUpdates,
+      merkleRoot,
+      commitReport,
+      sourceChainConfig,
+      updateSourceChainConfig,
+      rampMessageHeader,
+      any2TVMRampMessage,
+      executionReport,
     }
   })(),
-  message: {
+  messages: {
     in: (() => {
+      const commit: CellCodec<{
+        queryID?: number
+        reportContext: ReportContext
+        report: CommitReport
+        signatures: SignatureEd25519[]
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.commit, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeUint(data.reportContext.configDigest, 256)
+            .storeUint(data.reportContext.padding, 192) //should be zero
+            .storeUint(data.reportContext.sequenceBytes, 64)
+            .storeBuilder(builder.data.commitReport.encode(data.report))
+            .storeRef(
+              asSnakeData(data.signatures, (item) =>
+                beginCell()
+                  .storeUint(item.signer, 256)
+                  .storeUint(item.r, 256)
+                  .storeUint(item.s, 256),
+              ),
+            )
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const execute: CellCodec<{
+        queryID?: number
+        reportContext: ReportContext
+        report: ExecutionReport
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.execute, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeUint(data.reportContext.configDigest, 256)
+            .storeUint(data.reportContext.padding, 192) //should be zero
+            .storeUint(data.reportContext.sequenceBytes, 64)
+            .storeBuilder(builder.data.executionReport.encode(data.report))
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const manualExecute: CellCodec<{
+        queryID?: number
+        report: ExecutionReport
+        gasOverride?: bigint
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.manualExecute, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeBuilder(builder.data.executionReport.encode(data.report))
+            .storeCoins(data.gasOverride ?? 0)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const updateSourceChainConfigs: CellCodec<{
+        queryID?: number
+        configs: UpdateSourceChainConfig[]
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.updateSourceChainConfigs, 32)
+            .storeUint(data.queryID ?? 0, 64)
+            .storeRef(
+              asSnakeData(data.configs, (message) => {
+                return builder.data.updateSourceChainConfig.encode(message)
+              }),
+            )
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const updateCursedSubjects: CellCodec<{
+        subjects: bigint[]
+      }> = {
+        encode: (data): Builder => {
+          let subjects = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
+          for (const subject of data.subjects) {
+            subjects.set(subject, true)
+          }
+          return beginCell().storeUint(Opcodes.updateCursedSubjects, 32).storeDict(subjects)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const setDynamicConfig: CellCodec<{
+        queryId: bigint
+        feeQuoter: Address
+        permissionlessExecutionThresholdSeconds: number
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.setDynamicConfig, 32)
+            .storeUint(data.queryId, 64)
+            .storeAddress(data.feeQuoter)
+            .storeUint(data.permissionlessExecutionThresholdSeconds, 32)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
+
+      const dispatchValidated: CellCodec<{
+        message: Any2TVMRampMessage
+        execId: bigint
+        gasOverride?: bigint
+      }> = {
+        encode: (data): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.dispatchValidated, 32)
+            .storeRef(builder.data.any2TVMRampMessage.encode(data.message))
+            .storeUint(data.execId, 192)
+            .storeMaybeUint(data.gasOverride, 64)
+        },
+        load: (_: Slice) => {
+          throw new Error('Implement me')
+        },
+      }
       const updateDeployables: CellCodec<UpdateDeployables> = {
         encode: (message: UpdateDeployables): Builder => {
           return beginCell()
@@ -265,6 +573,13 @@ export const builder = {
       }
 
       return {
+        commit,
+        execute,
+        manualExecute,
+        updateSourceChainConfigs,
+        updateCursedSubjects,
+        setDynamicConfig,
+        dispatchValidated,
         updateDeployables,
       }
     })(),
@@ -362,19 +677,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.commit, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.reportContext.configDigest, 256)
-        .storeUint(opts.reportContext.padding, 192) //should be zero
-        .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeBuilder(commitReportToBuilder(opts.report))
-        .storeRef(
-          asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.signer, 256).storeUint(item.r, 256).storeUint(item.s, 256),
-          ),
-        )
-        .endCell(),
+      body: builder.messages.in.commit.encode(opts).endCell(),
     })
   }
 
@@ -391,14 +694,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.execute, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.reportContext.configDigest, 256)
-        .storeUint(opts.reportContext.padding, 192) //should be zero
-        .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeBuilder(ExecutionReportToBuilder(opts.report))
-        .endCell(),
+      body: builder.messages.in.execute.encode(opts).endCell(),
     })
   }
 
@@ -415,12 +711,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.manualExecute, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeBuilder(ExecutionReportToBuilder(opts.report))
-        .storeCoins(opts.gasOverride ?? 0)
-        .endCell(),
+      body: builder.messages.in.manualExecute.encode(opts).endCell(),
     })
   }
 
@@ -436,15 +727,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.updateSourceChainConfigs, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(
-          asSnakeData(opts.configs, (message) => {
-            return updateSourceChainConfigToBuilder(message)
-          }),
-        )
-        .endCell(),
+      body: builder.messages.in.updateSourceChainConfigs.encode(opts).endCell(),
     })
   }
 
@@ -456,19 +739,14 @@ export class OffRamp
       subjects: bigint[]
     },
   ) {
-    let subjects = Dictionary.empty(Dictionary.Keys.BigInt(128), Dictionary.Values.Bool())
-    for (const subject of opts.subjects) {
-      subjects.set(subject, true)
-    }
-
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(Opcodes.updateCursedSubjects, 32).storeDict(subjects).endCell(),
+      body: builder.messages.in.updateCursedSubjects.encode(opts).endCell(),
     })
   }
 
-  async setDynamicConfig(
+  async sendSetDynamicConfig(
     provider: ContractProvider,
     via: Sender,
     opts: {
@@ -481,12 +759,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.setDynamicConfig, 32)
-        .storeUint(opts.queryId, 64)
-        .storeAddress(opts.feeQuoter)
-        .storeUint(opts.permissionlessExecutionThresholdSeconds, 32)
-        .endCell(),
+      body: builder.messages.in.setDynamicConfig.encode(opts).endCell(),
     })
   }
 
@@ -503,7 +776,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.message.in.updateDeployables
+      body: builder.messages.in.updateDeployables
         .encode({
           queryId: opts.queryId,
           receiveExecutorCode: opts.receiveExecutorCode,
@@ -525,12 +798,7 @@ export class OffRamp
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.dispatchValidated, 32)
-        .storeRef(Any2TVMRampMessageToBuilder(opts.message))
-        .storeUint(opts.execId, 192)
-        .storeMaybeUint(opts.gasOverride, 64)
-        .endCell(),
+      body: builder.messages.in.dispatchValidated.encode(opts).endCell(),
     })
   }
 
@@ -604,150 +872,4 @@ export class OffRamp
   ) {
     return this.ownable.sendAcceptOwnership(p, via, value, body)
   }
-}
-
-export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {
-  return beginCell()
-    .storeRef(
-      asSnakeData(priceUpdates.tokenPriceUpdates, (item) =>
-        beginCell().storeAddress(item.sourceToken).storeUint(item.usdPerToken, 224),
-      ),
-    )
-    .storeRef(
-      asSnakeData(priceUpdates.gasPriceUpdates, (item) =>
-        beginCell()
-          .storeUint(item.destChainSelector, 64)
-          .storeUint(item.executionGasPrice, 112)
-          .storeUint(item.dataAvailabilityGasPrice, 112),
-      ),
-    )
-    .endCell()
-}
-
-export function priceUpdatesFromCell(data: Cell): PriceUpdates {
-  const cs = data.beginParse()
-
-  const tokenPriceUpdates: TokenPriceUpdate[] = fromSnakeData(cs.loadRef(), (x) => {
-    const sourceToken = x.loadAddress()
-    const usdPerToken = x.loadUintBig(224)
-    return { sourceToken, usdPerToken }
-  })
-
-  const gasPriceUpdates: GasPriceUpdate[] = fromSnakeData(cs.loadRef(), (x) => {
-    const destChainSelector = x.loadUintBig(64)
-    const executionGasPrice = x.loadUintBig(112)
-    const dataAvailabilityGasPrice = x.loadUintBig(112)
-    return { destChainSelector, executionGasPrice, dataAvailabilityGasPrice }
-  })
-
-  return { tokenPriceUpdates, gasPriceUpdates }
-}
-
-export function merkleRootsToCell(roots: MerkleRoot[]): Cell {
-  return asSnakeData(roots, (item) =>
-    beginCell()
-      .storeUint(item.sourceChainSelector, 64)
-      .storeUint(item.onRampAddress.byteLength, 8)
-      .storeBuffer(item.onRampAddress, item.onRampAddress.byteLength)
-      .storeUint(item.minSeqNr, 64)
-      .storeUint(item.maxSeqNr, 64)
-      .storeUint(item.merkleRoot, 256),
-  )
-}
-
-export function merkleRootFromSlice(data: Slice): MerkleRoot {
-  const sourceChainSelector = data.loadUintBig(64)
-  const onRampAddressLength = data.loadUint(8)
-  const onRampAddress = Buffer.from(bigIntToUint8Array(data.loadUintBig(onRampAddressLength * 8)))
-  const minSeqNr = data.loadUintBig(64)
-  const maxSeqNr = data.loadUintBig(64)
-  const merkleRoot = data.loadUintBig(256)
-  return {
-    sourceChainSelector,
-    onRampAddress,
-    minSeqNr,
-    maxSeqNr,
-    merkleRoot,
-  }
-}
-
-export function commitReportToBuilder(report: CommitReport): import('@ton/core').Builder {
-  let priceUpdates: Cell | undefined = undefined
-  if (report.priceUpdates != undefined) {
-    priceUpdates = priceUpdatesToCell(report.priceUpdates!)
-  }
-
-  return beginCell().storeMaybeRef(priceUpdates).storeRef(merkleRootsToCell(report.merkleRoots))
-}
-
-export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
-  return beginCell()
-    .storeAddress(config.router)
-    .storeBit(config.isEnabled)
-    .storeUint(config.minSeqNr, 64)
-    .storeBit(config.isRMNVerificationDisabled)
-    .storeUint(config.onRamp.byteLength, 8)
-    .storeBuffer(config.onRamp, config.onRamp.byteLength)
-}
-
-export const updateSourceChainConfigToBuilder = (config: UpdateSourceChainConfig) => {
-  return beginCell()
-    .storeUint(config.sourceChainSelector, 64)
-    .storeAddress(config.config.router)
-    .storeBit(config.config.isEnabled)
-    .storeUint(config.config.minSeqNr, 64)
-    .storeBit(config.config.isRMNVerificationDisabled)
-    .storeUint(config.config.onRamp.byteLength, 8)
-    .storeBuffer(config.config.onRamp, config.config.onRamp.byteLength)
-}
-
-export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {
-  return {
-    router: slice.loadAddress(),
-    isEnabled: slice.loadBit(),
-    minSeqNr: slice.loadUintBig(64),
-    isRMNVerificationDisabled: slice.loadBit(),
-    onRamp: slice.loadBuffer(slice.loadUint(8)),
-  }
-}
-
-export function ExecutionReportToBuilder(report: ExecutionReport) {
-  return beginCell()
-    .storeUint(report.sourceChainSelector, 64)
-    .storeRef(
-      asSnakeData(report.messages, (message) => {
-        return Any2TVMRampMessageToBuilder(message)
-      }),
-    )
-    .storeRef(Cell.EMPTY) //TODO: offchainTokenData
-    .storeRef(
-      asSnakeData(report.proofs, (proof) => {
-        return beginCell().storeUint(proof, 256)
-      }),
-    )
-    .storeUint(report.proofFlagBits, 256)
-}
-
-export function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
-  return beginCell()
-    .storeBuilder(RampMessageHeaderToBuidler(message.header))
-    .storeRef(
-      beginCell()
-        .storeUint(message.sender.byteLength, 8)
-        .storeBuffer(message.sender, message.sender.byteLength)
-        .endCell(),
-    )
-    .storeRef(message.data)
-    .storeAddress(message.receiver)
-    .storeCoins(message.gasLimit)
-    .storeMaybeRef(message.tokenAmounts)
-}
-
-function RampMessageHeaderToBuidler(header: RampMessageHeader) {
-  return beginCell()
-    .storeUint(header.messageId, 256)
-    .storeUint(header.sourceChainSelector, 64)
-    .storeUint(header.destChainSelector, 64)
-    .storeUint(header.sequenceNumber, 64)
-    .storeUint(header.nonce, 64)
 }

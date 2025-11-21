@@ -7,6 +7,7 @@ import "../onramp/messages"
 import "../../lib/utils"
 import "../onramp/errors"
 import "../router/messages"
+import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
@@ -89,7 +90,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
 }
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
-    if (msg.fee + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
+    if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
         return;
     }
@@ -97,7 +98,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
     self.exitSuccessfully(msg.fee);
 }
 
-fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
+fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
