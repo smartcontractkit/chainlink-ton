@@ -237,7 +237,7 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	}
 
 	if len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
-		return nil, nil, fmt.Errorf("contract deployment failed: expected 1 outgoing internal message, got %d", len(receivedMessage.OutgoingInternalReceivedMessages))
+		return nil, nil, fmt.Errorf("contract deployment failed: expected exactly 1 outgoing internal message (the deployment transaction to the new contract address), but got %d. This usually indicates an issue with the deployment process or contract code", len(receivedMessage.OutgoingInternalReceivedMessages))
 	}
 
 	if receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeSuccess {
