@@ -177,7 +177,7 @@ func TestJettonAll(t *testing.T) {
 	setupOnrampMock := func(t *testing.T) *onrampMockSetup {
 		setup := setupSender(t)
 		t.Logf("Deploying OnrampMock contract\n")
-		onrampMock, err := jetton_testing_wrappers.NewOnrampMockProvider(setup.common.deployer).Deploy(jetton_testing_wrappers.OnrampMockInitData{
+		onrampMock, err := jetton_testing_wrappers.NewOnrampMockProvider(setup.common.deployer).Deploy(t.Context(), jetton_testing_wrappers.OnrampMockInitData{
 			MasterAddress: setup.common.jettonMinter.Address,
 			WalletCode:    setup.common.jettonWalletCode,
 		})
