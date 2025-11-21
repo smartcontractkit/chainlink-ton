@@ -161,10 +161,10 @@ func Test_LogPoller(t *testing.T) {
 		test_utils.FundWallets(t, client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
 		require.NotNil(t, senderA)
 
-		emitterA, err := helper.NewTestEventSource(client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
+		emitterA, err := helper.NewTestEventSource(t.Context(), client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		emitterB, err := helper.NewTestEventSource(client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
+		emitterB, err := helper.NewTestEventSource(t.Context(), client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
 		const targetCounter = 10
@@ -817,7 +817,7 @@ func Test_LogPoller(t *testing.T) {
 		test_utils.FundWallets(t, client, []*address.Address{sender.Address()},
 			[]tlb.Coins{tlb.MustFromTON("1000")})
 
-		emitter, err := helper.NewTestEventSource(client, sender, "replayEmitter",
+		emitter, err := helper.NewTestEventSource(t.Context(), client, sender, "replayEmitter",
 			rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 

@@ -1,6 +1,7 @@
 package twomsgchain
 
 import (
+	"context"
 	"fmt"
 	"math/rand/v2"
 
@@ -29,7 +30,7 @@ type MemoryInitData struct {
 	_  tlb.Magic `tlb:"#00000000"` //nolint:revive // (opcode) should stay uninitialized
 }
 
-func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
+func (p *MemoryProvider) Deploy(ctx context.Context, initData MemoryInitData) (Memory, error) {
 	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
 		return Memory{}, fmt.Errorf("failed to serialize init data: %w", err)
@@ -39,7 +40,7 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 		return Memory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Memory{}, err
 	}

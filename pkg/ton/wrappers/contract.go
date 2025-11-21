@@ -210,9 +210,8 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // require.Zero(t, deployExitCode, "contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
 //
 // ```
-func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
+func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
-	ctx := context.Background() // TODO: use context from args
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
 		ctx,
 		amount,

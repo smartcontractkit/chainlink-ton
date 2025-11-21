@@ -34,7 +34,7 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	require.NotNil(t, sender)
 	// deploy event emitter counter contract
-	emitter, err := NewTestEventSource(client, sender, "emitter", rand.Uint32(), logger.Test(t))
+	emitter, err := NewTestEventSource(t.Context(), client, sender, "emitter", rand.Uint32(), logger.Test(t))
 	require.NoError(t, err)
 	// bulk send events
 	txs, err := emitter.SendBulkTestEvents(t.Context(), batchCount, txPerBatch, msgPerTx)
@@ -109,7 +109,7 @@ type TestEventSource struct {
 	err error
 }
 
-func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
+func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
 	codeCell, cerr := wrappers.ParseCompiledContract(bindings.GetBuildDir("examples.Counter.compiled.json"))
 	if cerr != nil {
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
@@ -135,6 +135,7 @@ func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name
 	}
 
 	contract, _, err := wrappers.Deploy(
+		ctx,
 		sigClient,
 		codeCell,
 		data,
