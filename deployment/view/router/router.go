@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
@@ -22,7 +23,7 @@ type View struct {
 // FetchView generates a view of the router contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	if err := typeVersion.FetchResult(ctx, c.Client, block, routerAddr, nil); err != nil {
+	if err := registry.FetchResult(ctx, c.Client, block, routerAddr, &typeVersion, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 

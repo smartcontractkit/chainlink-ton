@@ -1,7 +1,6 @@
 package feequoter
 
 import (
-	"context"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -11,12 +10,6 @@ import (
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-)
-
-const (
-	tokenPriceGetter               = "tokenPrice"
-	StaticConfigGetter             = "staticConfig"
-	DestinationChainGasPriceGetter = "destinationChainGasPrice"
 )
 
 // Fee Quoter opcodes
@@ -95,10 +88,6 @@ func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
 		return err
 	}
 	return tlb.LoadFromCell(u, c.BeginParse())
-}
-
-func (u *USDPerUnitGas) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u)
 }
 
 type DestChainConfig struct {
@@ -220,10 +209,6 @@ func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c)
-}
-
 type TokenTransferFeeConfig struct {
 	IsEnabled         bool   `tlb:"bool"`
 	MinFeeUsdCents    uint32 `tlb:"## 32"`
@@ -253,10 +238,6 @@ func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
 	}
 	return nil
-}
-
-func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p)
 }
 
 type TokenPriceUpdate struct {
@@ -356,8 +337,4 @@ func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 	}
 	return nil
-}
-
-func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
@@ -25,12 +26,12 @@ type View struct {
 // FetchView generates a view of the fee quoter contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	if err := typeVersion.FetchResult(ctx, c.Client, block, feeQuoter, nil); err != nil {
+	if err := registry.FetchResult(ctx, c.Client, block, feeQuoter, &typeVersion, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
 	var sc feequoter.StaticConfig
-	if err := sc.FetchResult(ctx, c.Client, block, feeQuoter, nil); err != nil {
+	if err := registry.FetchResult(ctx, c.Client, block, feeQuoter, &sc, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse StaticConfig: %w", err)
 	}
 

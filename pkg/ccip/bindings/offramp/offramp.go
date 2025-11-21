@@ -1,7 +1,6 @@
 package offramp
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 
@@ -13,11 +12,6 @@ import (
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-)
-
-const (
-	configGetter   = "config"
-	ocr3BaseGetter = "ocr3Config"
 )
 
 // OCR3Config represents the OCR3 configuration stored on-chain
@@ -183,10 +177,6 @@ type OCR3Base struct {
 	Execute *OCR3Config `tlb:"maybe ^"`
 }
 
-func (c *OCR3Base) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ocr3BaseGetter, nil, c)
-}
-
 func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
 	// chainID (index 0)
 	chainIDInt, err := result.Int(0)
@@ -272,10 +262,6 @@ func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, configGetter, nil, c)
-}
-
 // SourceChainConfig represents the configuration for a specific source chain
 type SourceChainConfig struct {
 	Router                    *address.Address             `tlb:"addr"`
@@ -330,10 +316,6 @@ func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 		OnRamp:                    onRamp,
 	}
 	return nil
-}
-
-func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c)
 }
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode

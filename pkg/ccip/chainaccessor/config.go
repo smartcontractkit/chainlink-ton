@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
@@ -94,12 +95,12 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		return ccipocr3.OfframpConfig{}, err
 	}
 	var config offramp.Config
-	if err = config.FetchResult(ctx, a.client, block, addr, nil); err != nil {
+	if err = registry.FetchResult(ctx, a.client, block, addr, &config, nil); err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
 
 	var ocr3Base offramp.OCR3Base
-	err = ocr3Base.FetchResult(ctx, a.client, block, addr, nil)
+	err = registry.FetchResult(ctx, a.client, block, addr, &ocr3Base, nil)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
@@ -173,7 +174,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 
 	var config offramp.SourceChainConfig
 	opts := []interface{}{uint64(sourceChainSelector)}
-	err = config.FetchResult(ctx, a.client, block, addr, opts)
+	err = registry.FetchResult(ctx, a.client, block, addr, &config, opts)
 	if err != nil {
 		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
 		var execError ton.ContractExecError
@@ -205,7 +206,7 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	var cfg feequoter.StaticConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, nil); err != nil {
+	if err = registry.FetchResult(ctx, a.client, block, addr, &cfg, nil); err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	return ccipocr3.FeeQuoterStaticConfig{
@@ -222,7 +223,7 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
 	var cfg onramp.DynamicConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, nil); err != nil {
+	if err = registry.FetchResult(ctx, a.client, block, addr, &cfg, nil); err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
 	return ccipocr3.OnRampDynamicConfig{
@@ -243,7 +244,7 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 
 	var cfg onramp.DestChainConfig
 	opts := []interface{}{uint64(dest)}
-	if err = cfg.FetchResult(ctx, a.client, block, addr, opts); err != nil {
+	if err = registry.FetchResult(ctx, a.client, block, addr, &cfg, opts); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 

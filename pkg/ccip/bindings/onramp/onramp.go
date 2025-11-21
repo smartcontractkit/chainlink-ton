@@ -1,7 +1,6 @@
 package onramp
 
 import (
-	context2 "context"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -11,11 +10,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
-)
-
-const (
-	dynamicConfigGetter = "dynamicConfig"
-	staticConfigGetter  = "staticConfig"
 )
 
 // OnRamp opcodes
@@ -205,10 +199,6 @@ func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, common.DestChainConfigGetter, destChainSelector, c)
-}
-
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type DynamicConfig struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
@@ -262,12 +252,4 @@ func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 		ChainSelector: chainSelector.Uint64(),
 	}
 	return nil
-}
-
-func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c)
-}
-
-func (c *StaticConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, staticConfigGetter, nil, c)
 }

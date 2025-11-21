@@ -1,14 +1,16 @@
 package configfetcher
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sync"
 
+	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
@@ -20,16 +22,23 @@ import (
 )
 
 const (
-	SourceChainsGetter = "sourceChainSelectors"
-	DestChainsGetter   = "destChainSelectors"
-	OnRampGetter       = "onRamp"
+	tokenPriceGetter               = "tokenPrice"
+	dynamicConfigGetter            = "dynamicConfig"
+	staticConfigGetter             = "staticConfig"
+	destChainConfigGetter          = "destChainConfig"
+	versionGetter                  = "typeAndVersion"
+	srcChainConfigGetter           = "sourceChainConfig"
+	configGetter                   = "config"
+	ocr3BaseGetter                 = "ocr3Config"
+	SourceChainsGetter             = "sourceChainSelectors"
+	DestChainsGetter               = "destChainSelectors"
+	OnRampGetter                   = "onRamp"
+	DestinationChainGasPriceGetter = "destinationChainGasPrice"
 )
 
 // ConfigFetcher is an interface for fetching and parsing contract configurations.
 type ConfigFetcher interface {
 	tvm.ResultUnmarshaler
-	// FetchResult fetches the configuration from the contract at the specified block and address.
-	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error
 }
 
 // FetchOnRampDestChainConfig retrieves destination chain configurations from the on-ramp contract.
@@ -49,7 +58,7 @@ func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped
 		eg.Go(func() error {
 			var cfg onramp.DestChainConfig
 			opts := []interface{}{dest}
-			if err = cfg.FetchResult(egCtx, client, block, onRampAddr, opts); err != nil {
+			if err = registry.FetchResult(egCtx, client, block, onRampAddr, &cfg, opts); err != nil {
 				return err
 			}
 
@@ -81,7 +90,7 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 		eg.Go(func() error {
 			var cfg feequoter.DestChainConfig
 			opts := []interface{}{dest}
-			if err = cfg.FetchResult(egCtx, client, block, feeQuoter, opts); err != nil {
+			if err = registry.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
 				return err
 			}
 
@@ -113,7 +122,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 		eg.Go(func() error {
 			var cfg offramp.SourceChainConfig
 			opts := []interface{}{dest}
-			if err = cfg.FetchResult(egCtx, client, block, offRampAddr, opts); err != nil {
+			if err = registry.FetchResult(egCtx, client, block, offRampAddr, &cfg, opts); err != nil {
 				return err
 			}
 
@@ -167,4 +176,26 @@ func FetchRouterOnRampAddresses(ctx context.Context, client ton.APIClientWrapped
 	}
 
 	return onRampAddrMap, eg.Wait()
+}
+
+// init registers the configuration fetcher methods for on-ramp, off-ramp, and fee quoter contracts.
+func init() {
+	// Common types
+	registry.RegisterMethod(&ccipcommon.TypeAndVersion{}, versionGetter)
+
+	// OnRamp types
+	registry.RegisterMethod(&onramp.DestChainConfig{}, destChainConfigGetter)
+	registry.RegisterMethod(&onramp.DynamicConfig{}, dynamicConfigGetter)
+	registry.RegisterMethod(&onramp.StaticConfig{}, staticConfigGetter)
+
+	// OffRamp types
+	registry.RegisterMethod(&offramp.SourceChainConfig{}, srcChainConfigGetter)
+	registry.RegisterMethod(&offramp.Config{}, configGetter)
+	registry.RegisterMethod(&offramp.OCR3Base{}, ocr3BaseGetter)
+
+	// FeeQuoter types
+	registry.RegisterMethod(&feequoter.StaticConfig{}, staticConfigGetter)
+	registry.RegisterMethod(&feequoter.DestChainConfig{}, destChainConfigGetter)
+	registry.RegisterMethod(&feequoter.TimestampedPrice{}, tokenPriceGetter)
+	registry.RegisterMethod(&feequoter.USDPerUnitGas{}, DestinationChainGasPriceGetter)
 }
