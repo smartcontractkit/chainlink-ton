@@ -231,8 +231,12 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+	if receivedMessage.ExitCode != tvm.ExitCodeSuccess {
 		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
+	} else if len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+		return nil, nil, fmt.Errorf("contract deployment failed: expected 1 outgoing internal message, got %d", len(receivedMessage.OutgoingInternalReceivedMessages))
+	} else if receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeSuccess {
+		return nil, nil, fmt.Errorf("contract deployment failed: error in deployment transaction: %s", receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode.Describe())
 	}
 
 	return &Contract{addr, client}, &receivedMessage, nil
