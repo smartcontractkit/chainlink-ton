@@ -240,7 +240,8 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("contract deployment failed: expected exactly 1 outgoing internal message (the deployment transaction to the new contract address), but got %d. This usually indicates an issue with the deployment process or contract code", len(receivedMessage.OutgoingInternalReceivedMessages))
 	}
 
-	if receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeSuccess {
+	// TODO: Temporarily allow ExitCodeTactInvalidIncomingMessage until Tact contract is fixed, jira ticket: NON-EVM-3080
+	if receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeSuccess && receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeTactInvalidIncomingMessage {
 		return nil, nil, fmt.Errorf("contract deployment failed: error in deployment transaction: %s", receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode.Describe())
 	}
 
