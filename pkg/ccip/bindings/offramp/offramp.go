@@ -360,4 +360,6 @@ const (
 	ErrorSubjectCursed
 	ErrorUnauthorized
 	ErrorZeroAddressNotAllowed
+	ErrorSignatureVerificationRequiredInCommitPlugin
+	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 )
