@@ -35,7 +35,7 @@ var DeployMCMSOp = operations.NewOperation(
 
 func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput) (*address.Address, error) {
 	chainSelector := deps.TonChain.ChainSelector()
-	if currentAddr := deps.CCIPOnChainState[chainSelector].MCMS; !currentAddr.IsAddrNone() {
+	if currentAddr := deps.MCMSChainState[chainSelector].MCMS; !currentAddr.IsAddrNone() {
 		b.Logger.Infof("MCMS contract is already deployed at address: %s. Skipping...", currentAddr.String())
 		return nil, nil
 	}

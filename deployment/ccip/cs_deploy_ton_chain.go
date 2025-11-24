@@ -60,6 +60,11 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	s := states[selector]
 
+	mcmsStates, err := state.LoadMCMSOnchainState(env)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
+	}
+
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 
@@ -80,6 +85,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	deps := operation.TonDeps{
 		TonChain:         chain,
 		CCIPOnChainState: states,
+		MCMSChainState:   mcmsStates,
 	}
 
 	deps.CCIPOnChainState[selector] = s
