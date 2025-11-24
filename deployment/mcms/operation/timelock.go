@@ -44,7 +44,7 @@ var DeployTimelockOp = operations.NewOperation(
 func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelockInput) (*address.Address, error) {
 	if currentAddr := deps.MCMSChainState[deps.TonChain.ChainSelector()].Timelock; !currentAddr.IsAddrNone() {
 		b.Logger.Infof("Timelock contract is already deployed at address: %s. Skipping...", currentAddr.String())
-		return nil, nil
+		return &currentAddr, nil
 	}
 
 	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
