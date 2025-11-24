@@ -25,6 +25,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
 
+      - name: Relocate Nix store to /mnt
+        run: |
+          sudo mkdir -p /mnt/nix
+          sudo mkdir -p /nix
+          sudo mount --bind /mnt/nix /nix
+          df -h /nix /mnt
+
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
@@ -36,6 +43,8 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn && yarn build
+          popd
+          ./scripts/disk-cache-gc.sh
 
       - name: Run integration tests
         id: tests

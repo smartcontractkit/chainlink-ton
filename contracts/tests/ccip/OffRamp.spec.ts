@@ -4,7 +4,7 @@ import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
   CommitReport,
-  commitReportToBuilder,
+  builder,
   ExecutionReport,
   MerkleRoot,
   OFFRAMP_FACILITY_ID,
@@ -18,7 +18,6 @@ import {
   OffRamp,
   OffRampError,
   Opcodes,
-  sourceChainConfigToBuilder,
   UpdateSourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
 import {
@@ -403,7 +402,7 @@ describe('OffRamp - Unit Tests', () => {
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
+      hashReport(builder.data.commitReport.encode(report).endCell(), reportContext),
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {
@@ -743,7 +742,7 @@ describe('OffRamp - Unit Tests', () => {
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
+      hashReport(builder.data.commitReport.encode(report).endCell(), reportContext),
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {

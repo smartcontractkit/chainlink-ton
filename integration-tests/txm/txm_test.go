@@ -2,6 +2,7 @@ package txm_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,13 +18,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -34,19 +33,12 @@ import (
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
 
-	nodeClient, nerr := test_utils.CreateTestAPIClient(t, chainsel.TON_LOCALNET.Selector)
-	require.NoError(t, nerr)
-
-	wallet := test_utils.CreateRandomWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
-	require.NotNil(t, wallet)
-
-	tonChain := test_utils.StartChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
-	require.NotNil(t, tonChain)
-
-	test_utils.FundWallets(t, nodeClient, []*address.Address{wallet.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	var setupOnce sync.Once
+	tonChain, err := test_utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
+	require.NoError(t, err)
 
 	keystore := relayer_utils.NewTestKeystore(t)
-	keystore.AddKey(wallet.PrivateKey())
+	keystore.AddKey(tonChain.Wallet.PrivateKey())
 	require.NotNil(t, keystore)
 
 	config := txm.DefaultConfigSet
@@ -109,7 +101,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		require.NoError(t, incErr)
 
 		incErr = tonTxm.Enqueue(txm.Request{
-			Mode:            wallet.PayGasSeparately,
+			Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
@@ -124,7 +116,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		require.NoError(t, incErr)
 
 		incErr = tonTxm.Enqueue(txm.Request{
-			Mode:            wallet.PayGasSeparately,
+			Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
