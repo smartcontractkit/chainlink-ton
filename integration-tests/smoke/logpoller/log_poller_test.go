@@ -796,7 +796,7 @@ func Test_LogPoller(t *testing.T) {
 					WithSource(emitterA.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
 					WithBocBytes(
-						query.SkipBytes(4),                                                                               // skip ID field to reach Counter field
+						query.SkipBytes(4), // skip ID field to reach Counter field
 						query.MatchBytes(4, query.WithCondition(binary.BigEndian.AppendUint32(nil, 100), primitives.Gt)), // No events should match
 					).
 					WithLimitAndSort(commonquery.LimitAndSort{
