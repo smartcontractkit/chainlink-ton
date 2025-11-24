@@ -47,11 +47,11 @@ type CCIPChainState struct {
 	Router           address.Address
 	OnRamp           address.Address
 	FeeQuoter        address.Address
-	Timelock         address.Address
 	ReceiverAddress  address.Address
-	MCMS             address.Address
 }
 
+// MCMSChainState holds a Go binding for all the currently deployed MCMS contracts
+// on a chain. If a binding is nil, it means here is no such contract on the chain.
 type MCMSChainState struct {
 	Timelock address.Address
 	MCMS     address.Address
@@ -216,7 +216,6 @@ func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {
 		case MCMS:
 			state.MCMS = *contractAddress
 		default:
-			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue
 		}
 
@@ -261,12 +260,7 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 			state.OnRamp = *contractAddress
 		case FeeQuoter:
 			state.FeeQuoter = *contractAddress
-		case Timelock:
-			state.Timelock = *contractAddress
-		case MCMS:
-			state.MCMS = *contractAddress
 		default:
-			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue
 		}
 

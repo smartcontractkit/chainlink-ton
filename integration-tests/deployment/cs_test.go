@@ -76,6 +76,9 @@ func TestDeploy(t *testing.T) {
 	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
+	mcmsState, err := tonstate.LoadMCMSOnchainState(env)
+	require.NoError(t, err)
+
 	linkAddr := state[chainSelector].LinkTokenAddress
 	t.Log("Link Token Addr: ", linkAddr.String())
 
@@ -229,7 +232,7 @@ func TestDeploy(t *testing.T) {
 	// </Verify receiver address>
 
 	// <Verify timelock address>
-	timelockAddr := state[chainSelector].Timelock
+	timelockAddr := mcmsState[chainSelector].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
 	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
@@ -259,6 +262,17 @@ func TestDeploy(t *testing.T) {
 	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer4.String())
 	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer5.String())
 	// </Verify timelock address>
+
+	// <Verify MCMS address>
+	mcmsAddr := mcmsState[chainSelector].MCMS
+	_, err = addrCodec.AddressStringToBytes(mcmsAddr.String())
+	require.NoError(t, err)
+	//getOwnerResp, err := tonChain.Client.RunGetMethod(ctx, mc, &mcmsAddr, "owner")
+	//require.NoError(t, err)
+	//ownerAddr := getOwnerResp.MustSlice(0).MustLoadAddr()
+	//require.Equal(t, deployer.WalletAddress().String(), ownerAddr.String())
+
+	// </Verify MCMS address>
 
 	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
 	require.NoError(t, err)

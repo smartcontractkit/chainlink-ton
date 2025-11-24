@@ -376,7 +376,6 @@ func SendTonRequest(
 		state.Router.String():           {Type: "Router", Version: zeroVersion},
 		state.OnRamp.String():           {Type: "OnRamp", Version: zeroVersion},
 		state.FeeQuoter.String():        {Type: "FeeQuoter", Version: zeroVersion},
-		state.Timelock.String():         {Type: "Timelock", Version: zeroVersion},
 		state.ReceiverAddress.String():  {Type: "ReceiverAddress", Version: zeroVersion},
 	}
 	e.Logger.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(receivedMsg))

@@ -64,6 +64,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
+	m := mcmsStates[selector]
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
@@ -128,14 +129,15 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	if ccipSeqReport.Output.TimelockAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
-		s.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
+		m.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
 	}
 	if ccipSeqReport.Output.MCMSAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.MCMSAddress.CLDFAddressRef)
-		s.MCMS = ccipSeqReport.Output.MCMSAddress.TONAddress
+		m.MCMS = ccipSeqReport.Output.MCMSAddress.TONAddress
 	}
 
 	deps.CCIPOnChainState[selector] = s
+	deps.MCMSChainState[selector] = m
 
 	// Execute post-deployment config
 	var txs [][]byte

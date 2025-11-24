@@ -29,12 +29,7 @@ type TONContractAddress struct {
 // InvokeDeployContractOperation deploys a TON contract if it's not already deployed.
 // It checks the current address, executes the deployment operation if needed,
 // Returns an error if the deployment fails.
-func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, currentAddress address.Address, compiledContract CompiledContractData, storage any, messageBody any) (*TONContractAddress, error) {
-	if !currentAddress.IsAddrNone() {
-		b.Logger.Infof("%s contract is already deployed at address: %s. Skipping...", compiledContract.Type, currentAddress.String())
-		return nil, nil
-	}
-
+func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any) (*TONContractAddress, error) {
 	deployContractInput := operation.DeployContractInput{
 		Name:         compiledContract.Type.String(),
 		Storage:      storage,
