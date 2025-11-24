@@ -14,12 +14,10 @@ import (
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 )
 
 const (
@@ -36,11 +34,6 @@ const (
 	OnRampGetter                   = "onRamp"
 	DestinationChainGasPriceGetter = "destinationChainGasPrice"
 )
-
-// ConfigFetcher is an interface for fetching and parsing contract configurations.
-type ConfigFetcher interface {
-	tvm.ResultUnmarshaler
-}
 
 // FetchOnRampDestChainConfig retrieves destination chain configurations from the on-ramp contract.
 func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]onramp.DestChainConfig, error) {
