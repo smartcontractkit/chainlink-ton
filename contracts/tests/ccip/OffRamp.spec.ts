@@ -702,7 +702,10 @@ describe('OffRamp - Unit Tests', () => {
 
   it('should handle two OCR3 configs', async () => {
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
   })
 
   describe('OCR3 Config Validation Tests', () => {
