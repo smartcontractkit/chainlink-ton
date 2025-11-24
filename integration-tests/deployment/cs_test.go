@@ -30,6 +30,7 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -265,13 +266,10 @@ func TestDeploy(t *testing.T) {
 
 	// <Verify MCMS address>
 	mcmsAddr := mcmsState[chainSelector].MCMS
-	_, err = addrCodec.AddressStringToBytes(mcmsAddr.String())
+	var tv common.TypeAndVersion
+	err = tv.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, nil)
 	require.NoError(t, err)
-	//getOwnerResp, err := tonChain.Client.RunGetMethod(ctx, mc, &mcmsAddr, "owner")
-	//require.NoError(t, err)
-	//ownerAddr := getOwnerResp.MustSlice(0).MustLoadAddr()
-	//require.Equal(t, deployer.WalletAddress().String(), ownerAddr.String())
-
+	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type)
 	// </Verify MCMS address>
 
 	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
