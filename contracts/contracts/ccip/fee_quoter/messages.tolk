@@ -35,7 +35,7 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 // --- Outgoing messages ---
 
 struct (0x1fa60374) FeeQuoter_MessageValidated<T> {
-    fee: coins
+    fee: Fee,
     msg: Cell<Router_CCIPSend>
     context: T
 }
