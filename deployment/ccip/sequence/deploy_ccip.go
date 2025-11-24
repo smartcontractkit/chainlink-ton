@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
