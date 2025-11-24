@@ -74,6 +74,8 @@ flowchart LR
 	chainlink-ccip --> chainlink-common
 	chainlink-ccip --> chainlink-protos/rmn/v1.6/go
 	click chainlink-ccip href "https://github.com/smartcontractkit/chainlink-ccip"
+	chainlink-ccip/ccv/chains/evm
+	click chainlink-ccip/ccv/chains/evm href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/evm/deployment --> chainlink-ccip/deployment
 	click chainlink-ccip/chains/evm/deployment href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/solana --> chainlink-ccip
@@ -84,6 +86,8 @@ flowchart LR
 	chainlink-ccip/deployment --> chainlink-deployments-framework
 	chainlink-ccip/deployment --> chainlink-evm
 	click chainlink-ccip/deployment href "https://github.com/smartcontractkit/chainlink-ccip"
+	chainlink-ccv
+	click chainlink-ccv href "https://github.com/smartcontractkit/chainlink-ccv"
 	chainlink-common --> chain-selectors
 	chainlink-common --> chainlink-common/pkg/chipingress
 	chainlink-common --> chainlink-protos/billing/go
@@ -129,6 +133,8 @@ flowchart LR
 	click chainlink-framework/multinode href "https://github.com/smartcontractkit/chainlink-framework"
 	chainlink-protos/billing/go --> chainlink-protos/workflows/go
 	click chainlink-protos/billing/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-protos/chainlink-ccv/go
+	click chainlink-protos/chainlink-ccv/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/cre/go
 	click chainlink-protos/cre/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/job-distributor
@@ -181,6 +187,9 @@ flowchart LR
 	chainlink-tron/relayer --> chainlink-common/pkg/values
 	click chainlink-tron/relayer href "https://github.com/smartcontractkit/chainlink-tron"
 	chainlink/deployment --> ccip-contract-examples/chains/evm
+	chainlink/deployment --> chainlink-ccip/ccv/chains/evm
+	chainlink/deployment --> chainlink-ccv
+	chainlink/deployment --> chainlink-protos/chainlink-ccv/go
 	chainlink/deployment --> chainlink-sui/deployment
 	chainlink/deployment --> chainlink-testing-framework/lib
 	chainlink/deployment --> chainlink-ton/deployment
@@ -240,6 +249,7 @@ flowchart LR
 
 	subgraph chainlink-ccip-repo[chainlink-ccip]
 		 chainlink-ccip
+		 chainlink-ccip/ccv/chains/evm
 		 chainlink-ccip/chains/evm/deployment
 		 chainlink-ccip/chains/solana
 		 chainlink-ccip/chains/solana/gobindings
@@ -271,6 +281,7 @@ flowchart LR
 
 	subgraph chainlink-protos-repo[chainlink-protos]
 		 chainlink-protos/billing/go
+		 chainlink-protos/chainlink-ccv/go
 		 chainlink-protos/cre/go
 		 chainlink-protos/job-distributor
 		 chainlink-protos/linking-service/go
