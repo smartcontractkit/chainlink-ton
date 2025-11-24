@@ -245,7 +245,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	deployTimelockOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployTimelockOp, deps, deployTimelockInput)
 	if err != nil {
 		return output, err
-	} else if deployTimelockOutput.Output != nil {
+	} else if deployTimelockOutput.Output != nil && output.TimelockAddress.TONAddress.IsAddrNone() {
 		output.TimelockAddress = newTONContractAddress(*deployTimelockOutput.Output, in.ChainSelector, state.Timelock, in.ContractsSemver, in.ContractsVersionSha)
 	}
 
@@ -259,7 +259,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	deployMCMSOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
 	if err != nil {
 		return output, err
-	} else if deployMCMSOutput.Output != nil {
+	} else if deployMCMSOutput.Output != nil && output.MCMSAddress.TONAddress.IsAddrNone() {
 		output.MCMSAddress = newTONContractAddress(*deployMCMSOutput.Output, in.ChainSelector, state.MCMS, in.ContractsSemver, in.ContractsVersionSha)
 	}
 
