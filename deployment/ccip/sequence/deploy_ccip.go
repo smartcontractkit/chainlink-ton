@@ -242,25 +242,33 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		Bypassers:    in.CCIPConfig.TimelockParams.Bypassers,
 	}
 
-	deployTimelockOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployTimelockOp, deps, deployTimelockInput)
-	if err != nil {
-		return output, err
-	} else if deployTimelockOutput.Output != nil && output.TimelockAddress.TONAddress.IsAddrNone() {
-		output.TimelockAddress = newTONContractAddress(*deployTimelockOutput.Output, in.ChainSelector, state.Timelock, in.ContractsSemver, in.ContractsVersionSha)
+	a = deps.MCMSChainState[in.ChainSelector].Timelock
+	if a.IsAddrNone() {
+		var report operations.Report[mcmsOps.DeployTimelockInput, *address.Address]
+		report, err = operations.ExecuteOperation(b, mcmsOps.DeployTimelockOp, deps, deployTimelockInput)
+		if err != nil {
+			return output, err
+		} else if output.TimelockAddress == nil || output.TimelockAddress.TONAddress.IsAddrNone() {
+			output.TimelockAddress = newTONContractAddress(*report.Output, in.ChainSelector, state.Timelock, in.ContractsSemver, in.ContractsVersionSha)
+		}
 	}
 
 	// Invoke deploy MCMS changeset operation
-	deployMCMSInput := mcmsOps.DeployMCMSInput{
-		ContractPath: tonCompiledContracts[state.MCMS].ContractPath,
-		ID:           in.CCIPConfig.MCMSParams.ID,
-		Coins:        tonCompiledContracts[state.MCMS].SuggestedTONCoinsForDeployment,
-	}
+	a = deps.MCMSChainState[in.ChainSelector].MCMS
+	if a.IsAddrNone() {
+		var report operations.Report[mcmsOps.DeployMCMSInput, *address.Address]
+		deployMCMSInput := mcmsOps.DeployMCMSInput{
+			ContractPath: tonCompiledContracts[state.MCMS].ContractPath,
+			ID:           in.CCIPConfig.MCMSParams.ID,
+			Coins:        tonCompiledContracts[state.MCMS].SuggestedTONCoinsForDeployment,
+		}
 
-	deployMCMSOutput, err := operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
-	if err != nil {
-		return output, err
-	} else if deployMCMSOutput.Output != nil && output.MCMSAddress.TONAddress.IsAddrNone() {
-		output.MCMSAddress = newTONContractAddress(*deployMCMSOutput.Output, in.ChainSelector, state.MCMS, in.ContractsSemver, in.ContractsVersionSha)
+		report, err = operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
+		if err != nil {
+			return output, err
+		} else if output.MCMSAddress == nil || output.MCMSAddress.TONAddress.IsAddrNone() {
+			output.MCMSAddress = newTONContractAddress(*report.Output, in.ChainSelector, state.MCMS, in.ContractsSemver, in.ContractsVersionSha)
+		}
 	}
 
 	return output, nil
