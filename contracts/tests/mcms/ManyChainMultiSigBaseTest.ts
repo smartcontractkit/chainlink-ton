@@ -91,17 +91,15 @@ export class MCMSBaseTestSetup {
   async generateTestSigners(): Promise<TestSigner[]> {
     const signers: TestSigner[] = []
 
-    let keyPairs = await Promise.all(
-      Array.from(
-        { length: MCMSBaseTestSetup.SIGNERS_NUM },
-        async (_, i) => new SigningKey(randomBytes(32)),
-      ),
+    let keyPairs = Array.from(
+      { length: MCMSBaseTestSetup.SIGNERS_NUM },
+      (_, i) => new SigningKey(randomBytes(32)),
     )
 
     // Sort result by public key (strictly increasing)
     keyPairs.sort((a, b) => {
-      const aAddr = computeAddress(a)
-      const bAddr = computeAddress(b)
+      const aAddr = BigInt(computeAddress(a))
+      const bAddr = BigInt(computeAddress(b))
       return aAddr < bAddr ? -1 : aAddr > bAddr ? 1 : 0
     })
 
@@ -533,11 +531,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   async setInitialRoot(rootMetadata = this.initialTestRootMetadata): Promise<void> {
     this.initialTestRootMetadata = rootMetadata
 
-    const signers = this.testSigners.map((s) => ({
-      publicKey: s.keyPair.publicKey,
-      sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-    }))
-
+    const signers = this.testSigners.map((s) => s.keyPair)
     const [setRoot, opProofs] = merkleProof.build(
       signers,
       MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,

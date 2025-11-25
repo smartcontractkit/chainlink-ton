@@ -38,7 +38,7 @@ func _() {
 
 const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatchErrorOutOfBoundsGroupErrorGroupTreeNotWellFormedErrorOutOfBoundsGroupQuorumErrorSignerInDisabledGroupErrorSignersAdderssesMustBeStrictlyIncreasingErrorInvalidSignerErrorInsufficientSignersErrorWrongChainIDErrorWrongMultiSigErrorWrongPostOpCountErrorPendingOpsErrorWrongPreOpCountErrorProofCannotBeVerifiedErrorRootExpiredErrorWrongNonceErrorPostOpCountReachedErrorCallRevertedErrorValidUntilHasAlreadyPassedErrorMissingConfigErrorSignedHashAlreadySeenErrorRootNotFinalizedErrorInsufficientValueErrorUnauthorizedOracleErrorRootNotExpired"
 
-var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 198, 216, 240, 257, 275, 296, 311, 331, 357, 373, 388, 411, 428, 459, 477, 503, 524, 546, 569, 588}
+var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 203, 221, 245, 262, 280, 301, 316, 336, 362, 378, 393, 416, 433, 464, 482, 508, 529, 551, 574, 593}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 39000

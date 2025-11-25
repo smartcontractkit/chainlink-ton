@@ -4,9 +4,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
-import * as secp from '@noble/secp256k1'
 
-import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
+import { asSnakeData } from '../../src/utils'
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
@@ -88,7 +87,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     // Generate signer key pairs
-    signerKeyPairs = await _signerKeyPairs()
+    signerKeyPairs = _signerKeyPairs()
 
     // Set up MCMS contracts
     {
@@ -453,18 +452,16 @@ describe('MCMS - IntegrationTest', () => {
     expect(await ownable.getOwner()).toEqual(bind.timelock.address)
   }
 
-  const _signerKeyPairs = async (): Promise<SigningKey[]> => {
-    const res = await Promise.all(
-      Array.from(
-        { length: PROPOSE_COUNT + VETO_COUNT },
-        async (_, i) => await new SigningKey(randomBytes(32)),
-      ),
+  const _signerKeyPairs = (): SigningKey[] => {
+    const res = Array.from(
+      { length: PROPOSE_COUNT + VETO_COUNT },
+      (_, i) => new SigningKey(randomBytes(32)),
     )
 
     // Sort result by public key (strictly increasing)
     res.sort((a, b) => {
-      const aAddr = computeAddress(a)
-      const bAddr = computeAddress(b)
+      const aAddr = BigInt(computeAddress(a))
+      const bAddr = BigInt(computeAddress(b))
       return aAddr < bAddr ? -1 : aAddr > bAddr ? 1 : 0
     })
 
@@ -512,20 +509,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => {
-          const sigR = secp.sign(data, v.secretKey, { format: 'recovered' })
-          const sig = secp.Signature.fromBytes(sigR, 'recovered')
-          const { r, s, recovery } = sig
-          // TODO: map recovery to v value expected by TON (0 or 1)
-          // or EVM (27, 28, or EIP-155 style) then re-map on TON side before verification
-
-          // Now r, s, v are available for use.
-          // Return the original signature bytes to keep compatibility with callers.
-          return signature
-        },
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -642,10 +626,7 @@ describe('MCMS - IntegrationTest', () => {
     // again, increment twice through regular flow
     //
     {
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -774,10 +755,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = signerKeyPairs.map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
-      }))
+      const signers = signerKeyPairs
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -893,10 +871,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -979,10 +954,7 @@ describe('MCMS - IntegrationTest', () => {
       blockchain.now = blockchain.now! + Number(MIN_DELAY) / 4
 
       {
-        const signers = vetoKeyPairs().map((v) => ({
-          publicKey: v.publicKey,
-          sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
-        }))
+        const signers = vetoKeyPairs()
         const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
         const metadata = {
           chainId,
@@ -1110,10 +1082,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
