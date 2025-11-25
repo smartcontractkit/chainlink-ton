@@ -3,7 +3,7 @@ import { keccak256 } from '@ethersproject/keccak256'
 
 import { asSnakeData, uint8ArrayToBigInt } from '../utils'
 
-import { ocr } from '../../wrappers/libraries/ocr'
+// import { ocr } from '../../wrappers/libraries/ocr'
 import { mcms } from '../../wrappers/mcms'
 
 export const ROOT_METADATA_LEAF_INDEX = 0

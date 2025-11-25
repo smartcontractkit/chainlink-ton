@@ -900,7 +900,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.SignersKeysMustBeStrictlyIncreasing,
+        exitCode: mcms.Error.SignersAdderssesMustBeStrictlyIncreasing,
       })
     })
 

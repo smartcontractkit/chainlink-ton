@@ -96,7 +96,7 @@ struct (0x9b9ce96a) MCMS_Execute {
 /// Sets a new data.config. If clearRoot is true, then it also invalidates
 /// data.rootInfo.expiringRootAndOpCount.root.
 ///
-/// @param signerKeys holds the public keys of the active signers. The keys must be in
+/// @param signerAddresses holds the EVM addresses of the active signers. The addresses must be in
 /// ascending order.
 /// @param signerGroups maps each signer to its group
 /// @param groupQuorums holds the required number of valid signatures in each group.
@@ -114,7 +114,7 @@ struct (0x89277f4b) MCMS_SetConfig {
     /// Query ID of the change request.
     queryId: uint64;
 
-    signerKeys: SnakedCell<uint256>; // public keys
+    signerAddresses: SnakedCell<uint256>; // EVM addresses
     signerGroups: SnakedCell<uint8>;
     groupQuorums: map<uint8, uint8>; // indexed, iterable backwards
     groupParents: map<uint8, uint8>; // indexed, iterable backwards
@@ -328,9 +328,9 @@ struct MCMS_Data {
     /// Address of the error oracle account, which can submit error reports.
     oracle: address;
 
-    /// signers is used to easily validate the existence of the signer by its public key. We still
+    /// signers is used to easily validate the existence of the signer by its EVM address. We still
     /// have signers stored in config in order to easily deactivate them when a new config is set.
-    signers: map<uint256, Signer>; // exists if the public key is a signer
+    signers: map<uint256, Signer>; // exists if an EVM address is a signer
 
     /// The current configuration of the contract
     config: Cell<Config>; // @dev split out as cell to avoid size limits
@@ -389,7 +389,7 @@ enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
     OutOfBoundsNumSigners = 39000 // MCMS<T>.errorCode(0)
 
-    /// Thrown when signerKeys and signerGroups have different lengths.
+    /// Thrown when signerAddresses and signerGroups have different lengths.
     SignerGroupsLengthMismatch
 
     /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -404,9 +404,9 @@ enum MCMS_Error {
     /// Thrown when a disabled group contains a signer.
     SignerInDisabledGroup
 
-    /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
+    /// Thrown when the signers' EVM addresses are not a strictly increasing monotone sequence.
     /// Prevents signers from including more than one signature.
-    SignersKeysMustBeStrictlyIncreasing
+    SignersAdderssesMustBeStrictlyIncreasing
 
     /// Thrown when the signature corresponds to invalid signer.
     InvalidSigner
@@ -478,8 +478,8 @@ enum MCMS_Error {
 
 // Signer information
 struct Signer {
-    /// The public key of the signer.
-    key: uint256;
+    /// The EVM address of the signer.
+    address: uint256;
     /// The index of the signer in data.config.signers
     index: uint8;
     /// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -618,15 +618,11 @@ struct RootMetadata {
     overridePreviousRoot: bool;
 }
 
-/// @dev An ECDSA secp256k1 signature.
+/// An ECDSA secp256k1 signature.
 struct Signature {
-    // TODO: add `v: uint8;` field
-    // @dev no `v: uint8;` field, as public key recovery is not supported.
+    v: uint8;
     r: uint256;
     s: uint256;
-
-    // Instead of v attach the signer (public key hash)
-    signer: uint256;
 }
 
 /// An op to be executed by the ManyChainMultiSig contract
@@ -730,39 +726,32 @@ fun MCMS<T>.setRoot(
     {
         var i = 0;
         var signer: Signer;
-        var prevSigner: uint256 = 0; // start with zero key
+        var prevSigner: uint256 = 0; // start with zero address
         var ss = signatures.iter();
         var groupVoteCounts: map<uint8, uint8> = createEmptyMap(); // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
-            // TODO: map Ethereum ECDSA sig.v to TON sig.v
-            // function normalizeV(v) {
-            //   if (v === 0 || v === 1) return v;
-            //   if (v === 27 || v === 28) return v - 27;
-            //   return (v - 35) & 1; // handles EIP-155
-            // }
-            val parity = 0; // TODO: fix when v is added; parity = v;
-            val valid = isSignatureValid_secp256k1(signedHash, s.toCell().beginParse(), s.signer, parity);
-            if (!valid) {
+            val signerAddress = evm_ecrecoverFrom(signedHash, s.toCell().beginParse());
+            if (signerAddress == 0) {
                 throw MCMS_Error.InvalidSigner;
             }
 
             // the off-chain system is required to sort the signatures by the
-            // signer key in an increasing order
-            if (prevSigner >= s.signer) {
-                throw MCMS_Error.SignersKeysMustBeStrictlyIncreasing;
+            // signer address in an increasing order
+            if (prevSigner >= signerAddress) {
+                throw MCMS_Error.SignersAdderssesMustBeStrictlyIncreasing;
             }
-            prevSigner = s.signer;
+            prevSigner = signerAddress;
 
             {
-                val _signer = self.data.signers.get(s.signer);
+                val _signer = self.data.signers.get(signerAddress);
                 if (!_signer.isFound) {
                     throw MCMS_Error.InvalidSigner;
                 }
                 signer = _signer.loadValue();
             }
 
-            if (signer.key != s.signer) {
+            if (signer.address != signerAddress) {
                 throw MCMS_Error.InvalidSigner;
             }
 
@@ -1015,7 +1004,7 @@ fun MCMS<T>.execute(
 /// setConfig sets a new data.config. If clearRoot is true, then it also invalidates
 /// data.rootInfo.expiringRootAndOpCount.root.
 ///
-/// @param signerKeys holds the public keys of the active signers. The keys must be in
+/// @param signerAddresses holds the EVM addresses of the active signers. The addresses must be in
 /// ascending order.
 /// @param signerGroups maps each signer to its group
 /// @param groupQuorums holds the required number of valid signatures in each group.
@@ -1033,7 +1022,7 @@ fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
     queryId: uint64,
-    signerKeys: SnakedCell<uint256>, // public keys
+    signerAddresses: SnakedCell<uint256>, // EVM addresses
     signerGroups: SnakedCell<uint8>,
     groupQuorums: map<uint8, uint8>, // indexed, iterable backwards
     groupParents: map<uint8, uint8>, // indexed, iterable backwards
@@ -1042,8 +1031,8 @@ fun MCMS<T>.setConfig(
     self.data.ownable.requireOwner(sender);
 
     // Validate input lengths
-    var signerKeyIterator = signerKeys.iter();
-    val numSigners = signerKeyIterator.size(32); // notice size in bytes
+    var signerAddrsIterator = signerAddresses.iter();
+    val numSigners = signerAddrsIterator.size(32); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
         throw MCMS_Error.OutOfBoundsNumSigners;
     }
@@ -1144,7 +1133,7 @@ fun MCMS<T>.setConfig(
         val s = oldSigner.loadValue();
         // Remove any old signer addresses
         config.signers.delete(oldSigner.getKey());
-        self.data.signers.delete(s.key);
+        self.data.signers.delete(s.address);
         oldSigner = config.signers.findFirst();
     }
     config.signers = createEmptyMap(); // reset signers
@@ -1158,18 +1147,18 @@ fun MCMS<T>.setConfig(
     var prevSigner: uint256 = 0; // start with a zero key
     // Reset the signers group iterator
     signerGroupIterator = signerGroups.iter();
-    while (!signerKeyIterator.empty()) {
-        var key = signerKeyIterator.next();
-        if (prevSigner >= key) {
-            throw MCMS_Error.SignersKeysMustBeStrictlyIncreasing;
+    while (!signerAddrsIterator.empty()) {
+        var address = signerAddrsIterator.next();
+        if (prevSigner >= address) {
+            throw MCMS_Error.SignersAdderssesMustBeStrictlyIncreasing;
         }
 
         val group = signerGroupIterator.next();
-        var signer = Signer{key, index: i as uint8, group: group};
-        self.data.signers.set(key, signer);
+        var signer = Signer{address, index: i as uint8, group: group};
+        self.data.signers.set(address, signer);
         config.signers.set(i, signer);
 
-        prevSigner = key;
+        prevSigner = address;
 
         // Increment i for the next signer
         i += 1;
@@ -1446,7 +1435,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.execute(msgSender, msg.queryId, Op.fromCell(msg.op), msg.proof);
         }
         MCMS_SetConfig => {
-            self.setConfig(msgSender, msg.queryId, msg.signerKeys, msg.signerGroups,
+            self.setConfig(msgSender, msg.queryId, msg.signerAddresses, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
         MCMS_UpdateOpFinalizationTimeout => {

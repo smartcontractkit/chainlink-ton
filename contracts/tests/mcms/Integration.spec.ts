@@ -2,10 +2,10 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
-import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
+import * as secp from '@noble/secp256k1'
 
-import { generateEd25519KeyPair, asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
+import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
@@ -15,6 +15,11 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
 import { merkleProof } from '../../src/mcms'
+
+type KeyPair = {
+  secretKey: secp.Bytes
+  publicKey: secp.Bytes
+}
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
@@ -454,10 +459,7 @@ describe('MCMS - IntegrationTest', () => {
 
   const _signerKeyPairs = async (): Promise<KeyPair[]> => {
     const res = await Promise.all(
-      Array.from(
-        { length: PROPOSE_COUNT + VETO_COUNT },
-        async (_, i) => await generateEd25519KeyPair(),
-      ),
+      Array.from({ length: PROPOSE_COUNT + VETO_COUNT }, async (_, i) => await secp.keygen()),
     )
 
     // Sort result by public key (strictly increasing)
@@ -513,7 +515,17 @@ describe('MCMS - IntegrationTest', () => {
 
       const signers = proposerKeyPairs().map((v) => ({
         publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        sign: (data: Buffer<ArrayBufferLike>) => {
+          const sigR = secp.sign(data, v.secretKey, { format: 'recovered' })
+          const sig = secp.Signature.fromBytes(sigR, 'recovered')
+          const { r, s, recovery } = sig
+          // TODO: map recovery to v value expected by TON (0 or 1)
+          // or EVM (27, 28, or EIP-155 style) then re-map on TON side before verification
+
+          // Now r, s, v are available for use.
+          // Return the original signature bytes to keep compatibility with callers.
+          return signature
+        },
       }))
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
@@ -633,7 +645,7 @@ describe('MCMS - IntegrationTest', () => {
     {
       const signers = proposerKeyPairs().map((v) => ({
         publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
       }))
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
@@ -765,7 +777,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const signers = signerKeyPairs.map((v) => ({
         publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
       }))
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
@@ -884,7 +896,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const signers = proposerKeyPairs().map((v) => ({
         publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
       }))
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
@@ -970,7 +982,7 @@ describe('MCMS - IntegrationTest', () => {
       {
         const signers = vetoKeyPairs().map((v) => ({
           publicKey: v.publicKey,
-          sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+          sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
         }))
         const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
         const metadata = {
@@ -1101,7 +1113,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const signers = proposerKeyPairs().map((v) => ({
         publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        sign: (data: Buffer<ArrayBufferLike>) => secp.sign(data, v.secretKey),
       }))
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {

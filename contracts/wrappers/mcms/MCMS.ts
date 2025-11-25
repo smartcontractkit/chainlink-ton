@@ -188,7 +188,7 @@ export enum Error {
 
   /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
   /// Prevents signers from including more than one signature.
-  SignersKeysMustBeStrictlyIncreasing,
+  SignersAdderssesMustBeStrictlyIncreasing,
 
   /// Thrown when the signature corresponds to invalid signer.
   InvalidSigner,
@@ -261,8 +261,8 @@ export const LEN_SIGNER_BYTES = (256 + 8 + 8) / 8
 
 // Signer information
 export type Signer = {
-  // The public key of the signer.
-  key: bigint // uint256;
+  /// The EVM address of the signer.
+  address: bigint // uint256;
   // The index of the signer in data.config.signers
   index: number // 0 <= index < MAX_NUM_SIGNERS
   // 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -404,13 +404,9 @@ export type RootMetadata = {
 
 /// @dev An ECDSA secp256k1 signature.
 export type Signature = {
-  // Notice: no `v: uint8;` field, as public key recovery is not supported.
-
+  v: number // uint8
   r: bigint // uint256
   s: bigint // uint256
-
-  // Instead of v attach the signer (public key hash)
-  signer: bigint // uint256
 }
 
 /// An op to be executed by the ManyChainMultiSig contract
@@ -749,13 +745,13 @@ export const builder = {
     const signer: CellCodec<Signer> = {
       encode: (signer: Signer): Builder => {
         return beginCell()
-          .storeUint(signer.key, 256)
+          .storeUint(signer.address, 256)
           .storeUint(signer.index, 8)
           .storeUint(signer.group, 8)
       },
       load: (src: Slice): Signer => {
         return {
-          key: src.loadUintBig(256),
+          address: src.loadUintBig(256),
           index: src.loadUint(8),
           group: src.loadUint(8),
         }
@@ -786,13 +782,13 @@ export const builder = {
     }
     const signature: CellCodec<Signature> = {
       encode: (data: Signature): Builder => {
-        return beginCell().storeUint(data.r, 256).storeUint(data.s, 256).storeUint(data.signer, 256)
+        return beginCell().storeUint(data.v, 8).storeUint(data.r, 256).storeUint(data.s, 256)
       },
       load: (src: Slice): Signature => {
         return {
+          v: src.loadUint(8),
           r: src.loadUintBig(256),
           s: src.loadUintBig(256),
-          signer: src.loadUintBig(256),
         }
       },
     }

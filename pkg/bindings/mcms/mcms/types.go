@@ -274,8 +274,8 @@ const LenSignerBytes = (256 + 8 + 8) / 8
 
 // Signer information
 type Signer struct {
-	// The public key of the signer.
-	Key *big.Int `tlb:"## 256"`
+	// The EVM address of the signer.
+	Address *big.Int `tlb:"## 256"`
 	// The index of the signer in data.config.signers
 	Index uint8 `tlb:"## 8"` // 0 <= index < MAX_NUM_SIGNERS
 	// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -418,13 +418,9 @@ type RootMetadata struct {
 
 // An ECDSA secp256k1 signature.
 type Signature struct {
-	// Notice: no `v: uint8;` field, as public key recovery is not supported.
-
+	V uint8    `tlb:"## 8"`
 	R *big.Int `tlb:"## 256"`
 	S *big.Int `tlb:"## 256"`
-
-	// Instead of v attach the signer (public key hash)
-	Signer *big.Int `tlb:"## 256"`
 }
 
 // An op to be executed by the ManyChainMultiSig contract
@@ -528,7 +524,7 @@ const (
 
 	// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
 	// Prevents signers from including more than one signature.
-	ErrorSignersKeysMustBeStrictlyIncreasing
+	ErrorSignersAdderssesMustBeStrictlyIncreasing
 
 	// Thrown when the signature corresponds to invalid signer.
 	ErrorInvalidSigner
