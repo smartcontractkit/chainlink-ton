@@ -97,6 +97,7 @@ func deployTimelock(b operations.Bundle, deps operation.TonDeps, in DeployTimelo
 	}
 
 	contract, _, err := wrappers.Deploy(
+		b.GetContext(),
 		&conn,
 		codeCell,
 		initData,

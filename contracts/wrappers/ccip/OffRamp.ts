@@ -58,6 +58,8 @@ export enum OffRampError {
   Unauthorized,
   ZeroAddressNotAllowed,
   TooManyMessagesInReport,
+  SignatureVerificationRequiredInCommitPlugin,
+  SignatureVerificationNotAllowedInExecutionPlugin,
 }
 
 export enum ReceiveExecutorError {
