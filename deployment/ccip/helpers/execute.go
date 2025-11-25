@@ -15,11 +15,11 @@ import (
 )
 
 // TODO Remove in favor of ExecuteTransactions.
-func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *wallet.Wallet, txs [][]byte) error {
+func ExecuteProposals(env cldf.Environment, client ton.APIClientWrapped, sender *wallet.Wallet, txs [][]byte) error {
 	return ExecuteTransactions(env.GetContext(), env.Logger, client, sender, txs)
 }
 
-func ExecuteTransactions(context context.Context, logger logger.Logger, client *ton.APIClient, sender *wallet.Wallet, txs [][]byte) error {
+func ExecuteTransactions(context context.Context, logger logger.Logger, client ton.APIClientWrapped, sender *wallet.Wallet, txs [][]byte) error {
 	internalMsgs, err := Deserialize(txs)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize lane updates: %w", err)

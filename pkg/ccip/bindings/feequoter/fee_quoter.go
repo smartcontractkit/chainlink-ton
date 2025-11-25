@@ -38,7 +38,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorUnsupportedChainFamilySelector)
-		ecMax = int32(ErrorUnauthorizedPriceUpdater)
+		ecMax = int32(ErrorMessageFeeTooHigh)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -61,6 +61,7 @@ const (
 	ErrorUnknownDestChainSelector
 	ErrorInsufficientFee
 	ErrorTokenTransfersNotSupported
+	ErrorUnauthorizedPriceUpdater
 	// Overflow protection errors
 	ErrorExecutionCostOverflow
 	ErrorPremiumFeeOverflow
@@ -68,7 +69,7 @@ const (
 	ErrorFeeCalculationOverflow
 	ErrorTokenPriceTooLow
 	ErrorFeeOverflow
-	ErrorUnauthorizedPriceUpdater
+	ErrorMessageFeeTooHigh
 )
 
 type Storage struct {
@@ -276,11 +277,31 @@ type FeeToken struct {
 
 // Methods
 
-// Generic wrapper for fee quoter messages with metadata
+// Generic wrapper for fee quoter messages with context
 type GetValidatedFee struct {
-	_        tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
-	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
+	_       tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
+	Msg     *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
+	Context *cell.Cell `tlb:"maybe ^"`   // Cell containing context
+}
+
+// --- Response from GetValidatedFee ---
+type MessageValidated struct {
+	_       tlb.Magic  `tlb:"#1fa60374"` //nolint:revive // Ignore opcode tag
+	Fee     Fee        `tlb:"."`
+	Msg     *cell.Cell `tlb:"^"`       // Original message
+	Context *cell.Cell `tlb:"maybe ^"` // Original context
+}
+
+type Fee struct {
+	FeeTokenAmount *tlb.Coins `tlb:"."`     // fee value in fee token
+	FeeValueJuels  *big.Int   `tlb:"## 96"` // fee value in juels
+}
+
+type MessageValidationFailed struct {
+	_         tlb.Magic  `tlb:"#bcf0ab0f"` //nolint:revive // Ignore opcode tag
+	ErrorCode *big.Int   `tlb:"## 256"`
+	Msg       *cell.Cell `tlb:"^"`       // Original message,
+	Context   *cell.Cell `tlb:"maybe ^"` // Original context
 }
 
 type AddPriceUpdater struct {

@@ -1001,8 +1001,12 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const cleanExpiredRootsBody = mcms.builder.message.in.cleanExpiredRoots
         .encode({
           queryId: 1n,
-          roots: [setRoot.root],
-          validUntils: [MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100],
+          roots: [
+            {
+              root: setRoot.root,
+              validUntil: MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100,
+            },
+          ],
         })
         .asCell()
 

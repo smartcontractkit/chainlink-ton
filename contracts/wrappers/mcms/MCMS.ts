@@ -114,10 +114,8 @@ export type CleanExpiredRoots = {
   /// Query ID of the change request.
   queryId: bigint
 
-  /// The roots to clean up
-  roots: bigint[] // vec<uint256>,
-  /// The validUntil times for respective roots
-  validUntils: number[] // vec<uint32>,
+  /// The roots to clean up - RootDescriptor{root, validUntil}
+  roots: RootDescriptor[]
 }
 
 // @dev Union of all (input) messages.
@@ -435,6 +433,14 @@ export type Op = {
   data: Cell
 }
 
+// Data container used to derive the root ID (hash)
+export type RootDescriptor = {
+  // The merkle tree root
+  root: bigint
+  // The time until which root is valid
+  validUntil: number
+}
+
 export const opcodes = {
   in: {
     SetRoot: crc32('MCMS_SetRoot'),
@@ -619,15 +625,20 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.CleanExpiredRoots, 32)
             .storeUint(msg.queryId, 64)
-            .storeRef(asSnakeData<bigint>(msg.roots, (v) => beginCell().storeUint(v, 256)))
-            .storeRef(asSnakeData<number>(msg.validUntils, (v) => beginCell().storeUint(v, 32)))
+            .storeRef(
+              asSnakeData<RootDescriptor>(msg.roots, (v) =>
+                beginCell().storeUint(v.root, 256).storeUint(v.validUntil, 32),
+              ),
+            )
         },
         load: (src: Slice): CleanExpiredRoots => {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            roots: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
-            validUntils: fromSnakeData(src.loadRef(), (a) => a.loadUint(32)),
+            roots: fromSnakeData(src.loadRef(), (a) => ({
+              root: a.loadUintBig(256),
+              validUntil: a.loadUint(32),
+            })),
           }
         },
       },

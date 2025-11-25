@@ -229,6 +229,10 @@ get fun validatedFeeCell(msg: Cell<Router_CCIPSend>): coins {
 }
 
 get fun validatedFee(msg: Router_CCIPSend): coins {
+    return calculateValidatedFee(msg).feeTokenAmount;
+}
+
+fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     var st = lazy Storage.load();
 
     val destChainConfigResult = st.destChainConfigs.get(msg.destChainSelector);
@@ -237,8 +241,9 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
     assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken!, FeeQuoter_Error.FeeTokenNotSupported as int);
-    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val feeToken = msg.feeToken!;
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
@@ -288,11 +293,35 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
     val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow as int);
     val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow as int), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow as int);
 
-    // Check for division by zero (extremely small token prices)
+    // Check for division by zero (zero token prices)
     assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
     val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
-    return mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int);
+    // Equivalent to processMessageArgs in Solidity FeeQuoter
+    val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
+
+    return Fee {
+        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
+        feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
+    };
+}
+
+fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
+    var feeValueJuels = feeTokenAmount;
+    if (feeToken != st.linkToken) {
+        val linkTokenPriceResult = st.usdPerToken.get(st.linkToken);
+        if (!linkTokenPriceResult.isFound) {
+            return 0;
+        }
+        val linkTokenPrice = linkTokenPriceResult.loadValue();
+        // Check for division by zero (zero token prices)
+        assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
+        // convert from USD to juels
+        feeValueJuels = feeTokenValue / linkTokenPrice.value;
+    }
+
+    assert (feeValueJuels <= st.maxFeeJuelsPerMsg) throw FeeQuoter_Error.MessageFeeTooHigh;
+    return feeValueJuels;
 }
 
 fun _dataAvailabilityCost(
@@ -469,15 +498,18 @@ fun handleGetValidatedFee(payload: FeeQuoter_GetValidatedFee<RemainingBitsAndRef
     val msg = payload.msg.load();
     var response: OutMessage;
     try {
-        val feeTokenAmount = validatedFee(msg);
+        val fee = calculateValidatedFee(msg);
 
         response = createMessage({
             bounce: true,
             value: 0,
             dest: sender,
             body: FeeQuoter_MessageValidated<RemainingBitsAndRefs> {
+                fee: {
+                    feeTokenAmount: fee.feeTokenAmount,
+                    feeValueJuels: fee.feeValueJuels,
+                },
                 msg: payload.msg,
-                fee: feeTokenAmount,
                 context: payload.context,
             }
         });

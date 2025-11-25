@@ -81,10 +81,10 @@ struct (0x4982fcfd) Timelock_Init {
     admin: address;
 
     /// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-    proposers: cell;  // vec<address>
-    executors: cell;  // vec<address>
-    cancellers: cell; // vec<address>
-    bypassers: cell;  // vec<address>
+    proposers: SnakedCell<address>;
+    executors: SnakedCell<address>;
+    cancellers: SnakedCell<address>;
+    bypassers: SnakedCell<address>;
 
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     executorRoleCheckEnabled: bool;
@@ -106,7 +106,7 @@ struct (0x094718f4) Timelock_ScheduleBatch {
     queryId: uint64;
 
     // Array of calls to be scheduled
-    calls: cell; // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>;
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -142,7 +142,7 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
     queryId: uint64;
 
     /// Array of calls to be scheduled
-    calls: cell; // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>;
     /// Predecessor operation ID
     predecessor: uint256;
     /// Salt used to derive the operation ID
@@ -227,7 +227,7 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
     queryId: uint64;
 
     /// Array of calls to be scheduled
-    calls: cell; // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>;
 }
 
 /// Updates the executor role check (enabled/disabled) which guards the execution of operations.
@@ -502,7 +502,7 @@ struct Timelock_Call {
 /// Batch of transactions represented as a operation, which can be scheduled and executed.
 struct Timelock_OperationBatch {
     /// Array of calls to be scheduled
-    calls: cell; // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>;
     /// Predecessor operation ID
     predecessor: uint256;
     /// Salt used to derive the operation ID
@@ -684,10 +684,10 @@ fun Timelock<T>.init(
     queryId: uint64,
     minDelay: uint32,
     admin: address,
-    proposers: cell,  // vec<address>
-    executors: cell,  // vec<address>
-    cancellers: cell, // vec<address>
-    bypassers: cell,  // vec<address>
+    proposers: SnakedCell<address>,
+    executors: SnakedCell<address>,
+    cancellers: SnakedCell<address>,
+    bypassers: SnakedCell<address>,
     executorRoleCheckEnabled: bool = true,
     opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT,
 ): void {
@@ -707,22 +707,22 @@ fun Timelock<T>.init(
     rbac._grantRole(queryId, sender, ADMIN_ROLE, admin);
 
     // Grant roles to proposers, executors, cancellers and bypassers
-    var pp = Iterator<address>.new(proposers);
+    var pp = proposers.iter();
     while (!pp.empty()) {
         rbac._grantRole(queryId, sender, PROPOSER_ROLE, pp.next());
     }
 
-    var ee = Iterator<address>.new(executors);
+    var ee = executors.iter();
     while (!ee.empty()) {
         rbac._grantRole(queryId, sender, EXECUTOR_ROLE, ee.next());
     }
 
-    var cc = Iterator<address>.new(cancellers);
+    var cc = cancellers.iter();
     while (!cc.empty()) {
         rbac._grantRole(queryId, sender, CANCELLER_ROLE, cc.next());
     }
 
-    var bb = Iterator<address>.new(bypassers);
+    var bb = bypassers.iter();
     while (!bb.empty()) {
         rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next());
     }
@@ -761,7 +761,7 @@ fun Timelock<T>.scheduleBatch(
     mutate self,
     sender: address,
     queryId: uint64,
-    calls: cell, // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>,
     predecessor: uint256,
     salt: uint256,
     delay: uint32
@@ -773,7 +773,7 @@ fun Timelock<T>.scheduleBatch(
     self.schedule(id, delay);
 
     var index = 0;
-    var cc = Iterator<Timelock_Call>.new(calls);
+    var cc = calls.iter();
     while (!cc.empty()) {
         val call = cc.next();
         self.checkFunctionSelectorNotBlocked(call.data.beginParse());
@@ -859,7 +859,7 @@ fun Timelock<T>.executeBatch(
     mutate self,
     sender: address,
     queryId: uint64,
-    calls: cell, // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>,
     predecessor: uint256,
     salt: uint256
 ): void {
@@ -872,7 +872,7 @@ fun Timelock<T>.executeBatch(
     self.beforeCall(id, predecessor);
 
     var index = 0;
-    var cc = Iterator<Timelock_Call>.new(calls);
+    var cc = calls.iter();
     while (!cc.empty()) {
         val call = cc.next();
 
@@ -1061,7 +1061,7 @@ fun Timelock<T>.bypasserExecuteBatch(
     mutate self,
     sender: address,
     queryId: uint64,
-    calls: cell, // vec<Timelock_Call>
+    calls: SnakedCell<Timelock_Call>,
 ): void {
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
@@ -1074,7 +1074,7 @@ fun Timelock<T>.bypasserExecuteBatch(
     };
 
     var index = 0;
-    var cc = Iterator<Timelock_Call>.new(calls);
+    var cc = calls.iter();
     while (!cc.empty()) {
         val call = cc.next();
         self.execute(call);
@@ -1238,11 +1238,9 @@ fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
 /// Checks to see if the function being scheduled is blocked.
 @inline
 fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
-    if (data.isEndOfBits() || data.remainingBitsCount() < 32) { // ignore all empty messages
-        return;
+    if (data.isEndOfBits() || data.remainingBitsCount() < 32) {
+        return; // Note: doesn NOT support blocking msg bodies (data) < 32 bit (e.g., empty msg)
     }
-
-    // TODO: support blocking msg bodies (data) < 32 bits
 
     // Load the function selector from the message body
     val selector = data.loadMessageOp(); // 32-bit integer
@@ -1339,6 +1337,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Load the contract storage as Timelock and handle the message
     var timelock = Timelock<bool>.load();
 
+    // TODO: emit an event with the bounce info (for observability)?
+
     if (timelock.data.opPendingInfo.opPendingId == 0) {
         return; // noop
     }
@@ -1346,6 +1346,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
     val id = timelock.data.opPendingInfo.opPendingId;
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
+    timelock.data.opPendingInfo.validAfter = blockchain.now(); // Mark the operation as final
 
      // Store the updated contract data
     timelock.data.storeAsContractData();
