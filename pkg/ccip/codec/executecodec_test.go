@@ -107,4 +107,39 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, encoded)
 	})
+
+	t.Run("proof validation", func(t *testing.T) {
+		report := randomTONExecuteReport(t, 5009297550715157269)
+
+		// Test with invalid proof (too short - will trigger validation error)
+		shortProof := ccipocr3.Bytes32{} // all zeros
+		shortProof[31] = 1               // Only last byte set
+		report.ChainReports[0].Proofs = []ccipocr3.Bytes32{shortProof}
+
+		encoded, err := codec.Encode(ctx, report)
+		require.NoError(t, err)
+
+		// When decoded, big.Int.Bytes() strips leading zeros,
+		// so we get only 1 byte instead of 32
+		_, err = codec.Decode(ctx, encoded)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid proof length")
+		assert.Contains(t, err.Error(), "expect 32")
+
+		// Test with valid proof (all bytes used)
+		validProof := ccipocr3.Bytes32{}
+		validProof[0] = 1 // First byte set ensures 32 bytes from Bytes()
+		for i := 1; i < 32; i++ {
+			validProof[i] = byte(i)
+		}
+		report.ChainReports[0].Proofs = []ccipocr3.Bytes32{validProof}
+
+		encoded, err = codec.Encode(ctx, report)
+		require.NoError(t, err)
+
+		decoded, err := codec.Decode(ctx, encoded)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(decoded.ChainReports[0].Proofs))
+		assert.Equal(t, validProof, decoded.ChainReports[0].Proofs[0])
+	})
 }
