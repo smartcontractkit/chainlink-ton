@@ -230,32 +230,30 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 
 	// Invoke deploy Timelock changeset operation
-	deployTimelockInput := mcmsOps.DeployTimelockInput{
-		ContractPath: tonCompiledContracts[state.Timelock].ContractPath,
-		ID:           in.CCIPConfig.TimelockParams.ID,
-		Coins:        tonCompiledContracts[state.Timelock].SuggestedTONCoinsForDeployment,
-		MinDelay:     in.CCIPConfig.TimelockParams.MinDelay,
-		Admin:        in.CCIPConfig.TimelockParams.Admin,
-		Proposers:    in.CCIPConfig.TimelockParams.Proposers,
-		Executors:    in.CCIPConfig.TimelockParams.Executors,
-		Cancellers:   in.CCIPConfig.TimelockParams.Cancellers,
-		Bypassers:    in.CCIPConfig.TimelockParams.Bypassers,
-	}
-
 	a = deps.MCMSChainState[in.ChainSelector].Timelock
-	if a.IsAddrNone() {
+	if a.IsAddrNone() && (output.TimelockAddress == nil || output.TimelockAddress.TONAddress.IsAddrNone()) { // Deploy Timelock only if not deployed yet
+		deployTimelockInput := mcmsOps.DeployTimelockInput{
+			ContractPath: tonCompiledContracts[state.Timelock].ContractPath,
+			ID:           in.CCIPConfig.TimelockParams.ID,
+			Coins:        tonCompiledContracts[state.Timelock].SuggestedTONCoinsForDeployment,
+			MinDelay:     in.CCIPConfig.TimelockParams.MinDelay,
+			Admin:        in.CCIPConfig.TimelockParams.Admin,
+			Proposers:    in.CCIPConfig.TimelockParams.Proposers,
+			Executors:    in.CCIPConfig.TimelockParams.Executors,
+			Cancellers:   in.CCIPConfig.TimelockParams.Cancellers,
+			Bypassers:    in.CCIPConfig.TimelockParams.Bypassers,
+		}
 		var report operations.Report[mcmsOps.DeployTimelockInput, *address.Address]
 		report, err = operations.ExecuteOperation(b, mcmsOps.DeployTimelockOp, deps, deployTimelockInput)
 		if err != nil {
 			return output, err
-		} else if output.TimelockAddress == nil || output.TimelockAddress.TONAddress.IsAddrNone() {
-			output.TimelockAddress = newTONContractAddress(*report.Output, in.ChainSelector, state.Timelock, in.ContractsSemver, in.ContractsVersionSha)
 		}
+		output.TimelockAddress = newTONContractAddress(*report.Output, in.ChainSelector, state.Timelock, in.ContractsSemver, in.ContractsVersionSha)
 	}
 
 	// Invoke deploy MCMS changeset operation
 	a = deps.MCMSChainState[in.ChainSelector].MCMS
-	if a.IsAddrNone() {
+	if a.IsAddrNone() && (output.MCMSAddress == nil || output.MCMSAddress.TONAddress.IsAddrNone()) { // Deploy MCMS only if not deployed yet
 		var report operations.Report[mcmsOps.DeployMCMSInput, *address.Address]
 		deployMCMSInput := mcmsOps.DeployMCMSInput{
 			ContractPath: tonCompiledContracts[state.MCMS].ContractPath,
@@ -266,9 +264,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		report, err = operations.ExecuteOperation(b, mcmsOps.DeployMCMSOp, deps, deployMCMSInput)
 		if err != nil {
 			return output, err
-		} else if output.MCMSAddress == nil || output.MCMSAddress.TONAddress.IsAddrNone() {
-			output.MCMSAddress = newTONContractAddress(*report.Output, in.ChainSelector, state.MCMS, in.ContractsSemver, in.ContractsVersionSha)
 		}
+		output.MCMSAddress = newTONContractAddress(*report.Output, in.ChainSelector, state.MCMS, in.ContractsSemver, in.ContractsVersionSha)
 	}
 
 	return output, nil
