@@ -10,7 +10,6 @@ import (
 
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -39,9 +38,9 @@ type SetRoot struct {
 	Root       *big.Int `tlb:"## 256"` // The new expiring root.
 	ValidUntil uint32   `tlb:"## 32"`  // The time by which the root is valid.
 
-	Metadata      RootMetadata                           `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
-	MetadataProof common.SnakeData[Proof]                `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree. // vec<uint256>
-	Signatures    common.SnakeData[ocr.SignatureEd25519] `tlb:"^"` // The ECDSA signatures on (root, validUntil). // vec<Signature>
+	Metadata      RootMetadata                `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
+	MetadataProof common.SnakeData[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
+	Signatures    common.SnakeData[Signature] `tlb:"^"` // The ECDSA signatures on (root, validUntil).
 }
 
 // Execute the received op after verifying the proof of its inclusion in the
@@ -64,7 +63,7 @@ type Execute struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
-	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
 }
 
 // Sets a new data.config. If clearRoot is true, then it also invalidates
@@ -89,8 +88,8 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerKeys   common.SnakeData[SignerKey]   `tlb:"^"`      // vec<uint256>
-	SignerGroups common.SnakeData[SignerGroup] `tlb:"^"`      // vec<uint8>
+	SignerKeys   common.SnakeData[SignerKey]   `tlb:"^"`
+	SignerGroups common.SnakeData[SignerGroup] `tlb:"^"`
 	GroupQuorums *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
 	GroupParents *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
 	ClearRoot    bool                          `tlb:"bool"`
@@ -124,8 +123,8 @@ type SubmitErrorReport struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Op       Op                      `tlb:"^"`      // The operation which produced the error. // Cell<Op>
-	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	Op       Op                      `tlb:"^"`      // The operation which produced the error.
+	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree
 	OpTxHash *big.Int                `tlb:"## 256"` // The hash of the execute transaction.
 
 	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored (part of the tx trace).
@@ -415,6 +414,17 @@ type RootMetadata struct {
 	// Be careful setting this to true as it may break assumptions about what transactions from
 	// the previous root have already been executed.
 	OverridePreviousRoot bool `tlb:"bool"`
+}
+
+// An ECDSA secp256k1 signature.
+type Signature struct {
+	// Notice: no `v: uint8;` field, as public key recovery is not supported.
+
+	R *big.Int `tlb:"## 256"`
+	S *big.Int `tlb:"## 256"`
+
+	// Instead of v attach the signer (public key hash)
+	Signer *big.Int `tlb:"## 256"`
 }
 
 // An op to be executed by the ManyChainMultiSig contract

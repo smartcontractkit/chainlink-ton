@@ -402,7 +402,7 @@ export type RootMetadata = {
   overridePreviousRoot: boolean
 }
 
-/// @dev An ECDSA signature.
+/// @dev An ECDSA secp256k1 signature.
 export type Signature = {
   // Notice: no `v: uint8;` field, as public key recovery is not supported.
 

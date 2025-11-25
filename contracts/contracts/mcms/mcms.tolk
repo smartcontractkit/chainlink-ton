@@ -1,6 +1,7 @@
 tolk 1.1
 
 import "../lib/utils";
+import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
@@ -617,8 +618,9 @@ struct RootMetadata {
     overridePreviousRoot: bool;
 }
 
-/// @dev An ECDSA signature.
+/// @dev An ECDSA secp256k1 signature.
 struct Signature {
+    // TODO: add `v: uint8;` field
     // @dev no `v: uint8;` field, as public key recovery is not supported.
     r: uint256;
     s: uint256;
@@ -733,7 +735,14 @@ fun MCMS<T>.setRoot(
         var groupVoteCounts: map<uint8, uint8> = createEmptyMap(); // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
-            val valid = isSignatureValid(signedHash, s.toCell().beginParse(), s.signer);
+            // TODO: map Ethereum ECDSA sig.v to TON sig.v
+            // function normalizeV(v) {
+            //   if (v === 0 || v === 1) return v;
+            //   if (v === 27 || v === 28) return v - 27;
+            //   return (v - 35) & 1; // handles EIP-155
+            // }
+            val parity = 0; // TODO: fix when v is added; parity = v;
+            val valid = isSignatureValid_secp256k1(signedHash, s.toCell().beginParse(), s.signer, parity);
             if (!valid) {
                 throw MCMS_Error.InvalidSigner;
             }
