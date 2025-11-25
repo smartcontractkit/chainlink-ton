@@ -26,6 +26,11 @@ const (
 	OutgoingOpcodeCCIPSendNACK = 0x5a45d434
 )
 
+const (
+	DestChainsGetter = "destChainSelectors"
+	OnRampGetter     = "onRamp"
+)
+
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 

@@ -6,12 +6,12 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -20,24 +20,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 )
 
-const (
-	tokenPriceGetter               = "tokenPrice"
-	dynamicConfigGetter            = "dynamicConfig"
-	staticConfigGetter             = "staticConfig"
-	destChainConfigGetter          = "destChainConfig"
-	versionGetter                  = "typeAndVersion"
-	srcChainConfigGetter           = "sourceChainConfig"
-	configGetter                   = "config"
-	ocr3BaseGetter                 = "ocr3Config"
-	SourceChainsGetter             = "sourceChainSelectors"
-	DestChainsGetter               = "destChainSelectors"
-	OnRampGetter                   = "onRamp"
-	DestinationChainGasPriceGetter = "destinationChainGasPrice"
-)
-
 // FetchOnRampDestChainConfig retrieves destination chain configurations from the on-ramp contract.
 func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]onramp.DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, onRampAddr, DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, onRampAddr, onramp.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +54,7 @@ func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped
 
 // FetchFeeQuoterDestChainConfigs fetches all destination chain configurations from the fee quoter contract
 func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]feequoter.DestChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, feeQuoter, DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, feeQuoter, feequoter.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +86,7 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 
 // FetchOffRampSrcChainConfig retrieves source chain configurations from the off-ramp contract.
 func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]offramp.SourceChainConfig, error) {
-	result, err := client.RunGetMethod(ctx, block, offRampAddr, SourceChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, offRampAddr, offramp.SourceChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +117,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 
 // FetchRouterOnRampAddresses retrieves the on-ramp addresses for all destination chains from the router contract.
 func FetchRouterOnRampAddresses(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) (map[uint64]*address.Address, error) {
-	result, err := client.RunGetMethod(ctx, block, routerAddr, DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, routerAddr, router.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +130,7 @@ func FetchRouterOnRampAddresses(ctx context.Context, client ton.APIClientWrapped
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err := client.RunGetMethod(egCtx, block, routerAddr, OnRampGetter, dest) // New variables per goroutine
+			result, err := client.RunGetMethod(egCtx, block, routerAddr, router.OnRampGetter, dest) // New variables per goroutine
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}
@@ -170,26 +155,4 @@ func FetchRouterOnRampAddresses(ctx context.Context, client ton.APIClientWrapped
 	}
 
 	return onRampAddrMap, eg.Wait()
-}
-
-// init registers the configuration fetcher methods for on-ramp, off-ramp, and fee quoter contracts.
-func init() {
-	// Common types
-	registry.RegisterMethod(&ccipcommon.TypeAndVersion{}, versionGetter)
-
-	// OnRamp types
-	registry.RegisterMethod(&onramp.DestChainConfig{}, destChainConfigGetter)
-	registry.RegisterMethod(&onramp.DynamicConfig{}, dynamicConfigGetter)
-	registry.RegisterMethod(&onramp.StaticConfig{}, staticConfigGetter)
-
-	// OffRamp types
-	registry.RegisterMethod(&offramp.SourceChainConfig{}, srcChainConfigGetter)
-	registry.RegisterMethod(&offramp.Config{}, configGetter)
-	registry.RegisterMethod(&offramp.OCR3Base{}, ocr3BaseGetter)
-
-	// FeeQuoter types
-	registry.RegisterMethod(&feequoter.StaticConfig{}, staticConfigGetter)
-	registry.RegisterMethod(&feequoter.DestChainConfig{}, destChainConfigGetter)
-	registry.RegisterMethod(&feequoter.TimestampedPrice{}, tokenPriceGetter)
-	registry.RegisterMethod(&feequoter.USDPerUnitGas{}, DestinationChainGasPriceGetter)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -343,3 +344,17 @@ const (
 	ErrorUnauthorized
 	ErrorZeroAddressNotAllowed
 )
+
+// Registry method names for binding fetchers
+const (
+	SourceChainsGetter   = "sourceChainSelectors"
+	srcChainConfigGetter = "sourceChainConfig"
+	ocr3BaseGetter       = "ocr3Config"
+	configGetter         = "config"
+)
+
+func init() {
+	registry.RegisterMethod(&SourceChainConfig{}, srcChainConfigGetter)
+	registry.RegisterMethod(&Config{}, configGetter)
+	registry.RegisterMethod(&OCR3Base{}, ocr3BaseGetter)
+}

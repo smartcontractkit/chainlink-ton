@@ -3,6 +3,7 @@ package feequoter
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -63,6 +64,15 @@ const (
 	ErrorTokenPriceTooLow
 	ErrorFeeOverflow
 	ErrorMessageFeeTooHigh
+)
+
+// Registry method names
+const (
+	DestChainsGetter               = "destChainSelectors"
+	tokenPriceGetter               = "tokenPrice"
+	staticConfigGetter             = "staticConfig"
+	destChainConfigGetter          = "destChainConfig"
+	destinationChainGasPriceGetter = "destinationChainGasPrice"
 )
 
 type Storage struct {
@@ -358,4 +368,12 @@ func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 	}
 	return nil
+}
+
+// init registers the configuration fetcher methods for fee quoter contract.
+func init() {
+	registry.RegisterMethod(&StaticConfig{}, staticConfigGetter)
+	registry.RegisterMethod(&DestChainConfig{}, destChainConfigGetter)
+	registry.RegisterMethod(&TimestampedPrice{}, tokenPriceGetter)
+	registry.RegisterMethod(&USDPerUnitGas{}, destinationChainGasPriceGetter)
 }

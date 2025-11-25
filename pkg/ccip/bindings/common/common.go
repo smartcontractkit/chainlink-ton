@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -26,6 +27,10 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
+
+const (
+	versionGetter = "typeAndVersion"
+)
 
 const (
 	ErrorUnknownDestChainSelector ExitCode = iota + 256
@@ -464,4 +469,9 @@ func NewDummyCell() (*cell.Cell, error) {
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+// init registers the configuration fetcher methods for common types.
+func init() {
+	registry.RegisterMethod(&TypeAndVersion{}, versionGetter)
 }

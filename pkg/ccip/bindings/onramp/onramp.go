@@ -3,6 +3,7 @@ package onramp
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -28,6 +29,14 @@ const (
 // Topics
 const (
 	TopicCCIPMessageSent = 0xA45D293C // CRC32("CCIPMessageSent")
+)
+
+// Registry method names
+const (
+	DestChainsGetter      = "destChainSelectors"
+	destChainConfigGetter = "destChainConfig"
+	dynamicConfigGetter   = "dynamicConfig"
+	staticConfigGetter    = "staticConfig"
 )
 
 // CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
@@ -253,4 +262,11 @@ func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 		ChainSelector: chainSelector.Uint64(),
 	}
 	return nil
+}
+
+// init registers the configuration fetcher methods for the on-ramp contract.
+func init() {
+	registry.RegisterMethod(&DestChainConfig{}, destChainConfigGetter)
+	registry.RegisterMethod(&DynamicConfig{}, dynamicConfigGetter)
+	registry.RegisterMethod(&StaticConfig{}, staticConfigGetter)
 }
