@@ -69,7 +69,7 @@ type Execute struct {
 // Sets a new data.config. If clearRoot is true, then it also invalidates
 // data.expiringRootAndOpCount.root.
 //
-// @param signerKeys holds the public keys of the active signers. The keys must be in
+// @param signerAddresses holds the EVM addresses of the active signers. The addresses must be in
 // ascending order.
 // @param signerGroups maps each signer to its group
 // @param groupQuorums holds the required number of valid signatures in each group.
@@ -88,11 +88,11 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerKeys   common.SnakeData[SignerKey]   `tlb:"^"`
-	SignerGroups common.SnakeData[SignerGroup] `tlb:"^"`
-	GroupQuorums *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot    bool                          `tlb:"bool"`
+	SignerAddresses common.SnakeData[SignerAddress] `tlb:"^"`
+	SignerGroups    common.SnakeData[SignerGroup]   `tlb:"^"`
+	GroupQuorums    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot       bool                            `tlb:"bool"`
 }
 
 // Changes the timeout required to finalize the currently executing op
@@ -445,7 +445,7 @@ type Proof struct {
 	Val *big.Int `tlb:"## 256"`
 }
 
-type SignerKey struct {
+type SignerAddress struct {
 	Val *big.Int `tlb:"## 256"`
 }
 
@@ -507,7 +507,7 @@ const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
 	ErrorOutOfBoundsNumSigners ExitCode = iota + 39000
 
-	// Thrown when signerKeys and signerGroups have different lengths.
+	// Thrown when signerAddresses and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch
 
 	// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).

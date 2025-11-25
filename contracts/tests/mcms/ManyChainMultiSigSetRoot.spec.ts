@@ -429,7 +429,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const setConfigBody = mcms.builder.message.in.setConfig
         .encode({
           queryId: 1n,
-          signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+          signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
           signerGroups: baseTest.testSigners.map((s) => s.group),
           groupQuorums: baseTest.testGroupQuorums,
           groupParents: baseTest.testGroupParents,
@@ -793,7 +793,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         const setConfigBody = mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: signers.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+            signerAddresses: signers.map((s) => BigInt(s.address)),
             signerGroups,
             groupQuorums: stricterGroupQuorums,
             groupParents: baseTest.testGroupParents,

@@ -3,6 +3,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
+import { SigningKey, randomBytes, computeAddress } from 'ethers'
 import * as secp from '@noble/secp256k1'
 
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
@@ -15,11 +16,6 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
 import { merkleProof } from '../../src/mcms'
-
-type KeyPair = {
-  secretKey: secp.Bytes
-  publicKey: secp.Bytes
-}
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
@@ -70,7 +66,7 @@ describe('MCMS - IntegrationTest', () => {
   // Notice: no finalization timeout between ops
   const OP_FINALIZATION_TIMEOUT_ZERO = 0
 
-  let signerKeyPairs: KeyPair[] = []
+  let signerKeyPairs: SigningKey[] = []
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -271,7 +267,7 @@ describe('MCMS - IntegrationTest', () => {
         mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerAddresses: proposerKeyPairs().map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(PROPOSE_COUNT).fill(0),
             groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
               0,
@@ -317,7 +313,7 @@ describe('MCMS - IntegrationTest', () => {
         mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerAddresses: vetoKeyPairs().map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(VETO_COUNT).fill(0),
             groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
               0,
@@ -364,7 +360,7 @@ describe('MCMS - IntegrationTest', () => {
         mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerAddresses: signerKeyPairs.map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(PROPOSE_COUNT + VETO_COUNT)
               .fill(1, 0, PROPOSE_COUNT)
               .fill(2, PROPOSE_COUNT, PROPOSE_COUNT + VETO_COUNT),
@@ -457,26 +453,29 @@ describe('MCMS - IntegrationTest', () => {
     expect(await ownable.getOwner()).toEqual(bind.timelock.address)
   }
 
-  const _signerKeyPairs = async (): Promise<KeyPair[]> => {
+  const _signerKeyPairs = async (): Promise<SigningKey[]> => {
     const res = await Promise.all(
-      Array.from({ length: PROPOSE_COUNT + VETO_COUNT }, async (_, i) => await secp.keygen()),
+      Array.from(
+        { length: PROPOSE_COUNT + VETO_COUNT },
+        async (_, i) => await new SigningKey(randomBytes(32)),
+      ),
     )
 
     // Sort result by public key (strictly increasing)
     res.sort((a, b) => {
-      const aKey = uint8ArrayToBigInt(a.publicKey)
-      const bKey = uint8ArrayToBigInt(b.publicKey)
-      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+      const aAddr = computeAddress(a)
+      const bAddr = computeAddress(b)
+      return aAddr < bAddr ? -1 : aAddr > bAddr ? 1 : 0
     })
 
     return res
   }
 
-  const proposerKeyPairs = (): KeyPair[] => {
+  const proposerKeyPairs = (): SigningKey[] => {
     return Array.from({ length: PROPOSE_COUNT }, (_, i) => signerKeyPairs[i])
   }
 
-  const vetoKeyPairs = (): KeyPair[] => {
+  const vetoKeyPairs = (): SigningKey[] => {
     return Array.from({ length: VETO_COUNT }, (_, i) => signerKeyPairs[PROPOSE_COUNT + i])
   }
 
@@ -1074,7 +1073,7 @@ describe('MCMS - IntegrationTest', () => {
             data: mcms.builder.message.in.setConfig
               .encode({
                 queryId: 1n,
-                signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                signerAddresses: proposerKeyPairs().map((v) => BigInt(computeAddress(v))),
                 signerGroups: Array(PROPOSE_COUNT).fill(0),
                 groupQuorums: new Map(
                   Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]),
@@ -1090,7 +1089,7 @@ describe('MCMS - IntegrationTest', () => {
             data: mcms.builder.message.in.setConfig
               .encode({
                 queryId: 1n,
-                signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                signerAddresses: vetoKeyPairs().map((v) => BigInt(computeAddress(v))),
                 signerGroups: Array(VETO_COUNT).fill(0),
                 groupQuorums: new Map(
                   Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]),

@@ -50,8 +50,8 @@ export type SetConfig = {
   // Query ID of the change request.
   queryId: bigint
 
-  // List of signer public keys.
-  signerKeys: bigint[] // vec<uint256>
+  // List of signer EVM addresses.
+  signerAddresses: bigint[] // vec<uint256>
   // List of signer groups.
   signerGroups: number[] // vec<uint8>
   // List of group quorums.
@@ -171,7 +171,7 @@ export enum Error {
   /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
   OutOfBoundsNumSigners = 39000,
 
-  /// Thrown when signerKeys and signerGroups have different lengths.
+  /// Thrown when signerAddresses and signerGroups have different lengths.
   SignerGroupsLengthMismatch,
 
   /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -529,7 +529,9 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
-            .storeRef(asSnakeData<bigint>(msg.signerKeys, (a) => beginCell().storeUint(a, 256)))
+            .storeRef(
+              asSnakeData<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 256)),
+            )
             .storeRef(asSnakeData<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
             .storeDict(
               loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupQuorums),
@@ -543,7 +545,7 @@ export const builder = {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            signerKeys: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(256)),
+            signerAddresses: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(256)),
             signerGroups: fromSnakeData<number>(src.loadRef(), (g) => g.loadUint(8)),
             groupQuorums: loadDict(
               Dictionary.loadDirect(

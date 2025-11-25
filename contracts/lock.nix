@@ -1,6 +1,6 @@
 # Notice: `pkgs.lib.fakeHash` can be used as a placeholder,
-#   but `nix-lock-tidy` will only replace actual hashes.
+#   but `lock-nix-tidy` will only replace actual hashes.
 {pkgs}: {
-  contracts = "sha256-mzb3/5ybkhuCJNgp1U2nkSdTMfyM0pFGQGl+qedYing=";
+  contracts = "sha256-SYiBUzlcgWSuC+LCN9Xife+zuVlxXLMQO7lqGaIavh4=";
   contracts-jetton = "sha256-EZtvTf19MjSKTWNir6pcP9XHwUIpE4ILSlhS+cQD/7w=";
 }
