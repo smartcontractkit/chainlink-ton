@@ -139,7 +139,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 
 		decoded, err := codec.Decode(ctx, encoded)
 		require.NoError(t, err)
-		assert.Equal(t, 1, len(decoded.ChainReports[0].Proofs))
+		assert.Len(t, decoded.ChainReports[0].Proofs, 1)
 		assert.Equal(t, validProof, decoded.ChainReports[0].Proofs[0])
 	})
 }

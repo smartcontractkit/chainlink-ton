@@ -222,7 +222,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		for _, proof := range tonReport.Proofs {
 			proofBytes := proof.Value.Bytes()
 			if len(proofBytes) != 32 {
-				return executeReport, fmt.Errorf("invalid proof length, expect 32, got: %d", len(proof.Value.Bytes()))
+				return executeReport, fmt.Errorf("invalid proof length, expect 32, got: %d", len(proofBytes))
 			}
 			var bytes32 ccipocr3.Bytes32
 			copy(bytes32[:], proofBytes)
