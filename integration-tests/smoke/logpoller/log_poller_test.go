@@ -166,10 +166,10 @@ func Test_LogPoller(t *testing.T) {
 		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
 		require.NoError(t, ferr)
 
-		emitterA, err := helper.NewTestEventSource(tonChain.Client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
+		emitterA, err := helper.NewTestEventSource(t.Context(), tonChain.Client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		emitterB, err := helper.NewTestEventSource(tonChain.Client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
+		emitterB, err := helper.NewTestEventSource(t.Context(), tonChain.Client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
 		const targetCounter = 10
@@ -825,7 +825,7 @@ func Test_LogPoller(t *testing.T) {
 			[]tlb.Coins{tlb.MustFromTON("1000")})
 		require.NoError(t, ferr)
 
-		emitter, err := helper.NewTestEventSource(tonChain.Client, sender, "replayEmitter", rand.Uint32(), logger.Test(t))
+		emitter, err := helper.NewTestEventSource(t.Context(), tonChain.Client, sender, "replayEmitter", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
 		// 2. Emit events before logpoller starts

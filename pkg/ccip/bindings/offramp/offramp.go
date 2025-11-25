@@ -344,6 +344,8 @@ const (
 	ErrorSubjectCursed
 	ErrorUnauthorized
 	ErrorZeroAddressNotAllowed
+	ErrorSignatureVerificationRequiredInCommitPlugin
+	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 )
 
 // Registry method names for binding fetchers

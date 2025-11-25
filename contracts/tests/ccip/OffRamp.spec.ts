@@ -702,7 +702,135 @@ describe('OffRamp - Unit Tests', () => {
 
   it('should handle two OCR3 configs', async () => {
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+  })
+
+  describe('OCR3 Config Validation Tests', () => {
+    it('should reject commit plugin config without signature verification', async () => {
+      const result = await offRamp.sendSetOCR3Config(
+        deployer.getSender(),
+        createDefaultOCRConfig({
+          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          isSignatureVerificationEnabled: false, // Invalid for commit
+        }),
+      )
+
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        offRamp.address,
+        OffRampError.SignatureVerificationRequiredInCommitPlugin,
+      )
+    })
+
+    it('should reject execute plugin config with signature verification', async () => {
+      const result = await offRamp.sendSetOCR3Config(
+        deployer.getSender(),
+        createDefaultOCRConfig({
+          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+          isSignatureVerificationEnabled: true, // Invalid for execute
+          signers: signersPublicKeys,
+        }),
+      )
+
+      expectFailedTransaction(
+        result,
+        deployer.address,
+        offRamp.address,
+        OffRampError.SignatureVerificationNotAllowedInExecutionPlugin,
+      )
+    })
+
+    it('should accept commit plugin config with signature verification enabled', async () => {
+      const result = await offRamp.sendSetOCR3Config(
+        deployer.getSender(),
+        createDefaultOCRConfig({
+          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          isSignatureVerificationEnabled: true, // Valid
+        }),
+      )
+
+      expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+    })
+
+    it('should accept execute plugin config without signature verification', async () => {
+      const result = await offRamp.sendSetOCR3Config(
+        deployer.getSender(),
+        createDefaultOCRConfig({
+          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+          isSignatureVerificationEnabled: false, // Valid
+          signers: [],
+        }),
+      )
+
+      expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+    })
+
+    it('should reset latestPriceSequenceNumber when commit config changes', async () => {
+      // First, set initial commit config and update price sequence number
+      await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+
+      const sourceToken = generateMockTonAddress()
+      const priceUpdates: PriceUpdates = {
+        tokenPriceUpdates: [{ sourceToken, usdPerToken: 100n }],
+        gasPriceUpdates: [],
+      }
+
+      // Commit with sequence 0x10
+      await commitReport([], toNano('0.5'), 0x10, priceUpdates)
+      let latestSeq = await offRamp.getLatestPriceSequenceNumber()
+      expect(latestSeq).toBe(0x10n)
+
+      // Change commit config (new config digest)
+      const newConfigDigest = 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789n
+      const result = await offRamp.sendSetOCR3Config(
+        deployer.getSender(),
+        createDefaultOCRConfig({
+          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          configDigest: newConfigDigest,
+        }),
+      )
+      expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+
+      // Price sequence number should be reset to 0
+      latestSeq = await offRamp.getLatestPriceSequenceNumber()
+      expect(latestSeq).toBe(0n)
+    })
+
+    it('should not reset latestPriceSequenceNumber when execute config changes', async () => {
+      // Setup both configs and set price sequence
+      await setupOCRConfigs()
+
+      const sourceToken = generateMockTonAddress()
+      const priceUpdates: PriceUpdates = {
+        tokenPriceUpdates: [{ sourceToken, usdPerToken: 100n }],
+        gasPriceUpdates: [],
+      }
+
+      await commitReport([], toNano('0.5'), 0x10, priceUpdates)
+      let latestSeq = await offRamp.getLatestPriceSequenceNumber()
+      expect(latestSeq).toBe(0x10n)
+
+      // Change execute config (not commit)
+      const newConfigDigest = 0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789n
+      const result = await offRamp.sendSetOCR3Config(
+        deployer.getSender(),
+        createDefaultOCRConfig({
+          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+          configDigest: newConfigDigest,
+          isSignatureVerificationEnabled: false,
+          signers: [],
+        }),
+      )
+      expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+
+      // Price sequence number should remain unchanged
+      latestSeq = await offRamp.getLatestPriceSequenceNumber()
+      expect(latestSeq).toBe(0x10n)
+    })
   })
 
   it('Test commit with empty report', async () => {
