@@ -101,6 +101,7 @@ func deployMCMS(b operations.Bundle, deps operation2.TonDeps, in DeployMCMSInput
 
 	bodyCell := cell.BeginCell().EndCell()
 	contract, _, err := wrappers.Deploy(
+		b.GetContext(),
 		&conn,
 		codeCell,
 		initData,
