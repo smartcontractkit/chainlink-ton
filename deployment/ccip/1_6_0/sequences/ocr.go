@@ -2,12 +2,12 @@ package sequences
 
 import (
 	"github.com/Masterminds/semver/v3"
+
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
@@ -22,17 +22,20 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	"setocr3config",
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
-	func(b operations.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
+	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
 		var txs [][]byte
 		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
 		tonChain := chains.TonChains()[chainSelector]
 		deps, err := extractTonDepsFromOcrInput(tonChain, a, input)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
 		in := seq.SetOCR3OfframpSeqInput{
 			ChainSelector: input.ChainSelector,
 			Configs:       intoOCRConfigs(input.Configs),
 		}
-		setOCR3SeqReport, err := operations.ExecuteSequence(b, seq.SetOCR3OfframpSequence, deps, in)
+		setOCR3SeqReport, err := cldf_ops.ExecuteSequence(b, seq.SetOCR3OfframpSequence, deps, in)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
