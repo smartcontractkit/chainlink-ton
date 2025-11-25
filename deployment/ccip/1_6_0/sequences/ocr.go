@@ -2,7 +2,6 @@ package sequences
 
 import (
 	"github.com/Masterminds/semver/v3"
-
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
