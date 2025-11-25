@@ -221,11 +221,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		proofs := make([]ccipocr3.Bytes32, 0, len(tonReport.Proofs))
 		for _, proof := range tonReport.Proofs {
 			proofBytes := proof.Value.Bytes()
-			if len(proofBytes) != 32 {
-				return executeReport, fmt.Errorf("invalid proof length, expect 32, got: %d", len(proofBytes))
+			if len(proofBytes) > 32 {
+				return executeReport, fmt.Errorf("invalid proof length, got: %d, max: 32", len(proofBytes))
 			}
 			var bytes32 ccipocr3.Bytes32
-			copy(bytes32[:], proofBytes)
+			copy(bytes32[32-len(proofBytes):], proofBytes) // Right-align, padding left with zeros
 			proofs = append(proofs, bytes32)
 		}
 
