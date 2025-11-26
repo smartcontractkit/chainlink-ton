@@ -3,10 +3,11 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { KeyPair, sign } from '@ton/crypto'
+import { sign } from '@ton/crypto'
 import { crc32 } from 'zlib'
+import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { generateEd25519KeyPair, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
+import { ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
@@ -29,9 +30,8 @@ export type MCMSTestContracts = {
 }
 
 export type TestSigner = {
-  address: Address
-  keyPair: KeyPair
-  wallet: SandboxContract<TreasuryContract>
+  address: string
+  keyPair: SigningKey
   index: number
   group: number
 }
@@ -91,29 +91,26 @@ export class MCMSBaseTestSetup {
   async generateTestSigners(): Promise<TestSigner[]> {
     const signers: TestSigner[] = []
 
-    let keyPairs = await Promise.all(
-      Array.from(
-        { length: MCMSBaseTestSetup.SIGNERS_NUM },
-        async (_, i) => await generateEd25519KeyPair(),
-      ),
+    let keyPairs = Array.from(
+      { length: MCMSBaseTestSetup.SIGNERS_NUM },
+      (_, i) => new SigningKey(randomBytes(32)),
     )
 
     // Sort result by public key (strictly increasing)
     keyPairs.sort((a, b) => {
-      const aKey = uint8ArrayToBigInt(a.publicKey)
-      const bKey = uint8ArrayToBigInt(b.publicKey)
-      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+      const aAddr = BigInt(computeAddress(a))
+      const bAddr = BigInt(computeAddress(b))
+      return aAddr < bAddr ? -1 : aAddr > bAddr ? 1 : 0
     })
 
     for (let i = 0; i < MCMSBaseTestSetup.SIGNERS_NUM; i++) {
       // This is a simplified approach - in real tests you might want to use actual key generation
-      const address = this.acc.signers[i].address
+      const address = computeAddress(keyPairs[i])
       const group = (i % MCMSBaseTestSetup.NUM_SUBGROUPS) + 1 // Plus one because we don't want signers in root group
 
       signers.push({
         address,
         keyPair: keyPairs[i],
-        wallet: this.acc.signers[i],
         index: i,
         group,
       })
@@ -193,7 +190,7 @@ export class MCMSBaseTestSetup {
       const signer = this.testSigners[i]
       const signerData = mcms.builder.data.signer
         .encode({
-          key: BigInt('0x' + signer.keyPair.publicKey.toString('hex')),
+          address: BigInt(signer.address),
           index: signer.index,
           group: signer.group,
         })
@@ -330,7 +327,7 @@ export class MCMSBaseTestSetup {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: this.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: this.testSigners.map((s) => BigInt(s.address)),
         signerGroups: this.testSigners.map((s) => s.group),
         groupQuorums: this.testConfig.groupQuorums,
         groupParents: this.testConfig.groupParents,
@@ -534,11 +531,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   async setInitialRoot(rootMetadata = this.initialTestRootMetadata): Promise<void> {
     this.initialTestRootMetadata = rootMetadata
 
-    const signers = this.testSigners.map((s) => ({
-      publicKey: s.keyPair.publicKey,
-      sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-    }))
-
+    const signers = this.testSigners.map((s) => s.keyPair)
     const [setRoot, opProofs] = merkleProof.build(
       signers,
       MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
