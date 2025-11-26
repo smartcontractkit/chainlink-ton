@@ -1,15 +1,15 @@
 import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { sha256, sign } from '@ton/crypto'
+import { sha256 } from '@ton/crypto'
 import { crc32 } from 'zlib'
 
-import { generateEd25519KeyPair, uint8ArrayToBigInt } from '../../src/utils'
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as counter from '../../wrappers/examples/Counter'
-import { ocr } from '../../wrappers/libraries/ocr'
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
+import { computeAddress, SigningKey } from 'ethers'
+import { randomBytes } from 'crypto'
 
 describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   let blockchain: Blockchain
@@ -47,26 +47,21 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     // Generate deterministic test signers
     testSigners = []
     {
-      let keyPairs = await Promise.all(
-        Array.from({ length: NUM_SIGNERS }, async (_, i) => await generateEd25519KeyPair()),
-      )
+      let keyPairs = Array.from({ length: NUM_SIGNERS }, (_, i) => new SigningKey(randomBytes(32)))
 
       // Sort result by public key (strictly increasing)
       keyPairs.sort((a, b) => {
-        const aKey = uint8ArrayToBigInt(a.publicKey)
-        const bKey = uint8ArrayToBigInt(b.publicKey)
-        return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+        const aAddr = BigInt(computeAddress(a))
+        const bAddr = BigInt(computeAddress(b))
+        return aAddr < bAddr ? -1 : aAddr > bAddr ? 1 : 0
       })
 
       for (let i = 0; i < NUM_SIGNERS; i++) {
-        const treasury = await blockchain.treasury(`signer${i}`)
-        // This is a simplified approach - in real tests you might want to use actual key generation
-        const address = treasury.address
+        const address = computeAddress(keyPairs[i])
 
         testSigners.push({
           address,
           keyPair: keyPairs[i],
-          wallet: treasury,
           index: i,
           group: 0, // Will be set per test
         })
@@ -125,7 +120,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   }
 
   // Utility function to remove element at index from signatures array
-  function removeIndex(signatures: ocr.Signer[], index: number): ocr.Signer[] {
+  function removeIndex(signatures: SigningKey[], index: number): SigningKey[] {
     if (index >= signatures.length) {
       return signatures
     }
@@ -159,7 +154,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       const setConfigBody = mcms.builder.message.in.setConfig
         .encode({
           queryId: 1n,
-          signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+          signerAddresses: testSigners.map((s) => BigInt(s.address)),
           signerGroups: testSigners.map((s) => s.group),
           groupQuorums,
           groupParents,
@@ -199,10 +194,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     }
 
     // Build merkle proof structure
-    const signers = testSigners.map((s) => ({
-      publicKey: s.keyPair.publicKey,
-      sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-    }))
+    const signers = testSigners.map((s) => s.keyPair)
 
     // To test with reduced signatures, we need to build with fewer signers
     const insufficientSigners = signers.slice(2)
@@ -291,12 +283,12 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     // Set configuration
     {
-      const signers = testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+      const signers = testSigners.map((s) => BigInt(s.address))
 
       const setConfigBody = mcms.builder.message.in.setConfig
         .encode({
           queryId: 1n,
-          signerKeys: signers,
+          signerAddresses: signers,
           signerGroups: testSigners.map((s) => s.group),
           groupQuorums,
           groupParents,
@@ -337,10 +329,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       overridePreviousRoot: true,
     }
 
-    const signers = testSigners.map((s) => ({
-      publicKey: s.keyPair.publicKey,
-      sign: (data: Buffer) => sign(data, s.keyPair.secretKey),
-    }))
+    const signers = testSigners.map((s) => s.keyPair)
 
     if (!allSignersNeeded) {
       // Can remove at least one signature and setRoot still works
@@ -441,7 +430,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     const malformedSetConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: testSigners.map((s) => BigInt(s.address)),
         signerGroups: signerGroupsData,
         groupQuorums,
         groupParents: malformedGroupParents,
@@ -472,7 +461,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     const correctSetConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 2n,
-        signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: testSigners.map((s) => BigInt(s.address)),
         signerGroups: signerGroupsData,
         groupQuorums,
         groupParents: correctGroupParents,

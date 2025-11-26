@@ -1,6 +1,7 @@
 package jetton
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -29,7 +30,7 @@ type OnrampMockInitData struct {
 	WalletCode    *cell.Cell       `tlb:"^"`
 }
 
-func (p *OnrampMockProvider) Deploy(initData OnrampMockInitData) (OnrampMock, error) {
+func (p *OnrampMockProvider) Deploy(ctx context.Context, initData OnrampMockInitData) (OnrampMock, error) {
 	initCell, err := tlb.ToCell(initData)
 	if err != nil {
 		return OnrampMock{}, fmt.Errorf("failed to convert init data to cell: %w", err)
@@ -40,7 +41,7 @@ func (p *OnrampMockProvider) Deploy(initData OnrampMockInitData) (OnrampMock, er
 		return OnrampMock{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return OnrampMock{}, err
 	}

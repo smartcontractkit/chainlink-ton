@@ -1,9 +1,9 @@
 import { beginCell, Cell } from '@ton/core'
 import { keccak256 } from '@ethersproject/keccak256'
+import { SigningKey } from 'ethers'
 
 import { asSnakeData, uint8ArrayToBigInt } from '../utils'
 
-import { ocr } from '../../wrappers/libraries/ocr'
 import { mcms } from '../../wrappers/mcms'
 
 export const ROOT_METADATA_LEAF_INDEX = 0
@@ -11,7 +11,7 @@ export const ROOT_METADATA_LEAF_INDEX = 0
 export type OpProofs = bigint[][]
 
 export function build(
-  signers: ocr.Signer[],
+  signers: SigningKey[],
   validUntil: number,
   metadata: mcms.RootMetadata,
   ops: mcms.Op[],
@@ -137,7 +137,7 @@ export function getLeafIndexOfOp(opIndex: number): number {
 export function constructAnsSignRootAndProof(
   leaves: bigint[],
   validUntil: number,
-  signers: ocr.Signer[],
+  signers: SigningKey[],
 ): {
   root: bigint
   metadataProof: bigint[]
@@ -157,7 +157,7 @@ export function computeRoot(leaves: bigint[]): bigint {
   return currentLayer[0]
 }
 
-function fillSignatures(root: bigint, validUntil: number, signers: ocr.Signer[]): mcms.Signature[] {
+function fillSignatures(root: bigint, validUntil: number, signers: SigningKey[]): mcms.Signature[] {
   const signatures: mcms.Signature[] = []
   const data = beginCell() // TODO: implement as type + CellCodec<T>
     .storeUint(root, 256)
@@ -166,9 +166,9 @@ function fillSignatures(root: bigint, validUntil: number, signers: ocr.Signer[])
     .hash()
 
   for (const signer of signers) {
-    const signature = ocr.createSignatureWith(signer, data)
+    const signature = signer.sign(data)
     // TODO: validate signature
-    signatures.push(signature)
+    signatures.push({ v: signature.v, r: BigInt(signature.r), s: BigInt(signature.s) })
   }
 
   return signatures

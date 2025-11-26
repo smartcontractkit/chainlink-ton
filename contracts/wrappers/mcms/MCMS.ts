@@ -50,8 +50,8 @@ export type SetConfig = {
   // Query ID of the change request.
   queryId: bigint
 
-  // List of signer public keys.
-  signerKeys: bigint[] // vec<uint256>
+  // List of signer EVM addresses.
+  signerAddresses: bigint[] // vec<uint256>
   // List of signer groups.
   signerGroups: number[] // vec<uint8>
   // List of group quorums.
@@ -171,7 +171,7 @@ export enum Error {
   /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
   OutOfBoundsNumSigners = 39000,
 
-  /// Thrown when signerKeys and signerGroups have different lengths.
+  /// Thrown when signerAddresses and signerGroups have different lengths.
   SignerGroupsLengthMismatch,
 
   /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -188,7 +188,7 @@ export enum Error {
 
   /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
   /// Prevents signers from including more than one signature.
-  SignersKeysMustBeStrictlyIncreasing,
+  SignersAdderssesMustBeStrictlyIncreasing,
 
   /// Thrown when the signature corresponds to invalid signer.
   InvalidSigner,
@@ -257,12 +257,12 @@ export enum Error {
 // --- Data structures ---
 
 // Length of serialized signer structure in bytes.
-export const LEN_SIGNER_BYTES = (256 + 8 + 8) / 8
+export const LEN_SIGNER_BYTES = (160 + 8 + 8) / 8
 
 // Signer information
 export type Signer = {
-  // The public key of the signer.
-  key: bigint // uint256;
+  /// The EVM address of the signer.
+  address: bigint // uint160;
   // The index of the signer in data.config.signers
   index: number // 0 <= index < MAX_NUM_SIGNERS
   // 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -402,15 +402,11 @@ export type RootMetadata = {
   overridePreviousRoot: boolean
 }
 
-/// @dev An ECDSA signature.
+/// @dev An ECDSA secp256k1 signature.
 export type Signature = {
-  // Notice: no `v: uint8;` field, as public key recovery is not supported.
-
+  v: number // uint8
   r: bigint // uint256
   s: bigint // uint256
-
-  // Instead of v attach the signer (public key hash)
-  signer: bigint // uint256
 }
 
 /// An op to be executed by the ManyChainMultiSig contract
@@ -533,7 +529,9 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
-            .storeRef(asSnakeData<bigint>(msg.signerKeys, (a) => beginCell().storeUint(a, 256)))
+            .storeRef(
+              asSnakeData<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 160)), // 20 byte EVM address
+            )
             .storeRef(asSnakeData<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
             .storeDict(
               loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupQuorums),
@@ -547,7 +545,7 @@ export const builder = {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            signerKeys: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(256)),
+            signerAddresses: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(160)),
             signerGroups: fromSnakeData<number>(src.loadRef(), (g) => g.loadUint(8)),
             groupQuorums: loadDict(
               Dictionary.loadDirect(
@@ -749,13 +747,13 @@ export const builder = {
     const signer: CellCodec<Signer> = {
       encode: (signer: Signer): Builder => {
         return beginCell()
-          .storeUint(signer.key, 256)
+          .storeUint(signer.address, 160)
           .storeUint(signer.index, 8)
           .storeUint(signer.group, 8)
       },
       load: (src: Slice): Signer => {
         return {
-          key: src.loadUintBig(256),
+          address: src.loadUintBig(160),
           index: src.loadUint(8),
           group: src.loadUint(8),
         }
@@ -786,13 +784,13 @@ export const builder = {
     }
     const signature: CellCodec<Signature> = {
       encode: (data: Signature): Builder => {
-        return beginCell().storeUint(data.r, 256).storeUint(data.s, 256).storeUint(data.signer, 256)
+        return beginCell().storeUint(data.v, 8).storeUint(data.r, 256).storeUint(data.s, 256)
       },
       load: (src: Slice): Signature => {
         return {
+          v: src.loadUint(8),
           r: src.loadUintBig(256),
           s: src.loadUintBig(256),
-          signer: src.loadUintBig(256),
         }
       },
     }
