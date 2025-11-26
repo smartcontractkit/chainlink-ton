@@ -33,6 +33,7 @@ import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
+import { mkdirSync, writeFileSync } from 'fs'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -122,10 +123,14 @@ describe('Router', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    if(process.env["COVERAGE"] === "true") {
+      console.log("asasasaaas")
+      blockchain.enableCoverage()
+    }
     blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
-      vmLogs: 'none',
+      vmLogs: 'vm_logs_verbose',
       debugLogs: true,
     }
     deployer = await blockchain.treasury('deployer')
@@ -809,6 +814,38 @@ describe('Router', () => {
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
     await ownable2StepSpec.ownable2StepSpec(deployer, other, router)
+  })
+
+  afterAll(async () => {
+    if (process.env["COVERAGE"] === "true"){
+      console.log("ASASDADADASD")
+      const routerCoverage = blockchain.coverage(router)
+      const feeQuoterCoverage = blockchain.coverage(feeQuoter)
+
+      if (!routerCoverage || !feeQuoterCoverage){
+        console.log("No coverage - router:", !routerCoverage, "feeQuoter:", !feeQuoterCoverage)
+        console.log("No coverage")
+        return
+      };
+
+      const routerCoverageJson = routerCoverage.toJson()
+      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
+
+      //Output coverage artifacts
+
+      const testSuitePrefix = 'router_suite'
+
+      mkdirSync("./.coverage", { recursive: true });
+      //todo sufix constants to merge everything at the end
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_router_coverage.json`,
+        routerCoverageJson
+      )
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
+        feeQuoterCoverageJson
+      )
+    }
   })
 })
 

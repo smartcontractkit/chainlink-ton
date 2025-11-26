@@ -10,6 +10,7 @@ import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
+import { mkdirSync, writeFileSync } from 'fs'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -1017,5 +1018,25 @@ describe('FeeQuoter GetValidatedFee', () => {
         feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
       )
     })
+  })
+  afterAll(async () => {
+    if (process.env["COVERAGE"] === "true"){
+      const feeQuoterCoverage = setup.blockchain.coverage(setup.bind.feeQuoter)
+
+      if (!feeQuoterCoverage) return;
+
+      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
+
+      //Output coverage artifacts
+
+      const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
+
+      mkdirSync("./.coverage", { recursive: true });
+      //todo sufix constants to merge everything at the end
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
+        feeQuoterCoverageJson
+      )
+    }
   })
 })

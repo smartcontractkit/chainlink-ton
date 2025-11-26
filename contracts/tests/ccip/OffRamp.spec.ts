@@ -64,6 +64,7 @@ import * as deployable from '../../wrappers/libraries/Deployable'
 
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
+import { mkdirSync, writeFileSync } from 'fs'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -517,6 +518,9 @@ describe('OffRamp - Unit Tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    if(process.env["COVERAGE"] === "true") {
+      blockchain.enableCoverage()
+    }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
@@ -2325,4 +2329,41 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   })
+
+  afterAll(async () => {
+    if (process.env["COVERAGE"] === "true"){
+      const offRampCoverage = blockchain.coverage(offRamp)
+      const routerCoverage = blockchain.coverage(router)
+      const feeQuoterCoverage = blockchain.coverage(feeQuoter)
+
+      if (!offRampCoverage || !routerCoverage || !feeQuoterCoverage) return;
+
+      const offRampCoverageJson = offRampCoverage.toJson()
+      const routerCoverageJson = routerCoverage.toJson()
+      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
+
+      console.log('Offramp Coverage: ',offRampCoverage.summary().coveragePercentage)
+
+      //Output coverage artifacts
+
+      const testSuitePrefix = 'offramp_suite'
+
+      mkdirSync("./.coverage", { recursive: true });
+      //todo sufix constants to merge everything at the end
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_offramp_coverage.json`,
+        offRampCoverageJson
+      )
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_router_coverage.json`,
+        routerCoverageJson
+      )
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
+        feeQuoterCoverageJson
+      )
+    }
+  })
+
 })
+

@@ -1,0 +1,19 @@
+Sanbox blockchain can track the executed instrucitons for every deployed contract and generate a coverage report. [see the Sandbox test coverage docs.](https://github.com/ton-org/sandbox/blob/develop/docs/coverage-guide.md)
+
+Assembly FIFT code is parsed from the contract's code cell, and the sanbox Blockchain object will track the execution of each instruction from the code.
+
+To run a test suite with coverage metrics on, set the `COVERAGE` env var to true and run the test suite.
+
+```bash
+cd contracts
+COVERAGE=true npx blueprint test
+```
+
+This generates json artifacts with coverage data for each test suite, to merge the results run the `script_merge_coverage_into_html_report.ts` script
+
+```
+cd contracts
+yarn coverage-reports
+```
+
+

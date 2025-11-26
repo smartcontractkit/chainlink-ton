@@ -3,6 +3,7 @@ dist/
 build/
 temp/
 .snapshot/
+.coverage/
 gas-report.json
 ccip-gas-report.json
 contract.abi.json

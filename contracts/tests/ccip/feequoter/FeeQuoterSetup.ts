@@ -185,11 +185,14 @@ export class FeeQuoterSetup {
    */
   async initializeBlockchain(): Promise<void> {
     this.blockchain = await Blockchain.create()
+    if(process.env["COVERAGE"] === "true") {
+      this.blockchain.enableCoverage()
+    }
     this.blockchain.now = 1
     this.blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
-      vmLogs: 'none',
+      vmLogs: 'vm_logs_verbose',
       debugLogs: true,
     }
 

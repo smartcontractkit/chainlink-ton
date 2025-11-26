@@ -4,6 +4,7 @@ import { toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import { mkdirSync, writeFileSync } from 'fs'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup
@@ -324,5 +325,26 @@ describe('FeeQuoter UpdatePrices', () => {
       to: setup.bind.feeQuoter.address,
       success: false,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env["COVERAGE"] === "true"){
+      const feeQuoterCoverage = setup.blockchain.coverage(setup.bind.feeQuoter)
+
+      if (!feeQuoterCoverage) return;
+
+      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
+
+      //Output coverage artifacts
+
+      const testSuitePrefix = 'feeQuoter_update_prices_suite'
+
+      mkdirSync("./.coverage", { recursive: true });
+      //todo sufix constants to merge everything at the end
+      writeFileSync(
+        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
+        feeQuoterCoverageJson
+      )
+    }
   })
 })
