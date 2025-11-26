@@ -90,6 +90,9 @@ fun ecrecoverFrom(hash: int, sig: slice): (int, int, int, int) {
     }
 
     val v = normalizeV(v_raw);
+    if (v < 0) {
+        return (0, 0, 0, 0);
+    }
     return ecrecover(hash, v, r, s);
 }
 

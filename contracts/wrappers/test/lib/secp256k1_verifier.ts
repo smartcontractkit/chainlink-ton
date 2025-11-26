@@ -32,7 +32,7 @@ export class ContractClient implements Contract {
     hash: bigint,
     sig: Cell,
     pubKey: bigint,
-    parity: bigint,
+    parity: number,
   ): Promise<boolean> {
     return p
       .get('get_isSignatureValid_secp256k1', [
@@ -50,7 +50,7 @@ export class ContractClient implements Contract {
         },
         {
           type: 'int',
-          value: parity,
+          value: BigInt(parity),
         },
       ])
       .then((r) => r.stack.readBoolean())

@@ -62,10 +62,10 @@ describe('secp256k1_verifier', () => {
   })
 
   it('should evm_ecrecover random signatures', async () => {
-    const res = Array.from({ length: 10_000 }, (_, i) => new SigningKey(randomBytes(32)))
+    const keys = Array.from({ length: 1_000 }, (_, i) => new SigningKey(randomBytes(32)))
 
-    for (let i = 0; i < res.length; i++) {
-      const sk = res[i]
+    for (let i = 0; i < keys.length; i++) {
+      const sk = keys[i]
       const address = computeAddress(sk.publicKey)
       const msg = randomBytes(32)
       const sig = sk.sign(msg)
@@ -79,6 +79,81 @@ describe('secp256k1_verifier', () => {
 
       const expectedAddrInt = BigInt('0x' + address.slice(2))
       expect(await bind.verifier.getEVM_ecrecoverFrom(msgInt, sigc)).toEqual(expectedAddrInt)
+    }
+  })
+
+  it('should evm_ecrecover random signatures - different v formats', async () => {
+    const keys = Array.from({ length: 10_000 }, (_, i) => new SigningKey(randomBytes(32)))
+
+    for (let i = 0; i < keys.length; i++) {
+      const sk = keys[i]
+      const address = computeAddress(sk.publicKey)
+      const msg = randomBytes(32)
+      const sig = sk.sign(msg)
+
+      const msgInt = BigInt('0x' + Buffer.from(msg).toString('hex'))
+      // Choose a v format variant to test
+      // 0: legacy (keep sig.v as 27/28)
+      // 1: parity (0/1)
+      // 2: eip155 (35 + chainId*2 + parity)
+      // 3: recid2 (invalid)
+      // 4: recid3 (invalid)
+      const mode = i % 5
+
+      const vToParity = (v: number): number => {
+        if (v === 27) return 0
+        if (v === 28) return 1
+        if (v >= 35) return (v - 35) & 1
+        if (v === 0 || v === 1) return v
+        return -1
+      }
+
+      const vToEIP155 = (v: number, chainId: number = 1): number => {
+        const parity = vToParity(v)
+        if (parity < 0) return -1
+        return 35 + chainId * 2 + parity
+      }
+
+      let testV: number = Number(sig.v)
+      switch (mode) {
+        case 1: {
+          const p = vToParity(sig.v)
+          testV = p >= 0 ? p : sig.v
+          break
+        }
+        case 2: {
+          const chainId = 1 + (i % 100)
+          const vEip = vToEIP155(sig.v, chainId)
+          testV = vEip >= 0 ? vEip : sig.v
+          break
+        }
+        case 3: {
+          const p = vToParity(sig.v)
+          testV = p + 2 // 2 or 3 (raw recid)
+          break
+        }
+        case 4: {
+          const p = vToParity(sig.v)
+          testV = p + 3
+          break
+        }
+      }
+
+      const sigc = beginCell()
+        .storeUint(testV, 8)
+        .storeUint(BigInt(sig.r), 256)
+        .storeUint(BigInt(sig.s), 256)
+        .endCell()
+
+      const expectedAddrInt = BigInt('0x' + address.slice(2))
+      const actual = await bind.verifier.getEVM_ecrecoverFrom(msgInt, sigc)
+
+      // modes 0,1,2 are expected to recover; modes 3,4 (recid2/3) should fail (return 0)
+      if (mode === 3 || mode === 4) {
+        expect(actual).toEqual(0n)
+      } else {
+        expect(actual).toEqual(expectedAddrInt)
+      }
     }
   })
 })
