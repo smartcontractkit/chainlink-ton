@@ -164,7 +164,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
     const result = await router.sendGetValidatedFee(
       sender.getSender(),
-      toNano('0.11'),
+      toNano('0.51'),
       {
         queryID: 1,
         destChainSelector: CHAINSEL_EVM_TEST,
@@ -190,6 +190,19 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       success: true,
     })
 
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      to: onRamp.address,
+      success: true,
+      op: fq.OutgoingOpcodes.messageValidated,
+    })
+
     // Analyze with metrics API
     const snapshot = makeSnapshotMetric(store, {
       contractDatabase,
@@ -209,13 +222,22 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
     const opcodeMap = new Map<number, string>()
     Object.entries(fq.Opcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `FeeQuoter::${name}`)
+      opcodeMap.set(code, `FeeQuoter::In::${name}`)
+    })
+    Object.entries(fq.OutgoingOpcodes).forEach(([name, code]) => {
+      opcodeMap.set(code, `FeeQuoter::Out::${name}`)
     })
     Object.entries(or.Opcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `OnRamp::${name}`)
+      opcodeMap.set(code, `OnRamp::In::${name}`)
+    })
+    Object.entries(or.OutgoingOpcodes).forEach(([name, code]) => {
+      opcodeMap.set(code, `OnRamp::Out::${name}`)
     })
     Object.entries(rt.Opcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `Router::${name}`)
+      opcodeMap.set(code, `Router::In::${name}`)
+    })
+    Object.entries(rt.OutOpcodes).forEach(([name, code]) => {
+      opcodeMap.set(code, `Router::Out::${name}`)
     })
     const mapFunc: OpMapFunc = (op: number) => {
       return opcodeMap.get(op)
