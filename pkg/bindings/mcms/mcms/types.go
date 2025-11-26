@@ -10,7 +10,6 @@ import (
 
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -39,9 +38,9 @@ type SetRoot struct {
 	Root       *big.Int `tlb:"## 256"` // The new expiring root.
 	ValidUntil uint32   `tlb:"## 32"`  // The time by which the root is valid.
 
-	Metadata      RootMetadata                           `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
-	MetadataProof common.SnakeData[Proof]                `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree. // vec<uint256>
-	Signatures    common.SnakeData[ocr.SignatureEd25519] `tlb:"^"` // The ECDSA signatures on (root, validUntil). // vec<Signature>
+	Metadata      RootMetadata                `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
+	MetadataProof common.SnakeData[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
+	Signatures    common.SnakeData[Signature] `tlb:"^"` // The ECDSA signatures on (root, validUntil).
 }
 
 // Execute the received op after verifying the proof of its inclusion in the
@@ -64,13 +63,13 @@ type Execute struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
-	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
 }
 
 // Sets a new data.config. If clearRoot is true, then it also invalidates
 // data.expiringRootAndOpCount.root.
 //
-// @param signerKeys holds the public keys of the active signers. The keys must be in
+// @param signerAddresses holds the EVM addresses of the active signers. The addresses must be in
 // ascending order.
 // @param signerGroups maps each signer to its group
 // @param groupQuorums holds the required number of valid signatures in each group.
@@ -89,11 +88,11 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerKeys   common.SnakeData[SignerKey]   `tlb:"^"`      // vec<uint256>
-	SignerGroups common.SnakeData[SignerGroup] `tlb:"^"`      // vec<uint8>
-	GroupQuorums *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents *cell.Dictionary              `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot    bool                          `tlb:"bool"`
+	SignerAddresses common.SnakeData[SignerAddress] `tlb:"^"`
+	SignerGroups    common.SnakeData[SignerGroup]   `tlb:"^"`
+	GroupQuorums    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot       bool                            `tlb:"bool"`
 }
 
 // Changes the timeout required to finalize the currently executing op
@@ -124,8 +123,8 @@ type SubmitErrorReport struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Op       Op                      `tlb:"^"`      // The operation which produced the error. // Cell<Op>
-	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	Op       Op                      `tlb:"^"`      // The operation which produced the error.
+	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree
 	OpTxHash *big.Int                `tlb:"## 256"` // The hash of the execute transaction.
 
 	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored (part of the tx trace).
@@ -271,12 +270,12 @@ type Data struct {
 }
 
 // Length of serialized signer structure in bytes.
-const LenSignerBytes = (256 + 8 + 8) / 8
+const LenSignerBytes = (160 + 8 + 8) / 8
 
 // Signer information
 type Signer struct {
-	// The public key of the signer.
-	Key *big.Int `tlb:"## 256"`
+	// The EVM address of the signer.
+	Address *big.Int `tlb:"## 256"`
 	// The index of the signer in data.config.signers
 	Index uint8 `tlb:"## 8"` // 0 <= index < MAX_NUM_SIGNERS
 	// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -417,6 +416,13 @@ type RootMetadata struct {
 	OverridePreviousRoot bool `tlb:"bool"`
 }
 
+// An ECDSA secp256k1 signature.
+type Signature struct {
+	V uint8    `tlb:"## 8"`
+	R *big.Int `tlb:"## 256"`
+	S *big.Int `tlb:"## 256"`
+}
+
 // An op to be executed by the ManyChainMultiSig contract
 type Op struct {
 	ChainID  *big.Int         `tlb:"## 256"` // The chain ID of the operation.
@@ -439,8 +445,8 @@ type Proof struct {
 	Val *big.Int `tlb:"## 256"`
 }
 
-type SignerKey struct {
-	Val *big.Int `tlb:"## 256"`
+type SignerAddress struct {
+	Val *big.Int `tlb:"## 160"` // 20 byte EVM address
 }
 
 type SignerGroup struct {
@@ -501,7 +507,7 @@ const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
 	ErrorOutOfBoundsNumSigners ExitCode = iota + 39000
 
-	// Thrown when signerKeys and signerGroups have different lengths.
+	// Thrown when signerAddresses and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch
 
 	// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -518,7 +524,7 @@ const (
 
 	// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
 	// Prevents signers from including more than one signature.
-	ErrorSignersKeysMustBeStrictlyIncreasing
+	ErrorSignersAdderssesMustBeStrictlyIncreasing
 
 	// Thrown when the signature corresponds to invalid signer.
 	ErrorInvalidSigner

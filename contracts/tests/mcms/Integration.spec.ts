@@ -2,10 +2,10 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
-import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
+import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { generateEd25519KeyPair, asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
+import { asSnakeData } from '../../src/utils'
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
@@ -65,7 +65,7 @@ describe('MCMS - IntegrationTest', () => {
   // Notice: no finalization timeout between ops
   const OP_FINALIZATION_TIMEOUT_ZERO = 0
 
-  let signerKeyPairs: KeyPair[] = []
+  let signerKeyPairs: SigningKey[] = []
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -87,7 +87,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     // Generate signer key pairs
-    signerKeyPairs = await _signerKeyPairs()
+    signerKeyPairs = _signerKeyPairs()
 
     // Set up MCMS contracts
     {
@@ -266,7 +266,7 @@ describe('MCMS - IntegrationTest', () => {
         mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerAddresses: proposerKeyPairs().map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(PROPOSE_COUNT).fill(0),
             groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
               0,
@@ -312,7 +312,7 @@ describe('MCMS - IntegrationTest', () => {
         mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerAddresses: vetoKeyPairs().map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(VETO_COUNT).fill(0),
             groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
               0,
@@ -359,7 +359,7 @@ describe('MCMS - IntegrationTest', () => {
         mcms.builder.message.in.setConfig
           .encode({
             queryId: 1n,
-            signerKeys: signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerAddresses: signerKeyPairs.map((v) => BigInt(computeAddress(v))),
             signerGroups: Array(PROPOSE_COUNT + VETO_COUNT)
               .fill(1, 0, PROPOSE_COUNT)
               .fill(2, PROPOSE_COUNT, PROPOSE_COUNT + VETO_COUNT),
@@ -452,29 +452,27 @@ describe('MCMS - IntegrationTest', () => {
     expect(await ownable.getOwner()).toEqual(bind.timelock.address)
   }
 
-  const _signerKeyPairs = async (): Promise<KeyPair[]> => {
-    const res = await Promise.all(
-      Array.from(
-        { length: PROPOSE_COUNT + VETO_COUNT },
-        async (_, i) => await generateEd25519KeyPair(),
-      ),
+  const _signerKeyPairs = (): SigningKey[] => {
+    const res = Array.from(
+      { length: PROPOSE_COUNT + VETO_COUNT },
+      (_, i) => new SigningKey(randomBytes(32)),
     )
 
     // Sort result by public key (strictly increasing)
     res.sort((a, b) => {
-      const aKey = uint8ArrayToBigInt(a.publicKey)
-      const bKey = uint8ArrayToBigInt(b.publicKey)
-      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+      const aAddr = BigInt(computeAddress(a))
+      const bAddr = BigInt(computeAddress(b))
+      return aAddr < bAddr ? -1 : aAddr > bAddr ? 1 : 0
     })
 
     return res
   }
 
-  const proposerKeyPairs = (): KeyPair[] => {
+  const proposerKeyPairs = (): SigningKey[] => {
     return Array.from({ length: PROPOSE_COUNT }, (_, i) => signerKeyPairs[i])
   }
 
-  const vetoKeyPairs = (): KeyPair[] => {
+  const vetoKeyPairs = (): SigningKey[] => {
     return Array.from({ length: VETO_COUNT }, (_, i) => signerKeyPairs[PROPOSE_COUNT + i])
   }
 
@@ -511,10 +509,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -631,10 +626,7 @@ describe('MCMS - IntegrationTest', () => {
     // again, increment twice through regular flow
     //
     {
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -763,10 +755,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = signerKeyPairs.map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-      }))
+      const signers = signerKeyPairs
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -882,10 +871,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
@@ -968,10 +954,7 @@ describe('MCMS - IntegrationTest', () => {
       blockchain.now = blockchain.now! + Number(MIN_DELAY) / 4
 
       {
-        const signers = vetoKeyPairs().map((v) => ({
-          publicKey: v.publicKey,
-          sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-        }))
+        const signers = vetoKeyPairs()
         const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
         const metadata = {
           chainId,
@@ -1062,7 +1045,7 @@ describe('MCMS - IntegrationTest', () => {
             data: mcms.builder.message.in.setConfig
               .encode({
                 queryId: 1n,
-                signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                signerAddresses: proposerKeyPairs().map((v) => BigInt(computeAddress(v))),
                 signerGroups: Array(PROPOSE_COUNT).fill(0),
                 groupQuorums: new Map(
                   Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]),
@@ -1078,7 +1061,7 @@ describe('MCMS - IntegrationTest', () => {
             data: mcms.builder.message.in.setConfig
               .encode({
                 queryId: 1n,
-                signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                signerAddresses: vetoKeyPairs().map((v) => BigInt(computeAddress(v))),
                 signerGroups: Array(VETO_COUNT).fill(0),
                 groupQuorums: new Map(
                   Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]),
@@ -1099,10 +1082,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const signers = proposerKeyPairs().map((v) => ({
-        publicKey: v.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-      }))
+      const signers = proposerKeyPairs()
       const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
       const metadata = {
         chainId,
