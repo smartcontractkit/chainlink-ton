@@ -56,7 +56,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 		},
 	}
 
-	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, sequence.RetrieveContractsSequence, deps, retrieveContractsInput)
+	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, sequence.RetrieveContractsSequence, config.TonDeps{TonChain: deps.TonChain}, retrieveContractsInput)
 	if err != nil {
 		return output, err
 	}
@@ -96,7 +96,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 			OpFinalizationTimeout:    0,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, deps, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body)
 		if err != nil {
 			return output, err
 		} else if tonContractAddress != nil {
