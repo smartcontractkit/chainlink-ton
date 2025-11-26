@@ -23,7 +23,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"

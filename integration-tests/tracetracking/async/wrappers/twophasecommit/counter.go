@@ -1,6 +1,7 @@
 package twophasecommit
 
 import (
+	"context"
 	"fmt"
 	"math/rand/v2"
 
@@ -30,7 +31,7 @@ type CounterInitData struct {
 	AutoAck bool   `tlb:"bool"`
 }
 
-func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
+func (p *CounterProvider) Deploy(ctx context.Context, initData CounterInitData) (Counter, error) {
 	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to serialize init data: %w", err)
@@ -40,7 +41,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 		return Counter{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Counter{}, err
 	}

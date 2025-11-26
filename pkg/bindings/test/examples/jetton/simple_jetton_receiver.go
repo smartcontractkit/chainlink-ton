@@ -1,6 +1,7 @@
 package jetton
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/tlb"
@@ -30,7 +31,7 @@ type SimpleJettonReceiverInitData struct {
 	PayloadChecker *cell.Cell    `tlb:"maybe ^"`
 }
 
-func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitData) (SimpleJettonReceiver, error) {
+func (p *SimpleJettonReceiverProvider) Deploy(ctx context.Context, initData SimpleJettonReceiverInitData) (SimpleJettonReceiver, error) {
 	initCell, err := tlb.ToCell(initData)
 	if err != nil {
 		return SimpleJettonReceiver{}, fmt.Errorf("failed to convert init data to cell: %w", err)
@@ -41,7 +42,7 @@ func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitD
 		return SimpleJettonReceiver{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return SimpleJettonReceiver{}, err
 	}
