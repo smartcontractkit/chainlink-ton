@@ -83,7 +83,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		})
 	}
 
-	deps := operation.TonDeps{
+	deps := operation.CCIPDeps{
 		TonChain:         chain,
 		CCIPOnChainState: states,
 		MCMSChainState:   mcmsStates,

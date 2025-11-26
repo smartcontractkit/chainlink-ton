@@ -13,7 +13,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
@@ -128,7 +127,7 @@ var RetrieveContractsSequence = operations.NewSequence(
 //
 // We assume that the current version is 1.6.0 to match the CCIP release. However, in theory,
 // there is a single version per contract — but this is something we need to revisit.
-func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.TonDeps, in RetrieveCompiledContractsSeqInput) (RetrieveCompiledContractsSeqOutput, error) {
+func retrieveCompiledTONContractsSequence(b operations.Bundle, deps any, in RetrieveCompiledContractsSeqInput) (RetrieveCompiledContractsSeqOutput, error) {
 	output := RetrieveCompiledContractsSeqOutput{}
 
 	if err := in.Validate(); err != nil {

@@ -21,7 +21,7 @@ var SetOCR3OfframpSequence = operations.NewSequence(
 	setOCR3OfframpSequence,
 )
 
-func setOCR3OfframpSequence(b operations.Bundle, deps operation.TonDeps, in SetOCR3OfframpSeqInput) ([][]byte, error) {
+func setOCR3OfframpSequence(b operations.Bundle, deps operation.CCIPDeps, in SetOCR3OfframpSeqInput) ([][]byte, error) {
 	var txs [][]byte
 
 	// TODO: this just needs to loop over configs

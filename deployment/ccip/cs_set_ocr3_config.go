@@ -54,7 +54,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, config SetOCR3OffRampConfig)
 	for _, remoteSelector := range config.RemoteChainSels {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[remoteSelector]
-		deps := operation.TonDeps{
+		deps := operation.CCIPDeps{
 			TonChain:         chain,
 			CCIPOnChainState: state,
 		}

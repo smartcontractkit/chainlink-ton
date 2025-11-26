@@ -35,7 +35,7 @@ var UpdateTonLanesSequence = operations.NewSequence(
 	updateLanes,
 )
 
-func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesSeqInput) ([][]byte, error) {
+func updateLanes(b operations.Bundle, deps operation.CCIPDeps, in UpdateTonLanesSeqInput) ([][]byte, error) {
 	var txs [][]byte
 
 	// update fee quoter with dest chain configs

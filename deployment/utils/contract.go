@@ -6,10 +6,10 @@ import (
 	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
+	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 )
 
 type CompiledContractData struct {
@@ -29,8 +29,8 @@ type TONContractAddress struct {
 // InvokeDeployContractOperation deploys a TON contract if it's not already deployed.
 // It checks the current address, executes the deployment operation if needed,
 // Returns an error if the deployment fails.
-func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any) (*TONContractAddress, error) {
-	deployContractInput := operation.DeployContractInput{
+func InvokeDeployContractOperation(b operations.Bundle, deps config.TonDeps, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any) (*TONContractAddress, error) {
+	deployContractInput := operation2.DeployContractInput{
 		Name:         compiledContract.Type.String(),
 		Storage:      storage,
 		MessageBody:  messageBody,
@@ -38,7 +38,7 @@ func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, 
 		Coins:        compiledContract.SuggestedTONCoinsForDeployment,
 	}
 
-	deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, deps, deployContractInput)
+	deployContractReport, err := operations.ExecuteOperation(b, operation2.DeployTONContractOp, config.TonDeps{TonChain: deps.TonChain}, deployContractInput)
 	if err != nil {
 		return nil, err
 	}

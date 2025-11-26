@@ -33,7 +33,7 @@ var ApplyRampUpdatesOp = operations.NewOperation(
 	applyRampUpdates,
 )
 
-func applyRampUpdates(b operations.Bundle, deps TonDeps, in ApplyRampUpdatesInput) ([][]byte, error) {
+func applyRampUpdates(b operations.Bundle, deps CCIPDeps, in ApplyRampUpdatesInput) ([][]byte, error) {
 	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)

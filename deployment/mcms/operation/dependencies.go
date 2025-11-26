@@ -2,12 +2,10 @@ package operation
 
 import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
-type CCIPDeps struct {
-	TonChain         cldf_ton.Chain
-	CCIPOnChainState map[uint64]state.CCIPChainState
-	MCMSChainState   map[uint64]state.MCMSChainState
+type MCMSDeps struct {
+	TonChain       cldf_ton.Chain
+	MCMSChainState map[uint64]state.MCMSChainState
 }

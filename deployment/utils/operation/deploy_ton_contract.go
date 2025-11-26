@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/Masterminds/semver/v3"
@@ -55,7 +56,7 @@ func (i *DeployContractInput) Validate() error {
 	return nil
 }
 
-func deployTONContract(b operations.Bundle, deps TonDeps, in DeployContractInput) (DeployContractOutput, error) {
+func deployTONContract(b operations.Bundle, deps config.TonDeps, in DeployContractInput) (DeployContractOutput, error) {
 	output := DeployContractOutput{}
 
 	if err := in.Validate(); err != nil {
