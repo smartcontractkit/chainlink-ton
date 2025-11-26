@@ -190,7 +190,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
   it('should compare gas cost of different payload sizes', async () => {
     // array from 0 to MAX_DATA_PAYLOAD_SIZE in steps of 1
     const payloadSizes: number[] = []
-    for (let size = 0; size <= MAX_DATA_PAYLOAD_SIZE; size += 1) {
+    for (let size = 0; size <= MAX_DATA_PAYLOAD_SIZE; size += 127) {
       payloadSizes.push(size)
     }
 
@@ -234,14 +234,12 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     // print 1 every 100
     var summaryOutput = ''
     var csvOutput = ''
-    gasUsages.forEach(({ size, gasUsed, computeFee }, index) => {
+    gasUsages.forEach(({ size, gasUsed, computeFee }) => {
       const feeTON = (Number(computeFee) / 1e9).toFixed(9)
-      if (index % 100 === 0) {
-        const rate = size === 0 ? '∞' : (Number(computeFee) / size).toFixed(2).toString()
-        const cells = [size.toString(), gasUsed.toString(), feeTON, rate]
-        // console.log(formatRow(cells, COL_WIDTHS))
-        summaryOutput += formatRow(cells, COL_WIDTHS) + '\n'
-      }
+      const rate = size === 0 ? '∞' : (Number(computeFee) / size).toFixed(2).toString()
+      const cells = [size.toString(), gasUsed.toString(), feeTON, rate]
+      // console.log(formatRow(cells, COL_WIDTHS))
+      summaryOutput += formatRow(cells, COL_WIDTHS) + '\n'
       csvOutput += `${size},${feeTON}\n`
     })
 
