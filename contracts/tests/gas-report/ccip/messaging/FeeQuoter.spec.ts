@@ -23,7 +23,7 @@ import { analyzeSnapshot, printFlowAnalysis, formatRow } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
 import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
-import { OpMapFunc } from '@ton/sandbox/dist/utils/printTransactionFees'
+import { opMapFunc } from './opMapFunc'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -298,30 +298,4 @@ async function meassureGetValidatedFee(
     op: fq.OutgoingOpcodes.messageValidated,
   })
   return result
-}
-
-function opMapFunc(): OpMapFunc {
-  const opcodeMap = new Map<number, string>()
-  Object.entries(fq.Opcodes).forEach(([name, code]) => {
-    opcodeMap.set(code, `FeeQuoter::In::${name}`)
-  })
-  Object.entries(fq.OutgoingOpcodes).forEach(([name, code]) => {
-    opcodeMap.set(code, `FeeQuoter::Out::${name}`)
-  })
-  Object.entries(or.Opcodes).forEach(([name, code]) => {
-    opcodeMap.set(code, `OnRamp::In::${name}`)
-  })
-  Object.entries(or.OutgoingOpcodes).forEach(([name, code]) => {
-    opcodeMap.set(code, `OnRamp::Out::${name}`)
-  })
-  Object.entries(rt.Opcodes).forEach(([name, code]) => {
-    opcodeMap.set(code, `Router::In::${name}`)
-  })
-  Object.entries(rt.OutOpcodes).forEach(([name, code]) => {
-    opcodeMap.set(code, `Router::Out::${name}`)
-  })
-  const mapFunc: OpMapFunc = (op: number) => {
-    return opcodeMap.get(op)
-  }
-  return mapFunc
 }

@@ -22,6 +22,7 @@ import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getValidatedFee } from '../../../../src/ccipSend/fee'
+import { opMapFunc } from './opMapFunc'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -57,6 +58,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
   beforeAll(async () => {
     // Use default config (mainnet) to avoid rate limiting
     blockchain = await Blockchain.create()
+    blockchain.verbosity.debugLogs = true
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 
@@ -175,7 +177,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
     console.log(`Validated fee for message: ${fee.toString()} nanotons`)
 
     const result = await router.sendCcipSend(sender.getSender(), {
-      value: fee + toNano('0.5'),
+      value: fee + toNano('0.19'),
       body: msg,
     })
 
@@ -254,6 +256,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
     // Also print raw transaction fees for comparison
     console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(result.transactions)
+    printTransactionFees(result.transactions, opMapFunc())
   })
 })

@@ -8,6 +8,7 @@ import "../../lib/utils"
 import "../onramp/errors"
 import "../router/messages"
 import "../fee_quoter/types"
+import "@stdlib/gas-payments"
 
 const CONTRACT_VERSION = "1.6.0";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
@@ -94,6 +95,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
         return;
     }
+    setGasLimitToMaximum();
     
     self.exitSuccessfully(msg.fee);
 }

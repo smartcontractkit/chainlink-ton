@@ -38,8 +38,6 @@ fun onInternalMessage(in: InMessage) {
         // Permissionless
         Router_GetValidatedFee<RemainingBitsAndRefs> => {
             val minValue = Router_Costs.GetValidatedFee();
-            debug.printString("minValue");
-            debug.print(minValue);
             assert (in.valueCoins >= minValue) throw Router_Error.InsufficientFee;
             onGetValidatedFee(msg, in.senderAddress);
         }
