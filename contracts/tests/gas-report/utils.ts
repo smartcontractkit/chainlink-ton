@@ -111,7 +111,7 @@ export function analyzeSnapshot(
 }
 
 // Table formatting helpers
-function formatRow(cells: string[], widths: number[]): string {
+export function formatRow(cells: string[], widths: number[]): string {
   return cells.map((cell, i) => cell.padEnd(widths[i])).join(' | ')
 }
 

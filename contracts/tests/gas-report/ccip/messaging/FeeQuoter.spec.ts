@@ -7,6 +7,7 @@ import {
   makeSnapshotMetric,
   ContractDatabase,
   resetMetricStore,
+  BlockchainTransaction,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
@@ -17,8 +18,8 @@ import '@ton/test-utils'
 import { ZERO_ADDRESS } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { CHAINSEL_TON, CHAINSEL_EVM_TEST, CHAIN_FAMILY_SELECTOR_EVM } from '../../constants'
-import { createMaxPayload, createExtraArgs } from './config'
-import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
+import { createMaxPayload, createExtraArgs, MAX_DATA_PAYLOAD_SIZE, createPayload } from './config'
+import { analyzeSnapshot, printFlowAnalysis, formatRow } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
 import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
@@ -160,48 +161,9 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
   it('should measure fee validation', async () => {
     // Reset metric store before measurement
-    resetMetricStore()
 
-    const result = await router.sendGetValidatedFee(
-      sender.getSender(),
-      toNano('0.51'),
-      {
-        queryID: 1,
-        destChainSelector: CHAINSEL_EVM_TEST,
-        receiver: EVM_ADDRESS,
-        data: createMaxPayload(),
-        tokenAmounts: [],
-        feeToken: ZERO_ADDRESS,
-        extraArgs: createExtraArgs(),
-      },
-      beginCell().asSlice(),
-    )
-
-    // Assert all expected transactions
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: feeQuoter.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: onRamp.address,
-      success: true,
-      op: fq.OutgoingOpcodes.messageValidated,
-    })
+    const payload = createMaxPayload()
+    const result = await meassureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
 
     // Analyze with metrics API
     const snapshot = makeSnapshotMetric(store, {
@@ -220,31 +182,147 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     const flowAnalysis = analyzeSnapshot(snapshot, addressMap, result)
     printFlowAnalysis(flowAnalysis)
 
-    const opcodeMap = new Map<number, string>()
-    Object.entries(fq.Opcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `FeeQuoter::In::${name}`)
-    })
-    Object.entries(fq.OutgoingOpcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `FeeQuoter::Out::${name}`)
-    })
-    Object.entries(or.Opcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `OnRamp::In::${name}`)
-    })
-    Object.entries(or.OutgoingOpcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `OnRamp::Out::${name}`)
-    })
-    Object.entries(rt.Opcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `Router::In::${name}`)
-    })
-    Object.entries(rt.OutOpcodes).forEach(([name, code]) => {
-      opcodeMap.set(code, `Router::Out::${name}`)
-    })
-    const mapFunc: OpMapFunc = (op: number) => {
-      return opcodeMap.get(op)
-    }
-
     // Also print raw transaction fees for comparison
     console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(result.transactions, mapFunc)
+    printTransactionFees(result.transactions, opMapFunc())
+  })
+
+  it('should compare gas cost of different payload sizes', async () => {
+    // array from 0 to MAX_DATA_PAYLOAD_SIZE in steps of 1
+    const payloadSizes: number[] = []
+    for (let size = 0; size <= MAX_DATA_PAYLOAD_SIZE; size += 1) {
+      payloadSizes.push(size)
+    }
+
+    const gasUsages: {
+      size: number
+      gasUsed: bigint
+      computeFee: bigint
+    }[] = []
+
+    for (const size of payloadSizes) {
+      const payload = createPayload(size)
+      const result = await meassureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
+      const tx: BlockchainTransaction = result.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.src instanceof Address && tx.inMessage.info.src.equals(onRamp.address),
+      )!
+      if (
+        !tx.inMessage ||
+        tx.inMessage.info.type !== 'internal' ||
+        tx.description.type !== 'generic' ||
+        tx.description.computePhase.type !== 'vm'
+      ) {
+        throw new Error('Expected internal message')
+      }
+
+      gasUsages.push({
+        size,
+        gasUsed: tx.description.computePhase.gasUsed,
+        computeFee: tx.description.computePhase.gasFees,
+      })
+    }
+
+    // Print table using utility functions
+    console.log('\n=== GAS COST BY PAYLOAD SIZE ===\n')
+
+    const COL_WIDTHS = [15, 15, 20, 20, 20]
+    const headers = ['Payload (bytes)', 'Gas Used', 'Compute Fee (TON)', 'Rate (nano/byte)']
+    console.log(formatRow(headers, COL_WIDTHS))
+    console.log(formatRow(['---', '---', '---', '---'], COL_WIDTHS))
+
+    // print 1 every 100
+    var summaryOutput = ''
+    var csvOutput = ''
+    gasUsages.forEach(({ size, gasUsed, computeFee }, index) => {
+      const feeTON = (Number(computeFee) / 1e9).toFixed(9)
+      if (index % 100 === 0) {
+        const rate = size === 0 ? '∞' : (Number(computeFee) / size).toFixed(2).toString()
+        const cells = [size.toString(), gasUsed.toString(), feeTON, rate]
+        // console.log(formatRow(cells, COL_WIDTHS))
+        summaryOutput += formatRow(cells, COL_WIDTHS) + '\n'
+      }
+      csvOutput += `${size},${feeTON}\n`
+    })
+
+    console.log(`Summary:\n${summaryOutput}`)
+    console.log(`CSV:\n${csvOutput}`)
   })
 })
+
+async function meassureGetValidatedFee(
+  router: SandboxContract<rt.Router>,
+  sender: SandboxContract<TreasuryContract>,
+  payload: Cell,
+  onRamp: SandboxContract<or.OnRamp>,
+  feeQuoter: SandboxContract<fq.FeeQuoter>,
+) {
+  resetMetricStore()
+  const result = await router.sendGetValidatedFee(
+    sender.getSender(),
+    toNano('0.51'),
+    {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST,
+      receiver: EVM_ADDRESS,
+      data: payload,
+      tokenAmounts: [],
+      feeToken: ZERO_ADDRESS,
+      extraArgs: createExtraArgs(),
+    },
+    beginCell().asSlice(),
+  )
+
+  // Assert all expected transactions
+  expect(result.transactions).toHaveTransaction({
+    from: sender.address,
+    to: router.address,
+    success: true,
+  })
+
+  expect(result.transactions).toHaveTransaction({
+    from: router.address,
+    to: onRamp.address,
+    success: true,
+  })
+
+  expect(result.transactions).toHaveTransaction({
+    from: onRamp.address,
+    to: feeQuoter.address,
+    success: true,
+  })
+
+  expect(result.transactions).toHaveTransaction({
+    from: feeQuoter.address,
+    to: onRamp.address,
+    success: true,
+    op: fq.OutgoingOpcodes.messageValidated,
+  })
+  return result
+}
+
+function opMapFunc(): OpMapFunc {
+  const opcodeMap = new Map<number, string>()
+  Object.entries(fq.Opcodes).forEach(([name, code]) => {
+    opcodeMap.set(code, `FeeQuoter::In::${name}`)
+  })
+  Object.entries(fq.OutgoingOpcodes).forEach(([name, code]) => {
+    opcodeMap.set(code, `FeeQuoter::Out::${name}`)
+  })
+  Object.entries(or.Opcodes).forEach(([name, code]) => {
+    opcodeMap.set(code, `OnRamp::In::${name}`)
+  })
+  Object.entries(or.OutgoingOpcodes).forEach(([name, code]) => {
+    opcodeMap.set(code, `OnRamp::Out::${name}`)
+  })
+  Object.entries(rt.Opcodes).forEach(([name, code]) => {
+    opcodeMap.set(code, `Router::In::${name}`)
+  })
+  Object.entries(rt.OutOpcodes).forEach(([name, code]) => {
+    opcodeMap.set(code, `Router::Out::${name}`)
+  })
+  const mapFunc: OpMapFunc = (op: number) => {
+    return opcodeMap.get(op)
+  }
+  return mapFunc
+}
