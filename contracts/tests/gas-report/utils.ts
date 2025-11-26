@@ -128,7 +128,7 @@ export function printFlowAnalysis(flow: FlowSummary): void {
 
   // 2. Print detailed table
   console.log('\nDetailed Breakdown:')
-  const COL_WIDTHS = [4, 15, 15, 10, 15, 15, 15, 15]
+  const COL_WIDTHS = [4, 15, 20, 10, 15, 15, 15, 15]
   const headers = [
     '#',
     'Contract',
