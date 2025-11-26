@@ -7,8 +7,9 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"

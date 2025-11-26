@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 
 	"github.com/xssnick/tonutils-go/address"

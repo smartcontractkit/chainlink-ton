@@ -2,6 +2,7 @@ package operation
 
 import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 

@@ -6,10 +6,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-ton/deployment/config"
-	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
+	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 )
 
 type CompiledContractData struct {

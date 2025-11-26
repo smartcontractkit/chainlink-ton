@@ -9,6 +9,8 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
@@ -20,7 +22,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type DeployMCMSSeqInput struct {

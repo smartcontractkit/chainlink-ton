@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
