@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 
 	"github.com/xssnick/tonutils-go/address"
 )
@@ -18,8 +19,8 @@ type ChainContractParams struct {
 	OnRampParams    OnRampParams
 	RouterParams    RouterParams
 	ReceiverParams  ReceiverParams
-	TimelockParams  TimelockParams
-	MCMSParams      MCMSParams
+	TimelockParams  mcmsConfig.TimelockParams
+	MCMSParams      mcmsConfig.MCMSParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -117,33 +118,6 @@ type ReceiverParams struct {
 }
 
 func (r ReceiverParams) Validate() error {
-	// No specific validation for now
-	return nil
-}
-
-type TimelockParams struct {
-	ID         uint32
-	MinDelay   uint32
-	Admin      *address.Address
-	Proposers  []*address.Address
-	Executors  []*address.Address
-	Cancellers []*address.Address
-	Bypassers  []*address.Address
-}
-
-func (t TimelockParams) Validate() error {
-	if t.Admin == nil {
-		return errors.New("timelock admin should be specified")
-	}
-
-	return nil
-}
-
-type MCMSParams struct {
-	ID uint32
-}
-
-func (m MCMSParams) Validate() error {
 	// No specific validation for now
 	return nil
 }

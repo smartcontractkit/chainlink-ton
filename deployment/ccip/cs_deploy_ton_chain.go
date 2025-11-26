@@ -15,6 +15,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
+	mcmsOperation "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
+	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
@@ -69,7 +72,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 
-	// TODO: deploy MCMS
 	// TODO: deploy LINK
 	if s.LinkTokenAddress.IsAddrNone() {
 		linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
@@ -86,14 +88,12 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	deps := operation.CCIPDeps{
 		TonChain:         chain,
 		CCIPOnChainState: states,
-		MCMSChainState:   mcmsStates,
 	}
 
 	deps.CCIPOnChainState[selector] = s
 
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
-		// MCMSAddress:      mcmsSeqReport.Output.MCMSAddress,
 		CCIPConfig:          config.Params,
 		ContractsVersionSha: config.ContractsVersion,
 		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
@@ -104,7 +104,29 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", selector, err)
 	}
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
-	// mcmsOperations = append(mcmsOperations, ccipSeqReport.Output.MCMSOperations...)
+
+	mcmsSeqInput := mcmsSeq.DeployMCMSSeqInput{
+		CCIPConfig: mcmsConfig.ChainContractParams{
+			TimelockParams: config.Params.TimelockParams,
+			MCMSParams:     config.Params.MCMSParams,
+		},
+		ContractsVersionSha: config.ContractsVersion,
+		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
+		ChainSelector:       selector,
+	}
+
+	mcmsDeps := mcmsOperation.MCMSDeps{
+		TonChain:       chain,
+		MCMSChainState: mcmsStates,
+	}
+
+	// deploy MCMS contracts
+	mcmsSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, mcmsSeq.DeployMCMSSequence, mcmsDeps, mcmsSeqInput)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
+	}
+
+	seqReports = append(seqReports, mcmsSeqReport.ExecutionReports...)
 
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
@@ -127,17 +149,17 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
-	if ccipSeqReport.Output.TimelockAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
-		m.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
+	if mcmsSeqReport.Output.TimelockAddress != nil {
+		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.TimelockAddress.CLDFAddressRef)
+		m.Timelock = mcmsSeqReport.Output.TimelockAddress.TONAddress
 	}
-	if ccipSeqReport.Output.MCMSAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.MCMSAddress.CLDFAddressRef)
-		m.MCMS = ccipSeqReport.Output.MCMSAddress.TONAddress
+	if mcmsSeqReport.Output.MCMSAddress != nil {
+		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.MCMSAddress.CLDFAddressRef)
+		m.MCMS = mcmsSeqReport.Output.MCMSAddress.TONAddress
 	}
 
 	deps.CCIPOnChainState[selector] = s
-	deps.MCMSChainState[selector] = m
+	mcmsDeps.MCMSChainState[selector] = m
 
 	// Execute post-deployment config
 	var txs [][]byte
@@ -175,8 +197,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
 	ab, _ := dataStoreToAddressBook(dataStore)
-
-	// TODO: Add and run setConfigMCMS operation
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{

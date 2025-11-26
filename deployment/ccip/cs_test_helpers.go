@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
@@ -180,7 +181,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			ReceiverParams: config.ReceiverParams{
 				ID: idForContracts,
 			},
-			TimelockParams: config.TimelockParams{
+			TimelockParams: mcmsConfig.TimelockParams{
 				ID:         idForContracts,
 				MinDelay:   0,
 				Admin:      deployer.WalletAddress(),
@@ -189,7 +190,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				Cancellers: []*address.Address{deployer.WalletAddress()},
 				Bypassers:  []*address.Address{deployer.WalletAddress()},
 			},
-			MCMSParams: config.MCMSParams{
+			MCMSParams: mcmsConfig.MCMSParams{
 				ID: idForContracts,
 			},
 		},
