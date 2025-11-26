@@ -31,22 +31,22 @@ type DeployMCMSSeqInput struct {
 	ChainSelector       uint64
 }
 
-type DeployCCIPSeqOutput struct {
+type DeployMCMSSeqOutput struct {
 	TimelockAddress *utils.TONContractAddress
 	MCMSAddress     *utils.TONContractAddress
 	Transactions    [][]byte
 }
 
 var DeployMCMSSequence = operations.NewSequence(
-	"ton-deploy-ccip-seq",
+	"ton-deploy-mcms-seq",
 	semver.MustParse("0.1.0"),
-	"Deploys contracts and sets initial CCIP configuration",
+	"Deploys contracts and sets initial MCMS configuration",
 	deployMCMSSequence,
 )
 
-func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployMCMSSeqInput) (DeployCCIPSeqOutput, error) {
+func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployMCMSSeqInput) (DeployMCMSSeqOutput, error) {
 	// Initialize the output
-	output := DeployCCIPSeqOutput{}
+	output := DeployMCMSSeqOutput{}
 
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
 		ContractsSemver:     in.ContractsSemver,

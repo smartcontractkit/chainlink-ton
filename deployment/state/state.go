@@ -40,7 +40,7 @@ var (
 )
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
-// on a chain. If a binding is nil, it means here is no such contract on the chain.
+// on a chain. If a binding is nil, it means there is no such contract on the chain.
 type CCIPChainState struct {
 	LinkTokenAddress address.Address
 	OffRamp          address.Address
@@ -51,7 +51,7 @@ type CCIPChainState struct {
 }
 
 // MCMSChainState holds a Go binding for all the currently deployed MCMS contracts
-// on a chain. If a binding is nil, it means here is no such contract on the chain.
+// on a chain. If a binding is nil, it means there is no such contract on the chain.
 type MCMSChainState struct {
 	Timelock address.Address
 	MCMS     address.Address
