@@ -59,6 +59,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
   beforeAll(async () => {
     // Use default config (mainnet) to avoid rate limiting
     blockchain = await Blockchain.create()
+    blockchain.verbosity.debugLogs = true
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 
@@ -258,7 +259,7 @@ async function meassureGetValidatedFee(
   resetMetricStore()
   const result = await router.sendGetValidatedFee(
     sender.getSender(),
-    toNano('0.51'),
+    toNano('0.125'),
     {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST,

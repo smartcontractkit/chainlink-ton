@@ -98,16 +98,23 @@ struct OnRamp_Costs {}
 @inline
 fun OnRamp_Costs.GetValidatedFee(): int {
     return
-        + ton("0.02") // GetValidatedFee fwdFee
+        + ton("0.002") // computeFee
+        + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
+        + max(
+            OnRamp_Costs.ExecutorFinishedSuccessfully(),
+            OnRamp_Costs.ExecutorFinishedWithError()
+        )
+        ;
 }
 
 // Minimum value for calling OnRamp_Send
 @inline
 fun OnRamp_Costs.Send(): int {
     return
-        + ton("0.05") // SendExecutor deployment
-        + ton("0.05") // Execute fwdFee
+        + ton("0.002") // computeFee
+        + ton("0.01") // SendExecutor deployment
+        + ton("0.019") // Execute fwdFee
         + SendExecutor_Costs.Execute()
         ;
 }
@@ -116,7 +123,7 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
-        Router_Costs.MessageSent() + ton("0.05") // Fwd fee // TODO
+        Router_Costs.MessageSent() + ton("0.019") // Fwd fee // TODO
         ;
 }
 
@@ -124,6 +131,6 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
-        Router_Costs.MessageRejected() + ton("0.05") // Fwd fee // TODO
+        Router_Costs.MessageRejected() + ton("0.019") // Fwd fee // TODO
         ;
 }
