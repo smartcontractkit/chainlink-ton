@@ -34,6 +34,11 @@ export type TokenBalance = {
   failed: boolean
 }
 
+export abstract class Opcodes {
+  static validate = 0x038ede91
+  static markState = 0x019f4cd2
+}
+
 export type MerkleRootStorage = {
   rootId: bigint
   owner: Address
