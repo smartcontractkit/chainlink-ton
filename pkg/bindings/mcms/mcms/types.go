@@ -270,7 +270,7 @@ type Data struct {
 }
 
 // Length of serialized signer structure in bytes.
-const LenSignerBytes = (256 + 8 + 8) / 8
+const LenSignerBytes = (160 + 8 + 8) / 8
 
 // Signer information
 type Signer struct {
@@ -446,7 +446,7 @@ type Proof struct {
 }
 
 type SignerAddress struct {
-	Val *big.Int `tlb:"## 256"`
+	Val *big.Int `tlb:"## 160"` // 20 byte EVM address
 }
 
 type SignerGroup struct {

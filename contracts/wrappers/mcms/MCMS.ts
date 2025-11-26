@@ -257,12 +257,12 @@ export enum Error {
 // --- Data structures ---
 
 // Length of serialized signer structure in bytes.
-export const LEN_SIGNER_BYTES = (256 + 8 + 8) / 8
+export const LEN_SIGNER_BYTES = (160 + 8 + 8) / 8
 
 // Signer information
 export type Signer = {
   /// The EVM address of the signer.
-  address: bigint // uint256;
+  address: bigint // uint160;
   // The index of the signer in data.config.signers
   index: number // 0 <= index < MAX_NUM_SIGNERS
   // 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -530,7 +530,7 @@ export const builder = {
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(
-              asSnakeData<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 256)),
+              asSnakeData<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 160)), // 20 byte EVM address
             )
             .storeRef(asSnakeData<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
             .storeDict(
@@ -545,7 +545,7 @@ export const builder = {
           src.skip(32) // skip opcode
           return {
             queryId: src.loadUintBig(64),
-            signerAddresses: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(256)),
+            signerAddresses: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(160)),
             signerGroups: fromSnakeData<number>(src.loadRef(), (g) => g.loadUint(8)),
             groupQuorums: loadDict(
               Dictionary.loadDirect(
@@ -747,13 +747,13 @@ export const builder = {
     const signer: CellCodec<Signer> = {
       encode: (signer: Signer): Builder => {
         return beginCell()
-          .storeUint(signer.address, 256)
+          .storeUint(signer.address, 160)
           .storeUint(signer.index, 8)
           .storeUint(signer.group, 8)
       },
       load: (src: Slice): Signer => {
         return {
-          address: src.loadUintBig(256),
+          address: src.loadUintBig(160),
           index: src.loadUint(8),
           group: src.loadUint(8),
         }

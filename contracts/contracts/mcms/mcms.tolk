@@ -114,7 +114,7 @@ struct (0x89277f4b) MCMS_SetConfig {
     /// Query ID of the change request.
     queryId: uint64;
 
-    signerAddresses: SnakedCell<uint256>; // EVM addresses
+    signerAddresses: SnakedCell<uint160>; // EVM addresses
     signerGroups: SnakedCell<uint8>;
     groupQuorums: map<uint8, uint8>; // indexed, iterable backwards
     groupParents: map<uint8, uint8>; // indexed, iterable backwards
@@ -330,7 +330,7 @@ struct MCMS_Data {
 
     /// signers is used to easily validate the existence of the signer by its EVM address. We still
     /// have signers stored in config in order to easily deactivate them when a new config is set.
-    signers: map<uint256, Signer>; // exists if an EVM address is a signer
+    signers: map<uint160, Signer>; // exists if an EVM address is a signer
 
     /// The current configuration of the contract
     config: Cell<Config>; // @dev split out as cell to avoid size limits
@@ -479,7 +479,7 @@ enum MCMS_Error {
 // Signer information
 struct Signer {
     /// The EVM address of the signer.
-    address: uint256;
+    address: uint160;
     /// The index of the signer in data.config.signers
     index: uint8;
     /// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -1022,7 +1022,7 @@ fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
     queryId: uint64,
-    signerAddresses: SnakedCell<uint256>, // EVM addresses
+    signerAddresses: SnakedCell<uint160>, // EVM addresses
     signerGroups: SnakedCell<uint8>,
     groupQuorums: map<uint8, uint8>, // indexed, iterable backwards
     groupParents: map<uint8, uint8>, // indexed, iterable backwards
@@ -1032,7 +1032,7 @@ fun MCMS<T>.setConfig(
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
-    val numSigners = signerAddrsIterator.size(32); // notice size in bytes
+    val numSigners = signerAddrsIterator.size(20); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
         throw MCMS_Error.OutOfBoundsNumSigners;
     }
@@ -1144,7 +1144,7 @@ fun MCMS<T>.setConfig(
     // add new signers' addresses, we require that the signers' list be a strictly monotone
     // increasing sequence
     var i = 0;
-    var prevSigner: uint256 = 0; // start with a zero key
+    var prevSigner: uint160 = 0; // start with a zero key
     // Reset the signers group iterator
     signerGroupIterator = signerGroups.iter();
     while (!signerAddrsIterator.empty()) {
