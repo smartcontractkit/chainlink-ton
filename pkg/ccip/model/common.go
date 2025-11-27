@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -27,7 +28,7 @@ func FromBindingDataHex[B any, M Mapper[B]](m M, dataHex string) error {
 	}
 
 	if root == nil {
-		return fmt.Errorf("parse BOC: nil root cell")
+		return errors.New("parse BOC: nil root cell")
 	}
 
 	var raw B

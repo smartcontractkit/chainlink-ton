@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"time"
 
@@ -222,6 +223,10 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 			return fmt.Errorf("error while decoding USDPerUnitGas from DestChainConfigs: %w", err)
 		}
 
+		if gas.Timestamp > math.MaxInt64 {
+			return fmt.Errorf("timestamp %d overflows int64", gas.Timestamp)
+		}
+
 		cfg := DestChainConfigs{
 			Config: DestChainConfig{
 				IsEnabled:                         dcc.Config.IsEnabled,
@@ -328,9 +333,14 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 	for token, price := range s.USDPerToken {
 		tokenAddress := address.MustParseAddr(token)
 
+		timestamp := price.Timestamp.Unix()
+		if timestamp > math.MaxUint32 {
+			return nil, fmt.Errorf("timestamp in USDPerToken %d overflows uint32", timestamp)
+		}
+
 		bindingPrice := feequoter.TimestampedPrice{
 			Value:     price.Value,
-			Timestamp: uint32(price.Timestamp.Unix()),
+			Timestamp: uint32(timestamp),
 		}
 
 		valueCell, err := tlb.ToCell(bindingPrice)
@@ -362,10 +372,15 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 	// DestChainConfigs
 	st.DestChainConfigs = cell.NewDict(64)
 	for selector, chainConfig := range s.DestChainConfigsByChainSelector {
+		timestamp := chainConfig.USDPerUnitGas.Timestamp.Unix()
+		if timestamp < 0 {
+			return nil, fmt.Errorf("timestamp in USDPerUnitGas %d is lower than 0", timestamp)
+		}
+
 		usdPerUnitGas := feequoter.USDPerUnitGas{
 			ExecutionGasPrice:        chainConfig.USDPerUnitGas.ExecutionGasPrice,
 			DataAvailabilityGasPrice: chainConfig.USDPerUnitGas.DataAvailabilityGasPrice,
-			Timestamp:                uint64(chainConfig.USDPerUnitGas.Timestamp.Unix()),
+			Timestamp:                uint64(timestamp),
 		}
 
 		usdPerUnitGasCell, err := tlb.ToCell(usdPerUnitGas)
