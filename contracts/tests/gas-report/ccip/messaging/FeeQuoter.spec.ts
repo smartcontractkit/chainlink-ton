@@ -164,7 +164,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     // Reset metric store before measurement
 
     const payload = createMaxPayload()
-    const result = await meassureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
+    const result = await messureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
 
     // Analyze with metrics API
     const snapshot = makeSnapshotMetric(store, {
@@ -203,7 +203,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
 
     for (const size of payloadSizes) {
       const payload = createPayload(size)
-      const result = await meassureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
+      const result = await messureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
       const tx: BlockchainTransaction = result.transactions.find(
         (tx) =>
           tx.inMessage?.info.src instanceof Address && tx.inMessage.info.src.equals(onRamp.address),
@@ -233,8 +233,8 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     console.log(formatRow(['---', '---', '---', '---'], COL_WIDTHS))
 
     // print 1 every 100
-    var summaryOutput = ''
-    var csvOutput = ''
+    let summaryOutput = ''
+    let csvOutput = ''
     gasUsages.forEach(({ size, gasUsed, computeFee }) => {
       const feeTON = (Number(computeFee) / 1e9).toFixed(9)
       const rate = size === 0 ? '∞' : (Number(computeFee) / size).toFixed(2).toString()
@@ -249,7 +249,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
   })
 })
 
-async function meassureGetValidatedFee(
+async function messureGetValidatedFee(
   router: SandboxContract<rt.Router>,
   sender: SandboxContract<TreasuryContract>,
   payload: Cell,
