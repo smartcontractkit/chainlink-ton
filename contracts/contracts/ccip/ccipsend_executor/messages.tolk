@@ -25,7 +25,7 @@ struct SendExecutor_Costs {}
 @inline
 fun SendExecutor_Costs.Execute(): int {
     var baseFee =
-        + ton("0.01") // computeFee
+        + ton("0.002") // computeFee
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
