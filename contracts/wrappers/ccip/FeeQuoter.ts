@@ -119,7 +119,7 @@ export type DestChainConfig = {
 
 export type GetValidatedFee = {
   msg: rt.CCIPSend
-  metadata: Cell
+  context: Cell
 }
 
 export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
@@ -234,13 +234,13 @@ export const builder = {
           return beginCell()
             .storeUint(Opcodes.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.metadata)
+            .storeRef(data.context)
         },
         load: function (src: Slice): GetValidatedFee {
           src.skip(32) // opcode
           return {
             msg: rt.builder.message.in.ccipSend.load(src),
-            metadata: src.loadRef(),
+            context: src.loadRef(),
           }
         },
       }

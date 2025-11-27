@@ -534,7 +534,7 @@ export class FeeQuoterSetup {
       value: toNano('1'),
       msg: {
         msg,
-        metadata,
+        context: metadata,
       },
     })
 
@@ -587,7 +587,7 @@ export class FeeQuoterSetup {
       this.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().endCell() },
       },
     )
 

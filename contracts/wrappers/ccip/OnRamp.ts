@@ -15,7 +15,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { asSnakeData } from '../../src/utils'
+import { asSnakeData, fromSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
@@ -76,6 +76,18 @@ export type UpdateDestChainConfig = {
   allowlistEnabled: boolean
 }
 
+export type MessageValidated = {
+  fee: bigint
+  msg: rt.CCIPSend
+  context: Slice
+}
+
+export type MessageValidationFailed = {
+  error: bigint
+  msg: rt.CCIPSend
+  context: Slice
+}
+
 export type ExecutorFinishedSuccessfully = {
   messageID: bigint
   msg: Cell | rt.CCIPSend
@@ -104,6 +116,17 @@ export type UpdateAllowlist = {
   remove: Address[]
 }
 
+export type DynamicConfig = {
+  feeQuoter: Address
+  feeAggregator: Address
+  allowlistAdmin: Address
+}
+
+export type GetValidatedFee = {
+  msg: rt.CCIPSend
+  context: Slice
+}
+
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
     return beginCell().storeAddress(data.sender).storeCoins(data.value)
@@ -115,6 +138,22 @@ const metadataCodec: CellCodec<Metadata> = {
 
 export const builder = {
   data: (() => {
+    const dynamicConfig: CellCodec<DynamicConfig> = {
+      encode: (data: DynamicConfig): Builder => {
+        return beginCell()
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.feeAggregator)
+          .storeAddress(data.allowlistAdmin)
+      },
+      load: (src: Slice): DynamicConfig => {
+        return {
+          feeQuoter: src.loadAddress(),
+          feeAggregator: src.loadAddress(),
+          allowlistAdmin: src.loadAddress(),
+        }
+      },
+    }
+
     const executor: CellCodec<ExecutorDeployment> = {
       encode: function (data: ExecutorDeployment): Builder {
         return beginCell()
@@ -130,30 +169,37 @@ export const builder = {
         }
       },
     }
+
     const metadata = metadataCodec
+
     const contractData: CellCodec<OnRampStorage> = {
       encode: function (data: OnRampStorage): Builder {
-        return (
-          beginCell()
-            .storeUint(data.id, 32)
-            .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
-            .storeUint(data.chainSelector, 64)
-            // Cell<DynamicConfig>
-            .storeRef(
-              beginCell()
-                .storeAddress(data.config.feeQuoter)
-                .storeAddress(data.config.feeAggregator)
-                .storeAddress(data.config.allowlistAdmin)
-                .endCell(),
-            )
-            .storeDict(data.destChainConfigs)
-            .storeBuilder(executor.encode(data.executor))
-        )
+        return beginCell()
+          .storeUint(data.id, 32)
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
+          .storeUint(data.chainSelector, 64)
+          .storeRef(dynamicConfig.encode(data.config).asCell())
+          .storeDict(data.destChainConfigs)
+          .storeBuilder(executor.encode(data.executor))
       },
       load: function (src: Slice): OnRampStorage {
-        throw new Error('Function not implemented.')
+        const id = src.loadUint(32)
+        const ownable = ownable2step.builder.data.traitData.load(src)
+        const chainSelector = src.loadUintBig(64)
+        const config = dynamicConfig.load(src.loadRef().beginParse())
+        const destChainConfigs = src.loadDict(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
+        const executorData = executor.load(src)
+        return {
+          id,
+          ownable,
+          chainSelector,
+          config,
+          destChainConfigs,
+          executor: executorData,
+        }
       },
     }
+
     const destChainConfig: CellCodec<DestChainConfig> = {
       encode: function (data: DestChainConfig): Builder {
         return beginCell()
@@ -171,6 +217,7 @@ export const builder = {
         }
       },
     }
+
     const updateAllowlist: CellCodec<UpdateAllowlist> = {
       encode: (data: UpdateAllowlist): Builder => {
         return beginCell()
@@ -186,66 +233,81 @@ export const builder = {
             }),
           )
       },
-      load: (_: Slice): UpdateAllowlist => {
-        throw new Error('Not implemented')
+      load: (src: Slice): UpdateAllowlist => {
+        return {
+          destChainSelector: src.loadUintBig(64),
+          add: fromSnakeData(src.loadRef(), (item) => item.loadAddress()),
+          remove: fromSnakeData(src.loadRef(), (item) => item.loadAddress()),
+        }
       },
     }
+
     return {
       contractData,
       destChainConfig,
       executor,
       metadata,
+      dynamicConfig,
       updateAllowlist,
     }
   })(),
-  messages: {
-    in: {
-      ccipSend: rt.builder.message.in.ccipSend,
-      onrampSend: ((): CellCodec<OnRampSend> => {
-        return {
-          encode: function (data: OnRampSend): Builder {
-            return beginCell()
-              .storeUint(Opcodes.onrampSend, 32)
-              .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-              .storeBuilder(metadataCodec.encode(data.metadata))
-          },
-          load: function (src: Slice): OnRampSend {
-            src.skip(32)
-            return {
-              msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-              metadata: metadataCodec.load(src),
-            }
-          },
-        }
-      })(),
-      executorFinishedSuccessfully: ((): CellCodec<ExecutorFinishedSuccessfully> => {
-        return {
-          encode: function (data: ExecutorFinishedSuccessfully): Builder {
-            return beginCell()
-              .storeUint(Opcodes.executorFinishedSuccessfully, 32)
-              .storeUint(data.messageID, 224)
-              .storeRef(
-                data.msg instanceof Cell
-                  ? data.msg
-                  : rt.builder.message.in.ccipSend.encode(data.msg),
-              )
-              .storeBuilder(metadataCodec.encode(data.metadata))
-              .storeCoins(data.fee)
-          },
-          load: function (src: Slice): ExecutorFinishedSuccessfully {
-            src.skip(32)
-            return {
-              messageID: src.loadUintBig(224),
-              msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-              metadata: metadataCodec.load(src),
-              fee: src.loadCoins(),
-            }
-          },
-        }
-      })(),
-    },
-    executorFinishedWithError: ((): CellCodec<ExecutorFinishedWithError> => {
-      return {
+  messages: (() => {
+    const messageIn = (() => {
+      const getValidatedFee: CellCodec<GetValidatedFee> = {
+        encode: (data: GetValidatedFee): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): GetValidatedFee => {
+          src.skip(32)
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            context: src,
+          }
+        },
+      }
+
+      const onrampSend: CellCodec<OnRampSend> = {
+        encode: function (data: OnRampSend): Builder {
+          return beginCell()
+            .storeUint(Opcodes.onrampSend, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeBuilder(metadataCodec.encode(data.metadata))
+        },
+        load: function (src: Slice): OnRampSend {
+          src.skip(32)
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            metadata: metadataCodec.load(src),
+          }
+        },
+      }
+
+      const executorFinishedSuccessfully: CellCodec<ExecutorFinishedSuccessfully> = {
+        encode: function (data: ExecutorFinishedSuccessfully): Builder {
+          return beginCell()
+            .storeUint(Opcodes.executorFinishedSuccessfully, 32)
+            .storeUint(data.messageID, 224)
+            .storeRef(
+              data.msg instanceof Cell ? data.msg : rt.builder.message.in.ccipSend.encode(data.msg),
+            )
+            .storeBuilder(metadataCodec.encode(data.metadata))
+            .storeCoins(data.fee)
+        },
+        load: function (src: Slice): ExecutorFinishedSuccessfully {
+          src.skip(32)
+          return {
+            messageID: src.loadUintBig(224),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            metadata: metadataCodec.load(src),
+            fee: src.loadCoins(),
+          }
+        },
+      }
+
+      const executorFinishedWithError: CellCodec<ExecutorFinishedWithError> = {
         encode: function (data: ExecutorFinishedWithError): Builder {
           return beginCell()
             .storeUint(Opcodes.executorFinishedWithError, 32)
@@ -266,9 +328,8 @@ export const builder = {
           }
         },
       }
-    })(),
-    updateSendExecutor: ((): CellCodec<UpdateSendExecutor> => {
-      return {
+
+      const updateSendExecutor: CellCodec<UpdateSendExecutor> = {
         encode: function (data: UpdateSendExecutor): Builder {
           return beginCell().storeUint(Opcodes.updateSendExecutor, 32).storeRef(data.code)
         },
@@ -279,25 +340,88 @@ export const builder = {
           }
         },
       }
-    })(),
-    updateAllowlists: ((): CellCodec<UpdateAllowlists> => {
-      return {
+
+      const updateAllowlists: CellCodec<UpdateAllowlists> = {
         encode: (data: UpdateAllowlists): Builder => {
           return beginCell()
             .storeUint(Opcodes.updateAllowlists, 32)
             .storeRef(asSnakeData(data.updates, builder.data.updateAllowlist.encode))
         },
         load: (src: Slice): UpdateAllowlists => {
-          throw new Error('Not implemented') //TODO implement if needed
+          src.skip(32)
+          return {
+            updates: fromSnakeData(src.loadRef(), (item) =>
+              builder.data.updateAllowlist.load(item),
+            ),
+          }
         },
       }
-    })(),
-  },
+
+      return {
+        ccipSend: rt.builder.message.in.ccipSend,
+        getValidatedFee,
+        onrampSend,
+        executorFinishedSuccessfully,
+        executorFinishedWithError,
+        updateSendExecutor,
+        updateAllowlists,
+      }
+    })()
+
+    const messageOut = (() => {
+      const messageValidated: CellCodec<MessageValidated> = {
+        encode: (data: MessageValidated): Builder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeCoins(data.fee)
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidated => {
+          src.skip(32)
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            fee: src.loadCoins(),
+            context: src,
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
+        encode: (data: MessageValidationFailed): Builder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeUint(data.error, 256)
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidationFailed => {
+          src.skip(32)
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            error: src.loadUintBig(256),
+            context: src,
+          }
+        },
+      }
+
+      return {
+        messageValidated,
+        messageValidationFailed,
+      }
+    })()
+
+    return {
+      in: messageIn,
+      out: messageOut,
+    }
+  })(),
 }
 export abstract class Params {}
 
 export abstract class Opcodes {
   static ccipSend = 0x31768d95
+  static getValidatedFee = 0x9c2ccc7e
   static setDynamicConfig = 0x10000003
   static updateDestChainConfigs = 0x10000004
   static onrampSend = 0x10000002
@@ -307,7 +431,24 @@ export abstract class Opcodes {
   static updateAllowlists = 0x9dc06185
 }
 
+export abstract class OutOpcodes {
+  static messageValidated = 0x2afb11bd
+  static messageValidationFailed = 0xac1dd12e
+}
+
 export abstract class Errors {}
+
+const cloneToSlice = (value?: Slice | Cell): Slice => {
+  if (!value) {
+    return Cell.EMPTY.beginParse()
+  }
+  if (value instanceof Cell) {
+    return value.beginParse()
+  }
+  const sliceValue = value as Slice
+  const cloned = beginCell().storeSlice(sliceValue).endCell()
+  return cloned.beginParse()
+}
 
 export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {
   public ownable: ownable2step.ContractClient
@@ -407,13 +548,41 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     via: Sender,
     opts: {
       value: bigint
-      config: boolean
+      config: DynamicConfig
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(Opcodes.setDynamicConfig, 32).endCell(),
+      body: beginCell()
+        .storeUint(Opcodes.setDynamicConfig, 32)
+        .storeAddress(opts.config.feeQuoter)
+        .storeAddress(opts.config.feeAggregator)
+        .storeAddress(opts.config.allowlistAdmin)
+        .endCell(),
+    })
+  }
+
+  async sendGetValidatedFee(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      msg: rt.CCIPSend
+      context?: Slice | Cell
+    },
+  ) {
+    const body = builder.messages.in.getValidatedFee
+      .encode({
+        msg: opts.msg,
+        context: cloneToSlice(opts.context),
+      })
+      .asCell()
+
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body,
     })
   }
 
@@ -468,7 +637,22 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.executorFinishedWithError.encode(opts.body).asCell(),
+      body: builder.messages.in.executorFinishedWithError.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendUpdateSendExecutor(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      code: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.updateSendExecutor.encode({ code: opts.code }).asCell(),
     })
   }
 
@@ -483,7 +667,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.updateAllowlists.encode(opts.updateAllowlists).asCell(),
+      body: builder.messages.in.updateAllowlists.encode(opts.updateAllowlists).asCell(),
     })
   }
 

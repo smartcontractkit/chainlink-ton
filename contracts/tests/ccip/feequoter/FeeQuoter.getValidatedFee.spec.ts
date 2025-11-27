@@ -229,7 +229,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().endCell() },
       },
     )
 
@@ -278,7 +278,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().endCell() },
       },
     )
 
@@ -331,7 +331,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().endCell() },
       },
     )
 
@@ -379,7 +379,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().endCell() },
       },
     )
 
@@ -429,7 +429,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().endCell() },
       },
     )
 
