@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -261,7 +262,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	// Setup logpoller service
 	eventName := "Receiver_CCIPMessageReceived"
 	eventSig := tonhash.CRC32(eventName)
-	chainID := fmt.Sprintf("%d", c.chainSel)
+	chainID := strconv.FormatUint(c.chainSel, 10)
 
 	service, err := setupLogPoller(ctx, lggr, c.client, chainID, receiverAddr, eventSig, eventName)
 	if err != nil {
