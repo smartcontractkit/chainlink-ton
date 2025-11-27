@@ -25,7 +25,8 @@ struct SendExecutor_Costs {}
 @inline
 fun SendExecutor_Costs.Execute(): int {
     var baseFee =
-        ton("0.019") // GetValidatedFee fwdFee
+        + ton("0.002") // computeFee
+        + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
         ;
@@ -34,13 +35,17 @@ fun SendExecutor_Costs.Execute(): int {
 
 @inline
 fun SendExecutor_Costs.MessageValidated(): int {
-    return ton("0.019") // ExecutorFinishedSuccessfully fwdFee
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // ExecutorFinishedSuccessfully fwdFee
         + OnRamp_Costs.ExecutorFinishedSuccessfully();
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidationFailed(): int {
-    return ton("0.019") // ExecutorFinishedWithError fwdFee
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // ExecutorFinishedWithError fwdFee
         + OnRamp_Costs.ExecutorFinishedWithError();
 }
 
