@@ -11,12 +11,19 @@ import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
 import { mkdirSync, writeFileSync } from 'fs'
+import * as coverage  from '../Coverage'
+import { Blockchain } from '@ton/sandbox'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
+  let blockchain: Blockchain
+
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+  })
 
   beforeEach(async () => {
-    setup = new FeeQuoterFeeSetup()
+    setup = new FeeQuoterFeeSetup(blockchain)
     setup.code = await FeeQuoterSetup.compileContracts()
     await setup.setupAll('getValidatedFee')
   })
@@ -1021,21 +1028,14 @@ describe('FeeQuoter GetValidatedFee', () => {
   })
   afterAll(async () => {
     if (process.env["COVERAGE"] === "true"){
-      const feeQuoterCoverage = setup.blockchain.coverage(setup.bind.feeQuoter)
-
-      if (!feeQuoterCoverage) return;
-
-      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
-
-      //Output coverage artifacts
-
       const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
-
-      mkdirSync("./.coverage", { recursive: true });
-      //todo sufix constants to merge everything at the end
-      writeFileSync(
-        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
-        feeQuoterCoverageJson
+      coverage.generateCoverageArtifacts(
+        blockchain,
+        testSuitePrefix,
+        [{
+          code: 'FeeQuoter',
+          name: coverage.FEEQUOTER_COVERAGE_NAME
+        }]
       )
     }
   })

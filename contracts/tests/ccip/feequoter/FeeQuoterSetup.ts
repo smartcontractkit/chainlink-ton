@@ -166,8 +166,8 @@ export class FeeQuoterSetup {
     networkFeeUsdCents: 100,
   }
 
-  constructor() {
-    this.blockchain = null as any
+  constructor(blockchain: Blockchain) {
+    this.blockchain = blockchain
     this.code = null as any
     this.acc = null as any
     this.bind = null as any
@@ -655,8 +655,8 @@ export class FeeQuoterSetup {
  * Simplified setup class for fee-related tests (without complex token handling)
  */
 export class FeeQuoterFeeSetup extends FeeQuoterSetup {
-  constructor() {
-    super()
+  constructor(blockchain: Blockchain) {
+    super(blockchain)
   }
 
   async setupAll(testId: string): Promise<void> {
