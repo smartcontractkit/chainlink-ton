@@ -186,7 +186,6 @@ fun TupleIterator<T>.empty(self): bool {
     return self.pos >= self.len
 }
 
-
 @inline
 fun TupleIterator<T>.next(mutate self): T {
     var offset = self.pos;
