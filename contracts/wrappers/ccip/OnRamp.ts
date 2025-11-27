@@ -21,6 +21,7 @@ import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
+import * as fq from './FeeQuoter'
 
 export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
 export const ONRAMP_FACILITY_ID = 181
@@ -88,18 +89,35 @@ export type MessageValidationFailed = {
   context: Slice
 }
 
+export type InMessageValidated = {
+  fee: fq.Fee
+  msg: rt.CCIPSend
+  context: GetValidatedFeeContext
+}
+
+export type InMessageValidationFailed = {
+  error: bigint
+  msg: rt.CCIPSend
+  context: GetValidatedFeeContext
+}
+
+export type GetValidatedFeeContext = {
+  onrampContext: Address // router address
+  userContext: Slice
+}
+
 export type ExecutorFinishedSuccessfully = {
-  messageID: bigint
+  executorID: bigint
+  fee: fq.Fee
   msg: Cell | rt.CCIPSend
   metadata: Metadata
-  fee: bigint
 }
 
 export type ExecutorFinishedWithError = {
-  messageID: bigint
+  executorID: bigint
+  error: bigint
   msg: Cell | rt.CCIPSend
   metadata: Metadata
-  error: bigint
 }
 
 export type UpdateSendExecutor = {
@@ -242,6 +260,18 @@ export const builder = {
       },
     }
 
+    const getValidatedFeeContext: CellCodec<GetValidatedFeeContext> = {
+      encode: function (data: GetValidatedFeeContext): Builder {
+        return beginCell().storeAddress(data.onrampContext).storeSlice(data.userContext)
+      },
+      load: function (src: Slice): GetValidatedFeeContext {
+        return {
+          onrampContext: src.loadAddress(),
+          userContext: src,
+        }
+      },
+    }
+
     return {
       contractData,
       destChainConfig,
@@ -249,6 +279,7 @@ export const builder = {
       metadata,
       dynamicConfig,
       updateAllowlist,
+      getValidatedFeeContext,
     }
   })(),
   messages: (() => {
@@ -289,20 +320,20 @@ export const builder = {
         encode: function (data: ExecutorFinishedSuccessfully): Builder {
           return beginCell()
             .storeUint(Opcodes.executorFinishedSuccessfully, 32)
-            .storeUint(data.messageID, 224)
+            .storeUint(data.executorID, 224)
+            .storeBuilder(fq.builder.data.fee.encode(data.fee))
             .storeRef(
               data.msg instanceof Cell ? data.msg : rt.builder.message.in.ccipSend.encode(data.msg),
             )
             .storeBuilder(metadataCodec.encode(data.metadata))
-            .storeCoins(data.fee)
         },
         load: function (src: Slice): ExecutorFinishedSuccessfully {
           src.skip(32)
           return {
-            messageID: src.loadUintBig(224),
+            executorID: src.loadUintBig(224),
+            fee: fq.builder.data.fee.load(src),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             metadata: metadataCodec.load(src),
-            fee: src.loadCoins(),
           }
         },
       }
@@ -311,20 +342,20 @@ export const builder = {
         encode: function (data: ExecutorFinishedWithError): Builder {
           return beginCell()
             .storeUint(Opcodes.executorFinishedWithError, 32)
-            .storeUint(data.messageID, 224)
+            .storeUint(data.executorID, 224)
+            .storeUint(data.error, 256)
             .storeRef(
               data.msg instanceof Cell ? data.msg : rt.builder.message.in.ccipSend.encode(data.msg),
             )
             .storeBuilder(metadataCodec.encode(data.metadata))
-            .storeUint(data.error, 256)
         },
         load: function (src: Slice): ExecutorFinishedWithError {
           src.skip(32)
           return {
-            messageID: src.loadUintBig(224),
+            executorID: src.loadUintBig(224),
+            error: src.loadUintBig(256),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             metadata: metadataCodec.load(src),
-            error: src.loadUintBig(256),
           }
         },
       }
@@ -357,9 +388,47 @@ export const builder = {
         },
       }
 
+      const messageValidated: CellCodec<InMessageValidated> = {
+        encode: (data: InMessageValidated): Builder => {
+          return fq.builder.message.out.messageValidated.encode({
+            fee: data.fee,
+            msg: data.msg,
+            context: builder.data.getValidatedFeeContext.encode(data.context).asSlice(),
+          })
+        },
+        load: (src: Slice): InMessageValidated => {
+          const decoded = fq.builder.message.out.messageValidated.load(src)
+          return {
+            fee: decoded.fee,
+            msg: decoded.msg,
+            context: builder.data.getValidatedFeeContext.load(decoded.context),
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<InMessageValidationFailed> = {
+        encode: (data: InMessageValidationFailed): Builder => {
+          return fq.builder.message.out.messageValidationFailed.encode({
+            error: data.error,
+            msg: data.msg,
+            context: builder.data.getValidatedFeeContext.encode(data.context).asSlice(),
+          })
+        },
+        load: (src: Slice): InMessageValidationFailed => {
+          const decoded = fq.builder.message.out.messageValidationFailed.load(src)
+          return {
+            error: decoded.error,
+            msg: decoded.msg,
+            context: builder.data.getValidatedFeeContext.load(decoded.context),
+          }
+        },
+      }
+
       return {
         ccipSend: rt.builder.message.in.ccipSend,
         getValidatedFee,
+        messageValidated,
+        messageValidationFailed,
         onrampSend,
         executorFinishedSuccessfully,
         executorFinishedWithError,
@@ -373,15 +442,15 @@ export const builder = {
         encode: (data: MessageValidated): Builder => {
           return beginCell()
             .storeUint(OutOpcodes.messageValidated, 32)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeCoins(data.fee)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
         },
         load: (src: Slice): MessageValidated => {
           src.skip(32)
           return {
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             fee: src.loadCoins(),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             context: src,
           }
         },
@@ -391,15 +460,15 @@ export const builder = {
         encode: (data: MessageValidationFailed): Builder => {
           return beginCell()
             .storeUint(OutOpcodes.messageValidationFailed, 32)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeUint(data.error, 256)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
         },
         load: (src: Slice): MessageValidationFailed => {
           src.skip(32)
           return {
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             error: src.loadUintBig(256),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
             context: src,
           }
         },
@@ -422,6 +491,8 @@ export abstract class Params {}
 export abstract class Opcodes {
   static ccipSend = 0x31768d95
   static getValidatedFee = 0x9c2ccc7e
+  static messageValidated = fq.OutOpcodes.messageValidated
+  static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
   static setDynamicConfig = 0x10000003
   static updateDestChainConfigs = 0x10000004
   static onrampSend = 0x10000002
@@ -436,7 +507,11 @@ export abstract class OutOpcodes {
   static messageValidationFailed = 0xac1dd12e
 }
 
-export abstract class Errors {}
+export enum Errors {
+  UnknownDestChainSelector = 18100, // Facility ID * 100
+  Unauthorized,
+  SenderNotAllowed,
+}
 
 const cloneToSlice = (value?: Slice | Cell): Slice => {
   if (!value) {
@@ -583,6 +658,40 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body,
+    })
+  }
+
+  async sendMessageValidated(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      body: InMessageValidated
+    },
+  ) {
+    const body = builder.messages.in.messageValidated.encode(opts.body).asCell()
+
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: body,
+    })
+  }
+
+  async sendMessageValidationFailed(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      body: InMessageValidationFailed
+    },
+  ) {
+    const body = builder.messages.in.messageValidationFailed.encode(opts.body).asCell()
+
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: body,
     })
   }
 

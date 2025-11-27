@@ -529,12 +529,12 @@ export class FeeQuoterSetup {
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(msg: rt.CCIPSend, metadata: Cell): Promise<sendExecutor.MessageValidated> {
+  async getValidatedFee(msg: rt.CCIPSend): Promise<feeQuoter.MessageValidated> {
     const res = await this.bind.feeQuoter.sendGetValidatedFee(this.acc.externalCaller.getSender(), {
       value: toNano('1'),
       msg: {
         msg,
-        context: metadata,
+        context: beginCell().asSlice(),
       },
     })
 
@@ -587,7 +587,7 @@ export class FeeQuoterSetup {
       this.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, context: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -624,7 +624,7 @@ export class FeeQuoterSetup {
         op: sendExec.Opcodes.messageValidationFailed,
         success: true,
         body(x) {
-          return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
             x,
             sendExec.builder.message.in.messageValidationFailed,
             [

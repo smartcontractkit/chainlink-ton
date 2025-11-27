@@ -25,7 +25,8 @@ describe('OnRamp - Get Fee', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
-  let feeQuoterAddr: Address
+  let mockRouter: SandboxContract<TreasuryContract>
+  let mockFeeQuoter: SandboxContract<TreasuryContract>
 
   const ccipSend: rt.CCIPSend = {
     queryID: 1,
@@ -45,11 +46,12 @@ describe('OnRamp - Get Fee', () => {
 
   beforeEach(async () => {
     ;({ blockchain, deployer } = await setup())
-    feeQuoterAddr = await generateRandomTonAddress()
+    mockRouter = await blockchain.treasury('mockRouter')
+    mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
     onramp = await deployOnRampContract(blockchain, deployer, {
       config: {
-        feeQuoter: feeQuoterAddr, // For now, fee quoter is global
+        feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
     })
   })
@@ -61,26 +63,25 @@ describe('OnRamp - Get Fee', () => {
     // 3. get validated fee from fee quoter
 
     const queriedFeeQuoter = await onramp.getFeeQuoter(CHAINSEL_EVM_TEST_90000002) // We don't validate chain selector here yet. We might enable different fee quoters per chain later.
-    expect(queriedFeeQuoter.equals(feeQuoterAddr)).toBe(true)
+    expect(queriedFeeQuoter.equals(mockFeeQuoter.address)).toBe(true)
   })
 
   it('should forward get fee to fee quoter', async () => {
-    const result = await onramp.sendGetValidatedFee(deployer.getSender(), {
+    const result = await onramp.sendGetValidatedFee(mockRouter.getSender(), {
       value: toNano('0.5'),
       msg: ccipSend,
       context: beginCell().storeUint(42, 32).endCell(), // arbitrary context
     })
 
     expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
+      from: mockRouter.address,
       to: onramp.address,
       success: true,
       op: or.Opcodes.getValidatedFee,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
-      to: feeQuoterAddr,
-      success: false,
+      to: mockFeeQuoter.address,
       op: fq.Opcodes.getValidatedFee,
     })
 
@@ -88,7 +89,7 @@ describe('OnRamp - Get Fee', () => {
       (tx) =>
         tx.inMessage &&
         tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(deployer.address) &&
+        tx.inMessage.info.src.equals(mockRouter.address) &&
         tx.inMessage.info.dest instanceof Address &&
         tx.inMessage.info.dest.equals(onramp.address),
     )
@@ -105,5 +106,60 @@ describe('OnRamp - Get Fee', () => {
     expect(outMsg.body.beginParse().loadUint(32)).toBe(fq.Opcodes.getValidatedFee)
     const decoded = fq.builder.message.in.getValidatedFee.load(outMsg.body.beginParse())
     expect(decoded.msg).toEqual(ccipSend)
+  })
+
+  it('should throw error if message validated comes from non-feequoter', async () => {
+    const anotherSender = await blockchain.treasury('anotherSender')
+    const result = await onramp.sendMessageValidated(anotherSender.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        fee: {
+          feeTokenAmount: 123456n,
+          feeValueJuels: 12345n,
+        },
+        msg: ccipSend,
+        context: {
+          onrampContext: mockRouter.address,
+          userContext: beginCell().storeUint(42, 32).asSlice(), // arbitrary context
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: anotherSender.address,
+      to: onramp.address,
+      success: false,
+      op: or.Opcodes.messageValidated,
+      exitCode: or.Errors.Unauthorized,
+    })
+  })
+
+  it('should forward message validated', async () => {
+    const result = await onramp.sendMessageValidated(mockFeeQuoter.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        fee: {
+          feeTokenAmount: 123456n,
+          feeValueJuels: 12345n,
+        },
+        msg: ccipSend,
+        context: {
+          onrampContext: mockRouter.address,
+          userContext: beginCell().storeUint(42, 32).asSlice(), // arbitrary context
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockFeeQuoter.address,
+      to: onramp.address,
+      success: true,
+      op: or.Opcodes.messageValidated,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      op: or.OutOpcodes.messageValidated,
+    })
   })
 })

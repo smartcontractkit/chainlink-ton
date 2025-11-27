@@ -17,6 +17,7 @@ import { CellCodec } from '../utils'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 import * as or from './OnRamp'
+import * as fq from './FeeQuoter'
 import * as rt from './Router'
 
 export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '1.6.0'
@@ -47,18 +48,6 @@ export type Execute = {
   config: Cell // Config
 }
 
-export type MessageValidated = {
-  fee: bigint
-  msg: rt.CCIPSend
-  metadata: Cell
-}
-
-export type MessageValidationFailed = {
-  error: bigint
-  msg: rt.CCIPSend
-  metadata: Cell
-}
-
 export const builder = {
   message: {
     in: (() => {
@@ -78,46 +67,10 @@ export const builder = {
         },
       }
 
-      const messageValidated: CellCodec<MessageValidated> = {
-        encode: (data: MessageValidated): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.messageValidated, 32)
-            .storeCoins(data.fee)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeSlice(data.metadata.beginParse())
-        },
-        load: (src: Slice): MessageValidated => {
-          src.skip(32) // opcode
-          return {
-            fee: src.loadCoins(),
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: src.asCell(),
-          }
-        },
-      }
-
-      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
-        encode: (data: MessageValidationFailed): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.messageValidationFailed, 32)
-            .storeUint(data.error, 256)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeSlice(data.metadata.beginParse())
-        },
-        load: (src: Slice): MessageValidationFailed => {
-          src.skip(32) // opcode
-          return {
-            error: src.loadUintBig(256),
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: src.asCell(),
-          }
-        },
-      }
-
       return {
         execute,
-        messageValidated,
-        messageValidationFailed,
+        messageValidated: fq.builder.message.out.messageValidated,
+        messageValidationFailed: fq.builder.message.out.messageValidationFailed,
       }
     })(),
   },
@@ -143,8 +96,8 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static execute = 0xaf3c62b3
-  static messageValidated = 0x1fa60374
-  static messageValidationFailed = 0xbcf0ab0f
+  static messageValidated = fq.OutOpcodes.messageValidated
+  static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
 }
 
 export class ContractClient implements typeAndVersion.Interface, Contract {
