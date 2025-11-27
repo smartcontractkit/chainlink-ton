@@ -1,7 +1,7 @@
 import {
   Address,
-  Builder as TonBuilder,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
@@ -10,7 +10,6 @@ import {
   DictionaryValue,
   Sender,
   SendMode,
-  Builder,
   Slice,
 } from '@ton/core'
 
@@ -64,7 +63,7 @@ export const builder = {
   message: {
     in: (() => {
       const execute: CellCodec<Execute> = {
-        encode: (data: Execute): TonBuilder => {
+        encode: (data: Execute): Builder => {
           return beginCell()
             .storeUint(Opcodes.execute, 32)
             .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
@@ -80,37 +79,37 @@ export const builder = {
       }
 
       const messageValidated: CellCodec<MessageValidated> = {
-        encode: (data: MessageValidated): TonBuilder => {
+        encode: (data: MessageValidated): Builder => {
           return beginCell()
             .storeUint(Opcodes.messageValidated, 32)
             .storeCoins(data.fee)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.metadata)
+            .storeSlice(data.metadata.beginParse())
         },
         load: (src: Slice): MessageValidated => {
           src.skip(32) // opcode
           return {
             fee: src.loadCoins(),
             msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: src.loadRef(),
+            metadata: src.asCell(),
           }
         },
       }
 
       const messageValidationFailed: CellCodec<MessageValidationFailed> = {
-        encode: (data: MessageValidationFailed): TonBuilder => {
+        encode: (data: MessageValidationFailed): Builder => {
           return beginCell()
             .storeUint(Opcodes.messageValidationFailed, 32)
             .storeUint(data.error, 256)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.metadata)
+            .storeSlice(data.metadata.beginParse())
         },
         load: (src: Slice): MessageValidationFailed => {
           src.skip(32) // opcode
           return {
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: src.loadRef(),
             error: src.loadUintBig(256),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            metadata: src.asCell(),
           }
         },
       }

@@ -234,13 +234,13 @@ export const builder = {
           return beginCell()
             .storeUint(Opcodes.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.context)
+            .storeSlice(data.context.beginParse())
         },
         load: function (src: Slice): GetValidatedFee {
           src.skip(32) // opcode
           return {
-            msg: rt.builder.message.in.ccipSend.load(src),
-            context: src.loadRef(),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            context: src.asCell(),
           }
         },
       }

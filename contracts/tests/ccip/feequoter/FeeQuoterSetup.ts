@@ -633,7 +633,6 @@ export class FeeQuoterSetup {
                   return true
                 }
                 throw new Error(`Validation failed with error ${printErrorName(Number(msg.error))}`)
-                return false
               },
             ],
           )
