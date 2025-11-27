@@ -214,13 +214,13 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 		}
 
 		var dcc feequoter.DestChainConfigs
-		if err := tlb.LoadFromCell(&dcc, kv.Value); err != nil {
-			return fmt.Errorf("error while decoding DestChainConfigs value: %w", err)
+		if err2 := tlb.LoadFromCell(&dcc, kv.Value); err2 != nil {
+			return fmt.Errorf("error while decoding DestChainConfigs value: %w", err2)
 		}
 
 		var gas feequoter.USDPerUnitGas
-		if err := tlb.LoadFromCell(&gas, dcc.USDPerUnitGasRef.BeginParse()); err != nil {
-			return fmt.Errorf("error while decoding USDPerUnitGas from DestChainConfigs: %w", err)
+		if err3 := tlb.LoadFromCell(&gas, dcc.USDPerUnitGasRef.BeginParse()); err3 != nil {
+			return fmt.Errorf("error while decoding USDPerUnitGas from DestChainConfigs: %w", err3)
 		}
 
 		if gas.Timestamp > math.MaxInt64 {
@@ -334,8 +334,8 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 		tokenAddress := address.MustParseAddr(token)
 
 		timestamp := price.Timestamp.Unix()
-		if timestamp > math.MaxUint32 {
-			return nil, fmt.Errorf("timestamp in USDPerToken %d overflows uint32", timestamp)
+		if timestamp < 0 || timestamp > math.MaxUint32 {
+			return nil, fmt.Errorf("timestamp in USDPerToken %d overflows or underflows uint32", timestamp)
 		}
 
 		bindingPrice := feequoter.TimestampedPrice{
