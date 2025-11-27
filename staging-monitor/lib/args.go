@@ -134,11 +134,24 @@ func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 	srcPrefix := normalizeChainName(srcChainName)
 	destPrefix := normalizeChainName(destChainName)
 
+	// FeeQuoter is only needed for TON as source (EVM gets fee from Router)
+	// Note: TON Router has get_fee method that returns the fee for a given message,
+	// but it requires sending a transaction to the router not querying it(TON contracts can't query other contracts)
+	// So here we query fee quoter directly for the fee for operational efficiency
+	srcFamily, err := chainsel.GetSelectorFamily(srcChainSel)
+	if err != nil {
+		return TestArgs{}, fmt.Errorf("failed to get source chain family: %w", err)
+	}
+	var srcFeeQuoter string
+	if srcFamily == chainsel.FamilyTon {
+		srcFeeQuoter = mustGetEnv(srcPrefix + "_FEE_QUOTER")
+	}
+
 	return TestArgs{
 		SrcChainSel:  srcChainSel,
 		DestChainSel: destChainSel,
 		SrcRouter:    mustGetEnv(srcPrefix + "_ROUTER"),
-		SrcFeeQuoter: mustGetEnv(srcPrefix + "_FEE_QUOTER"),
+		SrcFeeQuoter: srcFeeQuoter,
 		SrcWalletKey: mustGetEnv(srcPrefix + "_WALLET_KEY"),
 		SrcEndpoint:  mustGetEnv(srcPrefix + "_ENDPOINT"),
 		DestReceiver: mustGetEnv(destPrefix + "_RECEIVER"),

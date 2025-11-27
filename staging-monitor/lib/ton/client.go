@@ -14,21 +14,24 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+
+	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
@@ -75,6 +78,7 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 		mc, _ := client.CurrentMasterchainInfo(ctx)
 		balance, _ := w.GetBalance(ctx, mc)
 		lggr.Infow("TON wallet initialized",
+			"address", w.Address().String(),
 			"balance", balance.String())
 	}
 
@@ -113,6 +117,11 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		return nil, fmt.Errorf("failed to parse router address: %w", err)
 	}
 
+	fqAddr, err := address.ParseAddr(msg.FeeQuoter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse FeeQuoter address: %w", err)
+	}
+
 	// Build extra args
 	extraArgs := onramp.GenericExtraArgsV2{
 		GasLimit:                 big.NewInt(lib.TONDefaultGasLimit),
@@ -136,80 +145,52 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		receiverBytes = leftPadTo32(receiverBytes)
 	}
 
-	// Build CCIPSend message
-	ccipSend := router.CCIPSend{
-		QueryID:           uint64(0),
-		DestChainSelector: msg.DestChainSel,
-		Receiver:          receiverBytes,
-		Data:              msg.Data,
-		TokenAmounts:      nil,
-		FeeToken:          tvm.TonTokenAddr,
-		ExtraArgs:         extraArgsCell,
+	// Build TonSendRequest
+	tonRequest := ops.TonSendRequest{
+		QueryID:   0,
+		Receiver:  receiverBytes,
+		Data:      msg.Data,
+		ExtraArgs: extraArgsCell,
+		FeeToken:  tvm.TonTokenAddr,
 	}
 
-	ccipSendCell, err := tlb.ToCell(ccipSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize CCIPSend: %w", err)
-	}
-
-	// query fee from FeeQuoter using validatedFeeCell getter
-	// Note: router also exposes fee getter for end users, but it requires sending a transaction to the router not querying it
-	fqAddr, err := address.ParseAddr(msg.FeeQuoter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse FeeQuoter address: %w", err)
-	}
-	fee, result, err := c.getFee(ctx, fqAddr, ccipSendCell)
-	if err != nil {
-		return result, err
-	}
-
-	lggr.Infow("Fee to send CCIP request", "fee", fee.String()+" nano TON")
-
-	// Add gas buffer to cover transaction costs (following cs_test_helpers.go)
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano())
-
-	// Create wallet message
-	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     routerAddr,
-			Amount:      tlb.MustFromNano(value, 9),
-			Body:        ccipSendCell,
+	// Build minimal Environment
+	tonProvider := &cldfton.Chain{
+		ChainMetadata: cldfton.ChainMetadata{
+			Selector: c.chainSel,
 		},
+		Client:        c.client,
+		Wallet:        c.wallet,
+		WalletAddress: c.wallet.WalletAddress(),
 	}
 
-	// Send transaction with trace tracking
-	tt := tracetracking.NewSignedAPIClient(c.client, *c.wallet)
-	receivedMsg, _, err := tt.SendWaitTransaction(ctx, *routerAddr, walletMsg)
+	blockchains := cldfchain.NewBlockChainsFromSlice([]cldfchain.BlockChain{tonProvider})
+
+	env := cldf.Environment{
+		GetContext:  func() context.Context { return ctx },
+		Logger:      lggr,
+		BlockChains: blockchains,
+	}
+
+	// Build CCIPChainState
+	chainState := state.CCIPChainState{
+		Router:    *routerAddr,
+		FeeQuoter: *fqAddr,
+	}
+
+	// Call SendTonRequest from deployment/ccip
+	seqNum, event, err := ops.SendTonRequest(env, chainState, c.chainSel, msg.DestChainSel, tonRequest)
 	if err != nil {
-		return nil, fmt.Errorf("send transaction failed: %w", err)
+		return nil, err
 	}
 
-	if receivedMsg.ExitCode != 0 {
-		return nil, fmt.Errorf("router execution failed with exit code %d", receivedMsg.ExitCode)
+	// Extract messageID from event
+	ccipEvent, ok := event.(onramp.CCIPMessageSent)
+	if !ok {
+		return nil, fmt.Errorf("unexpected event type: %T", event)
 	}
 
-	// Wait for trace
-	err = receivedMsg.WaitForTrace(ctx, c.client)
-	if err != nil {
-		return nil, fmt.Errorf("trace wait failed: %w", err)
-	}
-
-	// Debug: log message trace info
-	lggr.Infow("Transaction trace",
-		"exitCode", receivedMsg.ExitCode,
-		"success", receivedMsg.Success,
-		"outgoingInternal", len(receivedMsg.OutgoingInternalReceivedMessages),
-		"outgoingExternal", len(receivedMsg.OutgoingExternalMessages))
-
-	// Extract sequence number and messageID from CCIPMessageSent event
-	seqNum, messageID, err := extractFromCCIPMessageSent(receivedMsg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract from CCIPMessageSent event: %w", err)
-	}
-
+	messageID := hex.EncodeToString(ccipEvent.Message.Header.MessageID)
 	lggr.Infow("CCIP message sent from TON", "seqNum", seqNum, "messageID", messageID)
 
 	return &lib.SendResult{
@@ -218,24 +199,6 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		TxHash:    "", // TON doesn't have simple tx hash concept
 		BlockNum:  0,  // Not easily available
 	}, nil
-}
-
-func (c *Client) getFee(ctx context.Context, fqAddr *address.Address, ccipSendCell *cell.Cell) (*big.Int, *lib.SendResult, error) {
-	block, err := c.client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
-	getResult, err := c.client.RunGetMethod(ctx, block, fqAddr, "validatedFeeCell", ccipSendCell)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get validatedFee: %w", err)
-	}
-
-	fee, err := getResult.Int(0)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse fee from FeeQuoter result: %w", err)
-	}
-	return fee, nil, nil
 }
 
 func (c *Client) GetCurrentBlock(ctx context.Context) (uint64, error) {

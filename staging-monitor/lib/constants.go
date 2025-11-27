@@ -11,9 +11,9 @@ const (
 
 // EVM configuration
 const (
-	EVMLogQuerySpan        uint64 = 20      // Query blocks in chunks of 20
-	EVMDefaultGasLimit     int64  = 1000000 // TODO:TBD Gas limit for CCIP messages to TON
-	EVMTransactionGasLimit uint64 = 500000  // Gas limit for router transactions
+	EVMLogQuerySpan        uint64 = 20          // Query blocks in chunks of 20
+	EVMDefaultGasLimit     int64  = 100_000_000 // In nano TON, 0.1 TON
+	EVMTransactionGasLimit uint64 = 500000      // Gas limit for router transactions
 )
 
 // TON configuration
