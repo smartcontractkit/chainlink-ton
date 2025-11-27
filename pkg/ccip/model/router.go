@@ -145,14 +145,14 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		return fmt.Errorf("error while loading onRamps: %w", err)
 	}
 	for _, kv := range onRamps {
-		selector, err := kv.Key.LoadUInt(64)
-		if err != nil {
-			return fmt.Errorf("error while decoding chain selector from onRamps: %w", err)
+		selector, err2 := kv.Key.LoadUInt(64)
+		if err2 != nil {
+			return fmt.Errorf("error while decoding chain selector from onRamps: %w", err2)
 		}
 
 		var onRamp common.WrappedAddress
-		if err := tlb.LoadFromCell(&onRamp, kv.Value); err != nil {
-			return fmt.Errorf("error while decoding OnRamps value: %w", err)
+		if err3 := tlb.LoadFromCell(&onRamp, kv.Value); err3 != nil {
+			return fmt.Errorf("error while decoding OnRamps value: %w", err3)
 		}
 
 		b = b.WithOnRamp(selector, onRamp.WrappedAddress)
@@ -164,14 +164,14 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		return fmt.Errorf("error while loading offRamps: %w", err)
 	}
 	for _, kv := range offRamps {
-		selector, err := kv.Key.LoadUInt(64)
-		if err != nil {
-			return fmt.Errorf("error while decoding chain selector from offRamps: %w", err)
+		selector, err2 := kv.Key.LoadUInt(64)
+		if err2 != nil {
+			return fmt.Errorf("error while decoding chain selector from offRamps: %w", err2)
 		}
 
 		var offRamp common.WrappedAddress
-		if err := tlb.LoadFromCell(&offRamp, kv.Value); err != nil {
-			return fmt.Errorf("error while decoding offRamps value: %w", err)
+		if err3 := tlb.LoadFromCell(&offRamp, kv.Value); err3 != nil {
+			return fmt.Errorf("error while decoding offRamps value: %w", err3)
 		}
 
 		b = b.WithOffRamp(selector, offRamp.WrappedAddress)
@@ -184,8 +184,8 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 	}
 	for _, fu := range forwardUpdates {
 		var forwardUpdate common.WrappedAddress
-		if err := tlb.LoadFromCell(&forwardUpdate, fu.Key); err != nil {
-			return fmt.Errorf("error while decoding ForwardUpdates value: %w", err)
+		if err2 := tlb.LoadFromCell(&forwardUpdate, fu.Key); err2 != nil {
+			return fmt.Errorf("error while decoding ForwardUpdates value: %w", err2)
 		}
 
 		b = b.WithRMNRemoteForwardUpdates(forwardUpdate.WrappedAddress)
@@ -197,10 +197,10 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		return fmt.Errorf("error while loading RMNRemote.CursedSubjects: %w", err)
 	}
 	for _, kv := range cursedSubjects {
-		cursedObject, err := kv.Key.LoadBigUInt(128)
+		cursedObject, err2 := kv.Key.LoadBigUInt(128)
 
-		if err != nil {
-			return fmt.Errorf("error while decoding CursedSubjects: %w", err)
+		if err2 != nil {
+			return fmt.Errorf("error while decoding CursedSubjects: %w", err2)
 		}
 
 		b = b.WithRMNRemoteCursedSubject(cursedObject)

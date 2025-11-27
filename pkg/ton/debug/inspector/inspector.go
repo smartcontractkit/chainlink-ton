@@ -87,7 +87,7 @@ Arguments:
 				return fmt.Errorf("failed to initialize inspector: %w", err)
 			}
 
-			if _, err := readStorage(log, ctx, connection, contractAddress, contractType); err != nil {
+			if _, err := readStorage(ctx, log, connection, contractAddress, contractType); err != nil {
 				return fmt.Errorf("failed to read contract storage: %w", err)
 			}
 
@@ -105,13 +105,12 @@ Arguments:
 }
 
 func readStorage(
-	lggr logger.Logger,
 	ctx context.Context,
+	lggr logger.Logger,
 	connection *ton.APIClient,
 	contractAddress string,
 	contractType string,
 ) ([]byte, error) {
-
 	lggr.Infof("Trying to decode storage for address %s with contract type %s", contractAddress, contractType)
 
 	addr, err := address.ParseAddr(contractAddress)
@@ -131,7 +130,7 @@ func readStorage(
 
 	cell := account.Data
 	if cell == nil {
-		return nil, fmt.Errorf("account has no data")
+		return nil, errors.New("account has no data")
 	}
 
 	boc := cell.ToBOC()
@@ -145,7 +144,7 @@ func readStorage(
 	switch contractType {
 	case contractTypeFeeQuoter:
 		target := &model.FeeQuoterStorage{}
-		if err := model.FromBindingDataHex(target, dataHex); err != nil {
+		if err = model.FromBindingDataHex(target, dataHex); err != nil {
 			lggr.Errorf("Failed to decode FeeQuoter storage: %v", err)
 			return nil, fmt.Errorf("unable to decode FeeQuoter storage: %w", err)
 		}
@@ -153,7 +152,7 @@ func readStorage(
 
 	case contractTypeRouter:
 		target := &model.RouterStorage{}
-		if err := model.FromBindingDataHex(target, dataHex); err != nil {
+		if err = model.FromBindingDataHex(target, dataHex); err != nil {
 			lggr.Errorf("Failed to decode Router storage: %v", err)
 			return nil, fmt.Errorf("unable to decode Router storage: %w", err)
 		}

@@ -196,8 +196,8 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 	}
 	for _, kv := range apus {
 		var w common.WrappedAddress
-		if err := tlb.LoadFromCell(&w, kv.Key); err != nil {
-			return fmt.Errorf("error while decoding AllowedPriceUpdater key: %w", err)
+		if err2 := tlb.LoadFromCell(&w, kv.Key); err2 != nil {
+			return fmt.Errorf("error while decoding AllowedPriceUpdater key: %w", err2)
 		}
 		b = b.WithAllowedPriceUpdater(w.WrappedAddress)
 	}
@@ -208,9 +208,9 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 		return fmt.Errorf("error while loading DestChainConfigs: %w", err)
 	}
 	for _, kv := range dccs {
-		selector, err := kv.Key.LoadUInt(64)
-		if err != nil {
-			return fmt.Errorf("error while decoding chain selector from DestChainConfigs: %w", err)
+		selector, err2 := kv.Key.LoadUInt(64)
+		if err2 != nil {
+			return fmt.Errorf("error while decoding chain selector from DestChainConfigs: %w", err2)
 		}
 
 		var dcc feequoter.DestChainConfigs
@@ -265,13 +265,13 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 	}
 	for _, kv := range usdItems {
 		var token common.WrappedAddress
-		if err := tlb.LoadFromCell(&token, kv.Key); err != nil {
-			return fmt.Errorf("error while decoding UsdPerToken key: %w", err)
+		if err2 := tlb.LoadFromCell(&token, kv.Key); err2 != nil {
+			return fmt.Errorf("error while decoding UsdPerToken key: %w", err2)
 		}
 
 		var price feequoter.TimestampedPrice
-		if err := tlb.LoadFromCell(&price, kv.Value); err != nil {
-			return fmt.Errorf("error while decoding UsdPerToken value: %w", err)
+		if err3 := tlb.LoadFromCell(&price, kv.Value); err3 != nil {
+			return fmt.Errorf("error while decoding UsdPerToken value: %w", err3)
 		}
 
 		b = b.WithUSDPerToken(token.WrappedAddress, price.Value, time.Unix(int64(price.Timestamp), 0).UTC())
@@ -284,13 +284,13 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 	}
 	for _, kv := range pmItems {
 		var token common.WrappedAddress
-		if err := tlb.LoadFromCell(&token, kv.Key); err != nil {
-			return fmt.Errorf("error while decoding PremiumMultiplier key: %w", err)
+		if err2 := tlb.LoadFromCell(&token, kv.Key); err2 != nil {
+			return fmt.Errorf("error while decoding PremiumMultiplier key: %w", err2)
 		}
 
-		val, err := kv.Value.LoadUInt(64)
-		if err != nil {
-			return fmt.Errorf("error while decoding PremiumMultiplier value: %w", err)
+		val, err3 := kv.Value.LoadUInt(64)
+		if err3 != nil {
+			return fmt.Errorf("error while decoding PremiumMultiplier value: %w", err3)
 		}
 
 		b = b.WithPremiumMultiplier(token.WrappedAddress, val)
