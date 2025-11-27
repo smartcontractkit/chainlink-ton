@@ -13,6 +13,7 @@ import '@ton/test-utils'
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
 import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
+import * as coverage from '../../ccip/Coverage'
 
 /**
  * Configuration for testing upgrades between two versions of an upgradeable contract.

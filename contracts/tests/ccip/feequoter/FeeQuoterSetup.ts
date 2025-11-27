@@ -185,15 +185,16 @@ export class FeeQuoterSetup {
    */
   async initializeBlockchain(): Promise<void> {
     this.blockchain = await Blockchain.create()
-    if(process.env["COVERAGE"] === "true") {
-      this.blockchain.enableCoverage()
-    }
     this.blockchain.now = 1
     this.blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
-      vmLogs: 'vm_logs_verbose',
+      vmLogs: 'none',
       debugLogs: true,
+    }
+    if(process.env["COVERAGE"] === "true") {
+      this.blockchain.enableCoverage()
+      this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     // Set up accounts
@@ -215,7 +216,7 @@ export class FeeQuoterSetup {
    */
   async setupFeeQuoterContract(testId: string): Promise<void> {
     const data: feeQuoter.FeeQuoterStorage = {
-      id: crc32(`feeQuoter.${testId}`),
+      id: BigInt(crc32(`feeQuoter.${testId}`)),
       ownable: {
         owner: this.acc.owner.address,
         pendingOwner: null,

@@ -81,7 +81,12 @@ describe('Router - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployRouterContract,
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run(
+    [{
+      code: 'Router',
+      name: coverage.ROUTER_COVERAGE_NAME,
+    }]
+  )
 })
 
 // TODO when we have a new version
@@ -184,7 +189,7 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
 
       let data: fq.FeeQuoterStorage = {
-        id: 0,
+        id: generateSecureRandomId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -851,13 +856,17 @@ describe('Router', () => {
   })
 })
 
+function generateSecureRandomId(): bigint {
+  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
+}
+
 async function deployRouterContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
 ) {
   const code = await rt.Router.code()
   let data: rt.Storage = {
-    id: 0n,
+    id: generateSecureRandomId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,

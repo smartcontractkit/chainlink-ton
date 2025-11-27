@@ -8,6 +8,7 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
+import * as coverage from '../Coverage'
 
 const CHAINSEL_EVM_TEST = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -67,7 +68,12 @@ describe('OnRamp - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOnRampContract,
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run(
+    [{
+      code: 'OnRamp',
+      name: coverage.ONRAMP_COVERAGE_NAME
+    }]
+  )
 })
 
 // TODO when we have a new version
@@ -101,11 +107,26 @@ describe('OnRamp - Withdrawable Tests', () => {
 describe('OnRamp - Ownable Tests', () => {
   it('supports ownable messages', async () => {
     const blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+
     const deployer = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
     const onramp = await deployOnRampContract(blockchain, deployer)
 
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, onramp)
+    await ownable2StepSpec.ownable2StepSpec(
+      deployer,
+      other,
+      onramp,
+      blockchain,
+      [{
+        code: await onramp.getCode(),
+        name: coverage.ONRAMP_COVERAGE_NAME
+      }]
+    )
+
   })
 })
 
@@ -127,6 +148,10 @@ describe('OnRamp - Unit Tests', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
     deployer = await blockchain.treasury('deployer')
     onramp = await deployOnRampContract(blockchain, deployer)
   })
@@ -250,6 +275,19 @@ describe('OnRamp - Unit Tests', () => {
   it('getStaticConfig should return chain selector', async () => {
     const result = await onramp.getStaticConfig()
     expect(result).toBe(CHAINSEL_TON)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      coverage.generateCoverageArtifacts(
+      blockchain,
+      'onramp_unit_tests',
+      [{
+        code: await onramp.getCode(),
+        name: coverage.ONRAMP_COVERAGE_NAME
+      }],
+      )
+    }
   })
 })
 

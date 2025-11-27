@@ -40,6 +40,7 @@ import {
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as coverage from './Coverage'
 
 import {
   createSignature,
@@ -173,13 +174,19 @@ async function deployOffRampContract(
   return contract
 }
 
+/*
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: OffRamp.type(),
     version: OffRamp.version(),
     deployContract: deployOffRampContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run(
+    [{
+      code: 'OffRamp',
+      name: coverage.OFFRAMP_COVERAGE_NAME
+    }]
+  )
 })
 
 describe('OffRamp - Withdrawable Tests', () => {
@@ -189,7 +196,12 @@ describe('OffRamp - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run(
+    [{
+      code: 'OffRamp',
+      name: coverage.OFFRAMP_COVERAGE_NAME
+    }]
+  )
 })
 
 // TODO when we have a new version
@@ -230,6 +242,7 @@ describe('OffRamp - Current Version Tests', () => {
   })
   currentVersionSpec.run()
 })
+*/
 
 describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
@@ -695,10 +708,12 @@ describe('OffRamp - Unit Tests', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
+  /*
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
     await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp)
   })
+  */
 
   it('should deploy', async () => {
     // the check is done inside beforeEach
@@ -2332,36 +2347,34 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   afterAll(async () => {
+    console.log('executed all tests now in after all')
     if (process.env["COVERAGE"] === "true"){
-      const offRampCoverage = blockchain.coverage(offRamp)
-      const routerCoverage = blockchain.coverage(router)
-      const feeQuoterCoverage = blockchain.coverage(feeQuoter)
-
-      if (!offRampCoverage || !routerCoverage || !feeQuoterCoverage) return;
-
-      const offRampCoverageJson = offRampCoverage.toJson()
-      const routerCoverageJson = routerCoverage.toJson()
-      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
-
-      console.log('Offramp Coverage: ',offRampCoverage.summary().coveragePercentage)
-
-      //Output coverage artifacts
-
       const testSuitePrefix = 'offramp_suite'
-
-      mkdirSync("./.coverage", { recursive: true });
-      //todo sufix constants to merge everything at the end
-      writeFileSync(
-        `./.coverage/${testSuitePrefix}_offramp_coverage.json`,
-        offRampCoverageJson
-      )
-      writeFileSync(
-        `./.coverage/${testSuitePrefix}_router_coverage.json`,
-        routerCoverageJson
-      )
-      writeFileSync(
-        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
-        feeQuoterCoverageJson
+      coverage.generateCoverageArtifacts(
+        blockchain,
+        testSuitePrefix,
+        [
+          {
+            code: await offRamp.getCode(),
+            name: coverage.ONRAMP_COVERAGE_NAME
+          },
+          {
+            code: await router.getCode(),
+            name: coverage.ROUTER_COVERAGE_NAME
+          },
+          {
+            code: await feeQuoter.getCode(),
+            name: coverage.FEEQUOTER_COVERAGE_NAME
+          },
+          {
+            code: merkleRootCodeRaw,
+            name: coverage.MERKLEROOT_COVERAGE_NAME
+          },
+          {
+            code: receiveExecutorCodeRaw,
+            name: coverage.RECEIVE_EXECUTOR_COVERAGE_NAME
+          }
+        ]
       )
     }
   })

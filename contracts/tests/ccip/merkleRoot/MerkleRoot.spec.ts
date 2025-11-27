@@ -1,6 +1,7 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as mr from '../../../wrappers/ccip/MerkleRoot'
 import * as typeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as coverage from '../../ccip/Coverage'
 import { toNano } from '@ton/core'
 
 async function deployMerkleRootContract(
@@ -30,5 +31,10 @@ describe('MerkleRoot - TypeAndVersion Tests', () => {
     version: mr.MerkleRoot.version(),
     deployContract: deployMerkleRootContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run(
+    [{
+      code: 'MerkleRoot',
+      name: coverage.MERKLEROOT_COVERAGE_NAME
+    }]
+  )
 })

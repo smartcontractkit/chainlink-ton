@@ -1,11 +1,14 @@
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
+import * as coverage from '../../../tests/ccip/Coverage'
 
 export async function ownable2StepSpec(
   deployer: SandboxContract<TreasuryContract>,
   other: SandboxContract<TreasuryContract>,
   contract: SandboxContract<ownable2step.Interface>,
+  blockchain?: Blockchain,
+  coverageConfigs? : coverage.ContractCoverageConfig[],
 ) {
   const resultTransferOwnership = await contract.sendTransferOwnership(
     deployer.getSender(),
@@ -37,4 +40,12 @@ export async function ownable2StepSpec(
   // Check that the owner is now the new one
   const newOwner = await contract.getOwner()
   expect(newOwner.toString()).toBe(other.address.toString())
+
+  if (process.env["COVERAGE"] === "true" && coverageConfigs && blockchain){
+    coverage.generateCoverageArtifacts(
+      blockchain!,
+      "ownable2step_tests",
+      coverageConfigs,
+    )
+  }
 }
