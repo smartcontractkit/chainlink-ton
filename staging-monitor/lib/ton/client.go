@@ -24,10 +24,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
+	tonlogpoller "github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
+	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
-	tonevent "github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
+	tonhash "github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
@@ -208,6 +211,45 @@ func (c *Client) GetCurrentBlock(ctx context.Context) (uint64, error) {
 	return uint64(mc.SeqNo), nil
 }
 
+// setupLogPoller creates and starts a logpoller service with in-memory stores for the given contract and event.
+func setupLogPoller(
+	ctx context.Context,
+	lggr logger.Logger,
+	client *ton.APIClient,
+	chainID string,
+	contract *address.Address,
+	eventSig uint32,
+	eventName string,
+) (tonlogpoller.Service, error) {
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return client.WithRetry(lib.TONClientRetries), nil
+	}
+
+	// Create logpoller with in-memory stores
+	service := tonlogpoller.NewService(lggr, chainID, clientProvider, &tonlogpoller.ServiceOptions{
+		Config:      tonlogpoller.DefaultConfigSet,
+		FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
+		TxLoader:    tonlploader.New(lggr, clientProvider),
+		LogStore:    tonlpstore.NewLogStore(chainID, lggr),
+	})
+
+	_, err := service.RegisterFilter(ctx, tonlpmodels.Filter{
+		Name:     fmt.Sprintf("%s-%s", contract.String(), eventName),
+		Address:  contract,
+		EventSig: eventSig,
+		MsgType:  tlb.MsgTypeExternalOut,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to register filter: %w", err)
+	}
+
+	if err := service.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start service: %w", err)
+	}
+
+	return service, nil
+}
+
 func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger, receiver string, messageID string, expectedData string, startBlock uint64) error {
 	receiverAddr, err := address.ParseAddr(receiver)
 	if err != nil {
@@ -216,151 +258,89 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 	lggr.Infow("Waiting for CCIPReceive event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
 
-	cl := c.client.WithRetry(lib.TONClientRetries)
-	// Initialize transaction loader (same pattern as ton_assertions.go)
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return cl, nil
-	}
-	loader := tonlploader.New(lggr, clientProvider)
+	// Setup logpoller service
+	eventName := "Receiver_CCIPMessageReceived"
+	eventSig := tonhash.CRC32(eventName)
+	chainID := fmt.Sprintf("%d", c.chainSel)
 
-	ticker := time.NewTicker(lib.TONPollInterval)
+	service, err := setupLogPoller(ctx, lggr, c.client, chainID, receiverAddr, eventSig, eventName)
+	if err != nil {
+		return fmt.Errorf("failed to setup logpoller: %w", err)
+	}
+	defer service.Close()
+
+	// Query configuration
+	queryInterval := 500 * time.Millisecond
+	progressLogInterval := lib.ProgressLogInterval
+	ticker := time.NewTicker(queryInterval)
 	defer ticker.Stop()
 
-	lastProgressLog := time.Now()
-	lastProcessedBlock := uint32(startBlock) //nolint:gosec // safe conversion
+	progressTicker := time.NewTicker(progressLogInterval)
+	defer progressTicker.Stop()
+
+	startTime := time.Now()
+	seenEvents := make(map[string]bool)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 
+		case <-progressTicker.C:
+			lggr.Infow("Still waiting for CCIPReceive",
+				"receiver", lib.RedactAddress(receiver),
+				"elapsed", time.Since(startTime).Round(time.Second).String())
+
 		case <-ticker.C:
-			// Progress log every 15 seconds
-			if time.Since(lastProgressLog) > lib.ProgressLogInterval {
-				lggr.Infow("Still waiting for CCIPReceive", "receiver", lib.RedactAddress(receiver), "lastBlock", lastProcessedBlock)
-				lastProgressLog = time.Now()
-			}
-
-			// Get current block
-			toBlock, err := cl.CurrentMasterchainInfo(ctx)
+			logs, _, _, err := service.NewQuery().
+				WithSource(receiverAddr).
+				WithEventSig(eventSig).
+				Execute(ctx)
 			if err != nil {
-				lggr.Warnw("Failed to get current masterchain info", "error", err)
+				lggr.Warnw("Failed to query logs", "error", err)
 				continue
 			}
 
-			// No new blocks to process
-			if toBlock.SeqNo <= lastProcessedBlock {
+			events, err := tonlpquery.DecodedLogs[ccip_receiver.CCIPMessageReceived](logs)
+			if err != nil {
+				lggr.Warnw("Failed to decode logs", "error", err)
 				continue
 			}
 
-			// Lookup previous block
-			var prevBlock *ton.BlockIDExt
-			if lastProcessedBlock > 0 {
-				prevBlock, err = cl.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlock)
-				if err != nil {
-					lggr.Warnw("Failed to lookup previous block", "block", lastProcessedBlock, "error", err)
+			for _, event := range events {
+				// Deduplicate events using tx logical time and message index
+				eventKey := fmt.Sprintf("%d-%d", event.TxLT, event.MsgIndex)
+				if seenEvents[eventKey] {
 					continue
 				}
-			}
+				seenEvents[eventKey] = true
+				receivedMessageID := hex.EncodeToString(event.TypedData.Message.MessageID[:])
 
-			blockRange := &tonlpmodels.BlockRange{Prev: prevBlock, To: toBlock}
-
-			// Fetch transactions for receiver address
-			txsCh := make(chan tonlpmodels.Tx, lib.TONTxBatchSize)
-			errsCh := make(chan error, 1)
-
-			go func() {
-				defer close(txsCh)
-				defer close(errsCh)
-				if err := loader.LoadTxsForAddress(ctx, blockRange, receiverAddr, lib.TONTxBatchSize, txsCh, errsCh); err != nil {
-					lggr.Errorw("Failed to load transactions", "error", err)
-					errsCh <- err
-				}
-			}()
-
-			// Handle errors from the loader
-			go func() {
-				for err := range errsCh {
-					lggr.Errorw("Error loading transactions", "error", err)
-				}
-			}()
-
-			// Process transactions
-			for txWithBlock := range txsCh {
-				if txWithBlock.Transaction == nil || txWithBlock.Transaction.IO.Out == nil {
+				// Match on messageID if provided
+				if messageID != "" && receivedMessageID != messageID {
 					continue
 				}
 
-				tx := txWithBlock.Transaction
-
-				// Check for external out messages (emitted events)
-				outMsgs, err := tx.IO.Out.ToSlice()
-				if err != nil {
-					lggr.Warnw("Failed to parse out messages", "error", err)
-					continue
-				}
-
-				for _, msg := range outMsgs {
-					// Only process external out messages (events)
-					if msg.MsgType != tlb.MsgTypeExternalOut {
-						continue
-					}
-
-					extOut := msg.AsExternalOut()
-					if extOut == nil {
-						continue
-					}
-
-					// Extract event topic from destination address
-					bucket := tonevent.NewExtOutLogBucket(extOut.DestAddr())
-					topic, err := bucket.DecodeEventTopic()
-					if err != nil {
-						continue
-					}
-
-					// Check if this is a Receiver_CCIPMessageReceived event
-					if topic != ccip_receiver.CCIPMessageReceivedEventTopic {
-						continue
-					}
-
-					// Decode the CCIPMessageReceived event
-					var event ccip_receiver.CCIPMessageReceived
-					if err := tlb.LoadFromCell(&event, extOut.Body.BeginParse()); err != nil {
-						lggr.Errorw("Failed to decode CCIPMessageReceived event",
-							"error", err,
-							"txHash", hex.EncodeToString(tx.Hash),
-							"block", txWithBlock.Block.SeqNo)
-						return fmt.Errorf("failed to decode CCIPMessageReceived event (struct mismatch?): %w", err)
-					}
-
-					receivedMessageID := hex.EncodeToString(event.Message.MessageID[:])
-
-					// Match on messageID if provided
-					if messageID != "" && receivedMessageID != messageID {
-						continue
-					}
-
-					// Decode and match data if expectedData provided
-					if expectedData != "" && event.Message.Data != nil {
-						dataSlice := event.Message.Data.BeginParse()
-						if dataSlice.BitsLeft() > 0 {
-							dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
-							if err == nil {
-								gotData := string(dataBits)
-								if gotData != expectedData {
-									continue
-								}
+				// Decode and match data if expectedData provided
+				if expectedData != "" && event.TypedData.Message.Data != nil {
+					dataSlice := event.TypedData.Message.Data.BeginParse()
+					if dataSlice.BitsLeft() > 0 {
+						dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
+						if err == nil {
+							gotData := string(dataBits)
+							if gotData != expectedData {
+								continue
 							}
 						}
 					}
-
-					lggr.Infow("CCIPMessageReceived event found", "messageID", receivedMessageID, "block", txWithBlock.Block.SeqNo)
-					return nil
 				}
-			}
 
-			// Update last processed block
-			lastProcessedBlock = toBlock.SeqNo
+				lggr.Infow("CCIPMessageReceived event found",
+					"messageID", receivedMessageID,
+					"txLT", event.TxLT,
+					"block", event.Block.SeqNo)
+				return nil
+			}
 		}
 	}
 }

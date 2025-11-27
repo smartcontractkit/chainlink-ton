@@ -19,7 +19,7 @@ const (
 // TON configuration
 const (
 	TONNetworkGlobalIDTestnet int32  = -3                      // TON testnet network ID
-	TONDefaultGasLimit        int64  = 1000000                 // Gas limit for CCIP messages from TON
+	TONDefaultGasLimit        int64  = 1_000_000               // Gas limit for CCIP messages from TON
 	TONClientRetries          int    = 3                       // Number of retries for TON client operations
 	TONTxBatchSize            uint32 = 100                     // Number of transactions to fetch per batch
 	TONPollInterval                  = 2500 * time.Millisecond // How often to poll for new TON blocks
