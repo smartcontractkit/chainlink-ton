@@ -33,7 +33,7 @@ import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
-import { mkdirSync, writeFileSync } from 'fs'
+import * as coverage from './Coverage'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -56,12 +56,22 @@ const EVM_ADDRESS = Buffer.from(
 ) // 32 bytes
 
 describe('rt.Router - TypeAndVersion Tests', () => {
+  let routerCode: Cell
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: rt.Router.type(),
     version: rt.Router.version(),
     deployContract: deployRouterContract,
   })
-  currentVersionSpec.run()
+  beforeAll(async () => {
+    routerCode = await compile('Router')
+  })
+
+  currentVersionSpec.run([
+    {
+      code: 'Router',
+      name: coverage.ROUTER_COVERAGE_NAME,
+    }
+  ])
 })
 
 describe('Router - Withdrawable Tests', () => {
@@ -123,16 +133,17 @@ describe('Router', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
-    if(process.env["COVERAGE"] === "true") {
-      console.log("asasasaaas")
-      blockchain.enableCoverage()
-    }
     blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
-      vmLogs: 'vm_logs_verbose',
+      vmLogs: 'none',
       debugLogs: true,
     }
+    if(process.env["COVERAGE"] === "true") {
+      blockchain.enableCoverage()
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
     let deployerCode = await compile('Deployable')
@@ -818,32 +829,23 @@ describe('Router', () => {
 
   afterAll(async () => {
     if (process.env["COVERAGE"] === "true"){
-      console.log("ASASDADADASD")
-      const routerCoverage = blockchain.coverage(router)
-      const feeQuoterCoverage = blockchain.coverage(feeQuoter)
-
-      if (!routerCoverage || !feeQuoterCoverage){
-        console.log("No coverage - router:", !routerCoverage, "feeQuoter:", !feeQuoterCoverage)
-        console.log("No coverage")
-        return
-      };
-
-      const routerCoverageJson = routerCoverage.toJson()
-      const feeQuoterCoverageJson = feeQuoterCoverage.toJson()
-
-      //Output coverage artifacts
-
-      const testSuitePrefix = 'router_suite'
-
-      mkdirSync("./.coverage", { recursive: true });
-      //todo sufix constants to merge everything at the end
-      writeFileSync(
-        `./.coverage/${testSuitePrefix}_router_coverage.json`,
-        routerCoverageJson
-      )
-      writeFileSync(
-        `./.coverage/${testSuitePrefix}_feequoter_coverage.json`,
-        feeQuoterCoverageJson
+      coverage.generateCoverageArtifacts(
+        blockchain,
+        "router_unit_tests",
+        [{
+          code: await router.getCode(),
+          name: coverage.ROUTER_COVERAGE_NAME,
+        }, {
+          code: await feeQuoter.getCode(),
+          name: coverage.FEEQUOTER_COVERAGE_NAME,
+        }, {
+          code: await onRamp.getCode(),
+          name: coverage.ONRAMP_COVERAGE_NAME,
+        }, {
+          code: await compile('CCIPSendExecutor'),
+          name: coverage.SEND_EXECUTOR_COVERAGE_NAME,
+        },
+        ]
       )
     }
   })
