@@ -1,4 +1,4 @@
-import { Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { ZERO_ADDRESS } from '../../../src/utils'
 import { OnRamp, OnRampStorage } from '../../../wrappers/ccip/OnRamp'
@@ -47,4 +47,14 @@ export async function setup() {
   const deployer = await blockchain.treasury('deployer')
   const onramp = await deployOnRampContract(blockchain, deployer)
   return { blockchain, deployer, onramp }
+}
+
+export function assertAddressesMatch(expected: Address[], actual: Address[]) {
+  expect(actual.map((x) => x.toString()).sort()).toEqual(
+    expected
+      .map((x) => {
+        return x.toString()
+      })
+      .sort(),
+  )
 }

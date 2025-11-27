@@ -92,13 +92,3 @@ describe('OnRamp - Unit Tests', () => {
     expect(result).toBe(CHAINSEL_TON)
   })
 })
-
-const assertAddressesMatch = (expected: Address[], actual: Address[]) => {
-  expect(actual.map((x) => x.toString()).sort()).toEqual(
-    expected
-      .map((x) => {
-        return x.toString()
-      })
-      .sort(),
-  )
-}

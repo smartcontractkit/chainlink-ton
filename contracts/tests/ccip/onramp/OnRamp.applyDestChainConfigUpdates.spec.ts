@@ -3,6 +3,7 @@ import { Address, toNano } from '@ton/core'
 import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import {
+  assertAddressesMatch,
   CHAINSEL_EVM_TEST,
   CHAINSEL_EVM_TEST_90000002,
   deployOnRampContract,
@@ -133,6 +134,3 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     })
   })
 })
-function assertAddressesMatch(arg0: Address[], resultCheckAdd1: Address[]) {
-  throw new Error('Function not implemented.')
-}

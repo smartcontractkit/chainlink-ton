@@ -30,7 +30,7 @@ import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
-import { sendGetValidatedFee } from './helpers/GetValidatedFee'
+import { sendGetValidatedFee } from './onramp/OnChainGetValidatedFee'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
 
