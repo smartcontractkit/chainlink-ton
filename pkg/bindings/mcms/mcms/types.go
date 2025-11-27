@@ -275,7 +275,7 @@ const LenSignerBytes = (160 + 8 + 8) / 8
 // Signer information
 type Signer struct {
 	// The EVM address of the signer.
-	Address *big.Int `tlb:"## 256"`
+	Address *big.Int `tlb:"## 160"`
 	// The index of the signer in data.config.signers
 	Index uint8 `tlb:"## 8"` // 0 <= index < MAX_NUM_SIGNERS
 	// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
