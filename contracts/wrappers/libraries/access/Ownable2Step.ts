@@ -90,11 +90,12 @@ export const builder = {
     // Creates a new `Data` contract data cell
     const traitData: CellCodec<Data> = {
       encode: (data: Data): Builder => {
-        var builder = beginCell()
-        builder.storeAddress(data.owner)
-        // this correctly encodes maybeAddress now
-        builder.storeAddress(data.pendingOwner)
-        return builder
+        return (
+          beginCell()
+            .storeAddress(data.owner)
+            // this correctly encodes maybeAddress now
+            .storeAddress(data.pendingOwner)
+        )
       },
       load: (src: Slice): Data => {
         const owner = src.loadAddress()

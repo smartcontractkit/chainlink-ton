@@ -802,9 +802,7 @@ export const builder = {
       encode: (data: ContractData): Builder => {
         return beginCell()
           .storeUint(data.id, 32)
-          .storeBuilder(
-            beginCell().storeAddress(data.ownable.owner).storeAddress(data.ownable.pendingOwner),
-          )
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
           .storeAddress(data.oracle)
           .storeDict(
             loadMap(
