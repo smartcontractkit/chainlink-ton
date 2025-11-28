@@ -421,7 +421,7 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 			cell.BeginCell().MustStoreUInt(selector, 64).EndCell(),
 			destChainConfigCell,
 		); err != nil {
-			return nil, fmt.Errorf("error while encodign DestChainConfigs as cell: %w", err)
+			return nil, fmt.Errorf("error while encoding DestChainConfigs as cell: %w", err)
 		}
 	}
 
