@@ -1,4 +1,4 @@
-import { Address, Cell } from '@ton/core'
+import { Address } from '@ton/core'
 import { crc32 } from 'zlib'
 import { Any2TVMMessage, MerkleRoot, PriceUpdates, SourceChainConfig } from './OffRamp'
 import { DestChainConfig } from './OnRamp'
@@ -37,26 +37,6 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   OffRampRemoved: crc32('OffRampRemoved'),
   Cursed: crc32('Cursed'),
   Uncursed: crc32('Uncursed'),
-}
-
-export type CCIPMessageSent = {
-  message: {
-    header: {
-      messageId: bigint
-      sourceChainSelector: bigint
-      destChainSelector: bigint
-      sequenceNumber: bigint
-      nonce: bigint
-    }
-    sender: Address
-    receiver: Cell
-    data: Cell
-    extraArgs: Cell
-    tokenAmounts: Cell // TODO: further parse all the fields
-    feeToken: Address
-    feeTokenAmount: bigint
-    feeValueJuels: bigint
-  }
 }
 
 export type CommitReportAccepted = {

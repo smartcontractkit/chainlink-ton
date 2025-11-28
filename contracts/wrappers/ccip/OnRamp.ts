@@ -154,8 +154,36 @@ const metadataCodec: CellCodec<Metadata> = {
   },
 }
 
-export const builder = {
-  data: (() => {
+export type RampMessageHeader = {
+  messageId: bigint
+  sourceChainSelector: bigint
+  destChainSelector: bigint
+  sequenceNumber: bigint
+  nonce: bigint
+}
+
+export type TVM2AnyRampMessageBody = {
+  receiver: Cell
+  data: Cell
+  extraArgs: Cell
+  tokenAmounts: Cell
+  feeToken: Address
+  feeTokenAmount: bigint
+}
+
+export type TVM2AnyRampMessage = {
+  header: RampMessageHeader
+  sender: Address
+  body: TVM2AnyRampMessageBody
+  feeValueJuels: bigint
+}
+
+export type CCIPMessageSent = {
+  message: TVM2AnyRampMessage
+}
+
+export const builder = (() => {
+  const data = (() => {
     const dynamicConfig: CellCodec<DynamicConfig> = {
       encode: (data: DynamicConfig): Builder => {
         return beginCell()
@@ -272,6 +300,66 @@ export const builder = {
       },
     }
 
+    const rampMessageHeader: CellCodec<RampMessageHeader> = {
+      encode: function (data: RampMessageHeader): Builder {
+        return beginCell()
+          .storeUint(data.messageId, 256)
+          .storeUint(data.sourceChainSelector, 64)
+          .storeUint(data.destChainSelector, 64)
+          .storeUint(data.sequenceNumber, 64)
+          .storeUint(data.nonce, 64)
+      },
+      load: function (src: Slice): RampMessageHeader {
+        return {
+          messageId: src.loadUintBig(256),
+          sourceChainSelector: src.loadUintBig(64),
+          destChainSelector: src.loadUintBig(64),
+          sequenceNumber: src.loadUintBig(64),
+          nonce: src.loadUintBig(64),
+        }
+      },
+    }
+
+    const tvm2AnyRampMessageBody: CellCodec<TVM2AnyRampMessageBody> = {
+      encode: function (data: TVM2AnyRampMessageBody): Builder {
+        return beginCell()
+          .storeRef(data.receiver)
+          .storeRef(data.data)
+          .storeRef(data.extraArgs)
+          .storeRef(data.tokenAmounts)
+          .storeAddress(data.feeToken)
+          .storeUint(data.feeTokenAmount, 256)
+      },
+      load: function (src: Slice): TVM2AnyRampMessageBody {
+        return {
+          receiver: src.loadRef(),
+          data: src.loadRef(),
+          extraArgs: src.loadRef(),
+          tokenAmounts: src.loadRef(),
+          feeToken: src.loadAddress(),
+          feeTokenAmount: src.loadUintBig(256),
+        }
+      },
+    }
+
+    const tvm2AnyRampMessage: CellCodec<TVM2AnyRampMessage> = {
+      encode: function (data: TVM2AnyRampMessage): Builder {
+        return beginCell()
+          .storeBuilder(rampMessageHeader.encode(data.header))
+          .storeAddress(data.sender)
+          .storeRef(tvm2AnyRampMessageBody.encode(data.body))
+          .storeUint(data.feeValueJuels, 96)
+      },
+      load: function (src: Slice): TVM2AnyRampMessage {
+        return {
+          header: rampMessageHeader.load(src),
+          sender: src.loadAddress(),
+          body: tvm2AnyRampMessageBody.load(src.loadRef().beginParse()),
+          feeValueJuels: src.loadUintBig(96),
+        }
+      },
+    }
+
     return {
       contractData,
       destChainConfig,
@@ -280,9 +368,12 @@ export const builder = {
       dynamicConfig,
       updateAllowlist,
       getValidatedFeeContext,
+      rampMessageHeader,
+      tvm2AnyRampMessageBody,
+      tvm2AnyRampMessage,
     }
-  })(),
-  messages: (() => {
+  })()
+  const messages = (() => {
     const messageIn = (() => {
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: (data: GetValidatedFee): Builder => {
@@ -484,8 +575,30 @@ export const builder = {
       in: messageIn,
       out: messageOut,
     }
-  })(),
-}
+  })()
+
+  const events = (() => {
+    const ccipMessageSent: CellCodec<CCIPMessageSent> = {
+      encode: function (data: CCIPMessageSent): Builder {
+        throw new Error('Function not implemented.')
+      },
+      load: function (src: Slice): CCIPMessageSent {
+        return { message: builder.data.tvm2AnyRampMessage.load(src) }
+      },
+    }
+
+    return {
+      ccipMessageSent,
+    }
+  })()
+
+  return {
+    data,
+    messages,
+    events,
+  }
+})()
+
 export abstract class Params {}
 
 export abstract class Opcodes {
@@ -819,5 +932,15 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     body: ownable2step.AcceptOwnership,
   ) {
     return this.ownable.sendAcceptOwnership(p, via, value, body)
+  }
+
+  // Send CCIP Send
+  async sendSend(provider: ContractProvider, via: Sender, value: bigint, body: OnRampSend) {
+    return this.sendInternal(
+      provider,
+      via,
+      value,
+      builder.messages.in.onrampSend.encode(body).asCell(),
+    )
   }
 }

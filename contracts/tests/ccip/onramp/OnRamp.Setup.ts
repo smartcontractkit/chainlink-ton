@@ -3,6 +3,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { ZERO_ADDRESS } from '../../../src/utils'
 import { OnRamp, OnRampStorage } from '../../../wrappers/ccip/OnRamp'
 
+type OnRampOverrides = Partial<Omit<OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
+  config?: Partial<OnRampStorage['config']>
+  executor?: Partial<OnRampStorage['executor']>
+  ownable?: Partial<OnRampStorage['ownable']>
+}
+
 export const CHAINSEL_EVM_TEST = 909606746561742123n
 export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
 export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
@@ -13,10 +19,10 @@ export function generateSecureRandomId(): number {
 export async function deployOnRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
-  overrides = {},
+  overrides: OnRampOverrides = {},
 ) {
   const code = await OnRamp.code()
-  let data: OnRampStorage = {
+  const defaults: OnRampStorage = {
     id: generateSecureRandomId(),
     ownable: {
       owner: owner.address,
@@ -34,7 +40,22 @@ export async function deployOnRampContract(
       executorCode: beginCell().endCell(),
       currentID: 0n,
     },
+  }
+  const data: OnRampStorage = {
+    ...defaults,
     ...overrides,
+    ownable: {
+      ...defaults.ownable,
+      ...(overrides.ownable ?? {}),
+    },
+    config: {
+      ...defaults.config,
+      ...(overrides.config ?? {}),
+    },
+    executor: {
+      ...defaults.executor,
+      ...(overrides.executor ?? {}),
+    },
   }
   const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
@@ -44,6 +65,7 @@ export async function deployOnRampContract(
 
 export async function setup() {
   const blockchain = await Blockchain.create()
+  blockchain.verbosity.debugLogs = true
   const deployer = await blockchain.treasury('deployer')
   const onramp = await deployOnRampContract(blockchain, deployer)
   return { blockchain, deployer, onramp }
