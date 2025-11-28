@@ -9,8 +9,8 @@ replace github.com/smartcontractkit/chainlink-ton => ../
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/rs/zerolog v1.34.0
-	github.com/smartcontractkit/chain-selectors v1.0.83
-	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251027185542-babb09e5363e
+	github.com/smartcontractkit/chain-selectors v1.0.85
+	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251128020529-88d93b01d749
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251027185542-babb09e5363e
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251125103916-0b41e73b80c4
 	github.com/smartcontractkit/chainlink-deployments-framework v0.67.1-0.20251120111322-7760d1301f77
@@ -168,7 +168,7 @@ require (
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250908203554-5bd9d2fe9513 // indirect
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
-	github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d // indirect
+	github.com/smartcontractkit/libocr v0.0.0-20251031190958-7324c200a6b0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/stephenlacy/go-ethereum-hdwallet v0.0.0-20230913225845-a4fa94429863 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
@@ -220,9 +220,9 @@ require (
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
-	google.golang.org/grpc v1.75.1 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

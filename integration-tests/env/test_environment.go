@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"go.uber.org/zap/zapcore"
 
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 
@@ -20,8 +19,9 @@ import (
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/engine/test/onchain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/testhelpers"
 
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
@@ -123,12 +123,22 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 }
 
 func (b *TestEnvironmentBuilder) newCTFBasedEnvironment(t *testing.T) (cldf.Environment, error) {
-	env := memory.NewMemoryEnvironment(t, b.Logger, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
-		Chains:    b.ChainsEnvironmentConfig.EVMChains,
-		TonChains: b.ChainsEnvironmentConfig.TONChains,
-	})
+	opts := []testhelpers.TestOps{
+		testhelpers.WithNoJobsAndContracts(),
+	}
 
-	return env, nil
+	if b.ChainsEnvironmentConfig.EVMChains > 0 {
+		opts = append(opts, testhelpers.WithNumOfChains(b.ChainsEnvironmentConfig.EVMChains))
+	}
+
+	if b.ChainsEnvironmentConfig.TONChains > 0 {
+		opts = append(opts, testhelpers.WithTonChains(b.ChainsEnvironmentConfig.TONChains))
+		opts = append(opts, testhelpers.WithTonContainerConfig(onchain.TonContainerConfig{}))
+	}
+
+	deployedEnv, _ := testhelpers.NewMemoryEnvironment(t, opts...)
+
+	return deployedEnv.Env, nil
 }
 
 func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cldf.Environment, error) {
