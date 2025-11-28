@@ -119,9 +119,9 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}
 
 	// Get fee
-	fee, result, err := c.getFee(ctx, parsedABI, msg, message, routerAddr)
+	fee, err := c.getFee(ctx, parsedABI, msg, message, routerAddr)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	lggr.Infow("CCIP message fee", "fee", formatETH(fee))
 
@@ -171,10 +171,10 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}, nil
 }
 
-func (c *Client) getFee(ctx context.Context, parsedABI abi.ABI, msg lib.MessageToSend, message router.ClientEVM2AnyMessage, routerAddr common.Address) (*big.Int, *lib.SendResult, error) {
+func (c *Client) getFee(ctx context.Context, parsedABI abi.ABI, msg lib.MessageToSend, message router.ClientEVM2AnyMessage, routerAddr common.Address) (*big.Int, error) {
 	callData, err := parsedABI.Pack("getFee", msg.DestChainSel, message)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to pack getFee call: %w", err)
+		return nil, fmt.Errorf("failed to pack getFee call: %w", err)
 	}
 
 	result, err := c.client.CallContract(ctx, ethereum.CallMsg{
@@ -182,11 +182,11 @@ func (c *Client) getFee(ctx context.Context, parsedABI abi.ABI, msg lib.MessageT
 		Data: callData,
 	}, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to call getFee: %w", err)
+		return nil, fmt.Errorf("failed to call getFee: %w", err)
 	}
 
 	fee := new(big.Int).SetBytes(result)
-	return fee, nil, nil
+	return fee, nil
 }
 
 func (c *Client) GetCurrentBlock(ctx context.Context) (uint64, error) {
