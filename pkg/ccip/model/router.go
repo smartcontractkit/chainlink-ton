@@ -267,7 +267,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 			cell.BeginCell().MustStoreUInt(selector, 64).EndCell(),
 			offRampCell,
 		); err != nil {
-			return nil, fmt.Errorf("error while encodign OffRamps as cell: %w", err)
+			return nil, fmt.Errorf("error while encoding OffRamps as cell: %w", err)
 		}
 	}
 
