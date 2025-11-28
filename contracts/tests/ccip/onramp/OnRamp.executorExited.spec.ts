@@ -1,0 +1,159 @@
+import * as or from '../../../wrappers/ccip/OnRamp'
+import * as rt from '../../../wrappers/ccip/Router'
+import * as relay from '../../../wrappers/test/mock/Relay'
+
+import { Address, beginCell, Cell, Message, Sender, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import {
+  CHAINSEL_EVM_TEST,
+  CHAINSEL_TON,
+  deployOnRampContract,
+  generateSecureRandomId,
+  setup,
+} from './OnRamp.Setup'
+import { compile } from '@ton/blueprint'
+import { sha256 } from '@ton/crypto'
+import { asSnakeData } from '../../../src/utils'
+
+const EVM_ADDRESS = Buffer.from(
+  '0000000000000000000000001234567890123456789012345678901234567890',
+  'hex',
+) // 32 bytes
+const TEST_TOKEN_ADDR = Address.parseRaw(
+  '0:0000000000000000000000000000000000000000000000000000000000000000',
+)
+
+describe('OnRamp - executor exit', () => {
+  let blockchain: Blockchain
+  let deployer: SandboxContract<TreasuryContract>
+  let onramp: SandboxContract<or.OnRamp>
+  let senderAddress: Address
+  let mockRouter: SandboxContract<TreasuryContract>
+  let mockFeeQuoter: SandboxContract<TreasuryContract>
+  let executorSender: Sender
+  let deployableCode: Cell
+  let executorID: bigint
+
+  const ccipSend: rt.CCIPSend = {
+    queryID: 1,
+    destChainSelector: CHAINSEL_EVM_TEST,
+    receiver: EVM_ADDRESS,
+    data: Cell.EMPTY,
+    tokenAmounts: [],
+    feeToken: TEST_TOKEN_ADDR,
+    extraArgs: rt.builder.data.extraArgs
+      .encode({
+        kind: 'generic-v2',
+        gasLimit: 100n,
+        allowOutOfOrderExecution: true,
+      })
+      .asCell(),
+  }
+
+  beforeEach(async () => {
+    ;({ blockchain, deployer } = await setup())
+    deployableCode = await compile('Deployable')
+    senderAddress = (await blockchain.treasury('sender')).address
+    mockRouter = await blockchain.treasury('mockRouter')
+    mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
+
+    executorID = BigInt(generateSecureRandomId())
+
+    onramp = await deployOnRampContract(blockchain, deployer, {
+      config: {
+        feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
+      },
+      executor: {
+        deployableCode: deployableCode,
+        executorCode: await relay.ContractClient.code(),
+        currentID: executorID,
+      },
+    })
+
+    const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
+      deployer.getSender(),
+      {
+        value: toNano('0.5'),
+        destChainConfigs: [
+          {
+            destChainSelector: CHAINSEL_EVM_TEST,
+            router: mockRouter.address,
+            allowlistEnabled: false,
+          },
+        ],
+      },
+    )
+    expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: true,
+    })
+
+    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+      msg: ccipSend,
+      metadata: {
+        sender: senderAddress,
+        value: toNano('42'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockRouter.address,
+      to: onramp.address,
+      success: true,
+      op: or.Opcodes.onrampSend,
+    })
+
+    const deployTX = result.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' && tx.inMessage.info.src.equals(onramp.address),
+    )
+
+    if (!deployTX) {
+      throw new Error('Deploy transaction not found')
+    }
+
+    const executorAddress = deployTX.inMessage?.info.dest
+
+    if (!executorAddress || !(executorAddress instanceof Address)) {
+      throw new Error('Executor address not found')
+    }
+
+    const relayContract = blockchain.openContract(
+      relay.ContractClient.createFromAddress(executorAddress),
+    )
+    executorSender = await relayContract.getSender(deployer.getSender())
+  })
+
+  it('should return message sent to router', async () => {
+    const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
+      value: toNano('0.5'),
+      body: {
+        executorID: executorID,
+        fee: {
+          feeTokenAmount: 1n,
+          feeValueJuels: 1n,
+        },
+        msg: ccipSend,
+        metadata: {
+          sender: senderAddress,
+          value: 42n,
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Opcodes.messageSent,
+      body(x) {
+        if (!x) return false
+        const msgSent = rt.builder.message.in.messageSent.load(x.beginParse())
+        return (
+          msgSent.sender.equals(senderAddress) && msgSent.queryID === BigInt(ccipSend.queryID ?? 0)
+        )
+      },
+    })
+  })
+})
