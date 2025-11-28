@@ -23,6 +23,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
@@ -272,12 +273,23 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 	}
 }
 
+// TODO Consider move chainlink core AnyMsgSentEvent and CCIPSendReqConfig to CLDF?
+
+type TonSendRequest struct {
+	QueryID   uint64
+	Receiver  []byte
+	Data      []byte
+	ExtraArgs *cell.Cell
+	FeeToken  *address.Address
+	// TokenAmounts  common.SnakeRef[ocr.Any2TVMTokenTransfer]
+}
+
 // SendTonRequest sends a CCIP request from a TON chain.
 func SendTonRequest(
 	e cldf.Environment,
 	state state.CCIPChainState,
-	sourceChain uint64,
-	msg router.CCIPSend) (uint64, any, error) {
+	sourceChain, destChain uint64,
+	msg TonSendRequest) (uint64, any, error) {
 	tonChain := e.BlockChains.TonChains()[sourceChain]
 	senderWallet := tonChain.Wallet
 	senderAddr := tonChain.WalletAddress
@@ -285,7 +297,15 @@ func SendTonRequest(
 
 	routerAddr := state.Router
 
-	ccipSend := msg
+	ccipSend := router.CCIPSend{
+		QueryID:           msg.QueryID,
+		DestChainSelector: destChain,
+		Receiver:          msg.Receiver,
+		Data:              msg.Data,
+		TokenAmounts:      nil, // TODO: add token amounts when token transfer enabled
+		FeeToken:          msg.FeeToken,
+		ExtraArgs:         msg.ExtraArgs,
+	}
 
 	ccipSendCell, err := tlb.ToCell(ccipSend)
 	if err != nil {
@@ -293,7 +313,7 @@ func SendTonRequest(
 	}
 
 	e.Logger.Infof("Getting Fee to send CCIP request from chain selector %d to chain selector %d",
-		sourceChain, msg.DestChainSelector)
+		sourceChain, destChain)
 
 	ctx := context.Background()
 	block, err := clientConn.CurrentMasterchainInfo(ctx)
@@ -312,7 +332,7 @@ func SendTonRequest(
 	e.Logger.Infof("Fee to send CCIP request: %s nano TON", fee.String())
 
 	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
-		sourceChain, msg.DestChainSelector, senderAddr.String())
+		sourceChain, destChain, senderAddr.String())
 
 	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
 

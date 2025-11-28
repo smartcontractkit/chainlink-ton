@@ -16,7 +16,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -149,15 +148,13 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		receiverBytes = leftPadTo32(receiverBytes)
 	}
 
-	// Build CCIPSend request
-	ccipSend := router.CCIPSend{
-		QueryID:           0,
-		DestChainSelector: msg.DestChainSel,
-		Receiver:          receiverBytes,
-		Data:              msg.Data,
-		TokenAmounts:      nil,
-		FeeToken:          tvm.TonTokenAddr,
-		ExtraArgs:         extraArgsCell,
+	// Build TonSendRequest
+	tonRequest := ops.TonSendRequest{
+		QueryID:   0,
+		Receiver:  receiverBytes,
+		Data:      msg.Data,
+		ExtraArgs: extraArgsCell,
+		FeeToken:  tvm.TonTokenAddr,
 	}
 
 	// Build minimal Environment
@@ -185,7 +182,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	}
 
 	// Call SendTonRequest from deployment/ccip
-	seqNum, event, err := ops.SendTonRequest(env, chainState, c.chainSel, ccipSend)
+	seqNum, event, err := ops.SendTonRequest(env, chainState, c.chainSel, msg.DestChainSel, tonRequest)
 	if err != nil {
 		return nil, err
 	}
