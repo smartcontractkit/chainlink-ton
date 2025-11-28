@@ -156,4 +156,35 @@ describe('OnRamp - executor exit', () => {
       },
     })
   })
+
+  it('should return message rejected to router', async () => {
+    const result = await onramp.sendExecutorFinishedWithError(executorSender, {
+      value: toNano('0.5'),
+      body: {
+        executorID: executorID,
+        error: 42n,
+        msg: ccipSend,
+        metadata: {
+          sender: senderAddress,
+          value: 42n,
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.Opcodes.messageRejected,
+      body(x) {
+        if (!x) return false
+        const msgSent = rt.builder.message.in.messageRejected.load(x.beginParse())
+        return (
+          msgSent.sender.equals(senderAddress) &&
+          msgSent.queryID === BigInt(ccipSend.queryID ?? 0) &&
+          msgSent.error === 42n
+        )
+      },
+    })
+  })
 })
