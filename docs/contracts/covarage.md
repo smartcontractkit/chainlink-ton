@@ -1,4 +1,4 @@
-Sanbox blockchain can track the executed instrucitons for every deployed contract and generate a coverage report. [see the Sandbox test coverage docs.](https://github.com/ton-org/sandbox/blob/develop/docs/coverage-guide.md)
+Sanbox blockchain can track the executed instructions for every deployed contract and generate a coverage report. [see the Sandbox test coverage docs.](https://github.com/ton-org/sandbox/blob/develop/docs/coverage-guide.md)
 
 Assembly FIFT code is parsed from the contract's code cell, and the sanbox Blockchain object will track the execution of each instruction from the code.
 
