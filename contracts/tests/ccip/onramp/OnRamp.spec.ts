@@ -71,7 +71,7 @@ describe('OnRamp - Withdrawable Tests', () => {
   withdrawableSpec.run([
     {
       code: 'OnRamp',
-      name: coverage.ONRAMP_COVERAGE_NAME,
+      name: 'onramp',
     },
   ])
 })
@@ -119,7 +119,7 @@ describe('OnRamp - Ownable Tests', () => {
     await ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
       {
         code: await onramp.getCode(),
-        name: coverage.ONRAMP_COVERAGE_NAME,
+        name: 'onramp',
       },
     ])
   })
@@ -277,7 +277,7 @@ describe('OnRamp - Unit Tests', () => {
       coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
         {
           code: await onramp.getCode(),
-          name: coverage.ONRAMP_COVERAGE_NAME,
+          name: 'onramp',
         },
       ])
     }

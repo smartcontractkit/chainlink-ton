@@ -38,7 +38,7 @@ describe('CCIPSendExecutor - TypeAndVersion Tests', () => {
   currentVersionSpec.run([
     {
       code: 'CCIPSendExecutor',
-      name: coverage.SEND_EXECUTOR_COVERAGE_NAME,
+      name: 'send_executor',
     },
   ])
 })

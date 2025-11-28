@@ -192,10 +192,12 @@ export class FeeQuoterSetup {
       vmLogs: 'none',
       debugLogs: true,
     }
+    /* TODO: Enable this when the test suite runs in the actual FeeQuoter instead of in the helper
     if (process.env['COVERAGE'] === 'true') {
       this.blockchain.enableCoverage()
       this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
+    */
 
     // Set up accounts
     this.acc = {

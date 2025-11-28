@@ -56,20 +56,16 @@ const EVM_ADDRESS = Buffer.from(
 ) // 32 bytes
 
 describe('rt.Router - TypeAndVersion Tests', () => {
-  let routerCode: Cell
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: rt.Router.type(),
     version: rt.Router.version(),
     deployContract: deployRouterContract,
   })
-  beforeAll(async () => {
-    routerCode = await compile('Router')
-  })
 
   currentVersionSpec.run([
     {
       code: 'Router',
-      name: coverage.ROUTER_COVERAGE_NAME,
+      name: 'router',
     },
   ])
 })
@@ -84,7 +80,7 @@ describe('Router - Withdrawable Tests', () => {
   withdrawableSpec.run([
     {
       code: 'Router',
-      name: coverage.ROUTER_COVERAGE_NAME,
+      name: 'router',
     },
   ])
 })
@@ -837,19 +833,19 @@ describe('Router', () => {
       coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
         {
           code: await router.getCode(),
-          name: coverage.ROUTER_COVERAGE_NAME,
+          name: 'router',
         },
         {
           code: await feeQuoter.getCode(),
-          name: coverage.FEEQUOTER_COVERAGE_NAME,
+          name: 'feequoter',
         },
         {
           code: await onRamp.getCode(),
-          name: coverage.ONRAMP_COVERAGE_NAME,
+          name: 'onramp',
         },
         {
           code: await compile('CCIPSendExecutor'),
-          name: coverage.SEND_EXECUTOR_COVERAGE_NAME,
+          name: 'send_executor',
         },
       ])
     }

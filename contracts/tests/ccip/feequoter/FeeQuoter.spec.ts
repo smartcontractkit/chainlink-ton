@@ -19,7 +19,7 @@ describe('FeeQuoter - Withdrawable Tests', () => {
   withdrawableSpec.run([
     {
       code: 'FeeQuoter',
-      name: coverage.FEEQUOTER_COVERAGE_NAME,
+      name: 'feequoter',
     },
   ])
 })
@@ -35,7 +35,7 @@ describe('FeeQuoter - TypeAndVersion Tests', () => {
   currentVersionSpec.run([
     {
       code: 'FeeQuoter',
-      name: coverage.FEEQUOTER_COVERAGE_NAME,
+      name: 'feequoter',
     },
   ])
 })
@@ -82,7 +82,7 @@ describe('FeeQuoter - Ownable Tests', () => {
     await ownable2StepSpec.ownable2StepSpec(deployer, other, feeQuoter, blockchain, [
       {
         code: await feeQuoter.getCode(),
-        name: coverage.FEEQUOTER_COVERAGE_NAME,
+        name: 'feequoter',
       },
     ])
   })

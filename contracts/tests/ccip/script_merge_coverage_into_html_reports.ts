@@ -3,13 +3,13 @@ import { readFileSync, readdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import * as coverage from './Coverage'
 
-const offRampSuffix = `${coverage.OFFRAMP_COVERAGE_NAME}.json`
-const routerSuffix = `${coverage.ROUTER_COVERAGE_NAME}.json`
-const feeQuoterSuffix = `${coverage.FEEQUOTER_COVERAGE_NAME}.json`
-const merkleRootSuffix = `${coverage.MERKLEROOT_COVERAGE_NAME}.json`
-const onRampSuffix = `${coverage.ONRAMP_COVERAGE_NAME}.json`
-const sendExecutorSuffix = `${coverage.SEND_EXECUTOR_COVERAGE_NAME}.json`
-const receiveExecutorSuffix = `${coverage.RECEIVE_EXECUTOR_COVERAGE_NAME}.json`
+const offRampSuffix = `${coverage.CoverageContractName.offramp}.json`
+const routerSuffix = `${coverage.CoverageContractName.router}.json`
+const feeQuoterSuffix = `${coverage.CoverageContractName.feequoter}.json`
+const merkleRootSuffix = `${coverage.CoverageContractName.merkleroot}.json`
+const onRampSuffix = `${coverage.CoverageContractName.onramp}.json`
+const sendExecutorSuffix = `${coverage.CoverageContractName.send_executor}.json`
+const receiveExecutorSuffix = `${coverage.CoverageContractName.receive_executor}.json`
 
 const offRampCoverageResults: Coverage[] = []
 const routerCoverageResults: Coverage[] = []
@@ -67,18 +67,18 @@ const receiveExecutorMerged = mergeResults(receiveExecutorCoverageResults)
 
 // Generate HTML reports
 if (offRampMerged) {
-  writeFileSync(`./.coverage/${coverage.OFFRAMP_COVERAGE_NAME}.html`, offRampMerged.report('html'))
+  writeFileSync(`./.coverage/${coverage.CoverageContractName.offramp}.html`, offRampMerged.report('html'))
   console.log('Generated offramp-coverage.html')
 }
 
 if (routerMerged) {
-  writeFileSync(`./.coverage/${coverage.ROUTER_COVERAGE_NAME}.html`, routerMerged.report('html'))
+  writeFileSync(`./.coverage/${coverage.CoverageContractName.router}.html`, routerMerged.report('html'))
   console.log('Generated router-coverage.html')
 }
 
 if (feeQuoterMerged) {
   writeFileSync(
-    `./.coverage/${coverage.FEEQUOTER_COVERAGE_NAME}.html`,
+    `./.coverage/${coverage.CoverageContractName.feequoter}.html`,
     feeQuoterMerged.report('html'),
   )
   console.log('Generated feequoter-coverage.html')
@@ -86,20 +86,20 @@ if (feeQuoterMerged) {
 
 if (merkleRootMerged) {
   writeFileSync(
-    `./.coverage/${coverage.MERKLEROOT_COVERAGE_NAME}.html`,
+    `./.coverage/${coverage.CoverageContractName.merkleroot}.html`,
     merkleRootMerged.report('html'),
   )
   console.log('Generated merkleroot-coverage.html')
 }
 
 if (onRampMerged) {
-  writeFileSync(`./.coverage/${coverage.ONRAMP_COVERAGE_NAME}.html`, onRampMerged.report('html'))
+  writeFileSync(`./.coverage/${coverage.CoverageContractName.onramp}.html`, onRampMerged.report('html'))
   console.log('Generated onramp-coverage.html')
 }
 
 if (sendExecutorMerged) {
   writeFileSync(
-    `./.coverage/${coverage.SEND_EXECUTOR_COVERAGE_NAME}.html`,
+    `./.coverage/${coverage.CoverageContractName.send_executor}.html`,
     sendExecutorMerged.report('html'),
   )
   console.log('Generated sendexecutor-coverage.html')
@@ -107,7 +107,7 @@ if (sendExecutorMerged) {
 
 if (receiveExecutorMerged) {
   writeFileSync(
-    `./.coverage/${coverage.RECEIVE_EXECUTOR_COVERAGE_NAME}.html`,
+    `./.coverage/${coverage.CoverageContractName.receive_executor}.html`,
     receiveExecutorMerged.report('html'),
   )
   console.log('Generated receiveexecutor-coverage.html')

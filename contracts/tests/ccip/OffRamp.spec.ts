@@ -6,7 +6,6 @@ import {
   CommitReport,
   builder,
   ExecutionReport,
-  MerkleRoot,
   OFFRAMP_FACILITY_ID,
   OFFRAMP_FACILITY_NAME,
   OffRampStorage,
@@ -19,11 +18,13 @@ import {
   OffRampError,
   Opcodes,
   UpdateSourceChainConfig,
+  MerkleRoot
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
   MERKLE_ROOT_FACILITY_ID,
   MERKLE_ROOT_FACILITY_NAME,
+  MerkleRoot as MerkleRootContract,
 } from '../../wrappers/ccip/MerkleRoot'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
@@ -2353,23 +2354,23 @@ describe('OffRamp - Unit Tests', () => {
       coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
           code: await offRamp.getCode(),
-          name: coverage.ONRAMP_COVERAGE_NAME,
+          name: 'offramp',
         },
         {
           code: await router.getCode(),
-          name: coverage.ROUTER_COVERAGE_NAME,
+          name: 'router',
         },
         {
           code: await feeQuoter.getCode(),
-          name: coverage.FEEQUOTER_COVERAGE_NAME,
+          name: 'feequoter',
         },
         {
           code: merkleRootCodeRaw,
-          name: coverage.MERKLEROOT_COVERAGE_NAME,
+          name: 'merkleroot',
         },
         {
           code: receiveExecutorCodeRaw,
-          name: coverage.RECEIVE_EXECUTOR_COVERAGE_NAME,
+          name: 'receive_executor',
         },
       ])
     }

@@ -1026,15 +1026,19 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
   })
+  /*
+   TODO: This testsuite doesn't run on the FeeQuoter but on a helper contract with an added getter
+         Enable this again when the testsuite runs on the FeeQuoter
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
       coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
           code: 'FeeQuoter',
-          name: coverage.FEEQUOTER_COVERAGE_NAME,
+          name: feeQuoter.FeeQuoter.type(),
         },
       ])
     }
   })
+  */
 })

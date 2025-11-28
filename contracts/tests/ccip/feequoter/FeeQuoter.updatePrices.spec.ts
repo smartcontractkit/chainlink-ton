@@ -6,6 +6,7 @@ import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import * as coverage from '../Coverage'
 import { Blockchain } from '@ton/sandbox'
+import { compile } from '@ton/blueprint'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup
@@ -332,15 +333,20 @@ describe('FeeQuoter UpdatePrices', () => {
     })
   })
 
+  /*
+    TODO: This testsuite doesn't run on the FeeQuoter but on a helper contract with an added getter
+          Enable this again when the testsuite runs on the FeeQuoter
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_update_prices_suite'
       coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
-          code: 'FeeQuoter',
-          name: coverage.FEEQUOTER_COVERAGE_NAME,
+          code: await compile('FeeQuoter'),
+          name: feeQuoter.FeeQuoter.type(),
         },
       ])
     }
   })
+  */
 })
