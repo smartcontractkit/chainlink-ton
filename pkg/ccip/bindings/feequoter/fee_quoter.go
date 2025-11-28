@@ -84,6 +84,12 @@ type Storage struct {
 	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
 }
 
+type DestChainConfigs struct {
+	Config                  DestChainConfig  `tlb:"."`        // inline struct
+	USDPerUnitGasRef        *cell.Cell       `tlb:"^"`        // ^Cell<GasPrice>
+	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 267"` // map<address, TokenTransferFeeConfig>
+}
+
 type USDPerUnitGas struct {
 	ExecutionGasPrice        *big.Int `tlb:"## 112"`
 	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`

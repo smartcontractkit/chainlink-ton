@@ -64,7 +64,7 @@ type Storage struct {
 type RMNRemote struct {
 	Admin          common.Ownable2Step `tlb:"."`
 	CursedSubjects *cell.Dictionary    `tlb:"dict 128"`
-	ForwardUpdates *cell.Dictionary    `tlb:"dict addr"`
+	ForwardUpdates *cell.Dictionary    `tlb:"dict 267"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakeData encoding.
