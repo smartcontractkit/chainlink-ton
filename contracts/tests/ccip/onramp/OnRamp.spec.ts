@@ -68,12 +68,12 @@ describe('OnRamp - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOnRampContract,
   })
-  withdrawableSpec.run(
-    [{
+  withdrawableSpec.run([
+    {
       code: 'OnRamp',
-      name: coverage.ONRAMP_COVERAGE_NAME
-    }]
-  )
+      name: coverage.ONRAMP_COVERAGE_NAME,
+    },
+  ])
 })
 
 // TODO when we have a new version
@@ -116,17 +116,12 @@ describe('OnRamp - Ownable Tests', () => {
     const other = await blockchain.treasury('other')
     const onramp = await deployOnRampContract(blockchain, deployer)
 
-    await ownable2StepSpec.ownable2StepSpec(
-      deployer,
-      other,
-      onramp,
-      blockchain,
-      [{
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
+      {
         code: await onramp.getCode(),
-        name: coverage.ONRAMP_COVERAGE_NAME
-      }]
-    )
-
+        name: coverage.ONRAMP_COVERAGE_NAME,
+      },
+    ])
   })
 })
 
@@ -279,14 +274,12 @@ describe('OnRamp - Unit Tests', () => {
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
-      coverage.generateCoverageArtifacts(
-      blockchain,
-      'onramp_unit_tests',
-      [{
-        code: await onramp.getCode(),
-        name: coverage.ONRAMP_COVERAGE_NAME
-      }],
-      )
+      coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
+        {
+          code: await onramp.getCode(),
+          name: coverage.ONRAMP_COVERAGE_NAME,
+        },
+      ])
     }
   })
 })

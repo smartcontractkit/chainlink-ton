@@ -31,10 +31,10 @@ describe('MerkleRoot - TypeAndVersion Tests', () => {
     version: mr.MerkleRoot.version(),
     deployContract: deployMerkleRootContract,
   })
-  currentVersionSpec.run(
-    [{
+  currentVersionSpec.run([
+    {
       code: 'MerkleRoot',
-      name: coverage.MERKLEROOT_COVERAGE_NAME
-    }]
-  )
+      name: coverage.MERKLEROOT_COVERAGE_NAME,
+    },
+  ])
 })

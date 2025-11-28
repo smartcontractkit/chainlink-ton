@@ -70,7 +70,7 @@ describe('rt.Router - TypeAndVersion Tests', () => {
     {
       code: 'Router',
       name: coverage.ROUTER_COVERAGE_NAME,
-    }
+    },
   ])
 })
 
@@ -81,12 +81,12 @@ describe('Router - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployRouterContract,
   })
-  withdrawableSpec.run(
-    [{
+  withdrawableSpec.run([
+    {
       code: 'Router',
       name: coverage.ROUTER_COVERAGE_NAME,
-    }]
-  )
+    },
+  ])
 })
 
 // TODO when we have a new version
@@ -144,7 +144,7 @@ describe('Router', () => {
       vmLogs: 'none',
       debugLogs: true,
     }
-    if(process.env["COVERAGE"] === "true") {
+    if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
@@ -833,25 +833,25 @@ describe('Router', () => {
   })
 
   afterAll(async () => {
-    if (process.env["COVERAGE"] === "true"){
-      coverage.generateCoverageArtifacts(
-        blockchain,
-        "router_unit_tests",
-        [{
+    if (process.env['COVERAGE'] === 'true') {
+      coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
+        {
           code: await router.getCode(),
           name: coverage.ROUTER_COVERAGE_NAME,
-        }, {
+        },
+        {
           code: await feeQuoter.getCode(),
           name: coverage.FEEQUOTER_COVERAGE_NAME,
-        }, {
+        },
+        {
           code: await onRamp.getCode(),
           name: coverage.ONRAMP_COVERAGE_NAME,
-        }, {
+        },
+        {
           code: await compile('CCIPSendExecutor'),
           name: coverage.SEND_EXECUTOR_COVERAGE_NAME,
         },
-        ]
-      )
+      ])
     }
   })
 })

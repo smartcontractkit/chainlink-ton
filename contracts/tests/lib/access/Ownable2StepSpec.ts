@@ -8,7 +8,7 @@ export async function ownable2StepSpec(
   other: SandboxContract<TreasuryContract>,
   contract: SandboxContract<ownable2step.Interface>,
   blockchain?: Blockchain,
-  coverageConfigs? : coverage.ContractCoverageConfig[],
+  coverageConfigs?: coverage.ContractCoverageConfig[],
 ) {
   const resultTransferOwnership = await contract.sendTransferOwnership(
     deployer.getSender(),
@@ -41,11 +41,7 @@ export async function ownable2StepSpec(
   const newOwner = await contract.getOwner()
   expect(newOwner.toString()).toBe(other.address.toString())
 
-  if (process.env["COVERAGE"] === "true" && coverageConfigs && blockchain){
-    coverage.generateCoverageArtifacts(
-      blockchain!,
-      "ownable2step_tests",
-      coverageConfigs,
-    )
+  if (process.env['COVERAGE'] === 'true' && coverageConfigs && blockchain) {
+    coverage.generateCoverageArtifacts(blockchain!, 'ownable2step_tests', coverageConfigs)
   }
 }

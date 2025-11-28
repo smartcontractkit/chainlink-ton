@@ -35,11 +35,12 @@ describe('CCIPSendExecutor - TypeAndVersion Tests', () => {
     version: e.ContractClient.version(),
     deployContract: setupTestCCIPSendExecutor,
   })
-  currentVersionSpec.run(
-  [{
-    code: 'CCIPSendExecutor',
-    name: coverage.SEND_EXECUTOR_COVERAGE_NAME
-  }])
+  currentVersionSpec.run([
+    {
+      code: 'CCIPSendExecutor',
+      name: coverage.SEND_EXECUTOR_COVERAGE_NAME,
+    },
+  ])
 })
 
 describe('CCIPSendExecutor - Wrapper', () => {

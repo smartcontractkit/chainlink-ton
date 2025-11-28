@@ -332,18 +332,15 @@ describe('FeeQuoter UpdatePrices', () => {
     })
   })
 
-
   afterAll(async () => {
-    if (process.env["COVERAGE"] === "true"){
+    if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_update_prices_suite'
-      coverage.generateCoverageArtifacts(
-        blockchain,
-        testSuitePrefix,
-        [{
+      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
           code: 'FeeQuoter',
-          name: coverage.FEEQUOTER_COVERAGE_NAME
-        }]
-      )
+          name: coverage.FEEQUOTER_COVERAGE_NAME,
+        },
+      ])
     }
   })
 })

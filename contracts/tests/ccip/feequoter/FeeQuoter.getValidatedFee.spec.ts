@@ -11,7 +11,7 @@ import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
 import { mkdirSync, writeFileSync } from 'fs'
-import * as coverage  from '../Coverage'
+import * as coverage from '../Coverage'
 import { Blockchain } from '@ton/sandbox'
 
 describe('FeeQuoter GetValidatedFee', () => {
@@ -1027,16 +1027,14 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
   afterAll(async () => {
-    if (process.env["COVERAGE"] === "true"){
+    if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
-      coverage.generateCoverageArtifacts(
-        blockchain,
-        testSuitePrefix,
-        [{
+      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
           code: 'FeeQuoter',
-          name: coverage.FEEQUOTER_COVERAGE_NAME
-        }]
-      )
+          name: coverage.FEEQUOTER_COVERAGE_NAME,
+        },
+      ])
     }
   })
 })

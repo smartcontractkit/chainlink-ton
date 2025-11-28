@@ -531,7 +531,7 @@ describe('OffRamp - Unit Tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
-    if(process.env["COVERAGE"] === "true") {
+    if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
@@ -2348,36 +2348,30 @@ describe('OffRamp - Unit Tests', () => {
 
   afterAll(async () => {
     console.log('executed all tests now in after all')
-    if (process.env["COVERAGE"] === "true"){
+    if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'offramp_suite'
-      coverage.generateCoverageArtifacts(
-        blockchain,
-        testSuitePrefix,
-        [
-          {
-            code: await offRamp.getCode(),
-            name: coverage.ONRAMP_COVERAGE_NAME
-          },
-          {
-            code: await router.getCode(),
-            name: coverage.ROUTER_COVERAGE_NAME
-          },
-          {
-            code: await feeQuoter.getCode(),
-            name: coverage.FEEQUOTER_COVERAGE_NAME
-          },
-          {
-            code: merkleRootCodeRaw,
-            name: coverage.MERKLEROOT_COVERAGE_NAME
-          },
-          {
-            code: receiveExecutorCodeRaw,
-            name: coverage.RECEIVE_EXECUTOR_COVERAGE_NAME
-          }
-        ]
-      )
+      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
+          code: await offRamp.getCode(),
+          name: coverage.ONRAMP_COVERAGE_NAME,
+        },
+        {
+          code: await router.getCode(),
+          name: coverage.ROUTER_COVERAGE_NAME,
+        },
+        {
+          code: await feeQuoter.getCode(),
+          name: coverage.FEEQUOTER_COVERAGE_NAME,
+        },
+        {
+          code: merkleRootCodeRaw,
+          name: coverage.MERKLEROOT_COVERAGE_NAME,
+        },
+        {
+          code: receiveExecutorCodeRaw,
+          name: coverage.RECEIVE_EXECUTOR_COVERAGE_NAME,
+        },
+      ])
     }
   })
-
 })
-

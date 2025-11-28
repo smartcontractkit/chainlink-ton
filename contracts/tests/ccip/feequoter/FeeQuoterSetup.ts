@@ -192,7 +192,7 @@ export class FeeQuoterSetup {
       vmLogs: 'none',
       debugLogs: true,
     }
-    if(process.env["COVERAGE"] === "true") {
+    if (process.env['COVERAGE'] === 'true') {
       this.blockchain.enableCoverage()
       this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }

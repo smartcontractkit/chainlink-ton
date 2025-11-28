@@ -108,12 +108,8 @@ export function newInstance<TContract extends TypeAndVersionContract>(
         expect(typeAndVersion.type).toBe(config.type)
         expect(typeAndVersion.version).toBe(config.version)
 
-        if (process.env["COVERAGE"] === "true" && coverageConfigs){
-          generateCoverageArtifacts(
-            blockchain,
-            "type_and_version_tests",
-            coverageConfigs,
-          )
+        if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
+          generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
         }
       })
     },
