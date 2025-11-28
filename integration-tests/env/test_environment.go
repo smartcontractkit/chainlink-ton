@@ -19,9 +19,8 @@ import (
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/engine/test/onchain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/engine/test/environment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/testhelpers"
 
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
@@ -123,22 +122,37 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 }
 
 func (b *TestEnvironmentBuilder) newCTFBasedEnvironment(t *testing.T) (cldf.Environment, error) {
-	opts := []testhelpers.TestOps{
-		testhelpers.WithNoJobsAndContracts(),
+	loadOpts := []environment.LoadOpt{
+		environment.WithLogger(b.Logger),
 	}
 
 	if b.ChainsEnvironmentConfig.EVMChains > 0 {
-		opts = append(opts, testhelpers.WithNumOfChains(b.ChainsEnvironmentConfig.EVMChains))
+		loadOpts = append(loadOpts, environment.WithEVMSimulatedN(t, b.ChainsEnvironmentConfig.EVMChains))
 	}
 
 	if b.ChainsEnvironmentConfig.TONChains > 0 {
-		opts = append(opts, testhelpers.WithTonChains(b.ChainsEnvironmentConfig.TONChains))
-		opts = append(opts, testhelpers.WithTonContainerConfig(onchain.TonContainerConfig{}))
+		loadOpts = append(loadOpts, environment.WithTonContainerN(t, b.ChainsEnvironmentConfig.TONChains))
 	}
 
-	deployedEnv, _ := testhelpers.NewMemoryEnvironment(t, opts...)
+	env, err := environment.New(t.Context(), loadOpts...)
+	if err != nil {
+		return cldf.Environment{}, fmt.Errorf("failed to create CTF environment: %w", err)
+	}
 
-	return deployedEnv.Env, nil
+	bundle := operations.NewBundle(
+		t.Context,
+		b.Logger,
+		operations.NewMemoryReporter(),
+	)
+
+	return cldf.Environment{
+		GetContext:        t.Context,
+		Logger:            b.Logger,
+		BlockChains:       env.BlockChains,
+		DataStore:         datastore.NewMemoryDataStore().Seal(),
+		ExistingAddresses: cldf.NewMemoryAddressBook(),
+		OperationsBundle:  bundle,
+	}, nil
 }
 
 func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cldf.Environment, error) {
