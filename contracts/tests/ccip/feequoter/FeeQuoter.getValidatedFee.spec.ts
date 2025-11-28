@@ -10,8 +10,6 @@ import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
-import { mkdirSync, writeFileSync } from 'fs'
-import * as coverage from '../Coverage'
 import { Blockchain } from '@ton/sandbox'
 
 describe('FeeQuoter GetValidatedFee', () => {

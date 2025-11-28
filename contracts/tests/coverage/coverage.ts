@@ -12,8 +12,8 @@ export const CoverageContractName = {
   merkleroot: 'merkleroot',
   send_executor: 'send_executor',
   receive_executor: 'receive_executor',
-} as const;
-export type CoverageConfigNames = keyof typeof CoverageContractName;
+} as const
+export type CoverageConfigNames = keyof typeof CoverageContractName
 
 export type ContractCoverageConfig = {
   code: Cell | string //code, or contract name to compile directly

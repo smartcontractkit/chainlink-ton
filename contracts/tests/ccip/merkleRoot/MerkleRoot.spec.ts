@@ -1,7 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as mr from '../../../wrappers/ccip/MerkleRoot'
 import * as typeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
-import * as coverage from '../../ccip/Coverage'
 import { toNano } from '@ton/core'
 
 async function deployMerkleRootContract(

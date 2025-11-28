@@ -7,7 +7,6 @@ import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import { Blockchain } from '@ton/sandbox'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
-import * as coverage from '../Coverage'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({

@@ -18,7 +18,7 @@ import {
   OffRampError,
   Opcodes,
   UpdateSourceChainConfig,
-  MerkleRoot
+  MerkleRoot,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
@@ -41,7 +41,7 @@ import {
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
-import * as coverage from './Coverage'
+import * as coverage from '../coverage/coverage'
 
 import {
   createSignature,
@@ -181,12 +181,12 @@ describe('OffRamp - TypeAndVersion Tests', () => {
     version: OffRamp.version(),
     deployContract: deployOffRampContract,
   })
-  currentVersionSpec.run(
-    [{
+  currentVersionSpec.run([
+    {
       code: 'OffRamp',
-      name: 'offramp'
-    }]
-  )
+      name: 'offramp',
+    },
+  ])
 })
 
 describe('OffRamp - Withdrawable Tests', () => {
@@ -196,12 +196,12 @@ describe('OffRamp - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
   })
-  withdrawableSpec.run(
-    [{
+  withdrawableSpec.run([
+    {
       code: 'OffRamp',
-      name: 'offramp'
-    }]
-  )
+      name: 'offramp',
+    },
+  ])
 })
 
 // TODO when we have a new version

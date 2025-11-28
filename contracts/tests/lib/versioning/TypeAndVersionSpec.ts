@@ -2,7 +2,7 @@ import { Contract } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
-import { ContractCoverageConfig, generateCoverageArtifacts } from '../../ccip/Coverage'
+import { ContractCoverageConfig, generateCoverageArtifacts } from '../../coverage/coverage'
 
 /**
  * Configuration for testing type and version
@@ -116,7 +116,7 @@ export function newInstance<TContract extends TypeAndVersionContract>(
       })
 
       afterAll(async () => {
-          if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
+        if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
           generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
         }
       })

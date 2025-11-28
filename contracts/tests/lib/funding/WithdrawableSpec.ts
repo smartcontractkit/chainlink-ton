@@ -18,7 +18,7 @@ import {
 import '@ton/test-utils'
 import * as withdrawable from '../../../wrappers/libraries/funding/Withdrawable'
 import { sleep } from '@ton/blueprint'
-import { ContractCoverageConfig, generateCoverageArtifacts } from '../../ccip/Coverage'
+import { ContractCoverageConfig, generateCoverageArtifacts } from '../../coverage/coverage'
 
 /**
  * Configuration for testing withdrawable functionality.

@@ -8,7 +8,7 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
-import * as coverage from '../Coverage'
+import * as coverage from '../../coverage/coverage'
 
 const CHAINSEL_EVM_TEST = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n

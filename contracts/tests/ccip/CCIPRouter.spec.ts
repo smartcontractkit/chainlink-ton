@@ -33,7 +33,7 @@ import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
-import * as coverage from './Coverage'
+import * as coverage from '../coverage/coverage'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n

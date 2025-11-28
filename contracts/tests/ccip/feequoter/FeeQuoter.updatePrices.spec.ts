@@ -4,9 +4,7 @@ import { toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
-import * as coverage from '../Coverage'
 import { Blockchain } from '@ton/sandbox'
-import { compile } from '@ton/blueprint'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup

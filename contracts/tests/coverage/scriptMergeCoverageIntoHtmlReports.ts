@@ -67,12 +67,18 @@ const receiveExecutorMerged = mergeResults(receiveExecutorCoverageResults)
 
 // Generate HTML reports
 if (offRampMerged) {
-  writeFileSync(`./.coverage/${coverage.CoverageContractName.offramp}.html`, offRampMerged.report('html'))
+  writeFileSync(
+    `./.coverage/${coverage.CoverageContractName.offramp}.html`,
+    offRampMerged.report('html'),
+  )
   console.log('Generated offramp-coverage.html')
 }
 
 if (routerMerged) {
-  writeFileSync(`./.coverage/${coverage.CoverageContractName.router}.html`, routerMerged.report('html'))
+  writeFileSync(
+    `./.coverage/${coverage.CoverageContractName.router}.html`,
+    routerMerged.report('html'),
+  )
   console.log('Generated router-coverage.html')
 }
 
@@ -93,7 +99,10 @@ if (merkleRootMerged) {
 }
 
 if (onRampMerged) {
-  writeFileSync(`./.coverage/${coverage.CoverageContractName.onramp}.html`, onRampMerged.report('html'))
+  writeFileSync(
+    `./.coverage/${coverage.CoverageContractName.onramp}.html`,
+    onRampMerged.report('html'),
+  )
   console.log('Generated onramp-coverage.html')
 }
 

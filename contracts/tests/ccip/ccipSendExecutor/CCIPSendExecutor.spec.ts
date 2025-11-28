@@ -1,7 +1,7 @@
 import { compile } from '@ton/blueprint'
 import * as e from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
-import * as coverage from '../../ccip/Coverage'
+import * as coverage from '../../coverage/coverage'
 import { crc32 } from 'zlib'
 import { facilityId } from '../../../wrappers/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'

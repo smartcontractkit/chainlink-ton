@@ -1,7 +1,7 @@
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
-import * as coverage from '../../../tests/ccip/Coverage'
+import * as coverage from '../../coverage/coverage'
 
 export async function ownable2StepSpec(
   deployer: SandboxContract<TreasuryContract>,
