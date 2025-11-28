@@ -215,45 +215,6 @@ func (c *Client) GetCurrentBlock(ctx context.Context) (uint64, error) {
 	return uint64(mc.SeqNo), nil
 }
 
-// setupLogPoller creates and starts a logpoller service with in-memory stores for the given contract and event.
-func setupLogPoller(
-	ctx context.Context,
-	lggr logger.Logger,
-	client *ton.APIClient,
-	chainID string,
-	contract *address.Address,
-	eventSig uint32,
-	eventName string,
-) (tonlogpoller.Service, error) {
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return client.WithRetry(lib.TONClientRetries), nil
-	}
-
-	// Create logpoller with in-memory stores
-	service := tonlogpoller.NewService(lggr, chainID, clientProvider, &tonlogpoller.ServiceOptions{
-		Config:      tonlogpoller.DefaultConfigSet,
-		FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
-		TxLoader:    tonlploader.New(lggr, clientProvider),
-		LogStore:    tonlpstore.NewLogStore(chainID, lggr),
-	})
-
-	_, err := service.RegisterFilter(ctx, tonlpmodels.Filter{
-		Name:     fmt.Sprintf("%s-%s", contract.String(), eventName),
-		Address:  contract,
-		EventSig: eventSig,
-		MsgType:  tlb.MsgTypeExternalOut,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to register filter: %w", err)
-	}
-
-	if err := service.Start(ctx); err != nil {
-		return nil, fmt.Errorf("failed to start service: %w", err)
-	}
-
-	return service, nil
-}
-
 func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger, receiver string, messageID string, expectedData string, startBlock uint64) error {
 	receiverAddr, err := address.ParseAddr(receiver)
 	if err != nil {
@@ -267,11 +228,32 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	eventSig := tonhash.CRC32(eventName)
 	chainID := strconv.FormatUint(c.chainSel, 10)
 
-	service, err := setupLogPoller(ctx, lggr, c.client, chainID, receiverAddr, eventSig, eventName)
-	if err != nil {
-		return fmt.Errorf("failed to setup logpoller: %w", err)
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return c.client.WithRetry(lib.TONClientRetries), nil
 	}
-	defer service.Close()
+
+	lp, err := tonlogpoller.NewServiceWith(ctx, lggr, chainID, clientProvider,
+		&tonlogpoller.ServiceOptions{
+			Config:      tonlogpoller.DefaultConfigSet,
+			FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
+			TxLoader:    tonlploader.New(lggr, clientProvider),
+			LogStore:    tonlpstore.NewLogStore(chainID, lggr),
+		},
+		[]tonlpmodels.Filter{{
+			Name:     fmt.Sprintf("%s-%s", receiverAddr.String(), eventName),
+			Address:  receiverAddr,
+			EventSig: eventSig,
+			MsgType:  tlb.MsgTypeExternalOut,
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create logpoller: %w", err)
+	}
+	defer lp.Close()
+
+	if err := lp.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start logpoller: %w", err)
+	}
 
 	// Query configuration
 	queryInterval := 500 * time.Millisecond
@@ -296,7 +278,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				"elapsed", time.Since(startTime).Round(time.Second).String())
 
 		case <-ticker.C:
-			logs, _, _, err := service.NewQuery().
+			logs, _, _, err := lp.NewQuery().
 				WithSource(receiverAddr).
 				WithEventSig(eventSig).
 				Execute(ctx)
