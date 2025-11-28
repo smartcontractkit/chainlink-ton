@@ -31,7 +31,7 @@ import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
-import {generateSecureRandomId} from  '../../src/utils/types'
+import { generateSecureRandomId } from '../../src/utils/types'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
 import * as coverage from '../coverage/coverage'
@@ -852,8 +852,6 @@ describe('Router', () => {
     }
   })
 })
-
-
 
 async function deployRouterContract(
   blockchain: Blockchain,
