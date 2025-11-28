@@ -175,7 +175,6 @@ async function deployOffRampContract(
   return contract
 }
 
-/*
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: OffRamp.type(),
@@ -185,7 +184,7 @@ describe('OffRamp - TypeAndVersion Tests', () => {
   currentVersionSpec.run(
     [{
       code: 'OffRamp',
-      name: coverage.OFFRAMP_COVERAGE_NAME
+      name: 'offramp'
     }]
   )
 })
@@ -200,7 +199,7 @@ describe('OffRamp - Withdrawable Tests', () => {
   withdrawableSpec.run(
     [{
       code: 'OffRamp',
-      name: coverage.OFFRAMP_COVERAGE_NAME
+      name: 'offramp'
     }]
   )
 })
@@ -243,7 +242,6 @@ describe('OffRamp - Current Version Tests', () => {
   })
   currentVersionSpec.run()
 })
-*/
 
 describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain

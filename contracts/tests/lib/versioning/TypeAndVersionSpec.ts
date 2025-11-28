@@ -101,14 +101,22 @@ export function newInstance<TContract extends TypeAndVersionContract>(
       /**
        * Test that the contract deploys on the current version
        */
-      it('should deploy on current version', async () => {
-        const { blockchain, contract } = await setup()
+      let blockchain: Blockchain
+      let contract: SandboxContract<TypeAndVersionContract>
+      beforeAll(async () => {
+        const suiteSetup = await setup()
+        blockchain = suiteSetup.blockchain
+        contract = suiteSetup.contract
+      })
 
+      it('should deploy on current version', async () => {
         const typeAndVersion = await contract.getTypeAndVersion()
         expect(typeAndVersion.type).toBe(config.type)
         expect(typeAndVersion.version).toBe(config.version)
+      })
 
-        if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
+      afterAll(async () => {
+          if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
           generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
         }
       })
