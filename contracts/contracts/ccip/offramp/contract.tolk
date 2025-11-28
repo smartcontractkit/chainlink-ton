@@ -322,6 +322,20 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
     var ocr3Base = st.ocr3Base.load();
     ocr3Base.setOcr3Config(msg);
 
+    // validation and reset latestPriceSequenceNumber
+    // Note: this mirrors EVM's _afterOCR3ConfigSet hook, but direct implementation
+    if (msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
+        // signature verification must be enabled for commit plugin
+        assert(msg.isSignatureVerificationEnabled, Error.SignatureVerificationRequiredInCommitPlugin);
+        
+        // reset price sequence number when commit OCR config changes
+        // (scoped per config digest, roots persist across reconfigurations)
+        st.latestPriceSequenceNumber = 0;
+    } else if (msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
+        // signature verification must be disabled for execution plugin
+        assert(!msg.isSignatureVerificationEnabled, Error.SignatureVerificationNotAllowedInExecutionPlugin);
+    }
+
     st.ocr3Base = ocr3Base.toCell();
     st.store();
 }

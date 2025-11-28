@@ -1,17 +1,15 @@
 import '@ton/test-utils'
 
-import { toNano, Address, Cell, beginCell } from '@ton/core'
-import { Blockchain } from '@ton/sandbox'
+import { toNano, beginCell } from '@ton/core'
 
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import { ExtraArgs } from '../../../wrappers/ccip/Router'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
-import { asSnakeBytes, asSnakeData, ZERO_ADDRESS } from '../../../src/utils'
+import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
-import { create } from 'domain'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -466,7 +464,8 @@ describe('FeeQuoter GetValidatedFee', () => {
       executionGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
       dataAvailabilityGasPrice?: bigint // max: uint112 = 2^112-1 ≈ 5.2e33
       // Token price and premium multiplier
-      tokenPrice?: bigint // max: uint224 = 2^224-1 ≈ 2.7e67
+      feeTokenPrice?: bigint // max: uint224 = 2^224-1 ≈ 2.7e67
+      linkTokenPrice?: bigint // max: uint224 = 2^224-1 ≈ 2.7e67
       premiumMultiplier?: bigint // max: uint256 = 2^256-1 ≈ 1.2e77
       // Message parameters
       gasLimit?: bigint // constrained by maxPerMsgGasLimit (uint32)
@@ -475,15 +474,24 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     async function feequoterOverwrite(overrides: FeeQuoterOverrides) {
       // Set up token prices
-      const tokenPricesUpdates: Token[] =
-        overrides.tokenPrice === undefined
+      const tokenPricesUpdates: Token[] = [
+        ...(overrides.feeTokenPrice === undefined
           ? []
           : [
               {
                 token: FeeQuoterSetup.NATIVE_TON.token,
-                price: overrides.tokenPrice,
+                price: overrides.feeTokenPrice,
               },
-            ]
+            ]),
+        ...(overrides.linkTokenPrice === undefined
+          ? []
+          : [
+              {
+                token: FeeQuoterSetup.SOURCE_LINK.token,
+                price: overrides.linkTokenPrice,
+              },
+            ]),
+      ]
 
       // Set up gas prices if specified
       const priceUpdates: feeQuoter.PriceUpdates = {
@@ -655,6 +663,20 @@ describe('FeeQuoter GetValidatedFee', () => {
       return result.fee
     }
 
+    it('should handle extreme gas price that could cause message fee too high error', async () => {
+      await testOverflowScenario(
+        'extreme gas price causing MessageFeeTooHigh',
+        feeQuoter.FeeQuoterError.MessageFeeTooHigh,
+        {
+          // Max uint112 gas prices
+          executionGasPrice: 2n ** 112n - 1n,
+          dataAvailabilityGasPrice: 2n ** 112n - 1n,
+          // Very small token price to maximize final fee amount
+          feeTokenPrice: 1n,
+        },
+      )
+    })
+
     it('should handle extreme gas price that could cause overflow in final fee calculation', async () => {
       await testOverflowScenario(
         'extreme gas price causing FeeOverflow',
@@ -664,7 +686,8 @@ describe('FeeQuoter GetValidatedFee', () => {
           executionGasPrice: 2n ** 112n - 1n,
           dataAvailabilityGasPrice: 2n ** 112n - 1n,
           // Very small token price to maximize final fee amount
-          tokenPrice: 1n,
+          feeTokenPrice: 1n,
+          linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e18), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
     })
@@ -678,6 +701,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         // This overflow may not be achievable with realistic constraints
         networkFeeUsdCents: 2 ** 32 - 1, // Max uint32
         premiumMultiplier: 2n ** 64n - 1n, // Max uint64
+        linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e18), // Inflate link price to prevent MessageFeeTooHigh error
       })
       const bitCount = fee.toString(2).length
       expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
@@ -703,6 +727,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
           dataSize: 16000,
           maxDataBytes: 16001,
+          linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
       const bitCount = fee.toString(2).length
@@ -711,7 +736,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     it('should handle token price too low error', async () => {
       await testOverflowScenario('token price too low', feeQuoter.FeeQuoterError.TokenPriceTooLow, {
-        tokenPrice: 0n, // Zero token price should trigger error
+        feeTokenPrice: 0n, // Zero token price should trigger error
       })
     })
 
@@ -723,6 +748,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16 (65535)
         dataSize: 16000,
         maxDataBytes: 16001,
+        linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
       }
 
       // Combine max values to try to trigger DA overflow
@@ -760,7 +786,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         maxPerMsgGasLimit: 2 ** 32 - 1, // Allow max gas
         dataSize: 16000, // Data size to calculate DA cost
         maxDataBytes: 2 ** 32 - 1, // Max allowed data size
-        tokenPrice: 2n ** 200n, // Very high token price (so final division doesn't overflow)
+        feeTokenPrice: 2n ** 200n, // Very high token price (so final division doesn't overflow)
+        linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
       }
 
       // Calculate the three components that will be added together
@@ -807,12 +834,13 @@ describe('FeeQuoter GetValidatedFee', () => {
           premiumMultiplier: 2n ** 50n, // Large premium multiplier
           gasMultiplierWeiPerEth: 2n ** 63n, // Near max uint64
           destDataAvailabilityMultiplierBps: 2 ** 16 - 1, // Max uint16
-          tokenPrice: 1n, // Very small token price to maximize final result
+          feeTokenPrice: 1n, // Very small token price to maximize final result
           gasLimit: 2n ** 32n - 1n, // Max gas limit
           destGasOverhead: 2 ** 32 - 1, // Max overhead
           maxPerMsgGasLimit: 2 ** 32 - 1,
           dataSize: 10000, // Large data size
           maxDataBytes: 10001,
+          linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
     })

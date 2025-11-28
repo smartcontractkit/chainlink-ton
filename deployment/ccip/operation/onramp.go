@@ -78,7 +78,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
+	contract, _, err := wrappers.Deploy(b.GetContext(), &conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy onramp contract: %w", err)
 	}

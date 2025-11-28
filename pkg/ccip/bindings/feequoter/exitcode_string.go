@@ -25,18 +25,19 @@ func _() {
 	_ = x[ErrorUnknownDestChainSelector-24814]
 	_ = x[ErrorInsufficientFee-24815]
 	_ = x[ErrorTokenTransfersNotSupported-24816]
-	_ = x[ErrorExecutionCostOverflow-24817]
-	_ = x[ErrorPremiumFeeOverflow-24818]
-	_ = x[ErrorDataAvailabilityCostOverflow-24819]
-	_ = x[ErrorFeeCalculationOverflow-24820]
-	_ = x[ErrorTokenPriceTooLow-24821]
-	_ = x[ErrorFeeOverflow-24822]
-	_ = x[ErrorUnauthorizedPriceUpdater-24823]
+	_ = x[ErrorUnauthorizedPriceUpdater-24817]
+	_ = x[ErrorExecutionCostOverflow-24818]
+	_ = x[ErrorPremiumFeeOverflow-24819]
+	_ = x[ErrorDataAvailabilityCostOverflow-24820]
+	_ = x[ErrorFeeCalculationOverflow-24821]
+	_ = x[ErrorTokenPriceTooLow-24822]
+	_ = x[ErrorFeeOverflow-24823]
+	_ = x[ErrorMessageFeeTooHigh-24824]
 }
 
-const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorUnauthorizedPriceUpdater"
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHigh"
 
-var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 202, 243, 263, 281, 305, 330, 349, 371, 400, 420, 451, 477, 500, 533, 560, 581, 597, 626}
+var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 202, 243, 263, 281, 305, 330, 349, 371, 400, 420, 451, 480, 506, 529, 562, 589, 610, 626, 648}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 24800

@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
@@ -133,19 +134,19 @@ type WithdrawJettons struct {
 }
 
 type ExecutorFinishedSuccessfully struct {
-	_        tlb.Magic  `tlb:"#CFA6B336"` //nolint:revive // Ignore opcode tag
-	MsgId    big.Int    `tlb:"## 224"`    // Message ID
-	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
-	Metadata Metadata   `tlb:"."`         // Metadata
-	Fee      *tlb.Coins `tlb:"."`         // Fee amount
+	_        tlb.Magic     `tlb:"#CFA6B336"` //nolint:revive // Ignore opcode tag
+	MsgId    big.Int       `tlb:"## 224"`    // Message ID
+	Fee      feequoter.Fee `tlb:"."`         // Fee amount
+	Msg      *cell.Cell    `tlb:"^"`         // Original CCIPSend message
+	Metadata Metadata      `tlb:"."`         // Metadata
 }
 
 type ExecutorFinishedWithError struct {
 	_        tlb.Magic  `tlb:"#C4068E21"` //nolint:revive // Ignore opcode tag
 	MsgId    big.Int    `tlb:"## 224"`    // Message ID
+	Error    big.Int    `tlb:"## 256"`    // Error reason
 	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
 	Metadata Metadata   `tlb:"."`         // Metadata
-	Error    big.Int    `tlb:"## 256"`    // Error reason
 }
 
 type SetDynamicConfigMessage struct {

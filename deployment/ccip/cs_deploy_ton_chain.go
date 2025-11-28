@@ -60,10 +60,22 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	s := states[selector]
 
+	// Use data store to track new deployed addresses
+	dataStore := ds.NewMemoryDataStore()
+
 	// TODO: deploy MCMS
 	// TODO: deploy LINK
-	linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
-	s.LinkTokenAddress = *linkTokenAddress
+	if s.LinkTokenAddress.IsAddrNone() {
+		linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
+		s.LinkTokenAddress = *linkTokenAddress
+		_ = dataStore.Addresses().Upsert(ds.AddressRef{
+			Address:       linkTokenAddress.String(),
+			ChainSelector: selector,
+			Labels:        ds.LabelSet{},
+			Type:          state.LinkToken,
+			Version:       &state.Version1_6_0,
+		})
+	}
 
 	deps := operation.TonDeps{
 		TonChain:         chain,
@@ -75,7 +87,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		// MCMSAddress:      mcmsSeqReport.Output.MCMSAddress,
-		// LinkTokenAddress: linkTokenAddress,
 		CCIPConfig:          config.Params,
 		ContractsVersionSha: config.ContractsVersion,
 		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
@@ -88,8 +99,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 	// mcmsOperations = append(mcmsOperations, ccipSeqReport.Output.MCMSOperations...)
 
-	// Use data store to track new deployed addresses
-	dataStore := ds.NewMemoryDataStore()
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)

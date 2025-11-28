@@ -18,6 +18,7 @@ import "../../lib/versioning/upgradeable"
 import "events"
 import "../../deployable/types"
 import "../fee_quoter/messages"
+import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("1");
@@ -171,8 +172,8 @@ fun onMessageValidated(msg: FeeQuoter_MessageValidated<OnRamp_GetValidatedFeeCon
         value: 0,
         dest: userAddress,
         body: OnRamp_MessageValidated<RemainingBitsAndRefs> {
+            fee: msg.fee.feeTokenAmount,
             msg: msg.msg,
-            fee: msg.fee,
             context: userContext,
         }
     });
@@ -297,9 +298,9 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             extraArgs: ccipsend.extraArgs,
             tokenAmounts: ccipsend.tokenAmounts,
             feeToken: ccipsend.feeToken,
-            feeTokenAmount: msg.fee as uint256, // safe because it is 128 bits
+            feeTokenAmount: msg.fee.feeTokenAmount as uint256, // safe because it is 120 bits
         }.toCell(),
-        feeValueJuels: 0, // TODO: this needs to be juels rather than TON?
+        feeValueJuels: msg.fee.feeValueJuels,
     };
 
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
@@ -327,7 +328,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             sender: metadata.sender,
         },
     });
-    reserveToncoinsOnBalance(msg.fee, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveToncoinsOnBalance(msg.fee.feeTokenAmount, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
     confirmation.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 

@@ -180,6 +180,7 @@ func (c *chain) Ready() error {
 func (c *chain) HealthReport() map[string]error {
 	report := map[string]error{c.Name(): c.starter.Healthy()}
 	services.CopyHealth(report, c.txm.HealthReport())
+	services.CopyHealth(report, c.lp.HealthReport())
 	// TODO: Add balance monitor health report once implemented
 	return report
 }

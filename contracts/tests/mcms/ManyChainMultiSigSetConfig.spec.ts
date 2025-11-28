@@ -2,7 +2,6 @@ import '@ton/test-utils'
 
 import { toNano } from '@ton/core'
 
-import { uint8ArrayToBigInt } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
 
@@ -27,7 +26,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -52,13 +51,13 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   it('should fail on invalid configuration - empty signers list', async () => {
     // Empty signers list should fail
     const emptySignerList: TestSigner[] = []
-    const emptySignerKeys = emptySignerList.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+    const emptySignerAddresses = emptySignerList.map((s) => BigInt(s.address))
     const emptySignerGroups = emptySignerList.map((s) => s.group)
 
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: emptySignerKeys,
+        signerAddresses: emptySignerAddresses,
         signerGroups: emptySignerGroups,
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -85,13 +84,13 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const duplicateSigners = [...baseTest.testSigners]
     duplicateSigners[1] = duplicateSigners[0] // Make addresses duplicate
-    const signerKeys = duplicateSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+    const signerAddresses = duplicateSigners.map((s) => BigInt(s.address))
     const signerGroups = duplicateSigners.map((s) => s.group)
 
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys,
+        signerAddresses,
         signerGroups,
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -109,7 +108,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.SignersKeysMustBeStrictlyIncreasing,
+      exitCode: mcms.Error.SignersAdderssesMustBeStrictlyIncreasing,
     })
   })
 
@@ -118,13 +117,13 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const invalidGroupSigners = [...baseTest.testSigners]
     invalidGroupSigners[0].group = mcms.NUM_GROUPS + 1
 
-    const signerKeys = invalidGroupSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+    const signerAddresses = invalidGroupSigners.map((s) => BigInt(s.address))
     const signerGroups = invalidGroupSigners.map((s) => s.group)
 
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys,
+        signerAddresses,
         signerGroups,
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -160,7 +159,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: invalidGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -196,7 +195,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: invalidGroupParents,
@@ -232,7 +231,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: invalidGroupParents,
@@ -262,7 +261,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: disabledGroupSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -292,7 +291,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: signer.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: signer.map((s) => BigInt(s.address)),
         signerGroups: shorterSignerGroup.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -318,7 +317,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -363,7 +362,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const setConfigBody = mcms.builder.message.in.setConfig
       .encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerAddresses: baseTest.testSigners.map((s) => BigInt(s.address)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,

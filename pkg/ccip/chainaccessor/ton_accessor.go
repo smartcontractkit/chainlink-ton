@@ -390,19 +390,16 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
 	}
-	// RunGetMethod isn't happy with address inputs, convert to a slice first
-	tokenAddressSlice := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell().BeginParse()
 
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", tokenAddressSlice)
-	if err != nil {
-		return ccipocr3.TimestampedUnixBig{}, err
-	}
+
 	var timestampedPrice feequoter.TimestampedPrice
-	err = tvm.LoadFromResult(&timestampedPrice, result)
+	// Prepare token address as a slice cell for getter call
+	tokenAddressSlice := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell().BeginParse()
+	err = timestampedPrice.FetchResult(ctx, a.client, block, addr, []interface{}{tokenAddressSlice})
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}

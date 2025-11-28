@@ -8,6 +8,7 @@ import "../../lib/versioning/upgradeable"
 import "../ccipsend_executor/messages"
 import "../fee_quoter/messages"
 import "../ccipsend_executor/types"
+import "../fee_quoter/types"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -50,7 +51,7 @@ struct (0x10000003) OnRamp_SetDynamicConfig {
 
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     executorID: CCIPSendExecutor_ID,
-    fee: coins
+    fee: Fee
     msg: Cell<Router_CCIPSend>
     metadata: Metadata
 }

@@ -5,23 +5,25 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	ton "github.com/xssnick/tonutils-go/ton"
 	wallet "github.com/xssnick/tonutils-go/ton/wallet"
 
+	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
+// SetUpTest creates a TON chain using CLDF and sets up funded test accounts
 func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
-	api, cerr := testutils.CreateTestAPIClient(t, chainID)
-	require.NoError(t, cerr)
+	var setupOnce sync.Once
+	tonChain, err := testutils.StartChain(t, chainID, &setupOnce)
+	require.NoError(t, err)
 
 	accounts = make([]tracetracking.SignedAPIClient, fundedAccountsCount)
 
@@ -29,14 +31,17 @@ func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccou
 	amounts := make([]tlb.Coins, fundedAccountsCount)
 
 	for i := range fundedAccountsCount {
-		w := testutils.CreateRandomWallet(t, api, wallet.V3R2, wallet.WithWorkchain(0))
+		w, err := testutils.CreateRandomWallet(tonChain.Client, wallet.V3R2, wallet.WithWorkchain(0))
+		require.NoError(t, err)
+
 		recipients[i] = w.Address()
 		amounts[i] = tlb.FromNanoTON(initialAmount)
 
-		accounts[i] = tracetracking.NewSignedAPIClient(api, *w)
+		accounts[i] = tracetracking.NewSignedAPIClient(tonChain.Client, *w)
 	}
 
-	testutils.FundWallets(t, api, recipients, amounts)
+	ferr := testutils.FundWallets(t, tonChain.Client, recipients, amounts)
+	require.NoError(t, ferr)
 
 	return accounts
 }

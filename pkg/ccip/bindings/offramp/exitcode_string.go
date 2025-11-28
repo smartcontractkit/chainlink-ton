@@ -18,11 +18,13 @@ func _() {
 	_ = x[ErrorSubjectCursed-8407]
 	_ = x[ErrorUnauthorized-8408]
 	_ = x[ErrorZeroAddressNotAllowed-8409]
+	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-8410]
+	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-8411]
 }
 
-const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorSenderIsNotRouterErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowed"
+const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorSenderIsNotRouterErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPlugin"
 
-var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 197, 215, 232, 258}
+var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 197, 215, 232, 258, 306, 359}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 8400

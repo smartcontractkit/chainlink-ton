@@ -3,12 +3,7 @@ import { BlockchainTransaction } from '@ton/sandbox'
 import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import { fromSnakeData } from '../src/utils/types'
-import {
-  MerkleRoot,
-  merkleRootFromSlice,
-  priceUpdatesFromCell,
-  sourceChainConfigFromSlice,
-} from '../wrappers/ccip/OffRamp'
+import * as offRamp from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
 import { crc32 } from 'zlib'
 import * as onramp from '../wrappers/ccip/OnRamp'
@@ -168,15 +163,17 @@ function testLogCCIPCommitReportAccepted(
     let bs = x.beginParse()
 
     const commitHasMerkleRoots = bs.loadBit()
-    let merkleRoot: MerkleRoot | undefined = undefined
+    let merkleRoot: offRamp.MerkleRoot | undefined = undefined
     if (commitHasMerkleRoots) {
-      merkleRoot = merkleRootFromSlice(bs)
+      merkleRoot = offRamp.builder.data.merkleRoot.load(bs)
     }
 
     const priceUpdatesCell = bs.loadMaybeRef()
 
     const priceUpdates =
-      priceUpdatesCell != undefined ? priceUpdatesFromCell(priceUpdatesCell) : undefined
+      priceUpdatesCell != undefined
+        ? offRamp.builder.data.priceUpdates.load(priceUpdatesCell.beginParse())
+        : undefined
 
     const reportAccepted: CCIPLogs.CommitReportAccepted = {
       merkleRoot,
@@ -436,7 +433,7 @@ export const testLogSourceChainConfigUpdated = (
     const cs = x.beginParse()
     const msg = {
       sourceChainSelector: cs.loadUintBig(64),
-      config: sourceChainConfigFromSlice(cs),
+      config: offRamp.builder.data.sourceChainConfig.load(cs),
     }
     equalsObject(msg, match)
     return true

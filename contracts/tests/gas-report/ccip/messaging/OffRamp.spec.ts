@@ -15,8 +15,8 @@ import * as or from '../../../../wrappers/ccip/OnRamp'
 import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
 import {
   Any2TVMRampMessage,
+  builder,
   CommitReport,
-  commitReportToBuilder,
   ExecutionReport,
   MerkleRoot,
   OffRampStorage,
@@ -138,7 +138,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(commitReport).endCell(), reportContext),
+      hashReport(builder.data.commitReport.encode(commitReport).endCell(), reportContext),
     )
 
     // Step 3: Commit phase

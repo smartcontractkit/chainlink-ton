@@ -2,40 +2,39 @@ package utils //nolint:revive,nolintlint // TODO: update to meaningful package n
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/sdk/freeport"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/stretchr/testify/require"
-
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-
-	"github.com/xssnick/tonutils-go/ton"
-
+	cldf_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 
-	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 )
 
-func CreateRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
+func CreateRandomWallet(client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) (*wallet.Wallet, error) {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
-	require.NoError(t, err, "failed to generate random wallet: %w", err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
+	}
 	pw, perr := wallet.FromPrivateKeyWithOptions(client, rw.PrivateKey(), version, option)
-	require.NoError(t, perr, "failed to generate random wallet: %w", err)
-	return pw
+	if perr != nil {
+		return nil, fmt.Errorf("failed to generate random wallet: %w", perr)
+	}
+	return pw, nil
 }
 
-func CreateRandomHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.Wallet {
+func CreateRandomHighloadWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	seed := wallet.NewSeed()
 	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
 		MessageTTL: 60 * 5,
@@ -52,52 +51,80 @@ func CreateRandomHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wall
 			return uint32(createdAt % (1 << 23)), createdAt, nil //nolint:gosec // test wallet
 		},
 	})
-	require.NoError(t, err, "failed to generate random wallet: %w", err)
-	return w
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
+	}
+	return w, nil
 }
 
-func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
+// NOTE: Prefunded high-load wallet from MyLocalTon pre-funded wallet, that can send up to 254 messages per 1 external message
+// https://docs.ton.org/v3/documentation/smart-contracts/contracts-specs/highload-wallet#highload-wallet-v2
+func GetLocalnetFunderWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
 	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
-	require.NoError(t, err, "failed to create highload wallet")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
+	}
 	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(-1))
-	require.NoError(t, err, "failed to create highload wallet")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
+	}
 	subWalletID := uint32(42)
 	funder, err := mcFunderWallet.GetSubwallet(subWalletID)
-	require.NoError(t, err, "failed to get highload subwallet")
-	// double check funder address
-	require.Equal(t, blockchain.DefaultTonHlWalletAddress, funder.Address().StringRaw(), "funder address mismatch")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get highload subwallet: %w", err)
+	}
+	// confirm the funder address
+	if funder.Address().StringRaw() != blockchain.DefaultTonHlWalletAddress {
+		return nil, errors.New("funder address mismatch")
+	}
+	return funder, nil
+}
+
+func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
+	funder, err := GetLocalnetFunderWallet(client)
+	if err != nil {
+		return fmt.Errorf("failed to get prefunded wallet: %w", err)
+	}
 
 	if len(recipients) != len(amounts) {
-		t.Fatalf("number of recipients (%d) does not match number of amounts (%d)", len(recipients), len(amounts))
+		return fmt.Errorf("number of recipients (%d) does not match number of amounts (%d)", len(recipients), len(amounts))
 	}
 
 	messages := make([]*wallet.Message, len(recipients))
 	for i, addr := range recipients {
 		transfer, terr := funder.BuildTransfer(addr, amounts[i], false, "")
-		require.NoError(t, terr, "failed to build transfer for %w", addr.String())
+		if terr != nil {
+			return fmt.Errorf("failed to build transfer for %s: %w", addr.String(), terr)
+		}
 		messages[i] = transfer
 	}
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
-	require.NoError(t, txerr, "airdrop transaction failed")
+	if txerr != nil {
+		return fmt.Errorf("airdrop transaction failed: %w", txerr)
+	}
 
-	err = waitForAirdropCompletion(t, client, recipients, amounts, 120*time.Second, true)
-	require.NoError(t, err, "airdrop completion verification failed")
+	err = waitForAirdropCompletion(t.Context(), client, recipients, amounts, 120*time.Second)
+	if err != nil {
+		return fmt.Errorf("airdrop completion verification failed: %w", err)
+	}
+	t.Logf("✓ %d funded successfully", len(recipients))
+	return nil
 }
 
-func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, expectedAmounts []tlb.Coins, timeout time.Duration, verbose bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func waitForAirdropCompletion(ctx context.Context, client ton.APIClientWrapped, recipients []*address.Address, expectedAmounts []tlb.Coins, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// get initial balances
 	initialBalances := make(map[string]tlb.Coins)
 	currentBlock, err := client.CurrentMasterchainInfo(ctx)
-	require.NoError(t, err, "failed to get current block")
+	if err != nil {
+		return fmt.Errorf("failed to get current block: %w", err)
+	}
 	for _, addr := range recipients {
 		if acc, err := client.GetAccount(ctx, currentBlock, addr); err == nil {
 			if acc.State != nil {
-				t.Logf("Account state for %s: %v", addr.String(), acc.State)
-				t.Log("Initial balance for", addr.String(), "is", acc.State.Balance.String())
 				initialBalances[addr.String()] = acc.State.Balance
 			} else {
 				initialBalances[addr.String()] = tlb.ZeroCoins
@@ -131,9 +158,6 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 						continue
 					}
 					if acc.State != nil && acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
-						if verbose {
-							t.Logf("%s balance is sufficient: %s >= %s", addr.String(), acc.State.Balance.String(), expectedMin.String())
-						}
 						completed <- addr.String()
 						return
 					}
@@ -149,126 +173,39 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 		case <-completed:
 			count++
 			if count == len(recipients) {
-				t.Logf("✓ Airdrop completed, all %d recipients funded", count)
 				return nil
 			}
 		case <-ctx.Done():
-			return fmt.Errorf("timeout: %d/%d completed", count, len(recipients))
+			return fmt.Errorf("airdrop timeout: %d/%d completed", count, len(recipients))
 		}
 	}
 }
 
-func StartChain(t *testing.T, nodeClient ton.APIClientWrapped, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
-	t.Helper()
-	ton := cldf_ton.Chain{
-		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},
-		// TODO: CLDF should accept ton.APIClientWrapped instead of *ton.APIClient
-		Client:        nodeClient.(*ton.APIClient),
-		Wallet:        deployerWallet,
-		WalletAddress: deployerWallet.Address(),
-	}
-	return ton
-}
+// StartChain creates a TON chain using the CLDF CTFChainProvider.
+// The once parameter ensures CTF network is only initialized once across test suite.
+func StartChain(t *testing.T, chainID uint64, once *sync.Once) (cldf_ton.Chain, error) {
+	ctx := t.Context()
+	// Note: CLDF creates V5R1 wallet by default, so we need to wait for airdrop completion(used in txm test)
+	p := cldf_provider.NewCTFChainProvider(t, chainID, config.LocalNetworkConfig(once))
 
-// CreateTestAPIClient is a test helper that wraps CreateAPIClient and registers cleanup with testing.T
-func CreateTestAPIClient(t *testing.T, chainID uint64) (ton.APIClientWrapped, error) {
-	t.Helper()
-
-	port := freeport.GetOne(t)
-	client, cleanup, err := CreateAPIClient(t.Context(), chainID, port)
+	chain, err := p.Initialize(ctx)
 	if err != nil {
-		return nil, err
+		return cldf_ton.Chain{}, fmt.Errorf("failed to initialize CTF chain provider: %w", err)
 	}
 
-	t.Cleanup(cleanup)
-	return client, nil
-}
-
-// CreateAPIClient sets up a TON API client. Returns the client, cleanup function, and error.
-// The caller is responsible for calling the cleanup function when done.
-// Note: For new networks, a port must be provided since freeport allocation requires testing context.
-func CreateAPIClient(ctx context.Context, chainID uint64, port int) (ton.APIClientWrapped, func(), error) {
-	var client ton.APIClientWrapped
-	var cleanup func()
-	var err error
-
-	// Read env::USE_EXISTING_TON_NODE to decide whether to create a new ephemeral network
-	// or connect to a pre-existing one(for faster iteration).
-	if os.Getenv("USE_EXISTING_TON_NODE") == "true" {
-		client, err = getExistingNetworkConnection(ctx)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get existing network connection string: %w", err)
-		}
-		cleanup = func() {} // no-op cleanup for existing network
-	} else {
-		client, cleanup, err = createNewNetwork(ctx, chainID, port)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create new network: %w", err)
-		}
+	tonChain, ok := chain.(cldf_ton.Chain)
+	if !ok {
+		return cldf_ton.Chain{}, errors.New("expected chain to be cldf_ton.Chain")
 	}
 
-	// test connection
-	mb, merr := client.GetMasterchainInfo(ctx)
-	if merr != nil {
-		if cleanup != nil {
-			cleanup() // cleanup on error
-		}
-		return nil, nil, fmt.Errorf("TON network not ready: %w", merr)
-	}
-	client.SetTrustedBlock(mb)
-
-	return client.WithRetry(3), cleanup, nil
-}
-
-// getExistingNetworkConnection returns the connection for a pre-existing network.
-func getExistingNetworkConnection(ctx context.Context) (ton.APIClientWrapped, error) {
-	configURL := "http://localhost:8000/localhost.global.config.json"
-	pool := liteclient.NewConnectionPool()
-	err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
+	// Wait for wallet to be ready before returning
+	// CTFChainProvider funds the wallet but doesn't wait for confirmation,
+	// which can cause "cannot load block" errors when immediately using the wallet
+	err = waitForAirdropCompletion(ctx, tonChain.Client, []*address.Address{tonChain.WalletAddress}, []tlb.Coins{tlb.MustFromTON("1000")}, 120*time.Second)
 	if err != nil {
-		return nil, err
+		return cldf_ton.Chain{}, fmt.Errorf("airdrop completion verification failed: %w", err)
 	}
-	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
-}
+	t.Logf("TON chain started and funded wallet: %s", tonChain.WalletAddress.String())
 
-// createNewNetwork provisions a new, temporary TON network for the test's duration.
-// It handles port allocation and automatic container cleanup.
-func createNewNetwork(ctx context.Context, chainID uint64, port int) (client ton.APIClientWrapped, cleanup func(), err error) {
-	// port := freeport.GetOne(t)
-	bcInput := &blockchain.Input{
-		ChainID: strconv.FormatUint(chainID, 10),
-		Type:    "ton",
-		Port:    strconv.Itoa(port),
-		Image:   "ghcr.io/neodix42/mylocalton-docker:v3.7",
-		CustomEnv: map[string]string{
-			"NEXT_BLOCK_GENERATION_DELAY":    "0.5",
-			"EMBEDDED_FILE_HTTP_SERVER":      "true",
-			"EMBEDDED_FILE_HTTP_SERVER_PORT": strconv.Itoa(port),
-		},
-	}
-
-	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create blockchain network: %w", err)
-	}
-
-	// The cleanup function ensures the temporary network is terminated after the test.
-	cleanup = func() {
-		if bcOut.Container != nil && bcOut.Container.IsRunning() {
-			termCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			if cterr := bcOut.Container.Terminate(termCtx); cterr != nil {
-				fmt.Printf("Container termination failed: %v", cterr)
-			}
-		}
-		freeport.Return([]int{port})
-	}
-
-	connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, bcOut.Nodes[0].ExternalHTTPUrl)
-	if cerr != nil {
-		return nil, nil, fmt.Errorf("failed to create connection pool from liteserver URL: %w", cerr)
-	}
-
-	client = ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
-	return client, cleanup, nil
+	return tonChain, nil
 }

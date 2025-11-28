@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -118,6 +119,9 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 
 	// FeeQuoter
 	linkTokenAddress := deps.CCIPOnChainState[in.ChainSelector].LinkTokenAddress
+	if linkTokenAddress.IsAddrNone() {
+		return output, errors.New("LINK address cannot be zero")
+	}
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter
 	feeQuoterStorage := feequoter.Storage{
 		ID: in.CCIPConfig.FeeQuoterParams.ID,
@@ -187,11 +191,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		},
 		FeeQuoter: &feeQuoterAddress,
 		// empty OCR3Base
-		OCR3Base: cell.BeginCell().
-			MustStoreUInt(0, 8).
-			MustStoreBoolBit(false).
-			MustStoreBoolBit(false).
-			EndCell(),
+		OCR3Base:                                offramp.OCR3Base{},
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
 		LatestPriceSequenceNumber: 0,

@@ -108,7 +108,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setUpCommon(t)
 
 		t.Logf("Deploying Sender contract\n")
-		Sender, err := jetton_testing_wrappers.NewSenderProvider(setup.deployer).Deploy(jetton_testing_wrappers.SenderInitData{
+		Sender, err := jetton_testing_wrappers.NewSenderProvider(setup.deployer).Deploy(t.Context(), jetton_testing_wrappers.SenderInitData{
 			MasterAddress: setup.jettonMinter.Address,
 			WalletCode:    setup.jettonWalletCode,
 		})
@@ -177,7 +177,7 @@ func TestJettonAll(t *testing.T) {
 	setupOnrampMock := func(t *testing.T) *onrampMockSetup {
 		setup := setupSender(t)
 		t.Logf("Deploying OnrampMock contract\n")
-		onrampMock, err := jetton_testing_wrappers.NewOnrampMockProvider(setup.common.deployer).Deploy(jetton_testing_wrappers.OnrampMockInitData{
+		onrampMock, err := jetton_testing_wrappers.NewOnrampMockProvider(setup.common.deployer).Deploy(t.Context(), jetton_testing_wrappers.OnrampMockInitData{
 			MasterAddress: setup.common.jettonMinter.Address,
 			WalletCode:    setup.common.jettonWalletCode,
 		})
@@ -217,7 +217,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupSender(t)
 
 		t.Logf("Deploying SimpleJettonReceiver contract\n")
-		simpleJettonReceiver, err := jetton_testing_wrappers.NewSimpleJettonReceiverProvider(setup.common.deployer).Deploy(jetton_testing_wrappers.SimpleJettonReceiverInitData{
+		simpleJettonReceiver, err := jetton_testing_wrappers.NewSimpleJettonReceiverProvider(setup.common.deployer).Deploy(t.Context(), jetton_testing_wrappers.SimpleJettonReceiverInitData{
 			JettonClient: jetton_common.Client{
 				MasterAddress: setup.common.jettonMinter.Address,
 				WalletCode:    setup.common.jettonWalletCode,
@@ -530,7 +530,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get JettonWallet init cell")
 		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
-		receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
+		receiverJettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
@@ -777,7 +777,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
+		deployerJettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
@@ -838,7 +838,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get JettonWallet init cell")
 		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
-		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
+		deployerJettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
@@ -898,7 +898,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get JettonWallet init cell")
 		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
-		jettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
+		jettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
@@ -951,7 +951,7 @@ func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initDat
 	require.NoError(t, err, "failed to create TopUp message")
 	minterInitCell, err := tlb.ToCell(initData)
 	require.NoError(t, err, "failed to create JettonMinter init data cell")
-	minterContract, deployMsg, err := wrappers.Deploy(deployer, minterCode, minterInitCell, tlb.MustFromTON("1"), topUpMsg)
+	minterContract, deployMsg, err := wrappers.Deploy(t.Context(), deployer, minterCode, minterInitCell, tlb.MustFromTON("1"), topUpMsg)
 	debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 		deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
 	})

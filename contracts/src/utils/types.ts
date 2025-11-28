@@ -1,4 +1,4 @@
-import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader, Address } from '@ton/core'
+import { beginCell, Builder, Cell, Slice, Address } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sha256_sync } from '@ton/crypto'
 import crypto from 'crypto'
 

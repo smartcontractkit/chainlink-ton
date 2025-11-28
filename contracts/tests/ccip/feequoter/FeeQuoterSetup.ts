@@ -109,7 +109,6 @@ export class FeeQuoterSetup {
     token: Address.parse(`0:${Buffer.from('sLINK').toString('hex').padStart(64, '0')}`),
     price: decimals.TESTING_VALUES.tokenPrice.link,
   }
-
   static readonly SOURCE_FEE_TOKEN = FeeQuoterSetup.SOURCE_LINK
 
   static readonly SOURCE_TOKENS: Token[] = [FeeQuoterSetup.SOURCE_LINK, FeeQuoterSetup.NATIVE_TON]
@@ -220,7 +219,7 @@ export class FeeQuoterSetup {
       },
       allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
       maxFeeJuelsPerMsg: FeeQuoterSetup.MAX_MSG_FEES_JUELS,
-      linkToken: ZERO_ADDRESS, // No LINK token in TON yet
+      linkToken: FeeQuoterSetup.SOURCE_LINK.token,
       tokenPriceStalenessThreshold: BigInt(FeeQuoterSetup.TWELVE_HOURS),
       usdPerToken: Dictionary.empty(
         Dictionary.Keys.Address(),
@@ -695,6 +694,10 @@ function printErrorName(error: number): string {
       return 'UnknownDestChainSelector'
     case feeQuoter.FeeQuoterError.InsufficientFee:
       return 'InsufficientFee'
+    case feeQuoter.FeeQuoterError.TokenTransfersNotSupported:
+      return 'TokenTransfersNotSupported'
+    case feeQuoter.FeeQuoterError.UnauthorizedPriceUpdater:
+      return 'UnauthorizedPriceUpdater'
     case feeQuoter.FeeQuoterError.ExecutionCostOverflow:
       return 'ExecutionCostOverflow'
     case feeQuoter.FeeQuoterError.PremiumFeeOverflow:
@@ -707,6 +710,8 @@ function printErrorName(error: number): string {
       return 'TokenPriceTooLow'
     case feeQuoter.FeeQuoterError.FeeOverflow:
       return 'FeeOverflow'
+    case feeQuoter.FeeQuoterError.MessageFeeTooHigh:
+      return 'MessageFeeTooHigh'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

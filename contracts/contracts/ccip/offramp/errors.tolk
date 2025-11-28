@@ -10,4 +10,6 @@ enum Error {
     Unauthorized
     ZeroAddressNotAllowed
     TooManyMessagesInReport
+    SignatureVerificationRequiredInCommitPlugin
+    SignatureVerificationNotAllowedInExecutionPlugin
 }

@@ -136,3 +136,7 @@ struct FeeQuoter_UpdateDestChainConfig {
     destChainConfig: FeeQuoterDestChainConfig;
 }
 
+struct Fee {
+    feeTokenAmount: coins; // fee value in fee token
+    feeValueJuels: uint96; // fee value in juels
+}

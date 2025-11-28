@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"go.uber.org/zap/zapcore"
@@ -112,7 +113,8 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 	// Only fund wallets when using my-local-ton.
 	if b.Type == CTF || b.Type == LOCAL {
 		for _, chain := range env.BlockChains.TonChains() {
-			testutils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
+			ferr := testutils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
+			require.NoError(t, ferr)
 			time.Sleep(5 * time.Second)
 		}
 	}

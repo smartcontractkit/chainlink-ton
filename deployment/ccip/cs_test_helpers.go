@@ -385,7 +385,7 @@ func SendTonRequest(
 	return event.Message.Header.SequenceNumber, event, nil
 }
 
-func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSent, error) {
+func waitForReceivedMsgFlatten(e cldf.Environment, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSent, error) {
 	if msg == nil {
 		return onramp.CCIPMessageSent{}, errors.New("received message is nil")
 	}

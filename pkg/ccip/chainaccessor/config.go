@@ -6,9 +6,7 @@ import (
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 
@@ -29,10 +27,9 @@ func addrToBytes(addr *address.Address) []byte {
 	return rawAddr[:]
 }
 
-func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
-	var config offramp.OCR3Config
-	if err := tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-		return ccipocr3.OCRConfig{}, fmt.Errorf("load OCR3Config from cell: %w", err)
+func parseOCR3Config(config *offramp.OCR3Config) (ccipocr3.OCRConfig, error) {
+	if config == nil {
+		return ccipocr3.OCRConfig{}, nil
 	}
 
 	var configDigest ccipocr3.Bytes32
@@ -77,46 +74,15 @@ func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 	}, nil
 }
 
-func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) (commitConfig ccipocr3.OCRConfig, execConfig ccipocr3.OCRConfig, err error) {
-	addr, err := a.getBinding(consts.ContractNameOffRamp)
-	if err != nil {
-		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "ocr3Config")
+func (a *TONAccessor) parseOCR3Base(ocr3Base offramp.OCR3Base) (commitConfig ccipocr3.OCRConfig, execConfig ccipocr3.OCRConfig, err error) {
+	commitConfig, err = parseOCR3Config(ocr3Base.Commit)
 	if err != nil {
 		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
 	}
 
-	// commit (index 1)
-	isNil, err := result.IsNil(1)
+	execConfig, err = parseOCR3Config(ocr3Base.Execute)
 	if err != nil {
 		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-	}
-	if !isNil {
-		configCell, err1 := result.Cell(1)
-		if err1 != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
-		}
-		commitConfig, err1 = parseOCR3Config(configCell)
-		if err1 != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
-		}
-	}
-
-	// exec (index 2)
-	isNil, err = result.IsNil(2)
-	if err != nil {
-		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-	}
-	if !isNil {
-		configCell, err2 := result.Cell(2)
-		if err2 != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
-		}
-		execConfig, err2 = parseOCR3Config(configCell)
-		if err2 != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
-		}
 	}
 	return commitConfig, execConfig, nil
 }
@@ -132,7 +98,13 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		return ccipocr3.OfframpConfig{}, err
 	}
 
-	commitConfig, execConfig, err := a.getOCR3Config(ctx, block)
+	var ocr3Base offramp.OCR3Base
+	err = ocr3Base.FetchResult(ctx, a.client, block, addr, nil)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+
+	commitConfig, execConfig, err := a.parseOCR3Base(ocr3Base)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
