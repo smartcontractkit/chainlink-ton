@@ -1,6 +1,7 @@
 package configfetcher
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -8,7 +9,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
