@@ -162,4 +162,38 @@ describe('OnRamp - Get Fee', () => {
       op: or.OutOpcodes.messageValidated,
     })
   })
+
+  it('should forward message validation failed', async () => {
+    const validationFailedMsg = {
+      error: 123n,
+      msg: ccipSend,
+      context: {
+        onrampContext: mockRouter.address,
+        userContext: beginCell().storeUint(42, 32).asSlice(),
+      },
+    }
+    const result = await onramp.sendMessageValidationFailed(mockFeeQuoter.getSender(), {
+      value: toNano('0.5'),
+      body: validationFailedMsg,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockFeeQuoter.address,
+      to: onramp.address,
+      success: true,
+      op: or.Opcodes.messageValidationFailed,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      op: or.OutOpcodes.messageValidationFailed,
+      body: or.builder.messages.out.messageValidationFailed
+        .encode({
+          error: validationFailedMsg.error,
+          msg: validationFailedMsg.msg,
+          context: validationFailedMsg.context.userContext,
+        })
+        .asCell(),
+    })
+  })
 })
