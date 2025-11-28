@@ -35,6 +35,7 @@ import {
   bigIntToUint8Array,
   generateEd25519KeyPair,
   generateMockTonAddress,
+  generateSecureRandomId,
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
 } from '../../src/utils'
@@ -80,10 +81,6 @@ const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = 60
 const EXECUTION_STATE_IN_PROGRESS = 1n
 const EXECUTION_STATE_SUCCESS = 2n
 const EXECUTION_STATE_FAILURE = 3n
-
-function generateSecureRandomId(): bigint {
-  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
-}
 
 const createSignatures = (
   signerList: KeyPair[],
@@ -689,7 +686,7 @@ describe('OffRamp - Unit Tests', () => {
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {
-            id: 1,
+            id: generateSecureRandomId(),
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,
@@ -1573,7 +1570,7 @@ describe('OffRamp - Unit Tests', () => {
     const badReceiver = blockchain.openContract(
       Receiver.createFromConfig(
         {
-          id: 1,
+          id: generateSecureRandomId(),
           ownable: { owner: deployer.address, pendingOwner: null },
           authorizedCaller: wrongRouterAddress,
           behavior: ReceiverBehavior.Accept,

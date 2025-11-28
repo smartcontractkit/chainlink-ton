@@ -2,18 +2,19 @@ Sanbox blockchain can track the executed instructions for every deployed contrac
 
 Assembly FIFT code is parsed from the contract's code cell, and the sanbox Blockchain object will track the execution of each instruction from the code.
 
-To run a test suite with coverage metrics on, set the `COVERAGE` env var to true and run the test suite.
+To run a test suite with coverage metrics on, set the `COVERAGE` env var to true and run the test suite. You can execute this using the following command.
 
 ```bash
 cd contracts
-COVERAGE=true npx blueprint test
+yarn test-coverage
 ```
 
-This generates json artifacts with coverage data for each test suite, to merge the results run the `script_merge_coverage_into_html_report.ts` script
+
+This generates json artifacts with coverage data for each test suite, to merge the results run the `scriptMergeCoverageIntoHtmlReport.ts` script with the following command.
 
 ```
 cd contracts
-yarn coverage-reports
+yarn generate-coverage-reports
 ```
 
 
