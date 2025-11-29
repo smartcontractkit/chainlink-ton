@@ -18,18 +18,9 @@ type Mapper[B any] interface {
 
 // FromBindingDataHex loads a TL-B binding from hex and then populates the model.
 func FromBindingDataHex[B any, M Mapper[B]](m M, dataHex string) error {
-	data, err := hex.DecodeString(dataHex)
+	root, err := loadCell(dataHex)
 	if err != nil {
-		return fmt.Errorf("decode hex: %w", err)
-	}
-
-	root, err := cell.FromBOC(data)
-	if err != nil {
-		return fmt.Errorf("decode BOC: %w", err)
-	}
-
-	if root == nil {
-		return errors.New("parse BOC: nil root cell")
+		return err
 	}
 
 	var raw B
@@ -56,7 +47,6 @@ func ToBindingDataHex[B any, M Mapper[B]](m M) (string, error) {
 }
 
 // bigIntArrayToHexArray converts a []*big.Int to an array of hex string padded to exactly `size` bytes.
-// size must be > 0.
 func bigIntArrayToHexArray(arr []*big.Int, size int) ([]string, error) {
 	if arr == nil {
 		return nil, nil

@@ -13,7 +13,7 @@ import (
 )
 
 func TestDecodeOffRampData(t *testing.T) {
-	// GIVEN: a router storage model
+	// GIVEN: a offramp storage model
 	ownerAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAu8e")
 	pendingOwnerAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABZ_5")
 	feeQuoter := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_8_")

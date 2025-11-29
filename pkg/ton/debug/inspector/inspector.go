@@ -23,6 +23,7 @@ const (
 	contractTypeRouter     = "Router"
 	contractTypeMerkleRoot = "MerkleRoot"
 	contractTypeOffRamp    = "OffRamp"
+	contractTypeOnRamp     = "OnRamp"
 )
 
 func GenerateInspectorCmd(lggr *logger.Logger, client *ton.APIClient) *cobra.Command {
@@ -165,6 +166,14 @@ func readStorage(
 		if err = model.FromBindingDataHex(target, dataHex); err != nil {
 			lggr.Errorf("Failed to decode OffRamp storage: %v", err)
 			return nil, fmt.Errorf("unable to decode OffRamp storage: %w", err)
+		}
+		storage = target
+
+	case contractTypeOnRamp:
+		target := &model.OnRampStorage{}
+		if err = model.FromBindingDataHex(target, dataHex); err != nil {
+			lggr.Errorf("Failed to decode OnRamp storage: %v", err)
+			return nil, fmt.Errorf("unable to decode OnRamp storage: %w", err)
 		}
 		storage = target
 	default:
