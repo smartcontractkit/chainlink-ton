@@ -205,7 +205,15 @@ func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
 			return nil, fmt.Errorf("negative index in MessageStates: %d", i)
 		}
 
-		shift := uint(i * 2)
+		// work in uint64
+		shiftU64 := uint64(i) * 2
+
+		// ensure it fits into uint before casting
+		if shiftU64 > uint64(math.MaxUint) {
+			return nil, fmt.Errorf("shift %d would overflow uint", shiftU64)
+		}
+
+		shift := uint(shiftU64)
 
 		// value = int64(state) << shift
 		value := new(big.Int).Lsh(big.NewInt(int64(s)), shift)
