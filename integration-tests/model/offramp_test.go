@@ -126,7 +126,7 @@ func TestDecodeOffRampData(t *testing.T) {
 		require.Equal(t, configDigest, storage.OCR3Base.Execute.ConfigDigest)
 		require.Equal(t, 1, storage.OCR3Base.Execute.F)
 		require.Equal(t, 0, storage.OCR3Base.Execute.N)
-		require.Len(t, storage.OCR3Base.Execute.Signers, 0)
+		require.Empty(t, storage.OCR3Base.Execute.Signers)
 		require.Len(t, storage.OCR3Base.Execute.Transmitters, len(transmitters))
 		require.Equal(t, transmitters, storage.OCR3Base.Execute.Transmitters)
 
