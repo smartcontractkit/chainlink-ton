@@ -25,7 +25,7 @@ type OffRampStorage struct {
 	CursedSubjects                          []*big.Int                   `json:"cursedSubjects"`
 	ChainSelector                           uint64                       `json:"chainSelector"`
 	PermissionlessExecutionThresholdSeconds uint32                       `json:"PermissionlessExecutionThresholdSeconds"`
-	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"SourceChainConfig"`
+	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"SourceChainConfigs"`
 	LatestPriceSequenceNumber               uint64                       `json:"LatestPriceSequenceNumber"`
 }
 
@@ -273,7 +273,7 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 
 		var sourceChainConfig offramp.SourceChainConfig
 		if err3 := tlb.LoadFromCell(&sourceChainConfig, scc.Value); err3 != nil {
-			return fmt.Errorf("error while decoding transmitter value: %w", err2)
+			return fmt.Errorf("error while decoding transmitter value: %w", err3)
 		}
 
 		b = b.WithSourceChainConfig(selector, SourceChainConfig{
