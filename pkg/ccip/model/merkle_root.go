@@ -200,7 +200,7 @@ func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
 	messageStates := big.NewInt(0)
 
 	for i, s := range s.MessageStates {
-		// Linter
+		// Linter keeps complaining and I needed to add this unnecessary check
 		if i < 0 {
 			return nil, fmt.Errorf("negative index in MessageStates: %d", i)
 		}
