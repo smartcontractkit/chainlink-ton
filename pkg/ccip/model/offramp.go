@@ -380,12 +380,12 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 		}
 
 		if config.F < 0 || config.F > math.MaxUint8 {
-			return nil, fmt.Errorf("F in ocr3base %d overflows or underflows uint8", config.F)
+			return nil, fmt.Errorf("f in ocr3base %d overflows or underflows uint8", config.F)
 		}
 		fU8 := uint8(config.F)
 
 		if config.N < 0 || config.N > math.MaxUint8 {
-			return nil, fmt.Errorf("N in ocr3base %d overflows or underflows uint8", config.N)
+			return nil, fmt.Errorf("n in ocr3base %d overflows or underflows uint8", config.N)
 		}
 		nU8 := uint8(config.N)
 
@@ -481,7 +481,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 
 	chainID := s.OCR3Base.ChainID
 	if chainID < 0 || chainID > math.MaxUint8 {
-		return nil, fmt.Errorf("N in ocr3base %d overflows or underflows uint8", chainID)
+		return nil, fmt.Errorf("chainID in ocr3base %d overflows or underflows uint8", chainID)
 	}
 	chainIDU8 := uint8(chainID)
 
