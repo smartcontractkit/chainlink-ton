@@ -377,16 +377,17 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 			); err != nil {
 				return nil, fmt.Errorf("error while setting transmitters: %w", err)
 			}
-
 		}
 
 		if config.F < 0 || config.F > math.MaxUint8 {
 			return nil, fmt.Errorf("F in OCR3Base %d overflows or underflows uint8", config.F)
 		}
+		fU8 := uint8(config.F)
 
 		if config.N < 0 || config.N > math.MaxUint8 {
 			return nil, fmt.Errorf("N in OCR3Base %d overflows or underflows uint8", config.N)
 		}
+		nU8 := uint8(config.N)
 
 		configDigest, err := hex.DecodeString(config.ConfigDigest)
 		if err != nil {
@@ -398,8 +399,8 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 			Transmitters: transmitters,
 			ConfigInfo: offramp.ConfigInfo{
 				ConfigDigest:                   configDigest,
-				F:                              uint8(config.F),
-				N:                              uint8(config.N),
+				F:                              fU8,
+				N:                              nU8,
 				IsSignatureVerificationEnabled: config.IsSignatureVerificationEnabled,
 			},
 		}, nil
@@ -452,7 +453,6 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 	// SourceChainConfigs
 	sourceChainConfigs := cell.NewDict(64)
 	for chainSelector, scc := range s.SourceChainConfigs {
-
 		onRamp, err2 := hex.DecodeString(scc.OnRamp)
 		if err2 != nil {
 			return nil, fmt.Errorf("error while decoding onRamp on sourceChainConfig: %w", err2)
@@ -479,6 +479,11 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 		}
 	}
 
+	if s.OCR3Base.ChainID < 0 || s.OCR3Base.ChainID > math.MaxUint8 {
+		return nil, fmt.Errorf("N in OCR3Base %d overflows or underflows uint8", s.OCR3Base.ChainID)
+	}
+	chainIDU8 := uint8(s.OCR3Base.ChainID)
+
 	st := offramp.Storage{
 		ID: s.ID,
 		Ownable: common.Ownable2Step{
@@ -496,7 +501,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 			ReceiveExecutorCode: receiveExecutorCode,
 		},
 		OCR3Base: offramp.OCR3Base{
-			ChainID: uint8(s.OCR3Base.ChainID),
+			ChainID: chainIDU8,
 			Commit:  commitOCR3Config,
 			Execute: executeOCR3Config,
 		},
