@@ -1,4 +1,4 @@
-package merkle_root
+package merkleroot
 
 import (
 	"math/big"

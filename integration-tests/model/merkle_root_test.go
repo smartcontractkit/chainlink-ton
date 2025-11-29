@@ -5,7 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkle_root"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkleroot"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/model"
 
 	"github.com/stretchr/testify/require"
@@ -59,11 +59,11 @@ func TestDecodeMerkleRootData(t *testing.T) {
 
 		hexData := "b5ee9c7241010101006e0000d77f3c9e12a4d8b0f16c27e5aa91f4cb8d3e0fa7c6b28d54ef1c93b72a0de4589f800000000000000000000000000000000000000000000000000000000000000000400000000d23968240000000000000014000000000000002600000000000000000000000000000538000700de1c6ea"
 
-		AssertHexMappingRoundTrip[merkle_root.Storage](
+		AssertHexMappingRoundTrip[merkleroot.Storage](
 			t,
 			hexData,
 			storage, // original
-			func() model.Mapper[merkle_root.Storage] {
+			func() model.Mapper[merkleroot.Storage] {
 				// empty instance to decode into
 				return &model.MerkleRootStorage{}
 			},

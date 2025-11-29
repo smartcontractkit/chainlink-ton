@@ -68,7 +68,7 @@ func bigIntArrayToHexArray(arr []*big.Int, size int) ([]string, error) {
 // bigIntToHex converts a big.Int to a hex string padded to exactly `size` bytes.
 func bigIntToHex(n *big.Int, size int) (string, error) {
 	if n == nil {
-		return "", fmt.Errorf("nil big.Int")
+		return "", errors.New("nil big.Int")
 	}
 
 	bytes := n.Bytes()

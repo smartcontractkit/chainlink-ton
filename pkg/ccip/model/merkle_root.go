@@ -8,7 +8,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkle_root"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkleroot"
 )
 
 // ---------- MerkleRoot Model Struct Definitions ----------
@@ -118,7 +118,7 @@ func (b *MerkleRootStorageBuilder) Build() (*MerkleRootStorage, error) {
 	return &st, nil
 }
 
-func (s *MerkleRootStorage) FromBinding(raw *merkle_root.Storage) error {
+func (s *MerkleRootStorage) FromBinding(raw *merkleroot.Storage) error {
 	root, err := bigIntToHex(raw.Root, 32)
 	if err != nil {
 		return err
@@ -132,11 +132,21 @@ func (s *MerkleRootStorage) FromBinding(raw *merkle_root.Storage) error {
 		WithDeliveredMessageCount(raw.DeliveredMessageCount)
 
 	// State
-	numberOfMessages := int((raw.MaxMsgNr - raw.MinMsgNr) + 1)
+	if raw.MaxMsgNr < raw.MinMsgNr {
+		return fmt.Errorf("MaxMsgNr (%d) < MinMsgNr (%d)", raw.MaxMsgNr, raw.MinMsgNr)
+	}
+
+	numberOfMessages := (raw.MaxMsgNr - raw.MinMsgNr) + 1
 	messageStates := make([]ExecutionState, numberOfMessages)
 
-	for i := 0; i < numberOfMessages; i++ {
-		shift := uint(i * 2)
+	// Ensure i*2 always fits in a uint before the loop
+	if numberOfMessages > uint64(math.MaxUint/2) {
+		return fmt.Errorf("numberOfMessages %d too large for shift computation", numberOfMessages)
+	}
+
+	for i := uint64(0); i < numberOfMessages; i++ {
+		shiftU64 := i * 2
+		shift := uint(shiftU64)
 
 		// mask for the two bits at position shift: 0b11 << shift
 		mask := new(big.Int).Lsh(big.NewInt(3), shift)
@@ -145,7 +155,13 @@ func (s *MerkleRootStorage) FromBinding(raw *merkle_root.Storage) error {
 		temp := new(big.Int).And(raw.MessageStates, mask)
 		temp.Rsh(temp, shift)
 
-		messageStates[i] = ExecutionState(temp.Uint64())
+		// lint check
+		stateU64 := temp.Uint64()
+		if stateU64 > uint64(math.MaxInt) {
+			return fmt.Errorf("execution state %d overflows int", stateU64)
+		}
+
+		messageStates[i] = ExecutionState(stateU64)
 	}
 
 	b = b.WithMessageStates(messageStates)
@@ -166,13 +182,13 @@ func (s *MerkleRootStorage) FromBinding(raw *merkle_root.Storage) error {
 	return nil
 }
 
-func (s *MerkleRootStorage) ToBinding() (*merkle_root.Storage, error) {
+func (s *MerkleRootStorage) ToBinding() (*merkleroot.Storage, error) {
 	root, err := hexToBigInt(s.Root)
 	if err != nil {
 		return nil, err
 	}
 
-	st := merkle_root.Storage{
+	st := merkleroot.Storage{
 		Root:                  root,
 		Owner:                 s.Owner,
 		MinMsgNr:              s.MinMsgNr,
@@ -184,6 +200,11 @@ func (s *MerkleRootStorage) ToBinding() (*merkle_root.Storage, error) {
 	messageStates := big.NewInt(0)
 
 	for i, s := range s.MessageStates {
+		// Linter
+		if i < 0 {
+			return nil, fmt.Errorf("negative index in MessageStates: %d", i)
+		}
+
 		shift := uint(i * 2)
 
 		// value = int64(state) << shift
