@@ -22,7 +22,7 @@ func countState(states []model.ExecutionState, target model.ExecutionState) int 
 }
 
 func TestDecodeMerkleRootData(t *testing.T) {
-	// GIVEN: a router storage model
+	// GIVEN: a merkle root storage model
 	ownerAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAu8e")
 
 	storage, err := model.NewMerkleRootStorageBuilder().
