@@ -102,7 +102,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			RMNRemote: router.RMNRemote{
 				Admin: common.Ownable2Step{
 					Owner:        deps.TonChain.WalletAddress,
-					PendingOwner: nil,
+					PendingOwner: address.NewAddressNone(),
 				},
 				CursedSubjects: nil,
 				ForwardUpdates: nil,
@@ -181,8 +181,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 	}
 
 	// OffRamp (has to be deployed after FeeQuoter and Router to have their addresses ready)
-	OffRampAddr := deps.CCIPOnChainState[in.ChainSelector].OffRamp
-	if OffRampAddr.IsAddrNone() {
+	offRampAddr := deps.CCIPOnChainState[in.ChainSelector].OffRamp
+	if offRampAddr.IsAddrNone() {
 		offRampStorage := offramp.Storage{
 			ID: in.CCIPConfig.OffRampParams.ID,
 			Ownable: common.Ownable2Step{
@@ -207,7 +207,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 		if err != nil {
 			return output, err
 		}
-		OffRampAddr = tonContractAddress.TONAddress
+		offRampAddr = tonContractAddress.TONAddress
 		output.OffRampAddress = tonContractAddress
 	}
 
