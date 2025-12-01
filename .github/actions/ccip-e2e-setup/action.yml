@@ -14,6 +14,17 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Free Disk Space
+      uses: smartcontractkit/.github/actions/free-disk-space@free-disk-space/v1
+
+    - name: Relocate Nix store to /mnt
+      shell: bash
+      run: |
+        sudo mkdir -p /mnt/nix
+        sudo mkdir -p /nix
+        sudo mount --bind /mnt/nix /nix
+        df -h /nix /mnt
+
     - name: Restore cached docker images
       uses: actions/cache@v4
       id: docker-cache-restore
