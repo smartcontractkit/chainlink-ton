@@ -10,7 +10,7 @@ yarn test-coverage
 ```
 
 
-This generates json artifacts with coverage data for each test suite, to merge the results run the `scriptMergeCoverageIntoHtmlReport.ts` script with the following command.
+This generates json artifacts with coverage data for each test suite, to merge the results run the `scriptMergeCoverageIntoHtmlReports.ts` script with the following command.
 
 ```
 cd contracts
