@@ -67,7 +67,6 @@ import * as deployable from '../../wrappers/libraries/Deployable'
 
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
-import { mkdirSync, writeFileSync } from 'fs'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
