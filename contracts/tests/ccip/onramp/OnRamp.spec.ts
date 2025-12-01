@@ -3,7 +3,7 @@ import { OnRamp, OnRampStorage, UpdateAllowlists } from '../../../wrappers/ccip/
 import { Address, beginCell, Dictionary, toNano } from '@ton/core'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
-import { generateRandomBigInt, generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
@@ -20,7 +20,7 @@ async function deployOnRampContract(
 ) {
   const code = await OnRamp.code()
   let data: OnRampStorage = {
-    id: generateRandomBigInt(),
+    id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,

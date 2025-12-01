@@ -35,7 +35,7 @@ import {
   bigIntToUint8Array,
   generateEd25519KeyPair,
   generateMockTonAddress,
-  generateRandomBigInt,
+  generateRandomContractId,
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
 } from '../../src/utils'
@@ -148,7 +148,7 @@ async function deployOffRampContract(
 ) {
   const code = await OffRamp.code()
   let data: OffRampStorage = {
-    id: generateRandomBigInt(),
+    id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,
@@ -593,7 +593,7 @@ describe('OffRamp - Unit Tests', () => {
       })
 
       let data: OffRampStorage = {
-        id: generateRandomBigInt(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -640,7 +640,7 @@ describe('OffRamp - Unit Tests', () => {
     {
       const code = await compile('Router')
       let data: rt.Storage = {
-        id: generateRandomBigInt(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -685,7 +685,7 @@ describe('OffRamp - Unit Tests', () => {
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {
-            id: generateRandomBigInt(),
+            id: generateRandomContractId(),
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,
@@ -1567,7 +1567,7 @@ describe('OffRamp - Unit Tests', () => {
     const badReceiver = blockchain.openContract(
       Receiver.createFromConfig(
         {
-          id: generateRandomBigInt(),
+          id: generateRandomContractId(),
           ownable: { owner: deployer.address, pendingOwner: null },
           authorizedCaller: wrongRouterAddress,
           behavior: ReceiverBehavior.Accept,

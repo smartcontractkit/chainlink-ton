@@ -31,7 +31,7 @@ import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './helpers/GetValidatedFee'
-import { generateRandomBigInt } from '../../src/utils/types'
+import { generateRandomContractId } from '../../src/utils/types'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
 import * as coverage from '../coverage/coverage'
@@ -186,7 +186,7 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
 
       let data: fq.FeeQuoterStorage = {
-        id: generateRandomBigInt(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -300,7 +300,7 @@ describe('Router', () => {
     {
       let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
-        id: 0,
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -859,7 +859,7 @@ async function deployRouterContract(
 ) {
   const code = await rt.Router.code()
   let data: rt.Storage = {
-    id: generateRandomBigInt(),
+    id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,

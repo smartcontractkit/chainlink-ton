@@ -165,6 +165,6 @@ import { expect } from '@jest/globals'
 import { WalletContractV4 } from '@ton/ton'
 expect.addEqualityTesters([tonEquals])
 
-export function generateRandomBigInt(): bigint {
+export function generateRandomContractId(): bigint {
   return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
 }
