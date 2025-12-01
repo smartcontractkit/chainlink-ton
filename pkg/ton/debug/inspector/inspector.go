@@ -19,8 +19,11 @@ import (
 )
 
 const (
-	contractTypeFeeQuoter = "FeeQuoter"
-	contractTypeRouter    = "Router"
+	contractTypeFeeQuoter  = "FeeQuoter"
+	contractTypeRouter     = "Router"
+	contractTypeMerkleRoot = "MerkleRoot"
+	contractTypeOffRamp    = "OffRamp"
+	contractTypeOnRamp     = "OnRamp"
 )
 
 func GenerateInspectorCmd(lggr *logger.Logger, client *ton.APIClient) *cobra.Command {
@@ -73,14 +76,6 @@ Arguments:
 
 			contractAddress = args[0]
 
-			// Explicit contractType check (no normalization)
-			if contractType != contractTypeFeeQuoter && contractType != contractTypeRouter {
-				return fmt.Errorf(
-					"invalid contractType %q (allowed: %s, %s)",
-					contractType, contractTypeFeeQuoter, contractTypeRouter,
-				)
-			}
-
 			ctx := context.Background()
 			connection, err := explorer.TONConnect(log, client, net, verbose, 0, 0)
 			if err != nil {
@@ -95,7 +90,7 @@ Arguments:
 		},
 	}
 
-	cmd.Flags().StringVarP(&contractType, "contractType", "t", "", "Contract type (FeeQuoter, Router)")
+	cmd.Flags().StringVarP(&contractType, "contractType", "t", "", "Contract type (FeeQuoter, Router, MerkleRoot, OffRamp)")
 	cmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	if lggr == nil {
 		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
@@ -157,6 +152,32 @@ func readStorage(
 			return nil, fmt.Errorf("unable to decode Router storage: %w", err)
 		}
 		storage = target
+
+	case contractTypeMerkleRoot:
+		target := &model.MerkleRootStorage{}
+		if err = model.FromBindingDataHex(target, dataHex); err != nil {
+			lggr.Errorf("Failed to decode MerkleRoot storage: %v", err)
+			return nil, fmt.Errorf("unable to decode MerkleRoot storage: %w", err)
+		}
+		storage = target
+
+	case contractTypeOffRamp:
+		target := &model.OffRampStorage{}
+		if err = model.FromBindingDataHex(target, dataHex); err != nil {
+			lggr.Errorf("Failed to decode OffRamp storage: %v", err)
+			return nil, fmt.Errorf("unable to decode OffRamp storage: %w", err)
+		}
+		storage = target
+
+	case contractTypeOnRamp:
+		target := &model.OnRampStorage{}
+		if err = model.FromBindingDataHex(target, dataHex); err != nil {
+			lggr.Errorf("Failed to decode OnRamp storage: %v", err)
+			return nil, fmt.Errorf("unable to decode OnRamp storage: %w", err)
+		}
+		storage = target
+	default:
+		return nil, fmt.Errorf("unsupported contract type: %v", contractType)
 	}
 
 	// Marshal compact JSON
