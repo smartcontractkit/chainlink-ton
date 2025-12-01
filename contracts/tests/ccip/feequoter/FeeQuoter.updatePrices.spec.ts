@@ -4,12 +4,17 @@ import { toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import { Blockchain } from '@ton/sandbox'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup
+  let blockchain: Blockchain
 
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+  })
   beforeEach(async () => {
-    setup = new FeeQuoterSetup()
+    setup = new FeeQuoterSetup(blockchain)
     setup.code = await FeeQuoterSetup.compileContracts()
     await setup.setupAll('updatePrices')
   })
@@ -325,4 +330,21 @@ describe('FeeQuoter UpdatePrices', () => {
       success: false,
     })
   })
+
+  /*
+    TODO: This testsuite doesn't run on the FeeQuoter but on a helper contract with an added getter
+          Enable this again when the testsuite runs on the FeeQuoter
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      const testSuitePrefix = 'feeQuoter_update_prices_suite'
+      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
+          code: await compile('FeeQuoter'),
+          name: feeQuoter.FeeQuoter.type(),
+        },
+      ])
+    }
+  })
+  */
 })

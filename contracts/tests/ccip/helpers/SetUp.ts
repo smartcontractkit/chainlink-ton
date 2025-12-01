@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -18,7 +18,7 @@ export const setupTestFeeQuoter = async (
   let code = await compile('FeeQuoter')
 
   let data: FeeQuoterStorage = {
-    id: 0,
+    id: generateRandomContractId(),
     ownable: {
       owner: deployer.address,
       pendingOwner: null,

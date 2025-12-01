@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "types"
 import "events"
@@ -297,7 +297,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
             tokenAmounts: ccipsend.tokenAmounts,
-            feeToken: ccipsend.feeToken,
+            feeToken: ccipsend.feeToken!, // guaranteed to be non-null by this point
             feeTokenAmount: msg.fee.feeTokenAmount as uint256, // safe because it is 120 bits
         }.toCell(),
         feeValueJuels: msg.fee.feeValueJuels,

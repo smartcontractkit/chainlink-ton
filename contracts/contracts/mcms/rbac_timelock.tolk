@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "../lib/utils";
 import "../lib/access/access_control";
@@ -1465,19 +1465,19 @@ get fun getRoleAdmin(role: int): int {
 // --- Getters - <AccessControl<T>> enumerable extension ---
 
 /// @see <AccessControl<T>.getRoleMember>
-get fun getRoleMember(role: int, index: uint32): address {
+get fun getRoleMember(role: int, index: uint32): address? {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberFirst>
-get fun getRoleMemberFirst(role: int): address {
+get fun getRoleMemberFirst(role: int): address? {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberFirst(role);
 }
 
 /// @see <AccessControl<T>.getRoleMemberNext>
-get fun getRoleMemberNext(role: int, pivot: address): address {
+get fun getRoleMemberNext(role: int, pivot: address): address? {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberNext(role, pivot);
 }

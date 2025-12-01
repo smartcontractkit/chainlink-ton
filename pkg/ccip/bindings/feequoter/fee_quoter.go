@@ -88,6 +88,12 @@ type Storage struct {
 	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
 }
 
+type DestChainConfigs struct {
+	Config                  DestChainConfig  `tlb:"."`        // inline struct
+	USDPerUnitGasRef        *cell.Cell       `tlb:"^"`        // ^Cell<GasPrice>
+	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 267"` // map<address, TokenTransferFeeConfig>
+}
+
 type USDPerUnitGas struct {
 	ExecutionGasPrice        *big.Int `tlb:"## 112"`
 	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
@@ -310,7 +316,7 @@ type UpdatePrices struct {
 	_              tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
 	TokenPrices    ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
 	GasPrices      ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
-	SendExcessesTo *address.Address                       `tlb:"maybe addr"`
+	SendExcessesTo *address.Address                       `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
