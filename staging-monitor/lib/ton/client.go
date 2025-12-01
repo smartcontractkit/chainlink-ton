@@ -25,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	tonlogpoller "github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
@@ -148,13 +149,15 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		receiverBytes = leftPadTo32(receiverBytes)
 	}
 
-	// Build TonSendRequest
-	tonRequest := ops.TonSendRequest{
-		QueryID:   0,
-		Receiver:  receiverBytes,
-		Data:      msg.Data,
-		ExtraArgs: extraArgsCell,
-		FeeToken:  tvm.TonTokenAddr,
+	// Build CCIPSend request
+	ccipSend := router.CCIPSend{
+		QueryID:           0,
+		DestChainSelector: msg.DestChainSel,
+		Receiver:          receiverBytes,
+		Data:              msg.Data,
+		TokenAmounts:      nil,
+		FeeToken:          tvm.TonTokenAddr,
+		ExtraArgs:         extraArgsCell,
 	}
 
 	// Build minimal Environment
@@ -181,8 +184,8 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		FeeQuoter: *fqAddr,
 	}
 
-	// Call SendTonRequest from deployment/ccip
-	seqNum, event, err := ops.SendTonRequest(env, chainState, c.chainSel, msg.DestChainSel, tonRequest)
+	// Call SendCCIPMessage from deployment/ccip
+	seqNum, event, err := ops.SendCCIPMessage(env, chainState, c.chainSel, ccipSend)
 	if err != nil {
 		return nil, err
 	}
