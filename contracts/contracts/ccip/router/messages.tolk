@@ -46,7 +46,7 @@ struct (0x31768d95) Router_CCIPSend {
     receiver: CrossChainAddress;
     data: cell;
     tokenAmounts: SnakedCell<TokenAmount>;
-    feeToken: address;
+    feeToken: address?;
     extraArgs: cell;
 }
 

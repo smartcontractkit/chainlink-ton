@@ -72,7 +72,7 @@ func TestOwnable2Step(t *testing.T) {
 	// case 1 with no pending owner
 	orig := common.Ownable2Step{
 		Owner:        addr,
-		PendingOwner: nil,
+		PendingOwner: address.NewAddressNone(),
 	}
 	cell, err := tlb.ToCell(orig)
 	require.NoError(t, err)

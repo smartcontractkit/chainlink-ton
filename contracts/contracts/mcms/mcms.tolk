@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "../lib/utils";
 import "../lib/secp256k1";
@@ -586,7 +586,7 @@ struct OpPendingInfo {
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
     /// The address that the (pending) operation was sent to (and could bounce from).
-    opPendingReceiver: address;
+    opPendingReceiver: address?;
     /// The truncated body of the pending operation (256 bits from the original message),
     /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
     opPendingBodyTruncated: uint256;
@@ -872,7 +872,7 @@ fun MCMS<T>.setRoot(
             opPendingInfo: OpPendingInfo{
                 validAfter: blockchain.now(), // immediate
                 opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
-                opPendingReceiver: createAddressNone(),
+                opPendingReceiver: null,
                 opPendingBodyTruncated: 0,
             }.toCell()
         },
@@ -1183,7 +1183,7 @@ fun MCMS<T>.setConfig(
                 opPendingInfo: OpPendingInfo{
                     validAfter: blockchain.now(), // immediate
                     opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
-                    opPendingReceiver: createAddressNone(),
+                    opPendingReceiver: null,
                     opPendingBodyTruncated: 0
                 }.toCell()
             },
@@ -1291,7 +1291,9 @@ fun MCMS<T>.submitErrorReport(
     // Check the reported error against the stored pending operation
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
-    val matchesPendingOp = opPendingInfo.opPendingReceiver == op.to
+    val matchesPendingOp =
+        opPendingInfo.opPendingReceiver != null
+        && opPendingInfo.opPendingReceiver == op.to
         && opPendingInfo.opPendingBodyTruncated == extractBouncedBody(op.data.beginParse());
 
     // Store the root in a separate cell (size limit)
@@ -1499,7 +1501,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     //
     // @dev on setRoot the OpPendingInfo is cleared, so a bounce from an old root will not match
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
-    if (opPendingInfo.opPendingReceiver != in.senderAddress
+    if (opPendingInfo.opPendingReceiver! != in.senderAddress
         || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
 
         // Check the case when a new root was just set and no ops yet executed
@@ -1518,7 +1520,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     // If the received bounce equals expected, revert state (allow op retry)
     rootInfo.expiringRootAndOpCount.opCount = rootInfo.expiringRootAndOpCount.opCount - 1;
     opPendingInfo.validAfter = blockchain.now(); // can be retried immediately
-    opPendingInfo.opPendingReceiver = createAddressNone();
+    opPendingInfo.opPendingReceiver = null;
     opPendingInfo.opPendingBodyTruncated = 0;
 
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();

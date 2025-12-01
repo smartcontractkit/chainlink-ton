@@ -129,7 +129,7 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		Value: 0,  // initial value as zero
 		Ownable: common.Ownable2Step{
 			Owner:        wallet.WalletAddress(),
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 	})
 

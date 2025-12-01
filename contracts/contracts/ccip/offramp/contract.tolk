@@ -774,7 +774,7 @@ configuration and emits a DYNAMIC_CONFIG_SET_TOPIC event.
 fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
     var st = Storage.load();
 
-    assert(!msg.feeQuoter.isNone()) throw Error.ZeroAddressNotAllowed;
+    // NOTE: address now is guaranteed to be non-zero, address? allows zero
 
     st.feeQuoter = msg.feeQuoter;
     st.permissionlessExecutionThresholdSeconds = msg.permissionlessExecutionThresholdSeconds;

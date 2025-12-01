@@ -96,7 +96,7 @@ func TestIntegration(t *testing.T) {
 			Value: 100,
 			Ownable: common.Ownable2Step{
 				Owner:        alice.Wallet.WalletAddress(),
-				PendingOwner: nil,
+				PendingOwner: address.NewAddressNone(),
 			},
 		}
 		dataCell, err := tlb.ToCell(data)
