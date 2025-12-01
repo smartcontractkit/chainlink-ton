@@ -176,12 +176,7 @@ export const builder = {
         return (
           beginCell()
             .storeUint(storage.id, 32)
-            .storeAddress(storage.ownable.owner)
-            .storeMaybeBuilder(
-              storage.ownable.pendingOwner
-                ? beginCell().storeAddress(storage.ownable.pendingOwner)
-                : null,
-            )
+            .storeBuilder(ownable2step.builder.data.traitData.encode(storage.ownable))
             .storeRef(
               beginCell()
                 .storeAddress(storage.router)

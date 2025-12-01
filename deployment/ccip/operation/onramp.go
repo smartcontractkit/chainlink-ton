@@ -58,7 +58,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		ChainSelector: in.ChainSelector,
 		Config: onramp.DynamicConfig{

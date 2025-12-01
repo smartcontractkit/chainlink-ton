@@ -275,6 +275,14 @@ func Connect(lggr logger.Logger, apiClient *ton.APIClient, net string, verbose b
 	}, nil
 }
 
+func TONConnect(lggr logger.Logger, apiClient *ton.APIClient, net string, verbose bool, pageSize uint32, maxPages uint32) (*ton.APIClient, error) {
+	c, err := Connect(lggr, apiClient, net, verbose, pageSize, maxPages)
+	if err != nil {
+		return nil, err
+	}
+	return c.connection, nil
+}
+
 type client struct {
 	lggr       logger.Logger
 	connection *ton.APIClient

@@ -484,12 +484,7 @@ export const builder = {
       encode: (config: Storage): Builder => {
         return beginCell()
           .storeUint(config.id, 32)
-          .storeAddress(config.ownable.owner)
-          .storeMaybeBuilder(
-            config.ownable.pendingOwner
-              ? beginCell().storeAddress(config.ownable.pendingOwner)
-              : null,
-          )
+          .storeBuilder(ownable2step.builder.data.traitData.encode(config.ownable))
           .storeAddress(config.wrappedNative)
           .storeDict(config.onRamps)
           .storeDict(config.offRamps)
@@ -497,12 +492,7 @@ export const builder = {
             // RMN Remote
             beginCell()
               // default RMN admin to router owner
-              .storeAddress(config.ownable.owner)
-              .storeMaybeBuilder(
-                config.ownable.pendingOwner
-                  ? beginCell().storeAddress(config.ownable.pendingOwner)
-                  : null,
-              )
+              .storeBuilder(ownable2step.builder.data.traitData.encode(config.ownable))
               .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128)))
               .storeDict(Dictionary.empty(Dictionary.Keys.Address())),
           )
