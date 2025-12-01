@@ -8,7 +8,6 @@ import { ZERO_ADDRESS } from '../../../src/utils'
 import { crc32 } from 'zlib'
 
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
-import * as feeQuoterHelper from '../../../wrappers/ccip/helpers/FeeQuoterHelper'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
@@ -34,7 +33,7 @@ export type TestAccounts = {
 }
 
 export type TestContracts = {
-  feeQuoter: SandboxContract<feeQuoterHelper.FeeQuoterHelper>
+  feeQuoter: SandboxContract<feeQuoter.FeeQuoter>
   counter: SandboxContract<counter.ContractClient>
 }
 
@@ -175,7 +174,7 @@ export class FeeQuoterSetup {
 
   static async compileContracts(): Promise<TestCode> {
     return {
-      feeQuoter: await feeQuoterHelper.FeeQuoterHelper.code(),
+      feeQuoter: await feeQuoter.FeeQuoter.code(),
       counter: await compile('examples.Counter'),
     }
   }
@@ -246,7 +245,7 @@ export class FeeQuoterSetup {
     }
 
     this.bind.feeQuoter = this.blockchain.openContract(
-      feeQuoterHelper.FeeQuoterHelper.createFromConfig(data, this.code.feeQuoter),
+      feeQuoter.FeeQuoter.createFromConfig(data, this.code.feeQuoter),
     )
   }
 
