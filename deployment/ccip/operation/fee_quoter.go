@@ -54,7 +54,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 		ID: in.Params.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		MaxFeeJuelsPerMsg:            in.Params.MaxFeeJuelsPerMsg,
 		LinkToken:                    in.LinkAddr,
@@ -70,7 +70,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 
 	// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
+	contract, _, err := wrappers.Deploy(b.GetContext(), &conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
 	}
@@ -316,7 +316,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 	input := feequoter.UpdatePrices{
 		TokenPrices:    common.SnakeData[feequoter.TokenPriceUpdate](tokenPrices),
 		GasPrices:      common.SnakeData[feequoter.GasPriceUpdate](gasPrices),
-		SendExcessesTo: nil,
+		SendExcessesTo: address.NewAddressNone(),
 	}
 
 	payload, err := tlb.ToCell(input)

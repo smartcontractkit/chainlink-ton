@@ -2,7 +2,7 @@
 
 import "types"
 
-tolk 1.1
+tolk 1.2
 
 const EVM_PRECOMPILE_SPACE = 1024;
 const APTOS_PRECOMPILE_SPACE = 0x0b;

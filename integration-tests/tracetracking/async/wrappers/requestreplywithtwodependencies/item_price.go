@@ -1,6 +1,7 @@
 package requestreplywithtwodependencies
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/tlb"
@@ -28,7 +29,7 @@ type ItemPriceInitData struct {
 	Price uint64 `tlb:"## 64"`
 }
 
-func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error) {
+func (p *ItemPriceProvider) Deploy(ctx context.Context, initData ItemPriceInitData) (ItemPrice, error) {
 	initDataCell, err := tlb.ToCell(initData)
 	if err != nil {
 		return ItemPrice{}, fmt.Errorf("failed to serialize init data: %w", err)
@@ -38,7 +39,7 @@ func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error
 		return ItemPrice{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return ItemPrice{}, err
 	}

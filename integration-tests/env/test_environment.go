@@ -3,13 +3,13 @@ package env
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"go.uber.org/zap/zapcore"
 
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 
@@ -20,9 +20,10 @@ import (
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/engine/test/environment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
+	tonconfig "github.com/smartcontractkit/chainlink-ton/deployment/config"
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
@@ -123,12 +124,27 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 }
 
 func (b *TestEnvironmentBuilder) newCTFBasedEnvironment(t *testing.T) (cldf.Environment, error) {
-	env := memory.NewMemoryEnvironment(t, b.Logger, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
-		Chains:    b.ChainsEnvironmentConfig.EVMChains,
-		TonChains: b.ChainsEnvironmentConfig.TONChains,
-	})
+	var once sync.Once
+	loadOpts := []environment.LoadOpt{
+		environment.WithLogger(b.Logger),
+	}
 
-	return env, nil
+	// Add simulated EVM chains
+	if b.ChainsEnvironmentConfig.EVMChains > 0 {
+		loadOpts = append(loadOpts, environment.WithEVMSimulatedN(t, b.ChainsEnvironmentConfig.EVMChains))
+	}
+
+	// Add TON CTF chains with LocalNetworkConfig
+	if b.ChainsEnvironmentConfig.TONChains > 0 {
+		loadOpts = append(loadOpts, environment.WithTonContainerNWithConfig(t, b.ChainsEnvironmentConfig.TONChains, tonconfig.LocalNetworkConfig(&once)))
+	}
+
+	env, err := environment.New(t.Context(), loadOpts...)
+	if err != nil {
+		return cldf.Environment{}, fmt.Errorf("failed to create environment: %w", err)
+	}
+
+	return *env, nil
 }
 
 func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cldf.Environment, error) {

@@ -11,6 +11,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export enum Errors {
   OnlyCallableByOwner = 132,
@@ -43,7 +44,7 @@ export const opcodes = {
 /// Ownable2Step trait provides ownership two-step transfer functionality.
 export type Data = {
   owner: Address
-  pendingOwner: Address | null
+  pendingOwner: Maybe<Address>
 }
 
 export const builder = {
@@ -89,17 +90,12 @@ export const builder = {
     // Creates a new `Data` contract data cell
     const traitData: CellCodec<Data> = {
       encode: (data: Data): Builder => {
-        var builder = beginCell()
-        builder.storeAddress(data.owner)
-
-        if (data.pendingOwner) {
-          builder
-            .storeBit(1) // Store '1' to indicate the address is present
-            .storeAddress(data.pendingOwner) // Then store the address
-        } else {
-          builder.storeBit(0) // Store '0' to indicate the address is absent
-        }
-        return builder
+        return (
+          beginCell()
+            .storeAddress(data.owner)
+            // this correctly encodes maybeAddress now
+            .storeAddress(data.pendingOwner)
+        )
       },
       load: (src: Slice): Data => {
         const owner = src.loadAddress()

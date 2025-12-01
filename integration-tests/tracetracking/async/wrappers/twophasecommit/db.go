@@ -1,6 +1,7 @@
 package twophasecommit
 
 import (
+	"context"
 	"fmt"
 	"math/rand/v2"
 
@@ -29,7 +30,7 @@ type DBInitData struct {
 	ID uint32 `tlb:"## 32"`
 }
 
-func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
+func (p *DBProvider) Deploy(ctx context.Context, initData DBInitData) (DB, error) {
 	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
 		return DB{}, fmt.Errorf("failed to serialize init data: %w", err)
@@ -39,7 +40,7 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 		return DB{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 
 	if err != nil {
 		return DB{}, err

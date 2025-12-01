@@ -1,6 +1,7 @@
 package requestreplywithtwodependencies
 
 import (
+	"context"
 	"fmt"
 	"math/rand/v2"
 
@@ -29,7 +30,7 @@ type InventoryInitData struct {
 	ID uint32 `tlb:"## 32"`
 }
 
-func (p *InventoryProvider) Deploy(initData InventoryInitData) (Inventory, error) {
+func (p *InventoryProvider) Deploy(ctx context.Context, initData InventoryInitData) (Inventory, error) {
 	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
 		return Inventory{}, fmt.Errorf("failed to serialize init data: %w", err)
@@ -39,7 +40,7 @@ func (p *InventoryProvider) Deploy(initData InventoryInitData) (Inventory, error
 		return Inventory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body := cell.BeginCell().EndCell()
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Inventory{}, err
 	}
