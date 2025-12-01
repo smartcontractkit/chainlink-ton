@@ -2343,7 +2343,6 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   afterAll(async () => {
-    console.log('executed all tests now in after all')
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'offramp_suite'
       coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
