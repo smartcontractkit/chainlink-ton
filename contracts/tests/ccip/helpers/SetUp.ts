@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomBigInt, ZERO_ADDRESS } from '../../../src/utils'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -11,10 +11,6 @@ import { Dictionary, toNano } from '@ton/core'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 
-function generateSecureRandomId(): bigint {
-  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
-}
-
 export const setupTestFeeQuoter = async (
   deployer: SandboxContract<TreasuryContract>,
   blockchain: Blockchain,
@@ -22,7 +18,7 @@ export const setupTestFeeQuoter = async (
   let code = await compile('FeeQuoter')
 
   let data: FeeQuoterStorage = {
-    id: generateSecureRandomId(),
+    id: generateRandomBigInt(),
     ownable: {
       owner: deployer.address,
       pendingOwner: null,

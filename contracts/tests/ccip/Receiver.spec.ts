@@ -19,7 +19,7 @@ import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
-import { generateSecureRandomId } from '../../src/utils'
+import { generateRandomBigInt } from '../../src/utils'
 
 const ccipReceiveSampleMessage: CCIPReceive = {
   rootId: BigInt(1),
@@ -50,7 +50,7 @@ describe('Receiver', () => {
 
       // Use a library reference
       let data: ReceiverStorage = {
-        id: generateSecureRandomId(),
+        id: generateRandomBigInt(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
