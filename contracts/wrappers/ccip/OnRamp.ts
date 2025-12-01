@@ -35,7 +35,7 @@ export enum OnRampError {
 }
 
 export type OnRampStorage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   chainSelector: bigint
   config: {

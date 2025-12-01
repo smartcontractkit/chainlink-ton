@@ -2,6 +2,7 @@ import { Contract } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
+import { ContractCoverageConfig, generateCoverageArtifacts } from '../../coverage/coverage'
 
 /**
  * Configuration for testing type and version
@@ -77,6 +78,10 @@ export function newInstance<TContract extends TypeAndVersionContract>(
       vmLogs: 'none',
       debugLogs: false,
     }
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+      blockchain.enableCoverage()
+    }
 
     const deployer = await blockchain.treasury('deployer')
     const contract: SandboxContract<TypeAndVersionContract> = await config.deployContract(
@@ -92,16 +97,28 @@ export function newInstance<TContract extends TypeAndVersionContract>(
   }
 
   return {
-    run: () => {
+    run: (coverageConfigs?: ContractCoverageConfig[]) => {
       /**
        * Test that the contract deploys on the current version
        */
-      it('should deploy on current version', async () => {
-        const { contract } = await setup()
+      let blockchain: Blockchain
+      let contract: SandboxContract<TypeAndVersionContract>
+      beforeAll(async () => {
+        const suiteSetup = await setup()
+        blockchain = suiteSetup.blockchain
+        contract = suiteSetup.contract
+      })
 
+      it('should deploy on current version', async () => {
         const typeAndVersion = await contract.getTypeAndVersion()
         expect(typeAndVersion.type).toBe(config.type)
         expect(typeAndVersion.version).toBe(config.version)
+      })
+
+      afterAll(async () => {
+        if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
+          generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
+        }
       })
     },
   }

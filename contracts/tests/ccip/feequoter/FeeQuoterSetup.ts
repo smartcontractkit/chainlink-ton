@@ -166,8 +166,8 @@ export class FeeQuoterSetup {
     networkFeeUsdCents: 100,
   }
 
-  constructor() {
-    this.blockchain = null as any
+  constructor(blockchain: Blockchain) {
+    this.blockchain = blockchain
     this.code = null as any
     this.acc = null as any
     this.bind = null as any
@@ -192,6 +192,12 @@ export class FeeQuoterSetup {
       vmLogs: 'none',
       debugLogs: true,
     }
+    /* TODO: Enable this when the test suite runs in the actual FeeQuoter instead of in the helper
+    if (process.env['COVERAGE'] === 'true') {
+      this.blockchain.enableCoverage()
+      this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+    */
 
     // Set up accounts
     this.acc = {
@@ -212,7 +218,7 @@ export class FeeQuoterSetup {
    */
   async setupFeeQuoterContract(testId: string): Promise<void> {
     const data: feeQuoter.FeeQuoterStorage = {
-      id: crc32(`feeQuoter.${testId}`),
+      id: BigInt(crc32(`feeQuoter.${testId}`)),
       ownable: {
         owner: this.acc.owner.address,
         pendingOwner: null,
@@ -651,8 +657,8 @@ export class FeeQuoterSetup {
  * Simplified setup class for fee-related tests (without complex token handling)
  */
 export class FeeQuoterFeeSetup extends FeeQuoterSetup {
-  constructor() {
-    super()
+  constructor(blockchain: Blockchain) {
+    super(blockchain)
   }
 
   async setupAll(testId: string): Promise<void> {
