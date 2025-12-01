@@ -17,7 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -121,14 +121,14 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps config.TonDe
 	if in.ContractsVersionSha != ContractsLocalVersion {
 		// Download contracts
 		// TODO we could optimize this even more by passing the file names to extract from the release package
-		downloadArtifactsInput := operation2.DownloadArtifactsInput{
+		downloadArtifactsInput := operation.DownloadArtifactsInput{
 			Organization:        contractsGithubOrganization,
 			Repository:          contractsGithubRepository,
 			Release:             contractsGithubReleasePrefix + in.ContractsVersionSha,
 			Asset:               contractsGithubAssetPrefix + in.ContractsVersionSha,
 			FilesSuffixToFilter: contractsFileNameSuffix,
 		}
-		downloadArtifactsOutput, err := operations.ExecuteOperation(b, operation2.DownloadArtifactsOp, deps, downloadArtifactsInput)
+		downloadArtifactsOutput, err := operations.ExecuteOperation(b, operation.DownloadArtifactsOp, deps, downloadArtifactsInput)
 
 		if err != nil {
 			return output, err
