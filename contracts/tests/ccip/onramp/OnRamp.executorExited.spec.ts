@@ -184,4 +184,98 @@ describe('OnRamp - executor exit', () => {
       },
     })
   })
+
+  it('should fail to send message sent if executorID is incorrect', async () => {
+    const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
+      value: toNano('0.5'),
+      body: {
+        executorID: executorID + 1n, // incorrect ID
+        fee: {
+          feeTokenAmount: 1n,
+          feeValueJuels: 1n,
+        },
+        msg: ccipSend,
+        metadata: {
+          sender: senderAddress,
+          value: 42n,
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: executorSender.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.Unauthorized,
+    })
+  })
+
+  it('should fail to send message sent if sender is not executor', async () => {
+    const result = await onramp.sendExecutorFinishedSuccessfully(deployer.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        executorID: executorID,
+        fee: {
+          feeTokenAmount: 1n,
+          feeValueJuels: 1n,
+        },
+        msg: ccipSend,
+        metadata: {
+          sender: senderAddress,
+          value: 42n,
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.Unauthorized,
+    })
+  })
+
+  it('should fail to send message rejected if executorID is incorrect', async () => {
+    const result = await onramp.sendExecutorFinishedWithError(executorSender, {
+      value: toNano('0.5'),
+      body: {
+        executorID: executorID + 1n, // incorrect ID
+        error: 42n,
+        msg: ccipSend,
+        metadata: {
+          sender: senderAddress,
+          value: 42n,
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: executorSender.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.Unauthorized,
+    })
+  })
+
+  it('should fail to send message rejected if sender is not executor', async () => {
+    const result = await onramp.sendExecutorFinishedWithError(deployer.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        executorID: executorID,
+        error: 42n,
+        msg: ccipSend,
+        metadata: {
+          sender: senderAddress,
+          value: 42n,
+        },
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.Unauthorized,
+    })
+  })
 })
