@@ -146,7 +146,7 @@ fun Router_Costs.CCIPSend(): int {
         + ton("0.001") // computeFee
         + ton("0.019") // CCIPSend fwdFee
         + OnRamp_Costs.Send()
-        + min(
+        + max(
             Router_Costs.MessageSent(),
             Router_Costs.MessageRejected()
         )
