@@ -40,7 +40,6 @@ func TestDecodeRouterData(t *testing.T) {
 		WithRMNRemoteForwardUpdates(offRamp2).
 		WithRMNRemoteCursedSubject(new(big.Int).SetUint64(chainSelector1)).
 		WithRMNRemoteCursedSubject(new(big.Int).SetUint64(chainSelector2)).
-		// Add missing fields
 		Build()
 	require.NoError(t, err)
 
@@ -90,8 +89,6 @@ func TestDecodeRouterData(t *testing.T) {
 		require.Len(t, storage.RMNRemote.CursedSubjects, 2)
 		require.Equal(t, storage.RMNRemote.CursedSubjects[0].Uint64(), chainSelector1)
 		require.Equal(t, storage.RMNRemote.CursedSubjects[1].Uint64(), chainSelector2)
-
-		// Add missing fields
 	})
 
 	t.Run("TestMapper", func(t *testing.T) {
