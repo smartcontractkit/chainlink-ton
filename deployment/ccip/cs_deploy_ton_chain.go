@@ -106,7 +106,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 
 	mcmsSeqInput := mcmsSeq.DeployMCMSSeqInput{
-		CCIPConfig: mcmsConfig.ChainContractParams{
+		MCMSConfig: mcmsConfig.ChainContractParams{
 			TimelockParams: config.Params.TimelockParams,
 			MCMSParams:     config.Params.MCMSParams,
 		},

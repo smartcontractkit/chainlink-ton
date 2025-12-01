@@ -27,7 +27,7 @@ import (
 type DeployMCMSSeqInput struct {
 	ContractsVersionSha string
 	ContractsSemver     *semver.Version
-	CCIPConfig          mcmsConfig.ChainContractParams
+	MCMSConfig          mcmsConfig.ChainContractParams
 	ChainSelector       uint64
 }
 
@@ -69,8 +69,8 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 	a := deps.MCMSChainState[in.ChainSelector].Timelock
 	if a.IsAddrNone() && (output.TimelockAddress == nil || output.TimelockAddress.TONAddress.IsAddrNone()) { // Deploy Timelock only if not deployed yet
 		storage := timelock.Data{
-			ID:                       in.CCIPConfig.TimelockParams.ID,
-			MinDelay:                 in.CCIPConfig.TimelockParams.MinDelay,
+			ID:                       in.MCMSConfig.TimelockParams.ID,
+			MinDelay:                 in.MCMSConfig.TimelockParams.MinDelay,
 			Timestamps:               cell.NewDict(256),
 			BlockedFnSelectorsLen:    0,
 			BlockedFnSelectors:       cell.NewDict(32),
@@ -87,12 +87,12 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 
 		body := timelock.Init{
 			QueryID:                  0,
-			MinDelay:                 in.CCIPConfig.TimelockParams.MinDelay,
-			Admin:                    in.CCIPConfig.TimelockParams.Admin,
-			Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Proposers)),
-			Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Executors)),
-			Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Cancellers)),
-			Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Bypassers)),
+			MinDelay:                 in.MCMSConfig.TimelockParams.MinDelay,
+			Admin:                    in.MCMSConfig.TimelockParams.Admin,
+			Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Proposers)),
+			Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Executors)),
+			Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Cancellers)),
+			Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Bypassers)),
 			ExecutorRoleCheckEnabled: true,
 			OpFinalizationTimeout:    0,
 		}
@@ -121,7 +121,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 		}
 		chainID := big.NewInt(chainIDInt)
 		initStorage := mcms.Data{
-			ID: in.CCIPConfig.MCMSParams.ID,
+			ID: in.MCMSConfig.MCMSParams.ID,
 			Ownable: common.Ownable2Step{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: nil,
