@@ -703,12 +703,10 @@ describe('OffRamp - Unit Tests', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
-  /*
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
     await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp)
   })
-  */
 
   it('should deploy', async () => {
     // the check is done inside beforeEach
