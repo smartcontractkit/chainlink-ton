@@ -50,11 +50,20 @@ jobs:
       fail-fast: false
       matrix:
         type:
-          # Note: list of tests, add more tests here
+          # Tests with LOCAL contracts (latest changes)
           - name: "TON2EVM Messaging Test"
             cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_TON2EVM -timeout 20m -test.parallel=1 -count=1 -json"
+            contract_mode: "local"
           - name: "EVM2TON Messaging Test"
             cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=1 -count=1 -json"
+            contract_mode: "local"
+          # Tests with STAGING contracts (deployed version compatibility)
+          - name: "TON2EVM Messaging Test (Staging Compat)"
+            cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_TON2EVM -timeout 20m -test.parallel=1 -count=1 -json"
+            contract_mode: "staging"
+          - name: "EVM2TON Messaging Test (Staging Compat)"
+            cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=1 -count=1 -json"
+            contract_mode: "staging"
 
     name: ${{ matrix.type.name }}
     # ubuntu-latest: 4 / 16 GB / 150GB SSD https://github.com/smartcontractkit/chainlink-ton/actions/runners
@@ -114,13 +123,21 @@ jobs:
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
           path: chainlink
 
+      # Only build contracts for "local" mode tests
       - name: Build contracts
+        if: matrix.type.contract_mode == 'local'
         run: |
           cd contracts
           nix develop .#contracts -c yarn && yarn build
 
       - name: Setup Environment and Run Tests
         run: |
+          if [ "${{ matrix.type.contract_mode }}" == "local" ]; then
+            export CCIP_CONTRACTS_TON_VERSION="local"
+          else
+            export CCIP_CONTRACTS_TON_VERSION=$(cat ./scripts/.staging_contract_version | tr -d '[:space:]')
+          fi
+          echo "Testing with contract version: $CCIP_CONTRACTS_TON_VERSION"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}" --clean-logs
 
