@@ -10,12 +10,18 @@ import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
 import { verifyBodyMessage } from '../CCIPRouter.spec'
+import { Blockchain } from '@ton/sandbox'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
+  let blockchain: Blockchain
+
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+  })
 
   beforeEach(async () => {
-    setup = new FeeQuoterFeeSetup()
+    setup = new FeeQuoterFeeSetup(blockchain)
     setup.code = await FeeQuoterSetup.compileContracts()
     await setup.setupAll('getValidatedFee')
   })
@@ -1018,4 +1024,19 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
   })
+  /*
+   TODO: This testsuite doesn't run on the FeeQuoter but on a helper contract with an added getter
+         Enable this again when the testsuite runs on the FeeQuoter
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
+      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
+          code: 'FeeQuoter',
+          name: feeQuoter.FeeQuoter.type(),
+        },
+      ])
+    }
+  })
+  */
 })

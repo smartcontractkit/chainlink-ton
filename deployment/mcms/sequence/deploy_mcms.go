@@ -9,6 +9,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
@@ -123,7 +124,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 			ID: in.MCMSConfig.MCMSParams.ID,
 			Ownable: common.Ownable2Step{
 				Owner:        deps.TonChain.WalletAddress,
-				PendingOwner: nil,
+				PendingOwner: address.NewAddressNone(),
 			},
 			Oracle:  tvm.ZeroAddress,
 			Signers: cell.NewDict(256),

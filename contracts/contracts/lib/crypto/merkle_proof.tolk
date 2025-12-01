@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "../utils.tolk"
 

@@ -254,7 +254,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps CCIPDeps, in UpdateFeeQuote
 	input := feequoter.UpdatePrices{
 		TokenPrices:    common.SnakeData[feequoter.TokenPriceUpdate](tokenPrices),
 		GasPrices:      common.SnakeData[feequoter.GasPriceUpdate](gasPrices),
-		SendExcessesTo: nil,
+		SendExcessesTo: address.NewAddressNone(),
 	}
 
 	payload, err := tlb.ToCell(input)
