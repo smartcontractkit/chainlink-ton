@@ -54,7 +54,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 		ID: in.Params.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 		MaxFeeJuelsPerMsg:            in.Params.MaxFeeJuelsPerMsg,
 		LinkToken:                    in.LinkAddr,
@@ -316,7 +316,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 	input := feequoter.UpdatePrices{
 		TokenPrices:    common.SnakeData[feequoter.TokenPriceUpdate](tokenPrices),
 		GasPrices:      common.SnakeData[feequoter.GasPriceUpdate](gasPrices),
-		SendExcessesTo: nil,
+		SendExcessesTo: address.NewAddressNone(),
 	}
 
 	payload, err := tlb.ToCell(input)

@@ -23,6 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -68,7 +69,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		Value: 0,
 		Ownable: common.Ownable2Step{
 			Owner:        tonChain.Wallet.WalletAddress(),
-			PendingOwner: nil,
+			PendingOwner: address.NewAddressNone(),
 		},
 	}
 	dataCell, err := tlb.ToCell(data)

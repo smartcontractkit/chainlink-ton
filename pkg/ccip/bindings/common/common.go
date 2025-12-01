@@ -104,7 +104,7 @@ func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWr
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
 type Ownable2Step struct {
 	Owner        *address.Address `tlb:"addr"`
-	PendingOwner *address.Address `tlb:"maybe addr"` // PendingOwner is optional
+	PendingOwner *address.Address `tlb:"addr"` // PendingOwner is optional
 }
 
 // Signature is a type that represents a cryptographic signature used in MerkleProofs

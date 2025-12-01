@@ -798,15 +798,9 @@ export const builder = {
     // Creates a new `MCMS_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
       encode: (data: ContractData): Builder => {
-        let _pendingOwnerMaybe = data.ownable.pendingOwner
-          ? beginCell().storeAddress(data.ownable.pendingOwner)
-          : null
-
         return beginCell()
           .storeUint(data.id, 32)
-          .storeBuilder(
-            beginCell().storeAddress(data.ownable.owner).storeMaybeBuilder(_pendingOwnerMaybe),
-          )
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
           .storeAddress(data.oracle)
           .storeDict(
             loadMap(

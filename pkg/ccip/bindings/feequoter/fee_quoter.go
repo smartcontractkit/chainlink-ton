@@ -324,7 +324,7 @@ type UpdatePrices struct {
 	_              tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
 	TokenPrices    ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
 	GasPrices      ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
-	SendExcessesTo *address.Address                       `tlb:"maybe addr"`
+	SendExcessesTo *address.Address                       `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
