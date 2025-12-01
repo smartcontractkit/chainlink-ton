@@ -1,15 +1,5 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  toNano,
-  Address,
-  Cell,
-  Dictionary,
-  beginCell,
-  Message,
-  CommonMessageInfoInternal,
-  TransactionDescriptionGeneric,
-  Sender,
-} from '@ton/core'
+import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
 import { compile, sleep } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
@@ -31,8 +21,10 @@ import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../utils/prettyPrint'
 import { getValidatedFee } from '../../src/ccipSend/fee'
 import { sendGetValidatedFee } from './onramp/OnChainGetValidatedFee'
+import { generateRandomContractId } from '../../src/utils/types'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
+import * as coverage from '../coverage/coverage'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -60,7 +52,13 @@ describe('rt.Router - TypeAndVersion Tests', () => {
     version: rt.Router.version(),
     deployContract: deployRouterContract,
   })
-  currentVersionSpec.run()
+
+  currentVersionSpec.run([
+    {
+      code: 'Router',
+      name: 'router',
+    },
+  ])
 })
 
 describe('Router - Withdrawable Tests', () => {
@@ -70,7 +68,12 @@ describe('Router - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployRouterContract,
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run([
+    {
+      code: 'Router',
+      name: 'router',
+    },
+  ])
 })
 
 // TODO when we have a new version
@@ -128,6 +131,11 @@ describe('Router', () => {
       vmLogs: 'none',
       debugLogs: true,
     }
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
     let deployerCode = await compile('Deployable')
@@ -168,7 +176,7 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
 
       let data: fq.FeeQuoterStorage = {
-        id: 0,
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -282,7 +290,7 @@ describe('Router', () => {
     {
       let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
-        id: 0,
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -810,6 +818,29 @@ describe('Router', () => {
     const other = await blockchain.treasury('other')
     await ownable2StepSpec.ownable2StepSpec(deployer, other, router)
   })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
+        {
+          code: await router.getCode(),
+          name: 'router',
+        },
+        {
+          code: await feeQuoter.getCode(),
+          name: 'feequoter',
+        },
+        {
+          code: await onRamp.getCode(),
+          name: 'onramp',
+        },
+        {
+          code: await compile('CCIPSendExecutor'),
+          name: 'send_executor',
+        },
+      ])
+    }
+  })
 })
 
 async function deployRouterContract(
@@ -818,7 +849,7 @@ async function deployRouterContract(
 ) {
   const code = await rt.Router.code()
   let data: rt.Storage = {
-    id: 0n,
+    id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,

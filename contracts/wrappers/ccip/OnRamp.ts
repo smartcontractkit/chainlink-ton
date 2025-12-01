@@ -36,7 +36,7 @@ export enum OnRampError {
 }
 
 export type OnRampStorage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   chainSelector: bigint
   config: {
@@ -229,7 +229,7 @@ export const builder = (() => {
           .storeBuilder(executor.encode(data.executor))
       },
       load: function (src: Slice): OnRampStorage {
-        const id = src.loadUint(32)
+        const id = src.loadUintBig(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
         const chainSelector = src.loadUintBig(64)
         const config = dynamicConfig.load(src.loadRef().beginParse())

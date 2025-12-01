@@ -4,13 +4,9 @@ import * as relay from '../../../wrappers/test/mock/Relay'
 
 import { Address, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  CHAINSEL_EVM_TEST,
-  deployOnRampContract,
-  generateSecureRandomId,
-  setup,
-} from './OnRamp.Setup'
+import { CHAINSEL_EVM_TEST, deployOnRampContract, setup } from './OnRamp.Setup'
 import { compile } from '@ton/blueprint'
+import { generateRandomContractId } from '../../../src/utils'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -54,7 +50,7 @@ describe('OnRamp - executor exit', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
-    executorID = BigInt(generateSecureRandomId())
+    executorID = BigInt(generateRandomContractId())
 
     onramp = await deployOnRampContract(blockchain, deployer, {
       config: {

@@ -16,6 +16,8 @@
     "clean": "[ -d build ] && rm -rf build || true",
     "build": "yarn clean && blueprint build --all",
     "test": "jest --verbose",
+    "test-coverage": "COVERAGE=true jest",
+    "generate-coverage-reports": "ts-node tests/coverage/scriptMergeCoverageIntoHtmlReports.ts",
     "fmt:check": "yarn fmt-contracts:check && yarn fmt-typescript:check",
     "fmt": "yarn fmt-contracts && yarn fmt-typescript",
     "fmt-contracts:check": "tact-fmt --check contracts",
