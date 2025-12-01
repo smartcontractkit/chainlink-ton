@@ -27,7 +27,6 @@ import (
 
 type DeployMCMSSeqInput struct {
 	ContractsVersionSha string
-	ContractsSemver     *semver.Version
 	MCMSConfig          mcmsConfig.ChainContractParams
 	ChainSelector       uint64
 }
@@ -50,7 +49,6 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 	output := DeployMCMSSeqOutput{}
 
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
-		ContractsSemver:     in.ContractsSemver,
 		ContractsVersionSha: in.ContractsVersionSha,
 		Contracts: []ds.ContractType{
 			state.Timelock,
@@ -98,7 +96,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 			OpFinalizationTimeout:    0,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.MCMSConfig.TimelockParams.Coin, in.MCMSConfig.TimelockParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
@@ -155,7 +153,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 				},
 			},
 		}
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.MCMSConfig.MCMSParams.Coin, in.MCMSConfig.MCMSParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}

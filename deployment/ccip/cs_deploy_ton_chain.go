@@ -3,7 +3,6 @@ package ops
 import (
 	"fmt"
 
-	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
@@ -96,7 +95,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		CCIPConfig:          config.Params,
 		ContractsVersionSha: config.ContractsVersion,
-		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
 		ChainSelector:       selector,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, deps, ccipSeqInput)
@@ -111,7 +109,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 			MCMSParams:     config.Params.MCMSParams,
 		},
 		ContractsVersionSha: config.ContractsVersion,
-		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
 		ChainSelector:       selector,
 	}
 

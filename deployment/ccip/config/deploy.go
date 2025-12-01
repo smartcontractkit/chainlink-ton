@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/Masterminds/semver/v3"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
@@ -57,6 +58,8 @@ type FeeToken struct {
 
 type FeeQuoterParams struct {
 	ID                           uint32
+	ContractsSemver              *semver.Version
+	Coin                         string
 	MaxFeeJuelsPerMsg            *big.Int
 	TokenPriceStalenessThreshold uint64
 	FeeTokens                    map[TokenSymbol]FeeToken
@@ -77,6 +80,8 @@ func (f FeeQuoterParams) Validate() error {
 
 type OffRampParams struct {
 	ID                               uint32
+	ContractsSemver                  *semver.Version
+	Coin                             string
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
 }
@@ -92,10 +97,12 @@ func (o OffRampParams) Validate() error {
 }
 
 type OnRampParams struct {
-	ID             uint32
-	ChainSelector  uint64
-	AllowlistAdmin *address.Address
-	FeeAggregator  *address.Address
+	ID              uint32
+	ContractsSemver *semver.Version
+	Coin            string
+	ChainSelector   uint64
+	AllowlistAdmin  *address.Address
+	FeeAggregator   *address.Address
 }
 
 func (o OnRampParams) Validate() error {
@@ -106,7 +113,9 @@ func (o OnRampParams) Validate() error {
 }
 
 type RouterParams struct {
-	ID uint32
+	ID              uint32
+	Coin            string
+	ContractsSemver *semver.Version
 }
 
 func (r RouterParams) Validate() error {
@@ -115,7 +124,9 @@ func (r RouterParams) Validate() error {
 }
 
 type ReceiverParams struct {
-	ID uint32
+	ID              uint32
+	ContractsSemver *semver.Version
+	Coin            string
 }
 
 func (r ReceiverParams) Validate() error {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 )
 
@@ -24,13 +25,15 @@ func (c ChainContractParams) Validate() error {
 }
 
 type TimelockParams struct {
-	ID         uint32
-	MinDelay   uint32
-	Admin      *address.Address
-	Proposers  []*address.Address
-	Executors  []*address.Address
-	Cancellers []*address.Address
-	Bypassers  []*address.Address
+	ID              uint32
+	ContractsSemver *semver.Version
+	Coin            string
+	MinDelay        uint32
+	Admin           *address.Address
+	Proposers       []*address.Address
+	Executors       []*address.Address
+	Cancellers      []*address.Address
+	Bypassers       []*address.Address
 }
 
 func (t TimelockParams) Validate() error {
@@ -42,7 +45,9 @@ func (t TimelockParams) Validate() error {
 }
 
 type MCMSParams struct {
-	ID uint32
+	ID              uint32
+	ContractsSemver *semver.Version
+	Coin            string
 }
 
 func (m MCMSParams) Validate() error {

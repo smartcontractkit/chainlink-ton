@@ -33,7 +33,6 @@ import (
 
 type DeployCCIPSeqInput struct {
 	ContractsVersionSha string
-	ContractsSemver     *semver.Version
 	CCIPConfig          ccipConfig.ChainContractParams
 	ChainSelector       uint64
 }
@@ -61,7 +60,6 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 	output := DeployCCIPSeqOutput{}
 
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
-		ContractsSemver:     in.ContractsSemver,
 		ContractsVersionSha: in.ContractsVersionSha,
 		Contracts: []ds.ContractType{
 			state.Router,
@@ -112,7 +110,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			OnRamps: nil, // set afterward
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil, in.CCIPConfig.RouterParams.Coin, in.CCIPConfig.RouterParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
@@ -142,7 +140,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			DestChainConfigs:             nil,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
@@ -173,7 +171,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			},
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin, in.CCIPConfig.OnRampParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
@@ -205,7 +203,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			LatestPriceSequenceNumber: 0,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin, in.CCIPConfig.OffRampParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
@@ -226,7 +224,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			Behavior:         receiver.Accept,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)
 		if err != nil {
 			return output, err
 		}

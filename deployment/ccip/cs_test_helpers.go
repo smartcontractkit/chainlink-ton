@@ -150,14 +150,21 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 		contractVersion = sequence.ContractsLocalVersion
 	}
 
+	ccipContractSemver := semver.MustParse("1.6.0")
+	timelockContractSemver := semver.MustParse("0.0.3")
+	mcmsContractSemver := semver.MustParse("0.0.4")
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
 			RouterParams: config.RouterParams{
-				ID: idForContracts,
+				ID:              idForContracts,
+				Coin:            "0.05",
+				ContractsSemver: ccipContractSemver,
 			},
 			FeeQuoterParams: config.FeeQuoterParams{
 				ID:                           idForContracts,
+				Coin:                         "0.05",
+				ContractsSemver:              ccipContractSemver,
 				MaxFeeJuelsPerMsg:            big.NewInt(1),
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
@@ -169,30 +176,40 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			},
 			OffRampParams: config.OffRampParams{
 				ID:                               idForContracts,
+				Coin:                             "0.05",
+				ContractsSemver:                  ccipContractSemver,
 				ChainSelector:                    tonChain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
-				ID:            idForContracts,
-				ChainSelector: ChainSelEVMTest90000001,
+				ID:              idForContracts,
+				Coin:            "0.05",
+				ContractsSemver: ccipContractSemver,
+				ChainSelector:   ChainSelEVMTest90000001,
 				// TODO:
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 			},
 			ReceiverParams: config.ReceiverParams{
-				ID: idForContracts,
+				ID:              idForContracts,
+				Coin:            "0.05",
+				ContractsSemver: ccipContractSemver,
 			},
 			TimelockParams: mcmsConfig.TimelockParams{
-				ID:         idForContracts,
-				MinDelay:   0,
-				Admin:      deployer.WalletAddress(),
-				Proposers:  []*address.Address{deployer.WalletAddress()},
-				Executors:  []*address.Address{deployer.WalletAddress()},
-				Cancellers: []*address.Address{deployer.WalletAddress()},
-				Bypassers:  []*address.Address{deployer.WalletAddress()},
+				ID:              idForContracts,
+				Coin:            "0.5",
+				ContractsSemver: timelockContractSemver,
+				MinDelay:        0,
+				Admin:           deployer.WalletAddress(),
+				Proposers:       []*address.Address{deployer.WalletAddress()},
+				Executors:       []*address.Address{deployer.WalletAddress()},
+				Cancellers:      []*address.Address{deployer.WalletAddress()},
+				Bypassers:       []*address.Address{deployer.WalletAddress()},
 			},
 			MCMSParams: mcmsConfig.MCMSParams{
-				ID: idForContracts,
+				ID:              idForContracts,
+				ContractsSemver: mcmsContractSemver,
+				Coin:            "0.5",
 			},
 		},
 		ContractsVersion: contractVersion,

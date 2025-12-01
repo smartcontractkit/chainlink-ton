@@ -10,16 +10,14 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
-	operation2 "github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 )
 
 type CompiledContractData struct {
-	Type                           ds.ContractType
-	Code                           *cell.Cell
-	SuggestedTONCoinsForDeployment string
-	ContractVersionSha             string
-	ContractSemver                 *semver.Version
-	ContractPath                   string
+	Type               ds.ContractType
+	Code               *cell.Cell
+	ContractVersionSha string
+	ContractPath       string
 }
 
 type TONContractAddress struct {
@@ -30,16 +28,16 @@ type TONContractAddress struct {
 // InvokeDeployContractOperation deploys a TON contract if it's not already deployed.
 // It checks the current address, executes the deployment operation if needed,
 // Returns an error if the deployment fails.
-func InvokeDeployContractOperation(b operations.Bundle, deps config.TonDeps, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any) (*TONContractAddress, error) {
-	deployContractInput := operation2.DeployContractInput{
+func InvokeDeployContractOperation(b operations.Bundle, deps config.TonDeps, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*TONContractAddress, error) {
+	deployContractInput := operation.DeployContractInput{
 		Name:         compiledContract.Type.String(),
 		Storage:      storage,
 		MessageBody:  messageBody,
 		ContractCode: compiledContract.Code,
-		Coins:        compiledContract.SuggestedTONCoinsForDeployment,
+		Coins:        coin,
 	}
 
-	deployContractReport, err := operations.ExecuteOperation(b, operation2.DeployTONContractOp, config.TonDeps{TonChain: deps.TonChain}, deployContractInput)
+	deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, config.TonDeps{TonChain: deps.TonChain}, deployContractInput)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +49,7 @@ func InvokeDeployContractOperation(b operations.Bundle, deps config.TonDeps, cha
 			Address:       contractAddress.String(),
 			ChainSelector: chainSelector,
 			Type:          compiledContract.Type,
-			Version:       compiledContract.ContractSemver,
+			Version:       semver,
 			Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
 		},
 	}
