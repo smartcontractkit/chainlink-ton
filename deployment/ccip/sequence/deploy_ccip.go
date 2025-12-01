@@ -4,8 +4,9 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
