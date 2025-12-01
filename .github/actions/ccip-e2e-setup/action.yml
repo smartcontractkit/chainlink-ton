@@ -1,0 +1,73 @@
+name: 'CCIP E2E Setup'
+description: 'Common setup for CCIP E2E tests - caches, dependencies, and environment'
+
+inputs:
+  contract_version:
+    description: 'Contract version to test against (local or commit SHA)'
+    required: true
+    default: 'local'
+  build_contracts:
+    description: 'Whether to build contracts locally'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Restore cached docker images
+      uses: actions/cache@v4
+      id: docker-cache-restore
+      with:
+        path: ${{ github.workspace }}/.cache/ccip-e2e-docker-images.tar
+        key: ccip-e2e-images-v2
+
+    - name: Load docker images
+      if: steps.docker-cache-restore.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        echo "Cache hit. Loading images from tarball..."
+        docker load -i ${{ github.workspace }}/.cache/ccip-e2e-docker-images.tar
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          /home/runner/.cache/go-build
+          /home/runner/go/pkg/mod
+        key: go-${{ hashFiles('**/go.sum', 'chainlink/**/go.sum') }}
+
+    - name: Read Chainlink Core Ref
+      id: read_core_ref
+      shell: bash
+      run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+    - name: Cache Chainlink Core repo
+      uses: actions/cache@v4
+      id: core-cache
+      with:
+        path: chainlink
+        key: core-${{ steps.read_core_ref.outputs.CORE_REF }}
+
+    - name: Checkout Chainlink Core repo
+      if: steps.core-cache.outputs.cache-hit != 'true'
+      uses: actions/checkout@v5
+      with:
+        repository: smartcontractkit/chainlink
+        ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
+        path: chainlink
+
+    - name: Build contracts
+      if: inputs.build_contracts == 'true'
+      shell: bash
+      run: |
+        cd contracts
+        nix develop .#contracts -c yarn && yarn build
+
+    - name: Set contract version environment
+      shell: bash
+      run: echo "CCIP_CONTRACTS_TON_VERSION=${{ inputs.contract_version }}" >> $GITHUB_ENV

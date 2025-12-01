@@ -1,0 +1,16 @@
+# CCIP TON E2E Test Definitions
+# This file is the single source of truth for CCIP TON integration tests.
+# Both ccip-integration-test.yml and ccip-staging-compat.yml workflows read from this file.
+#
+# To add a new test:
+#   1. Add an entry to the 'tests' list below
+#   2. The test will automatically run in both local and staging compatibility checks
+
+tests:
+  - id: ccip_messaging_ton2evm
+    name: "TON2EVM Messaging Test"
+    cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_TON2EVM -timeout 20m -test.parallel=1 -count=1 -json"
+
+  - id: ccip_messaging_evm2ton
+    name: "EVM2TON Messaging Test"
+    cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=1 -count=1 -json"
