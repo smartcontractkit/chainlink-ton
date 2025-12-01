@@ -100,9 +100,8 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.TimelockAddress = tonContractAddress
 		}
+		output.TimelockAddress = tonContractAddress
 	}
 
 	// Invoke deploy MCMS changeset operation
@@ -158,9 +157,8 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.MCMSAddress = tonContractAddress
 		}
+		output.MCMSAddress = tonContractAddress
 	}
 
 	return output, nil

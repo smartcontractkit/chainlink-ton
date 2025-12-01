@@ -112,9 +112,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.RouterAddress = tonContractAddress
 		}
+		output.RouterAddress = tonContractAddress
 	}
 
 	// FeeQuoter
@@ -142,9 +141,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.FeeQuoterAddress = tonContractAddress
 		}
+		output.FeeQuoterAddress = tonContractAddress
 	}
 
 	// OnRamp (has to be deployed after FeeQuoter to have feeQuoter address ready)
@@ -173,9 +171,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.OnRampAddress = tonContractAddress
 		}
+		output.OnRampAddress = tonContractAddress
 	}
 
 	// OffRamp (has to be deployed after FeeQuoter and Router to have their addresses ready)
@@ -204,9 +201,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.OffRampAddress = tonContractAddress
 		}
+		output.OffRampAddress = tonContractAddress
 	}
 
 	// Receiver (has to be deployed after Router to have its address ready)
@@ -225,9 +221,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil)
 		if err != nil {
 			return output, err
-		} else if tonContractAddress != nil {
-			output.ReceiverAddress = tonContractAddress
 		}
+		output.ReceiverAddress = tonContractAddress
 	}
 
 	return output, nil
