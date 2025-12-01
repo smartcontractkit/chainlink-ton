@@ -1,4 +1,4 @@
-import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader, Address } from '@ton/core'
+import { beginCell, Builder, Cell, Slice, Address } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sha256_sync } from '@ton/crypto'
 import crypto from 'crypto'
 
@@ -164,3 +164,7 @@ export function generateRandomMockSigners(count: number) {
 import { expect } from '@jest/globals'
 import { WalletContractV4 } from '@ton/ton'
 expect.addEqualityTesters([tonEquals])
+
+export function generateRandomContractId(): bigint {
+  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
+}

@@ -84,6 +84,7 @@ func deployTONContract(b operations.Bundle, deps TonDeps, in DeployContractInput
 	b.Logger.Infow("Initializing contract with body", "contract name", in.Name, "body data hash", hex.EncodeToString(bodyCell.Hash()), "body bits size", bodyCell.BitsSize())
 
 	contract, _, err := wrappers.Deploy(
+		b.GetContext(),
 		&conn,
 		in.ContractCode,
 		initData,

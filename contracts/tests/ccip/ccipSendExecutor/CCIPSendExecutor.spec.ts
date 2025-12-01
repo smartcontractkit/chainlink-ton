@@ -1,6 +1,7 @@
 import { compile } from '@ton/blueprint'
 import * as e from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as coverage from '../../coverage/coverage'
 import { crc32 } from 'zlib'
 import { facilityId } from '../../../wrappers/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
@@ -34,7 +35,12 @@ describe('CCIPSendExecutor - TypeAndVersion Tests', () => {
     version: e.ContractClient.version(),
     deployContract: setupTestCCIPSendExecutor,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run([
+    {
+      code: 'CCIPSendExecutor',
+      name: 'send_executor',
+    },
+  ])
 })
 
 describe('CCIPSendExecutor - Wrapper', () => {

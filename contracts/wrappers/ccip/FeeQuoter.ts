@@ -25,6 +25,7 @@ import { compile } from '@ton/blueprint'
 import * as rt from './Router'
 import * as sendExecutor from './CCIPSendExecutor'
 import { crc32 } from 'zlib'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 
@@ -62,7 +63,7 @@ export enum FeeQuoterError {
 }
 
 export type FeeQuoterStorage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   allowedPriceUpdaters: Dictionary<Address, Buffer>
   maxFeeJuelsPerMsg: bigint
@@ -174,9 +175,7 @@ export const builder = {
             .storeUint(Opcodes.updatePrices, 32)
             .storeRef(tokenPrices)
             .storeRef(gasPrices)
-            .storeMaybeBuilder(
-              data.sendExcessesTo ? beginCell().storeAddress(data.sendExcessesTo) : null,
-            )
+            .storeAddress(data.sendExcessesTo)
         },
         load: (src: Slice): UpdatePrices => {
           throw new Error('Not implemented') // TODO implement if needed
@@ -335,7 +334,7 @@ export const builder = {
           .storeDict(data.destChainConfigs)
       },
       load: (src: Slice): FeeQuoterStorage => {
-        const id = src.loadUint(32)
+        const id = src.loadUintBig(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
@@ -461,7 +460,7 @@ export type RemovePriceUpdater = {
 
 export type UpdatePrices = {
   updates: PriceUpdates
-  sendExcessesTo: Address | null
+  sendExcessesTo: Maybe<Address>
 }
 
 export type UpdateFeeTokens = {

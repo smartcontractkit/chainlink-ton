@@ -210,9 +210,8 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // require.Zero(t, deployExitCode, "contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
 //
 // ```
-func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
+func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
-	ctx := context.Background() // TODO: use context from args
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
 		ctx,
 		amount,
@@ -232,8 +231,18 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+
+	if receivedMessage.ExitCode != tvm.ExitCodeSuccess {
 		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
+	}
+
+	if len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+		return nil, nil, fmt.Errorf("contract deployment failed: expected exactly 1 outgoing internal message (the deployment transaction to the new contract address), but got %d. This usually indicates an issue with the deployment process or contract code", len(receivedMessage.OutgoingInternalReceivedMessages))
+	}
+
+	// TODO: Temporarily allow ExitCodeTactInvalidIncomingMessage until Tact contract is fixed, jira ticket: NON-EVM-3080
+	if receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeSuccess && receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeTactInvalidIncomingMessage {
+		return nil, nil, fmt.Errorf("contract deployment failed: error in deployment transaction: %s", receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode.Describe())
 	}
 
 	return &Contract{addr, client}, &receivedMessage, nil
