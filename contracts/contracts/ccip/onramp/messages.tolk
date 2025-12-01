@@ -123,7 +123,8 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
-        Router_Costs.MessageSent() + ton("0.019") // Fwd fee // TODO
+        + ton("0.019") // MessageSent fwdFee
+        + Router_Costs.MessageSent() 
         ;
 }
 
@@ -131,6 +132,7 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
-        Router_Costs.MessageRejected() + ton("0.019") // Fwd fee // TODO
+        + ton("0.019") // MessageRejected fwdFee
+        + Router_Costs.MessageRejected()
         ;
 }
