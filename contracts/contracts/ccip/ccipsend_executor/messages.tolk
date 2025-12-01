@@ -21,6 +21,12 @@ struct (0xaf3c62b3) CCIPSendExecutor_Execute {
 // Costs associated with SendExecutor operations
 struct SendExecutor_Costs {}
 
+// Minimum value for deploying SendExecutor
+@inline
+fun SendExecutor_Costs.Deploy(): int {
+    return ton("0.01");
+}
+
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {

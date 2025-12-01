@@ -113,7 +113,7 @@ fun OnRamp_Costs.GetValidatedFee(): int {
 fun OnRamp_Costs.Send(): int {
     return
         + ton("0.002") // computeFee
-        + ton("0.01") // SendExecutor deployment
+        + SendExecutor_Costs.Deploy()
         + ton("0.019") // Execute fwdFee
         + SendExecutor_Costs.Execute()
         ;
