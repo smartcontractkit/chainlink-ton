@@ -66,6 +66,8 @@ export async function setup() {
 
   if (process.env['COVERAGE'] === 'true') {
     blockchain.enableCoverage()
+    blockchain.verbosity.print = false
+    blockchain.verbosity.vmLogs = 'vm_logs_verbose'
   }
   const deployer = await blockchain.treasury('deployer')
   const onramp = await deployOnRampContract(blockchain, deployer)

@@ -528,6 +528,8 @@ describe('OffRamp - Unit Tests', () => {
     blockchain = await Blockchain.create()
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')

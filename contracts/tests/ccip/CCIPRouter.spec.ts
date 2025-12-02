@@ -133,6 +133,8 @@ describe('Router', () => {
     }
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     deployer = await blockchain.treasury('deployer')

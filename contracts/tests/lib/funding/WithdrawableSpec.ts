@@ -101,6 +101,8 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
     }
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     const owner = await blockchain.treasury('owner')
