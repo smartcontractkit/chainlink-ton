@@ -1,6 +1,7 @@
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
+import * as coverage from '../../coverage/coverage'
 
 import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
@@ -240,6 +241,17 @@ describe('OnRamp - generate message id', () => {
           }
         }
       }
+    }
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'onramp_generate_message_id', [
+        {
+          code: await onramp.getCode(),
+          name: 'onramp',
+        },
+      ])
     }
   })
 })

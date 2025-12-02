@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { OnRamp } from '../../../wrappers/ccip/OnRamp'
+import * as or from '../../../wrappers/ccip/OnRamp'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
@@ -11,8 +11,8 @@ import * as coverage from '../../coverage/coverage'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: OnRamp.type(),
-    version: OnRamp.version(),
+    type: or.OnRamp.type(),
+    version: or.OnRamp.version(),
     deployContract: deployOnRampContract,
   })
   currentVersionSpec.run()
@@ -21,7 +21,7 @@ describe('OnRamp - TypeAndVersion Tests', () => {
 describe('OnRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => compile('OnRamp'),
-    ContractConstructor: OnRamp,
+    ContractConstructor: or.OnRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOnRampContract,
   })
@@ -66,7 +66,6 @@ describe('OnRamp - Ownable Tests', () => {
     const blockchain = await Blockchain.create()
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     const deployer = await blockchain.treasury('deployer')
@@ -84,10 +83,10 @@ describe('OnRamp - Ownable Tests', () => {
 
 describe('OnRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: OnRamp.type(),
-    currentVersion: OnRamp.version(),
-    getCurrentCode: () => OnRamp.code(),
-    CurrentVersionConstructor: OnRamp,
+    contractType: or.OnRamp.type(),
+    currentVersion: or.OnRamp.version(),
+    getCurrentCode: () => or.OnRamp.code(),
+    CurrentVersionConstructor: or.OnRamp,
     deployCurrentContract: deployOnRampContract,
   })
   currentVersionSpec.run()
@@ -96,7 +95,7 @@ describe('OnRamp - Current Version Tests', () => {
 describe('OnRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
-  let onramp: SandboxContract<OnRamp>
+  let onramp: SandboxContract<or.OnRamp>
 
   beforeEach(async () => {
     ;({ blockchain, deployer, onramp } = await setup())
@@ -109,9 +108,9 @@ describe('OnRamp - Unit Tests', () => {
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
-      coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
+      await coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
         {
-          code: await onramp.getCode(),
+          code: await or.OnRamp.code(),
           name: 'onramp',
         },
       ])

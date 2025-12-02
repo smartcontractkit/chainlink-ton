@@ -72,7 +72,6 @@ describe('FeeQuoter - Ownable Tests', () => {
     const blockchain = await Blockchain.create()
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
     const deployer = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')

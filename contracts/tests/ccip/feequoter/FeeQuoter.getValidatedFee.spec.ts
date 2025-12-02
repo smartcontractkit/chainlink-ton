@@ -1030,7 +1030,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
-      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+      await coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
           code: 'FeeQuoter',
           name: feeQuoter.FeeQuoter.type(),

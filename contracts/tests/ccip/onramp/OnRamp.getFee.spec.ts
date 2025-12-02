@@ -1,17 +1,11 @@
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as coverage from '../../coverage/coverage'
 
 import { Address, beginCell, Cell, Message, toNano } from '@ton/core'
-import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  CHAINSEL_EVM_TEST,
-  CHAINSEL_EVM_TEST_90000002,
-  deployOnRampContract,
-  setup,
-} from './OnRamp.Setup'
-import { dump } from '../../utils/prettyPrint'
+import { CHAINSEL_EVM_TEST_90000002, deployOnRampContract, setup } from './OnRamp.Setup'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -195,5 +189,16 @@ describe('OnRamp - Get Fee', () => {
         })
         .asCell(),
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'onramp_get_fee', [
+        {
+          code: await onramp.getCode(),
+          name: 'onramp',
+        },
+      ])
+    }
   })
 })

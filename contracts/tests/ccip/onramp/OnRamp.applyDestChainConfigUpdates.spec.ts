@@ -1,5 +1,7 @@
-import { OnRamp, UpdateAllowlists } from '../../../wrappers/ccip/OnRamp'
-import { Address, toNano } from '@ton/core'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import * as coverage from '../../coverage/coverage'
+
+import { toNano } from '@ton/core'
 import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import {
@@ -13,7 +15,7 @@ import {
 describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
-  let onramp: SandboxContract<OnRamp>
+  let onramp: SandboxContract<or.OnRamp>
 
   beforeEach(async () => {
     ;({ blockchain, deployer, onramp } = await setup())
@@ -61,7 +63,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       await generateRandomTonAddress(),
     ]
 
-    const updateAllowlists: UpdateAllowlists = {
+    const updateAllowlists: or.UpdateAllowlists = {
       updates: [
         {
           destChainSelector: CHAINSEL_EVM_TEST,
@@ -91,7 +93,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     const resultCheckAdd2 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST_90000002)
     assertAddressesMatch([randomAddresses[2], randomAddresses[3]], resultCheckAdd2)
 
-    const updateAllowlists2: UpdateAllowlists = {
+    const updateAllowlists2: or.UpdateAllowlists = {
       updates: [
         {
           destChainSelector: CHAINSEL_EVM_TEST,
@@ -132,5 +134,20 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       to: onramp.address,
       success: false,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(
+        blockchain,
+        'onramp_apply_dest_chain_config_updates',
+        [
+          {
+            code: await or.OnRamp.code(),
+            name: 'onramp',
+          },
+        ],
+      )
+    }
   })
 })

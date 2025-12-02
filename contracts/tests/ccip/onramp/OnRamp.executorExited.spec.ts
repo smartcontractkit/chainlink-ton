@@ -7,6 +7,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { CHAINSEL_EVM_TEST, deployOnRampContract, setup } from './OnRamp.Setup'
 import { compile } from '@ton/blueprint'
 import { generateRandomContractId } from '../../../src/utils'
+import * as coverage from '../../coverage/coverage'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -273,5 +274,16 @@ describe('OnRamp - executor exit', () => {
       success: false,
       exitCode: or.Errors.Unauthorized,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'onramp_executor_exit', [
+        {
+          code: await onramp.getCode(),
+          name: 'onramp',
+        },
+      ])
+    }
   })
 })
