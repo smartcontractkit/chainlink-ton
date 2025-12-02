@@ -939,7 +939,11 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
 
       afterAll(async () => {
         if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
-          generateCoverageArtifacts(suiteSetup.blockchain, 'withdrawable_tests', coverageConfigs)
+          await generateCoverageArtifacts(
+            suiteSetup.blockchain,
+            'withdrawable_tests',
+            coverageConfigs,
+          )
         }
       })
     },

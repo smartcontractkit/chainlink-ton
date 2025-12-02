@@ -117,7 +117,7 @@ export function newInstance<TContract extends TypeAndVersionContract>(
 
       afterAll(async () => {
         if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
-          generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
+          await generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
         }
       })
     },
