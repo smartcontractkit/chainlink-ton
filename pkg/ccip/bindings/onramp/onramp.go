@@ -8,8 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
@@ -210,6 +208,10 @@ func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *DestChainConfig) GetterMethodName() string {
+	return destChainConfigGetter
+}
+
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type DynamicConfig struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
@@ -250,6 +252,10 @@ func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *DynamicConfig) GetterMethodName() string {
+	return dynamicConfigGetter
+}
+
 type StaticConfig struct {
 	ChainSelector uint64 `tlb:"## 64"`
 }
@@ -265,9 +271,6 @@ func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-// init registers the configuration fetcher methods for the on-ramp contract.
-func init() {
-	registry.RegisterMethod(&DestChainConfig{}, destChainConfigGetter)
-	registry.RegisterMethod(&DynamicConfig{}, dynamicConfigGetter)
-	registry.RegisterMethod(&StaticConfig{}, staticConfigGetter)
+func (c *StaticConfig) GetterMethodName() string {
+	return staticConfigGetter
 }

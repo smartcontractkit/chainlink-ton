@@ -8,9 +8,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
-
 	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -29,12 +28,12 @@ type View struct {
 // FetchView generates a view of the offramp contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	if err := registry.FetchResult(ctx, c.Client, block, offRampAddr, &typeVersion, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, offRampAddr, &typeVersion, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
 	var offRampConfig offramp.Config
-	if err := registry.FetchResult(ctx, c.Client, block, offRampAddr, &offRampConfig, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, offRampAddr, &offRampConfig, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse OffRamp Config: %w", err)
 	}
 

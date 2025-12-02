@@ -8,8 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
-
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -106,6 +104,10 @@ func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
 		return err
 	}
 	return tlb.LoadFromCell(u, c.BeginParse())
+}
+
+func (u *USDPerUnitGas) GetterMethodName() string {
+	return destinationChainGasPriceGetter
 }
 
 type DestChainConfig struct {
@@ -227,6 +229,10 @@ func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *DestChainConfig) GetterMethodName() string {
+	return destChainConfigGetter
+}
+
 type TokenTransferFeeConfig struct {
 	IsEnabled         bool   `tlb:"bool"`
 	MinFeeUsdCents    uint32 `tlb:"## 32"`
@@ -256,6 +262,10 @@ func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
 	}
 	return nil
+}
+
+func (p *TimestampedPrice) GetterMethodName() string {
+	return tokenPriceGetter
 }
 
 type TokenPriceUpdate struct {
@@ -377,10 +387,6 @@ func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-// init registers the configuration fetcher methods for fee quoter contract.
-func init() {
-	registry.RegisterMethod(&StaticConfig{}, staticConfigGetter)
-	registry.RegisterMethod(&DestChainConfig{}, destChainConfigGetter)
-	registry.RegisterMethod(&TimestampedPrice{}, tokenPriceGetter)
-	registry.RegisterMethod(&USDPerUnitGas{}, destinationChainGasPriceGetter)
+func (s *StaticConfig) GetterMethodName() string {
+	return staticConfigGetter
 }

@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -93,6 +92,10 @@ func (t *TypeAndVersion) UnmarshalResult(result *ton.ExecutionResult) error {
 	}
 
 	return nil
+}
+
+func (t *TypeAndVersion) GetterMethodName() string {
+	return versionGetter
 }
 
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
@@ -469,9 +472,4 @@ func NewDummyCell() (*cell.Cell, error) {
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
-}
-
-// init registers the configuration fetcher methods for common types.
-func init() {
-	registry.RegisterMethod(&TypeAndVersion{}, versionGetter)
 }

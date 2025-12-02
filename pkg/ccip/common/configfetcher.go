@@ -11,14 +11,12 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // FetchOnRampDestChainConfig retrieves destination chain configurations from the on-ramp contract.
@@ -38,7 +36,7 @@ func FetchOnRampDestChainConfig(ctx context.Context, client ton.APIClientWrapped
 		eg.Go(func() error {
 			var cfg onramp.DestChainConfig
 			opts := []interface{}{dest}
-			if err = registry.FetchResult(egCtx, client, block, onRampAddr, &cfg, opts); err != nil {
+			if err = tvm.FetchResult(egCtx, client, block, onRampAddr, &cfg, opts); err != nil {
 				return err
 			}
 
@@ -70,7 +68,7 @@ func FetchFeeQuoterDestChainConfigs(ctx context.Context, client ton.APIClientWra
 		eg.Go(func() error {
 			var cfg feequoter.DestChainConfig
 			opts := []interface{}{dest}
-			if err = registry.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
+			if err = tvm.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
 				return err
 			}
 
@@ -102,7 +100,7 @@ func FetchOffRampSrcChainConfig(ctx context.Context, client ton.APIClientWrapped
 		eg.Go(func() error {
 			var cfg offramp.SourceChainConfig
 			opts := []interface{}{dest}
-			if err = registry.FetchResult(egCtx, client, block, offRampAddr, &cfg, opts); err != nil {
+			if err = tvm.FetchResult(egCtx, client, block, offRampAddr, &cfg, opts); err != nil {
 				return err
 			}
 

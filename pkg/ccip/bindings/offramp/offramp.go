@@ -9,8 +9,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/registry"
-
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -226,6 +224,10 @@ func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *OCR3Base) GetterMethodName() string {
+	return ocr3BaseGetter
+}
+
 // Config represents the offRamp contract configuration
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
@@ -262,6 +264,10 @@ func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
 		PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()), //nolint:gosec // this type is uint32 onchain
 	}
 	return nil
+}
+
+func (c *Config) GetterMethodName() string {
+	return configGetter
 }
 
 // SourceChainConfig represents the configuration for a specific source chain
@@ -320,6 +326,10 @@ func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *SourceChainConfig) GetterMethodName() string {
+	return srcChainConfigGetter
+}
+
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
@@ -348,16 +358,10 @@ const (
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 )
 
-// Registry method names for binding fetchers
+// Getter method names for binding fetchers
 const (
 	SourceChainsGetter   = "sourceChainSelectors"
 	srcChainConfigGetter = "sourceChainConfig"
 	ocr3BaseGetter       = "ocr3Config"
 	configGetter         = "config"
 )
-
-func init() {
-	registry.RegisterMethod(&SourceChainConfig{}, srcChainConfigGetter)
-	registry.RegisterMethod(&Config{}, configGetter)
-	registry.RegisterMethod(&OCR3Base{}, ocr3BaseGetter)
-}
