@@ -63,7 +63,7 @@ export enum FeeQuoterError {
 }
 
 export type FeeQuoterStorage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   allowedPriceUpdaters: Dictionary<Address, Buffer>
   maxFeeJuelsPerMsg: bigint
@@ -334,7 +334,7 @@ export const builder = {
           .storeDict(data.destChainConfigs)
       },
       load: (src: Slice): FeeQuoterStorage => {
-        const id = src.loadUint(32)
+        const id = src.loadUintBig(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()

@@ -57,9 +57,11 @@ jobs:
             cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=1 -count=1 -json"
 
     name: ${{ matrix.type.name }}
-    # ubuntu-latest: 4 / 16 GB / 150GB SSD https://github.com/smartcontractkit/chainlink-ton/actions/runners
-    runs-on: ubuntu-latest-4cores-16GB
+    runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space
+        uses: smartcontractkit/.github/actions/free-disk-space@free-disk-space/v1
+
       - name: Checkout Repository
         uses: actions/checkout@v5
 
@@ -75,6 +77,13 @@ jobs:
         run: |
           echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY }}'. Loading images from tarball..."
           docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+
+      - name: Relocate Nix store to /mnt
+        run: |
+          sudo mkdir -p /mnt/nix
+          sudo mkdir -p /nix
+          sudo mount --bind /mnt/nix /nix
+          df -h /nix /mnt
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31

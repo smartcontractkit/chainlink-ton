@@ -15,7 +15,12 @@ describe('FeeQuoter - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run([
+    {
+      code: 'FeeQuoter',
+      name: 'feequoter',
+    },
+  ])
 })
 
 describe('FeeQuoter - TypeAndVersion Tests', () => {
@@ -26,7 +31,12 @@ describe('FeeQuoter - TypeAndVersion Tests', () => {
       return setupTestFeeQuoter(deployer, blockchain)
     },
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run([
+    {
+      code: 'FeeQuoter',
+      name: 'feequoter',
+    },
+  ])
 })
 
 // TODO when we have a new version
@@ -60,11 +70,20 @@ describe('FeeQuoter - TypeAndVersion Tests', () => {
 describe('FeeQuoter - Ownable Tests', () => {
   it('supports ownable messages', async () => {
     const blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
     const deployer = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
     const feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
 
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, feeQuoter)
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, feeQuoter, blockchain, [
+      {
+        code: await feeQuoter.getCode(),
+        name: 'feequoter',
+      },
+    ])
   })
 })
 

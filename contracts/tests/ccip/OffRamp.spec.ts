@@ -6,7 +6,6 @@ import {
   CommitReport,
   builder,
   ExecutionReport,
-  MerkleRoot,
   OFFRAMP_FACILITY_ID,
   OFFRAMP_FACILITY_NAME,
   OffRampStorage,
@@ -19,11 +18,13 @@ import {
   OffRampError,
   Opcodes,
   UpdateSourceChainConfig,
+  MerkleRoot,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
   MERKLE_ROOT_FACILITY_ID,
   MERKLE_ROOT_FACILITY_NAME,
+  MerkleRoot as MerkleRootContract,
 } from '../../wrappers/ccip/MerkleRoot'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
@@ -34,12 +35,14 @@ import {
   bigIntToUint8Array,
   generateEd25519KeyPair,
   generateMockTonAddress,
+  generateRandomContractId,
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as coverage from '../coverage/coverage'
 
 import {
   createSignature,
@@ -77,10 +80,6 @@ const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = 60
 const EXECUTION_STATE_IN_PROGRESS = 1n
 const EXECUTION_STATE_SUCCESS = 2n
 const EXECUTION_STATE_FAILURE = 3n
-
-function generateSecureRandomId(): bigint {
-  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
-}
 
 const createSignatures = (
   signerList: KeyPair[],
@@ -149,7 +148,7 @@ async function deployOffRampContract(
 ) {
   const code = await OffRamp.code()
   let data: OffRampStorage = {
-    id: generateSecureRandomId(),
+    id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,
@@ -178,7 +177,12 @@ describe('OffRamp - TypeAndVersion Tests', () => {
     version: OffRamp.version(),
     deployContract: deployOffRampContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
 })
 
 describe('OffRamp - Withdrawable Tests', () => {
@@ -188,7 +192,12 @@ describe('OffRamp - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
 })
 
 // TODO when we have a new version
@@ -517,6 +526,10 @@ describe('OffRamp - Unit Tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
@@ -580,7 +593,7 @@ describe('OffRamp - Unit Tests', () => {
       })
 
       let data: OffRampStorage = {
-        id: generateSecureRandomId(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -627,7 +640,7 @@ describe('OffRamp - Unit Tests', () => {
     {
       const code = await compile('Router')
       let data: rt.Storage = {
-        id: generateSecureRandomId(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -672,7 +685,7 @@ describe('OffRamp - Unit Tests', () => {
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {
-            id: 1,
+            id: generateRandomContractId(),
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,
@@ -1554,7 +1567,7 @@ describe('OffRamp - Unit Tests', () => {
     const badReceiver = blockchain.openContract(
       Receiver.createFromConfig(
         {
-          id: 1,
+          id: generateRandomContractId(),
           ownable: { owner: deployer.address, pendingOwner: null },
           authorizedCaller: wrongRouterAddress,
           behavior: ReceiverBehavior.Accept,
@@ -2323,6 +2336,34 @@ describe('OffRamp - Unit Tests', () => {
         messageId: BigInt(index + 1),
         state: EXECUTION_STATE_SUCCESS,
       })
+    }
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      const testSuitePrefix = 'offramp_suite'
+      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
+          code: await offRamp.getCode(),
+          name: 'offramp',
+        },
+        {
+          code: await router.getCode(),
+          name: 'router',
+        },
+        {
+          code: await feeQuoter.getCode(),
+          name: 'feequoter',
+        },
+        {
+          code: merkleRootCodeRaw,
+          name: 'merkleroot',
+        },
+        {
+          code: receiveExecutorCodeRaw,
+          name: 'receive_executor',
+        },
+      ])
     }
   })
 })
