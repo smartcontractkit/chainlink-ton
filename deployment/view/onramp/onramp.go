@@ -8,7 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
@@ -36,8 +35,8 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onR
 		return nil, fmt.Errorf("failed to parse DynamicConfig: %w", err)
 	}
 
-	destChainConfig, err := configfetcher.FetchOnRampDestChainConfig(ctx, c.Client, block, onRampAddr)
-	if err != nil {
+	var destChainConfig onramp.DestChainConfigMap
+	if err := destChainConfig.Fetch(ctx, c.Client, block, onRampAddr); err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config: %w", err)
 	}
 

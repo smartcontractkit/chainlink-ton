@@ -1,14 +1,19 @@
 package feequoter
 
 import (
+	"context"
 	"math/big"
+	"runtime"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -389,4 +394,45 @@ func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 
 func (s *StaticConfig) GetterMethodName() string {
 	return staticConfigGetter
+}
+
+// DestChainConfigMap represents a map of destination chain selectors to their configurations.
+// This type aligns with the on-chain data structure for destination chain configs.
+type DestChainConfigMap map[uint64]DestChainConfig
+
+// Fetch retrieves all destination chain configurations from the fee quoter contract.
+func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) error {
+	result, err := client.RunGetMethod(ctx, block, feeQuoter, DestChainsGetter)
+	if err != nil {
+		return err
+	}
+
+	selectorSlice := parser.ParseLispTuple(result.AsTuple())
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	var lock sync.Mutex
+	eg.SetLimit(runtime.NumCPU())
+	output := make(map[uint64]DestChainConfig)
+	for _, dest := range selectorSlice {
+		eg.Go(func() error {
+			var cfg DestChainConfig
+			opts := []interface{}{dest}
+			if err = tvm.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
+				return err
+			}
+
+			lock.Lock()
+			output[dest] = cfg
+			lock.Unlock()
+
+			return nil
+		})
+	}
+
+	if err = eg.Wait(); err != nil {
+		return err
+	}
+
+	*d = output
+	return nil
 }

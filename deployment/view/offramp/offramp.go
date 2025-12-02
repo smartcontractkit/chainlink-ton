@@ -8,7 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
@@ -47,8 +46,8 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 		return nil, fmt.Errorf("failed to get latestPriceSequenceNumber: %w", err)
 	}
 
-	sourceChainConfigs, err := configfetcher.FetchOffRampSrcChainConfig(ctx, c.Client, block, offRampAddr)
-	if err != nil {
+	var sourceChainConfigs offramp.SourceChainConfigMap
+	if err := sourceChainConfigs.Fetch(ctx, c.Client, block, offRampAddr); err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
