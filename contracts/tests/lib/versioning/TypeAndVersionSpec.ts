@@ -79,7 +79,6 @@ export function newInstance<TContract extends TypeAndVersionContract>(
       debugLogs: false,
     }
     if (process.env['COVERAGE'] === 'true') {
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
       blockchain.enableCoverage()
     }
 

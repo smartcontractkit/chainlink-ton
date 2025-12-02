@@ -528,7 +528,6 @@ describe('OffRamp - Unit Tests', () => {
     blockchain = await Blockchain.create()
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
@@ -2342,7 +2341,7 @@ describe('OffRamp - Unit Tests', () => {
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'offramp_suite'
-      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+      await coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
           code: await offRamp.getCode(),
           name: 'offramp',

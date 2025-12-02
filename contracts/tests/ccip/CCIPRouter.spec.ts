@@ -133,7 +133,6 @@ describe('Router', () => {
     }
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     deployer = await blockchain.treasury('deployer')
@@ -821,7 +820,7 @@ describe('Router', () => {
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
-      coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
+      await coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
         {
           code: await router.getCode(),
           name: 'router',
