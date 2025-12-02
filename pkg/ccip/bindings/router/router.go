@@ -180,12 +180,12 @@ func (o *OnRampAddressMap) Fetch(ctx context.Context, client ton.APIClientWrappe
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err := client.RunGetMethod(egCtx, block, routerAddr, OnRampGetter, dest)
+			res, err := client.RunGetMethod(egCtx, block, routerAddr, OnRampGetter, dest)
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}
 
-			onRampSlice, err := result.Slice(0)
+			onRampSlice, err := res.Slice(0)
 			if err != nil {
 				return err
 			}
