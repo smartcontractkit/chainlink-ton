@@ -242,6 +242,18 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple? {
     return list;
 }
 
+// Returns a tuple with the keys of the map
+fun keysTuple<K, V>(dict: map<K, V>): tuple {
+    var list: tuple = createEmptyTuple();
+    var entry = dict.findFirst();
+    while (entry.isFound) {
+        var key = entry.getKey();
+        list.push(key);
+        entry = dict.iterateNext(entry);
+    } ;
+    return list;
+}
+
 
 // This type works as a wrapper for RemainingBitsAndRefs that implements
 // automatic serialization/deserialization. It determines whether to store the

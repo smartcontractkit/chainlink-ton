@@ -700,12 +700,16 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       .get('allowedSendersList', [{ type: 'int', value: destChainSelector }])
       .then((res) => {
         const stack = res.stack
-        return stack.readLispList().map((t: TupleItem) => {
+        const tuple = stack.readTuple()
+        const addresses: Address[] = []
+        while (tuple.remaining > 0) {
+          const t: TupleItem = tuple.pop()
           if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
             throw Error('Not a cell: ' + t.type)
           }
-          return t.cell.beginParse().loadAddress()
-        })
+          addresses.push(t.cell.beginParse().loadAddress())
+        }
+        return addresses
       })
   }
 
