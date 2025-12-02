@@ -96,6 +96,28 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 	return lp
 }
 
+// NewServiceWith creates a new TON log polling service and registers the provided filters.
+// This is a convenience constructor for cases where filters are known upfront.
+// The caller is responsible for starting the service with Start().
+func NewServiceWith(
+	ctx context.Context,
+	lggr logger.Logger,
+	chainID string,
+	clientProvider func(context.Context) (ton.APIClientWrapped, error),
+	opts *ServiceOptions,
+	filters []models.Filter,
+) (Service, error) {
+	svc := NewService(lggr, chainID, clientProvider, opts)
+
+	for _, f := range filters {
+		if _, err := svc.RegisterFilter(ctx, f); err != nil {
+			return nil, fmt.Errorf("failed to register filter %s: %w", f.Name, err)
+		}
+	}
+
+	return svc, nil
+}
+
 // start initializes the log polling service and begins the polling loop
 func (lp *service) start(_ context.Context) error {
 	lp.lggr.Infof("starting TON logpoller")
