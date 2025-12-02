@@ -12,6 +12,7 @@ export const CoverageContractName = {
   merkleroot: 'merkleroot',
   send_executor: 'send_executor',
   receive_executor: 'receive_executor',
+  lisp_list_getter: 'lisp_list_getter',
 } as const
 export type CoverageConfigNames = keyof typeof CoverageContractName
 
