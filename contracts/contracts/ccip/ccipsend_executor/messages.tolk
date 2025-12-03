@@ -21,25 +21,37 @@ struct (0xaf3c62b3) CCIPSendExecutor_Execute {
 // Costs associated with SendExecutor operations
 struct SendExecutor_Costs {}
 
+// Minimum value for deploying SendExecutor
+@inline
+fun SendExecutor_Costs.Deploy(): int {
+    return ton("0.01");
+}
+
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
     var baseFee =
-        ton("0.05") // GetValidatedFee fwdFee
+        + ton("0.002") // computeFee
+        + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
+        + max(SendExecutor_Costs.MessageValidated(), SendExecutor_Costs.MessageValidationFailed())
         ;
     return baseFee;
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidated(): int {
-    return ton("0.05") // ExecutorFinishedSuccessfully fwdFee
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // ExecutorFinishedSuccessfully fwdFee
         + OnRamp_Costs.ExecutorFinishedSuccessfully();
 }
 
 @inline
 fun SendExecutor_Costs.MessageValidationFailed(): int {
-    return ton("0.05") // ExecutorFinishedWithError fwdFee
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // ExecutorFinishedWithError fwdFee
         + OnRamp_Costs.ExecutorFinishedWithError();
 }
 

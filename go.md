@@ -185,7 +185,7 @@ flowchart LR
 	chainlink-ton/integration-tests --> chainlink-ccip/chains/evm/deployment
 	chainlink-ton/integration-tests --> chainlink/deployment
 	click chainlink-ton/integration-tests href "https://github.com/smartcontractkit/chainlink-ton"
-	chainlink-ton/staging-monitor --> chainlink-ton
+	chainlink-ton/staging-monitor --> chainlink-ton/deployment
 	click chainlink-ton/staging-monitor href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-tron/relayer --> chainlink-common
 	chainlink-tron/relayer --> chainlink-common/pkg/values

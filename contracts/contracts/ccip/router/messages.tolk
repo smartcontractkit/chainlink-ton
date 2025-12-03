@@ -142,23 +142,59 @@ struct Router_Costs {}
 
 // Minimum value for calling Router_CCIPSend
 fun Router_Costs.CCIPSend(): int {
-    return ton("0.05") // Send fwdFee TODO 
+    return
+        + ton("0.001") // computeFee
+        + ton("0.019") // CCIPSend fwdFee
         + OnRamp_Costs.Send()
+        + max(
+            Router_Costs.MessageSent(),
+            Router_Costs.MessageRejected()
+        )
+        ;
 }
 
 // Minimum value for calling Router_MessageSent
 fun Router_Costs.MessageSent(): int {
-    return ton("0.05"); // TODO
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // CCIPSendACK fwdFee
+        ;
+
 }
 
 // Minimum value for calling Router_MessageRejected
 fun Router_Costs.MessageRejected(): int {
-    return ton("0.05"); // TODO
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // CCIPSendNACK fwdFee
+        ;
 }
 
 // Minimum value for calling Router_GetValidatedFee
 fun Router_Costs.GetValidatedFee(): int {
-    return ton("0.02"); // TODO
+    return
+        ton("0.002") // computeFee
+        + ton("0.019") // GetValidatedFee fwdFee
+        + OnRamp_Costs.GetValidatedFee()
+        + max(
+            Router_Costs.MessageValidated(),
+            Router_Costs.MessageValidationFailed()
+        )
+        ;
+}
+
+fun Router_Costs.MessageValidated(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MessageValidated fwdFee
+        ;
+}
+
+fun Router_Costs.MessageValidationFailed(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MessageValidationFailed fwdFee
+        ;
 }
 
 // Minimum value for calling Router_RouteMessage
