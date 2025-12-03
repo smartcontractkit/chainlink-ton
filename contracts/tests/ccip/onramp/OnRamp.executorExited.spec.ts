@@ -1,13 +1,14 @@
+import { Address, Cell, Sender, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { compile } from '@ton/blueprint'
+
+import { generateRandomContractId } from '../../../src/utils'
+import * as coverage from '../../coverage/coverage'
+
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
-
-import { Address, Cell, Sender, toNano } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { CHAINSEL_EVM_TEST, deployOnRampContract, setup } from './OnRamp.Setup'
-import { compile } from '@ton/blueprint'
-import { generateRandomContractId } from '../../../src/utils'
-import * as coverage from '../../coverage/coverage'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',

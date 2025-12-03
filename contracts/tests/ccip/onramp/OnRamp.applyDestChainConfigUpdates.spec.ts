@@ -1,10 +1,10 @@
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as rt from '../../../wrappers/ccip/Router'
+import { toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+
+import { ZERO_ADDRESS } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
-import { toNano } from '@ton/core'
-import { ZERO_ADDRESS } from '../../../src/utils'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import * as or from '../../../wrappers/ccip/OnRamp'
 import {
   assertAddressesMatch,
   CHAINSEL_EVM_TEST,

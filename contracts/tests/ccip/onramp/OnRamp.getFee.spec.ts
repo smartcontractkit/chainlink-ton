@@ -1,10 +1,11 @@
+import { Address, beginCell, Cell, Message, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+
+import * as coverage from '../../coverage/coverage'
+
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
-import * as coverage from '../../coverage/coverage'
-
-import { Address, beginCell, Cell, Message, toNano } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { CHAINSEL_EVM_TEST_90000002, deployOnRampContract, setup } from './OnRamp.Setup'
 
 const EVM_ADDRESS = Buffer.from(
