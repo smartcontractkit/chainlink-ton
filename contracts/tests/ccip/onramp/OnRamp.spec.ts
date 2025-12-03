@@ -1,56 +1,20 @@
 import { compile } from '@ton/blueprint'
-import { OnRamp, OnRampStorage, UpdateAllowlists } from '../../../wrappers/ccip/OnRamp'
-import { Address, beginCell, Dictionary, toNano } from '@ton/core'
+import { OnRamp, UpdateAllowlists } from '../../../wrappers/ccip/OnRamp'
+import { Address, toNano } from '@ton/core'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
-import {
-  generateRandomContractId,
-  generateRandomTonAddress,
-  ZERO_ADDRESS,
-} from '../../../src/utils'
+import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as coverage from '../../coverage/coverage'
-
-const CHAINSEL_EVM_TEST = 909606746561742123n
-const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
-
-async function deployOnRampContract(
-  blockchain: Blockchain,
-  owner: SandboxContract<TreasuryContract>,
-  overrides = {},
-) {
-  const code = await OnRamp.code()
-  let data: OnRampStorage = {
-    id: generateRandomContractId(),
-    ownable: {
-      owner: owner.address,
-      pendingOwner: null,
-    },
-    chainSelector: CHAINSEL_TON,
-    config: {
-      feeQuoter: ZERO_ADDRESS,
-      feeAggregator: ZERO_ADDRESS,
-      allowlistAdmin: ZERO_ADDRESS,
-    },
-    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-    executor: {
-      deployableCode: beginCell().endCell(),
-      executorCode: beginCell().endCell(),
-      currentID: 0n,
-    },
-    ...overrides,
-  }
-  // TODO: use deployable to make deterministic?
-  const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
-  const deployer = await blockchain.treasury('deployer')
-  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-  return contract
-}
-
-const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
+import {
+  deployOnRampContract,
+  CHAINSEL_EVM_TEST,
+  CHAINSEL_EVM_TEST_90000002,
+  CHAINSEL_TON,
+} from './OnRamp.Setup'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({

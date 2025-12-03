@@ -104,6 +104,21 @@ export type UpdateAllowlist = {
   remove: Address[]
 }
 
+export type SetDynamicConfig = {
+  config: DynamicConfig
+}
+
+export type DynamicConfig = {
+  feeQuoter: Address
+  feeAggregator: Address
+  allowlistAdmin: Address
+}
+
+export type GetValidatedFee = {
+  msg: rt.CCIPSend
+  context: Slice
+}
+
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
     return beginCell().storeAddress(data.sender).storeCoins(data.value)
@@ -113,8 +128,23 @@ const metadataCodec: CellCodec<Metadata> = {
   },
 }
 
-export const builder = {
-  data: (() => {
+export const builder = (() => {
+  const dataBuilder = (() => {
+    const dynamicConfig: CellCodec<DynamicConfig> = {
+      encode: (data: DynamicConfig): Builder => {
+        return beginCell()
+          .storeAddress(data.feeQuoter)
+          .storeAddress(data.feeAggregator)
+          .storeAddress(data.allowlistAdmin)
+      },
+      load: (src: Slice): DynamicConfig => {
+        return {
+          feeQuoter: src.loadAddress(),
+          feeAggregator: src.loadAddress(),
+          allowlistAdmin: src.loadAddress(),
+        }
+      },
+    }
     const executor: CellCodec<ExecutorDeployment> = {
       encode: function (data: ExecutorDeployment): Builder {
         return beginCell()
@@ -191,14 +221,15 @@ export const builder = {
       },
     }
     return {
+      dynamicConfig,
       contractData,
       destChainConfig,
       executor,
       metadata,
       updateAllowlist,
     }
-  })(),
-  messages: {
+  })()
+  const messages = {
     in: {
       ccipSend: rt.builder.message.in.ccipSend,
       onrampSend: ((): CellCodec<OnRampSend> => {
@@ -243,57 +274,80 @@ export const builder = {
           },
         }
       })(),
+      setDynamicConfig: ((): CellCodec<SetDynamicConfig> => {
+        return {
+          encode: function (data: SetDynamicConfig): Builder {
+            return beginCell()
+              .storeUint(Opcodes.setDynamicConfig, 32)
+              .storeBuilder(dataBuilder.dynamicConfig.encode(data.config))
+          },
+          load: function (src: Slice): SetDynamicConfig {
+            src.skip(32)
+            return {
+              config: dataBuilder.dynamicConfig.load(src),
+            }
+          },
+        }
+      })(),
+      executorFinishedWithError: ((): CellCodec<ExecutorFinishedWithError> => {
+        return {
+          encode: function (data: ExecutorFinishedWithError): Builder {
+            return beginCell()
+              .storeUint(Opcodes.executorFinishedWithError, 32)
+              .storeUint(data.messageID, 224)
+              .storeRef(
+                data.msg instanceof Cell
+                  ? data.msg
+                  : rt.builder.message.in.ccipSend.encode(data.msg),
+              )
+              .storeBuilder(metadataCodec.encode(data.metadata))
+              .storeUint(data.error, 256)
+          },
+          load: function (src: Slice): ExecutorFinishedWithError {
+            src.skip(32)
+            return {
+              messageID: src.loadUintBig(224),
+              msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+              metadata: metadataCodec.load(src),
+              error: src.loadUintBig(256),
+            }
+          },
+        }
+      })(),
+      updateSendExecutor: ((): CellCodec<UpdateSendExecutor> => {
+        return {
+          encode: function (data: UpdateSendExecutor): Builder {
+            return beginCell().storeUint(Opcodes.updateSendExecutor, 32).storeRef(data.code)
+          },
+          load: function (src: Slice): UpdateSendExecutor {
+            src.skip(32)
+            return {
+              code: src.loadRef(),
+            }
+          },
+        }
+      })(),
+      updateAllowlists: ((): CellCodec<UpdateAllowlists> => {
+        return {
+          encode: (data: UpdateAllowlists): Builder => {
+            return beginCell()
+              .storeUint(Opcodes.updateAllowlists, 32)
+              .storeRef(asSnakeData(data.updates, dataBuilder.updateAllowlist.encode))
+          },
+          load: (src: Slice): UpdateAllowlists => {
+            throw new Error('Not implemented') //TODO implement if needed
+          },
+        }
+      })(),
     },
-    executorFinishedWithError: ((): CellCodec<ExecutorFinishedWithError> => {
-      return {
-        encode: function (data: ExecutorFinishedWithError): Builder {
-          return beginCell()
-            .storeUint(Opcodes.executorFinishedWithError, 32)
-            .storeUint(data.messageID, 224)
-            .storeRef(
-              data.msg instanceof Cell ? data.msg : rt.builder.message.in.ccipSend.encode(data.msg),
-            )
-            .storeBuilder(metadataCodec.encode(data.metadata))
-            .storeUint(data.error, 256)
-        },
-        load: function (src: Slice): ExecutorFinishedWithError {
-          src.skip(32)
-          return {
-            messageID: src.loadUintBig(224),
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: metadataCodec.load(src),
-            error: src.loadUintBig(256),
-          }
-        },
-      }
-    })(),
-    updateSendExecutor: ((): CellCodec<UpdateSendExecutor> => {
-      return {
-        encode: function (data: UpdateSendExecutor): Builder {
-          return beginCell().storeUint(Opcodes.updateSendExecutor, 32).storeRef(data.code)
-        },
-        load: function (src: Slice): UpdateSendExecutor {
-          src.skip(32)
-          return {
-            code: src.loadRef(),
-          }
-        },
-      }
-    })(),
-    updateAllowlists: ((): CellCodec<UpdateAllowlists> => {
-      return {
-        encode: (data: UpdateAllowlists): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.updateAllowlists, 32)
-            .storeRef(asSnakeData(data.updates, builder.data.updateAllowlist.encode))
-        },
-        load: (src: Slice): UpdateAllowlists => {
-          throw new Error('Not implemented') //TODO implement if needed
-        },
-      }
-    })(),
-  },
-}
+  }
+
+  return {
+    data: dataBuilder,
+    messages,
+  }
+})()
+
 export abstract class Params {}
 
 export abstract class Opcodes {
@@ -312,7 +366,12 @@ export abstract class OutgoingOpcodes {
   static validationFailed = 0xac1dd12e
 }
 
-export abstract class Errors {}
+export enum Errors {
+  UnknownDestChainSelector = 18100, // Facility ID * 100
+  Unauthorized,
+  SenderNotAllowed,
+  InvalidConfig,
+}
 
 export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {
   public ownable: ownable2step.ContractClient
@@ -412,13 +471,13 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     via: Sender,
     opts: {
       value: bigint
-      config: boolean
+      body: SetDynamicConfig
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(Opcodes.setDynamicConfig, 32).endCell(),
+      body: builder.messages.in.setDynamicConfig.encode(opts.body).asCell(),
     })
   }
 
@@ -473,7 +532,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.executorFinishedWithError.encode(opts.body).asCell(),
+      body: builder.messages.in.executorFinishedWithError.encode(opts.body).asCell(),
     })
   }
 
@@ -488,7 +547,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.updateAllowlists.encode(opts.updateAllowlists).asCell(),
+      body: builder.messages.in.updateAllowlists.encode(opts.updateAllowlists).asCell(),
     })
   }
 
@@ -500,6 +559,15 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     body: withdrawable.Withdraw,
   ) {
     await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
+    const { stack } = await provider.get('dynamicConfig', [])
+    return {
+      feeQuoter: stack.readAddress(),
+      feeAggregator: stack.readAddress(),
+      allowlistAdmin: stack.readAddress(),
+    }
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
