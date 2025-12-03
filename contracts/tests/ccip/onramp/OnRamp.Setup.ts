@@ -7,6 +7,7 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 
 export const CHAINSEL_EVM_TEST = 909606746561742123n
 export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
+export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
 export async function deployOnRampContract(
   blockchain: Blockchain,
@@ -40,4 +41,3 @@ export async function deployOnRampContract(
   await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
   return contract
 }
-export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
