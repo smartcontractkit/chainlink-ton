@@ -235,7 +235,7 @@ describe('OnRamp - generate message id', () => {
               )
               expect(event.message.header.nonce).toBe(expectedTVM2AnyRampMessage.header.nonce)
               throw new Error(
-                `Message ID does not match expected value: \nexpected: {expectedTVM2AnyRampMessage.header.messageId}\nactual: ${event.message.header.messageId}$`,
+                `Message ID does not match expected value: \nexpected: ${expectedTVM2AnyRampMessage.header.messageId}\nactual: ${event.message.header.messageId}`,
               )
             }
           }
