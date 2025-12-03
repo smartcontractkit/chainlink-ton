@@ -7,6 +7,7 @@ import {
   Sender,
   SendMode,
   toNano,
+  TupleItem,
 } from '@ton/core'
 import { generateRandomContractId, generateRandomTonAddress, ZERO_ADDRESS } from '../src/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
@@ -39,7 +40,14 @@ class LispListGetter {
   }
 
   async getList(provider: ContractProvider) {
-    return await provider.get('list', []).then((r) => r.stack.readTuple())
+    return await provider.get('list', []).then((r) =>
+      r.stack.readLispList().map((t: TupleItem) => {
+        if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+          throw Error('Not a cell: ' + t.type)
+        }
+        return t.cell.beginParse().loadAddress()
+      }),
+    )
   }
 }
 

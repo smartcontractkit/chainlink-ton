@@ -1,13 +1,17 @@
 tolk 1.2
 
-import "@stdlib/lisp-lists"
+import "../lib/utils"
 
 fun onInternalMessage(in: InMessage) {
     return;
 }
 
 get fun list(): tuple? {
-    var list: tuple? = null;
-    list = listPrepend(contract.getAddress(), list);
-    return list;
+    var dict: map<address, bool> = createEmptyMap();
+    dict.set(contract.getAddress(), true);
+    dict.set(AutoDeployAddress {stateInit: {
+        code: createEmptyCell(),
+        data: createEmptyCell(),
+    }}.calculateAddress(), true);
+    return keysLispList(dict);
 }
