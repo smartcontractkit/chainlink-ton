@@ -366,7 +366,11 @@ export abstract class OutgoingOpcodes {
   static validationFailed = 0xac1dd12e
 }
 
-export abstract class Errors {}
+export enum Errors {
+  UnknownDestChainSelector = 18100, // Facility ID * 100
+  Unauthorized,
+  SenderNotAllowed,
+}
 
 export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {
   public ownable: ownable2step.ContractClient
@@ -557,7 +561,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
   }
 
   async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
-    const { stack } = await provider.get('reserve', [])
+    const { stack } = await provider.get('dynamicConfig', [])
     return {
       feeQuoter: stack.readAddress(),
       feeAggregator: stack.readAddress(),
