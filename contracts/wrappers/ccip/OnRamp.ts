@@ -598,7 +598,7 @@ export const builder = (() => {
   const events = (() => {
     const ccipMessageSent: CellCodec<CCIPMessageSent> = {
       encode: function (data: CCIPMessageSent): Builder {
-        throw new Error('Function not implemented.')
+        return builder.data.tvm2AnyRampMessage.encode(data.message)
       },
       load: function (src: Slice): CCIPMessageSent {
         return { message: builder.data.tvm2AnyRampMessage.load(src) }
