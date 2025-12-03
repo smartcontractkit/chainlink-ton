@@ -119,7 +119,7 @@ export abstract class Opcodes {
 }
 
 export enum Errors {
-  ErrorNotOwner = 0x1,
+  ErrorNotOwner = 37400,
 }
 
 export class ContractClient implements Contract {

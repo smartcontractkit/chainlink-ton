@@ -1,11 +1,12 @@
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as dep from '../../../wrappers/libraries/Deployable'
+import { beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import * as coverage from '../../coverage/coverage'
 import { crc32 } from 'zlib'
-import { beginCell, toNano } from '@ton/core'
+
+import * as coverage from '../../coverage/coverage'
 import { generateRandomContractId } from '../../../src/utils'
+
 import * as counter from '../../../wrappers/examples/Counter'
+import * as dep from '../../../wrappers/libraries/Deployable'
 
 describe('OnRamp - Opcodes', () => {
   it('should match opcodes', () => {
@@ -17,7 +18,14 @@ describe('OnRamp - Opcodes', () => {
 describe('Deployable - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
+  let deployableCode: Cell
+  let counterCode: Cell
   let deployable: SandboxContract<dep.ContractClient>
+
+  beforeAll(async () => {
+    deployableCode = await dep.ContractClient.code()
+    counterCode = await counter.ContractClient.code()
+  })
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -30,17 +38,15 @@ describe('Deployable - Unit Tests', () => {
     }
     deployer = await blockchain.treasury('deployer')
 
-    const code = await dep.ContractClient.code()
     const data: dep.DeployableStorage = {
       owner: deployer.address,
       id: beginCell().storeStringTail('DeployableTests').storeUint(generateRandomContractId(), 32),
     }
 
-    deployable = blockchain.openContract(dep.ContractClient.createFromConfig(data, code))
+    deployable = blockchain.openContract(dep.ContractClient.createFromConfig(data, deployableCode))
   })
 
   it('should initialize and replace code and data', async () => {
-    const code = await counter.ContractClient.code()
     const data = counter.builder.data.contractData
       .encode({
         id: Number(generateRandomContractId()),
@@ -53,7 +59,7 @@ describe('Deployable - Unit Tests', () => {
       .asCell()
     const result = await deployable.sendInitialize(deployer.getSender(), toNano('0.05'), {
       stateInit: {
-        code,
+        code: counterCode,
         data,
       },
     })
@@ -84,7 +90,6 @@ describe('Deployable - Unit Tests', () => {
   })
 
   it('should initialize and send a message to self', async () => {
-    const code = await counter.ContractClient.code()
     const data = counter.builder.data.contractData
       .encode({
         id: Number(generateRandomContractId()),
@@ -97,7 +102,7 @@ describe('Deployable - Unit Tests', () => {
       .asCell()
     const result = await deployable.sendInitializeAndSend(deployer.getSender(), toNano('0.05'), {
       stateInit: {
-        code,
+        code: await counter.ContractClient.code(),
         data,
       },
       selfMessage: {
@@ -128,11 +133,43 @@ describe('Deployable - Unit Tests', () => {
     expect(await counterContract.getValue()).toBe(42)
   })
 
+  it('should not allow non-owner to initialize', async () => {
+    const other = await blockchain.treasury('other')
+
+    const result = await deployable.sendInitialize(other.getSender(), toNano('0.05'), {
+      stateInit: {
+        code: Cell.EMPTY,
+        data: Cell.EMPTY,
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: deployable.address,
+      success: false,
+      exitCode: dep.Errors.ErrorNotOwner,
+    })
+  })
+
+  it('should not allow non-owner to initialize and send', async () => {
+    const other = await blockchain.treasury('other')
+
+    const result = await deployable.sendInitialize(other.getSender(), toNano('0.05'), {
+      stateInit: {
+        code: Cell.EMPTY,
+        data: Cell.EMPTY,
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: deployable.address,
+      success: false,
+      exitCode: dep.Errors.ErrorNotOwner,
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
         {
-          code: await or.OnRamp.code(),
+          code: await deployableCode,
           name: 'onramp',
         },
       ])
