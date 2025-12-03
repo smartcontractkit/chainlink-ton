@@ -83,6 +83,51 @@ describe('Deployable - Unit Tests', () => {
     expect(await counterContract.getValue()).toBe(42)
   })
 
+  it('should initialize and send a message to self', async () => {
+    const code = await counter.ContractClient.code()
+    const data = counter.builder.data.contractData
+      .encode({
+        id: Number(generateRandomContractId()),
+        value: 0,
+        ownable: {
+          owner: deployable.address,
+          pendingOwner: undefined,
+        },
+      })
+      .asCell()
+    const result = await deployable.sendInitializeAndSend(deployer.getSender(), toNano('0.05'), {
+      stateInit: {
+        code,
+        data,
+      },
+      selfMessage: {
+        value: toNano('0.02'),
+        body: counter.builder.message.in.setCount
+          .encode({
+            queryId: 1n,
+            newCount: 42,
+          })
+          .asCell(),
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: deployable.address,
+      deploy: true,
+      success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployable.address,
+      to: deployable.address,
+      success: true,
+      op: counter.opcodes.in.SetCount,
+    })
+
+    const counterContract = blockchain.openContract(
+      counter.ContractClient.newAt(deployable.address),
+    )
+    expect(await counterContract.getValue()).toBe(42)
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
