@@ -1,5 +1,5 @@
-import { Cell } from "@ton/core"
-import { CellCodec } from "../../wrappers/utils"
+import { Cell } from '@ton/core'
+import { CellCodec } from '../../wrappers/utils'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import * as rt from '../../wrappers/ccip/Router'
 
