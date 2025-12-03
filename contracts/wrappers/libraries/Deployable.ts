@@ -10,6 +10,8 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
+import { compile } from '@ton/blueprint'
+
 import { CellCodec } from '../utils'
 
 export type DeployableStorage = {
@@ -113,7 +115,7 @@ export const builder = {
 
 export abstract class Opcodes {
   static initialize = 0xba466447
-  static initializeAndSend = 0xe95e1156
+  static initializeAndSend = 0xb0ec5157
 }
 
 export enum Errors {
@@ -134,6 +136,10 @@ export class ContractClient implements Contract {
     const data = builder.data.contractData.encode(config).asCell()
     const init = { code, data }
     return new ContractClient(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return compile('Deployable')
   }
 
   async sendInitialize(provider: ContractProvider, via: Sender, value: bigint, msg: Initialize) {
