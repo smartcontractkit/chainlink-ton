@@ -43,10 +43,10 @@ func (c ChainContractParams) Validate() error {
 		return fmt.Errorf("invalid ReceiverParams: %w", err)
 	}
 	if err := c.TimelockParams.Validate(); err != nil {
-		return fmt.Errorf("invalid TimelockParams: %w", err)
+		return fmt.Errorf("invalid Timelock: %w", err)
 	}
 	if err := c.MCMSParams.Validate(); err != nil {
-		return fmt.Errorf("invalid MCMSParams: %w", err)
+		return fmt.Errorf("invalid ContractParams: %w", err)
 	}
 	return nil
 }

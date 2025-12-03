@@ -9,17 +9,17 @@ import (
 )
 
 type ChainContractParams struct {
-	TimelockParams TimelockParams
-	MCMSParams     MCMSParams
+	Timelock TimelockParams
+	MCMS     MCMSParams
 }
 
 func (c ChainContractParams) Validate() error {
 	// Validate every field
-	if err := c.TimelockParams.Validate(); err != nil {
-		return fmt.Errorf("invalid TimelockParams: %w", err)
+	if err := c.Timelock.Validate(); err != nil {
+		return fmt.Errorf("invalid Timelock: %w", err)
 	}
-	if err := c.MCMSParams.Validate(); err != nil {
-		return fmt.Errorf("invalid MCMSParams: %w", err)
+	if err := c.MCMS.Validate(); err != nil {
+		return fmt.Errorf("invalid ContractParams: %w", err)
 	}
 	return nil
 }

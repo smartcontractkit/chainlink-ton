@@ -26,6 +26,7 @@ import (
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	mcmsops "github.com/smartcontractkit/chainlink-ton/deployment/mcms"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -484,4 +485,77 @@ func TestDeploy(t *testing.T) {
 		require.NoError(t, err)
 		fmt.Print("JSON encoded TON state view:\n" + string(data))
 	})
+}
+
+func TestDeployMCMS(t *testing.T) {
+	t.Parallel()
+	lggr := logger.Test(t)
+
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().Build(t)
+	require.NoError(t, err)
+
+	// Get chain selectors
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
+	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
+	chainSelector := tonChainSelectors[0]
+	tonChain := env.BlockChains.TonChains()[chainSelector]
+	deployer := tonChain.Wallet
+
+	t.Log("Deployer: ", deployer.WalletAddress().String())
+
+	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
+	contractID, err := tonops.RandomUint32()
+	require.NoError(t, err)
+	cs := commonchangeset.Configure(mcmsops.DeployMCMSContracts{}, mcmsops.DeployMCMSContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
+
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	require.NoError(t, err, "failed to deploy ccip")
+
+	mcmsState, err := tonstate.LoadMCMSOnchainState(env)
+	require.NoError(t, err)
+
+	ctx := t.Context()
+	addrCodec := codec.NewAddressCodec()
+	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
+	require.NoError(t, err)
+
+	// <Verify timelock address>
+	timelockAddr := mcmsState[chainSelector].Timelock
+	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
+	require.NoError(t, err)
+	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	require.NoError(t, err)
+	rawIsInitialized, err := isInitializedResponse.Int(0)
+	require.NoError(t, err)
+	isInitialized := rawIsInitialized.Sign() != 0
+	require.True(t, isInitialized)
+	getProposerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	require.NoError(t, err)
+	getExecutorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	require.NoError(t, err)
+	getCancellerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	require.NoError(t, err)
+	getBypasserResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBaypasser)
+	require.NoError(t, err)
+	getAdminResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	require.NoError(t, err)
+	shouldBeDeployer1 := getProposerResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer2 := getExecutorResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer3 := getCancellerResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer4 := getBypasserResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer1.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer2.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer3.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer4.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer5.String())
+	// </Verify timelock address>
+
+	// <Verify MCMS address>
+	mcmsAddr := mcmsState[chainSelector].MCMS
+	var tv common.TypeAndVersion
+	err = tv.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, nil)
+	require.NoError(t, err)
+	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type)
+	// </Verify MCMS address>
 }

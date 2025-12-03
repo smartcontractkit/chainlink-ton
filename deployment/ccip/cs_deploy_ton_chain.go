@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
@@ -104,9 +105,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 
 	mcmsSeqInput := mcmsSeq.DeployMCMSSeqInput{
-		MCMSConfig: mcmsConfig.ChainContractParams{
-			TimelockParams: config.Params.TimelockParams,
-			MCMSParams:     config.Params.MCMSParams,
+		ContractsParams: mcmsConfig.ChainContractParams{
+			Timelock: config.Params.TimelockParams,
+			MCMS:     config.Params.MCMSParams,
 		},
 		ContractsVersionSha: config.ContractsVersion,
 		ChainSelector:       selector,
@@ -193,7 +194,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
-	ab, _ := dataStoreToAddressBook(dataStore)
+	ab, _ := utils.DataStoreToAddressBook(dataStore)
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
@@ -202,21 +203,4 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		DataStore:             dataStore,
 		AddressBook:           ab,
 	}, nil
-}
-
-// Temp function to transform a DataStore to the legacy AddressBook. Couldn't find any utility function to do this.
-// Once we adopt this new change set in CLD we can remove returning AddressBook at all :)
-func dataStoreToAddressBook(ds *ds.MemoryDataStore) (*cldf.AddressBookMap, error) {
-	ab := cldf.NewMemoryAddressBook()
-	addresses, err := ds.Addresses().Fetch()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list addresses from datastore: %w", err)
-	}
-	for _, addrRef := range addresses {
-		err := ab.Save(addrRef.ChainSelector, addrRef.Address, cldf.NewTypeAndVersion(cldf.ContractType(addrRef.Type), *addrRef.Version))
-		if err != nil {
-			return nil, fmt.Errorf("failed to save address %s to address book: %w", addrRef.Type, err)
-		}
-	}
-	return ab, nil
 }

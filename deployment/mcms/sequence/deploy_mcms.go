@@ -27,7 +27,7 @@ import (
 
 type DeployMCMSSeqInput struct {
 	ContractsVersionSha string
-	MCMSConfig          mcmsConfig.ChainContractParams
+	ContractsParams     mcmsConfig.ChainContractParams
 	ChainSelector       uint64
 }
 
@@ -68,8 +68,8 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 	a := deps.MCMSChainState[in.ChainSelector].Timelock
 	if a.IsAddrNone() && (output.TimelockAddress == nil || output.TimelockAddress.TONAddress.IsAddrNone()) { // Deploy Timelock only if not deployed yet
 		storage := timelock.Data{
-			ID:                       in.MCMSConfig.TimelockParams.ID,
-			MinDelay:                 in.MCMSConfig.TimelockParams.MinDelay,
+			ID:                       in.ContractsParams.Timelock.ID,
+			MinDelay:                 in.ContractsParams.Timelock.MinDelay,
 			Timestamps:               cell.NewDict(256),
 			BlockedFnSelectorsLen:    0,
 			BlockedFnSelectors:       cell.NewDict(32),
@@ -86,17 +86,17 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 
 		body := timelock.Init{
 			QueryID:                  0,
-			MinDelay:                 in.MCMSConfig.TimelockParams.MinDelay,
-			Admin:                    in.MCMSConfig.TimelockParams.Admin,
-			Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Proposers)),
-			Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Executors)),
-			Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Cancellers)),
-			Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.MCMSConfig.TimelockParams.Bypassers)),
+			MinDelay:                 in.ContractsParams.Timelock.MinDelay,
+			Admin:                    in.ContractsParams.Timelock.Admin,
+			Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Proposers)),
+			Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Executors)),
+			Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Cancellers)),
+			Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Bypassers)),
 			ExecutorRoleCheckEnabled: true,
 			OpFinalizationTimeout:    0,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.MCMSConfig.TimelockParams.Coin, in.MCMSConfig.TimelockParams.ContractsSemver)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.ContractsParams.Timelock.Coin, in.ContractsParams.Timelock.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
@@ -119,7 +119,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 		}
 		chainID := big.NewInt(chainIDInt)
 		initStorage := mcms.Data{
-			ID: in.MCMSConfig.MCMSParams.ID,
+			ID: in.ContractsParams.MCMS.ID,
 			Ownable: common.Ownable2Step{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
@@ -153,7 +153,7 @@ func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployM
 				},
 			},
 		}
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.MCMSConfig.MCMSParams.Coin, in.MCMSConfig.MCMSParams.ContractsSemver)
+		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
 		if err != nil {
 			return output, err
 		}
