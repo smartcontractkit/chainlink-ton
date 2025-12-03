@@ -11,8 +11,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -151,8 +149,6 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 	}
 
 	ccipContractSemver := semver.MustParse("1.6.0")
-	timelockContractSemver := semver.MustParse("0.0.3")
-	mcmsContractSemver := semver.MustParse("0.0.4")
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
@@ -194,22 +190,6 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:              idForContracts,
 				Coin:            "0.05",
 				ContractsSemver: ccipContractSemver,
-			},
-			TimelockParams: mcmsConfig.TimelockParams{
-				ID:              idForContracts,
-				Coin:            "0.5",
-				ContractsSemver: timelockContractSemver,
-				MinDelay:        0,
-				Admin:           deployer.WalletAddress(),
-				Proposers:       []*address.Address{deployer.WalletAddress()},
-				Executors:       []*address.Address{deployer.WalletAddress()},
-				Cancellers:      []*address.Address{deployer.WalletAddress()},
-				Bypassers:       []*address.Address{deployer.WalletAddress()},
-			},
-			MCMSParams: mcmsConfig.MCMSParams{
-				ID:              idForContracts,
-				ContractsSemver: mcmsContractSemver,
-				Coin:            "0.5",
 			},
 		},
 		ContractsVersion: contractVersion,

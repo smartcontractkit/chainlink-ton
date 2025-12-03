@@ -16,9 +16,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-	mcmsOperation "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
-	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
@@ -64,12 +61,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	s := states[selector]
 
-	mcmsStates, err := state.LoadMCMSOnchainState(env)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
-	}
-	m := mcmsStates[selector]
-
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 
@@ -105,28 +96,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 
-	mcmsSeqInput := mcmsSeq.DeployMCMSSeqInput{
-		ContractsParams: mcmsConfig.ChainContractParams{
-			Timelock: config.Params.TimelockParams,
-			MCMS:     config.Params.MCMSParams,
-		},
-		ContractsVersionSha: config.ContractsVersion,
-		ChainSelector:       selector,
-	}
-
-	mcmsDeps := mcmsOperation.MCMSDeps{
-		TonChain:       chain,
-		MCMSChainState: mcmsStates,
-	}
-
-	// deploy MCMS contracts
-	mcmsSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, mcmsSeq.DeployMCMSSequence, mcmsDeps, mcmsSeqInput)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
-	}
-
-	seqReports = append(seqReports, mcmsSeqReport.ExecutionReports...)
-
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)
@@ -148,17 +117,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
-	if mcmsSeqReport.Output.TimelockAddress != nil {
-		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.TimelockAddress.CLDFAddressRef)
-		m.Timelock = mcmsSeqReport.Output.TimelockAddress.TONAddress
-	}
-	if mcmsSeqReport.Output.MCMSAddress != nil {
-		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.MCMSAddress.CLDFAddressRef)
-		m.MCMS = mcmsSeqReport.Output.MCMSAddress.TONAddress
-	}
 
 	deps.CCIPOnChainState[selector] = s
-	mcmsDeps.MCMSChainState[selector] = m
 
 	// Execute post-deployment config
 	var txs [][]byte

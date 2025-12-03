@@ -8,8 +8,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
-	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-
 	"github.com/xssnick/tonutils-go/address"
 )
 
@@ -21,8 +19,6 @@ type ChainContractParams struct {
 	OnRampParams    OnRampParams
 	RouterParams    RouterParams
 	ReceiverParams  ReceiverParams
-	TimelockParams  mcmsConfig.TimelockParams
-	MCMSParams      mcmsConfig.MCMSParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -41,12 +37,6 @@ func (c ChainContractParams) Validate() error {
 	}
 	if err := c.ReceiverParams.Validate(); err != nil {
 		return fmt.Errorf("invalid ReceiverParams: %w", err)
-	}
-	if err := c.TimelockParams.Validate(); err != nil {
-		return fmt.Errorf("invalid Timelock: %w", err)
-	}
-	if err := c.MCMSParams.Validate(); err != nil {
-		return fmt.Errorf("invalid ContractParams: %w", err)
 	}
 	return nil
 }
