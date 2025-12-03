@@ -641,6 +641,7 @@ export enum Errors {
   UnknownDestChainSelector = 18100, // Facility ID * 100
   Unauthorized,
   SenderNotAllowed,
+  InvalidConfig,
 }
 
 const cloneToSlice = (value?: Slice | Cell): Slice => {

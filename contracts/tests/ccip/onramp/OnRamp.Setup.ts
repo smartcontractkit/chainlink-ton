@@ -1,12 +1,13 @@
 import { Address, Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
-import { OnRamp, OnRampStorage } from '../../../wrappers/ccip/OnRamp'
 
-type OnRampOverrides = Partial<Omit<OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
-  config?: Partial<OnRampStorage['config']>
-  executor?: Partial<OnRampStorage['executor']>
-  ownable?: Partial<OnRampStorage['ownable']>
+import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
+import * as or from '../../../wrappers/ccip/OnRamp'
+
+type OnRampOverrides = Partial<Omit<or.OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
+  config?: Partial<or.OnRampStorage['config']>
+  executor?: Partial<or.OnRampStorage['executor']>
+  ownable?: Partial<or.OnRampStorage['ownable']>
 }
 
 export const CHAINSEL_EVM_TEST = 909606746561742123n
@@ -18,8 +19,8 @@ export async function deployOnRampContract(
   owner: SandboxContract<TreasuryContract>,
   overrides: OnRampOverrides = {},
 ) {
-  const code = await OnRamp.code()
-  const defaults: OnRampStorage = {
+  const code = await or.OnRamp.code()
+  const defaults: or.OnRampStorage = {
     id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
@@ -38,7 +39,7 @@ export async function deployOnRampContract(
       currentID: 0n,
     },
   }
-  const data: OnRampStorage = {
+  const data: or.OnRampStorage = {
     ...defaults,
     ...overrides,
     ownable: {
@@ -54,7 +55,7 @@ export async function deployOnRampContract(
       ...(overrides.executor ?? {}),
     },
   }
-  const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
+  const contract = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
   await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
   return contract

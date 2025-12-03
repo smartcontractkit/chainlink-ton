@@ -1,15 +1,18 @@
 import { compile } from '@ton/blueprint'
-import * as or from '../../../wrappers/ccip/OnRamp'
-import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
-import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import { beginCell, Address, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
-import { CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
-import * as coverage from '../../coverage/coverage'
 import { crc32 } from 'zlib'
-import { beginCell, toNano } from '@ton/core'
+
+import * as coverage from '../../coverage/coverage'
+
+import * as WithdrawableSpec from '../../lib/funding/WithdrawableSpec'
+import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as or from '../../../wrappers/ccip/OnRamp'
+
+import { deployOnRampContract, CHAINSEL_TON, setup } from './OnRamp.Setup'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -21,7 +24,7 @@ describe('OnRamp - TypeAndVersion Tests', () => {
 })
 
 describe('OnRamp - Withdrawable Tests', () => {
-  const withdrawableSpec = newWithdrawableSpec({
+  const withdrawableSpec = WithdrawableSpec.newWithdrawableSpec({
     getCode: () => compile('OnRamp'),
     ContractConstructor: or.OnRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
@@ -76,7 +79,7 @@ describe('OnRamp - Ownable Tests', () => {
     const other = await blockchain.treasury('other')
     const onramp = await deployOnRampContract(blockchain, deployer)
 
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
+    await Ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
       {
         code: await onramp.getCode(),
         name: 'onramp',
