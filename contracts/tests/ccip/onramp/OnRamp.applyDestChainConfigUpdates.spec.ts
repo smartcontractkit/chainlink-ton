@@ -1,8 +1,9 @@
 import * as or from '../../../wrappers/ccip/OnRamp'
+import * as rt from '../../../wrappers/ccip/Router'
 import * as coverage from '../../coverage/coverage'
 
 import { toNano } from '@ton/core'
-import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
+import { ZERO_ADDRESS } from '../../../src/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import {
   assertAddressesMatch,
@@ -16,16 +17,15 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
+  let mockRouter: SandboxContract<TreasuryContract>
+  let allowlistAdmin: SandboxContract<TreasuryContract>
+  let allowedSendersGroup1: SandboxContract<TreasuryContract>[] = []
+  let allowedSendersGroup2: SandboxContract<TreasuryContract>[] = []
 
   beforeEach(async () => {
     ;({ blockchain, deployer, onramp } = await setup())
-  })
+    allowlistAdmin = await blockchain.treasury('allowlistAdmin')
 
-  // getters that return lisp lists break blueprint's test coverage report
-  const itSkipsCoverage = process.env['COVERAGE'] === 'true' ? it.skip : it
-
-  itSkipsCoverage('Test allowlist admin can call updateAllowlist ', async () => {
-    const allowlistAdmin = await blockchain.treasury('allowlistAdmin')
     onramp = await deployOnRampContract(blockchain, deployer, {
       config: {
         feeQuoter: ZERO_ADDRESS,
@@ -34,105 +34,193 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       },
     })
 
-    const randomAddressForRouter = await generateRandomTonAddress()
-    const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
-      deployer.getSender(),
-      {
-        value: toNano('0.5'),
-        destChainConfigs: [
-          {
-            destChainSelector: CHAINSEL_EVM_TEST,
-            router: randomAddressForRouter,
-            allowlistEnabled: true,
-          },
-          {
-            destChainSelector: CHAINSEL_EVM_TEST_90000002,
-            router: randomAddressForRouter,
-            allowlistEnabled: true,
-          },
-        ],
-      },
-    )
-    expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: onramp.address,
-      success: true,
-    })
+    mockRouter = await blockchain.treasury('mockRouter')
+    allowedSendersGroup1 = []
+    allowedSendersGroup2 = []
+    for (let i = 0; i < 2; i++) {
+      const addr = await blockchain.treasury(`allowedSender${i}`)
+      allowedSendersGroup1.push(addr)
+    }
+    for (let i = 0; i < 2; i++) {
+      const addr = await blockchain.treasury(`allowedSender${i + 2}`)
+      allowedSendersGroup2.push(addr)
+    }
+  })
 
-    const randomAddresses = [
-      await generateRandomTonAddress(),
-      await generateRandomTonAddress(),
-      await generateRandomTonAddress(),
-      await generateRandomTonAddress(),
-    ]
+  // getters that return lisp lists break blueprint's test coverage report
+  const itSkipsCoverage = process.env['COVERAGE'] === 'true' ? it.skip : it
 
-    const updateAllowlists: or.UpdateAllowlists = {
-      updates: [
+  const configureDestChainConfigs = async () => {
+    const result = await onramp.sendUpdateDestChainConfigs(deployer.getSender(), {
+      value: toNano('0.5'),
+      destChainConfigs: [
         {
           destChainSelector: CHAINSEL_EVM_TEST,
-          add: [randomAddresses[0], randomAddresses[1]],
-          remove: [],
+          router: mockRouter.address,
+          allowlistEnabled: true,
         },
         {
           destChainSelector: CHAINSEL_EVM_TEST_90000002,
-          add: [randomAddresses[2], randomAddresses[3]],
-          remove: [],
+          router: mockRouter.address,
+          allowlistEnabled: true,
         },
       ],
-    }
-    const result = await onramp.sendUpdateAllowlists(deployer.getSender(), {
-      value: toNano('0.5'),
-      updateAllowlists,
     })
+
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: onramp.address,
       success: true,
     })
+  }
 
-    const resultCheckAdd1 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST)
-    assertAddressesMatch([randomAddresses[0], randomAddresses[1]], resultCheckAdd1)
+  const expectedAllowlistMatches = async (
+    selector: bigint,
+    expectedContracts: SandboxContract<TreasuryContract>[],
+  ) => {
+    const actual = await onramp.getAllowedSendersList(selector)
+    assertAddressesMatch(
+      expectedContracts.map((contract) => contract.address),
+      actual,
+    )
+  }
 
-    const resultCheckAdd2 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST_90000002)
-    assertAddressesMatch([randomAddresses[2], randomAddresses[3]], resultCheckAdd2)
-
-    const updateAllowlists2: or.UpdateAllowlists = {
+  const seedInitialAllowlists = async () => {
+    const updates: or.UpdateAllowlists = {
       updates: [
         {
           destChainSelector: CHAINSEL_EVM_TEST,
-          add: [],
-          remove: [randomAddresses[0], randomAddresses[1]],
+          add: allowedSendersGroup1.map((s) => s.address),
+          remove: [],
         },
         {
           destChainSelector: CHAINSEL_EVM_TEST_90000002,
-          add: [],
-          remove: [randomAddresses[2], randomAddresses[3]],
+          add: allowedSendersGroup2.map((s) => s.address),
+          remove: [],
         },
       ],
     }
 
-    const result2 = await onramp.sendUpdateAllowlists(allowlistAdmin.getSender(), {
+    const result = await onramp.sendUpdateAllowlists(deployer.getSender(), {
       value: toNano('0.5'),
-      updateAllowlists: updateAllowlists2,
+      updateAllowlists: updates,
     })
-    expect(result2.transactions).toHaveTransaction({
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: true,
+    })
+  }
+
+  itSkipsCoverage('allows owner to add multiple addresses per chain', async () => {
+    await configureDestChainConfigs()
+
+    await seedInitialAllowlists()
+
+    await expectedAllowlistMatches(CHAINSEL_EVM_TEST, allowedSendersGroup1)
+    await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, allowedSendersGroup2)
+  })
+
+  itSkipsCoverage('allows allowlist admin to delete multiple addresses', async () => {
+    await configureDestChainConfigs()
+    await seedInitialAllowlists()
+
+    const removeUpdates: or.UpdateAllowlists = {
+      updates: [
+        {
+          destChainSelector: CHAINSEL_EVM_TEST,
+          add: [],
+          remove: allowedSendersGroup1.map((s) => s.address),
+        },
+        {
+          destChainSelector: CHAINSEL_EVM_TEST_90000002,
+          add: [],
+          remove: allowedSendersGroup2.map((s) => s.address),
+        },
+      ],
+    }
+
+    const result = await onramp.sendUpdateAllowlists(allowlistAdmin.getSender(), {
+      value: toNano('0.5'),
+      updateAllowlists: removeUpdates,
+    })
+
+    expect(result.transactions).toHaveTransaction({
       from: allowlistAdmin.address,
       to: onramp.address,
       success: true,
     })
 
-    const resultCheckRemove1 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST)
-    expect(resultCheckRemove1).toEqual([])
+    const emptyGroup: SandboxContract<TreasuryContract>[] = []
+    await expectedAllowlistMatches(CHAINSEL_EVM_TEST, emptyGroup)
+    await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, emptyGroup)
+  })
 
-    const resultCheckRemove2 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST_90000002)
-    expect(resultCheckRemove2).toEqual([])
+  itSkipsCoverage('handles simultaneous adds and deletes', async () => {
+    await configureDestChainConfigs()
+    await seedInitialAllowlists()
+
+    const additionalSenderGroup1 = await blockchain.treasury('additionalSender0')
+    const additionalSenderGroup2 = await blockchain.treasury('additionalSender1')
+
+    const mixedUpdates: or.UpdateAllowlists = {
+      updates: [
+        {
+          destChainSelector: CHAINSEL_EVM_TEST,
+          add: [additionalSenderGroup1.address],
+          remove: [allowedSendersGroup1[0].address],
+        },
+        {
+          destChainSelector: CHAINSEL_EVM_TEST_90000002,
+          add: [additionalSenderGroup2.address],
+          remove: [allowedSendersGroup2[1].address],
+        },
+      ],
+    }
+
+    const result = await onramp.sendUpdateAllowlists(allowlistAdmin.getSender(), {
+      value: toNano('0.5'),
+      updateAllowlists: mixedUpdates,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: allowlistAdmin.address,
+      to: onramp.address,
+      success: true,
+    })
+
+    await expectedAllowlistMatches(CHAINSEL_EVM_TEST, [
+      allowedSendersGroup1[1],
+      additionalSenderGroup1,
+    ])
+    await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, [
+      allowedSendersGroup2[0],
+      additionalSenderGroup2,
+    ])
+  })
+
+  itSkipsCoverage('rejects updates from unauthorized senders', async () => {
+    await configureDestChainConfigs()
+    await seedInitialAllowlists()
 
     const randomSender = await blockchain.treasury('randomSender')
-    const result3 = await onramp.sendUpdateAllowlists(randomSender.getSender(), {
+    const updateAllowlists: or.UpdateAllowlists = {
+      updates: [
+        {
+          destChainSelector: CHAINSEL_EVM_TEST,
+          add: allowedSendersGroup1.map((s) => s.address),
+          remove: [],
+        },
+      ],
+    }
+
+    const result = await onramp.sendUpdateAllowlists(randomSender.getSender(), {
       value: toNano('0.5'),
       updateAllowlists,
     })
-    expect(result3.transactions).toHaveTransaction({
+
+    expect(result.transactions).toHaveTransaction({
       from: randomSender.address,
       to: onramp.address,
       success: false,
