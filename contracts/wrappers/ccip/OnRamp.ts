@@ -134,6 +134,10 @@ export type UpdateAllowlist = {
   remove: Address[]
 }
 
+export type SetDynamicConfig = {
+  config: DynamicConfig
+}
+
 export type DynamicConfig = {
   feeQuoter: Address
   feeAggregator: Address
@@ -183,7 +187,7 @@ export type CCIPMessageSent = {
 }
 
 export const builder = (() => {
-  const data = (() => {
+  const dataBuilder = (() => {
     const dynamicConfig: CellCodec<DynamicConfig> = {
       encode: (data: DynamicConfig): Builder => {
         return beginCell()
@@ -515,6 +519,20 @@ export const builder = (() => {
         },
       }
 
+      const setDynamicConfig: CellCodec<SetDynamicConfig> = {
+        encode: function (data: SetDynamicConfig): Builder {
+          return beginCell()
+            .storeUint(Opcodes.setDynamicConfig, 32)
+            .storeBuilder(dataBuilder.dynamicConfig.encode(data.config))
+        },
+        load: function (src: Slice): SetDynamicConfig {
+          src.skip(32)
+          return {
+            config: dataBuilder.dynamicConfig.load(src),
+          }
+        },
+      }
+
       return {
         getValidatedFee,
         messageValidated,
@@ -522,6 +540,7 @@ export const builder = (() => {
         onrampSend,
         executorFinishedSuccessfully,
         executorFinishedWithError,
+        setDynamicConfig,
         updateSendExecutor,
         updateAllowlists,
       }
@@ -592,7 +611,7 @@ export const builder = (() => {
   })()
 
   return {
-    data,
+    data: dataBuilder,
     messages,
     events,
   }
@@ -734,18 +753,13 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     via: Sender,
     opts: {
       value: bigint
-      config: DynamicConfig
+      body: SetDynamicConfig
     },
   ) {
     return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.setDynamicConfig, 32)
-        .storeAddress(opts.config.feeQuoter)
-        .storeAddress(opts.config.feeAggregator)
-        .storeAddress(opts.config.allowlistAdmin)
-        .endCell(),
+      body: builder.messages.in.setDynamicConfig.encode(opts.body).asCell(),
     })
   }
 
@@ -893,6 +907,15 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     body: withdrawable.Withdraw,
   ) {
     return await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
+    const { stack } = await provider.get('reserve', [])
+    return {
+      feeQuoter: stack.readAddress(),
+      feeAggregator: stack.readAddress(),
+      allowlistAdmin: stack.readAddress(),
+    }
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
