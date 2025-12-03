@@ -6,25 +6,25 @@ import (
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/mcms"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsOperation "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	"github.com/smartcontractkit/mcms"
 )
 
 type DeployMCMSContractsCfg struct {
 	ContractsVersion string
 	ContractParams   config.ChainContractParams
-	ChainSelector       uint64
+	ChainSelector    uint64
 }
 
 var _ cldf.ChangeSetV2[DeployMCMSContractsCfg] = DeployMCMSContracts{}
 
 // DeployMCMSContracts deploys MCMS packages and modules
 type DeployMCMSContracts struct{}
-
 
 func (cs DeployMCMSContracts) VerifyPreconditions(_ cldf.Environment, _ DeployMCMSContractsCfg) error {
 	return nil
@@ -44,8 +44,8 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 	chain := tonChains[selector]
 	mcmsSeqInput := mcmsSeq.DeployMCMSSeqInput{
 		ContractsParams: config.ChainContractParams{
-			MCMS: cfg.ContractParams.MCMS,
-			Timelock:     cfg.ContractParams.Timelock,
+			MCMS:     cfg.ContractParams.MCMS,
+			Timelock: cfg.ContractParams.Timelock,
 		},
 		ContractsVersionSha: cfg.ContractsVersion,
 		ChainSelector:       cfg.ChainSelector,
@@ -78,7 +78,6 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.MCMSAddress.CLDFAddressRef)
 		m.MCMS = mcmsSeqReport.Output.MCMSAddress.TONAddress
 	}
-
 
 	mcmsDeps.MCMSChainState[selector] = m
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD

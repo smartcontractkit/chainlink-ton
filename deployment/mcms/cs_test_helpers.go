@@ -5,10 +5,10 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 )
 
 func DeployMCMSContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployMCMSContractsCfg {
@@ -36,7 +36,7 @@ func DeployMCMSContractsConfig(t *testing.T, env cldf.Environment, chainSelector
 				Cancellers:      []*address.Address{deployer.WalletAddress()},
 				Bypassers:       []*address.Address{deployer.WalletAddress()},
 			},
-			MCMS: mcmsConfig.MCMSParams{
+			MCMS: config.MCMSParams{
 				ID:              idForContracts,
 				ContractsSemver: mcmsContractSemver,
 				Coin:            "0.5",
