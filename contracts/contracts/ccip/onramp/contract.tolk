@@ -358,7 +358,7 @@ Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
     assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
-    // EVM implementation also checks that feeAgregator is non-zero, but here the onramp is the fee aggregator
+    // EVM implementation also checks that feeAgregator is non-zero, but it is unused in TON
 
     st.config = msg.config.toCell();
 
