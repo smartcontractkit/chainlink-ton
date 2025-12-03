@@ -111,7 +111,7 @@ export function analyzeSnapshot(
 }
 
 // Table formatting helpers
-function formatRow(cells: string[], widths: number[]): string {
+export function formatRow(cells: string[], widths: number[]): string {
   return cells.map((cell, i) => cell.padEnd(widths[i])).join(' | ')
 }
 
@@ -128,7 +128,7 @@ export function printFlowAnalysis(flow: FlowSummary): void {
 
   // 2. Print detailed table
   console.log('\nDetailed Breakdown:')
-  const COL_WIDTHS = [4, 15, 15, 10, 15, 15, 15, 15]
+  const COL_WIDTHS = [4, 15, 20, 10, 15, 15, 15, 15]
   const headers = [
     '#',
     'Contract',

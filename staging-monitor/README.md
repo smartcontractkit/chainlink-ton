@@ -39,6 +39,7 @@ ETHEREUM_TESTNET_SEPOLIA_SELECTOR=16015286601757825753
 # TON configuration
 TON_TESTNET_ROUTER=EQDtF...
 TON_TESTNET_RECEIVER=EQDtF...
+TON_TESTNET_FEE_QUOTER=EQAxX... # needed only for TON as source (EVM gets fee from Router)
 TON_TESTNET_WALLET_KEY=word1 word2 ... word24
 TON_TESTNET_ENDPOINT=https://ton.org/testnet-global.config.json
 
@@ -61,6 +62,7 @@ Uses matrix strategy to run tests in parallel. Each test sends its own Slack not
 **Secrets:**
 
 - `STAGING_TON_TESTNET_ROUTER`
+- `STAGING_TON_TESTNET_FEE_QUOTER`
 - `STAGING_TON_TESTNET_RECEIVER`
 - `STAGING_TON_TESTNET_WALLET_KEY`
 - `STAGING_TON_TESTNET_ENDPOINT`

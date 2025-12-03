@@ -602,13 +602,13 @@ export const builder = (() => {
 export abstract class Params {}
 
 export abstract class Opcodes {
+  static onrampSend = 0x10000002
   static ccipSend = 0x31768d95
   static getValidatedFee = 0x9c2ccc7e
   static messageValidated = fq.OutOpcodes.messageValidated
   static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
   static setDynamicConfig = 0x10000003
   static updateDestChainConfigs = 0x10000004
-  static onrampSend = 0x10000002
   static executorFinishedSuccessfully = 0xcfa6b336
   static executorFinishedWithError = 0xc4068e21
   static updateSendExecutor = 0x82901c45

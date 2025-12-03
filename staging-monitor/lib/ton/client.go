@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,14 +21,22 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	tonlogpoller "github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
+	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
-	tonmessage "github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	tonhash "github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+
+	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
@@ -112,6 +121,11 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		return nil, fmt.Errorf("failed to parse router address: %w", err)
 	}
 
+	fqAddr, err := address.ParseAddr(msg.FeeQuoter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse FeeQuoter address: %w", err)
+	}
+
 	// Build extra args
 	extraArgs := onramp.GenericExtraArgsV2{
 		GasLimit:                 big.NewInt(lib.TONDefaultGasLimit),
@@ -135,9 +149,9 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		receiverBytes = leftPadTo32(receiverBytes)
 	}
 
-	// Build CCIPSend message
+	// Build CCIPSend request
 	ccipSend := router.CCIPSend{
-		QueryID:           uint64(0),
+		QueryID:           0,
 		DestChainSelector: msg.DestChainSel,
 		Receiver:          receiverBytes,
 		Data:              msg.Data,
@@ -146,46 +160,43 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		ExtraArgs:         extraArgsCell,
 	}
 
-	messageBody, err := tlb.ToCell(ccipSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize CCIPSend: %w", err)
-	}
-
-	// Create wallet message
-	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     routerAddr,
-			Amount:      tlb.MustFromTON(lib.TONMessageValue),
-			Body:        messageBody,
+	// Build minimal Environment
+	tonProvider := &cldfton.Chain{
+		ChainMetadata: cldfton.ChainMetadata{
+			Selector: c.chainSel,
 		},
+		Client:        c.client,
+		Wallet:        c.wallet,
+		WalletAddress: c.wallet.WalletAddress(),
 	}
 
-	// Send transaction with trace tracking
-	tt := tracetracking.NewSignedAPIClient(c.client, *c.wallet)
-	receivedMsg, _, err := tt.SendWaitTransaction(ctx, *routerAddr, walletMsg)
+	blockchains := cldfchain.NewBlockChainsFromSlice([]cldfchain.BlockChain{tonProvider})
+
+	env := cldf.Environment{
+		GetContext:  func() context.Context { return ctx },
+		Logger:      lggr,
+		BlockChains: blockchains,
+	}
+
+	// Build CCIPChainState
+	chainState := state.CCIPChainState{
+		Router:    *routerAddr,
+		FeeQuoter: *fqAddr,
+	}
+
+	// Call SendCCIPMessage from deployment/ccip
+	seqNum, event, err := ops.SendCCIPMessage(env, chainState, c.chainSel, ccipSend)
 	if err != nil {
-		return nil, fmt.Errorf("send transaction failed: %w", err)
+		return nil, err
 	}
 
-	if receivedMsg.ExitCode != 0 {
-		return nil, fmt.Errorf("router execution failed with exit code %d", receivedMsg.ExitCode)
+	// Extract messageID from event
+	ccipEvent, ok := event.(onramp.CCIPMessageSent)
+	if !ok {
+		return nil, fmt.Errorf("unexpected event type: %T", event)
 	}
 
-	// Wait for trace
-	err = receivedMsg.WaitForTrace(ctx, c.client)
-	if err != nil {
-		return nil, fmt.Errorf("trace wait failed: %w", err)
-	}
-
-	// Extract sequence number and messageID from CCIPMessageSent event
-	seqNum, messageID, err := extractFromCCIPMessageSent(receivedMsg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract from CCIPMessageSent event: %w", err)
-	}
-
+	messageID := hex.EncodeToString(ccipEvent.Message.Header.MessageID)
 	lggr.Infow("CCIP message sent from TON", "seqNum", seqNum, "messageID", messageID)
 
 	return &lib.SendResult{
@@ -212,131 +223,110 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 	lggr.Infow("Waiting for CCIPReceive event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
 
-	cl := c.client.WithRetry(lib.TONClientRetries)
-	// Initialize transaction loader (same pattern as ton_assertions.go)
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return cl, nil
-	}
-	loader := tonlploader.New(lggr, clientProvider)
+	// Setup logpoller service
+	eventName := "Receiver_CCIPMessageReceived"
+	eventSig := tonhash.CRC32(eventName)
+	chainID := strconv.FormatUint(c.chainSel, 10)
 
-	ticker := time.NewTicker(lib.TONPollInterval)
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return c.client.WithRetry(lib.TONClientRetries), nil
+	}
+
+	lp, err := tonlogpoller.NewServiceWith(ctx, lggr, chainID, clientProvider,
+		&tonlogpoller.ServiceOptions{
+			Config:      tonlogpoller.DefaultConfigSet,
+			FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
+			TxLoader:    tonlploader.New(lggr, clientProvider),
+			LogStore:    tonlpstore.NewLogStore(chainID, lggr),
+		},
+		[]tonlpmodels.Filter{{
+			Name:     fmt.Sprintf("%s-%s", receiverAddr.String(), eventName),
+			Address:  receiverAddr,
+			EventSig: eventSig,
+			MsgType:  tlb.MsgTypeExternalOut,
+		}},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create logpoller: %w", err)
+	}
+	defer lp.Close()
+
+	if err := lp.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start logpoller: %w", err)
+	}
+
+	// Query configuration
+	queryInterval := 500 * time.Millisecond
+	progressLogInterval := lib.ProgressLogInterval
+	ticker := time.NewTicker(queryInterval)
 	defer ticker.Stop()
 
-	lastProgressLog := time.Now()
-	lastProcessedBlock := uint32(startBlock) //nolint:gosec // safe conversion
+	progressTicker := time.NewTicker(progressLogInterval)
+	defer progressTicker.Stop()
+
+	startTime := time.Now()
+	seenEvents := make(map[string]bool)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 
+		case <-progressTicker.C:
+			lggr.Infow("Still waiting for CCIPReceive",
+				"receiver", lib.RedactAddress(receiver),
+				"elapsed", time.Since(startTime).Round(time.Second).String())
+
 		case <-ticker.C:
-			// Progress log every 15 seconds
-			if time.Since(lastProgressLog) > lib.ProgressLogInterval {
-				lggr.Infow("Still waiting for CCIPReceive", "receiver", lib.RedactAddress(receiver), "lastBlock", lastProcessedBlock)
-				lastProgressLog = time.Now()
-			}
-
-			// Get current block
-			toBlock, err := cl.CurrentMasterchainInfo(ctx)
+			logs, _, _, err := lp.NewQuery().
+				WithSource(receiverAddr).
+				WithEventSig(eventSig).
+				Execute(ctx)
 			if err != nil {
-				lggr.Warnw("Failed to get current masterchain info", "error", err)
+				lggr.Warnw("Failed to query logs", "error", err)
 				continue
 			}
 
-			// No new blocks to process
-			if toBlock.SeqNo <= lastProcessedBlock {
+			events, err := tonlpquery.DecodedLogs[ccip_receiver.CCIPMessageReceived](logs)
+			if err != nil {
+				lggr.Warnw("Failed to decode logs", "error", err)
 				continue
 			}
 
-			// Lookup previous block
-			var prevBlock *ton.BlockIDExt
-			if lastProcessedBlock > 0 {
-				prevBlock, err = cl.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlock)
-				if err != nil {
-					lggr.Warnw("Failed to lookup previous block", "block", lastProcessedBlock, "error", err)
+			for _, event := range events {
+				// Deduplicate events using tx logical time and message index
+				eventKey := fmt.Sprintf("%d-%d", event.TxLT, event.MsgIndex)
+				if seenEvents[eventKey] {
 					continue
 				}
-			}
+				seenEvents[eventKey] = true
+				receivedMessageID := hex.EncodeToString(event.TypedData.Message.MessageID[:])
 
-			blockRange := &tonlpmodels.BlockRange{Prev: prevBlock, To: toBlock}
-
-			// Fetch transactions for receiver address
-			txsCh := make(chan tonlpmodels.Tx, lib.TONTxBatchSize)
-			errsCh := make(chan error, 1)
-
-			go func() {
-				defer close(txsCh)
-				defer close(errsCh)
-				if err := loader.LoadTxsForAddress(ctx, blockRange, receiverAddr, lib.TONTxBatchSize, txsCh, errsCh); err != nil {
-					lggr.Errorw("Failed to load transactions", "error", err)
-					errsCh <- err
-				}
-			}()
-
-			// Handle errors from the loader
-			go func() {
-				for err := range errsCh {
-					lggr.Errorw("Error loading transactions", "error", err)
-				}
-			}()
-
-			// Process transactions
-			for txWithBlock := range txsCh {
-				if txWithBlock.Transaction == nil || txWithBlock.Transaction.IO.In == nil {
+				// Match on messageID if provided
+				if messageID != "" && receivedMessageID != messageID {
 					continue
 				}
 
-				tx := txWithBlock.Transaction
-
-				// Check if this is a CCIPReceive message
-				if tx.IO.In.MsgType == tlb.MsgTypeInternal {
-					intMsg := tx.IO.In.AsInternal()
-
-					// Use tonmessage utility to extract opcode and validate
-					sig, _, err := tonmessage.ParseInternalMsg(intMsg)
-					if err != nil || sig != offramp.CCIPReceiveOpCode {
-						continue // Not a CCIPReceive message or parse error
-					}
-
-					// Decode full CCIPReceive message (including magic tag)
-					var ccipMsg offramp.CCIPReceive
-					if err := tlb.LoadFromCell(&ccipMsg, intMsg.Body.BeginParse()); err != nil {
-						lggr.Errorw("Failed to decode CCIPReceive",
-							"error", err,
-							"txHash", hex.EncodeToString(tx.Hash),
-							"block", txWithBlock.Block.SeqNo)
-						return fmt.Errorf("failed to decode CCIPReceive (struct mismatch?): %w", err)
-					}
-
-					receivedMessageID := hex.EncodeToString(ccipMsg.Message.MessageID[:])
-
-					// Match on messageID if provided
-					if messageID != "" && receivedMessageID != messageID {
-						continue
-					}
-
-					// Decode and match data if expectedData provided
-					if expectedData != "" && ccipMsg.Message.Data != nil {
-						dataSlice := ccipMsg.Message.Data.BeginParse()
-						if dataSlice.BitsLeft() > 0 {
-							dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
-							if err == nil {
-								gotData := string(dataBits)
-								if gotData != expectedData {
-									continue
-								}
+				// Decode and match data if expectedData provided
+				if expectedData != "" && event.TypedData.Message.Data != nil {
+					dataSlice := event.TypedData.Message.Data.BeginParse()
+					if dataSlice.BitsLeft() > 0 {
+						dataBits, err := dataSlice.LoadSlice(dataSlice.BitsLeft())
+						if err == nil {
+							gotData := string(dataBits)
+							if gotData != expectedData {
+								continue
 							}
 						}
 					}
-
-					lggr.Infow("CCIPReceive found", "messageID", receivedMessageID, "block", txWithBlock.Block.SeqNo)
-					return nil
 				}
-			}
 
-			// Update last processed block
-			lastProcessedBlock = toBlock.SeqNo
+				lggr.Infow("CCIPMessageReceived event found",
+					"messageID", receivedMessageID,
+					"txLT", event.TxLT,
+					"block", event.Block.SeqNo)
+				return nil
+			}
 		}
 	}
 }
