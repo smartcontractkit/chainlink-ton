@@ -9,6 +9,7 @@ import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import { CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
 import * as coverage from '../../coverage/coverage'
 import { crc32 } from 'zlib'
+import { beginCell, toNano } from '@ton/core'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -125,6 +126,37 @@ describe('OnRamp - Unit Tests', () => {
   it('getStaticConfig should return chain selector', async () => {
     const result = await onramp.getStaticConfig()
     expect(result).toBe(CHAINSEL_TON)
+  })
+
+  it('should allow owner to updateSendExecutor', async () => {
+    const newExecutor = beginCell().storeUint(12345678, 32).endCell()
+    const result = await onramp.sendUpdateSendExecutor(deployer.getSender(), {
+      value: toNano('0.05'),
+      code: newExecutor,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      to: onramp.address,
+      success: true,
+    })
+
+    const executorCode = await onramp.getSendExecutorCode()
+    expect(executorCode.equals(newExecutor)).toBe(true)
+  })
+
+  it('should not allow non-owner to updateSendExecutor', async () => {
+    const other = await blockchain.treasury('other')
+    const newExecutor = beginCell().storeUint(12345678, 32).endCell()
+    const result = await onramp.sendUpdateSendExecutor(other.getSender(), {
+      value: toNano('0.05'),
+      code: newExecutor,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      to: onramp.address,
+      success: false,
+      exitCode: ownable2step.Errors.OnlyCallableByOwner,
+    })
   })
 
   afterAll(async () => {
