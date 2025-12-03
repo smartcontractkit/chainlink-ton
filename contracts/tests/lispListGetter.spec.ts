@@ -7,11 +7,8 @@ import {
   Sender,
   SendMode,
   toNano,
-  TupleItem,
 } from '@ton/core'
-import { generateRandomContractId, generateRandomTonAddress, ZERO_ADDRESS } from '../src/utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import * as ownable2StepSpec from './lib/access/Ownable2StepSpec'
 import * as coverage from './coverage/coverage'
 
 class LispListGetter {
