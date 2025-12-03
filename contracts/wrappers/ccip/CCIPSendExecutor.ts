@@ -101,10 +101,8 @@ export const builder = (() => {
         switch (data.kind) {
           case 'initialized':
             return beginCell().storeUint(0, 1)
-            break
           case 'on-going-fee-validation':
             return beginCell().storeUint(1, 1)
-            break
         }
       },
       load: function (src: Slice): State {
