@@ -516,7 +516,6 @@ export const builder = (() => {
       }
 
       return {
-        ccipSend: rt.builder.message.in.ccipSend,
         getValidatedFee,
         messageValidated,
         messageValidationFailed,
@@ -603,7 +602,6 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static onrampSend = 0x10000002
-  static ccipSend = rt.Opcodes.ccipSend
   static getValidatedFee = 0x9c2ccc7e
   static messageValidated = fq.OutOpcodes.messageValidated
   static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
@@ -739,7 +737,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       config: DynamicConfig
     },
   ) {
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
@@ -760,17 +758,15 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       context?: Slice | Cell
     },
   ) {
-    const body = builder.messages.in.getValidatedFee
-      .encode({
-        msg: opts.msg,
-        context: cloneToSlice(opts.context),
-      })
-      .asCell()
-
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body,
+      body: builder.messages.in.getValidatedFee
+        .encode({
+          msg: opts.msg,
+          context: cloneToSlice(opts.context),
+        })
+        .asCell(),
     })
   }
 
@@ -782,12 +778,10 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       body: InMessageValidated
     },
   ) {
-    const body = builder.messages.in.messageValidated.encode(opts.body).asCell()
-
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: body,
+      body: builder.messages.in.messageValidated.encode(opts.body).asCell(),
     })
   }
 
@@ -799,12 +793,10 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       body: InMessageValidationFailed
     },
   ) {
-    const body = builder.messages.in.messageValidationFailed.encode(opts.body).asCell()
-
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: body,
+      body: builder.messages.in.messageValidationFailed.encode(opts.body).asCell(),
     })
   }
 
@@ -841,7 +833,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       body: ExecutorFinishedSuccessfully
     },
   ) {
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.executorFinishedSuccessfully.encode(opts.body).asCell(),
@@ -856,7 +848,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       body: ExecutorFinishedWithError
     },
   ) {
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.executorFinishedWithError.encode(opts.body).asCell(),
@@ -871,7 +863,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       code: Cell
     },
   ) {
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.updateSendExecutor.encode({ code: opts.code }).asCell(),
@@ -886,7 +878,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       updateAllowlists: UpdateAllowlists
     },
   ) {
-    await provider.internal(via, {
+    return await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.updateAllowlists.encode(opts.updateAllowlists).asCell(),
@@ -900,7 +892,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     value: bigint,
     body: withdrawable.Withdraw,
   ) {
-    await withdrawable.sendWithdraw(provider, via, value, body)
+    return await withdrawable.sendWithdraw(provider, via, value, body)
   }
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
