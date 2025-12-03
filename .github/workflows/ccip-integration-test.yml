@@ -99,8 +99,7 @@ jobs:
           path: chainlink/integration-tests/smoke/ccip/logs/
           retention-days: 7
 
-  integration-test-status:
-    name: Integration Tests Status
+  integration-test-ccip:
     if: always()
     runs-on: ubuntu-latest
     needs: [integration-test]
