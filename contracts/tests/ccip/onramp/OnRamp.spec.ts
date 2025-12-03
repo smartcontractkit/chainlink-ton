@@ -8,6 +8,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import { CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
 import * as coverage from '../../coverage/coverage'
+import { crc32 } from 'zlib'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -92,6 +93,24 @@ describe('OnRamp - Current Version Tests', () => {
     deployCurrentContract: deployOnRampContract,
   })
   currentVersionSpec.run()
+})
+
+describe('OnRamp - Opcodes', () => {
+  it('should match opcodes', () => {
+    expect(or.Opcodes.onrampSend).toBe(0x10000002) // TODO crc32('OnRamp_Send')
+    expect(or.Opcodes.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
+    expect(or.Opcodes.executorFinishedSuccessfully).toBe(
+      crc32('OnRamp_ExecutorFinishedSuccessfully'),
+    )
+    expect(or.Opcodes.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
+    expect(or.Opcodes.setDynamicConfig).toBe(0x10000003) // TODO crc32('OnRamp_SetDynamicConfig')
+    expect(or.Opcodes.updateDestChainConfigs).toBe(0x10000004) // TODO crc32('OnRamp_UpdateDestChainConfigs')
+    expect(or.Opcodes.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
+    expect(or.Opcodes.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
+
+    expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
+    expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+  })
 })
 
 describe('OnRamp - Unit Tests', () => {
