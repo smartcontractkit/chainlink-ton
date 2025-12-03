@@ -42,7 +42,7 @@ export const EventTopics = {
 
 export type ContractData = {
   /// ID allows multiple independent instances, since contract address depends on initial state.
-  id: bigint // uint32
+  id: bigint | number // uint32
   value: number // uint32
 
   ownable: ownable2step.Data
