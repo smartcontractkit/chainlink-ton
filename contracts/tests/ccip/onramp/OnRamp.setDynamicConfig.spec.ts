@@ -1,11 +1,13 @@
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import * as coverage from '../../coverage/coverage'
-import { deployOnRampContract } from './OnRamp.Setup'
 import { randomAddress } from '@ton/test-utils'
+
+import * as coverage from '../../coverage/coverage'
 import { ZERO_ADDRESS } from '../../../src/utils'
+
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import { deployOnRampContract } from './OnRamp.Setup'
 
 describe('OnRamp - set Dynamic Config', () => {
   let blockchain: Blockchain

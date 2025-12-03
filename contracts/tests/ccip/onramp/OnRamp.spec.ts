@@ -1,14 +1,16 @@
-import { compile } from '@ton/blueprint'
-import { OnRamp, UpdateAllowlists } from '../../../wrappers/ccip/OnRamp'
 import { Address, toNano } from '@ton/core'
-import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
-import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
-import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
+import { compile } from '@ton/blueprint'
+
 import * as coverage from '../../coverage/coverage'
+import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
+
+import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as WithdrawableSpec from '../../lib/funding/WithdrawableSpec'
+import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as or from '../../../wrappers/ccip/OnRamp'
 import {
   deployOnRampContract,
   CHAINSEL_EVM_TEST,
@@ -18,17 +20,17 @@ import {
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: OnRamp.type(),
-    version: OnRamp.version(),
+    type: or.OnRamp.type(),
+    version: or.OnRamp.version(),
     deployContract: deployOnRampContract,
   })
   currentVersionSpec.run()
 })
 
 describe('OnRamp - Withdrawable Tests', () => {
-  const withdrawableSpec = newWithdrawableSpec({
+  const withdrawableSpec = WithdrawableSpec.newWithdrawableSpec({
     getCode: () => compile('OnRamp'),
-    ContractConstructor: OnRamp,
+    ContractConstructor: or.OnRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOnRampContract,
   })
@@ -80,7 +82,7 @@ describe('OnRamp - Ownable Tests', () => {
     const other = await blockchain.treasury('other')
     const onramp = await deployOnRampContract(blockchain, deployer)
 
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
+    await Ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
       {
         code: await onramp.getCode(),
         name: 'onramp',
@@ -91,10 +93,10 @@ describe('OnRamp - Ownable Tests', () => {
 
 describe('OnRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: OnRamp.type(),
-    currentVersion: OnRamp.version(),
-    getCurrentCode: () => OnRamp.code(),
-    CurrentVersionConstructor: OnRamp,
+    contractType: or.OnRamp.type(),
+    currentVersion: or.OnRamp.version(),
+    getCurrentCode: () => or.OnRamp.code(),
+    CurrentVersionConstructor: or.OnRamp,
     deployCurrentContract: deployOnRampContract,
   })
   currentVersionSpec.run()
@@ -103,7 +105,7 @@ describe('OnRamp - Current Version Tests', () => {
 describe('OnRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
-  let onramp: SandboxContract<OnRamp>
+  let onramp: SandboxContract<or.OnRamp>
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -158,7 +160,7 @@ describe('OnRamp - Unit Tests', () => {
       await generateRandomTonAddress(),
     ]
 
-    const updateAllowlists: UpdateAllowlists = {
+    const updateAllowlists: or.UpdateAllowlists = {
       updates: [
         {
           destChainSelector: CHAINSEL_EVM_TEST,
@@ -188,7 +190,7 @@ describe('OnRamp - Unit Tests', () => {
     const resultCheckAdd2 = await onramp.getAllowedSendersList(CHAINSEL_EVM_TEST_90000002)
     assertAddressesMatch([randomAddresses[2], randomAddresses[3]], resultCheckAdd2)
 
-    const updateAllowlists2: UpdateAllowlists = {
+    const updateAllowlists2: or.UpdateAllowlists = {
       updates: [
         {
           destChainSelector: CHAINSEL_EVM_TEST,
