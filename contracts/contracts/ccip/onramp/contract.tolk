@@ -44,9 +44,15 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
             onMessageValidationFailed(msg)
         }
-        // Permissionless
+        // Sender must be the Router
         OnRamp_Send => {
-            onSend(msg, in.senderAddress)
+            var st = lazy OnRamp_Storage.load();
+            val ccipSend = msg.msg.load();
+            // validate allowlist
+            val destChainConfig = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int);
+            // ccipSend must be forwarded from the router
+            assert(destChainConfig.router == in.senderAddress, Error.Unauthorized);
+            onSend(st, destChainConfig, msg)
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
@@ -216,18 +222,8 @@ Handles CCIP send messages forwarded by the Router. Validates that the
 destination chain configuration is enabled, enforces the optional allowlist,
 and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
 */
-fun onSend(payload: OnRamp_Send, sender: address) {
-    var st = lazy OnRamp_Storage.load();
-
-    val msg = payload.msg.load();
-
-    // validate allowlist
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
-
-    // ccipSend must be forwarded from the router
-    assert(destChainConfig.router == sender, Error.Unauthorized);
-
-    if (destChainConfig.allowlistEnabled) {
+fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload: OnRamp_Send) {
+       if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
         assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
     }

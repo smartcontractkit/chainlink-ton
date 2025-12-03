@@ -434,6 +434,11 @@ export abstract class Opcodes {
   static removePriceUpdater = crc32('FeeQuoter_RemovePriceUpdater')
 }
 
+export abstract class OutgoingOpcodes {
+  static messageValidated = 0x1fa60374
+  static messageValidationFailed = 0xbcf0ab0f
+}
+
 export type TokenPriceUpdate = {
   token: Address
   price: bigint
