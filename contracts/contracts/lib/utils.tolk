@@ -271,3 +271,8 @@ fun RemainingBitsOrRef<T>.unpackFromSlice(mutate s: slice): RemainingBitsOrRef<T
         return T.fromSlice(s) as RemainingBitsOrRef<T>;
     }
 }
+
+fun address.isZero(self): bool {
+    val (_, h) = self.getWorkchainAndHash();
+    return h == 0;
+}
