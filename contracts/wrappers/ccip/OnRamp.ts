@@ -297,14 +297,19 @@ export const builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static ccipSend = 0x31768d95
+  static onrampSend = 0x10000002
+  static getValidatedFee = 0x9c2ccc7e
   static setDynamicConfig = 0x10000003
   static updateDestChainConfigs = 0x10000004
-  static onrampSend = 0x10000002
   static executorFinishedSuccessfully = 0xcfa6b336
   static executorFinishedWithError = 0xc4068e21
   static updateSendExecutor = 0x82901c45
   static updateAllowlists = 0x9dc06185
+}
+
+export abstract class OutgoingOpcodes {
+  static messageValidated = 0x2afb11bd
+  static validationFailed = 0xac1dd12e
 }
 
 export abstract class Errors {}

@@ -65,8 +65,9 @@ export const builder = {
   },
 }
 
-export enum OpCodes {
-  Initialize = 0xba466447,
+export abstract class Opcodes {
+  static initialize = 0xba466447
+  static initializeAndSend = 0xe95e1156
 }
 
 export enum Errors {

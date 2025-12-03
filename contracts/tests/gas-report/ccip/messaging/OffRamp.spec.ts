@@ -53,6 +53,7 @@ import { getMetadataHash, generateMessageId, createSignatures } from './helpers'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
+import { opMapFunc } from './opMapFunc'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 
@@ -90,191 +91,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
   afterEach(() => {
     global.console = jestConsole
   })
-
-  // Helper function to test commit and execute flow with different merkle root counts
-  async function testCommitAndExecute(merkleRootCount: number): Promise<void> {
-    const maxPayload = createMaxPayload()
-
-    // Step 1: Create test message
-    const testMessage: Any2TVMRampMessage = {
-      header: {
-        messageId: 1n,
-        sourceChainSelector: CHAINSEL_EVM_TEST,
-        destChainSelector: CHAINSEL_TON,
-        sequenceNumber: 1n,
-        nonce: 0n,
-      },
-      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: maxPayload,
-      receiver: receiver.address,
-    }
-
-    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST))
-    const messageIdBytes = generateMessageId(testMessage, metadataHash)
-    const rootBytes = uint8ArrayToBigInt(messageIdBytes)
-
-    // Step 2: Create merkle roots
-    const merkleRoots: MerkleRoot[] = []
-    for (let i = 0; i < merkleRootCount; i++) {
-      merkleRoots.push({
-        sourceChainSelector: CHAINSEL_EVM_TEST,
-        onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-        minSeqNr: BigInt(i * 10 + 1),
-        maxSeqNr: BigInt(i * 10 + 10),
-        merkleRoot: rootBytes + BigInt(i),
-      })
-    }
-
-    const commitReport: CommitReport = {
-      merkleRoots,
-      priceUpdates: undefined,
-    }
-
-    const reportContext: ReportContext = {
-      configDigest,
-      padding: 0n,
-      sequenceBytes: 0x01,
-    }
-
-    const signatures = createSignatures(
-      [signers[0], signers[1]],
-      hashReport(builder.data.commitReport.encode(commitReport).endCell(), reportContext),
-    )
-
-    // Step 3: Commit phase
-    resetMetricStore()
-
-    const commitResult = await offRamp.sendCommit(transmitters[0].getSender(), {
-      value: toNano('0.2'), // Increased for larger batches
-      reportContext,
-      report: commitReport,
-      signatures,
-    })
-
-    expect(commitResult.transactions).toHaveTransaction({
-      from: transmitters[0].address,
-      to: offRamp.address,
-      success: true,
-    })
-
-    const merkleRootDeployments = commitResult.transactions.filter((tx) => {
-      return (
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(offRamp.address) &&
-        tx.inMessage.info.dest instanceof Address &&
-        !tx.inMessage.info.dest.equals(feeQuoter.address)
-      )
-    })
-
-    expect(merkleRootDeployments.length).toBe(merkleRootCount)
-
-    merkleRootDeployments.forEach((tx) => {
-      expect(tx.description.type).toBe('generic')
-      if (tx.description.type === 'generic') {
-        expect(tx.description.aborted).toBe(false)
-      }
-    })
-
-    const commitSnapshot = makeSnapshotMetric(store, {
-      contractDatabase,
-      label: `OffRamp Commit Phase (${merkleRootCount} roots)`,
-    })
-
-    // Create address to name mapping
-    const addressMap: Record<string, string> = {
-      [transmitters[0].address.toString()]: 'Transmitter',
-      [offRamp.address.toString()]: 'OffRamp',
-      [feeQuoter.address.toString()]: 'FeeQuoter',
-    }
-
-    // Add MerkleRoot addresses
-    merkleRootDeployments.forEach((tx, idx) => {
-      if (tx.inMessage?.info.type === 'internal' && tx.inMessage.info.dest instanceof Address) {
-        addressMap[tx.inMessage.info.dest.toString()] = `MerkleRoot-${idx + 1}`
-      }
-    })
-
-    const commitFlowAnalysis = analyzeSnapshot(commitSnapshot, addressMap, commitResult)
-    printFlowAnalysis(commitFlowAnalysis)
-
-    console.log('\n=== COMMIT RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(commitResult.transactions)
-
-    // Step 4: Execute phase
-    const merkleHelper = new MerkleHelper((s: Uint8Array) => {
-      return new Uint8Array(sha256_sync(Buffer.from(s)))
-    })
-
-    const messageIdForProof = uint8ArrayToBigInt(messageIdBytes)
-    const { proof, root: proofRoot } = merkleHelper.createTreeAndProve([messageIdForProof], [0])
-
-    let proofFlagBits = 0n
-    for (let i = 0; i < proof.sourceFlags.length; i++) {
-      if (proof.sourceFlags[i]) {
-        proofFlagBits |= 1n << BigInt(i)
-      }
-    }
-
-    const executeReport: ExecutionReport = {
-      sourceChainSelector: CHAINSEL_EVM_TEST,
-      messages: [testMessage],
-      offchainTokenData: [],
-      proofs: proof.hashes,
-      proofFlagBits,
-    }
-
-    const executeReportContext: ReportContext = {
-      configDigest,
-      padding: 0n,
-      sequenceBytes: 0x02,
-    }
-
-    resetMetricStore()
-
-    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
-      value: toNano('0.035'),
-      reportContext: executeReportContext,
-      report: executeReport,
-    })
-
-    expect(executeResult.transactions).toHaveTransaction({
-      from: transmitters[0].address,
-      to: offRamp.address,
-      success: true,
-    })
-
-    const merkleRootValidation = executeResult.transactions.find((tx) => {
-      return (
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src instanceof Address &&
-        tx.inMessage.info.src.equals(offRamp.address) &&
-        tx.inMessage.info.dest instanceof Address &&
-        !tx.inMessage.info.dest.equals(feeQuoter.address) &&
-        !tx.inMessage.info.dest.equals(receiver.address)
-      )
-    })
-
-    expect(merkleRootValidation).toBeDefined()
-    expect(merkleRootValidation?.description.type).toBe('generic')
-    if (merkleRootValidation?.description.type === 'generic') {
-      expect(merkleRootValidation.description.aborted).toBe(false)
-    }
-
-    const executeSnapshot = makeSnapshotMetric(store, {
-      contractDatabase,
-      label: `OffRamp Execute Phase (${merkleRootCount} roots)`,
-    })
-
-    // Reuse address map (add receiver if needed)
-    addressMap[receiver.address.toString()] = 'Receiver'
-
-    const executeFlowAnalysis = analyzeSnapshot(executeSnapshot, addressMap, executeResult)
-    printFlowAnalysis(executeFlowAnalysis)
-
-    console.log('\n=== EXECUTE RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(executeResult.transactions)
-  }
 
   beforeAll(async () => {
     // Use default config (mainnet) to avoid rate limiting
@@ -351,8 +167,11 @@ describe('CCIP OffRamp Gas Estimation', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: await compile('CCIPSendExecutor'),
+        executor: {
+          currentID: 0n,
+          executorCode: await compile('CCIPSendExecutor'),
+          deployableCode: await compile('Deployable'),
+        },
       }
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
       const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -509,10 +328,183 @@ describe('CCIP OffRamp Gas Estimation', () => {
   })
 
   it('should measure commit and execute flow (1 merkle root)', async () => {
-    await testCommitAndExecute(1)
-  })
+    const maxPayload = createMaxPayload()
 
-  it('should measure commit and execute flow (10 merkle roots)', async () => {
-    await testCommitAndExecute(10)
+    // Step 1: Create test message
+    const testMessage: Any2TVMRampMessage = {
+      header: {
+        messageId: 1n,
+        sourceChainSelector: CHAINSEL_EVM_TEST,
+        destChainSelector: CHAINSEL_TON,
+        sequenceNumber: 1n,
+        nonce: 0n,
+      },
+      gasLimit: 500000n,
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
+      data: maxPayload,
+      receiver: receiver.address,
+    }
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST))
+    const messageIdBytes = generateMessageId(testMessage, metadataHash)
+    const rootBytes = uint8ArrayToBigInt(messageIdBytes)
+
+    // Step 2: Create merkle roots
+    const merkleRoots: MerkleRoot[] = []
+    merkleRoots.push({
+      sourceChainSelector: CHAINSEL_EVM_TEST,
+      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+      minSeqNr: BigInt(1),
+      maxSeqNr: BigInt(10),
+      merkleRoot: rootBytes + BigInt(0),
+    })
+
+    const commitReport: CommitReport = {
+      merkleRoots,
+      priceUpdates: undefined,
+    }
+
+    const reportContext: ReportContext = {
+      configDigest,
+      padding: 0n,
+      sequenceBytes: 0x01,
+    }
+
+    const signatures = createSignatures(
+      [signers[0], signers[1]],
+      hashReport(builder.data.commitReport.encode(commitReport).endCell(), reportContext),
+    )
+
+    // Step 3: Commit phase
+    resetMetricStore()
+
+    const commitResult = await offRamp.sendCommit(transmitters[0].getSender(), {
+      value: toNano('0.2'), // Increased for larger batches
+      reportContext,
+      report: commitReport,
+      signatures,
+    })
+
+    expect(commitResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    const merkleRootDeployments = commitResult.transactions.filter((tx) => {
+      return (
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(offRamp.address) &&
+        tx.inMessage.info.dest instanceof Address &&
+        !tx.inMessage.info.dest.equals(feeQuoter.address)
+      )
+    })
+
+    expect(merkleRootDeployments.length).toBe(1)
+
+    merkleRootDeployments.forEach((tx) => {
+      expect(tx.description.type).toBe('generic')
+      if (tx.description.type === 'generic') {
+        expect(tx.description.aborted).toBe(false)
+      }
+    })
+
+    const commitSnapshot = makeSnapshotMetric(store, {
+      contractDatabase,
+      label: `OffRamp Commit Phase`,
+    })
+
+    // Create address to name mapping
+    const addressMap: Record<string, string> = {
+      [transmitters[0].address.toString()]: 'Transmitter',
+      [offRamp.address.toString()]: 'OffRamp',
+      [feeQuoter.address.toString()]: 'FeeQuoter',
+    }
+
+    // Add MerkleRoot addresses
+    merkleRootDeployments.forEach((tx, idx) => {
+      if (tx.inMessage?.info.type === 'internal' && tx.inMessage.info.dest instanceof Address) {
+        addressMap[tx.inMessage.info.dest.toString()] = `MerkleRoot-${idx + 1}`
+      }
+    })
+
+    const commitFlowAnalysis = analyzeSnapshot(commitSnapshot, addressMap, commitResult)
+    printFlowAnalysis(commitFlowAnalysis)
+
+    console.log('\n=== COMMIT RAW TRANSACTION FEES (for debugging) ===')
+    printTransactionFees(commitResult.transactions, opMapFunc())
+
+    // Step 4: Execute phase
+    const merkleHelper = new MerkleHelper()
+
+    const messageIdForProof = uint8ArrayToBigInt(messageIdBytes)
+    const { proof, root: proofRoot } = merkleHelper.createTreeAndProve([messageIdForProof], [0])
+
+    let proofFlagBits = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST,
+      messages: [testMessage],
+      offchainTokenData: [],
+      proofs: proof.hashes,
+      proofFlagBits,
+    }
+
+    const executeReportContext: ReportContext = {
+      configDigest,
+      padding: 0n,
+      sequenceBytes: 0x02,
+    }
+
+    resetMetricStore()
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.2'),
+      reportContext: executeReportContext,
+      report: executeReport,
+    })
+
+    expect(executeResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    const merkleRootValidation = executeResult.transactions.find((tx) => {
+      return (
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(offRamp.address) &&
+        tx.inMessage.info.dest instanceof Address &&
+        !tx.inMessage.info.dest.equals(feeQuoter.address) &&
+        !tx.inMessage.info.dest.equals(receiver.address)
+      )
+    })
+
+    expect(merkleRootValidation).toBeDefined()
+    expect(merkleRootValidation?.description.type).toBe('generic')
+    if (merkleRootValidation?.description.type === 'generic') {
+      expect(merkleRootValidation.description.aborted).toBe(false)
+    }
+
+    const executeSnapshot = makeSnapshotMetric(store, {
+      contractDatabase,
+      label: `OffRamp Execute Phase`,
+    })
+
+    // Reuse address map (add receiver if needed)
+    addressMap[receiver.address.toString()] = 'Receiver'
+
+    const executeFlowAnalysis = analyzeSnapshot(executeSnapshot, addressMap, executeResult)
+    printFlowAnalysis(executeFlowAnalysis)
+
+    console.log('\n=== EXECUTE RAW TRANSACTION FEES (for debugging) ===')
+    printTransactionFees(executeResult.transactions, opMapFunc())
   })
 })

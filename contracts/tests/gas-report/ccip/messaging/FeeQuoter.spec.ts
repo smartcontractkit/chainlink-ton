@@ -7,21 +7,22 @@ import {
   makeSnapshotMetric,
   ContractDatabase,
   resetMetricStore,
+  BlockchainTransaction,
 } from '@ton/sandbox'
-import { toNano, Cell, Dictionary, Address } from '@ton/core'
+import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/ccip/OnRamp'
-import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
 import { ZERO_ADDRESS } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { CHAINSEL_TON, CHAINSEL_EVM_TEST, CHAIN_FAMILY_SELECTOR_EVM } from '../../constants'
-import { createMaxPayload, createExtraArgs } from './config'
-import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
+import { createMaxPayload, createExtraArgs, MAX_DATA_PAYLOAD_SIZE, createPayload } from './config'
+import { analyzeSnapshot, printFlowAnalysis, formatRow } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
-import { getValidatedFee } from '../../../../src/ccipSend/fee'
+import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
 import { opMapFunc } from './opMapFunc'
 
 const EVM_ADDRESS = Buffer.from(
@@ -40,12 +41,12 @@ const contractDatabase = ContractDatabase.from(contractDatabaseData)
 // Initialize metric store
 const store = createMetricStore()
 
-describe('CCIP OnRamp Gas Estimation', () => {
+describe('CCIP FeeQuoter Gas Estimation', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let onRamp: SandboxContract<or.OnRamp>
-  let feeQuoter: SandboxContract<FeeQuoter>
+  let feeQuoter: SandboxContract<fq.FeeQuoter>
   let sender: SandboxContract<TreasuryContract>
 
   beforeEach(() => {
@@ -159,87 +160,16 @@ describe('CCIP OnRamp Gas Estimation', () => {
     })
   })
 
-  it('should measure message passing only', async () => {
+  it('should measure fee validation', async () => {
     // Reset metric store before measurement
-    resetMetricStore()
 
-    const msg = {
-      queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST,
-      receiver: EVM_ADDRESS,
-      data: createMaxPayload(),
-      tokenAmounts: [],
-      feeToken: ZERO_ADDRESS,
-      extraArgs: createExtraArgs(),
-    }
-
-    const fee = await getValidatedFee(blockchain, router.address, msg)
-    console.log(`Validated fee for message: ${fee.toString()} nanotons`)
-
-    const result = await router.sendCcipSend(sender.getSender(), {
-      value: fee + toNano('0.19'),
-      body: msg,
-    })
-
-    // Assert all expected transactions
-    expect(result.transactions).toHaveTransaction({
-      from: sender.address,
-      to: router.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      success: true,
-    })
-
-    // Find executor address
-    const executorAddress = ((): Address => {
-      for (const tx of result.transactions) {
-        if (
-          tx.inMessage != null &&
-          tx.inMessage.info.type === 'internal' &&
-          tx.inMessage.info.src instanceof Address &&
-          tx.inMessage.info.src.equals(onRamp.address) &&
-          tx.inMessage.info.dest instanceof Address &&
-          !tx.inMessage.info.dest.equals(feeQuoter.address)
-        ) {
-          return tx.inMessage.info.dest
-        }
-      }
-      throw Error('Executor address not found')
-    })()
-
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: executorAddress,
-      deploy: true,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: executorAddress,
-      to: feeQuoter.address,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: executorAddress,
-      success: true,
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: executorAddress,
-      to: onRamp.address,
-      success: true,
-    })
+    const payload = createMaxPayload()
+    const result = await messureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
 
     // Analyze with metrics API
     const snapshot = makeSnapshotMetric(store, {
       contractDatabase,
-      label: 'OnRamp Flow',
+      label: 'Fee Validation Flow',
     })
 
     // Create address to name mapping
@@ -248,7 +178,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
       [router.address.toString()]: 'Router',
       [onRamp.address.toString()]: 'OnRamp',
       [feeQuoter.address.toString()]: 'FeeQuoter',
-      [executorAddress.toString()]: 'Executor',
     }
 
     const flowAnalysis = analyzeSnapshot(snapshot, addressMap, result)
@@ -258,4 +187,115 @@ describe('CCIP OnRamp Gas Estimation', () => {
     console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
     printTransactionFees(result.transactions, opMapFunc())
   })
+
+  it('should compare gas cost of different payload sizes', async () => {
+    // array from 0 to MAX_DATA_PAYLOAD_SIZE in steps of 1
+    const payloadSizes: number[] = []
+    for (let size = 0; size <= MAX_DATA_PAYLOAD_SIZE; size += 127) {
+      payloadSizes.push(size)
+    }
+
+    const gasUsages: {
+      size: number
+      gasUsed: bigint
+      computeFee: bigint
+    }[] = []
+
+    for (const size of payloadSizes) {
+      const payload = createPayload(size)
+      const result = await messureGetValidatedFee(router, sender, payload, onRamp, feeQuoter)
+      const tx: BlockchainTransaction = result.transactions.find(
+        (tx) =>
+          tx.inMessage?.info.src instanceof Address && tx.inMessage.info.src.equals(onRamp.address),
+      )!
+      if (
+        !tx.inMessage ||
+        tx.inMessage.info.type !== 'internal' ||
+        tx.description.type !== 'generic' ||
+        tx.description.computePhase.type !== 'vm'
+      ) {
+        throw new Error('Expected internal message')
+      }
+
+      gasUsages.push({
+        size,
+        gasUsed: tx.description.computePhase.gasUsed,
+        computeFee: tx.description.computePhase.gasFees,
+      })
+    }
+
+    // Print table using utility functions
+    console.log('\n=== GAS COST BY PAYLOAD SIZE ===\n')
+
+    const COL_WIDTHS = [15, 15, 20, 20, 20]
+    const headers = ['Payload (bytes)', 'Gas Used', 'Compute Fee (TON)', 'Rate (nano/byte)']
+    console.log(formatRow(headers, COL_WIDTHS))
+    console.log(formatRow(['---', '---', '---', '---'], COL_WIDTHS))
+
+    // print 1 every 100
+    let summaryOutput = ''
+    let csvOutput = ''
+    gasUsages.forEach(({ size, gasUsed, computeFee }) => {
+      const feeTON = (Number(computeFee) / 1e9).toFixed(9)
+      const rate = size === 0 ? '∞' : (Number(computeFee) / size).toFixed(2).toString()
+      const cells = [size.toString(), gasUsed.toString(), feeTON, rate]
+      // console.log(formatRow(cells, COL_WIDTHS))
+      summaryOutput += formatRow(cells, COL_WIDTHS) + '\n'
+      csvOutput += `${size},${feeTON}\n`
+    })
+
+    console.log(`Summary:\n${summaryOutput}`)
+    console.log(`CSV:\n${csvOutput}`)
+  })
 })
+
+async function messureGetValidatedFee(
+  router: SandboxContract<rt.Router>,
+  sender: SandboxContract<TreasuryContract>,
+  payload: Cell,
+  onRamp: SandboxContract<or.OnRamp>,
+  feeQuoter: SandboxContract<fq.FeeQuoter>,
+) {
+  resetMetricStore()
+  const result = await router.sendGetValidatedFee(
+    sender.getSender(),
+    toNano('0.125'),
+    {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST,
+      receiver: EVM_ADDRESS,
+      data: payload,
+      tokenAmounts: [],
+      feeToken: ZERO_ADDRESS,
+      extraArgs: createExtraArgs(),
+    },
+    beginCell().asSlice(),
+  )
+
+  // Assert all expected transactions
+  expect(result.transactions).toHaveTransaction({
+    from: sender.address,
+    to: router.address,
+    success: true,
+  })
+
+  expect(result.transactions).toHaveTransaction({
+    from: router.address,
+    to: onRamp.address,
+    success: true,
+  })
+
+  expect(result.transactions).toHaveTransaction({
+    from: onRamp.address,
+    to: feeQuoter.address,
+    success: true,
+  })
+
+  expect(result.transactions).toHaveTransaction({
+    from: feeQuoter.address,
+    to: onRamp.address,
+    success: true,
+    op: fq.OutgoingOpcodes.messageValidated,
+  })
+  return result
+}
