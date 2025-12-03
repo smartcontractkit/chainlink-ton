@@ -370,6 +370,7 @@ export enum Errors {
   UnknownDestChainSelector = 18100, // Facility ID * 100
   Unauthorized,
   SenderNotAllowed,
+  InvalidConfig,
 }
 
 export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {

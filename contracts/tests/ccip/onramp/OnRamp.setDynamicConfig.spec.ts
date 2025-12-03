@@ -5,6 +5,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 import { deployOnRampContract } from './OnRamp.Setup'
 import { randomAddress } from '@ton/test-utils'
+import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('OnRamp - set Dynamic Config', () => {
   let blockchain: Blockchain
@@ -63,6 +64,26 @@ describe('OnRamp - set Dynamic Config', () => {
       to: onramp.address,
       success: false,
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
+    })
+  })
+
+  it('should not allow zero address for feeQuoter', async () => {
+    const newConfig = {
+      feeQuoter: ZERO_ADDRESS,
+      feeAggregator: randomAddress(),
+      allowlistAdmin: randomAddress(),
+    }
+    const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        config: newConfig,
+      },
+    })
+    expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
+      from: owner.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.InvalidConfig,
     })
   })
 
