@@ -9,8 +9,7 @@ import { Address, beginCell, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { CHAINSEL_EVM_TEST, CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
 import { compile } from '@ton/blueprint'
-import { sha256 } from '@ton/crypto'
-import { asSnakeData, generateRandomContractId } from '../../../src/utils'
+import { randomAddress } from '@ton/test-utils'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -24,12 +23,12 @@ describe('OnRamp - Send', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
-  let senderAddress: Address
   let mockRouter: SandboxContract<TreasuryContract>
   let mockFeeQuoter: SandboxContract<TreasuryContract>
   let deployableCode: Cell
   let executorCode: Cell
 
+  const senderAddress = randomAddress()
   const ccipSend: rt.CCIPSend = {
     queryID: 1,
     destChainSelector: CHAINSEL_EVM_TEST,
@@ -49,7 +48,6 @@ describe('OnRamp - Send', () => {
   beforeEach(async () => {
     ;({ blockchain, deployer } = await setup())
     deployableCode = await compile('Deployable')
-    senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
@@ -154,6 +152,112 @@ describe('OnRamp - Send', () => {
       exitCode: or.Errors.Unauthorized,
       op: or.Opcodes.onrampSend,
     })
+  })
+
+  it('should succeed if allowlist is enabled and sender is allowed', async () => {
+    // Update dest chain config to enable allowlist
+    {
+      const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
+        deployer.getSender(),
+        {
+          value: toNano('0.5'),
+          destChainConfigs: [
+            {
+              destChainSelector: CHAINSEL_EVM_TEST,
+              router: mockRouter.address,
+              allowlistEnabled: true,
+            },
+          ],
+        },
+      )
+      expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onramp.address,
+        success: true,
+      })
+
+      const updateAllowlistsResult = await onramp.sendUpdateAllowlists(deployer.getSender(), {
+        value: toNano('0.5'),
+        updateAllowlists: {
+          updates: [
+            {
+              destChainSelector: CHAINSEL_EVM_TEST,
+              add: [senderAddress],
+              remove: [],
+            },
+          ],
+        },
+      })
+      expect(updateAllowlistsResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onramp.address,
+        success: true,
+      })
+    }
+
+    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+      msg: ccipSend,
+      metadata: {
+        sender: senderAddress,
+        value: toNano('42'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockRouter.address,
+      to: onramp.address,
+      success: true,
+      op: or.Opcodes.onrampSend,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      success: true,
+      op: deployable.Opcodes.initializeAndSend,
+    })
+  })
+
+  it('should fail if allowlist is enabled and sender is not allowed', async () => {
+    // Update dest chain config to enable allowlist
+    const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
+      deployer.getSender(),
+      {
+        value: toNano('0.5'),
+        destChainConfigs: [
+          {
+            destChainSelector: CHAINSEL_EVM_TEST,
+            router: mockRouter.address,
+            allowlistEnabled: true,
+          },
+        ],
+      },
+    )
+    expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: true,
+    })
+
+    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+      msg: ccipSend,
+      metadata: {
+        sender: senderAddress,
+        value: toNano('42'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockRouter.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.SenderNotAllowed,
+      op: or.Opcodes.onrampSend,
+    })
+    // TODO should return messageValidationFailed in stead of throwing an error
+    // expect(result.transactions).toHaveTransaction({
+    //   from: onramp.address,
+    //   success: true,
+    //   op: or.OutOpcodes.messageValidationFailed,
+    // })
   })
 
   afterAll(async () => {
