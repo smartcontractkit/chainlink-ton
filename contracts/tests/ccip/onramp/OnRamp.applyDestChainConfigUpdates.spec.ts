@@ -21,7 +21,10 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     ;({ blockchain, deployer, onramp } = await setup())
   })
 
-  it('Test allowlist admin can call updateAllowlist ', async () => {
+  // getters that return lisp lists break blueprint's test coverage report
+  const itSkipsCoverage = process.env['COVERAGE'] === 'true' ? it.skip : it
+
+  itSkipsCoverage('Test allowlist admin can call updateAllowlist ', async () => {
     const allowlistAdmin = await blockchain.treasury('allowlistAdmin')
     onramp = await deployOnRampContract(blockchain, deployer, {
       config: {
