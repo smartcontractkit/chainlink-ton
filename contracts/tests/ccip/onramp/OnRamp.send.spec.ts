@@ -136,6 +136,26 @@ describe('OnRamp - Send', () => {
     expect(executableData.onramp.equals(onramp.address)).toBe(true)
   })
 
+  it('should fail if sender is not the router', async () => {
+    const fakeRouter = await blockchain.treasury('fakeRouter')
+
+    const result = await onramp.sendSend(fakeRouter.getSender(), toNano('1'), {
+      msg: ccipSend,
+      metadata: {
+        sender: senderAddress,
+        value: toNano('42'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: fakeRouter.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.Unauthorized,
+      op: or.Opcodes.onrampSend,
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_generate_message_id', [
