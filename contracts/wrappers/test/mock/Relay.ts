@@ -111,29 +111,6 @@ export class ContractClient {
     return await compile('tests.mock.Relay')
   }
 
-  static async createFromDeployable(
-    via: Sender,
-    deployable: SandboxContract<deployable.ContractClient>,
-  ): Promise<ContractClient> {
-    const result = await deployable.sendInitialize(via, toNano('0.5'), {
-      code: await ContractClient.code(),
-      data: Cell.EMPTY,
-    })
-
-    if (
-      !result.transactions.every((tx) => {
-        tx.description.type !== 'generic' ||
-          (tx.description.computePhase.type === 'vm' &&
-            tx.description.computePhase.exitCode === 0 &&
-            tx.description.actionPhase?.resultCode === 0)
-      })
-    ) {
-      throw new Error('Failed to init Relay contract')
-    }
-
-    return ContractClient.createFromAddress(deployable.address)
-  }
-
   // Get a sender that routes messages via Relay contract
   // This is not a contract getter but we use a get* name to use the injected
   // provider when opened as a sandbox contract
