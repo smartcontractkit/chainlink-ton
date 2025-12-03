@@ -40,14 +40,13 @@ class LispListGetter {
   }
 
   async getList(provider: ContractProvider) {
-    return await provider.get('list', []).then((r) =>
-      r.stack.readLispList().map((t: TupleItem) => {
-        if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
-          throw Error('Not a cell: ' + t.type)
-        }
-        return t.cell.beginParse().loadAddress()
-      }),
-    )
+    const result = await provider.get('list', [])
+    // return result.stack.readLispList().map((t: TupleItem) => {
+    //   if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+    //     throw Error('Not a cell: ' + t.type)
+    //   }
+    //   return t.cell.beginParse().loadAddress()
+    // })
   }
 }
 
@@ -70,7 +69,6 @@ describe('lisp list getter', () => {
     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
   })
 
-  //TODO we really need to increase onramp coverage
   it('Test coverage fails ', async () => {
     const list = await contract.getList()
   })
@@ -86,13 +84,3 @@ describe('lisp list getter', () => {
     }
   })
 })
-
-const assertAddressesMatch = (expected: Address[], actual: Address[]) => {
-  expect(actual.map((x) => x.toString()).sort()).toEqual(
-    expected
-      .map((x) => {
-        return x.toString()
-      })
-      .sort(),
-  )
-}
