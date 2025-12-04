@@ -47,9 +47,6 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     }
   })
 
-  // getters that return lisp lists break blueprint's test coverage report
-  const itSkipsCoverage = process.env['COVERAGE'] === 'true' ? it.skip : it
-
   const configureDestChainConfigs = async () => {
     const result = await onramp.sendUpdateDestChainConfigs(deployer.getSender(), {
       value: toNano('0.5'),
@@ -113,7 +110,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     })
   }
 
-  itSkipsCoverage('allows owner to add multiple addresses per chain', async () => {
+  it('allows owner to add multiple addresses per chain', async () => {
     await configureDestChainConfigs()
 
     await seedInitialAllowlists()
@@ -122,7 +119,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, allowedSendersGroup2)
   })
 
-  itSkipsCoverage('allows allowlist admin to delete multiple addresses', async () => {
+  it('allows allowlist admin to delete multiple addresses', async () => {
     await configureDestChainConfigs()
     await seedInitialAllowlists()
 
@@ -157,7 +154,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     await expectedAllowlistMatches(CHAINSEL_EVM_TEST_90000002, emptyGroup)
   })
 
-  itSkipsCoverage('handles simultaneous adds and deletes', async () => {
+  it('handles simultaneous adds and deletes', async () => {
     await configureDestChainConfigs()
     await seedInitialAllowlists()
 
@@ -200,7 +197,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     ])
   })
 
-  itSkipsCoverage('rejects updates from unauthorized senders', async () => {
+  it('rejects updates from unauthorized senders', async () => {
     await configureDestChainConfigs()
     await seedInitialAllowlists()
 
