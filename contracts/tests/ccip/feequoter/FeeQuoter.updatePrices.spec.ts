@@ -265,9 +265,7 @@ describe('FeeQuoter UpdatePrices', () => {
     )
   })
 
-  it.skip('should revert when caller is not authorized', async () => {
-    // TODO: Implement proper authorization in TON FeeQuoter contract
-    // Currently the contract allows any caller to update prices
+  it('should revert when caller is not authorized', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
       tokenPricesUpdates: [
         { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n },
@@ -291,12 +289,7 @@ describe('FeeQuoter UpdatePrices', () => {
     })
   })
 
-  // Note: TON doesn't have a direct equivalent to Solidity's AuthorizedCallers pattern
-  // The authorization in TON FeeQuoter is handled through ownership checks
-  // This test demonstrates the basic unauthorized access behavior
-  it.skip('should only allow owner to update prices', async () => {
-    // TODO: Implement proper authorization in TON FeeQuoter contract
-    // Currently the contract allows any caller to update prices
+  it('should only allow owner to update prices', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
       tokenPricesUpdates: [
         { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n },
