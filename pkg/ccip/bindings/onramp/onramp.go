@@ -330,7 +330,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(UnknownDestChainSelector)
-		ecMax = int32(SenderNotAllowed)
+		ecMax = int32(InvalidConfig)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -339,4 +339,5 @@ const (
 	UnknownDestChainSelector ExitCode = iota + 18100
 	Unauthorized
 	SenderNotAllowed
+	InvalidConfig
 )
