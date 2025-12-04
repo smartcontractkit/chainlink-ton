@@ -60,7 +60,6 @@ const EVM_ADDRESS = Buffer.from(
   'hex',
 ) // 32 bytes
 
-/*
 describe('rt.Router - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: rt.Router.type(),
@@ -90,7 +89,6 @@ describe('Router - Withdrawable Tests', () => {
     },
   ])
 })
-*/
 
 // TODO when we have a new version
 // describe('Router - Upgrade Tests', () => {
@@ -120,7 +118,6 @@ describe('Router - Withdrawable Tests', () => {
 //   upgradeSpec.run()
 // })
 
-/*
 describe('Router - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
     contractType: rt.Router.type(),
@@ -131,7 +128,6 @@ describe('Router - Current Version Tests', () => {
   })
   currentVersionSpec.run()
 })
-*/
 
 describe('Router', () => {
   let blockchain: Blockchain
