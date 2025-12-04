@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -26,17 +26,17 @@ type View struct {
 // FetchView generates a view of the on-ramp contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address, srcSelector uint64) (*View, error) {
 	var typeVersion ccipcommon.TypeAndVersion
-	if err := typeVersion.FetchResult(ctx, c.Client, block, onRampAddr, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, onRampAddr, &typeVersion, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
 	var dConfig onramp.DynamicConfig
-	if err := dConfig.FetchResult(ctx, c.Client, block, onRampAddr, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, onRampAddr, &dConfig, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse DynamicConfig: %w", err)
 	}
 
-	destChainConfig, err := configfetcher.FetchOnRampDestChainConfig(ctx, c.Client, block, onRampAddr)
-	if err != nil {
+	var destChainConfig onramp.DestChainConfigMap
+	if err := destChainConfig.Fetch(ctx, c.Client, block, onRampAddr); err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config: %w", err)
 	}
 

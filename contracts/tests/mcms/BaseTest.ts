@@ -184,7 +184,7 @@ export class BaseTestSetup {
    */
   async setupCounterContract(testId: string): Promise<void> {
     const data = {
-      id: crc32(`mcms.counter.${testId}`),
+      id: BigInt(crc32(`mcms.counter.${testId}`)),
       value: 0,
       ownable: {
         owner: this.bind.timelock.address,

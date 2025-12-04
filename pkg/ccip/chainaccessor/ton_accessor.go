@@ -399,7 +399,7 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 	var timestampedPrice feequoter.TimestampedPrice
 	// Prepare token address as a slice cell for getter call
 	tokenAddressSlice := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell().BeginParse()
-	err = timestampedPrice.FetchResult(ctx, a.client, block, addr, []interface{}{tokenAddressSlice})
+	err = tvm.FetchResult(ctx, a.client, block, addr, &timestampedPrice, []interface{}{tokenAddressSlice})
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
@@ -419,7 +419,7 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 		return ccipocr3.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
 	var cfg feequoter.DestChainConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(dest)}); err != nil {
+	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, []interface{}{uint64(dest)}); err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
 	return ccipocr3.FeeQuoterDestChainConfig{
@@ -725,7 +725,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 
 	for _, selector := range selectors {
 		var gasPrice feequoter.USDPerUnitGas
-		err := gasPrice.FetchResult(ctx, a.client, block, addr, []interface{}{uint64(selector)})
+		err := tvm.FetchResult(ctx, a.client, block, addr, &gasPrice, []interface{}{uint64(selector)})
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
 			prices[selector] = ccipocr3.TimestampedUnixBig{
@@ -817,7 +817,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		}
 
 		var tokenPrice feequoter.TimestampedPrice
-		err = tokenPrice.FetchResult(ctx, a.client, block, addr, []interface{}{cell.BeginCell().MustStoreAddr(addrParsed).EndCell().BeginParse()})
+		err = tvm.FetchResult(ctx, a.client, block, addr, &tokenPrice, []interface{}{cell.BeginCell().MustStoreAddr(addrParsed).EndCell().BeginParse()})
 		if err != nil {
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here

@@ -1,30 +1,34 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
 import { compile, sleep } from '@ton/blueprint'
-import * as rt from '../../wrappers/ccip/Router'
-import * as or from '../../wrappers/ccip/OnRamp'
-import * as fq from '../../wrappers/ccip/FeeQuoter'
+import * as rt from '../../../wrappers/ccip/Router'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
-import { assertLog } from '../Logs'
-import { LogTypes } from '../../wrappers/ccip/Logs'
-import { generateRandomTonAddress, ZERO_ADDRESS } from '../../src/utils'
-import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
-import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
-import * as jetton from '../../wrappers/jetton/JettonWallet'
-import { CellCodec, facilityId } from '../../wrappers/utils'
+import { assertLog } from '../../Logs'
+import { LogTypes } from '../../../wrappers/ccip/Logs'
+import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
+import { JettonMinterCode, JettonWalletCode } from '../../../wrappers/jetton/JettonCode'
+import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
+import * as jetton from '../../../wrappers/jetton/JettonWallet'
+import { CellCodec, facilityId } from '../../../wrappers/utils'
 import { crc32 } from 'zlib'
-import * as sendExecutor from '../../wrappers/ccip/CCIPSendExecutor'
-import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
-import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
-import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
-import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
-import { dump } from '../utils/prettyPrint'
-import { getValidatedFee } from '../../src/ccipSend/fee'
-import { sendGetValidatedFee } from './onramp/OnChainGetValidatedFee'
-import { generateRandomContractId } from '../../src/utils/types'
-import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
-import * as Decimals from '../lib/pricing/Decimals'
-import * as coverage from '../coverage/coverage'
+import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
+import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import { dump } from '../../utils/prettyPrint'
+import { getValidatedFee } from '../../../src/ccipSend/fee'
+import { generateRandomContractId } from '../../../src/utils/types'
+import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
+import * as Decimals from '../../lib/pricing/Decimals'
+import * as coverage from '../../coverage/coverage'
+import {
+  verifyBodyIsRouterCCIPSendACK,
+  verifyBodyIsRouterMessageSent,
+} from '../../utils/verifyMessageBody'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -981,135 +985,4 @@ async function setupJetton(
     jettonMinter,
     provideUserWalletFor,
   }
-}
-
-export function verifyBodyMessage<T>(
-  body: Cell | undefined,
-  codec: CellCodec<T>,
-  validations: ((message: T) => boolean)[] = [],
-): boolean {
-  if (!body) {
-    console.log('Body is empty')
-    return false
-  }
-
-  let message: T
-  try {
-    message = codec.load(body.beginParse())
-  } catch (e) {
-    console.log('Failed to parse message body:', e)
-    return false
-  }
-
-  return validations.every((validate) => validate(message))
-}
-
-function verifyBodyIsTransferRequest(
-  body: Cell | undefined,
-  options: {
-    transferRequestValidaton?: (request: jetton.AskToTransfer) => boolean
-  } = {},
-): boolean {
-  const { transferRequestValidaton } = options
-  const validations = transferRequestValidaton ? [transferRequestValidaton] : []
-
-  return verifyBodyMessage(body, jetton.builder.messages.in.askToTransfer, validations)
-}
-
-function verifyBodyIsTransferRequestWithFwdPayload<T>(
-  body: Cell | undefined,
-  payloadCodec: CellCodec<T>,
-  options: {
-    transferRequestValidaton?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
-    fwdPayloadValidation?: (payload: T) => boolean
-  } = {},
-): boolean {
-  const { transferRequestValidaton, fwdPayloadValidation } = options
-
-  const validations = [
-    ...(transferRequestValidaton ? [transferRequestValidaton] : []),
-    ...(fwdPayloadValidation
-      ? [
-          (request: jetton.AskToTransferWithFwdPayload<T>) =>
-            fwdPayloadValidation(request.forwardPayload),
-        ]
-      : []),
-  ]
-
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.in.askToTransferWithFwdPayload(payloadCodec),
-    validations,
-  )
-}
-
-function verifyBodyIsTransferNotification(
-  body: Cell | undefined,
-  options: {
-    transferNotificationValidaton?: (
-      notification: jetton.TransferNotificationForRecipient,
-    ) => boolean
-  } = {},
-): boolean {
-  const { transferNotificationValidaton } = options
-  const validations = transferNotificationValidaton ? [transferNotificationValidaton] : []
-
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.out.transferNotificationForRecipient,
-    validations,
-  )
-}
-
-function verifyBodyIsTransferNotificationWithFwdPayload<T>(
-  body: Cell | undefined,
-  payloadCodec: CellCodec<T>,
-  options: {
-    transferNotificationValidaton?: (
-      notification: jetton.TransferNotificationWithFwdPayload<T>,
-    ) => boolean
-    fwdPayloadValidation?: (payload: T) => boolean
-  } = {},
-): boolean {
-  const { transferNotificationValidaton, fwdPayloadValidation } = options
-
-  const validations = [
-    ...(transferNotificationValidaton ? [transferNotificationValidaton] : []),
-    ...(fwdPayloadValidation
-      ? [
-          (notification: jetton.TransferNotificationWithFwdPayload<T>) =>
-            fwdPayloadValidation(notification.forwardPayload),
-        ]
-      : []),
-  ]
-
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
-    validations,
-  )
-}
-
-function verifyBodyIsRouterMessageSent(
-  body: Cell | undefined,
-  options: {
-    validation?: (ack: rt.MessageSent) => boolean
-  } = {},
-): boolean {
-  const { validation } = options
-  const validations = validation ? [validation] : []
-
-  return verifyBodyMessage(body, rt.builder.message.in.messageSent, validations)
-}
-
-function verifyBodyIsRouterCCIPSendACK(
-  body: Cell | undefined,
-  options: {
-    validation?: (ack: rt.CCIPSendACK) => boolean
-  } = {},
-): boolean {
-  const { validation } = options
-  const validations = validation ? [validation] : []
-
-  return verifyBodyMessage(body, rt.builder.message.out.ccipSendACK, validations)
 }
