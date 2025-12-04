@@ -140,6 +140,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployC
 			DestChainConfigs:             nil,
 		}
 
+		// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
 		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
 		if err != nil {
 			return output, err
