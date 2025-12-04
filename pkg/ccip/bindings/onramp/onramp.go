@@ -321,3 +321,23 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	*d = output
 	return nil
 }
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(UnknownDestChainSelector)
+		ecMax = int32(InvalidConfig)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
+const (
+	UnknownDestChainSelector ExitCode = iota + 18100
+	Unauthorized
+	SenderNotAllowed
+	InvalidConfig
+)
