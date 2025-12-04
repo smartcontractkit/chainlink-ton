@@ -511,7 +511,7 @@ func TestDeployMCMS(t *testing.T) {
 	// <Verify MCMS address>
 	mcmsAddr := mcmsState[chainSelector].MCMS
 	var tv common.TypeAndVersion
-	err = tv.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, nil)
+	err = tvm.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, &tv, nil)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type)
 	// </Verify MCMS address>
