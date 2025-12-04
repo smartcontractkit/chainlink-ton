@@ -608,6 +608,25 @@ get fun staticConfig(): (uint96, address, uint64) {
     return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
 }
 
+get fun dataAvailabilityCost(
+    destChainSelector: uint64,
+    dataAvailabilityGasPrice: uint112,
+    calldataLen: uint256,
+    tokenCount: uint256,
+    tokenTransferBytesOverhead: uint256,
+): uint256 {
+    val st = lazy Storage.load();
+
+    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    return _dataAvailabilityCost(
+        destChainConfig,
+        dataAvailabilityGasPrice,
+        calldataLen,
+        tokenCount,
+        tokenTransferBytesOverhead,
+    );
+}
+
 /// Gets the current owner of the contract.
 get fun owner(): address {
     val st = lazy Storage.load();

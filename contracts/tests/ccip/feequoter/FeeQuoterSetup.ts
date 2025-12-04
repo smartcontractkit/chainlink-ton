@@ -4,16 +4,15 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Dictionary, Address, CommonMessageInfoInternal } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
 import { crc32 } from 'zlib'
 
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
-import * as feeQuoterHelper from '../../../wrappers/ccip/helpers/FeeQuoterHelper'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
-import { verifyBodyMessage } from '../CCIPRouter.spec'
+import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import {
   CHAIN_FAMILY_SELECTOR_EVM,
@@ -34,7 +33,7 @@ export type TestAccounts = {
 }
 
 export type TestContracts = {
-  feeQuoter: SandboxContract<feeQuoterHelper.FeeQuoterHelper>
+  feeQuoter: SandboxContract<feeQuoter.FeeQuoter>
   counter: SandboxContract<counter.ContractClient>
 }
 
@@ -175,7 +174,7 @@ export class FeeQuoterSetup {
 
   static async compileContracts(): Promise<TestCode> {
     return {
-      feeQuoter: await feeQuoterHelper.FeeQuoterHelper.code(),
+      feeQuoter: await feeQuoter.FeeQuoter.code(),
       counter: await compile('examples.Counter'),
     }
   }
@@ -183,8 +182,8 @@ export class FeeQuoterSetup {
   /**
    * Initialize the blockchain and setup accounts
    */
-  async initializeBlockchain(): Promise<void> {
-    this.blockchain = await Blockchain.create()
+  async initializeBlockchain(blockchain: Blockchain): Promise<void> {
+    this.blockchain = blockchain
     this.blockchain.now = 1
     this.blockchain.verbosity = {
       print: true,
@@ -192,12 +191,10 @@ export class FeeQuoterSetup {
       vmLogs: 'none',
       debugLogs: true,
     }
-    /* TODO: Enable this when the test suite runs in the actual FeeQuoter instead of in the helper
     if (process.env['COVERAGE'] === 'true') {
       this.blockchain.enableCoverage()
       this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
-    */
 
     // Set up accounts
     this.acc = {
@@ -216,9 +213,9 @@ export class FeeQuoterSetup {
   /**
    * Setup the FeeQuoter contract with minimal configuration (following setupTestFeeQuoter pattern)
    */
-  async setupFeeQuoterContract(testId: string): Promise<void> {
+  async setupFeeQuoterContract(): Promise<void> {
     const data: feeQuoter.FeeQuoterStorage = {
-      id: BigInt(crc32(`feeQuoter.${testId}`)),
+      id: generateRandomContractId(),
       ownable: {
         owner: this.acc.owner.address,
         pendingOwner: null,
@@ -252,16 +249,16 @@ export class FeeQuoterSetup {
     }
 
     this.bind.feeQuoter = this.blockchain.openContract(
-      feeQuoterHelper.FeeQuoterHelper.createFromConfig(data, this.code.feeQuoter),
+      feeQuoter.FeeQuoter.createFromConfig(data, this.code.feeQuoter),
     )
   }
 
   /**
    * Setup the counter contract (equivalent to mock contracts in Solidity tests)
    */
-  async setupCounterContract(testId: string): Promise<void> {
+  async setupCounterContract(): Promise<void> {
     const data: counter.ContractData = {
-      id: crc32(`counter.${testId}`),
+      id: generateRandomContractId(),
       value: 0,
       ownable: {
         owner: this.bind.feeQuoter.address,
@@ -454,11 +451,11 @@ export class FeeQuoterSetup {
   /**
    * Complete setup for all contracts - convenience method
    */
-  async setupAll(testId: string): Promise<void> {
-    await this.initializeBlockchain()
-    await this.setupFeeQuoterContract(testId)
+  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
+    await this.initializeBlockchain(blockchain)
+    await this.setupFeeQuoterContract()
     await this.deployFeeQuoterContract()
-    await this.setupCounterContract(testId)
+    await this.setupCounterContract()
     await this.deployCounterContract()
   }
 
@@ -661,8 +658,8 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
     super(blockchain)
   }
 
-  async setupAll(testId: string): Promise<void> {
-    await super.setupAll(testId)
+  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
+    await super.setupAll(testId, blockchain)
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }

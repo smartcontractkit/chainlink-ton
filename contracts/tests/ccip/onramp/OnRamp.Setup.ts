@@ -1,18 +1,21 @@
 import { Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+
 import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
-import { OnRamp, OnRampStorage } from '../../../wrappers/ccip/OnRamp'
+
+import * as or from '../../../wrappers/ccip/OnRamp'
 
 export const CHAINSEL_EVM_TEST = 909606746561742123n
 export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
+export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
 export async function deployOnRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
   overrides = {},
 ) {
-  const code = await OnRamp.code()
-  let data: OnRampStorage = {
+  const code = await or.OnRamp.code()
+  let data: or.OnRampStorage = {
     id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
@@ -33,9 +36,8 @@ export async function deployOnRampContract(
     ...overrides,
   }
   // TODO: use deployable to make deterministic?
-  const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
+  const contract = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
   await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
   return contract
 }
-export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant

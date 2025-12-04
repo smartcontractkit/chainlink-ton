@@ -9,8 +9,9 @@ import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
-import { verifyBodyMessage } from '../CCIPRouter.spec'
+import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import { Blockchain } from '@ton/sandbox'
+import * as coverage from '../../coverage/coverage'
 
 describe('FeeQuoter GetValidatedFee', () => {
   let setup: FeeQuoterFeeSetup
@@ -23,7 +24,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   beforeEach(async () => {
     setup = new FeeQuoterFeeSetup(blockchain)
     setup.code = await FeeQuoterSetup.compileContracts()
-    await setup.setupAll('getValidatedFee')
+    await setup.setupAll('getValidatedFee', blockchain)
   })
 
   it('should calculate fee for empty message', async () => {
@@ -1024,19 +1025,15 @@ describe('FeeQuoter GetValidatedFee', () => {
       )
     })
   })
-  /*
-   TODO: This testsuite doesn't run on the FeeQuoter but on a helper contract with an added getter
-         Enable this again when the testsuite runs on the FeeQuoter
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
       coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
-          code: 'FeeQuoter',
-          name: feeQuoter.FeeQuoter.type(),
+          code: setup.code.feeQuoter,
+          name: 'feequoter',
         },
       ])
     }
   })
-  */
 })
