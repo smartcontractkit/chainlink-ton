@@ -916,7 +916,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
   }
 
   async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
-    const { stack } = await provider.get('reserve', [])
+    const { stack } = await provider.get('dynamicConfig', [])
     return {
       feeQuoter: stack.readAddress(),
       feeAggregator: stack.readAddress(),

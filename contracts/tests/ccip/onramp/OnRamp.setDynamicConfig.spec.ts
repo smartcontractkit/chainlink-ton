@@ -1,4 +1,4 @@
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import { randomAddress } from '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
