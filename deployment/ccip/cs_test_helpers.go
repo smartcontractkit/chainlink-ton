@@ -1,4 +1,4 @@
-package changesets
+package ops
 
 import (
 	"context"

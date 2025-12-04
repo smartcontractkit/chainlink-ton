@@ -25,7 +25,7 @@ import (
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip/changesets"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	mcmsops "github.com/smartcontractkit/chainlink-ton/deployment/mcms/changesets"
