@@ -8,8 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
-
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -17,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Note: This file contains contract configuration related methods for the TON accessor
@@ -94,12 +93,12 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		return ccipocr3.OfframpConfig{}, err
 	}
 	var config offramp.Config
-	if err = config.FetchResult(ctx, a.client, block, addr, nil); err != nil {
+	if err = tvm.FetchResult(ctx, a.client, block, addr, &config, nil); err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
 
 	var ocr3Base offramp.OCR3Base
-	err = ocr3Base.FetchResult(ctx, a.client, block, addr, nil)
+	err = tvm.FetchResult(ctx, a.client, block, addr, &ocr3Base, nil)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
@@ -136,8 +135,8 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	}
 
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
-	sourceConfigsGot, err := configfetcher.FetchOffRampSrcChainConfig(ctx, a.client, block, addr)
-	if err != nil {
+	var sourceConfigsGot offramp.SourceChainConfigMap
+	if err = sourceConfigsGot.Fetch(ctx, a.client, block, addr); err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
@@ -173,7 +172,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 
 	var config offramp.SourceChainConfig
 	opts := []interface{}{uint64(sourceChainSelector)}
-	err = config.FetchResult(ctx, a.client, block, addr, opts)
+	err = tvm.FetchResult(ctx, a.client, block, addr, &config, opts)
 	if err != nil {
 		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
 		var execError ton.ContractExecError
@@ -205,7 +204,7 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	var cfg feequoter.StaticConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, nil); err != nil {
+	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, nil); err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	return ccipocr3.FeeQuoterStaticConfig{
@@ -222,7 +221,7 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
 	var cfg onramp.DynamicConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, nil); err != nil {
+	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, nil); err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
 	return ccipocr3.OnRampDynamicConfig{
@@ -243,7 +242,7 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 
 	var cfg onramp.DestChainConfig
 	opts := []interface{}{uint64(dest)}
-	if err = cfg.FetchResult(ctx, a.client, block, addr, opts); err != nil {
+	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, opts); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 

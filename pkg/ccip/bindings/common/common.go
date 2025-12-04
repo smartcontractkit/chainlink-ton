@@ -1,7 +1,6 @@
 package common //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -29,6 +28,10 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
+	versionGetter = "typeAndVersion"
+)
+
+const (
 	ErrorUnknownDestChainSelector ExitCode = iota + 256
 	ErrorDestChainNotEnabled
 	ErrorFeeTokenNotSupported
@@ -42,12 +45,6 @@ const (
 	ErrorSourceChainNotEnabled
 	ErrorEmptyReport
 	ErrorDispatchNotFromMerkleRoot
-)
-
-const (
-	DestChainConfigGetter = "destChainConfig"
-	VersionGetter         = "typeAndVersion"
-	SrcChainConfigGetter  = "sourceChainConfig"
 )
 
 // WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
@@ -97,8 +94,8 @@ func (t *TypeAndVersion) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return FetchResultHelper(ctx, client, block, contractAddr, VersionGetter, nil, t)
+func (t *TypeAndVersion) GetterMethodName() string {
+	return versionGetter
 }
 
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
@@ -251,7 +248,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // packArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
 // Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
 // Cells are linked via references for arrays that span multiple cells.
-// note: T cannot be primitive types does not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.), wrapper type is needed such as DestChainSelector in router binding
+// note: T cannot be primitive types not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.); a wrapper type is needed, such as ChainSelector in router binding
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	cells := []*cell.Builder{}
 	builder := cell.BeginCell()
@@ -475,29 +472,4 @@ func NewDummyCell() (*cell.Cell, error) {
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
-}
-
-// FetchResultHelper is a generic helper function to fetch and parse contract configurations.
-func FetchResultHelper(
-	ctx context.Context,
-	client ton.APIClientWrapped,
-	block *ton.BlockIDExt,
-	contractAddr *address.Address,
-	method string,
-	opts []interface{},
-	v tvm.ResultUnmarshaler,
-) error {
-	var result *ton.ExecutionResult
-	var err error
-	if opts == nil {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
-	} else {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return tvm.LoadFromResult(v, result)
 }

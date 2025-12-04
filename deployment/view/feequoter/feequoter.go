@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -25,17 +25,17 @@ type View struct {
 // FetchView generates a view of the fee quoter contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	if err := typeVersion.FetchResult(ctx, c.Client, block, feeQuoter, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, feeQuoter, &typeVersion, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
 	var sc feequoter.StaticConfig
-	if err := sc.FetchResult(ctx, c.Client, block, feeQuoter, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, feeQuoter, &sc, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse StaticConfig: %w", err)
 	}
 
-	destConfigs, err := configfetcher.FetchFeeQuoterDestChainConfigs(ctx, c.Client, block, feeQuoter)
-	if err != nil {
+	var destConfigs feequoter.DestChainConfigMap
+	if err := destConfigs.Fetch(ctx, c.Client, block, feeQuoter); err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}
 
