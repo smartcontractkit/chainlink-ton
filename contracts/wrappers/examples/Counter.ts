@@ -42,7 +42,7 @@ export const EventTopics = {
 
 export type ContractData = {
   /// ID allows multiple independent instances, since contract address depends on initial state.
-  id: number // uint32
+  id: bigint | number // uint32
   value: number // uint32
 
   ownable: ownable2step.Data
@@ -96,7 +96,7 @@ export const builder = {
         const id = src.loadUintBig(32)
         const value = src.loadUintBig(32)
         return {
-          id: src.loadUint(32),
+          id: src.loadUintBig(32),
           value: src.loadUint(32),
           ownable: {
             // TODO: use ownable2step decoder

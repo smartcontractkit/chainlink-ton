@@ -567,6 +567,24 @@ export class FeeQuoter
     return result.stack.readBigNumber()
   }
 
+  async getDataAvailabilityCost(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+    dataAvailabilityGasPrice: bigint,
+    calldataLen: bigint,
+    tokenCount: bigint,
+    tokenTransferBytesOverhead: bigint,
+  ): Promise<bigint> {
+    const { stack } = await provider.get('dataAvailabilityCost', [
+      { type: 'int', value: destChainSelector },
+      { type: 'int', value: dataAvailabilityGasPrice },
+      { type: 'int', value: calldataLen },
+      { type: 'int', value: tokenCount },
+      { type: 'int', value: tokenTransferBytesOverhead },
+    ])
+    return stack.readBigNumber()
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }

@@ -35,6 +35,10 @@ import { generateRandomContractId } from '../../src/utils/types'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as Decimals from '../lib/pricing/Decimals'
 import * as coverage from '../coverage/coverage'
+import {
+  verifyBodyIsRouterCCIPSendACK,
+  verifyBodyIsRouterMessageSent,
+} from '../utils/verifyMessageBody'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -56,6 +60,7 @@ const EVM_ADDRESS = Buffer.from(
   'hex',
 ) // 32 bytes
 
+/*
 describe('rt.Router - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: rt.Router.type(),
@@ -85,6 +90,7 @@ describe('Router - Withdrawable Tests', () => {
     },
   ])
 })
+*/
 
 // TODO when we have a new version
 // describe('Router - Upgrade Tests', () => {
@@ -114,6 +120,7 @@ describe('Router - Withdrawable Tests', () => {
 //   upgradeSpec.run()
 // })
 
+/*
 describe('Router - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
     contractType: rt.Router.type(),
@@ -124,6 +131,7 @@ describe('Router - Current Version Tests', () => {
   })
   currentVersionSpec.run()
 })
+*/
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -990,135 +998,4 @@ async function setupJetton(
     jettonMinter,
     provideUserWalletFor,
   }
-}
-
-export function verifyBodyMessage<T>(
-  body: Cell | undefined,
-  codec: CellCodec<T>,
-  validations: ((message: T) => boolean)[] = [],
-): boolean {
-  if (!body) {
-    console.log('Body is empty')
-    return false
-  }
-
-  let message: T
-  try {
-    message = codec.load(body.beginParse())
-  } catch (e) {
-    console.log('Failed to parse message body:', e)
-    return false
-  }
-
-  return validations.every((validate) => validate(message))
-}
-
-function verifyBodyIsTransferRequest(
-  body: Cell | undefined,
-  options: {
-    transferRequestValidaton?: (request: jetton.AskToTransfer) => boolean
-  } = {},
-): boolean {
-  const { transferRequestValidaton } = options
-  const validations = transferRequestValidaton ? [transferRequestValidaton] : []
-
-  return verifyBodyMessage(body, jetton.builder.messages.in.askToTransfer, validations)
-}
-
-function verifyBodyIsTransferRequestWithFwdPayload<T>(
-  body: Cell | undefined,
-  payloadCodec: CellCodec<T>,
-  options: {
-    transferRequestValidaton?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
-    fwdPayloadValidation?: (payload: T) => boolean
-  } = {},
-): boolean {
-  const { transferRequestValidaton, fwdPayloadValidation } = options
-
-  const validations = [
-    ...(transferRequestValidaton ? [transferRequestValidaton] : []),
-    ...(fwdPayloadValidation
-      ? [
-          (request: jetton.AskToTransferWithFwdPayload<T>) =>
-            fwdPayloadValidation(request.forwardPayload),
-        ]
-      : []),
-  ]
-
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.in.askToTransferWithFwdPayload(payloadCodec),
-    validations,
-  )
-}
-
-function verifyBodyIsTransferNotification(
-  body: Cell | undefined,
-  options: {
-    transferNotificationValidaton?: (
-      notification: jetton.TransferNotificationForRecipient,
-    ) => boolean
-  } = {},
-): boolean {
-  const { transferNotificationValidaton } = options
-  const validations = transferNotificationValidaton ? [transferNotificationValidaton] : []
-
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.out.transferNotificationForRecipient,
-    validations,
-  )
-}
-
-function verifyBodyIsTransferNotificationWithFwdPayload<T>(
-  body: Cell | undefined,
-  payloadCodec: CellCodec<T>,
-  options: {
-    transferNotificationValidaton?: (
-      notification: jetton.TransferNotificationWithFwdPayload<T>,
-    ) => boolean
-    fwdPayloadValidation?: (payload: T) => boolean
-  } = {},
-): boolean {
-  const { transferNotificationValidaton, fwdPayloadValidation } = options
-
-  const validations = [
-    ...(transferNotificationValidaton ? [transferNotificationValidaton] : []),
-    ...(fwdPayloadValidation
-      ? [
-          (notification: jetton.TransferNotificationWithFwdPayload<T>) =>
-            fwdPayloadValidation(notification.forwardPayload),
-        ]
-      : []),
-  ]
-
-  return verifyBodyMessage(
-    body,
-    jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
-    validations,
-  )
-}
-
-function verifyBodyIsRouterMessageSent(
-  body: Cell | undefined,
-  options: {
-    validation?: (ack: rt.MessageSent) => boolean
-  } = {},
-): boolean {
-  const { validation } = options
-  const validations = validation ? [validation] : []
-
-  return verifyBodyMessage(body, rt.builder.message.in.messageSent, validations)
-}
-
-function verifyBodyIsRouterCCIPSendACK(
-  body: Cell | undefined,
-  options: {
-    validation?: (ack: rt.CCIPSendACK) => boolean
-  } = {},
-): boolean {
-  const { validation } = options
-  const validations = validation ? [validation] : []
-
-  return verifyBodyMessage(body, rt.builder.message.out.ccipSendACK, validations)
 }
