@@ -26,30 +26,15 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
-import * as jetton from '../../../wrappers/jetton/JettonWallet'
-import * as JettonMinter from '../../../wrappers/jetton/JettonMinter'
+import {
+  CHAINSEL_EVM_TEST_90000001,
+  CHAINSEL_EVM_TEST_90000002,
+  deployRouterContract,
+  EVM_ADDRESS,
+  setup,
+  TEST_TOKEN_ADDR,
+} from './Router.Setup'
 import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
-import { deployRouterContract, setup } from './Router.Setup'
-
-export const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
-const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
-export const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
-const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
-const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
-const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
-
-export const CHAINSEL_TON = 13879075125137744094n
-export const TEST_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000001',
-)
-export const TEST_LINK_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000002',
-)
-
-const EVM_ADDRESS = Buffer.from(
-  '0000000000000000000000001234567890123456789012345678901234567890',
-  'hex',
-) // 32 bytes
 
 describe('rt.Router - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({

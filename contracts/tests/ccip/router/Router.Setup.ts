@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { Dictionary, beginCell, toNano, Cell } from '@ton/core'
+import { Dictionary, beginCell, toNano, Cell, Address } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { generateRandomContractId } from '../../../src/utils'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
@@ -8,13 +8,6 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as Decimals from '../../lib/pricing/Decimals'
 import { assertLog } from '../../Logs'
-import {
-  TEST_TOKEN_ADDR,
-  TEST_LINK_TOKEN_ADDR,
-  CHAINSEL_EVM_TEST_90000001,
-  CHAIN_FAMILY_SELECTOR_EVM,
-  CHAINSEL_TON,
-} from './Router.spec'
 
 export async function setup(blockchain: Blockchain) {
   blockchain.verbosity = {
@@ -295,3 +288,21 @@ export async function deployRouterContract(
   await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
   return contract
 }
+export const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
+export const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
+const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
+const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
+const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
+
+export const CHAINSEL_TON = 13879075125137744094n
+export const TEST_TOKEN_ADDR = Address.parseRaw(
+  '0:0000000000000000000000000000000000000000000000000000000000000001',
+)
+export const TEST_LINK_TOKEN_ADDR = Address.parseRaw(
+  '0:0000000000000000000000000000000000000000000000000000000000000002',
+)
+export const EVM_ADDRESS = Buffer.from(
+  '0000000000000000000000001234567890123456789012345678901234567890',
+  'hex',
+) // 32 bytes
