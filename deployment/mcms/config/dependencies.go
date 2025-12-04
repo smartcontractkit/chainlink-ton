@@ -1,4 +1,4 @@
-package operation
+package config
 
 import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"

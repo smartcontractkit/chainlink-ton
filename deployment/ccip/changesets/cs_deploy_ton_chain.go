@@ -1,4 +1,4 @@
-package ops
+package changesets
 
 import (
 	"fmt"
@@ -42,12 +42,12 @@ func (cs DeployCCIPContracts) VerifyPreconditions(_ cldf.Environment, _ DeployCC
 	return nil
 }
 
-func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContractsCfg) (cldf.ChangesetOutput, error) {
+func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContractsCfg) (cldf.ChangesetOutput, error) {
 	// TODO: Implement logic of deploying Ton chain packages and modules
 	// - once all contracts are deployed, we can remove the hardcoded addresses from the TonTestDeployPrerequisitesChangeSet
 	// - Deploy TON MCMS, https://smartcontract-it.atlassian.net/browse/NONEVM-1939
-	env.Logger.Infof("deploying contracts for TON chains: %v", config.TonChainSelector)
-	selector := config.TonChainSelector
+	env.Logger.Infof("deploying contracts for TON chains: %v", cfg.TonChainSelector)
+	selector := cfg.TonChainSelector
 
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[selector]
@@ -77,7 +77,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		})
 	}
 
-	deps := operation.CCIPDeps{
+	deps := config.CCIPDeps{
 		TonChain:         chain,
 		CCIPOnChainState: states,
 	}
@@ -86,8 +86,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
-		CCIPConfig:          config.Params,
-		ContractsVersionSha: config.ContractsVersion,
+		CCIPConfig:          cfg.Params,
+		ContractsVersionSha: cfg.ContractsVersion,
 		ChainSelector:       selector,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, deps, ccipSeqInput)
@@ -120,7 +120,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	deps.CCIPOnChainState[selector] = s
 
-	// Execute post-deployment config
+	// Execute post-deployment cfg
 	var txs [][]byte
 
 	// feequoter.addPriceUpdater(offramp)
@@ -134,8 +134,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	txs = append(txs, addPriceUpdaterReport.Output...)
 
 	// feeQuoter.updateFeeTokens
-	feeTokens := make(map[string]operation.FeeTokenConfig, len(config.Params.FeeQuoterParams.FeeTokens))
-	for _, feeToken := range config.Params.FeeQuoterParams.FeeTokens {
+	feeTokens := make(map[string]operation.FeeTokenConfig, len(cfg.Params.FeeQuoterParams.FeeTokens))
+	for _, feeToken := range cfg.Params.FeeQuoterParams.FeeTokens {
 		feeTokens[feeToken.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: feeToken.PremiumMultiplierWeiPerEth}
 	}
 	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{

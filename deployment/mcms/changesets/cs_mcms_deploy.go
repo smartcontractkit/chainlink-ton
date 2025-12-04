@@ -1,4 +1,4 @@
-package ops
+package changesets
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"github.com/smartcontractkit/mcms"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-	mcmsOperation "github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
@@ -51,7 +50,7 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		ChainSelector:       cfg.ChainSelector,
 	}
 
-	mcmsDeps := mcmsOperation.MCMSDeps{
+	mcmsDeps := config.MCMSDeps{
 		TonChain:       chain,
 		MCMSChainState: mcmsStates,
 	}

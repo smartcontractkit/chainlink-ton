@@ -1,4 +1,4 @@
-package ops
+package changesets
 
 import (
 	"fmt"
@@ -13,7 +13,6 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 )
 
@@ -62,7 +61,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 	for tonChainSel, sequenceInput := range updateInputsByTonChain {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[tonChainSel]
-		deps := operation.CCIPDeps{
+		deps := config.CCIPDeps{
 			TonChain:         chain,
 			CCIPOnChainState: s,
 		}

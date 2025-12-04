@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -30,8 +31,8 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	updateFeeQuoterDestChainConfigs,
 )
 
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
-	address := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
+	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	// Skip if there's no updates
 	if len(in) == 0 {
@@ -51,7 +52,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps CCIPDeps, in Upda
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &address,
+			DstAddr: &addr,
 			Body:    payload,
 		},
 	}
@@ -76,7 +77,7 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	updateFeeQuoterFeeTokens,
 )
 
-func updateFeeQuoterFeeTokens(b operations.Bundle, deps CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([][]byte, error) {
+func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	configs := cell.NewDict(267)
@@ -156,7 +157,7 @@ var AddPriceUpdaterOp = operations.NewOperation(
 	addPriceUpdater,
 )
 
-func addPriceUpdater(b operations.Bundle, deps CCIPDeps, in AddPriceUpdaterInput) ([][]byte, error) {
+func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
@@ -188,7 +189,7 @@ var RemovePriceUpdaterOp = operations.NewOperation(
 	removePriceUpdater,
 )
 
-func removePriceUpdater(b operations.Bundle, deps CCIPDeps, in RemovePriceUpdaterInput) ([][]byte, error) {
+func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
@@ -222,7 +223,7 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 	updateFeeQuoterPrices,
 )
 
-func updateFeeQuoterPrices(b operations.Bundle, deps CCIPDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
+func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {

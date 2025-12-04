@@ -21,7 +21,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip/changesets"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"

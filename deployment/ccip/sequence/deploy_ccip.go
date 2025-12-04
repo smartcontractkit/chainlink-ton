@@ -28,7 +28,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 )
 
 type DeployCCIPSeqInput struct {
@@ -53,7 +52,7 @@ var DeployCCIPSequence = operations.NewSequence(
 	deployCCIPSequence,
 )
 
-func deployCCIPSequence(b operations.Bundle, deps operation.CCIPDeps, in DeployCCIPSeqInput) (DeployCCIPSeqOutput, error) {
+func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in DeployCCIPSeqInput) (DeployCCIPSeqOutput, error) {
 	// TODO: don't directly execute deployments, instead return them as txs
 
 	// Initialize the output

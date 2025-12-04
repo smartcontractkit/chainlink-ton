@@ -14,7 +14,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
@@ -44,7 +43,7 @@ var DeployMCMSSequence = operations.NewSequence(
 	deployMCMSSequence,
 )
 
-func deployMCMSSequence(b operations.Bundle, deps operation.MCMSDeps, in DeployMCMSSeqInput) (DeployMCMSSeqOutput, error) {
+func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in DeployMCMSSeqInput) (DeployMCMSSeqOutput, error) {
 	// Initialize the output
 	output := DeployMCMSSeqOutput{}
 

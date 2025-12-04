@@ -28,7 +28,7 @@ import (
 	cs_core "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip/changesets"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 

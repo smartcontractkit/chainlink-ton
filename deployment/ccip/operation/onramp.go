@@ -4,6 +4,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -32,7 +33,7 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 	updateOnRampDestChainConfigs,
 )
 
-func updateOnRampDestChainConfigs(b operations.Bundle, deps CCIPDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
+func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
 	if len(in.Updates) == 0 {

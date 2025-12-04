@@ -7,7 +7,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
+	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
@@ -23,10 +25,10 @@ import (
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip/changesets"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	mcmsops "github.com/smartcontractkit/chainlink-ton/deployment/mcms"
+	mcmsops "github.com/smartcontractkit/chainlink-ton/deployment/mcms/changesets"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -463,8 +465,33 @@ func TestDeployMCMS(t *testing.T) {
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(mcmsops.DeployMCMSContracts{}, mcmsops.DeployMCMSContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
 
+	timelockContractSemver := semver.MustParse("0.0.3")
+	mcmsContractSemver := semver.MustParse("0.0.4")
+	cfg := mcmsops.DeployMCMSContractsCfg{
+		ChainSelector: chainSelector,
+		ContractParams: mcmsConfig.ChainContractParams{
+			Timelock: mcmsConfig.TimelockParams{
+				ID:              contractID,
+				Coin:            "0.5",
+				ContractsSemver: timelockContractSemver,
+				MinDelay:        0,
+				Admin:           deployer.WalletAddress(),
+				Proposers:       []*address.Address{deployer.WalletAddress()},
+				Executors:       []*address.Address{deployer.WalletAddress()},
+				Cancellers:      []*address.Address{deployer.WalletAddress()},
+				Bypassers:       []*address.Address{deployer.WalletAddress()},
+			},
+			MCMS: mcmsConfig.MCMSParams{
+				ID:              contractID,
+				ContractsSemver: mcmsContractSemver,
+				Coin:            "0.5",
+			},
+		},
+		ContractsVersion: sequence.ContractsLocalVersion,
+	}
+
+	cs := commonchangeset.Configure(mcmsops.DeployMCMSContracts{}, cfg)
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
