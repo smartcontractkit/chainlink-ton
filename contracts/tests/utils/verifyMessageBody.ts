@@ -27,11 +27,11 @@ export function verifyBodyMessage<T>(
 export function verifyBodyIsTransferRequest(
   body: Cell | undefined,
   options: {
-    transferRequestValidaton?: (request: jetton.AskToTransfer) => boolean
+    transferRequestValidation?: (request: jetton.AskToTransfer) => boolean
   } = {},
 ): boolean {
-  const { transferRequestValidaton } = options
-  const validations = transferRequestValidaton ? [transferRequestValidaton] : []
+  const { transferRequestValidation } = options
+  const validations = transferRequestValidation ? [transferRequestValidation] : []
 
   return verifyBodyMessage(body, jetton.builder.messages.in.askToTransfer, validations)
 }
@@ -40,14 +40,14 @@ export function verifyBodyIsTransferRequestWithFwdPayload<T>(
   body: Cell | undefined,
   payloadCodec: CellCodec<T>,
   options: {
-    transferRequestValidaton?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
+    transferRequestValidation?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
     fwdPayloadValidation?: (payload: T) => boolean
   } = {},
 ): boolean {
-  const { transferRequestValidaton, fwdPayloadValidation } = options
+  const { transferRequestValidation, fwdPayloadValidation } = options
 
   const validations = [
-    ...(transferRequestValidaton ? [transferRequestValidaton] : []),
+    ...(transferRequestValidation ? [transferRequestValidation] : []),
     ...(fwdPayloadValidation
       ? [
           (request: jetton.AskToTransferWithFwdPayload<T>) =>
