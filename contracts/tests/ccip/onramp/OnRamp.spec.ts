@@ -1,5 +1,5 @@
 import { compile } from '@ton/blueprint'
-import { beginCell, Address, toNano } from '@ton/core'
+import { beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
