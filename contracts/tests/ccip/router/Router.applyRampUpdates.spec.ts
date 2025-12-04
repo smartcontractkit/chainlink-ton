@@ -1,0 +1,263 @@
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { toNano, Address, Cell } from '@ton/core'
+
+import { compile } from '@ton/blueprint'
+import '@ton/test-utils'
+import { crc32 } from 'zlib'
+
+import { generateRandomTonAddress } from '../../../src/utils'
+import { facilityId } from '../../../wrappers/utils'
+import { dump } from '../../utils/prettyPrint'
+import * as coverage from '../../coverage/coverage'
+import { assertLog } from '../../Logs'
+import { LogTypes } from '../../../wrappers/ccip/Logs'
+import {
+  verifyBodyIsRouterCCIPSendACK,
+  verifyBodyIsRouterMessageSent,
+} from '../../utils/verifyMessageBody'
+
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
+import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
+import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
+import { getValidatedFee } from '../../../src/ccipSend/fee'
+import { sendGetValidatedFee } from '../helpers/GetValidatedFee'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as rt from '../../../wrappers/ccip/Router'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as Setup from './Router.Setup'
+
+describe('Router', () => {
+  let blockchain: Blockchain
+  let deployer: SandboxContract<TreasuryContract>
+  let sender: SandboxContract<TreasuryContract>
+  let router: SandboxContract<rt.Router>
+  let feeQuoter: SandboxContract<fq.FeeQuoter>
+  let onRamp: SandboxContract<or.OnRamp>
+
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+  })
+
+  beforeEach(async () => {
+    ;({ deployer, sender, router, feeQuoter, onRamp } = await Setup.setup(blockchain))
+  })
+
+  it('update router onramps in batch', async () => {
+    {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          onRamps: {
+            destChainSelectors: [
+              Setup.CHAINSEL_EVM_TEST_90000001,
+              Setup.CHAINSEL_EVM_TEST_90000002,
+            ],
+            onRamp: onRamp.address,
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      let result = await router.getOnRamp(Setup.CHAINSEL_EVM_TEST_90000001)
+      expect(result).toEqual(onRamp.address)
+
+      result = await router.getOnRamp(Setup.CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(onRamp.address)
+    }
+
+    {
+      let result = await router.getOnRamps()
+      expect(result).toEqual([
+        {
+          chainSelector: Setup.CHAINSEL_EVM_TEST_90000002,
+          address: onRamp.address,
+        },
+        {
+          chainSelector: Setup.CHAINSEL_EVM_TEST_90000001,
+          address: onRamp.address,
+        },
+      ])
+    }
+  })
+
+  it('update router offRamp events emission', async () => {
+    const offRampAddress1 = await generateRandomTonAddress()
+    {
+      // test update method wrapper
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [
+              Setup.CHAINSEL_EVM_TEST_90000001,
+              Setup.CHAINSEL_EVM_TEST_90000002,
+            ],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
+        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002],
+        offRampAdded: offRampAddress1,
+      })
+
+      // test update method wrapper
+      const result2 = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampRemoves: {
+            sourceChainSelectors: [
+              Setup.CHAINSEL_EVM_TEST_90000001,
+              Setup.CHAINSEL_EVM_TEST_90000002,
+            ],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+      expect(result2.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result2.transactions, router.address, LogTypes.OffRampRemoved, {
+        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002],
+        offRampRemoved: offRampAddress1,
+      })
+    }
+  })
+
+  it('update router offramps in batch with one offRamp address', async () => {
+    const offRampAddress1 = await generateRandomTonAddress()
+    {
+      // test update method wrapper
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [
+              Setup.CHAINSEL_EVM_TEST_90000001,
+              Setup.CHAINSEL_EVM_TEST_90000002,
+            ],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.OffRampAdded, {
+        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002],
+        offRampAdded: offRampAddress1,
+      })
+    }
+
+    {
+      //test batch getter
+      let result = await router.getOffRamps()
+      expect(result.sort()).toEqual(
+        [
+          {
+            chainSelector: Setup.CHAINSEL_EVM_TEST_90000002,
+            address: offRampAddress1,
+          },
+          {
+            chainSelector: Setup.CHAINSEL_EVM_TEST_90000001,
+            address: offRampAddress1,
+          },
+        ].sort(),
+      )
+    }
+
+    {
+      // test individual getter
+      let result = await router.getOffRamp(Setup.CHAINSEL_EVM_TEST_90000001)
+      expect(result).toEqual(offRampAddress1)
+
+      result = await router.getOffRamp(Setup.CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(offRampAddress1)
+    }
+
+    {
+      //test removing ramps wrapper
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampRemoves: {
+            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      let getResult = await router.getOffRamps()
+      expect(getResult).toEqual([
+        {
+          chainSelector: Setup.CHAINSEL_EVM_TEST_90000002,
+          address: offRampAddress1,
+        },
+      ])
+    }
+
+    {
+      const offRampAddress2 = await generateRandomTonAddress()
+      //test adding and removing on the same call
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+            offRamp: offRampAddress2,
+          },
+          offRampRemoves: {
+            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000002],
+            offRamp: offRampAddress1,
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      const getResult = await router.getOffRamps()
+      expect(getResult).toEqual([
+        {
+          chainSelector: Setup.CHAINSEL_EVM_TEST_90000001,
+          address: offRampAddress2,
+        },
+      ])
+    }
+  })
+})
