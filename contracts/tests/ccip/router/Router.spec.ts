@@ -1,34 +1,36 @@
-import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
-import { compile, sleep } from '@ton/blueprint'
-import * as rt from '../../../wrappers/ccip/Router'
-import * as or from '../../../wrappers/ccip/OnRamp'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
-import { assertLog } from '../../Logs'
-import { LogTypes } from '../../../wrappers/ccip/Logs'
-import { generateRandomTonAddress, ZERO_ADDRESS } from '../../../src/utils'
-import { JettonMinterCode, JettonWalletCode } from '../../../wrappers/jetton/JettonCode'
-import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
-import * as jetton from '../../../wrappers/jetton/JettonWallet'
-import { CellCodec, facilityId } from '../../../wrappers/utils'
+
 import { crc32 } from 'zlib'
-import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
-import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
-import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
-import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
-import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import { generateRandomTonAddress } from '../../../src/utils'
+import { JettonMinterCode, JettonWalletCode } from '../../../wrappers/jetton/JettonCode'
+import { facilityId } from '../../../wrappers/utils'
 import { dump } from '../../utils/prettyPrint'
-import { getValidatedFee } from '../../../src/ccipSend/fee'
-import { generateRandomContractId } from '../../../src/utils/types'
-import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
 import * as Decimals from '../../lib/pricing/Decimals'
 import * as coverage from '../../coverage/coverage'
+import { generateRandomContractId } from '../../../src/utils/types'
+import { assertLog } from '../../Logs'
+import { LogTypes } from '../../../wrappers/ccip/Logs'
 import {
   verifyBodyIsRouterCCIPSendACK,
   verifyBodyIsRouterMessageSent,
 } from '../../utils/verifyMessageBody'
+
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
+import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
+import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
+import { getValidatedFee } from '../../../src/ccipSend/fee'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as rt from '../../../wrappers/ccip/Router'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import * as fq from '../../../wrappers/ccip/FeeQuoter'
+import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as jetton from '../../../wrappers/jetton/JettonWallet'
+import * as JettonMinter from '../../../wrappers/jetton/JettonMinter'
+import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -887,7 +889,7 @@ async function setupJetton(
   // deploy jetton minter
   const jettonMinterCode = await JettonMinterCode()
   const jettonMinter = blockchain.openContract(
-    JettonMinter.createFromConfig(
+    JettonMinter.JettonMinter.createFromConfig(
       {
         admin: deployer.address,
         walletCode: jettonWalletCode,
