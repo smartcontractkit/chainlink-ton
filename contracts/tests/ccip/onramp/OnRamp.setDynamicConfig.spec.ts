@@ -14,12 +14,15 @@ describe('OnRamp - set Dynamic Config', () => {
   let owner: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
+  })
+
+  beforeEach(async () => {
     owner = await blockchain.treasury('deployer')
     onramp = await deployOnRampContract(blockchain, owner)
   })
@@ -91,7 +94,7 @@ describe('OnRamp - set Dynamic Config', () => {
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
-      coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
+      coverage.generateCoverageArtifacts(blockchain, 'onramp_set-dynamic_config_tests', [
         {
           code: await onramp.getCode(),
           name: 'onramp',

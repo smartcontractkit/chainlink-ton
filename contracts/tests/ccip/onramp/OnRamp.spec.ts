@@ -20,7 +20,12 @@ describe('OnRamp - TypeAndVersion Tests', () => {
     version: or.OnRamp.version(),
     deployContract: deployOnRampContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run([
+    {
+      code: 'OnRamp',
+      name: 'onramp',
+    },
+  ])
 })
 
 describe('OnRamp - Withdrawable Tests', () => {
@@ -122,8 +127,19 @@ describe('OnRamp - Unit Tests', () => {
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
 
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+    blockchain.verbosity.debugLogs = true
+
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+  })
+
   beforeEach(async () => {
-    ;({ blockchain, deployer, onramp } = await setup())
+    ;({ deployer, onramp } = await setup(blockchain))
   })
 
   it('getStaticConfig should return chain selector', async () => {
