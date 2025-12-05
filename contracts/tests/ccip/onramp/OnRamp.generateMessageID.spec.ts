@@ -58,7 +58,7 @@ describe('OnRamp - generate message id', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, onramp } = await setup(blockchain))
+    ;({ deployer } = await setup(blockchain))
     deployableCode = await compile('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')

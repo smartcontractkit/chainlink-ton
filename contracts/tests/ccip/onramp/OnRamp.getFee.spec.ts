@@ -51,7 +51,7 @@ describe('OnRamp - Get Fee', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, onramp } = await setup(blockchain))
+    ;({ deployer } = await setup(blockchain))
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 

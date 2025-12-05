@@ -57,7 +57,7 @@ describe('OnRamp - Send', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, onramp } = await setup(blockchain))
+    ;({ deployer } = await setup(blockchain))
     deployableCode = await compile('Deployable')
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
