@@ -55,7 +55,14 @@ runs:
     - name: Read Chainlink Core Ref
       id: read_core_ref
       shell: bash
-      run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+      run: |
+        CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')
+        # Validate it's a 40-char hex SHA (not a branch name)
+        if [[ ! "$CORE_REF" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "ERROR: .core_version must be a full commit SHA, got: $CORE_REF"
+          exit 1
+        fi
+        echo "CORE_REF=$CORE_REF" >> $GITHUB_OUTPUT
 
     - name: Cache Chainlink Core repo
       uses: actions/cache@v4
@@ -71,6 +78,7 @@ runs:
         repository: smartcontractkit/chainlink
         ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
         path: chainlink
+        persist-credentials: false
 
     - name: Build contracts
       if: inputs.build_contracts == 'true'
