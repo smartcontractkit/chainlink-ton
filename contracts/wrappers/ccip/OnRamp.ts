@@ -1006,4 +1006,14 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       })(),
     }
   }
+
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[]> {
+    const { stack } = await provider.get('destChainSelectors', [])
+    return stack.readLispList().map((t: TupleItem) => {
+      if (t.type !== 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value as bigint
+    })
+  }
 }

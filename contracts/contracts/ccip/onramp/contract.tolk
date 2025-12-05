@@ -489,7 +489,6 @@ get fun allowedSendersList(destChainSelector: uint64): tuple? {
     return keysLispList(allowedSenders);
 }
 
-// UNTESTED
 get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
