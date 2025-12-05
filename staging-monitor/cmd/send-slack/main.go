@@ -87,7 +87,7 @@ func sendSlackNoti(ctx context.Context, resultFile, webhookURL string) error {
 		"run_url":        runURL,
 		"trigger":        trigger,
 		"when":           when,
-		"error":          result.Error,
+		"error":          lib.StringOrDefault(result.Error, "Testing Error"), // Note: if it's not empty, bot will tag someone
 	}
 
 	jsonPayload, err := json.Marshal(payload)
