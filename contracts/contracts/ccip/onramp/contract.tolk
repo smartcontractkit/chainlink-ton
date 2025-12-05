@@ -521,12 +521,10 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
 }
 
-// UNTESTED
 get fun facilityId(): uint16  {
     return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OnRamp"));
 }
 
-// UNTESTED
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OnRamp"), local);
 }

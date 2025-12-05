@@ -142,6 +142,16 @@ describe('OnRamp - Unit Tests', () => {
     ;({ deployer, onramp } = await setup(blockchain))
   })
 
+  it('should match facility ID', async () => {
+    const facilityId = await onramp.getFacilityId()
+    expect(facilityId).toBe(BigInt(or.ONRAMP_FACILITY_ID))
+  })
+
+  it('should match error code', async () => {
+    const errorCode = await onramp.getErrorCode(0n)
+    expect(errorCode).toBe(BigInt(or.ONRAMP_ERROR_CODE))
+  })
+
   it('getStaticConfig should return chain selector', async () => {
     const result = await onramp.getStaticConfig()
     expect(result).toBe(CHAINSEL_TON)

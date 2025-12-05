@@ -747,6 +747,18 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return typeAndVersion.getCodeHash(provider)
   }
 
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
   static version() {
     return ONRAMP_CONTRACT_VERSION
   }
