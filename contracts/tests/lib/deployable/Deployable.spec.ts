@@ -152,10 +152,14 @@ describe('Deployable - Unit Tests', () => {
   it('should not allow non-owner to initialize and send', async () => {
     const other = await blockchain.treasury('other')
 
-    const result = await deployable.sendInitialize(other.getSender(), toNano('0.05'), {
+    const result = await deployable.sendInitializeAndSend(other.getSender(), toNano('0.05'), {
       stateInit: {
         code: Cell.EMPTY,
         data: Cell.EMPTY,
+      },
+      selfMessage: {
+        value: 0n,
+        body: Cell.EMPTY,
       },
     })
     expect(result.transactions).toHaveTransaction({
