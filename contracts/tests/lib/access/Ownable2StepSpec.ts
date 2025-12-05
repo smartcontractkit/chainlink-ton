@@ -42,6 +42,6 @@ export async function ownable2StepSpec(
   expect(newOwner.toString()).toBe(other.address.toString())
 
   if (process.env['COVERAGE'] === 'true' && coverageConfigs && blockchain) {
-    coverage.generateCoverageArtifacts(blockchain, 'ownable2step_tests', coverageConfigs)
+    await coverage.generateCoverageArtifacts(blockchain, 'ownable2step_tests', coverageConfigs)
   }
 }

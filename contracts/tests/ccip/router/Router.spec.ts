@@ -1,15 +1,5 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  toNano,
-  Address,
-  Cell,
-  Dictionary,
-  beginCell,
-  Message,
-  CommonMessageInfoInternal,
-  TransactionDescriptionGeneric,
-  Sender,
-} from '@ton/core'
+import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
 import { compile, sleep } from '@ton/blueprint'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
@@ -25,12 +15,12 @@ import { CellCodec, facilityId } from '../../../wrappers/utils'
 import { crc32 } from 'zlib'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
+import { sendGetValidatedFee } from '../onramp/OnChainGetValidatedFee'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import { dump } from '../../utils/prettyPrint'
 import { getValidatedFee } from '../../../src/ccipSend/fee'
-import { sendGetValidatedFee } from '../helpers/GetValidatedFee'
 import { generateRandomContractId } from '../../../src/utils/types'
 import * as ownable2StepSpec from '../../lib/access/Ownable2StepSpec'
 import * as Decimals from '../../lib/pricing/Decimals'
@@ -147,6 +137,7 @@ describe('Router', () => {
     }
     if (process.env['COVERAGE'] === 'true') {
       blockchain.enableCoverage()
+      blockchain.verbosity.print = false
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
@@ -835,7 +826,7 @@ describe('Router', () => {
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
-      coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
+      await coverage.generateCoverageArtifacts(blockchain, 'router_unit_tests', [
         {
           code: await router.getCode(),
           name: 'router',

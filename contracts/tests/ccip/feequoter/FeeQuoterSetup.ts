@@ -193,6 +193,7 @@ export class FeeQuoterSetup {
     }
     if (process.env['COVERAGE'] === 'true') {
       this.blockchain.enableCoverage()
+      this.blockchain.verbosity.print = false
       this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
@@ -532,12 +533,12 @@ export class FeeQuoterSetup {
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(msg: rt.CCIPSend, metadata: Cell): Promise<sendExecutor.MessageValidated> {
+  async getValidatedFee(msg: rt.CCIPSend): Promise<feeQuoter.MessageValidated> {
     const res = await this.bind.feeQuoter.sendGetValidatedFee(this.acc.externalCaller.getSender(), {
       value: toNano('1'),
       msg: {
         msg,
-        metadata,
+        context: beginCell().asSlice(),
       },
     })
 
@@ -590,7 +591,7 @@ export class FeeQuoterSetup {
       this.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -627,7 +628,7 @@ export class FeeQuoterSetup {
         op: sendExec.Opcodes.messageValidationFailed,
         success: true,
         body(x) {
-          return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
             x,
             sendExec.builder.message.in.messageValidationFailed,
             [
@@ -636,7 +637,6 @@ export class FeeQuoterSetup {
                   return true
                 }
                 throw new Error(`Validation failed with error ${printErrorName(Number(msg.error))}`)
-                return false
               },
             ],
           )

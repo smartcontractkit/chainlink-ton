@@ -100,8 +100,9 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
       debugLogs: false,
     }
     if (process.env['COVERAGE'] === 'true') {
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
       blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     const owner = await blockchain.treasury('owner')
@@ -939,7 +940,11 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
 
       afterAll(async () => {
         if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
-          generateCoverageArtifacts(suiteSetup.blockchain, 'withdrawable_tests', coverageConfigs)
+          await generateCoverageArtifacts(
+            suiteSetup.blockchain,
+            'withdrawable_tests',
+            coverageConfigs,
+          )
         }
       })
     },

@@ -1,9 +1,14 @@
-import { Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
-
 import * as or from '../../../wrappers/ccip/OnRamp'
+
+type OnRampOverrides = Partial<Omit<or.OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
+  config?: Partial<or.OnRampStorage['config']>
+  executor?: Partial<or.OnRampStorage['executor']>
+  ownable?: Partial<or.OnRampStorage['ownable']>
+}
 
 export const CHAINSEL_EVM_TEST = 909606746561742123n
 export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -12,10 +17,10 @@ export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 export async function deployOnRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
-  overrides = {},
+  overrides: OnRampOverrides = {},
 ) {
   const code = await or.OnRamp.code()
-  let data: or.OnRampStorage = {
+  const defaults: or.OnRampStorage = {
     id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
@@ -33,11 +38,49 @@ export async function deployOnRampContract(
       executorCode: beginCell().endCell(),
       currentID: 0n,
     },
-    ...overrides,
   }
-  // TODO: use deployable to make deterministic?
+  const data: or.OnRampStorage = {
+    ...defaults,
+    ...overrides,
+    ownable: {
+      ...defaults.ownable,
+      ...(overrides.ownable ?? {}),
+    },
+    config: {
+      ...defaults.config,
+      ...(overrides.config ?? {}),
+    },
+    executor: {
+      ...defaults.executor,
+      ...(overrides.executor ?? {}),
+    },
+  }
   const contract = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
   await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
   return contract
+}
+
+export async function setup() {
+  const blockchain = await Blockchain.create()
+  blockchain.verbosity.debugLogs = true
+
+  if (process.env['COVERAGE'] === 'true') {
+    blockchain.enableCoverage()
+    blockchain.verbosity.print = false
+    blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+  }
+  const deployer = await blockchain.treasury('deployer')
+  const onramp = await deployOnRampContract(blockchain, deployer)
+  return { blockchain, deployer, onramp }
+}
+
+export function assertAddressesMatch(expected: Address[], actual: Address[]) {
+  expect(actual.map((x) => x.toString()).sort()).toEqual(
+    expected
+      .map((x) => {
+        return x.toString()
+      })
+      .sort(),
+  )
 }
