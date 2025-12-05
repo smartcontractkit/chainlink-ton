@@ -1,24 +1,12 @@
-import {
-  Address,
-  beginCell,
-  Cell,
-  Contract,
-  ContractProvider,
-  Message,
-  Sender,
-  toNano,
-} from '@ton/core'
+import { Address, beginCell, Cell, Contract, Message, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
+
+import { CoverageConfigNames, generateCoverageArtifacts } from '../../coverage/coverage'
+
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
 import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
-import {
-  ContractCoverageConfig,
-  CoverageConfigNames,
-  generateCoverageArtifacts,
-} from '../../coverage/coverage'
-import { before } from 'node:test'
 
 /**
  * Configuration for testing upgrades between two versions of an upgradeable contract.
