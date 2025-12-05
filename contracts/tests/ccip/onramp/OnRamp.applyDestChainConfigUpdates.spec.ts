@@ -80,6 +80,9 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       to: onramp.address,
       success: true,
     })
+
+    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(1n)
+    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST_90000002)).toBe(1n)
   }
 
   const expectedAllowlistMatches = async (

@@ -451,7 +451,6 @@ get fun isChainSupported(destChainSelector: uint64): bool {
     return entry.isFound;
 }
 
-// UNTESTED
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);

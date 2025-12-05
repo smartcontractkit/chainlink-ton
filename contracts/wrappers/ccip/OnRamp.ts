@@ -974,4 +974,14 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     ])
     return stack.readBoolean()
   }
+
+  async getExpectedNextSequenceNumber(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<bigint> {
+    const { stack } = await provider.get('expectedNextSequenceNumber', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return stack.readBigNumber()
+  }
 }
