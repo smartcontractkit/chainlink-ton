@@ -138,7 +138,7 @@ export class ContractClient implements Contract {
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
-  static code(): Promise<Cell> {
+  static async code(): Promise<Cell> {
     return compile('Deployable')
   }
 
