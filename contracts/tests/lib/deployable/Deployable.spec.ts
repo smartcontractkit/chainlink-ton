@@ -173,7 +173,7 @@ describe('Deployable - Unit Tests', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_unit_tests', [
         {
-          code: await deployableCode,
+          code: deployableCode,
           name: 'onramp',
         },
       ])
