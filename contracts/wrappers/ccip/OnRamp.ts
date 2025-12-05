@@ -964,4 +964,14 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       builder.messages.in.onrampSend.encode(body).asCell(),
     )
   }
+
+  async getIsChainSupported(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<boolean> {
+    const { stack } = await provider.get('isChainSupported', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return stack.readBoolean()
+  }
 }

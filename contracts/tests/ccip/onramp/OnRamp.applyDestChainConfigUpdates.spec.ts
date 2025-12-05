@@ -119,6 +119,10 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
       to: onramp.address,
       success: true,
     })
+
+    expect(await onramp.getIsChainSupported(0n /*random selector*/)).toBe(false)
+    expect(await onramp.getIsChainSupported(CHAINSEL_EVM_TEST)).toBe(true)
+    expect(await onramp.getIsChainSupported(CHAINSEL_EVM_TEST_90000002)).toBe(true)
   }
 
   it('allows owner to add multiple addresses per chain', async () => {

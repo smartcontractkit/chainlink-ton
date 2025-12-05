@@ -445,7 +445,6 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version}.upgrade(msg);
 }
 
-// UNTESTED
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy OnRamp_Storage.load();
     val entry = st.destChainConfigs.get(destChainSelector);
