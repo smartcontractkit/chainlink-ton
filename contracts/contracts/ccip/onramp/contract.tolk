@@ -445,12 +445,14 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version}.upgrade(msg);
 }
 
+// UNTESTED
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy OnRamp_Storage.load();
     val entry = st.destChainConfigs.get(destChainSelector);
     return entry.isFound;
 }
 
+// UNTESTED
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
@@ -468,6 +470,7 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
     return st.config.load()
 }
 
+// UNTESTED
 get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
     val st = lazy OnRamp_Storage.load();
     return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
@@ -489,6 +492,7 @@ get fun allowedSendersList(destChainSelector: uint64): tuple? {
     return keysLispList(allowedSenders);
 }
 
+// UNTESTED
 get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
@@ -501,6 +505,7 @@ get fun owner(): address {
     return st.ownable.get_owner();
 }
 
+// UNTESTED
 /// Gets the pending owner of the contract, if any.
 get fun pendingOwner(): address? {
     val st = lazy OnRamp_Storage.load();
@@ -511,7 +516,8 @@ get fun sendExecutorCode(): cell {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode;
 }
-
+ 
+// UNTESTED
 get fun getCCIPSendExecutorCodeHash(): uint256 {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode.hash();
@@ -521,10 +527,12 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
 }
 
+// UNTESTED
 get fun facilityId(): uint16  {
     return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OnRamp"));
 }
 
+// UNTESTED
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OnRamp"), local);
 }
