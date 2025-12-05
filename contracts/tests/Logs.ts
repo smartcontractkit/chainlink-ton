@@ -53,7 +53,7 @@ type DeepPartial<T> = {
 
 // map from log type → match payload type
 type LogTypeMap = {
-  [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<CCIPLogs.CCIPMessageSent>
+  [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<onramp.CCIPMessageSent>
   [CCIPLogs.LogTypes.CommitReportAccepted]: DeepPartial<CCIPLogs.CommitReportAccepted>
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: CCIPLogs.SourceChainSelectorAdded
@@ -85,7 +85,7 @@ type Handler<T extends CombinedLogType> = (
 
 const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match, addressesMap) =>
-    testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>, addressesMap),
+    testLogCCIPMessageSent(x, from, match as DeepPartial<onramp.CCIPMessageSent>, addressesMap),
 
   [CCIPLogs.LogTypes.CommitReportAccepted]: (x, from, match) =>
     testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<CCIPLogs.CommitReportAccepted>),
@@ -187,36 +187,12 @@ function testLogCCIPCommitReportAccepted(
 export const testLogCCIPMessageSent = (
   message: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.CCIPMessageSent>,
+  match: DeepPartial<onramp.CCIPMessageSent>,
   prettyAddressesMap: Map<string, string>,
 ) => {
   return testLog(message, from, CCIPLogs.LogTypes.CCIPMessageSent, (x) => {
-    let bs = x.beginParse()
-
-    const header = {
-      messageId: bs.loadUintBig(256),
-      sourceChainSelector: bs.loadUintBig(64),
-      destChainSelector: bs.loadUintBig(64),
-      sequenceNumber: bs.loadUintBig(64),
-      nonce: bs.loadUintBig(64),
-    }
-    const sender = bs.loadAddress()
-
-    const body = bs.loadRef().beginParse()
-
-    const msg: CCIPLogs.CCIPMessageSent = {
-      message: {
-        header,
-        sender,
-        receiver: body.loadRef(),
-        data: body.loadRef(),
-        extraArgs: body.loadRef(),
-        tokenAmounts: body.loadRef(),
-        feeToken: body.loadAddress(),
-        feeTokenAmount: body.loadCoins(),
-        feeValueJuels: bs.loadUintBig(96),
-      },
-    }
+    const msg: onramp.CCIPMessageSent = onramp.builder.events.ccipMessageSent.load(x.beginParse())
+    const sender = msg.message.sender
 
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)
     const { sender: _, ...messageWithoutSender } = msg.message

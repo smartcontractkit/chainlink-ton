@@ -486,7 +486,6 @@ get fun allowedSendersList(destChainSelector: uint64): tuple? {
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
 
-    // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
     return keysLispList(allowedSenders);
 }
 

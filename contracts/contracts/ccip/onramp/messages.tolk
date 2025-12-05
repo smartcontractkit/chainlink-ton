@@ -41,7 +41,7 @@ struct (0x9c2ccc7e) OnRamp_GetValidatedFee<T> {
 }
 
 struct OnRamp_GetValidatedFeeContext {
-    onrampContext: address; // onramp address
+    onrampContext: address; // router address
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
 }
 

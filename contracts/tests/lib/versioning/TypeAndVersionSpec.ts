@@ -79,8 +79,9 @@ export function newInstance<TContract extends TypeAndVersionContract>(
       debugLogs: false,
     }
     if (process.env['COVERAGE'] === 'true') {
-      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
       blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     const deployer = await blockchain.treasury('deployer')
@@ -117,7 +118,7 @@ export function newInstance<TContract extends TypeAndVersionContract>(
 
       afterAll(async () => {
         if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
-          generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
+          await generateCoverageArtifacts(blockchain, 'type_and_version_tests', coverageConfigs)
         }
       })
     },

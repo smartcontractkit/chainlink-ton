@@ -35,7 +35,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       })
 
       // Get the validated fee using the helper method
-      const messageValidated = await setup.getValidatedFee(message, beginCell().endCell())
+      const messageValidated = await setup.getValidatedFee(message)
 
       const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
         message.feeToken,
@@ -58,7 +58,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       const totalPriceInFeeToken =
         (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / token.price
-      expect(messageValidated.fee).toEqual(totalPriceInFeeToken)
+      expect(messageValidated.fee.feeTokenAmount).toEqual(totalPriceInFeeToken)
     }
   })
 
@@ -95,7 +95,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       message.feeToken,
     )
 
-    const feeResult = await setup.getValidatedFee(message, beginCell().endCell())
+    const feeResult = await setup.getValidatedFee(message)
 
     const gasUsed = BigInt(FeeQuoterSetup.GAS_LIMIT) + BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD)
     const gasFeeUSD =
@@ -106,7 +106,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     const totalPriceInFeeToken = (gasFeeUSD + messageFeeUSD) / FeeQuoterSetup.NATIVE_TON.price
 
-    expect(feeResult.fee).toEqual(totalPriceInFeeToken)
+    expect(feeResult.fee.feeTokenAmount).toEqual(totalPriceInFeeToken)
   })
 
   it('should handle high gas limit message', async () => {
@@ -131,7 +131,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           .endCell(),
       }
 
-      const result = await setup.getValidatedFee(message, beginCell().endCell())
+      const result = await setup.getValidatedFee(message)
 
       // Verify fee calculation with high gas and large data
       const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
@@ -167,7 +167,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const totalPriceInFeeToken =
         (gasFeeUSD + messageFeeUSD + dataAvailabilityFeeUSD) / token.price
 
-      expect(result.fee).toEqual(totalPriceInFeeToken)
+      expect(result.fee.feeTokenAmount).toEqual(totalPriceInFeeToken)
     }
   })
 
@@ -187,8 +187,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         .endCell(),
     }
 
-    const result = await setup.getValidatedFee(message, beginCell().endCell())
-    expect(result.fee).toBeGreaterThan(0n)
+    const result = await setup.getValidatedFee(message)
+    expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
   })
 
   // Error cases
@@ -236,7 +236,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -251,7 +251,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
-        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
           sendExec.builder.message.in.messageValidationFailed,
           [
@@ -285,7 +285,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -300,7 +300,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
-        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
           sendExec.builder.message.in.messageValidationFailed,
           [
@@ -338,7 +338,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -353,7 +353,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
-        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
           sendExec.builder.message.in.messageValidationFailed,
           [
@@ -386,7 +386,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -401,7 +401,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
-        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
           sendExec.builder.message.in.messageValidationFailed,
           [
@@ -436,7 +436,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       setup.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -451,7 +451,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
-        return verifyBodyMessage<sendExec.MessageValidationFailed>(
+        return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
           sendExec.builder.message.in.messageValidationFailed,
           [
@@ -665,8 +665,8 @@ describe('FeeQuoter GetValidatedFee', () => {
           })
           .endCell(),
       }
-      const result = await setup.getValidatedFee(message, beginCell().endCell())
-      expect(result.fee).toBeGreaterThan(0n)
+      const result = await setup.getValidatedFee(message)
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
       return result.fee
     }
 
@@ -710,7 +710,7 @@ describe('FeeQuoter GetValidatedFee', () => {
         premiumMultiplier: 2n ** 64n - 1n, // Max uint64
         linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e18), // Inflate link price to prevent MessageFeeTooHigh error
       })
-      const bitCount = fee.toString(2).length
+      const bitCount = fee.feeTokenAmount.toString(2).length
       expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
     })
 
@@ -737,7 +737,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           linkTokenPrice: FeeQuoterSetup.SOURCE_LINK.price * BigInt(1e36), // Inflate link price to prevent MessageFeeTooHigh error
         },
       )
-      const bitCount = fee.toString(2).length
+      const bitCount = fee.feeTokenAmount.toString(2).length
       expect(bitCount).toBeLessThanOrEqual(257) // Ensure fits within uint257
     })
 
@@ -870,8 +870,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         extraArgs: rt.builder.data.extraArgs.encode(validEVMExtraArgs).endCell(),
       }
 
-      const result = await setup.getValidatedFee(message, beginCell().endCell())
-      expect(result.fee).toBeGreaterThan(0n)
+      const result = await setup.getValidatedFee(message)
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
     // NOTE: GasLimitTooHigh already tested above as "should revert when gas limit too high"
@@ -897,8 +897,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         extraArgs: rt.builder.data.extraArgs.encode(validSVMExtraArgs).endCell(),
       }
 
-      const result = await setup.getValidatedFee(message, beginCell().endCell())
-      expect(result.fee).toBeGreaterThan(0n)
+      const result = await setup.getValidatedFee(message)
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
     it('reverts with empty extra args', async () => {
@@ -971,8 +971,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         extraArgs: rt.builder.data.extraArgs.encode(validSVMExtraArgs).endCell(),
       }
 
-      const result = await setup.getValidatedFee(message, beginCell().endCell())
-      expect(result.fee).toBeGreaterThan(0n)
+      const result = await setup.getValidatedFee(message)
+      expect(result.fee.feeTokenAmount).toBeGreaterThan(0n)
     })
 
     it('reverts with empty extra args', async () => {
@@ -1028,7 +1028,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_getValidatedPrices_suite'
-      coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+      await coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
         {
           code: setup.code.feeQuoter,
           name: 'feequoter',
