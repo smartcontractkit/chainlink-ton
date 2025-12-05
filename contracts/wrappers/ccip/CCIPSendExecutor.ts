@@ -1,7 +1,7 @@
 import {
   Address,
-  Builder as TonBuilder,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
@@ -10,7 +10,6 @@ import {
   DictionaryValue,
   Sender,
   SendMode,
-  Builder,
   Slice,
 } from '@ton/core'
 
@@ -18,6 +17,7 @@ import { CellCodec } from '../utils'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 import * as or from './OnRamp'
+import * as fq from './FeeQuoter'
 import * as rt from './Router'
 
 export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '1.6.0'
@@ -26,7 +26,7 @@ export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSend
 export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436
 export const CCIP_SEND_EXECUTOR_ERROR_CODE = 43600 //FACILITY_ID * 100
 
-export enum Error {
+export enum error {
   StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
   Unauthorized,
   InsufficientFunds,
@@ -36,7 +36,29 @@ export enum Error {
 
 export type InitialData = {
   onramp: Address
-  messageId: bigint
+  id: bigint
+}
+
+export type Data = {
+  id: bigint
+  onrampSend: or.OnRampSend
+  addresses: Addresses
+  state: State
+}
+
+export type Addresses = {
+  onramp: Address
+  feeQuoter: Address
+}
+
+export type State = Initialized | OnGoingFeeValidation
+
+export type Initialized = {
+  kind: 'initialized'
+}
+
+export type OnGoingFeeValidation = {
+  kind: 'on-going-fee-validation'
 }
 
 export type Config = {
@@ -45,107 +67,132 @@ export type Config = {
 
 export type Execute = {
   onrampSend: or.OnRampSend
-  config: Cell // Config
+  config: Config
 }
 
-export type MessageValidated = {
-  fee: bigint
-  msg: rt.CCIPSend
-  metadata: Cell
-}
+export const builder = (() => {
+  const dataBuilder = (() => {
+    const contractInitData: CellCodec<InitialData> = {
+      encode: (data: InitialData): Builder => {
+        return beginCell().storeAddress(data.onramp).storeUint(data.id, 224)
+      },
+      load: (src: Slice): InitialData => {
+        return {
+          onramp: src.loadAddress(),
+          id: src.loadUintBig(224),
+        }
+      },
+    }
 
-export type MessageValidationFailed = {
-  error: bigint
-  msg: rt.CCIPSend
-  metadata: Cell
-}
+    const addresses: CellCodec<Addresses> = {
+      encode: (data: Addresses): Builder => {
+        return beginCell().storeAddress(data.onramp).storeAddress(data.feeQuoter)
+      },
+      load: (src: Slice): Addresses => {
+        return {
+          onramp: src.loadAddress(),
+          feeQuoter: src.loadAddress(),
+        }
+      },
+    }
 
-export const builder = {
-  message: {
+    const state: CellCodec<State> = {
+      encode: function (data: State): Builder {
+        switch (data.kind) {
+          case 'initialized':
+            return beginCell().storeUint(0, 1)
+          case 'on-going-fee-validation':
+            return beginCell().storeUint(1, 1)
+        }
+      },
+      load: function (src: Slice): State {
+        const kind = src.loadUint(1)
+        switch (kind) {
+          case 0:
+            return { kind: 'initialized' }
+          case 1:
+            return { kind: 'on-going-fee-validation' }
+          default:
+            throw new Error(`Unknown State kind: ${kind}`)
+        }
+      },
+    }
+
+    const config: CellCodec<Config> = {
+      encode: (data: Config): Builder => {
+        return beginCell().storeAddress(data.feeQuoter)
+      },
+      load: (src: Slice): Config => {
+        return {
+          feeQuoter: src.loadAddress(),
+        }
+      },
+    }
+
+    const contractData: CellCodec<Data> = {
+      encode: (data: Data): Builder => {
+        let stateBuilder = beginCell()
+          .storeUint(data.id, 224)
+          .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
+          .storeBuilder(addresses.encode(data.addresses))
+          .storeBuilder(state.encode(data.state))
+        return stateBuilder
+      },
+      load: (src: Slice): Data => {
+        return {
+          id: src.loadUintBig(224),
+          onrampSend: or.builder.messages.in.onrampSend.load(src),
+          addresses: addresses.load(src),
+          state: state.load(src),
+        }
+      },
+    }
+
+    return {
+      contractInitData,
+      contractData,
+      state,
+      config,
+    }
+  })()
+
+  const message = {
     in: (() => {
       const execute: CellCodec<Execute> = {
-        encode: (data: Execute): TonBuilder => {
+        encode: (data: Execute): Builder => {
           return beginCell()
             .storeUint(Opcodes.execute, 32)
             .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
-            .storeRef(data.config)
+            .storeRef(dataBuilder.config.encode(data.config).asCell())
         },
         load: (src: Slice): Execute => {
           src.skip(32) // opcode
           return {
             onrampSend: or.builder.messages.in.onrampSend.load(src),
-            config: src.loadRef(),
-          }
-        },
-      }
-
-      const messageValidated: CellCodec<MessageValidated> = {
-        encode: (data: MessageValidated): TonBuilder => {
-          return beginCell()
-            .storeUint(Opcodes.messageValidated, 32)
-            .storeCoins(data.fee)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.metadata)
-        },
-        load: (src: Slice): MessageValidated => {
-          src.skip(32) // opcode
-          return {
-            fee: src.loadCoins(),
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: src.loadRef(),
-          }
-        },
-      }
-
-      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
-        encode: (data: MessageValidationFailed): TonBuilder => {
-          return beginCell()
-            .storeUint(Opcodes.messageValidationFailed, 32)
-            .storeUint(data.error, 256)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.metadata)
-        },
-        load: (src: Slice): MessageValidationFailed => {
-          src.skip(32) // opcode
-          return {
-            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
-            metadata: src.loadRef(),
-            error: src.loadUintBig(256),
+            config: dataBuilder.config.load(src.loadRef().beginParse()),
           }
         },
       }
 
       return {
         execute,
-        messageValidated,
-        messageValidationFailed,
+        messageValidated: fq.builder.message.out.messageValidated,
+        messageValidationFailed: fq.builder.message.out.messageValidationFailed,
       }
     })(),
-  },
-  data: (() => {
-    const contractData: CellCodec<InitialData> = {
-      encode: (data: InitialData): Builder => {
-        return beginCell().storeAddress(data.onramp).storeUint(data.messageId, 224)
-      },
-      load: (src: Slice): InitialData => {
-        return {
-          onramp: src.loadAddress(),
-          messageId: src.loadUintBig(224),
-        }
-      },
-    }
+  }
 
-    return {
-      contractData,
-    }
-  })(),
-}
+  return {
+    data: dataBuilder,
+    message,
+  }
+})()
 export abstract class Params {}
 
 export abstract class Opcodes {
   static execute = 0xaf3c62b3
-  static messageValidated = 0x1fa60374
-  static messageValidationFailed = 0xbcf0ab0f
+  static messageValidated = fq.OutOpcodes.messageValidated
+  static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
 }
 
 export class ContractClient implements typeAndVersion.Interface, Contract {
@@ -159,7 +206,7 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
   }
 
   static createFromConfig(config: InitialData, code: Cell, workchain = 0) {
-    const data = builder.data.contractData.encode(config).asCell()
+    const data = builder.data.contractInitData.encode(config).asCell()
     const init = { code, data }
     return new ContractClient(contractAddress(workchain, init), init)
   }

@@ -15,7 +15,7 @@ async function setupTestCCIPSendExecutor(
 
   let data: e.InitialData = {
     onramp: ZERO_ADDRESS,
-    messageId: 0n,
+    id: 0n,
   }
   let ccipSendExecutor = blockchain.openContract(e.ContractClient.createFromConfig(data, code))
 
