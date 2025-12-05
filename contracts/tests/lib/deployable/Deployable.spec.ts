@@ -25,9 +25,7 @@ describe('Deployable - Unit Tests', () => {
   beforeAll(async () => {
     deployableCode = await dep.ContractClient.code()
     counterCode = await counter.ContractClient.code()
-  })
 
-  beforeEach(async () => {
     blockchain = await Blockchain.create()
     blockchain.verbosity.debugLogs = true
 
@@ -36,6 +34,9 @@ describe('Deployable - Unit Tests', () => {
       blockchain.verbosity.print = false
       blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
+  })
+
+  beforeEach(async () => {
     deployer = await blockchain.treasury('deployer')
 
     const data: dep.DeployableStorage = {
