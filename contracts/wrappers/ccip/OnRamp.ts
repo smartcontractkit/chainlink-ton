@@ -984,4 +984,26 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     ])
     return stack.readBigNumber()
   }
+
+  async getDestChainConfig(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<DestChainConfig> {
+    const { stack } = await provider.get('destChainConfig', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return {
+      router: stack.readAddress(),
+      sequenceNumber: stack.readBigNumber(),
+      allowlistEnabled: stack.readBoolean(),
+      allowedSenders: (() => {
+        const dictCell = stack.readCellOpt()
+        if (!dictCell) {
+          return Dictionary.empty<Address, boolean>()
+        }
+        const dictSlice = dictCell.beginParse()
+        return dictSlice.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool())
+      })(),
+    }
+  }
 }

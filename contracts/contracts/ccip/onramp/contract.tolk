@@ -468,7 +468,6 @@ get fun dynamicConfig(): OnRamp_DynamicConfig {
     return st.config.load()
 }
 
-// UNTESTED
 get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
     val st = lazy OnRamp_Storage.load();
     return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);

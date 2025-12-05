@@ -83,6 +83,12 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
 
     expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(1n)
     expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST_90000002)).toBe(1n)
+    const loadedConfig = await onramp.getDestChainConfig(CHAINSEL_EVM_TEST)
+    expect(loadedConfig.allowlistEnabled).toBe(true)
+    expect(loadedConfig.router.equals(mockRouter.address)).toBe(true)
+    const loadedConfig2 = await onramp.getDestChainConfig(CHAINSEL_EVM_TEST_90000002)
+    expect(loadedConfig2.allowlistEnabled).toBe(true)
+    expect(loadedConfig2.router.equals(mockRouter.address)).toBe(true)
   }
 
   const expectedAllowlistMatches = async (
