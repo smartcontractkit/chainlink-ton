@@ -732,6 +732,11 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return stack.readCell()
   }
 
+  async getSendExecutorCodeHash(provider: ContractProvider): Promise<bigint> {
+    const { stack } = await provider.get('getCCIPSendExecutorCodeHash', [])
+    return stack.readBigNumber()
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }

@@ -501,7 +501,6 @@ get fun owner(): address {
     return st.ownable.get_owner();
 }
 
-// UNTESTED
 /// Gets the pending owner of the contract, if any.
 get fun pendingOwner(): address? {
     val st = lazy OnRamp_Storage.load();
@@ -513,7 +512,6 @@ get fun sendExecutorCode(): cell {
     return st.executor.executorCode;
 }
  
-// UNTESTED
 get fun getCCIPSendExecutorCodeHash(): uint256 {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode.hash();

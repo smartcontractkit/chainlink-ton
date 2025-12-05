@@ -161,6 +161,8 @@ describe('OnRamp - Unit Tests', () => {
 
     const executorCode = await onramp.getSendExecutorCode()
     expect(executorCode.equals(newExecutor)).toBe(true)
+    const executorCodeHash = await onramp.getSendExecutorCodeHash()
+    expect(executorCodeHash).toBe(BigInt('0x' + newExecutor.hash().toString('hex')))
   })
 
   it('should not allow non-owner to updateSendExecutor', async () => {
@@ -176,6 +178,11 @@ describe('OnRamp - Unit Tests', () => {
       success: false,
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
+
+    const executorCode = await onramp.getSendExecutorCode()
+    expect(executorCode.equals(beginCell().endCell())).toBe(true)
+    const executorCodeHash = await onramp.getSendExecutorCodeHash()
+    expect(executorCodeHash).toBe(BigInt('0x' + beginCell().endCell().hash().toString('hex')))
   })
 
   afterAll(async () => {
