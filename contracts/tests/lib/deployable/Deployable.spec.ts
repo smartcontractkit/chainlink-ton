@@ -8,7 +8,7 @@ import { generateRandomContractId } from '../../../src/utils'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as dep from '../../../wrappers/libraries/Deployable'
 
-describe('OnRamp - Opcodes', () => {
+describe('Deployable - Opcodes', () => {
   it('should match opcodes', () => {
     expect(dep.Opcodes.initialize).toBe(crc32('Deployable_Initialize'))
     expect(dep.Opcodes.initializeAndSend).toBe(crc32('Deployable_InitializeAndSend'))
