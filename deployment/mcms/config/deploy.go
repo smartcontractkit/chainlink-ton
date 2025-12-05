@@ -16,10 +16,10 @@ type ChainContractParams struct {
 func (c ChainContractParams) Validate() error {
 	// Validate every field
 	if err := c.Timelock.Validate(); err != nil {
-		return fmt.Errorf("invalid Timelock: %w", err)
+		return fmt.Errorf("invalid Timelock params: %w", err)
 	}
 	if err := c.MCMS.Validate(); err != nil {
-		return fmt.Errorf("invalid ContractParams: %w", err)
+		return fmt.Errorf("invalid MCMS params: %w", err)
 	}
 	return nil
 }
