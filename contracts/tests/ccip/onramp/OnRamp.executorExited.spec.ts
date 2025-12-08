@@ -141,7 +141,7 @@ describe('OnRamp - executor exit', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.Opcodes.messageSent,
+      op: rt.opcodes.in.messageSent,
       body(x) {
         if (!x) return false
         const msgSent = rt.builder.message.in.messageSent.load(x.beginParse())
@@ -170,7 +170,7 @@ describe('OnRamp - executor exit', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.Opcodes.messageRejected,
+      op: rt.opcodes.in.messageRejected,
       body(x) {
         if (!x) return false
         const msgSent = rt.builder.message.in.messageRejected.load(x.beginParse())

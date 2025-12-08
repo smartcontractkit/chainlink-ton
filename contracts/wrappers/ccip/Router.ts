@@ -42,26 +42,27 @@ export type Storage = {
 
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static applyRampUpdates = 0xf6b0a5ca
-  static setRamps = 0x20272c81
-  static ccipSend = 0x31768d95
-  static updateOffRamps = 0x234110a7
-  static ccipReceiveConfirm = 0x1e55bbf6
-  static routeMessage = 0xfc69c50b
-  static curse = 0x41e8c1dc
-  static uncurse = 0x3c3f5e73
-  static verifyNotCursed = 0xa6e4b7e1
-  static messageSent = 0x6513f8e1
-  static messageRejected = 0x8ae25114
-  static getValidatedFee = 0x4dd6aa82
-}
-
-export abstract class OutOpcodes {
-  static messageValidated = 0x9e2155ec
-  static messageValidationFailed = 0xec23c562
-  static ccipSendACK = 0x78d0f21e
-  static ccipSendNACK = 0x5a45d434
+export const opcodes = {
+  in: {
+    applyRampUpdates: 0xf6b0a5ca,
+    setRamps: 0x20272c81,
+    ccipSend: 0x31768d95,
+    updateOffRamps: 0x234110a7,
+    ccipReceiveConfirm: 0x1e55bbf6,
+    routeMessage: 0xfc69c50b,
+    curse: 0x41e8c1dc,
+    uncurse: 0x3c3f5e73,
+    verifyNotCursed: 0xa6e4b7e1,
+    messageSent: 0x6513f8e1,
+    messageRejected: 0x8ae25114,
+    getValidatedFee: 0x4dd6aa82,
+  },
+  out: {
+    messageValidated: 0x9e2155ec,
+    messageValidationFailed: 0xec23c562,
+    ccipSendACK: 0x78d0f21e,
+    ccipSendNACK: 0x5a45d434,
+  },
 }
 
 export type Ramp = {
@@ -233,7 +234,7 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.setRamps, 32)
+        .storeUint(opcodes.in.setRamps, 32)
         .storeUint(opts.queryID ?? 0, 64)
         .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
@@ -288,7 +289,7 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.curse, 32)
+        .storeUint(opcodes.in.curse, 32)
         .storeUint(opts.queryID ?? 0, 64)
         .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
         .asCell(),
@@ -304,7 +305,7 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.uncurse, 32)
+        .storeUint(opcodes.in.uncurse, 32)
         .storeUint(opts.queryID ?? 0, 64)
         .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
         .asCell(),
@@ -579,7 +580,7 @@ export const builder = {
       const ccipSend: CellCodec<CCIPSend> = {
         encode: (opts: CCIPSend): Builder => {
           return beginCell()
-            .storeUint(Opcodes.ccipSend, 32)
+            .storeUint(opcodes.in.ccipSend, 32)
             .storeUint(opts.queryID ?? 0, 64)
             .storeUint(opts.destChainSelector, 64)
             .storeBuilder(crossChainAddressCodec.encode(opts.receiver))
@@ -605,11 +606,11 @@ export const builder = {
       const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
-            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(opcodes.in.ccipReceiveConfirm, 32)
             .storeUint(confirm.rootId, 192)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
-          expect(src.loadUint(32)).toBe(Opcodes.ccipReceiveConfirm)
+          expect(src.loadUint(32)).toBe(opcodes.in.ccipReceiveConfirm)
           return {
             rootId: src.loadUintBig(192),
           }
@@ -619,7 +620,7 @@ export const builder = {
       const messageSent: CellCodec<MessageSent> = {
         encode: (opts: MessageSent): Builder => {
           return beginCell()
-            .storeUint(Opcodes.messageSent, 32)
+            .storeUint(opcodes.in.messageSent, 32)
             .storeUint(opts.queryID, 64)
             .storeUint(opts.messageId, 256)
             .storeUint(opts.destChainSelector, 64)
@@ -639,7 +640,7 @@ export const builder = {
       const messageRejected: CellCodec<MessageRejected> = {
         encode: (opts: MessageRejected): Builder => {
           return beginCell()
-            .storeUint(Opcodes.messageRejected, 32)
+            .storeUint(opcodes.in.messageRejected, 32)
             .storeUint(opts.queryID, 64)
             .storeUint(opts.destChainSelector, 64)
             .storeAddress(opts.sender)
@@ -659,7 +660,7 @@ export const builder = {
       const applyRampUpdates: CellCodec<ApplyRampUpdates> = {
         encode: (opts: ApplyRampUpdates): Builder => {
           return beginCell()
-            .storeUint(Opcodes.applyRampUpdates, 32)
+            .storeUint(opcodes.in.applyRampUpdates, 32)
             .storeUint(opts.queryID ?? 0, 64)
             .storeMaybeBuilder(opts.onRamps ? builder.data.onRamps.encode(opts.onRamps) : null)
             .storeMaybeBuilder(
@@ -677,7 +678,7 @@ export const builder = {
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: function (data: GetValidatedFee): Builder {
           return beginCell()
-            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(ccipSend.encode(data.msg))
             .storeSlice(data.context)
         },
@@ -703,7 +704,7 @@ export const builder = {
       const ccipSendACK: CellCodec<CCIPSendACK> = {
         encode: (opts: CCIPSendACK): Builder => {
           return beginCell()
-            .storeUint(OutOpcodes.ccipSendACK, 32)
+            .storeUint(opcodes.out.ccipSendACK, 32)
             .storeUint(opts.queryID, 64)
             .storeUint(opts.messageId, 256)
         },
@@ -718,7 +719,7 @@ export const builder = {
       const ccipSendNACK: CellCodec<CCIPSendNACK> = {
         encode: (opts: CCIPSendNACK): Builder => {
           return beginCell()
-            .storeUint(OutOpcodes.ccipSendNACK, 32)
+            .storeUint(opcodes.out.ccipSendNACK, 32)
             .storeUint(opts.queryID, 64)
             .storeUint(opts.error, 256)
         },
@@ -734,7 +735,7 @@ export const builder = {
       const messageValidated: CellCodec<MessageValidated> = {
         encode: (data: MessageValidated): Builder => {
           return beginCell()
-            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeUint(opcodes.out.messageValidated, 32)
             .storeRef(messageIn.ccipSend.encode(data.msg))
             .storeCoins(data.fee)
             .storeSlice(data.context)
@@ -752,7 +753,7 @@ export const builder = {
       const messageValidationFailed: CellCodec<MessageValidationFailed> = {
         encode: (data: MessageValidationFailed): Builder => {
           return beginCell()
-            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeUint(opcodes.out.messageValidationFailed, 32)
             .storeRef(messageIn.ccipSend.encode(data.msg))
             .storeUint(data.error, 256)
             .storeSlice(data.context)
