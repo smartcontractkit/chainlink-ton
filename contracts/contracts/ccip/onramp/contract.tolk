@@ -52,7 +52,7 @@ fun onInternalMessage(in: InMessage) {
             val destChainConfigResult = st.destChainConfigs.get(ccipSend.destChainSelector);
             if (!destChainConfigResult.isFound) {
                 // This is a config error. The Router should not be sending messages to unknown chains.
-                val error =  Error.UnknownDestChainSelector as int;
+                val error = Error.UnknownDestChainSelector as int;
                 return rejectMessage(error, in.senderAddress, ccipSend, msg.metadata.sender);
             }
             val destChainConfig = destChainConfigResult.loadValue();
