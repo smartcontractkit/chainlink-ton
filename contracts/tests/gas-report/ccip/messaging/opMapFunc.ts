@@ -16,10 +16,10 @@ export function opMapFunc(): OpMapFunc {
   Object.entries(fq.OutOpcodes).forEach(([name, code]) => {
     opcodeMap.set(code, `FeeQuoter::Out::${name}`)
   })
-  Object.entries(onRamp.Opcodes).forEach(([name, code]) => {
+  Object.entries(onRamp.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `OnRamp::In::${name}`)
   })
-  Object.entries(onRamp.OutOpcodes).forEach(([name, code]) => {
+  Object.entries(onRamp.opcodes.out).forEach(([name, code]) => {
     opcodeMap.set(code, `OnRamp::Out::${name}`)
   })
   Object.entries(rt.opcodes.in).forEach(([name, code]) => {

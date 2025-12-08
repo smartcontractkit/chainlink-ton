@@ -106,24 +106,24 @@ describe('OnRamp - Current Version Tests', () => {
 
 describe('OnRamp - Opcodes', () => {
   it('should match in opcodes', () => {
-    expect(or.Opcodes.onrampSend).toBe(0x10000002) // TODO crc32('OnRamp_Send')
-    expect(or.Opcodes.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
-    expect(or.Opcodes.executorFinishedSuccessfully).toBe(
+    expect(or.opcodes.in.onrampSend).toBe(0x10000002) // TODO crc32('OnRamp_Send')
+    expect(or.opcodes.in.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
+    expect(or.opcodes.in.executorFinishedSuccessfully).toBe(
       crc32('OnRamp_ExecutorFinishedSuccessfully'),
     )
-    expect(or.Opcodes.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
-    expect(or.Opcodes.setDynamicConfig).toBe(0x10000003) // TODO crc32('OnRamp_SetDynamicConfig')
-    expect(or.Opcodes.updateDestChainConfigs).toBe(0x10000004) // TODO crc32('OnRamp_UpdateDestChainConfigs')
-    expect(or.Opcodes.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
-    expect(or.Opcodes.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
+    expect(or.opcodes.in.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
+    expect(or.opcodes.in.setDynamicConfig).toBe(0x10000003) // TODO crc32('OnRamp_SetDynamicConfig')
+    expect(or.opcodes.in.updateDestChainConfigs).toBe(0x10000004) // TODO crc32('OnRamp_UpdateDestChainConfigs')
+    expect(or.opcodes.in.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
+    expect(or.opcodes.in.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
 
-    expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
-    expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+    expect(or.opcodes.out.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
+    expect(or.opcodes.out.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
   })
 
   it('should match out opcodes', () => {
-    expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
-    expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+    expect(or.opcodes.out.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
+    expect(or.opcodes.out.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
   })
 })
 

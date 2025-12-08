@@ -107,7 +107,7 @@ describe('OnRamp - executor exit', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
 
     const deployTX = result.transactions.find(
