@@ -52,8 +52,8 @@ export abstract class Opcodes {
   static curse = 0x41e8c1dc
   static uncurse = 0x3c3f5e73
   static verifyNotCursed = 0xa6e4b7e1
-  static messageSent = 0x6513f8e1 // TODO move to OutOpcodes
-  static messageRejected = 0x8ae25114 // TODO move to OutOpcodes
+  static messageSent = 0x6513f8e1
+  static messageRejected = 0x8ae25114
   static getValidatedFee = 0x4dd6aa82
 }
 

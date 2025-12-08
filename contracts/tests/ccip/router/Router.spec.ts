@@ -105,6 +105,23 @@ describe('Router - Current Version Tests', () => {
   currentVersionSpec.run()
 })
 
+describe('Router - Opcodes', () => {
+  it('should match opcodes', () => {
+    // expect(rt.Opcodes.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates')) 0x7db6745d?
+    expect(rt.Opcodes.setRamps).toBe(crc32('Router_SetRamps'))
+    // expect(rt.Opcodes.ccipSend).toBe(crc32('Router_CcipSend')) 0x38a69e3b?
+    expect(rt.Opcodes.updateOffRamps).toBe(crc32('Router_UpdateOffRamps'))
+    // expect(rt.Opcodes.ccipReceiveConfirm).toBe(crc32('Router_CcipReceiveConfirm')) 0xaf0cccef?
+    expect(rt.Opcodes.routeMessage).toBe(crc32('Router_RouteMessage'))
+    // expect(rt.Opcodes.curse).toBe(crc32('Router_Curse')) 0xe6bf1813?
+    // expect(rt.Opcodes.uncurse).toBe(crc32('Router_Uncurse')) 0x060d9dd1?
+    // expect(rt.Opcodes.verifyNotCursed).toBe(crc32('Router_VerifyNotCursed')) 0x49fd38ce?
+    expect(rt.Opcodes.messageSent).toBe(crc32('Router_MessageSent'))
+    expect(rt.Opcodes.messageRejected).toBe(crc32('Router_MessageRejected'))
+    expect(rt.Opcodes.getValidatedFee).toBe(crc32('Router_GetValidatedFee'))
+  })
+})
+
 describe('Router', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
