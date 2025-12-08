@@ -20,7 +20,7 @@ import {
   EVM_ADDRESS,
   TEST_TOKEN_ADDR,
   contractsCoverageConfig,
-} from './Router.Setup'
+} from '../router/Router.Setup'
 
 describe('Router', () => {
   let blockchain: Blockchain
