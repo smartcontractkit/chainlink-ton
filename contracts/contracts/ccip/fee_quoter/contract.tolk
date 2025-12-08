@@ -417,9 +417,9 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             // There should not be additional accounts specified for the receiver.
             assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSVMReceiverAddress;
         } else {
-            // The messaging accounts needed for CCIP receiver on SUI are:
-            // message receiver,
-            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            // The messaging accounts needed for CCIP receiver on SVM are:
+            // message receiver, offRamp PDA signer,
+            // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
             svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
         }
          
