@@ -106,7 +106,7 @@ describe('Router - Current Version Tests', () => {
 })
 
 describe('Router - Opcodes', () => {
-  it('should match opcodes', () => {
+  it('should match in opcodes', () => {
     // expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates')) 0x7db6745d?
     expect(rt.opcodes.in.setRamps).toBe(crc32('Router_SetRamps'))
     // expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CcipSend')) 0x38a69e3b?
@@ -119,6 +119,13 @@ describe('Router - Opcodes', () => {
     expect(rt.opcodes.in.messageSent).toBe(crc32('Router_MessageSent'))
     expect(rt.opcodes.in.messageRejected).toBe(crc32('Router_MessageRejected'))
     expect(rt.opcodes.in.getValidatedFee).toBe(crc32('Router_GetValidatedFee'))
+  })
+
+  it('should match out opcodes', () => {
+    expect(rt.opcodes.out.messageValidated).toBe(crc32('Router_MessageValidated'))
+    expect(rt.opcodes.out.messageValidationFailed).toBe(crc32('Router_MessageValidationFailed'))
+    expect(rt.opcodes.out.ccipSendACK).toBe(crc32('Router_CCIPSendACK'))
+    expect(rt.opcodes.out.ccipSendNACK).toBe(crc32('Router_CCIPSendNACK'))
   })
 })
 
