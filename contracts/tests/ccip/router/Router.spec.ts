@@ -107,15 +107,15 @@ describe('Router - Current Version Tests', () => {
 
 describe('Router - Opcodes', () => {
   it('should match in opcodes', () => {
-    // expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates')) 0x7db6745d?
+    expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates'))
     expect(rt.opcodes.in.setRamps).toBe(crc32('Router_SetRamps'))
-    // expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CcipSend')) 0x38a69e3b?
+    expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CcipSend'))
     expect(rt.opcodes.in.updateOffRamps).toBe(crc32('Router_UpdateOffRamps'))
-    // expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CcipReceiveConfirm')) 0xaf0cccef?
+    expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CcipReceiveConfirm'))
     expect(rt.opcodes.in.routeMessage).toBe(crc32('Router_RouteMessage'))
-    // expect(rt.opcodes.in.curse).toBe(crc32('Router_Curse')) 0xe6bf1813?
-    // expect(rt.opcodes.in.uncurse).toBe(crc32('Router_Uncurse')) 0x060d9dd1?
-    // expect(rt.opcodes.in.verifyNotCursed).toBe(crc32('Router_VerifyNotCursed')) 0x49fd38ce?
+    expect(rt.opcodes.in.curse).toBe(crc32('Router_Curse'))
+    expect(rt.opcodes.in.uncurse).toBe(crc32('Router_Uncurse'))
+    expect(rt.opcodes.in.verifyNotCursed).toBe(crc32('Router_VerifyNotCursed'))
     expect(rt.opcodes.in.messageSent).toBe(crc32('Router_MessageSent'))
     expect(rt.opcodes.in.messageRejected).toBe(crc32('Router_MessageRejected'))
     expect(rt.opcodes.in.getValidatedFee).toBe(crc32('Router_GetValidatedFee'))

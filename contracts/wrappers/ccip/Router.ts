@@ -44,15 +44,15 @@ export abstract class Params {}
 
 export const opcodes = {
   in: {
-    applyRampUpdates: 0xf6b0a5ca,
+    applyRampUpdates: 0x7db6745d,
     setRamps: 0x20272c81,
-    ccipSend: 0x31768d95,
+    ccipSend: 0x38a69e3b,
     updateOffRamps: 0x234110a7,
-    ccipReceiveConfirm: 0x1e55bbf6,
+    ccipReceiveConfirm: 0xaf0cccef,
     routeMessage: 0xfc69c50b,
-    curse: 0x41e8c1dc,
-    uncurse: 0x3c3f5e73,
-    verifyNotCursed: 0xa6e4b7e1,
+    curse: 0xe6bf1813,
+    uncurse: 0x060d9dd1,
+    verifyNotCursed: 0x49fd38ce,
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
     getValidatedFee: 0x4dd6aa82,
