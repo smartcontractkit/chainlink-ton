@@ -1,24 +1,52 @@
 import { compile } from '@ton/blueprint'
 import { Dictionary, beginCell, toNano, Cell, Address } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { generateRandomContractId } from '../../../src/utils'
-import * as fq from '../../../wrappers/ccip/FeeQuoter'
+
+import { assertLog } from '../../Logs'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
+import { generateRandomContractId } from '../../../src/utils'
+import * as Decimals from '../../lib/pricing/Decimals'
+import { ContractCoverageConfig } from '../../coverage/coverage'
+
+import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
-import * as Decimals from '../../lib/pricing/Decimals'
-import { assertLog } from '../../Logs'
+import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 
-export interface RouterSetupOptions {
+type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
   sender?: SandboxContract<TreasuryContract>
   router?: SandboxContract<rt.Router>
-  feeQuoter?: SandboxContract<fq.FeeQuoter>
-  onRamp?: SandboxContract<or.OnRamp>
   skipRouterOnRampConfig?: boolean
 }
+type RouterSetupOverrides = Partial<{
+  feeQuoter: SandboxContract<fq.FeeQuoter> | SandboxContract<TreasuryContract>
+  onRamp: SandboxContract<or.OnRamp> | SandboxContract<TreasuryContract>
+}>
 
-export async function setup(blockchain: Blockchain, options: RouterSetupOptions = {}) {
+type RouterSetupOptions<TOverrides extends RouterSetupOverrides> = RouterSetupOptionsCommon &
+  TOverrides
+
+type RouterSetupResultBase = {
+  deployer: SandboxContract<TreasuryContract>
+  sender: SandboxContract<TreasuryContract>
+  router: SandboxContract<rt.Router>
+}
+
+type RouterSetupResultFor<TOverrides extends RouterSetupOverrides> = RouterSetupResultBase &
+  ([TOverrides] extends [{ feeQuoter: SandboxContract<any> }]
+    ? {}
+    : { feeQuoter: SandboxContract<fq.FeeQuoter> }) &
+  ([TOverrides] extends [{ onRamp: SandboxContract<any> }]
+    ? {}
+    : { onRamp: SandboxContract<or.OnRamp> })
+
+export async function setup<TOverrides extends RouterSetupOverrides = {}>(
+  blockchain: Blockchain,
+  options?: RouterSetupOptions<TOverrides>,
+): Promise<RouterSetupResultFor<TOverrides>> {
+  const opts = (options ?? {}) as RouterSetupOptions<TOverrides>
+
   blockchain.verbosity = {
     print: true,
     blockchainLogs: false,
@@ -30,8 +58,8 @@ export async function setup(blockchain: Blockchain, options: RouterSetupOptions 
     blockchain.verbosity.vmLogs = 'vm_logs_verbose'
   }
 
-  const deployer = options.deployer ?? (await blockchain.treasury('deployer'))
-  const sender = options.sender ?? (await blockchain.treasury('sender'))
+  const deployer = opts.deployer ?? (await blockchain.treasury('deployer'))
+  const sender = opts.sender ?? (await blockchain.treasury('sender'))
   let merkleRootCodeRaw = await compile('MerkleRoot')
 
   // Populate the emulator library code
@@ -40,16 +68,34 @@ export async function setup(blockchain: Blockchain, options: RouterSetupOptions 
   _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
   const libs = beginCell().storeDictDirect(_libs).endCell()
   blockchain.libs = libs
-  const router = options.router ?? (await deployRouterInstance(blockchain, deployer))
-  const feeQuoter = options.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
+  const router = opts.router ?? (await deployRouterInstance(blockchain, deployer))
+  const feeQuoter = opts.feeQuoter ?? (await deployFeeQuoterInstance(blockchain, deployer))
   const onRamp =
-    options.onRamp ?? (await deployOnRampInstance(blockchain, deployer, router, feeQuoter))
+    opts.onRamp ??
+    (await deployOnRampInstance(blockchain, deployer, router.address, feeQuoter.address))
 
-  if (!options.skipRouterOnRampConfig) {
-    await configureRouterWithOnRamp(router, deployer, onRamp)
+  if (!opts.skipRouterOnRampConfig) {
+    await configureRouterWithOnRamp(router, deployer, onRamp.address)
   }
 
-  return { deployer, sender, router, feeQuoter, onRamp }
+  const result: RouterSetupResultBase & {
+    feeQuoter?: SandboxContract<fq.FeeQuoter>
+    onRamp?: SandboxContract<or.OnRamp>
+  } = {
+    deployer,
+    sender,
+    router,
+  }
+
+  if (!opts.feeQuoter) {
+    result.feeQuoter = feeQuoter as SandboxContract<fq.FeeQuoter>
+  }
+
+  if (!opts.onRamp) {
+    result.onRamp = onRamp as SandboxContract<or.OnRamp>
+  }
+
+  return result as RouterSetupResultFor<TOverrides>
 }
 
 async function deployRouterInstance(
@@ -196,8 +242,8 @@ async function deployFeeQuoterInstance(
 async function deployOnRampInstance(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
-  router: SandboxContract<rt.Router>,
-  feeQuoter: SandboxContract<fq.FeeQuoter>,
+  router: Address,
+  feeQuoter: Address,
 ) {
   const code = await compile('OnRamp')
   const data: or.OnRampStorage = {
@@ -208,7 +254,7 @@ async function deployOnRampInstance(
     },
     chainSelector: CHAINSEL_TON,
     config: {
-      feeQuoter: feeQuoter.address,
+      feeQuoter,
       feeAggregator: deployer.address,
       allowlistAdmin: deployer.address,
     },
@@ -234,7 +280,7 @@ async function deployOnRampInstance(
 
   {
     const config = {
-      router: router.address,
+      router,
       sequenceNumber: 0n,
       allowlistEnabled: false,
     }
@@ -270,7 +316,7 @@ async function deployOnRampInstance(
 async function configureRouterWithOnRamp(
   router: SandboxContract<rt.Router>,
   deployer: SandboxContract<TreasuryContract>,
-  onRamp: SandboxContract<or.OnRamp>,
+  onRamp: Address,
 ) {
   const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
     value: toNano('1'),
@@ -278,7 +324,7 @@ async function configureRouterWithOnRamp(
       queryID: BigInt(0),
       onRamps: {
         destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
-        onRamp: onRamp.address,
+        onRamp: onRamp,
       },
     },
   })
@@ -290,7 +336,7 @@ async function configureRouterWithOnRamp(
 
   assertLog(result.transactions, router.address, LogTypes.OnRampSet, {
     destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
-    onRamp: onRamp.address,
+    onRamp: onRamp,
   })
 }
 export async function deployRouterContract(
@@ -315,6 +361,7 @@ export async function deployRouterContract(
   await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
   return contract
 }
+
 export const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
 export const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
@@ -333,3 +380,24 @@ export const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
+
+export async function contractsCoverageConfig(): Promise<ContractCoverageConfig[]> {
+  return [
+    {
+      code: await rt.Router.code(),
+      name: 'router',
+    },
+    {
+      code: await fq.FeeQuoter.code(),
+      name: 'feequoter',
+    },
+    {
+      code: await or.OnRamp.code(),
+      name: 'onramp',
+    },
+    {
+      code: await sendExecutor.ContractClient.code(),
+      name: 'send_executor',
+    },
+  ]
+}
