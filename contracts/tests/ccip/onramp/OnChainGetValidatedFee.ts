@@ -1,5 +1,6 @@
 import { Cell, Sender, Slice, toNano } from '@ton/core'
 import { SandboxContract } from '@ton/sandbox'
+
 import * as rt from '../../../wrappers/ccip/Router'
 
 // Helper function to send a GetValidatedFee request to router and parse the response

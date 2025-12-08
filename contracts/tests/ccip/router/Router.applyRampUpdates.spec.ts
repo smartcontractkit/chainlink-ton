@@ -1,11 +1,11 @@
+import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
-
-import '@ton/test-utils'
 
 import { generateRandomTonAddress } from '../../../src/utils'
 import { assertLog } from '../../Logs'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
+
 import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
