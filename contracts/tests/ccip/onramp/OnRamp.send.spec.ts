@@ -259,16 +259,23 @@ describe('OnRamp - Send', () => {
     expect(result.transactions).toHaveTransaction({
       from: mockRouter.address,
       to: onramp.address,
-      success: false,
-      exitCode: or.Errors.SenderNotAllowed,
+      success: true,
       op: or.opcodes.in.onrampSend,
     })
-    // TODO should return messageValidationFailed in stead of throwing an error
-    // expect(result.transactions).toHaveTransaction({
-    //   from: onramp.address,
-    //   success: true,
-    //   op: or.opcodes.out.messageValidationFailed,
-    // })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      success: true,
+      op: rt.opcodes.in.messageRejected,
+      body: (body) => {
+        if (!body) return false
+        const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
+        return (
+          msg.destChainSelector === ccipSend.destChainSelector &&
+          msg.sender.equals(senderAddress) &&
+          msg.error === BigInt(or.Errors.SenderNotAllowed.valueOf())
+        )
+      },
+    })
   })
 
   it('should fail if dest chain selector is unknown', async () => {

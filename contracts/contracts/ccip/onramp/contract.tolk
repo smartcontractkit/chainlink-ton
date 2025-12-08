@@ -228,9 +228,11 @@ destination chain configuration is enabled, enforces the optional allowlist,
 and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
 */
 fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload: OnRamp_Send) {
-       if (destChainConfig.allowlistEnabled) {
+    if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
-        assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
+        if (!entry.isFound || !entry.loadValue()) {
+            return rejectMessage(Error.SenderNotAllowed as int, destChainConfig.router, payload.msg.load(), payload.metadata.sender);
+        }
     }
 
     val config = st.config.load();
