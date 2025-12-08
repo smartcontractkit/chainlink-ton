@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -33,7 +34,7 @@ var ApplyRampUpdatesOp = operations.NewOperation(
 	applyRampUpdates,
 )
 
-func applyRampUpdates(b operations.Bundle, deps TonDeps, in ApplyRampUpdatesInput) ([][]byte, error) {
+func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) ([][]byte, error) {
 	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)

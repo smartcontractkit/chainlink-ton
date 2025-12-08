@@ -96,5 +96,5 @@ describe('FeeQuoter - Current Version Tests', () => {
     CurrentVersionConstructor: FeeQuoter,
     deployCurrentContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run('feequoter')
 })

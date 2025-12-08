@@ -236,7 +236,7 @@ describe('OffRamp - Current Version Tests', () => {
     CurrentVersionConstructor: OffRamp,
     deployCurrentContract: deployOffRampContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run('offramp')
 })
 
 describe('OffRamp - Unit Tests', () => {

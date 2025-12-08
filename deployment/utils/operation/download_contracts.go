@@ -14,6 +14,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 )
 
 // Limit decompressed size to 100MB (adjust as needed)
@@ -43,7 +45,7 @@ var DownloadArtifactsOp = operations.NewOperation(
 	downloadArtifacts,
 )
 
-func downloadArtifacts(b operations.Bundle, deps TonDeps, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
+func downloadArtifacts(b operations.Bundle, _ config.TonDeps, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
 	output := DownloadArtifactsOutput{}
 
 	url := fmt.Sprintf(

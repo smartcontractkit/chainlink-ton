@@ -11,11 +11,12 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -147,14 +148,19 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 		contractVersion = sequence.ContractsLocalVersion
 	}
 
+	ccipContractSemver := semver.MustParse("1.6.0")
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
 			RouterParams: config.RouterParams{
-				ID: idForContracts,
+				ID:              idForContracts,
+				Coin:            "0.05",
+				ContractsSemver: ccipContractSemver,
 			},
 			FeeQuoterParams: config.FeeQuoterParams{
 				ID:                           idForContracts,
+				Coin:                         "0.05",
+				ContractsSemver:              ccipContractSemver,
 				MaxFeeJuelsPerMsg:            big.NewInt(1),
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
@@ -166,27 +172,24 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			},
 			OffRampParams: config.OffRampParams{
 				ID:                               idForContracts,
+				Coin:                             "0.05",
+				ContractsSemver:                  ccipContractSemver,
 				ChainSelector:                    tonChain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
-				ID:            idForContracts,
-				ChainSelector: ChainSelEVMTest90000001,
+				ID:              idForContracts,
+				Coin:            "0.05",
+				ContractsSemver: ccipContractSemver,
+				ChainSelector:   ChainSelEVMTest90000001,
 				// TODO:
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 			},
 			ReceiverParams: config.ReceiverParams{
-				ID: idForContracts,
-			},
-			TimelockParams: config.TimelockParams{
-				ID:         idForContracts,
-				MinDelay:   0,
-				Admin:      deployer.WalletAddress(),
-				Proposers:  []*address.Address{deployer.WalletAddress()},
-				Executors:  []*address.Address{deployer.WalletAddress()},
-				Cancellers: []*address.Address{deployer.WalletAddress()},
-				Bypassers:  []*address.Address{deployer.WalletAddress()},
+				ID:              idForContracts,
+				Coin:            "0.05",
+				ContractsSemver: ccipContractSemver,
 			},
 		},
 		ContractsVersion: contractVersion,
@@ -389,7 +392,6 @@ func SendCCIPMessage(
 		state.Router.String():           {Type: "Router", Version: zeroVersion},
 		state.OnRamp.String():           {Type: "OnRamp", Version: zeroVersion},
 		state.FeeQuoter.String():        {Type: "FeeQuoter", Version: zeroVersion},
-		state.Timelock.String():         {Type: "Timelock", Version: zeroVersion},
 		state.ReceiverAddress.String():  {Type: "ReceiverAddress", Version: zeroVersion},
 	}
 	e.Logger.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(receivedMsg))

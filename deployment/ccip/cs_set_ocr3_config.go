@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -25,8 +26,8 @@ type SetOCR3OffRampConfig struct {
 // SetOCR3Config updates OCR3 Offramp configurations
 type SetOCR3Config struct{}
 
-func (cs SetOCR3Config) VerifyPreconditions(env cldf.Environment, config SetOCR3OffRampConfig) error {
-	for _, remoteSel := range config.RemoteChainSels {
+func (cs SetOCR3Config) VerifyPreconditions(env cldf.Environment, cfg SetOCR3OffRampConfig) error {
+	for _, remoteSel := range cfg.RemoteChainSels {
 		chainFamily, _ := chain_selectors.GetSelectorFamily(remoteSel)
 		if chainFamily != chain_selectors.FamilyTon {
 			return fmt.Errorf("chain %d is not an Ton chain", remoteSel)
@@ -39,7 +40,7 @@ func (cs SetOCR3Config) VerifyPreconditions(env cldf.Environment, config SetOCR3
 	return nil
 }
 
-func (cs SetOCR3Config) Apply(env cldf.Environment, config SetOCR3OffRampConfig) (cldf.ChangesetOutput, error) {
+func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (cldf.ChangesetOutput, error) {
 	var (
 		proposals []mcms.TimelockProposal
 		// mcmsOperations    []mcmstypes.BatchOperation
@@ -51,16 +52,16 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, config SetOCR3OffRampConfig)
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	for _, remoteSelector := range config.RemoteChainSels {
+	for _, remoteSelector := range cfg.RemoteChainSels {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[remoteSelector]
-		deps := operation.TonDeps{
+		deps := config.CCIPDeps{
 			TonChain:         chain,
 			CCIPOnChainState: state,
 		}
 		in := seq.SetOCR3OfframpSeqInput{
 			ChainSelector: remoteSelector,
-			Configs:       config.Configs,
+			Configs:       cfg.Configs,
 		}
 		setOCR3SeqReport, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
 		if err != nil {

@@ -27,6 +27,7 @@ var (
 	OnRamp    ds.ContractType = "OnRamp"
 	OffRamp   ds.ContractType = "OffRamp"
 	FeeQuoter ds.ContractType = "FeeQuoter"
+	MCMS      ds.ContractType = "MCMS"
 	// Internal contracts
 	Deployer        ds.ContractType = "Deployer"
 	MerkleRoot      ds.ContractType = "MerkleRoot"
@@ -39,15 +40,21 @@ var (
 )
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
-// on a chain. If a binding is nil, it means here is no such contract on the chain.
+// on a chain. If a binding is nil, it means there is no such contract on the chain.
 type CCIPChainState struct {
 	LinkTokenAddress address.Address
 	OffRamp          address.Address
 	Router           address.Address
 	OnRamp           address.Address
 	FeeQuoter        address.Address
-	Timelock         address.Address
 	ReceiverAddress  address.Address
+}
+
+// MCMSChainState holds a Go binding for all the currently deployed MCMS contracts
+// on a chain. If a binding is nil, it means there is no such contract on the chain.
+type MCMSChainState struct {
+	Timelock address.Address
+	MCMS     address.Address
 }
 
 type TONChainView struct {
@@ -149,7 +156,7 @@ func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64
 	addresses := dataStore.Addresses().Filter(
 		ds.AddressRefByChainSelector(chainSelector),
 	)
-	chainState, err := loadChainState(addresses)
+	chainState, err := loadCCIPChainState(addresses)
 	if err != nil {
 		return chainState, err
 	}
@@ -170,8 +177,60 @@ func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	return chains, nil
 }
 
-// loadChainState Loads all state for a TonChain into state
-func loadChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
+func LoadMCMSOnchainState(e cldf.Environment) (map[uint64]MCMSChainState, error) {
+	chains := make(map[uint64]MCMSChainState)
+	for chainSelector := range e.BlockChains.TonChains() {
+		addresses := e.DataStore.Addresses().Filter(
+			ds.AddressRefByChainSelector(chainSelector),
+		)
+		chainState, err := loadMCMSChainState(addresses)
+		if err != nil {
+			return chains, err
+		}
+
+		chains[chainSelector] = chainState
+	}
+	return chains, nil
+}
+
+func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {
+	state := MCMSChainState{}
+
+	// Most programs upgraded in place, but some are not so we always want to
+	// load the latest version
+	versions := make(map[ds.ContractType]semver.Version)
+
+	for _, addressType := range addresses {
+		contractType := addressType.Type
+		version := addressType.Version
+		rawContractAddress := addressType.Address
+		contractAddress, err := address.ParseAddr(rawContractAddress)
+
+		if err != nil {
+			return state, err
+		}
+
+		switch contractType {
+		case Timelock:
+			state.Timelock = *contractAddress
+		case MCMS:
+			state.MCMS = *contractAddress
+		default:
+			continue
+		}
+
+		existingVersion, ok := versions[contractType]
+		if ok {
+			log.Warn().Str("existingVersion", existingVersion.String()).Str("type", contractType.String()).Msg("Duplicate address type found")
+		}
+		versions[contractType] = *version
+	}
+
+	return state, nil
+}
+
+// loadCCIPChainState Loads all state for a TonChain into state
+func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 	state := CCIPChainState{}
 
 	// Most programs upgraded in place, but some are not so we always want to
@@ -201,10 +260,7 @@ func loadChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 			state.OnRamp = *contractAddress
 		case FeeQuoter:
 			state.FeeQuoter = *contractAddress
-		case Timelock:
-			state.Timelock = *contractAddress
 		default:
-			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue
 		}
 

@@ -45,8 +45,19 @@ describe('OnRamp - executor exit', () => {
       .asCell(),
   }
 
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+    blockchain.verbosity.debugLogs = true
+
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+  })
+
   beforeEach(async () => {
-    ;({ blockchain, deployer } = await setup())
+    ;({ deployer } = await setup(blockchain))
     deployableCode = await compile('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')

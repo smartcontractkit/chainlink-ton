@@ -11,7 +11,7 @@ import (
 	"time"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	helper "github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
