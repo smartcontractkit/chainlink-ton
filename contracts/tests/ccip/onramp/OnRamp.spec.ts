@@ -105,7 +105,7 @@ describe('OnRamp - Current Version Tests', () => {
 })
 
 describe('OnRamp - Opcodes', () => {
-  it('should match opcodes', () => {
+  it('should match in opcodes', () => {
     expect(or.Opcodes.onrampSend).toBe(0x10000002) // TODO crc32('OnRamp_Send')
     expect(or.Opcodes.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
     expect(or.Opcodes.executorFinishedSuccessfully).toBe(
@@ -117,6 +117,11 @@ describe('OnRamp - Opcodes', () => {
     expect(or.Opcodes.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
     expect(or.Opcodes.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
 
+    expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
+    expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+  })
+
+  it('should match out opcodes', () => {
     expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
     expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
   })
