@@ -24,7 +24,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
@@ -277,42 +276,8 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 }
 
 // TODO Consider move chainlink core AnyMsgSentEvent and CCIPSendReqConfig to CLDF?
-
-// TonSendRequest is a simplified CCIP send request structure.
-// Deprecated: Use router.CCIPSend directly with SendCCIPMessage for new code.
-type TonSendRequest struct {
-	QueryID   uint64
-	Receiver  []byte
-	Data      []byte
-	ExtraArgs *cell.Cell
-	FeeToken  *address.Address
-	// TokenAmounts  common.SnakeRef[ocr.Any2TVMTokenTransfer]
-}
-
-// ToRouterCCIPSend converts TonSendRequest to router.CCIPSend.
-func (r TonSendRequest) ToRouterCCIPSend(destChainSelector uint64) router.CCIPSend {
-	return router.CCIPSend{
-		QueryID:           r.QueryID,
-		DestChainSelector: destChainSelector,
-		Receiver:          r.Receiver,
-		Data:              r.Data,
-		TokenAmounts:      nil, // TODO: add token amounts when token transfer enabled
-		FeeToken:          r.FeeToken,
-		ExtraArgs:         r.ExtraArgs,
-	}
-}
-
-// SendTonRequest sends a CCIP request from a TON chain.
-// Deprecated: Use SendCCIPMessage with router.CCIPSend for new code.
-func SendTonRequest(
-	e cldf.Environment,
-	state state.CCIPChainState,
-	sourceChain, destChain uint64,
-	msg TonSendRequest) (uint64, any, error) {
-	return SendCCIPMessage(e, state, sourceChain, msg.ToRouterCCIPSend(destChain))
-}
-
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
+// TODO: add TokenAmounts support for TON token transfers
 func SendCCIPMessage(
 	e cldf.Environment,
 	state state.CCIPChainState,
