@@ -106,14 +106,14 @@ describe('OnRamp - Current Version Tests', () => {
 
 describe('OnRamp - Opcodes', () => {
   it('should match in opcodes', () => {
-    expect(or.opcodes.in.onrampSend).toBe(0x10000002) // TODO crc32('OnRamp_Send')
+    expect(or.opcodes.in.onrampSend).toBe(crc32('OnRamp_Send'))
     expect(or.opcodes.in.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
     expect(or.opcodes.in.executorFinishedSuccessfully).toBe(
       crc32('OnRamp_ExecutorFinishedSuccessfully'),
     )
     expect(or.opcodes.in.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
-    expect(or.opcodes.in.setDynamicConfig).toBe(0x10000003) // TODO crc32('OnRamp_SetDynamicConfig')
-    expect(or.opcodes.in.updateDestChainConfigs).toBe(0x10000004) // TODO crc32('OnRamp_UpdateDestChainConfigs')
+    expect(or.opcodes.in.setDynamicConfig).toBe(crc32('OnRamp_SetDynamicConfig'))
+    expect(or.opcodes.in.updateDestChainConfigs).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
     expect(or.opcodes.in.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
     expect(or.opcodes.in.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
 

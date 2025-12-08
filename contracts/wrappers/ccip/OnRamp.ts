@@ -621,14 +621,14 @@ export abstract class Params {}
 
 export const opcodes = {
   in: {
-    onrampSend: 0x10000002,
+    onrampSend: 0xdcf993c2,
     getValidatedFee: 0x9c2ccc7e,
     messageValidated: fq.OutOpcodes.messageValidated,
     messageValidationFailed: fq.OutOpcodes.messageValidationFailed,
     executorFinishedSuccessfully: 0xcfa6b336,
     executorFinishedWithError: 0xc4068e21,
-    setDynamicConfig: 0x10000003,
-    updateDestChainConfigs: 0x10000004,
+    setDynamicConfig: 0xa178c62e,
+    updateDestChainConfigs: 0x1a246b6c,
     updateSendExecutor: 0x82901c45,
     updateAllowlists: 0x9dc06185,
   },
