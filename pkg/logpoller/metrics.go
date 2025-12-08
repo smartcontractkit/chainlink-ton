@@ -19,7 +19,7 @@ var (
 	promTonLpPollDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "ton_logpoller_poll_duration_seconds",
 		Help:    "Duration of each log poller poll iteration",
-		Buckets: []float64{0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60},
+		Buckets: []float64{1, 5, 10, 30}, // TON block time: approx. 5 seconds
 	}, []string{"chainID"})
 
 	promTonLpPollErrors = promauto.NewCounterVec(prometheus.CounterOpts{
