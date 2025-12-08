@@ -415,7 +415,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
             // When message receiver is zero, CCIP receiver is not invoked on SVM.
             // There should not be additional accounts specified for the receiver.
-            assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSuiReceiverAddress;
+            assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSVMReceiverAddress;
         } else {
             // The messaging accounts needed for CCIP receiver on SUI are:
             // message receiver,
