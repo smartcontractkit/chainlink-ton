@@ -116,9 +116,6 @@ describe('OnRamp - Opcodes', () => {
     expect(or.opcodes.in.updateDestChainConfigs).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
     expect(or.opcodes.in.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
     expect(or.opcodes.in.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
-
-    expect(or.opcodes.out.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
-    expect(or.opcodes.out.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
   })
 
   it('should match out opcodes', () => {
