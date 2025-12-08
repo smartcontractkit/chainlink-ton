@@ -272,7 +272,7 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === ccipSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.Errors.SenderNotAllowed.valueOf())
+          msg.error === BigInt(or.Errors.SenderNotAllowed)
         )
       },
     })
@@ -309,7 +309,7 @@ describe('OnRamp - Send', () => {
         return (
           msg.destChainSelector === unknownChainCCIPSend.destChainSelector &&
           msg.sender.equals(senderAddress) &&
-          msg.error === BigInt(or.Errors.UnknownDestChainSelector.valueOf())
+          msg.error === BigInt(or.Errors.UnknownDestChainSelector)
         )
       },
     })
