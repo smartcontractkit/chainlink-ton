@@ -360,7 +360,7 @@ describe('Router', () => {
         to: sender.address,
         deploy: false,
         success: true,
-        op: rt.OutgoingOpcodes.ccipSendACK,
+        op: rt.OutOpcodes.ccipSendACK,
         body(x) {
           return verifyBodyIsRouterCCIPSendACK(x, {
             validation: (ccipSendACK) => {

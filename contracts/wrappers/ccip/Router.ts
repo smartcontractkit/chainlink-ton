@@ -60,16 +60,13 @@ export abstract class Opcodes {
 export abstract class OutOpcodes {
   static messageValidated = 0x9e2155ec
   static messageValidationFailed = 0xec23c562
+  static ccipSendACK = 0x78d0f21e
+  static ccipSendNACK = 0x5a45d434
 }
 
 export type Ramp = {
   chainSelector: bigint //64
   address: Address
-}
-
-export abstract class OutgoingOpcodes {
-  static ccipSendACK = 0x78d0f21e
-  static ccipSendNACK = 0x5a45d434
 }
 
 export class Router
@@ -706,7 +703,7 @@ export const builder = {
       const ccipSendACK: CellCodec<CCIPSendACK> = {
         encode: (opts: CCIPSendACK): Builder => {
           return beginCell()
-            .storeUint(OutgoingOpcodes.ccipSendACK, 32)
+            .storeUint(OutOpcodes.ccipSendACK, 32)
             .storeUint(opts.queryID, 64)
             .storeUint(opts.messageId, 256)
         },
@@ -721,7 +718,7 @@ export const builder = {
       const ccipSendNACK: CellCodec<CCIPSendNACK> = {
         encode: (opts: CCIPSendNACK): Builder => {
           return beginCell()
-            .storeUint(OutgoingOpcodes.ccipSendNACK, 32)
+            .storeUint(OutOpcodes.ccipSendNACK, 32)
             .storeUint(opts.queryID, 64)
             .storeUint(opts.error, 256)
         },
