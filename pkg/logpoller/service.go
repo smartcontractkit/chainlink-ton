@@ -48,6 +48,8 @@ type service struct {
 	filterStore FilterStore // Filter store for managing filters
 	logStore    LogStore    // Log store for storing logs
 
+	metrics *serviceMetrics // metrics for observability
+
 	// configuration for service operation
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
@@ -72,7 +74,13 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
+func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) (Service, error) {
+	// init metrics
+	metrics, err := newMetrics(chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
+	}
+
 	lp := &service{
 		lggr:             logger.Sugared(lggr),
 		chainID:          chainID,
@@ -80,6 +88,7 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		filterStore:      opts.FilterStore,
 		loader:           opts.TxLoader,
 		logStore:         opts.LogStore,
+		metrics:          metrics,
 		pollPeriod:       opts.Config.PollPeriod.Duration(),
 		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
 		blockTime:        opts.Config.BlockTime.Duration(),
@@ -93,7 +102,7 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		Name:  "TONLogPoller",
 		Start: lp.start,
 	}.NewServiceEngine(lggr)
-	return lp
+	return lp, nil
 }
 
 // NewServiceWith creates a new TON log polling service and registers the provided filters.
@@ -107,7 +116,10 @@ func NewServiceWith(
 	opts *ServiceOptions,
 	filters []models.Filter,
 ) (Service, error) {
-	svc := NewService(lggr, chainID, clientProvider, opts)
+	svc, err := NewService(lggr, chainID, clientProvider, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service: %w", err)
+	}
 
 	for _, f := range filters {
 		if _, err := svc.RegisterFilter(ctx, f); err != nil {
@@ -122,9 +134,12 @@ func NewServiceWith(
 func (lp *service) start(_ context.Context) error {
 	lp.lggr.Infof("starting TON logpoller")
 	lp.eng.GoTick(services.NewTicker(lp.pollPeriod), func(ctx context.Context) {
+		start := time.Now()
 		if err := lp.run(ctx); err != nil {
 			lp.lggr.Errorw("iteration failed", "err", err)
+			lp.metrics.IncrementPollErrors(ctx)
 		}
+		lp.metrics.RecordPollDuration(ctx, time.Since(start))
 	})
 	return nil
 }
@@ -178,6 +193,8 @@ func (lp *service) run(ctx context.Context) (err error) {
 	}
 
 	lp.lastProcessedBlock = blockRange.ToSeqNo()
+	lp.metrics.SetLastProcessedBlock(ctx, lp.lastProcessedBlock)
+
 	return nil
 }
 
@@ -192,7 +209,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
-	// TODO: deal with error metrics here
+	// TODO: add loader_errors_total and parse_errors_total metrics(or combined)
 	go func() {
 		for err := range loaderErrsCh {
 			lp.lggr.Errorw("loader error", "err", err)
