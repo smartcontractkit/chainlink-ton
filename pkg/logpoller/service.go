@@ -172,6 +172,9 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to apply replay override: %w", err)
 	}
 
+	// Record blocks behind before processing (shows catch-up work needed)
+	lp.metrics.SetBlocksBehind(ctx, blockRange.ToSeqNo(), blockRange.FromSeqNo())
+
 	lp.lggr.Tracew("processing block range", "fromSeq", blockRange.FromSeqNo(), "toSeq", blockRange.ToSeqNo())
 
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
@@ -194,6 +197,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	lp.lastProcessedBlock = blockRange.ToSeqNo()
 	lp.metrics.SetLastProcessedBlock(ctx, lp.lastProcessedBlock)
+	lp.metrics.AddBlocksProcessed(ctx, int64(blockRange.ToSeqNo()-blockRange.FromSeqNo()))
 
 	return nil
 }
