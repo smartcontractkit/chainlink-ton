@@ -341,7 +341,8 @@ with error details for tracking and recovery.
 fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
     val ccipSend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
-    rejectMessage( msg.error, st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int).router, ccipSend, metadata.sender);
+    val router = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int).router;
+    rejectMessage(msg.error, router, ccipSend, metadata.sender);
 }
 
 fun rejectMessage(error: int, router: address, ccipSend: Router_CCIPSend, sender: address) {
