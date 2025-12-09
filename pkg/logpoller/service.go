@@ -210,18 +210,19 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return fmt.Errorf("failed to build filter index: %w", err)
 	}
 
-	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
+	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
-	// TODO: add loader_errors_total and parse_errors_total metrics(or combined)
 	go func() {
-		for err := range loaderErrsCh {
-			lp.lggr.Errorw("loader error", "err", err)
+		for err := range loadErrsCh {
+			lp.metrics.IncrementLoaderErrors(ctx)
+			lp.lggr.Errorw("loading transactions error", "err", err)
 		}
 	}()
 	go func() {
 		for err := range parseErrsCh {
-			lp.lggr.Errorw("parse error", "err", err)
+			lp.metrics.IncrementParseErrors(ctx)
+			lp.lggr.Errorw("parsing transactions error", "err", err)
 		}
 	}()
 
@@ -230,8 +231,8 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return fmt.Errorf("failed to save logs: %w", err)
 	}
 
-	// Only log when we actually saved logs to reduce noise
 	if totalSaved > 0 {
+		lp.metrics.AddLogsInserted(ctx, int64(totalSaved))
 		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.FromSeqNo(), blockRange.ToSeqNo(), totalSaved, len(addresses))
 	}
 

@@ -40,6 +40,21 @@ var (
 		Name: "ton_logpoller_blocks_processed_total",
 		Help: "Total number of blocks processed",
 	}, []string{"chainID"})
+
+	promTonLpLogsInserted = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_logs_inserted_total",
+		Help: "Total number of logs inserted to database",
+	}, []string{"chainID"})
+
+	promTonLpLoaderErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_loader_errors_total",
+		Help: "Total number of transaction loading errors",
+	}, []string{"chainID"})
+
+	promTonLpParseErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_parse_errors_total",
+		Help: "Total number of log parsing errors",
+	}, []string{"chainID"})
 )
 
 // serviceMetrics provides instrumentation for the TON LogPoller
@@ -53,8 +68,10 @@ type serviceMetrics struct {
 	blocksBehind       metric.Int64Gauge
 	lastProcessedBlock metric.Int64Gauge
 	blocksProcessed    metric.Int64Counter
-	// TODO: add loader_errors_total counter (for tx loading failures)
-	// TODO: add parse_errors_total counter (for log parsing failures)
+	logsInserted       metric.Int64Counter
+	loaderErrors       metric.Int64Counter
+	parseErrors        metric.Int64Counter
+
 	// TODO: add query_duration_seconds histogram (for database ops)
 	// TODO: add observed store wrappers for FilterStore and LogStore
 }
@@ -88,6 +105,21 @@ func newMetrics(chainID string) (*serviceMetrics, error) {
 		return nil, fmt.Errorf("failed to register blocks processed: %w", err)
 	}
 
+	logsInserted, err := m.Int64Counter("ton_logpoller_logs_inserted_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register logs inserted: %w", err)
+	}
+
+	loaderErrors, err := m.Int64Counter("ton_logpoller_loader_errors_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register loader errors: %w", err)
+	}
+
+	parseErrors, err := m.Int64Counter("ton_logpoller_parse_errors_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register parse errors: %w", err)
+	}
+
 	return &serviceMetrics{
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
@@ -97,6 +129,9 @@ func newMetrics(chainID string) (*serviceMetrics, error) {
 		blocksBehind:       blocksBehind,
 		lastProcessedBlock: lastProcessedBlock,
 		blocksProcessed:    blocksProcessed,
+		logsInserted:       logsInserted,
+		loaderErrors:       loaderErrors,
+		parseErrors:        parseErrors,
 	}, nil
 }
 
@@ -135,4 +170,22 @@ func (m *serviceMetrics) SetLastProcessedBlock(ctx context.Context, seqNo uint32
 func (m *serviceMetrics) AddBlocksProcessed(ctx context.Context, count int64) {
 	promTonLpBlocksProcessed.WithLabelValues(m.chainID).Add(float64(count))
 	m.blocksProcessed.Add(ctx, count, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+// AddLogsInserted increments the logs inserted counter
+func (m *serviceMetrics) AddLogsInserted(ctx context.Context, count int64) {
+	promTonLpLogsInserted.WithLabelValues(m.chainID).Add(float64(count))
+	m.logsInserted.Add(ctx, count, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+// IncrementLoaderErrors increments the loader error counter
+func (m *serviceMetrics) IncrementLoaderErrors(ctx context.Context) {
+	promTonLpLoaderErrors.WithLabelValues(m.chainID).Inc()
+	m.loaderErrors.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+// IncrementParseErrors increments the parse error counter
+func (m *serviceMetrics) IncrementParseErrors(ctx context.Context) {
+	promTonLpParseErrors.WithLabelValues(m.chainID).Inc()
+	m.parseErrors.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
