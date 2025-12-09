@@ -4,6 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
+import { facilityId } from '../../../wrappers/utils'
 
 import * as WithdrawableSpec from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
@@ -11,7 +12,6 @@ import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as or from '../../../wrappers/ccip/OnRamp'
-
 import { deployOnRampContract, CHAINSEL_TON, setup } from './OnRamp.Setup'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
@@ -119,6 +119,12 @@ describe('OnRamp - Opcodes', () => {
 
     expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
     expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+  })
+})
+
+describe('OnRamp - Facility ID', () => {
+  it('Test facilityId matches facility name', () => {
+    expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
   })
 })
 

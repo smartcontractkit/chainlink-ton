@@ -30,7 +30,7 @@ type Router_InMsg =
 type Router_BouncedMessage = Receiver_CCIPReceive;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
-struct (0xf6b0a5ca) Router_ApplyRampUpdates {
+struct (0x7db6745d) Router_ApplyRampUpdates {
     queryId: uint64;
     onRampUpdates: OnRamps?;
     offRampAdds: OffRamps?;
@@ -40,7 +40,7 @@ struct (0xf6b0a5ca) Router_ApplyRampUpdates {
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
 // Answers with Router_CCIPReceive
-struct (0x31768d95) Router_CCIPSend {
+struct (0x38a69e3b) Router_CCIPSend {
     queryID: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;
@@ -57,23 +57,23 @@ struct (0xfc69c50b) Router_RouteMessage {
     gasLimit: coins;
 }
 
-struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
+struct (0xaf0cccef) Router_CCIPReceiveConfirm {
     execId: ReceiveExecutorId;
 }
 
 // curse/uncurse/verify uncursed (also as getter)
-struct (0x41e8c1dc) Router_RMNRemoteCurse {
+struct (0xe6bf1813) Router_RMNRemoteCurse {
     queryId: uint64
     subjects: SnakedCell<uint128>
 }
 
-struct (0x3c3f5e73) Router_RMNRemoteUncurse {
+struct (0x060d9dd1) Router_RMNRemoteUncurse {
     queryId: uint64
     subjects: SnakedCell<uint128>
 }
 
 // Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
-struct (0xa6e4b7e1) Router_RMNRemoteVerifyNotCursed {
+struct (0x49fd38ce) Router_RMNRemoteVerifyNotCursed {
     queryId: uint64
     subject: uint128
 }
