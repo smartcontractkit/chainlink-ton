@@ -1,4 +1,4 @@
-package deployment
+package ccip
 
 import (
 	"encoding/hex"
@@ -15,6 +15,8 @@ import (
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -27,8 +29,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 

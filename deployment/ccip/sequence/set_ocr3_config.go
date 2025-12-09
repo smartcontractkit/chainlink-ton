@@ -3,6 +3,7 @@ package sequence
 import (
 	"github.com/Masterminds/semver/v3"
 
+	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -21,7 +22,7 @@ var SetOCR3OfframpSequence = operations.NewSequence(
 	setOCR3OfframpSequence,
 )
 
-func setOCR3OfframpSequence(b operations.Bundle, deps operation.TonDeps, in SetOCR3OfframpSeqInput) ([][]byte, error) {
+func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in SetOCR3OfframpSeqInput) ([][]byte, error) {
 	var txs [][]byte
 
 	// TODO: this just needs to loop over configs

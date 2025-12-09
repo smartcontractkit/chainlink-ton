@@ -11,12 +11,13 @@ import (
 	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -30,72 +31,54 @@ const (
 )
 
 type ContractMappingMetadata struct {
-	CompiledVersionKey             string
-	SuggestedTONCoinsForDeployment string
+	CompiledVersionKey string
 }
 
 // Eventually, we can move this mapping into a descriptor as part of the contract release package.
 var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	// Core CCIP Contracts
-	state.Router: ContractMappingMetadata{
-		CompiledVersionKey:             "Router.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+	state.Router: {
+		CompiledVersionKey: "Router.compiled.json",
 	},
-	state.FeeQuoter: ContractMappingMetadata{
-		CompiledVersionKey:             "FeeQuoter.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+	state.FeeQuoter: {
+		CompiledVersionKey: "FeeQuoter.compiled.json",
 	},
 	state.OnRamp: {
-		CompiledVersionKey:             "OnRamp.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "OnRamp.compiled.json",
 	},
 	state.OffRamp: {
-		CompiledVersionKey:             "OffRamp.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "OffRamp.compiled.json",
 	},
 	// Internal contracts
 	state.SendExecutor: {
-		CompiledVersionKey:             "CCIPSendExecutor.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "CCIPSendExecutor.compiled.json",
 	},
 	state.Deployer: {
-		CompiledVersionKey:             "Deployable.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "Deployable.compiled.json",
 	},
 	state.MerkleRoot: {
-		CompiledVersionKey:             "MerkleRoot.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "MerkleRoot.compiled.json",
 	},
 	state.ReceiveExecutor: {
-		CompiledVersionKey:             "ReceiveExecutor.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "ReceiveExecutor.compiled.json",
 	},
 	// Utilities
 	state.TonReceiver: {
-		CompiledVersionKey:             "ccip.test.receiver.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "ccip.test.receiver.compiled.json",
 	},
 	state.Timelock: {
-		CompiledVersionKey:             "mcms.RBACTimelock.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.5",
+		CompiledVersionKey: "mcms.RBACTimelock.compiled.json",
+	},
+	state.MCMS: {
+		CompiledVersionKey: "mcms.MCMS.compiled.json",
 	},
 	state.Counter: {
-		CompiledVersionKey:             "examples.Counter.compiled.json",
-		SuggestedTONCoinsForDeployment: "0.05",
+		CompiledVersionKey: "examples.Counter.compiled.json",
 	},
-}
-
-type CompiledContractData struct {
-	Type                           ds.ContractType
-	Code                           *cell.Cell
-	SuggestedTONCoinsForDeployment string
-	ContractVersionSha             string
-	ContractSemver                 *semver.Version
 }
 
 type RetrieveCompiledContractsSeqInput struct {
 	ContractsVersionSha string
-	ContractsSemver     *semver.Version
 	Contracts           []ds.ContractType
 }
 
@@ -104,15 +87,11 @@ func (i *RetrieveCompiledContractsSeqInput) Validate() error {
 		return errors.New("contracts version SHA cannot be empty")
 	}
 
-	if i.ContractsSemver == nil || !i.ContractsSemver.Equal(semver.MustParse("1.6.0")) {
-		return fmt.Errorf("unsupported version %s. Only contract's version 1.6.0 is supported at the moment", i.ContractsSemver)
-	}
-
 	return nil
 }
 
 type RetrieveCompiledContractsSeqOutput struct {
-	CompiledContracts map[ds.ContractType]CompiledContractData
+	CompiledContracts map[ds.ContractType]utils.CompiledContractData
 }
 
 var RetrieveContractsSequence = operations.NewSequence(
@@ -132,7 +111,7 @@ var RetrieveContractsSequence = operations.NewSequence(
 //
 // We assume that the current version is 1.6.0 to match the CCIP release. However, in theory,
 // there is a single version per contract — but this is something we need to revisit.
-func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.TonDeps, in RetrieveCompiledContractsSeqInput) (RetrieveCompiledContractsSeqOutput, error) {
+func retrieveCompiledTONContractsSequence(b operations.Bundle, deps config.TonDeps, in RetrieveCompiledContractsSeqInput) (RetrieveCompiledContractsSeqOutput, error) {
 	output := RetrieveCompiledContractsSeqOutput{}
 
 	if err := in.Validate(); err != nil {
@@ -179,7 +158,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 		contractToLookFor = in.Contracts
 	}
 
-	output.CompiledContracts = make(map[ds.ContractType]CompiledContractData)
+	output.CompiledContracts = make(map[ds.ContractType]utils.CompiledContractData)
 	for _, contractType := range contractToLookFor {
 		contractMetadata, ok := contractsMapping[contractType]
 
@@ -187,17 +166,17 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 			return output, fmt.Errorf("unknown contractType: %s", contractType)
 		}
 
-		contractCode, err := wrappers.ParseCompiledContract(helpers.GetBuildDir(b.GetContext(), contractMetadata.CompiledVersionKey))
+		contractPath := helpers.GetBuildDir(b.GetContext(), contractMetadata.CompiledVersionKey)
+		contractCode, err := wrappers.ParseCompiledContract(contractPath)
 		if err != nil {
 			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)
 		}
 
-		output.CompiledContracts[contractType] = CompiledContractData{
-			Code:                           contractCode,
-			SuggestedTONCoinsForDeployment: contractMetadata.SuggestedTONCoinsForDeployment,
-			ContractVersionSha:             in.ContractsVersionSha,
-			ContractSemver:                 in.ContractsSemver,
-			Type:                           contractType,
+		output.CompiledContracts[contractType] = utils.CompiledContractData{
+			Code:               contractCode,
+			ContractVersionSha: in.ContractsVersionSha,
+			Type:               contractType,
+			ContractPath:       contractPath,
 		}
 	}
 

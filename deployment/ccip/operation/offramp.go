@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -36,7 +37,7 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOffRampSourcesInput) ([][]byte, error) {
+func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
@@ -107,7 +108,7 @@ var SetOCR3ConfigOp = operations.NewOperation(
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps TonDeps, in OCR3ConfigArgs) ([][]byte, error) {
+func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))

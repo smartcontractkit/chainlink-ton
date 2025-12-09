@@ -1,15 +1,9 @@
-import {
-  Address,
-  beginCell,
-  Cell,
-  Contract,
-  ContractProvider,
-  Message,
-  Sender,
-  toNano,
-} from '@ton/core'
+import { Address, beginCell, Cell, Contract, Message, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
+
+import { CoverageConfigNames, generateCoverageArtifacts } from '../../coverage/coverage'
+
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
 import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
@@ -125,15 +119,7 @@ export function newUpgradeSpec<
   TContractV1 extends UpgradeableContract,
   TContractV2 extends UpgradeableContract,
 >(config: UpgradeTestConfig<TContractV2>) {
-  async function setup(): Promise<TestSetup> {
-    const blockchain = await Blockchain.create()
-    blockchain.verbosity = {
-      print: false,
-      blockchainLogs: false,
-      vmLogs: 'none',
-      debugLogs: false,
-    }
-
+  async function setup(blockchain: Blockchain): Promise<TestSetup> {
     const owner = await blockchain.treasury('owner')
     const nonOwner = await blockchain.treasury('nonOwner')
     const prevCode = await config.getPrevCode()
@@ -156,12 +142,34 @@ export function newUpgradeSpec<
   const amount = config.upgradeValue ?? toNano('0.05')
 
   return {
-    run: () => {
+    run: (contractName?: CoverageConfigNames) => {
+      let blockchain: Blockchain
+      let testSetup: TestSetup
+
+      beforeAll(async () => {
+        blockchain = await Blockchain.create()
+        blockchain.verbosity = {
+          print: false,
+          blockchainLogs: false,
+          vmLogs: 'none',
+          debugLogs: false,
+        }
+        if (process.env['COVERAGE'] === 'true') {
+          blockchain.enableCoverage()
+          blockchain.verbosity.print = false
+          blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+        }
+      })
+
+      beforeEach(async () => {
+        testSetup = await setup(blockchain)
+      })
+
       /**
        * Test that the contract deploys on the correct version (previous version)
        */
       it('should deploy on correct version', async () => {
-        const { prevContract, prevCode } = await setup()
+        const { prevContract, prevCode } = testSetup
 
         const typeAndVersion = await prevContract.getTypeAndVersion()
         expect(typeAndVersion.type).toBe(config.contractType)
@@ -179,8 +187,6 @@ export function newUpgradeSpec<
        * Test that the contract can be upgraded from previous to current version
        */
       it('should upgrade from previous to current version', async () => {
-        const testSetup = await setup()
-
         await upgradePrevToCurrent(testSetup)
       })
 
@@ -244,6 +250,17 @@ export function newUpgradeSpec<
         expect(upgradedEvent.codeHash).toBe(expectedHash)
         return { currentVersionContract, ...testSetup }
       }
+
+      afterAll(async () => {
+        if (process.env['COVERAGE'] === 'true' && contractName) {
+          await generateCoverageArtifacts(blockchain, 'upgradeable_tests', [
+            {
+              code: await config.getCurrentCode(),
+              name: contractName,
+            },
+          ])
+        }
+      })
     },
   }
 }
@@ -295,15 +312,7 @@ interface CurrentVersionTestSetup {
 export function newCurrentVersionSpec<TCurrentVersionContract extends UpgradeableContract>(
   config: CurrentVersionTestConfig<TCurrentVersionContract>,
 ) {
-  async function setup(): Promise<CurrentVersionTestSetup> {
-    const blockchain = await Blockchain.create()
-    blockchain.verbosity = {
-      print: false,
-      blockchainLogs: false,
-      vmLogs: 'none',
-      debugLogs: false,
-    }
-
+  async function setup(blockchain: Blockchain): Promise<CurrentVersionTestSetup> {
     const owner = await blockchain.treasury('owner')
     const nonOwner = await blockchain.treasury('nonOwner')
     const currentCode = await config.getCurrentCode()
@@ -322,12 +331,34 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
   const amount = config.upgradeValue ?? toNano('0.05')
 
   return {
-    run: () => {
+    run: (contractName?: CoverageConfigNames) => {
+      let blockchain: Blockchain
+      let testSetup: CurrentVersionTestSetup
+
+      beforeAll(async () => {
+        blockchain = await Blockchain.create()
+        blockchain.verbosity = {
+          print: false,
+          blockchainLogs: false,
+          vmLogs: 'none',
+          debugLogs: false,
+        }
+        if (process.env['COVERAGE'] === 'true') {
+          blockchain.enableCoverage()
+          blockchain.verbosity.print = false
+          blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+        }
+      })
+
+      beforeEach(async () => {
+        testSetup = await setup(blockchain)
+      })
+
       /**
        * Test that the contract deploys on the correct version
        */
       it('should deploy on correct version', async () => {
-        const { currentContract, currentCode } = await setup()
+        const { currentContract, currentCode } = testSetup
 
         const typeAndVersion = await currentContract.getTypeAndVersion()
         expect(typeAndVersion.type).toBe(config.contractType)
@@ -345,7 +376,7 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
        * Test that upgrade fails when a non-owner tries to upgrade
        */
       it('should fail when non-owner tries to upgrade', async () => {
-        const { currentContract, nonOwner, currentCode } = await setup()
+        const { currentContract, nonOwner, currentCode } = testSetup
 
         // Verify initial version
         const typeAndVersion = await currentContract.getTypeAndVersion()
@@ -377,7 +408,7 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
        * Test that upgrade fails when fromVersion doesn't match current version
        */
       it('should fail when fromVersion does not match current version', async () => {
-        const { currentContract, owner, currentCode, blockchain } = await setup()
+        const { owner, currentCode, blockchain } = testSetup
 
         const wrongVersionCode = await wrongVersion.ContractClient.code()
         const wrongVersionContract = blockchain.openContract(
@@ -412,6 +443,17 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
         // Verify the code hasn't changed
         const code = await wrongVersionContract.getCode()
         expect(code.toString('hex')).toBe(wrongVersionCode.toString('hex'))
+      })
+
+      afterAll(async () => {
+        if (process.env['COVERAGE'] === 'true' && contractName) {
+          await generateCoverageArtifacts(blockchain, 'upgradeable_tests', [
+            {
+              code: await config.getCurrentCode(),
+              name: contractName,
+            },
+          ])
+        }
       })
     },
   }

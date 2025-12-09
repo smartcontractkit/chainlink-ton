@@ -1,4 +1,4 @@
-package operation
+package config
 
 import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
@@ -6,7 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
-type TonDeps struct {
+type CCIPDeps struct {
 	TonChain         cldf_ton.Chain
 	CCIPOnChainState map[uint64]state.CCIPChainState
 }

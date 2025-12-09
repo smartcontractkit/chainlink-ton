@@ -9,76 +9,15 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
-
-type DeployFeeQuoterInput struct {
-	Params       config.FeeQuoterParams
-	LinkAddr     *address.Address
-	ContractPath string
-	Coins        string
-}
-
-type DeployFeeQuoterOutput struct {
-	Address *address.Address
-}
-
-var DeployFeeQuoterOp = operations.NewOperation(
-	"deploy-fee-quoter-op",
-	semver.MustParse("0.1.0"),
-	"Deploys the FeeQuoter contract",
-	deployFeeQuoter,
-)
-
-func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput) (DeployFeeQuoterOutput, error) {
-	output := DeployFeeQuoterOutput{}
-
-	// TODO wrap the code cell creation somewhere
-	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
-	if err != nil {
-		return output, fmt.Errorf("failed to compile contract: %w", err)
-	}
-
-	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
-
-	storage := feequoter.Storage{
-		ID: in.Params.ID,
-		Ownable: common.Ownable2Step{
-			Owner:        deps.TonChain.WalletAddress,
-			PendingOwner: address.NewAddressNone(),
-		},
-		MaxFeeJuelsPerMsg:            in.Params.MaxFeeJuelsPerMsg,
-		LinkToken:                    in.LinkAddr,
-		TokenPriceStalenessThreshold: in.Params.TokenPriceStalenessThreshold,
-		UsdPerToken:                  nil,
-		PremiumMultiplierWeiPerEth:   nil,
-		DestChainConfigs:             nil,
-	}
-	initData, err := tlb.ToCell(storage)
-	if err != nil {
-		return output, fmt.Errorf("failed to pack initData: %w", err)
-	}
-
-	// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
-
-	contract, _, err := wrappers.Deploy(b.GetContext(), &conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
-	if err != nil {
-		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
-	}
-	b.Logger.Infow("Deployed FeeQuoter", "addr", contract.Address)
-
-	output.Address = contract.Address
-	return output, nil
-}
 
 type UpdateFeeQuoterDestChainConfigsInput []feequoter.UpdateDestChainConfig
 
@@ -92,8 +31,8 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	updateFeeQuoterDestChainConfigs,
 )
 
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
-	address := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
+	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	// Skip if there's no updates
 	if len(in) == 0 {
@@ -113,7 +52,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &address,
+			DstAddr: &addr,
 			Body:    payload,
 		},
 	}
@@ -138,7 +77,7 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	updateFeeQuoterFeeTokens,
 )
 
-func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterFeeTokensInput) ([][]byte, error) {
+func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	configs := cell.NewDict(267)
@@ -218,7 +157,7 @@ var AddPriceUpdaterOp = operations.NewOperation(
 	addPriceUpdater,
 )
 
-func addPriceUpdater(b operations.Bundle, deps TonDeps, in AddPriceUpdaterInput) ([][]byte, error) {
+func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
@@ -250,7 +189,7 @@ var RemovePriceUpdaterOp = operations.NewOperation(
 	removePriceUpdater,
 )
 
-func removePriceUpdater(b operations.Bundle, deps TonDeps, in RemovePriceUpdaterInput) ([][]byte, error) {
+func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
@@ -284,7 +223,7 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 	updateFeeQuoterPrices,
 )
 
-func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
+func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {

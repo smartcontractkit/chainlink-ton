@@ -15,7 +15,7 @@ import (
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
@@ -35,7 +35,7 @@ var UpdateTonLanesSequence = operations.NewSequence(
 	updateLanes,
 )
 
-func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesSeqInput) ([][]byte, error) {
+func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([][]byte, error) {
 	var txs [][]byte
 
 	// update fee quoter with dest chain configs
@@ -84,7 +84,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 }
 
 // ToTonUpdateLanesConfig converts UpdateTonLanesConfig into Ton specific update inputs
-func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg config.UpdateTonLanesConfig) map[uint64]UpdateTonLanesSeqInput {
+func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg ccipConfig.UpdateTonLanesConfig) map[uint64]UpdateTonLanesSeqInput {
 	updateInputsByTonChain := make(map[uint64]UpdateTonLanesSeqInput)
 
 	// Group the operations by Ton chain
@@ -113,7 +113,7 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 	return updateInputsByTonChain
 }
 
-func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, onrampAddress *address.Address) {
+func setTonSourceUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, onrampAddress *address.Address) {
 	source := lane.Source
 	dest := lane.Dest
 	isEnabled := !lane.IsDisabled
@@ -145,7 +145,7 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	// Setting the fee quoter destination on the source chain
 	input.UpdateFeeQuoterDestChainConfigs = append(input.UpdateFeeQuoterDestChainConfigs, ton_fee_quoter.UpdateDestChainConfig{
 		DestinationChainSelector: dest.Selector,
-		DestChainConfig:          config.TonFeeQuoterConfig(dest.FeeQuoterDestChainConfig),
+		DestChainConfig:          ccipConfig.TonFeeQuoterConfig(dest.FeeQuoterDestChainConfig),
 	})
 
 	// Setting Router OnRamp version updates
@@ -168,7 +168,7 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	updateInputsByTonChain[source.Selector] = input
 }
 
-func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, offrampAddress *address.Address) {
+func setTonDestinationUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, offrampAddress *address.Address) {
 	source := lane.Source
 	dest := lane.Dest
 	isEnabled := !lane.IsDisabled
