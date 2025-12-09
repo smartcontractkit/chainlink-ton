@@ -76,7 +76,7 @@ describe('Router', () => {
       from: router.address,
       to: onRamp.address,
       success: true,
-      op: or.Opcodes.getValidatedFee,
+      op: or.opcodes.in.getValidatedFee,
       body(x) {
         if (!x) return false
         const decoded = or.builder.messages.in.getValidatedFee.load(x.beginParse())

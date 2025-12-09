@@ -74,7 +74,7 @@ describe('Router', () => {
       from: router.address,
       to: onRamp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
   })
 
