@@ -30,6 +30,15 @@ export const ROUTER_ERROR_CODE = 49600 //FACILITY_ID * 100
 
 export enum RouterError {
   DestChainNotEnabled = ROUTER_ERROR_CODE,
+  SourceChainNotEnabled,
+  SenderIsNotOffRamp,
+  OffRampNotSetForSelector,
+  OffRampAddressMismatch,
+  SubjectCursed,
+  NotOnRamp,
+  MissingTokenAmounts,
+  NoMultiTokenTransfers,
+  InsufficientFee,
 }
 
 export type Storage = {
