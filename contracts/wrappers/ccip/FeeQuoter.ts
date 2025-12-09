@@ -40,6 +40,7 @@ export enum FeeQuoterError {
   InvalidExtraArgsData,
   UnsupportedNumberOfTokens,
   InvalidSuiReceiverAddress,
+  InvalidSVMReceiverAddress,
   InvalidTokenReceiver,
   TooManySuiExtraArgsReceiverObjectIds,
   MsgDataTooLarge,

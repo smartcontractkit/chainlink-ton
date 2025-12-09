@@ -677,6 +677,8 @@ function printErrorName(error: number): string {
       return 'UnsupportedNumberOfTokens'
     case feeQuoter.FeeQuoterError.InvalidSuiReceiverAddress:
       return 'InvalidSuiReceiverAddress'
+    case feeQuoter.FeeQuoterError.InvalidSVMReceiverAddress:
+      return 'InvalidSVMReceiverAddress'
     case feeQuoter.FeeQuoterError.InvalidTokenReceiver:
       return 'InvalidTokenReceiver'
     case feeQuoter.FeeQuoterError.TooManySuiExtraArgsReceiverObjectIds:
