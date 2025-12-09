@@ -289,7 +289,7 @@ describe('OnRamp - Send', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
