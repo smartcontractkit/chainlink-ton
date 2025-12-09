@@ -62,4 +62,3 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 		SourceChainConfigs:        sourceChainConfigs,
 	}, nil
 }
-

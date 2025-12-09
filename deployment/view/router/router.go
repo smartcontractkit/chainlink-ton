@@ -40,4 +40,3 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, rou
 		OnRampAddresses: addresses,
 	}, nil
 }
-
