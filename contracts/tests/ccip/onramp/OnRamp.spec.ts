@@ -148,6 +148,16 @@ describe('OnRamp - Unit Tests', () => {
     ;({ deployer, onramp } = await setup(blockchain))
   })
 
+  it('should match facility ID', async () => {
+    const facilityId = await onramp.getFacilityId()
+    expect(facilityId).toBe(BigInt(or.ONRAMP_FACILITY_ID))
+  })
+
+  it('should match error code', async () => {
+    const errorCode = await onramp.getErrorCode(0n)
+    expect(errorCode).toBe(BigInt(or.ONRAMP_ERROR_CODE))
+  })
+
   it('getStaticConfig should return chain selector', async () => {
     const result = await onramp.getStaticConfig()
     expect(result).toBe(CHAINSEL_TON)
@@ -167,6 +177,8 @@ describe('OnRamp - Unit Tests', () => {
 
     const executorCode = await onramp.getSendExecutorCode()
     expect(executorCode.equals(newExecutor)).toBe(true)
+    const executorCodeHash = await onramp.getSendExecutorCodeHash()
+    expect(executorCodeHash).toBe(BigInt('0x' + newExecutor.hash().toString('hex')))
   })
 
   it('should not allow non-owner to updateSendExecutor', async () => {
@@ -182,6 +194,11 @@ describe('OnRamp - Unit Tests', () => {
       success: false,
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
+
+    const executorCode = await onramp.getSendExecutorCode()
+    expect(executorCode.equals(beginCell().endCell())).toBe(true)
+    const executorCodeHash = await onramp.getSendExecutorCodeHash()
+    expect(executorCodeHash).toBe(BigInt('0x' + beginCell().endCell().hash().toString('hex')))
   })
 
   afterAll(async () => {

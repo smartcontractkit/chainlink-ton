@@ -732,6 +732,11 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return stack.readCell()
   }
 
+  async getSendExecutorCodeHash(provider: ContractProvider): Promise<bigint> {
+    const { stack } = await provider.get('sendExecutorCodeHash', [])
+    return stack.readBigNumber()
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
@@ -740,6 +745,18 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
   }
   getCodeHash(provider: ContractProvider): Promise<bigint> {
     return typeAndVersion.getCodeHash(provider)
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
   }
 
   static version() {
@@ -963,5 +980,56 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       value,
       builder.messages.in.onrampSend.encode(body).asCell(),
     )
+  }
+
+  async getIsChainSupported(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<boolean> {
+    const { stack } = await provider.get('isChainSupported', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return stack.readBoolean()
+  }
+
+  async getExpectedNextSequenceNumber(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<bigint> {
+    const { stack } = await provider.get('expectedNextSequenceNumber', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return stack.readBigNumber()
+  }
+
+  async getDestChainConfig(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<DestChainConfig> {
+    const { stack } = await provider.get('destChainConfig', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return {
+      router: stack.readAddress(),
+      sequenceNumber: stack.readBigNumber(),
+      allowlistEnabled: stack.readBoolean(),
+      allowedSenders: (() => {
+        const dictCell = stack.readCellOpt()
+        if (!dictCell) {
+          return Dictionary.empty<Address, boolean>()
+        }
+        return dictCell.beginParse().loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool())
+      })(),
+    }
+  }
+
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[]> {
+    const { stack } = await provider.get('destChainSelectors', [])
+    return stack.readLispList().map((t: TupleItem) => {
+      if (t.type !== 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value as bigint
+    })
   }
 }
