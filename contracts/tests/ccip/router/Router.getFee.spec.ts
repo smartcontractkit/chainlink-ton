@@ -90,6 +90,37 @@ describe('Router', () => {
     })
   })
 
+  it('should reject getValidatedFee for disabled dest chain', async () => {
+    const badMsg = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+    const result = await router.sendGetValidatedFee(
+      sender.getSender(),
+      toNano('0.5'),
+      badMsg,
+      beginCell().asSlice(),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: false,
+      exitCode: rt.RouterError.DestChainNotEnabled,
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(
