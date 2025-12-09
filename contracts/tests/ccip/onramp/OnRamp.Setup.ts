@@ -61,18 +61,10 @@ export async function deployOnRampContract(
   return contract
 }
 
-export async function setup() {
-  const blockchain = await Blockchain.create()
-  blockchain.verbosity.debugLogs = true
-
-  if (process.env['COVERAGE'] === 'true') {
-    blockchain.enableCoverage()
-    blockchain.verbosity.print = false
-    blockchain.verbosity.vmLogs = 'vm_logs_verbose'
-  }
+export async function setup(blockchain: Blockchain) {
   const deployer = await blockchain.treasury('deployer')
   const onramp = await deployOnRampContract(blockchain, deployer)
-  return { blockchain, deployer, onramp }
+  return { deployer, onramp }
 }
 
 export function assertAddressesMatch(expected: Address[], actual: Address[]) {

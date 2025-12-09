@@ -22,8 +22,19 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let allowedSendersGroup1: SandboxContract<TreasuryContract>[] = []
   let allowedSendersGroup2: SandboxContract<TreasuryContract>[] = []
 
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+    blockchain.verbosity.debugLogs = true
+
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+  })
+
   beforeEach(async () => {
-    ;({ blockchain, deployer, onramp } = await setup())
+    ;({ deployer, onramp } = await setup(blockchain))
     allowlistAdmin = await blockchain.treasury('allowlistAdmin')
 
     onramp = await deployOnRampContract(blockchain, deployer, {

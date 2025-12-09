@@ -11,6 +11,7 @@ export const CoverageContractName = {
   merkleroot: 'merkleroot',
   send_executor: 'send_executor',
   receive_executor: 'receive_executor',
+  deployable: 'deployable',
 } as const
 export type CoverageConfigNames = keyof typeof CoverageContractName
 

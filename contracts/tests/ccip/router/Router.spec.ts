@@ -116,7 +116,7 @@ describe('Router - Current Version Tests', () => {
     CurrentVersionConstructor: rt.Router,
     deployCurrentContract: deployRouterContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run('router')
 })
 
 describe('Router', () => {
