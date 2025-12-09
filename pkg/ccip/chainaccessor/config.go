@@ -11,11 +11,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	offrampview "github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
