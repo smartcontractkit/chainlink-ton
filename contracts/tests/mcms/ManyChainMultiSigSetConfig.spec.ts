@@ -430,4 +430,52 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     expect(info).not.toBeNull()
     expect(info.opFinalizationTimeout).toBe(10)
   })
+
+  it('should successfully set config - MCMS e2e tests config example', async () => {
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerAddresses: baseTest.testSigners.slice(0, 2).map((s) => BigInt(s.address)),
+        signerGroups: [0, 1],
+        groupQuorums: new Map([
+          [0, 1],
+          [1, 1],
+        ]),
+        groupParents: new Map([
+          [0, 0],
+          [1, 0],
+        ]),
+        clearRoot: true, // Clear the root
+      })
+      .asCell()
+
+    const result = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.multisigOwner.getSender(),
+      toNano('1'),
+      setConfigBody,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.acc.multisigOwner.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+
+    // Verify a ConfigSet confirmation was replied
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.bind.mcms.address,
+      op: mcms.opcodes.out.ConfigSet,
+    })
+
+    // Verify the root was cleared
+    const [root, validUntil] = await baseTest.bind.mcms.getRoot()
+    expect(root).toBe(0n)
+    expect(validUntil).toBe(0n)
+
+    // Verify the configuration was set correctly
+    const config = await baseTest.bind.mcms.getConfig()
+    expect(config.signers.size).toBe(2)
+    expect(config.groupQuorums.size).toBe(2)
+    expect(config.groupParents.size).toBe(2)
+  })
 })

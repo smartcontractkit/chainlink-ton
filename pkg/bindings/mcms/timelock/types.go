@@ -419,6 +419,9 @@ const (
 	ErrorTimestamp = 2
 )
 
+// Minimum value required for the schedule call (fails with Error.InsufficientValue)
+var ScheduleCallMinValue = tlb.MustFromTON("0.012")
+
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 

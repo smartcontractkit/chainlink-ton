@@ -490,6 +490,9 @@ var ManyChainMultiSigDomainSeparatorOp = sha256.Sum256([]byte("MANY_CHAIN_MULTI_
 // Merkle tree.
 var ManyChainMultiSigDomainSeparatorMetadata = sha256.Sum256([]byte("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON"))
 
+// Minimum value required for the execute call (fails with Error.InsufficientValue)
+var ExecMinValue = tlb.MustFromTON("0.012")
+
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
