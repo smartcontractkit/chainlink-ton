@@ -235,8 +235,8 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return fmt.Errorf("failed to save logs: %w", err)
 	}
 
+	// Note: logs inserted metric is recorded by ObservedLogStore.SaveLogs
 	if totalSaved > 0 {
-		lp.metrics.AddLogsInserted(ctx, int64(totalSaved))
 		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.FromSeqNo(), blockRange.ToSeqNo(), totalSaved, len(addresses))
 	}
 
