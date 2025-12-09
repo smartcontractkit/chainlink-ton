@@ -10,9 +10,11 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import * as ownable2step from '../libraries/access/Ownable2Step'
+import { compile } from '@ton/blueprint'
+
 import { CellCodec } from '../utils'
+import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
 /// @dev Message to set the counter value.
 export type SetCount = {
@@ -162,6 +164,10 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
         .storeUint(opts.queryId ?? 0, 64)
         .endCell(),
     })
+  }
+
+  static async code(): Promise<Cell> {
+    return await compile('examples.Counter')
   }
 
   async getValue(provider: ContractProvider): Promise<number> {
