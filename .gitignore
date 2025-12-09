@@ -48,3 +48,6 @@ _vendor/
 
 # Binary
 cmd/chainlink-ton/chainlink-ton
+
+# cursor rules
+.cursorrules
