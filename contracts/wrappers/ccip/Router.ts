@@ -263,6 +263,30 @@ export class Router
     })
   }
 
+  async sendMessageSent(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: MessageSent },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageSent.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendMessageRejected(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: MessageRejected },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageRejected.encode(opts.body).asCell(),
+    })
+  }
+
   async getDestChainSelectors(provider: ContractProvider): Promise<bigint[]> {
     const res = await provider.get('destChainSelectors', [])
     const tupleItems = res.stack.readLispList()
