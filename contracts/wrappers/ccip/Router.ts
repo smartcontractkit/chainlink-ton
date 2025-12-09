@@ -21,6 +21,7 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import * as or from '../ccip/OnRamp'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
@@ -189,6 +190,32 @@ export class Router
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.getValidatedFee.encode({ msg, context }).asCell(),
+    })
+  }
+
+  sendMessageValidated(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: InMessageValidated,
+  ): Promise<void> {
+    return provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageValidated.encode(body).asCell(),
+    })
+  }
+
+  sendMessageValidationFailed(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: InMessageValidationFailed,
+  ): Promise<void> {
+    return provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageValidationFailed.encode(body).asCell(),
     })
   }
 
@@ -481,6 +508,23 @@ export type GetValidatedFee = {
   context: Slice
 }
 
+export type InMessageValidated = {
+  msg: CCIPSend
+  fee: bigint
+  context: GetValidatedFeeContext
+}
+
+export type InMessageValidationFailed = {
+  msg: CCIPSend
+  error: bigint
+  context: GetValidatedFeeContext
+}
+
+export type GetValidatedFeeContext = {
+  routerContext: Address // sender
+  userContext: Slice
+}
+
 export type MessageValidated = {
   msg: CCIPSend
   fee: bigint
@@ -509,8 +553,8 @@ const crossChainAddressCodec: CellCodec<Buffer> = {
   },
 }
 
-export const builder = {
-  data: (() => {
+export const builder = (() => {
+  const dataCodec = (() => {
     const contractData: CellCodec<Storage> = {
       encode: (config: Storage): Builder => {
         return beginCell()
@@ -599,6 +643,18 @@ export const builder = {
       },
     }
 
+    const getValidatedFeeContext: CellCodec<GetValidatedFeeContext> = {
+      encode: function (data: GetValidatedFeeContext): Builder {
+        return beginCell().storeAddress(data.routerContext).storeSlice(data.userContext)
+      },
+      load: function (src: Slice): GetValidatedFeeContext {
+        return {
+          routerContext: src.loadAddress(),
+          userContext: src,
+        }
+      },
+    }
+
     return {
       contractData,
       tokenAmount: tokenAmountCodec,
@@ -606,9 +662,10 @@ export const builder = {
       onRamps,
       offRamps,
       crossChainAddress: crossChainAddressCodec,
+      getValidatedFeeContext,
     }
-  })(),
-  message: (() => {
+  })()
+  const message = (() => {
     const messageIn = (() => {
       const ccipSend: CellCodec<CCIPSend> = {
         encode: (opts: CCIPSend): Builder => {
@@ -724,6 +781,39 @@ export const builder = {
         },
       }
 
+      const messageValidated: CellCodec<InMessageValidated> = {
+        encode: (data: InMessageValidated): Builder => {
+          return or.builder.messages.out.messageValidated.encode({
+            ...data,
+            context: dataCodec.getValidatedFeeContext.encode(data.context).asSlice(),
+          })
+        },
+        load: (src: Slice): InMessageValidated => {
+          const orMessageValidated = or.builder.messages.out.messageValidated.load(src)
+          return {
+            ...orMessageValidated,
+            context: dataCodec.getValidatedFeeContext.load(orMessageValidated.context),
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<InMessageValidationFailed> = {
+        encode: (data: InMessageValidationFailed): Builder => {
+          return or.builder.messages.out.messageValidationFailed.encode({
+            ...data,
+            context: dataCodec.getValidatedFeeContext.encode(data.context).asSlice(),
+          })
+        },
+        load: (src: Slice): InMessageValidationFailed => {
+          const orMessageValidationFailed =
+            or.builder.messages.out.messageValidationFailed.load(src)
+          return {
+            ...orMessageValidationFailed,
+            context: dataCodec.getValidatedFeeContext.load(orMessageValidationFailed.context),
+          }
+        },
+      }
+
       return {
         ccipSend,
         getValidatedFee,
@@ -731,6 +821,8 @@ export const builder = {
         messageSent,
         messageRejected,
         applyRampUpdates,
+        messageValidated,
+        messageValidationFailed,
       }
     })()
     const out = (() => {
@@ -810,5 +902,6 @@ export const builder = {
     })()
 
     return { in: messageIn, out }
-  })(),
-}
+  })()
+  return { data: dataCodec, message }
+})()
