@@ -1018,9 +1018,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
         if (!dictCell) {
           return Dictionary.empty<Address, boolean>()
         }
-        return dictCell
-            .beginParse()
-            .loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool())
+        return dictCell.beginParse().loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool())
       })(),
     }
   }
