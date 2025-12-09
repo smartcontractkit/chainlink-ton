@@ -398,7 +398,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.metrics.IncrementSuccessTxs(ctx)
 				t.logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
-				t.metrics.IncrementRevertTxs(ctx)
+				t.metrics.IncrementRevertTxs(ctx, fmt.Sprintf("%d", exitCode))
 				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
 		}
