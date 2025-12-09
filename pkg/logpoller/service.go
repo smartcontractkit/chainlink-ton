@@ -139,7 +139,7 @@ func (lp *service) start(_ context.Context) error {
 			lp.lggr.Errorw("iteration failed", "err", err)
 			lp.metrics.IncrementPollErrors(ctx)
 		}
-		lp.metrics.RecordPollDuration(ctx, time.Since(start))
+		lp.metrics.SetPollDuration(ctx, time.Since(start))
 	})
 	return nil
 }

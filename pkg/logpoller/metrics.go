@@ -16,10 +16,9 @@ import (
 
 // Prometheus metrics for TON LogPoller
 var (
-	promTonLpPollDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "ton_logpoller_poll_duration_seconds",
-		Help:    "Duration of each log poller poll iteration",
-		Buckets: []float64{1, 5, 10, 30}, // TON block time: approx. 5 seconds
+	promTonLpPollDuration = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "ton_logpoller_poll_duration_seconds",
+		Help: "Duration of the last log poller poll iteration",
 	}, []string{"chainID"})
 
 	promTonLpPollErrors = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -39,7 +38,7 @@ type serviceMetrics struct {
 	chainID string
 
 	// core service metrics (OTel)
-	pollDuration       metric.Float64Histogram
+	pollDuration       metric.Float64Gauge
 	pollErrors         metric.Int64Counter
 	lastProcessedBlock metric.Int64Gauge
 
@@ -54,7 +53,7 @@ type serviceMetrics struct {
 func newMetrics(chainID string) (*serviceMetrics, error) {
 	m := beholder.GetMeter()
 
-	pollDuration, err := m.Float64Histogram("ton_logpoller_poll_duration_seconds")
+	pollDuration, err := m.Float64Gauge("ton_logpoller_poll_duration_seconds")
 	if err != nil {
 		return nil, fmt.Errorf("failed to register poll duration: %w", err)
 	}
@@ -84,10 +83,10 @@ func (m *serviceMetrics) getOtelAttributes() []attribute.KeyValue {
 	return beholder.OtelAttributes(m.Labels).AsStringAttributes()
 }
 
-// RecordPollDuration records the duration of a poll iteration
-func (m *serviceMetrics) RecordPollDuration(ctx context.Context, duration time.Duration) {
+// SetPollDuration sets the duration of the last poll iteration
+func (m *serviceMetrics) SetPollDuration(ctx context.Context, duration time.Duration) {
 	seconds := duration.Seconds()
-	promTonLpPollDuration.WithLabelValues(m.chainID).Observe(seconds)
+	promTonLpPollDuration.WithLabelValues(m.chainID).Set(seconds)
 	m.pollDuration.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
