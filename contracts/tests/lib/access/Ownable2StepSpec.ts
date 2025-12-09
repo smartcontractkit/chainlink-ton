@@ -23,6 +23,9 @@ export async function ownable2StepSpec(
     to: contract.address,
     success: true,
   })
+  const pendingOwner = await contract.getPendingOwner()
+  expect(pendingOwner).toBeDefined()
+  expect(pendingOwner && pendingOwner.equals(other.address)).toBe(true)
 
   const resultAcceptOwnership = await contract.sendAcceptOwnership(
     other.getSender(),
