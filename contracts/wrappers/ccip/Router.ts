@@ -53,22 +53,22 @@ export abstract class Params {}
 
 export const opcodes = {
   in: {
-    applyRampUpdates: 0x7db6745d,
-    setRamps: 0x20272c81,
+    applyRampUpdates: 0x7db6745d, // Untested
+    setRamps: 0x20272c81, // Untested
     ccipSend: 0x38a69e3b,
-    updateOffRamps: 0x234110a7,
-    ccipReceiveConfirm: 0xaf0cccef,
-    routeMessage: 0xfc69c50b,
+    updateOffRamps: 0x234110a7, // Untested
+    ccipReceiveConfirm: 0xaf0cccef, // Untested
+    routeMessage: 0xfc69c50b, // Untested
     curse: 0xe6bf1813,
     uncurse: 0x060d9dd1,
     verifyNotCursed: 0x49fd38ce,
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
-    getValidatedFee: 0x4dd6aa82,
+    getValidatedFee: 0x4dd6aa82, // Untested
   },
   out: {
-    messageValidated: 0x9e2155ec,
-    messageValidationFailed: 0xec23c562,
+    messageValidated: 0x9e2155ec, // Untested
+    messageValidationFailed: 0xec23c562, // Untested
     ccipSendACK: 0x78d0f21e,
     ccipSendNACK: 0x5a45d434,
   },

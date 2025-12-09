@@ -1,0 +1,102 @@
+import { toNano, Cell, beginCell } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+
+import * as coverage from '../../coverage/coverage'
+
+import * as rt from '../../../wrappers/ccip/Router'
+import * as or from '../../../wrappers/ccip/OnRamp'
+import {
+  setup,
+  CHAINSEL_EVM_TEST_90000001,
+  EVM_ADDRESS,
+  TEST_TOKEN_ADDR,
+  contractsCoverageConfig,
+} from './Router.Setup'
+
+describe('Router', () => {
+  let blockchain: Blockchain
+  let deployer: SandboxContract<TreasuryContract>
+  let sender: SandboxContract<TreasuryContract>
+  let router: SandboxContract<rt.Router>
+  let feeQuoter: SandboxContract<TreasuryContract>
+  let onRamp: SandboxContract<TreasuryContract>
+
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+    blockchain.verbosity = {
+      print: true,
+      blockchainLogs: false,
+      vmLogs: 'none',
+      debugLogs: true,
+    }
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+    feeQuoter = await blockchain.treasury('feeQuoter')
+    onRamp = await blockchain.treasury('onRamp')
+  })
+
+  beforeEach(async () => {
+    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp }))
+  })
+
+  it('should forward getValidatedFee to OnRamp', async () => {
+    const result = await router.sendGetValidatedFee(
+      sender.getSender(),
+      toNano('0.5'),
+      {
+        queryID: 1,
+        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        receiver: EVM_ADDRESS,
+        data: Cell.EMPTY,
+        tokenAmounts: [],
+        feeToken: TEST_TOKEN_ADDR,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: 100n,
+            allowOutOfOrderExecution: true,
+          })
+          .asCell(),
+      },
+      beginCell().asSlice(),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+      op: or.Opcodes.getValidatedFee,
+      body(x) {
+        if (!x) return false
+        const decoded = or.builder.messages.in.getValidatedFee.load(x.beginParse())
+        return (
+          decoded.msg.queryID === 1 &&
+          decoded.msg.data.equals(Cell.EMPTY) &&
+          decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
+          decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
+          decoded.msg.tokenAmounts.length === 0 &&
+          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+        )
+      },
+    })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(
+        blockchain,
+        'router_sendingACK',
+        await contractsCoverageConfig(),
+      )
+    }
+  })
+})
