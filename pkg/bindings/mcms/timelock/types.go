@@ -346,7 +346,7 @@ type Call struct {
 	// Address of the target contract to call.
 	Target *address.Address `tlb:"addr"`
 	// Value in TONs to send with the call.
-	Value *big.Int `tlb:"## 256"`
+	Value tlb.Coins `tlb:"."`
 	// Data to send with the call - message body.
 	Data *cell.Cell `tlb:"^"`
 }

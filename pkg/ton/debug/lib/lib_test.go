@@ -66,21 +66,21 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 			Calls: common.SnakeRef[timelock.Call]{
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("0.5").Nano(),
+					Value:  tlb.MustFromTON("0.5"),
 					Data: mustToCell(Bar{
 						Val: big.NewInt(55555555),
 					}),
 				},
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("1.0").Nano(),
+					Value:  tlb.MustFromTON("1.0"),
 					Data: mustToCell(Baz{
 						Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 					}),
 				},
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("1.5").Nano(),
+					Value:  tlb.MustFromTON("1.5"),
 					Data: mustToCell(wallet.AskToTransfer{
 						QueryID:     0,
 						Amount:      tlb.MustFromTON("0.02"),
