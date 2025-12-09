@@ -271,6 +271,43 @@ describe('OnRamp - Send', () => {
     // })
   })
 
+  it('should fail if dest chain selector is unknown', async () => {
+    const unknownChainCCIPSend = {
+      ...ccipSend,
+      destChainSelector: 0xdeadbeefn,
+    }
+
+    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+      msg: unknownChainCCIPSend,
+      metadata: {
+        sender: senderAddress,
+        value: toNano('42'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockRouter.address,
+      to: onramp.address,
+      success: true,
+      op: or.opcodes.in.onrampSend,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.opcodes.in.messageRejected,
+      body: (body) => {
+        if (!body) return false
+        const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
+        return (
+          msg.destChainSelector === unknownChainCCIPSend.destChainSelector &&
+          msg.sender.equals(senderAddress) &&
+          msg.error === BigInt(or.Errors.UnknownDestChainSelector.valueOf())
+        )
+      },
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'onramp_generate_message_id', [
