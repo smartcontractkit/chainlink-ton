@@ -623,8 +623,12 @@ export const opcodes = {
   in: {
     onrampSend: 0xdcf993c2,
     getValidatedFee: 0x9c2ccc7e,
-    messageValidated: fq.OutOpcodes.messageValidated,
-    messageValidationFailed: fq.OutOpcodes.messageValidationFailed,
+    get messageValidated() {
+      return fq.OutOpcodes.messageValidated
+    },
+    get messageValidationFailed() {
+      return fq.OutOpcodes.messageValidationFailed
+    },
     executorFinishedSuccessfully: 0xcfa6b336,
     executorFinishedWithError: 0xc4068e21,
     setDynamicConfig: 0xa178c62e,
