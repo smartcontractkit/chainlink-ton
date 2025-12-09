@@ -1,7 +1,7 @@
 import { Coverage } from '@ton/sandbox'
 import { readFileSync, readdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import * as coverage from './Coverage'
+import * as coverage from './coverage'
 
 const offRampSuffix = `${coverage.CoverageContractName.offramp}.json`
 const routerSuffix = `${coverage.CoverageContractName.router}.json`
@@ -10,6 +10,7 @@ const merkleRootSuffix = `${coverage.CoverageContractName.merkleroot}.json`
 const onRampSuffix = `${coverage.CoverageContractName.onramp}.json`
 const sendExecutorSuffix = `${coverage.CoverageContractName.send_executor}.json`
 const receiveExecutorSuffix = `${coverage.CoverageContractName.receive_executor}.json`
+const deployableSuffix = `${coverage.CoverageContractName.deployable}.json`
 
 const offRampCoverageResults: Coverage[] = []
 const routerCoverageResults: Coverage[] = []
@@ -18,6 +19,7 @@ const merkleRootCoverageResults: Coverage[] = []
 const onrampCoverageResults: Coverage[] = []
 const sendExecutorCoverageResults: Coverage[] = []
 const receiveExecutorCoverageResults: Coverage[] = []
+const deployableCoverageResults: Coverage[] = []
 
 const coverageDir = './.coverage'
 
@@ -48,6 +50,9 @@ for (const file of files) {
   } else if (file.endsWith(receiveExecutorSuffix)) {
     const coverage = Coverage.fromJson(readFileSync(filePath, 'utf-8'))
     receiveExecutorCoverageResults.push(coverage)
+  } else if (file.endsWith(deployableSuffix)) {
+    const coverage = Coverage.fromJson(readFileSync(filePath, 'utf-8'))
+    deployableCoverageResults.push(coverage)
   }
 }
 
@@ -64,6 +69,7 @@ const merkleRootMerged = mergeResults(merkleRootCoverageResults)
 const onRampMerged = mergeResults(onrampCoverageResults)
 const sendExecutorMerged = mergeResults(sendExecutorCoverageResults)
 const receiveExecutorMerged = mergeResults(receiveExecutorCoverageResults)
+const deployableMerged = mergeResults(deployableCoverageResults)
 
 // Generate HTML reports
 if (offRampMerged) {
@@ -120,4 +126,12 @@ if (receiveExecutorMerged) {
     receiveExecutorMerged.report('html'),
   )
   console.log('Generated receiveexecutor-coverage.html')
+}
+
+if (deployableMerged) {
+  writeFileSync(
+    `./.coverage/${coverage.CoverageContractName.deployable}.html`,
+    deployableMerged.report('html'),
+  )
+  console.log('Generated deployable-coverage.html')
 }
