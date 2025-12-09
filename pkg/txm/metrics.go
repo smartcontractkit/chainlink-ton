@@ -41,7 +41,7 @@ var (
 	}, []string{"chainID"})
 )
 
-type serviceMetrics struct {
+type txmMetrics struct {
 	metrics.Labeler
 	chainID string
 
@@ -57,7 +57,7 @@ type serviceMetrics struct {
 	revertTxs            metric.Int64Counter
 }
 
-func newMetrics(chainID string) (*serviceMetrics, error) {
+func newMetrics(chainID string) (*txmMetrics, error) {
 	m := beholder.GetMeter()
 	var err error
 
@@ -86,7 +86,7 @@ func newMetrics(chainID string) (*serviceMetrics, error) {
 		return nil, fmt.Errorf("failed to register ton revert txs: %w", err)
 	}
 
-	return &serviceMetrics{
+	return &txmMetrics{
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
 
@@ -99,31 +99,31 @@ func newMetrics(chainID string) (*serviceMetrics, error) {
 	}, nil
 }
 
-func (m *serviceMetrics) getOtelAttributes() []attribute.KeyValue {
+func (m *txmMetrics) getOtelAttributes() []attribute.KeyValue {
 	return beholder.OtelAttributes(m.Labels).AsStringAttributes()
 }
 
-func (m *serviceMetrics) IncrementSuccessTxs(ctx context.Context) {
+func (m *txmMetrics) IncrementSuccessTxs(ctx context.Context) {
 	promTonTxmSuccessTxs.WithLabelValues(m.chainID).Add(1)
 	m.successTxs.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-func (m *serviceMetrics) IncrementFinalizedTxs(ctx context.Context) {
+func (m *txmMetrics) IncrementFinalizedTxs(ctx context.Context) {
 	promTonTxmFinalizedTxs.WithLabelValues(m.chainID).Add(1)
 	m.finalizedTxs.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-func (m *serviceMetrics) SetPendingTxs(ctx context.Context, count int) {
+func (m *txmMetrics) SetPendingTxs(ctx context.Context, count int) {
 	promTonTxmPendingTxs.WithLabelValues(m.chainID).Set(float64(count))
 	m.pendingTxs.Record(ctx, int64(count), metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-func (m *serviceMetrics) IncrementFailedToBroadcastTxs(ctx context.Context) {
+func (m *txmMetrics) IncrementFailedToBroadcastTxs(ctx context.Context) {
 	promTonTxmFailedToBroadcastTxs.WithLabelValues(m.chainID).Add(1)
 	m.failedToBroadcastTxs.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-func (m *serviceMetrics) IncrementRevertTxs(ctx context.Context) {
+func (m *txmMetrics) IncrementRevertTxs(ctx context.Context) {
 	promTonTxmRevertTxs.WithLabelValues(m.chainID).Add(1)
 	m.revertTxs.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }

@@ -40,7 +40,7 @@ type Txm struct {
 	keystore loop.Keystore
 	config   Config
 	chainID  string
-	metrics  *serviceMetrics
+	metrics  *txmMetrics
 
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
 	broadcastChan  chan *Tx

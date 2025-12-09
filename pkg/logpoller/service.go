@@ -48,7 +48,7 @@ type service struct {
 	filterStore FilterStore // Filter store for managing filters
 	logStore    LogStore    // Log store for storing logs
 
-	metrics *serviceMetrics // metrics for observability
+	metrics *logPollerMetrics // metrics for observability
 
 	// configuration for service operation
 	pollPeriod         time.Duration // How often to poll for new blocks
@@ -81,13 +81,17 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
 	}
 
+	// wrap stores with observed versions for metrics instrumentation
+	observedFilterStore := NewObservedFilterStore(opts.FilterStore, metrics, lggr)
+	observedLogStore := NewObservedLogStore(opts.LogStore, metrics, lggr)
+
 	lp := &service{
 		lggr:             logger.Sugared(lggr),
 		chainID:          chainID,
 		clientProvider:   clientProvider,
-		filterStore:      opts.FilterStore,
+		filterStore:      observedFilterStore,
 		loader:           opts.TxLoader,
-		logStore:         opts.LogStore,
+		logStore:         observedLogStore,
 		metrics:          metrics,
 		pollPeriod:       opts.Config.PollPeriod.Duration(),
 		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
