@@ -44,6 +44,22 @@ describe('Router', () => {
   })
 
   it('router respects cursing', async () => {
+    const msg = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+
     // Curse the lane
     {
       const result = await router.sendCurse(deployer.getSender(), {
@@ -66,21 +82,7 @@ describe('Router', () => {
     {
       const result = await router.sendCcipSend(sender.getSender(), {
         value: toNano('1'),
-        body: {
-          queryID: 1,
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: EVM_ADDRESS,
-          data: Cell.EMPTY,
-          tokenAmounts: [],
-          feeToken: TEST_TOKEN_ADDR,
-          extraArgs: rt.builder.data.extraArgs
-            .encode({
-              kind: 'generic-v2',
-              gasLimit: 100n,
-              allowOutOfOrderExecution: true,
-            })
-            .asCell(),
-        },
+        body: msg,
       })
 
       // we called the router
@@ -89,7 +91,7 @@ describe('Router', () => {
         to: router.address,
         deploy: false,
         success: false,
-        exitCode: 49605, // subjectCursed
+        exitCode: rt.RouterError.SubjectCursed,
       })
     }
 
@@ -108,6 +110,26 @@ describe('Router', () => {
 
       assertLog(result.transactions, router.address, LogTypes.Uncursed, {
         subject: CHAINSEL_EVM_TEST_90000001,
+      })
+    }
+
+    // Succeed router.ccipSend
+    {
+      const result = await router.sendCcipSend(sender.getSender(), {
+        value: toNano('1'),
+        body: msg,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: sender.address,
+        to: router.address,
+        success: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: onRamp.address,
+        success: true,
       })
     }
   })
