@@ -29,7 +29,7 @@ type OnRamp_NotificationInMessage =
     | OnRamp_Send
     ;
 
-struct (0x10000002) OnRamp_Send {
+struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata
@@ -45,7 +45,7 @@ struct OnRamp_GetValidatedFeeContext {
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
 }
 
-struct (0x10000003) OnRamp_SetDynamicConfig {
+struct (0xa178c62e) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
 
@@ -63,7 +63,7 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     metadata: Metadata,
 }
 
-struct (0x10000004) OnRamp_UpdateDestChainConfigs {
+struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
 }
 

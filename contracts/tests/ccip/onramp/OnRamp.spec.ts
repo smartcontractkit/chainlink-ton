@@ -105,20 +105,22 @@ describe('OnRamp - Current Version Tests', () => {
 })
 
 describe('OnRamp - Opcodes', () => {
-  it('should match opcodes', () => {
-    expect(or.Opcodes.onrampSend).toBe(0x10000002) // TODO crc32('OnRamp_Send')
-    expect(or.Opcodes.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
-    expect(or.Opcodes.executorFinishedSuccessfully).toBe(
+  it('should match in opcodes', () => {
+    expect(or.opcodes.in.onrampSend).toBe(crc32('OnRamp_Send'))
+    expect(or.opcodes.in.getValidatedFee).toBe(crc32('OnRamp_GetValidatedFee'))
+    expect(or.opcodes.in.executorFinishedSuccessfully).toBe(
       crc32('OnRamp_ExecutorFinishedSuccessfully'),
     )
-    expect(or.Opcodes.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
-    expect(or.Opcodes.setDynamicConfig).toBe(0x10000003) // TODO crc32('OnRamp_SetDynamicConfig')
-    expect(or.Opcodes.updateDestChainConfigs).toBe(0x10000004) // TODO crc32('OnRamp_UpdateDestChainConfigs')
-    expect(or.Opcodes.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
-    expect(or.Opcodes.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
+    expect(or.opcodes.in.executorFinishedWithError).toBe(crc32('OnRamp_ExecutorFinishedWithError'))
+    expect(or.opcodes.in.setDynamicConfig).toBe(crc32('OnRamp_SetDynamicConfig'))
+    expect(or.opcodes.in.updateDestChainConfigs).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
+    expect(or.opcodes.in.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
+    expect(or.opcodes.in.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
+  })
 
-    expect(or.OutOpcodes.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
-    expect(or.OutOpcodes.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
+  it('should match out opcodes', () => {
+    expect(or.opcodes.out.messageValidated).toBe(crc32('OnRamp_MessageValidated'))
+    expect(or.opcodes.out.messageValidationFailed).toBe(crc32('OnRamp_MessageValidationFailed'))
   })
 })
 
@@ -148,6 +150,16 @@ describe('OnRamp - Unit Tests', () => {
     ;({ deployer, onramp } = await setup(blockchain))
   })
 
+  it('should match facility ID', async () => {
+    const facilityId = await onramp.getFacilityId()
+    expect(facilityId).toBe(BigInt(or.ONRAMP_FACILITY_ID))
+  })
+
+  it('should match error code', async () => {
+    const errorCode = await onramp.getErrorCode(0n)
+    expect(errorCode).toBe(BigInt(or.ONRAMP_ERROR_CODE))
+  })
+
   it('getStaticConfig should return chain selector', async () => {
     const result = await onramp.getStaticConfig()
     expect(result).toBe(CHAINSEL_TON)
@@ -167,6 +179,8 @@ describe('OnRamp - Unit Tests', () => {
 
     const executorCode = await onramp.getSendExecutorCode()
     expect(executorCode.equals(newExecutor)).toBe(true)
+    const executorCodeHash = await onramp.getSendExecutorCodeHash()
+    expect(executorCodeHash).toBe(BigInt('0x' + newExecutor.hash().toString('hex')))
   })
 
   it('should not allow non-owner to updateSendExecutor', async () => {
@@ -182,6 +196,11 @@ describe('OnRamp - Unit Tests', () => {
       success: false,
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
+
+    const executorCode = await onramp.getSendExecutorCode()
+    expect(executorCode.equals(beginCell().endCell())).toBe(true)
+    const executorCodeHash = await onramp.getSendExecutorCodeHash()
+    expect(executorCodeHash).toBe(BigInt('0x' + beginCell().endCell().hash().toString('hex')))
   })
 
   afterAll(async () => {

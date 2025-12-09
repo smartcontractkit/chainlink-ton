@@ -105,7 +105,7 @@ describe('OnRamp - Send', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
 
     const deployTX = result.transactions.find(
@@ -161,7 +161,7 @@ describe('OnRamp - Send', () => {
       to: onramp.address,
       success: false,
       exitCode: or.Errors.Unauthorized,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
   })
 
@@ -218,7 +218,7 @@ describe('OnRamp - Send', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
@@ -261,13 +261,13 @@ describe('OnRamp - Send', () => {
       to: onramp.address,
       success: false,
       exitCode: or.Errors.SenderNotAllowed,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
     // TODO should return messageValidationFailed in stead of throwing an error
     // expect(result.transactions).toHaveTransaction({
     //   from: onramp.address,
     //   success: true,
-    //   op: or.OutOpcodes.messageValidationFailed,
+    //   op: or.opcodes.out.messageValidationFailed,
     // })
   })
 
