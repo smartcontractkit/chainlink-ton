@@ -295,7 +295,7 @@ describe('OnRamp - Send', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.Opcodes.messageRejected,
+      op: rt.opcodes.in.messageRejected,
       body: (body) => {
         if (!body) return false
         const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
