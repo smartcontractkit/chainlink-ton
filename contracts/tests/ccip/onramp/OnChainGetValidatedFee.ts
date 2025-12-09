@@ -1,5 +1,6 @@
 import { Cell, Sender, Slice, toNano } from '@ton/core'
 import { SandboxContract } from '@ton/sandbox'
+
 import * as rt from '../../../wrappers/ccip/Router'
 
 // Helper function to send a GetValidatedFee request to router and parse the response
@@ -37,8 +38,8 @@ export async function sendGetValidatedFee(
   const resp = tx.inMessage
 
   const body = resp.body.beginParse()
-  if (body.preloadUint(32) !== rt.OutOpcodes.messageValidated) {
-    if (body.preloadUint(32) === rt.OutOpcodes.messageValidationFailed) {
+  if (body.preloadUint(32) !== rt.opcodes.out.messageValidated) {
+    if (body.preloadUint(32) === rt.opcodes.out.messageValidationFailed) {
       const msgValidationFailed = rt.builder.message.out.messageValidationFailed.load(
         resp.body.beginParse(),
       )

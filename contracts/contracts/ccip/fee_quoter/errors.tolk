@@ -5,6 +5,7 @@ enum FeeQuoter_Error {
     InvalidExtraArgsData
     UnsupportedNumberOfTokens
     InvalidSuiReceiverAddress
+    InvalidSVMReceiverAddress
     InvalidTokenReceiver
     TooManySuiExtraArgsReceiverObjectIds
     MsgDataTooLarge

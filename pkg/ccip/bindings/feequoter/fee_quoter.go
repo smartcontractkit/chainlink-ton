@@ -48,6 +48,7 @@ const (
 	ErrorInvalidExtraArgsData
 	ErrorUnsupportedNumberOfTokens
 	ErrorInvalidSuiReceiverAddress
+	ErrorInvalidSVMReceiverAddress
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
 	ErrorMsgDataTooLarge
