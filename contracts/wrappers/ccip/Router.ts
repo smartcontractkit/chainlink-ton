@@ -22,6 +22,7 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as or from '../ccip/OnRamp'
+import * as of from './OffRamp'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
@@ -57,7 +58,7 @@ export const opcodes = {
     applyRampUpdates: 0x7db6745d,
     ccipSend: 0x38a69e3b,
     ccipReceiveConfirm: 0xaf0cccef, // Untested
-    routeMessage: 0xfc69c50b, // Untested
+    routeMessage: 0xfc69c50b,
     rmnRemoteCurse: 0xe6bf1813,
     rmnRemoteUncurse: 0x060d9dd1,
     verifyNotCursed: 0x49fd38ce,
@@ -288,6 +289,30 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.messageRejected.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendRouteMessage(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: RouteMessage },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.routeMessage.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendCCIPReceiveConfirm(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: CCIPReceiveConfirm },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.ccipReceiveConfirm.encode(opts.body).asCell(),
     })
   }
 
@@ -543,6 +568,13 @@ export type RMNRemoteVerifyNotCursedResponse = {
   result: boolean
 }
 
+export type RouteMessage = {
+  message: of.Any2TVMMessage
+  execID: bigint
+  receiver: Address
+  gasLimit: bigint
+}
+
 const crossChainAddressCodec: CellCodec<Buffer> = {
   encode: (addr: Buffer): Builder => {
     if (addr.byteLength > 64) {
@@ -699,6 +731,27 @@ export const builder = (() => {
           }
         },
       }
+
+      const routeMessage: CellCodec<RouteMessage> = {
+        encode: (opts: RouteMessage): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.routeMessage, 32)
+            .storeRef(of.builder.data.any2TVMMessage.encode(opts.message))
+            .storeUint(opts.execID, 192)
+            .storeAddress(opts.receiver)
+            .storeCoins(opts.gasLimit)
+        },
+        load: function (src: Slice): RouteMessage {
+          src.skip(32)
+          return {
+            message: of.builder.data.any2TVMMessage.load(src.loadRef().beginParse()),
+            execID: src.loadUintBig(192),
+            receiver: src.loadAddress(),
+            gasLimit: src.loadCoins(),
+          }
+        },
+      }
+
       const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
@@ -875,6 +928,7 @@ export const builder = (() => {
       return {
         ccipSend,
         getValidatedFee,
+        routeMessage,
         ccipReceiveConfirm,
         messageSent,
         messageRejected,

@@ -10,18 +10,21 @@ import { ContractCoverageConfig } from '../../coverage/coverage'
 
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
+import * as of from '../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
   sender?: SandboxContract<TreasuryContract>
+  receiver?: SandboxContract<TreasuryContract>
   router?: SandboxContract<rt.Router>
   skipRouterOnRampConfig?: boolean
 }
 type RouterSetupOverrides = Partial<{
   feeQuoter: SandboxContract<fq.FeeQuoter> | SandboxContract<TreasuryContract>
   onRamp: SandboxContract<or.OnRamp> | SandboxContract<TreasuryContract>
+  offRamp: SandboxContract<of.OffRamp> | SandboxContract<TreasuryContract>
 }>
 
 type RouterSetupOptions<TOverrides extends RouterSetupOverrides> = RouterSetupOptionsCommon &
@@ -30,6 +33,7 @@ type RouterSetupOptions<TOverrides extends RouterSetupOverrides> = RouterSetupOp
 type RouterSetupResultBase = {
   deployer: SandboxContract<TreasuryContract>
   sender: SandboxContract<TreasuryContract>
+  receiver: SandboxContract<TreasuryContract>
   router: SandboxContract<rt.Router>
 }
 
@@ -39,7 +43,10 @@ type RouterSetupResultFor<TOverrides extends RouterSetupOverrides> = RouterSetup
     : { feeQuoter: SandboxContract<fq.FeeQuoter> }) &
   ([TOverrides] extends [{ onRamp: SandboxContract<any> }]
     ? {}
-    : { onRamp: SandboxContract<or.OnRamp> })
+    : { onRamp: SandboxContract<or.OnRamp> }) &
+  ([TOverrides] extends [{ offRamp: SandboxContract<any> }]
+    ? {}
+    : { offRamp: SandboxContract<of.OffRamp> })
 
 export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   blockchain: Blockchain,
@@ -60,6 +67,7 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
 
   const deployer = opts.deployer ?? (await blockchain.treasury('deployer'))
   const sender = opts.sender ?? (await blockchain.treasury('sender'))
+  const receiver = opts.receiver ?? (await blockchain.treasury('receiver'))
   let merkleRootCodeRaw = await compile('MerkleRoot')
 
   // Populate the emulator library code
@@ -74,16 +82,22 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
     opts.onRamp ??
     (await deployOnRampInstance(blockchain, deployer, router.address, feeQuoter.address))
 
+  const offRamp =
+    opts.offRamp ??
+    (await deployOffRampInstance(blockchain, deployer, router.address, feeQuoter.address))
+
   if (!opts.skipRouterOnRampConfig) {
-    await configureRouterWithOnRamp(router, deployer, onRamp.address)
+    await configureRouterWithOnRamp(router, deployer, onRamp.address, offRamp.address)
   }
 
   const result: RouterSetupResultBase & {
     feeQuoter?: SandboxContract<fq.FeeQuoter>
     onRamp?: SandboxContract<or.OnRamp>
+    offRamp?: SandboxContract<of.OffRamp>
   } = {
     deployer,
     sender,
+    receiver,
     router,
   }
 
@@ -93,6 +107,10 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
 
   if (!opts.onRamp) {
     result.onRamp = onRamp as SandboxContract<or.OnRamp>
+  }
+
+  if (!opts.offRamp) {
+    result.offRamp = offRamp as SandboxContract<of.OffRamp>
   }
 
   return result as RouterSetupResultFor<TOverrides>
@@ -313,10 +331,81 @@ async function deployOnRampInstance(
   return onRamp
 }
 
+async function deployOffRampInstance(
+  blockchain: Blockchain,
+  deployer: SandboxContract<TreasuryContract>,
+  router: Address,
+  feeQuoter: Address,
+) {
+  const code = await compile('OffRamp')
+  const data: of.OffRampStorage = {
+    id: generateRandomContractId(),
+    ownable: {
+      owner: deployer.address,
+      pendingOwner: null,
+    },
+    chainSelector: CHAINSEL_TON,
+    deployables: {
+      deployerCode: await compile('Deployable'),
+      merkleRootCode: await compile('MerkleRoot'),
+      receiveExecutorCode: await compile('ReceiveExecutor'),
+    },
+    feeQuoter,
+    router,
+    permissionlessExecutionThresholdSeconds: 0,
+    latestPriceSequenceNumber: 0n,
+  }
+
+  const offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
+
+  {
+    const result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      deploy: true,
+      success: true,
+    })
+  }
+
+  {
+    const config = {
+      router,
+      sequenceNumber: 0n,
+      allowlistEnabled: false,
+    }
+
+    const result = await offRamp.sendUpdateSourceChainConfigs(deployer.getSender(), {
+      value: toNano('1'),
+      configs: [
+        {
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          config: {
+            router: config.router,
+            isEnabled: true,
+            minSeqNr: 0n,
+            isRMNVerificationDisabled: false,
+            onRamp: EVM_ADDRESS,
+          },
+        },
+      ],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      deploy: false,
+      success: true,
+    })
+  }
+
+  return offRamp
+}
+
 async function configureRouterWithOnRamp(
   router: SandboxContract<rt.Router>,
   deployer: SandboxContract<TreasuryContract>,
   onRamp: Address,
+  offRamp: Address,
 ) {
   const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
     value: toNano('1'),
@@ -325,6 +414,10 @@ async function configureRouterWithOnRamp(
       onRamps: {
         destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp,
+      },
+      offRampAdds: {
+        sourceChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+        offRamp: offRamp,
       },
     },
   })
