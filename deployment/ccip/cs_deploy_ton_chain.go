@@ -120,7 +120,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// Store the contracts version SHA as chain metadata for state generation.
 	if cfg.ContractsVersion != "" {
-		if err := dataStore.ChainMetadata().Upsert(ds.ChainMetadata{
+		if err = dataStore.ChainMetadata().Upsert(ds.ChainMetadata{
 			ChainSelector: selector,
 			Metadata: state.TONChainMetadata{
 				ContractsVersion: cfg.ContractsVersion,
