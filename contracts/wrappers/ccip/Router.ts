@@ -57,7 +57,7 @@ export const opcodes = {
   in: {
     applyRampUpdates: 0x7db6745d,
     ccipSend: 0x38a69e3b,
-    ccipReceiveConfirm: 0xaf0cccef, // Untested
+    ccipReceiveConfirm: 0xaf0cccef,
     routeMessage: 0xfc69c50b,
     rmnRemoteCurse: 0xe6bf1813,
     rmnRemoteUncurse: 0x060d9dd1,
@@ -511,7 +511,7 @@ export const ExtraArgsOpcodes = {
 }
 
 export type CCIPReceiveConfirm = {
-  rootId: bigint
+  execID: bigint
 }
 
 export type GetValidatedFee = {
@@ -756,12 +756,12 @@ export const builder = (() => {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
             .storeUint(opcodes.in.ccipReceiveConfirm, 32)
-            .storeUint(confirm.rootId, 192)
+            .storeUint(confirm.execID, 192)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
           expect(src.loadUint(32)).toBe(opcodes.in.ccipReceiveConfirm)
           return {
-            rootId: src.loadUintBig(192),
+            execID: src.loadUintBig(192),
           }
         },
       }

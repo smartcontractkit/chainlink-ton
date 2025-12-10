@@ -10,12 +10,12 @@ import {
   CHAINSEL_EVM_TEST_90000001,
   EVM_ADDRESS,
   contractsCoverageConfig,
+  genExecID,
 } from './Router.Setup'
 
 describe('Router', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
-  let sender: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<TreasuryContract>
   let onRamp: SandboxContract<TreasuryContract>
@@ -41,7 +41,7 @@ describe('Router', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, sender, receiver, router } = await setup(blockchain, {
+    ;({ deployer, receiver, router } = await setup(blockchain, {
       feeQuoter,
       onRamp,
       offRamp,
@@ -60,7 +60,7 @@ describe('Router', () => {
       value: toNano('1'),
       body: {
         message: any2tvmMessage,
-        execID: 1n,
+        execID: genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 1n }),
         receiver: receiver.address,
         gasLimit: toNano('0.5'),
       },
@@ -89,7 +89,7 @@ describe('Router', () => {
           ...any2tvmMessage,
           sourceChainSelector: any2tvmMessage.sourceChainSelector + 1n,
         },
-        execID: 1n,
+        execID: genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 2n }),
         receiver: receiver.address,
         gasLimit: toNano('0.5'),
       },
@@ -108,7 +108,7 @@ describe('Router', () => {
       value: toNano('1'),
       body: {
         message: any2tvmMessage,
-        execID: 1n,
+        execID: genExecID({ sourceChainSelector: CHAINSEL_EVM_TEST_90000001, messageID: 3n }),
         receiver: receiver.address,
         gasLimit: toNano('0.5'),
       },

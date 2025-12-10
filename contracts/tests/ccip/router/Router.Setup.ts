@@ -462,6 +462,14 @@ export const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
 export const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
 export const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
 
+// unit192 where 64 first bits are chain selector
+export function genExecID(opts: {
+  sourceChainSelector: bigint // 64 bits
+  messageID: bigint // 256 bits
+}): bigint {
+  return (opts.sourceChainSelector << (192n - 64n)) | (opts.messageID >> 64n)
+}
+
 export const CHAINSEL_TON = 13879075125137744094n
 export const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
