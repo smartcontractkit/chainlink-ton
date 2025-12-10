@@ -70,6 +70,13 @@ describe('Router', () => {
         },
       ])
     }
+
+    {
+      let result = await router.getDestChainSelectors()
+      expect(result.sort()).toEqual(
+        [Setup.CHAINSEL_EVM_TEST_90000001, Setup.CHAINSEL_EVM_TEST_90000002].sort(),
+      )
+    }
   })
 
   it('update router offRamp events emission', async () => {
