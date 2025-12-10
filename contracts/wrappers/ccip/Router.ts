@@ -326,6 +326,11 @@ export class Router
     return chainSelectors
   }
 
+  async getVerifyNotCursed(provider: ContractProvider, subject: bigint): Promise<boolean> {
+    const res = await provider.get('verifyNotCursed', [{ type: 'int', value: subject }])
+    return res.stack.readBoolean()
+  }
+
   // Withdrawable methods
   async sendWithdraw(
     provider: ContractProvider,

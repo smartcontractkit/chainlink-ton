@@ -76,6 +76,8 @@ describe('Router', () => {
       assertLog(result.transactions, router.address, LogTypes.Cursed, {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
+
+      expect(await router.getVerifyNotCursed(CHAINSEL_EVM_TEST_90000001)).toBe(true)
     }
 
     // Fail router.ccipSend
@@ -111,6 +113,8 @@ describe('Router', () => {
       assertLog(result.transactions, router.address, LogTypes.Uncursed, {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
+
+      expect(await router.getVerifyNotCursed(CHAINSEL_EVM_TEST_90000001)).toBe(false)
     }
 
     // Succeed router.ccipSend
