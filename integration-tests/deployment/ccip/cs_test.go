@@ -176,6 +176,10 @@ func TestDeployCCIP(t *testing.T) {
 	state, err = tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
+	// Verify ContractsVersion is loaded from chain metadata
+	require.Equal(t, sequence.ContractsLocalVersion, state[chainSelector].ContractsVersion,
+		"ContractsVersion should be loaded from chain metadata")
+
 	// -- TON Accessor tests
 	lpCfg := logpoller.DefaultConfigSet
 	filterStore := inmemorystore.NewFilterStore("test-chain", lggr)
@@ -412,6 +416,10 @@ func TestDeployCCIP(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "-1", generatedView.ChainID)
 		require.Equal(t, chainSelector, generatedView.ChainSelector)
+
+		// verify contracts version is populated from chain metadata
+		require.Equal(t, sequence.ContractsLocalVersion, generatedView.ContractsVersion, "ContractsVersion should match the deployed version")
+
 		onRampView, exit := generatedView.OnRamp[onRampAddr.String()]
 		require.True(t, exit, "onRamp view not found")
 		require.Equal(t, onRampAddr, *onRampView.Address)

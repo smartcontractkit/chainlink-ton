@@ -39,6 +39,19 @@ var (
 	Counter     ds.ContractType = "Counter"
 )
 
+// TONChainMetadata holds metadata for a TON chain stored in the datastore.
+// This wrapper struct is required because ChainMetadata.Metadata is of type `any`,
+// and we need a typed schema for proper JSON serialization/deserialization.
+type TONChainMetadata struct {
+	// ContractsVersion is the git SHA of the compiled contracts used for deployment.
+	//
+	// TEMPORARY: This field uses git SHA artifacts (e.g., "43d7a93089fe") to identify
+	// contract versions. After release, this will be replaced by semantic versioning
+	// At that point, ContractsVersion field may be deprecated in favor of using the
+	// standard Version field in AddressRef entries.
+	ContractsVersion string `json:"contractsVersion"`
+}
+
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
 // on a chain. If a binding is nil, it means there is no such contract on the chain.
 type CCIPChainState struct {
@@ -48,6 +61,9 @@ type CCIPChainState struct {
 	OnRamp           address.Address
 	FeeQuoter        address.Address
 	ReceiverAddress  address.Address
+	// ContractsVersion is the git SHA of the compiled contracts used for deployment.
+	// Stored as ChainMetadata in the datastore during deployment.
+	ContractsVersion string
 }
 
 // MCMSChainState holds a Go binding for all the currently deployed MCMS contracts
@@ -58,22 +74,24 @@ type MCMSChainState struct {
 }
 
 type TONChainView struct {
-	ChainSelector uint64                    `json:"chainSelector,omitempty"`
-	ChainID       string                    `json:"chainID,omitempty"`
-	OnRamp        map[string]onramp.View    `json:"onRamp,omitempty"`
-	Router        map[string]router.View    `json:"router,omitempty"`
-	FeeQuoter     map[string]feequoter.View `json:"feeQuoter,omitempty"`
-	OffRamp       map[string]offramp.View   `json:"offRamp,omitempty"`
+	ChainSelector    uint64                    `json:"chainSelector,omitempty"`
+	ChainID          string                    `json:"chainID,omitempty"`
+	ContractsVersion string                    `json:"contractsVersion,omitempty"`
+	OnRamp           map[string]onramp.View    `json:"onRamp,omitempty"`
+	Router           map[string]router.View    `json:"router,omitempty"`
+	FeeQuoter        map[string]feequoter.View `json:"feeQuoter,omitempty"`
+	OffRamp          map[string]offramp.View   `json:"offRamp,omitempty"`
 }
 
 func newTONChainView() TONChainView {
 	return TONChainView{
-		ChainSelector: 0,
-		ChainID:       "",
-		OnRamp:        make(map[string]onramp.View),
-		Router:        make(map[string]router.View),
-		FeeQuoter:     make(map[string]feequoter.View),
-		OffRamp:       make(map[string]offramp.View),
+		ChainSelector:    0,
+		ChainID:          "",
+		ContractsVersion: "",
+		OnRamp:           make(map[string]onramp.View),
+		Router:           make(map[string]router.View),
+		FeeQuoter:        make(map[string]feequoter.View),
+		OffRamp:          make(map[string]offramp.View),
 	}
 }
 
@@ -82,6 +100,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	tonView := newTONChainView()
 	tonView.ChainSelector = selector
 	tonView.ChainID = chainID
+	tonView.ContractsVersion = s.ContractsVersion
 	tonClient, ok := e.BlockChains.TonChains()[selector]
 	if !ok {
 		return tonView, errors.New("chain not found or not a TON chain")
@@ -160,6 +179,19 @@ func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64
 	if err != nil {
 		return chainState, err
 	}
+
+	// Load chain metadata (contracts version, etc.)
+	chainMetaKey := ds.NewChainMetadataKey(chainSelector)
+	chainMeta, err := dataStore.ChainMetadata().Get(chainMetaKey)
+	if err == nil {
+		// Try to extract TONChainMetadata
+		if tonMeta, ok := chainMeta.Metadata.(map[string]interface{}); ok {
+			if version, ok := tonMeta["contractsVersion"].(string); ok {
+				chainState.ContractsVersion = version
+			}
+		}
+	}
+	// Ignore error - metadata may not exist for older deployments
 
 	return chainState, nil
 }
@@ -241,8 +273,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 		contractType := addressType.Type
 		version := addressType.Version
 		rawContractAddress := addressType.Address
-		contractAddress, err := address.ParseAddr(rawContractAddress)
 
+		contractAddress, err := address.ParseAddr(rawContractAddress)
 		if err != nil {
 			return state, err
 		}

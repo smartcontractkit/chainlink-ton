@@ -23,6 +23,9 @@ import (
 
 type DeployCCIPContractsCfg struct {
 	TonChainSelector uint64
+	// ContractsVersion is the git SHA of compiled contracts to deploy.
+	// TEMPORARY: After release, this will be replaced by semantic versioning
+	// (e.g., Version1_6_0) and contracts will be fetched by semver instead of git SHA.
 	ContractsVersion string
 	Params           config.ChainContractParams
 }
@@ -116,6 +119,17 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	if ccipSeqReport.Output.ReceiverAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
+	}
+
+	// Store the contracts version SHA as chain metadata for state generation.
+	if cfg.ContractsVersion != "" {
+		_ = dataStore.ChainMetadata().Upsert(ds.ChainMetadata{
+			ChainSelector: selector,
+			Metadata: state.TONChainMetadata{
+				ContractsVersion: cfg.ContractsVersion,
+			},
+		})
+		s.ContractsVersion = cfg.ContractsVersion
 	}
 
 	deps.CCIPOnChainState[selector] = s
