@@ -235,7 +235,7 @@ describe('Router', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(
         blockchain,
-        'router_sendingACK',
+        'router_getFee',
         await contractsCoverageConfig(),
       )
     }
