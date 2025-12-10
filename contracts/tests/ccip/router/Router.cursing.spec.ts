@@ -76,7 +76,7 @@ describe('Router', () => {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
 
-      expect(await router.getVerifyNotCursed(CHAINSEL_EVM_TEST_90000001)).toBe(true)
+      await verifyNotCursed(router, deployer, true)
     }
 
     // Fail router.ccipSend
@@ -112,7 +112,7 @@ describe('Router', () => {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
 
-      expect(await router.getVerifyNotCursed(CHAINSEL_EVM_TEST_90000001)).toBe(false)
+      await verifyNotCursed(router, deployer, false)
     }
 
     // Succeed router.ccipSend
@@ -146,3 +146,31 @@ describe('Router', () => {
     }
   })
 })
+async function verifyNotCursed(
+  router: SandboxContract<rt.Router>,
+  deployer: SandboxContract<TreasuryContract>,
+  expected: boolean,
+) {
+  expect(await router.getVerifyNotCursed(CHAINSEL_EVM_TEST_90000001)).toBe(expected)
+
+  const verification = await router.sendRMNRemoteVerifyNotCursed(deployer.getSender(), {
+    value: toNano('1'),
+    body: { queryID: 0n, subject: CHAINSEL_EVM_TEST_90000001 },
+  })
+  expect(verification.transactions).toHaveTransaction({
+    from: deployer.address,
+    to: router.address,
+    success: true,
+  })
+  expect(verification.transactions).toHaveTransaction({
+    from: router.address,
+    to: deployer.address,
+    success: true,
+    op: rt.opcodes.out.rmnRemoteVerifyNotCursedResponse,
+    body(x) {
+      if (!x) return false
+      const resp = rt.builder.message.out.rmnRemoteVerifyNotCursedResponse.load(x.beginParse())
+      return resp.queryID === 0n && resp.result === expected
+    },
+  })
+}
