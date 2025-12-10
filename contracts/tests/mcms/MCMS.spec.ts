@@ -79,6 +79,17 @@ describe('MCMS', () => {
     expect(mcms.opcodes.out.ExpiredRootsCleaned).toBe(0xa86846d5)
   })
 
+  it('should correctly encode the EIP191 prefix to hex', () => {
+    // The prefix as a string with escape sequences
+    const prefix = '\x19Ethereum Signed Message:\n32'
+
+    // Convert to hex string
+    const hexEncoded = Buffer.from(prefix, 'utf-8').toString('hex')
+
+    const expected = '19457468657265756d205369676e6564204d6573736167653a0a3332'
+    expect(hexEncoded).toBe(expected)
+  })
+
   it('should deploy', async () => {
     // Check that MCMS contract is deployed
     const body = Cell.EMPTY
