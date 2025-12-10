@@ -266,7 +266,7 @@ describe('Router', () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(
         blockchain,
-        'router_ownable',
+        'router_applyRampUpdates',
         await Setup.contractsCoverageConfig(),
       )
     }
