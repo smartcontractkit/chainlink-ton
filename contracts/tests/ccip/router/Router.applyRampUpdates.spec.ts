@@ -4,6 +4,7 @@ import { toNano } from '@ton/core'
 
 import { generateRandomTonAddress } from '../../../src/utils'
 import { assertLog } from '../../Logs'
+import * as coverage from '../../coverage/coverage'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 
 import * as rt from '../../../wrappers/ccip/Router'
@@ -21,6 +22,17 @@ describe('Router', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    blockchain.verbosity = {
+      print: true,
+      blockchainLogs: false,
+      vmLogs: 'none',
+      debugLogs: true,
+    }
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
   })
 
   beforeEach(async () => {
@@ -247,6 +259,16 @@ describe('Router', () => {
           address: offRampAddress2,
         },
       ])
+    }
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(
+        blockchain,
+        'router_ownable',
+        await Setup.contractsCoverageConfig(),
+      )
     }
   })
 })
