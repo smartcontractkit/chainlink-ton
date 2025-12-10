@@ -6,7 +6,7 @@ import { compile } from '@ton/blueprint'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 import { math } from '../../wrappers/test/lib'
 
-describe('secp256k1_verifier', () => {
+describe('math', () => {
   let blockchain: Blockchain
 
   var code: {
