@@ -122,6 +122,16 @@ describe('Router - Ownable Tests', () => {
     ])
   })
 
+  it('should match facility ID', async () => {
+    const facilityId = await router.getFacilityId()
+    expect(facilityId).toBe(BigInt(rt.ROUTER_FACILITY_ID))
+  })
+
+  it('should match error code', async () => {
+    const errorCode = await router.getErrorCode(0n)
+    expect(errorCode).toBe(BigInt(rt.ROUTER_ERROR_CODE))
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(
