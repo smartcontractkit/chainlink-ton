@@ -114,7 +114,12 @@ describe('Router - Ownable Tests', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    await ownable2StepSpec(deployer, other, router)
+    await ownable2StepSpec(deployer, other, router, blockchain, [
+      {
+        code: 'Router',
+        name: 'router',
+      },
+    ])
   })
 
   afterAll(async () => {
