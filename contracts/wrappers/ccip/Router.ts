@@ -54,10 +54,8 @@ export abstract class Params {}
 
 export const opcodes = {
   in: {
-    applyRampUpdates: 0x7db6745d, // Untested
-    setRamps: 0x20272c81, // Untested
+    applyRampUpdates: 0x7db6745d,
     ccipSend: 0x38a69e3b,
-    updateOffRamps: 0x234110a7, // Untested
     ccipReceiveConfirm: 0xaf0cccef, // Untested
     routeMessage: 0xfc69c50b, // Untested
     rmnRemoteCurse: 0xe6bf1813,
@@ -254,28 +252,6 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.applyRampUpdates.encode(opts.data).asCell(),
-    })
-  }
-
-  async sendSetRamps(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryID?: number
-      destChainSelector: bigint[]
-      onRamp: Address
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.setRamps, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
-        .storeAddress(opts.onRamp)
-        .endCell(),
     })
   }
 

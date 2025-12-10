@@ -131,9 +131,7 @@ describe('Router - Ownable Tests', () => {
 describe('Router - Opcodes', () => {
   it('should match in opcodes', () => {
     expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates'))
-    expect(rt.opcodes.in.setRamps).toBe(crc32('Router_SetRamps'))
     expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CcipSend'))
-    expect(rt.opcodes.in.updateOffRamps).toBe(crc32('Router_UpdateOffRamps'))
     expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CcipReceiveConfirm'))
     expect(rt.opcodes.in.routeMessage).toBe(crc32('Router_RouteMessage'))
     expect(rt.opcodes.in.rmnRemoteCurse).toBe(crc32('Router_Curse'))
