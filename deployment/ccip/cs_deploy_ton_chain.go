@@ -23,9 +23,6 @@ import (
 
 type DeployCCIPContractsCfg struct {
 	TonChainSelector uint64
-	// ContractsVersion is the git SHA of compiled contracts to deploy.
-	// TEMPORARY: After release, this will be replaced by semantic versioning
-	// (e.g., Version1_6_0) and contracts will be fetched by semver instead of git SHA.
 	ContractsVersion string
 	Params           config.ChainContractParams
 }

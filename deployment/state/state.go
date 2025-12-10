@@ -44,11 +44,6 @@ var (
 // and we need a typed schema for proper JSON serialization/deserialization.
 type TONChainMetadata struct {
 	// ContractsVersion is the git SHA of the compiled contracts used for deployment.
-	//
-	// TEMPORARY: This field uses git SHA artifacts (e.g., "43d7a93089fe") to identify
-	// contract versions. After release, this will be replaced by semantic versioning
-	// At that point, ContractsVersion field may be deprecated in favor of using the
-	// standard Version field in AddressRef entries.
 	ContractsVersion string `json:"contractsVersion"`
 }
 
@@ -275,8 +270,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 		contractType := addressType.Type
 		version := addressType.Version
 		rawContractAddress := addressType.Address
-
 		contractAddress, err := address.ParseAddr(rawContractAddress)
+
 		if err != nil {
 			return state, err
 		}
