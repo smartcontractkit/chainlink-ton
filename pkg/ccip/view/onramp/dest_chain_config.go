@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-const DestChainsGetter = "destChainSelectors"
+const destChainsGetter = "destChainSelectors"
 
 // DestChainConfigMap represents a map of destination chain selectors to their configurations.
 // This type aligns with the on-chain data structure for destination chain configs.
@@ -22,7 +22,7 @@ type DestChainConfigMap map[uint64]onramp.DestChainConfig
 
 // Fetch retrieves all destination chain configurations from the on-ramp contract.
 func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) error {
-	result, err := client.RunGetMethod(ctx, block, onRampAddr, DestChainsGetter)
+	result, err := client.RunGetMethod(ctx, block, onRampAddr, destChainsGetter)
 	if err != nil {
 		return err
 	}
