@@ -1028,8 +1028,8 @@ describe('FeeQuoter GetValidatedFee', () => {
 
   // Additional error path tests
   describe('Message Data Error Codes', () => {
-    it('should throw InvalidMsgData error for not divisable by eight snake data', async () => {
-      // Create a message with invalid data size (not divisable by eight)
+    it('should throw InvalidMsgData error for not divisible by eight snake data', async () => {
+      // Create a message with invalid data size (not divisible by eight)
       const invalidSnakeCell = beginCell().storeUint(3, 3).endCell()
 
       const message: rt.CCIPSend = {
