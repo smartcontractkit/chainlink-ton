@@ -182,11 +182,8 @@ func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64
 		// metadata may not exist for older deployments
 		log.Warn().Uint64("chainSelector", chainSelector).Err(err).Msg("failed to load chain metadata, contractsVersion will be empty")
 	} else {
-		// Try to extract TONChainMetadata
-		if tonMeta, ok := chainMeta.Metadata.(map[string]interface{}); ok {
-			if version, ok := tonMeta["contractsVersion"].(string); ok {
-				chainState.ContractsVersion = version
-			}
+		if tonMeta, ok := chainMeta.Metadata.(TONChainMetadata); ok {
+			chainState.ContractsVersion = tonMeta.ContractsVersion
 		}
 	}
 
