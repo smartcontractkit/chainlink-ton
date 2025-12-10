@@ -63,11 +63,11 @@ export const opcodes = {
     verifyNotCursed: 0x49fd38ce,
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
-    getValidatedFee: 0x4dd6aa82, // Untested
+    getValidatedFee: 0x4dd6aa82,
   },
   out: {
-    messageValidated: 0x9e2155ec, // Untested
-    messageValidationFailed: 0xec23c562, // Untested
+    messageValidated: 0x9e2155ec,
+    messageValidationFailed: 0xec23c562,
     ccipSendACK: 0x78d0f21e,
     ccipSendNACK: 0x5a45d434,
     rmnRemoteVerifyNotCursedResponse: 0x0d9368a9,
