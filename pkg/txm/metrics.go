@@ -38,7 +38,7 @@ var (
 	promTonTxmRevertTxs = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "ton_txm_tx_error_revert",
 		Help: "Number of finalized transactions that are included and failed onchain",
-	}, []string{"chainID"})
+	}, []string{"chainID", "exitCode"})
 )
 
 type tonTxmMetrics struct {
@@ -123,7 +123,8 @@ func (m *tonTxmMetrics) IncrementFailedToBroadcastTxs(ctx context.Context) {
 	m.failedToBroadcastTxs.Add(ctx, 1, metric.WithAttributes(m.GetOtelAttributes()...))
 }
 
-func (m *tonTxmMetrics) IncrementRevertTxs(ctx context.Context) {
-	promTonTxmRevertTxs.WithLabelValues(m.chainID).Add(1)
-	m.revertTxs.Add(ctx, 1, metric.WithAttributes(m.GetOtelAttributes()...))
+func (m *tonTxmMetrics) IncrementRevertTxs(ctx context.Context, exitCode string) {
+	promTonTxmRevertTxs.WithLabelValues(m.chainID, exitCode).Add(1)
+	attrs := append(m.GetOtelAttributes(), attribute.String("exitCode", exitCode))
+	m.revertTxs.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
