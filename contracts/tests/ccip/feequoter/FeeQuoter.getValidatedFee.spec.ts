@@ -1030,9 +1030,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   describe('Message Data Error Codes', () => {
     it('should throw InvalidMsgData error for not divisable by eight snake data', async () => {
       // Create a message with invalid data size (not divisable by eight)
-      const invalidSnakeCell = beginCell()
-        .storeUint(3, 3)
-        .endCell()
+      const invalidSnakeCell = beginCell().storeUint(3, 3).endCell()
 
       const message: rt.CCIPSend = {
         destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM,
@@ -1053,7 +1051,6 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('should throw InvalidMsgData error for snake data over 128 cells', async () => {
-
       // create a cell chain longer than 128 cells
       let invalidSnakeCell: Cell = beginCell().endCell()
       for (let i = 0; i <= 129; i++) {

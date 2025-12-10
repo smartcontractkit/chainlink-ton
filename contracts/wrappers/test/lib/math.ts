@@ -29,28 +29,28 @@ export class ContractClient implements Contract {
 
   async getSafeProd(p: ContractProvider, a: bigint, b: bigint) {
     return p.get('get_safeProd', [
-      {type:'int', value: a},
-      {type:'int', value: b}
+      { type: 'int', value: a },
+      { type: 'int', value: b },
     ])
   }
   async getSafeAdd(p: ContractProvider, a: bigint, b: bigint) {
     return p.get('get_safeAdd', [
-      {type:'int', value: a},
-      {type:'int', value: b}
+      { type: 'int', value: a },
+      { type: 'int', value: b },
     ])
   }
   async getMustAdd(p: ContractProvider, a: bigint, b: bigint, errCode: bigint) {
     return p.get('get_mustAdd', [
-      {type:'int', value: a},
-      {type:'int', value: b},
-      {type:'int', value: errCode}
+      { type: 'int', value: a },
+      { type: 'int', value: b },
+      { type: 'int', value: errCode },
     ])
   }
   async getMustProd(p: ContractProvider, a: bigint, b: bigint, errCode: bigint) {
     return p.get('get_mustProd', [
-      {type:'int', value: a},
-      {type:'int', value: b},
-      {type:'int', value: errCode}
+      { type: 'int', value: a },
+      { type: 'int', value: b },
+      { type: 'int', value: errCode },
     ])
   }
 }

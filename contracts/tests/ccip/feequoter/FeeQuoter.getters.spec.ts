@@ -89,7 +89,7 @@ describe('FeeQuoter Getters', () => {
       const tokens = [
         FeeQuoterSetup.SOURCE_FEE_TOKEN.token,
         FeeQuoterSetup.CUSTOM_TOKEN.token,
-        FeeQuoterSetup.CUSTOM_TOKEN_2.token
+        FeeQuoterSetup.CUSTOM_TOKEN_2.token,
       ]
 
       const prices = await setup.bind.feeQuoter.getTokenPrices(tokens)

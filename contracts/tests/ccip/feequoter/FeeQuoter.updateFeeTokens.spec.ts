@@ -46,9 +46,7 @@ describe('FeeQuoter UpdateFeeTokens', () => {
     const tokenToRemove = FeeQuoterSetup.SOURCE_FEE_TOKEN.token
 
     // First verify token exists
-    const multiplierBefore = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-      tokenToRemove,
-    )
+    const multiplierBefore = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(tokenToRemove)
     expect(multiplierBefore).toBeGreaterThan(0n)
 
     // Remove the token

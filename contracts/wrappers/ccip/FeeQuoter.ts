@@ -901,7 +901,7 @@ export class FeeQuoter
       if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
         throw Error('Not a cell: ' + t.type)
       }
-       return t.cell.beginParse().loadAddress()
+      return t.cell.beginParse().loadAddress()
     })
     return addresses
   }
@@ -913,7 +913,7 @@ export class FeeQuoter
       if (t.type !== 'int') {
         throw Error('Not an int: ' + t.type)
       }
-       return t.value
+      return t.value
     })
     return selectors
   }
@@ -921,9 +921,12 @@ export class FeeQuoter
   async getTokenPrices(provider: ContractProvider, tokens: Address[]): Promise<TimestampedPrice[]> {
     const tupleItems: TupleItem[] = []
     for (const token of tokens) {
-      tupleItems.push({ type: 'slice', cell: beginCell().storeAddress(token).endCell() } as TupleItem)
+      tupleItems.push({
+        type: 'slice',
+        cell: beginCell().storeAddress(token).endCell(),
+      } as TupleItem)
     }
-    const tuple = {type: 'tuple', items: tupleItems} as Tuple
+    const tuple = { type: 'tuple', items: tupleItems } as Tuple
     const result = await provider.get('tokenPrices', [tuple])
     const resultTuple = result.stack.readTuple()
     const prices: TimestampedPrice[] = []
@@ -940,7 +943,11 @@ export class FeeQuoter
 
   async getStaticConfig(
     provider: ContractProvider,
-  ): Promise<{ maxFeeJuelsPerMsg: bigint; linkToken: Address; tokenPriceStalenessThreshold: bigint }> {
+  ): Promise<{
+    maxFeeJuelsPerMsg: bigint
+    linkToken: Address
+    tokenPriceStalenessThreshold: bigint
+  }> {
     const result = await provider.get('staticConfig', [])
     return {
       maxFeeJuelsPerMsg: result.stack.readBigNumber(),
