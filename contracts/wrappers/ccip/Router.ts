@@ -60,8 +60,8 @@ export const opcodes = {
     updateOffRamps: 0x234110a7, // Untested
     ccipReceiveConfirm: 0xaf0cccef, // Untested
     routeMessage: 0xfc69c50b, // Untested
-    curse: 0xe6bf1813,
-    uncurse: 0x060d9dd1,
+    rmnRemoteCurse: 0xe6bf1813,
+    rmnRemoteUncurse: 0x060d9dd1,
     verifyNotCursed: 0x49fd38ce,
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
@@ -72,6 +72,7 @@ export const opcodes = {
     messageValidationFailed: 0xec23c562, // Untested
     ccipSendACK: 0x78d0f21e,
     ccipSendNACK: 0x5a45d434,
+    rmnRemoteVerifyNotCursedResponse: 0x0d9368a9,
   },
 }
 
@@ -345,35 +346,39 @@ export class Router
     return await withdrawable.getReserve(provider)
   }
 
-  async sendCurse(
+  async sendRMNRemoteCurse(
     provider: ContractProvider,
     via: Sender,
-    opts: { value: string | bigint; queryID?: number; subjects: bigint[] },
+    opts: { value: string | bigint; body: RMNRemoteCurse },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.curse, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
-        .asCell(),
+      body: builder.message.in.rmnRemoteCurse.encode(opts.body).asCell(),
     })
   }
 
-  async sendUncurse(
+  async sendRMNRemoteUncurse(
     provider: ContractProvider,
     via: Sender,
-    opts: { value: string | bigint; queryID?: number; subjects: bigint[] },
+    opts: { value: string | bigint; body: RMNRemoteUncurse },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.uncurse, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
-        .asCell(),
+      body: builder.message.in.rmnRemoteUncurse.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendRMNRemoteVerifyNotCursed(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: RMNRemoteVerifyNotCursed },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.rmnRemoteVerifyNotCursed.encode(opts.body).asCell(),
     })
   }
 
@@ -540,6 +545,26 @@ export type MessageValidationFailed = {
   msg: CCIPSend
   error: bigint
   context: Slice
+}
+
+export type RMNRemoteCurse = {
+  queryID: bigint
+  subjects: bigint[]
+}
+
+export type RMNRemoteUncurse = {
+  queryID: bigint
+  subjects: bigint[]
+}
+
+export type RMNRemoteVerifyNotCursed = {
+  queryID: bigint
+  subject: bigint
+}
+
+export type RMNRemoteVerifyNotCursedResponse = {
+  queryID: bigint
+  result: boolean
 }
 
 const crossChainAddressCodec: CellCodec<Buffer> = {
@@ -819,6 +844,58 @@ export const builder = (() => {
         },
       }
 
+      const rmnRemoteCurse: CellCodec<RMNRemoteCurse> = {
+        encode: (data: RMNRemoteCurse): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.rmnRemoteCurse, 32)
+            .storeUint(data.queryID, 64)
+            .storeRef(
+              asSnakeData<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
+            )
+        },
+        load: (src: Slice): RMNRemoteCurse => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            subjects: fromSnakeData(src.loadRef(), (s) => s.loadUintBig(128)),
+          }
+        },
+      }
+
+      const rmnRemoteUncurse: CellCodec<RMNRemoteUncurse> = {
+        encode: (data: RMNRemoteUncurse): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.rmnRemoteUncurse, 32)
+            .storeUint(data.queryID, 64)
+            .storeRef(
+              asSnakeData<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
+            )
+        },
+        load: (src: Slice): RMNRemoteUncurse => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            subjects: fromSnakeData(src.loadRef(), (s) => s.loadUintBig(128)),
+          }
+        },
+      }
+
+      const rmnRemoteVerifyNotCursed: CellCodec<RMNRemoteVerifyNotCursed> = {
+        encode: (data: RMNRemoteVerifyNotCursed): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.verifyNotCursed, 32)
+            .storeUint(data.queryID, 64)
+            .storeUint(data.subject, 128)
+        },
+        load: (src: Slice): RMNRemoteVerifyNotCursed => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            subject: src.loadUintBig(128),
+          }
+        },
+      }
+
       return {
         ccipSend,
         getValidatedFee,
@@ -828,6 +905,9 @@ export const builder = (() => {
         applyRampUpdates,
         messageValidated,
         messageValidationFailed,
+        rmnRemoteCurse,
+        rmnRemoteUncurse,
+        rmnRemoteVerifyNotCursed,
       }
     })()
     const out = (() => {
@@ -898,11 +978,28 @@ export const builder = (() => {
         },
       }
 
+      const rmnRemoteVerifyNotCursedResponse: CellCodec<RMNRemoteVerifyNotCursedResponse> = {
+        encode: (data: RMNRemoteVerifyNotCursedResponse): Builder => {
+          return beginCell()
+            .storeUint(opcodes.out.rmnRemoteVerifyNotCursedResponse, 32)
+            .storeUint(data.queryID, 64)
+            .storeBit(data.result)
+        },
+        load: (src: Slice): RMNRemoteVerifyNotCursedResponse => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            result: src.loadBit(),
+          }
+        },
+      }
+
       return {
         messageValidated,
         messageValidationFailed,
         ccipSendACK,
         ccipSendNACK,
+        rmnRemoteVerifyNotCursedResponse,
       }
     })()
 

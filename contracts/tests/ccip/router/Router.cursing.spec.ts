@@ -62,10 +62,9 @@ describe('Router', () => {
 
     // Curse the lane
     {
-      const result = await router.sendCurse(deployer.getSender(), {
+      const result = await router.sendRMNRemoteCurse(deployer.getSender(), {
         value: toNano('1'),
-        queryID: 0,
-        subjects: [CHAINSEL_EVM_TEST_90000001],
+        body: { queryID: 0n, subjects: [CHAINSEL_EVM_TEST_90000001] },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -99,10 +98,9 @@ describe('Router', () => {
 
     // Uncurse the lane
     {
-      const result = await router.sendUncurse(deployer.getSender(), {
+      const result = await router.sendRMNRemoteUncurse(deployer.getSender(), {
         value: toNano('1'),
-        queryID: 0,
-        subjects: [CHAINSEL_EVM_TEST_90000001],
+        body: { queryID: 0n, subjects: [CHAINSEL_EVM_TEST_90000001] },
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
