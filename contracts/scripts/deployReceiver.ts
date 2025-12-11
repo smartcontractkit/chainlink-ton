@@ -1,5 +1,3 @@
-
-// scripts/deployReceiver.ts
 import { Address, toNano } from '@ton/core';
 import { compile, NetworkProvider } from '@ton/blueprint';
 import { Receiver, ReceiverBehavior } from '../wrappers/ccip/Receiver';
