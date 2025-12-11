@@ -941,9 +941,7 @@ export class FeeQuoter
     return prices
   }
 
-  async getStaticConfig(
-    provider: ContractProvider,
-  ): Promise<{
+  async getStaticConfig(provider: ContractProvider): Promise<{
     maxFeeJuelsPerMsg: bigint
     linkToken: Address
     tokenPriceStalenessThreshold: bigint
