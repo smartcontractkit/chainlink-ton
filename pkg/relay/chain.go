@@ -126,9 +126,9 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 	}
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		signedClient, err := signedClientProvider.Get(ctx)
-		if err != nil {
-			return nil, err
+		signedClient, cerr := signedClientProvider.Get(ctx)
+		if cerr != nil {
+			return nil, cerr
 		}
 		return signedClient.Client, nil
 	}
@@ -142,7 +142,10 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		LogStore:    lppgstore.NewLogStore(ch.ID(), orm, lggr),
 	}
 
-	ch.lp = logpoller.NewService(lggr, ch.ID(), clientProvider, lgOpts)
+	ch.lp, err = logpoller.NewService(lggr, ch.ID(), clientProvider, lgOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create logpoller service: %w", err)
+	}
 
 	// TODO: Setup accounts balance monitor
 
