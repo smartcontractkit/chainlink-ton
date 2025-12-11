@@ -833,11 +833,11 @@ fun MCMS<T>.setRoot(
     }
 
     // Check if right environment via chainId
-    if (globalId() as int256 != metadata.chainId) {
+    if (metadata.chainId != globalId() as int256) {
         throw MCMS_Error.WrongChainId;
     }
 
-    if (contract.getAddress() != metadata.multiSig) {
+    if (metadata.multiSig != contract.getAddress()) {
         throw MCMS_Error.WrongMultiSig;
     }
 
@@ -1605,4 +1605,8 @@ get fun owner(): address {
 /// @see <Ownable2Step.get_pendingOwner>
 get fun pendingOwner(): address? {
     return MCMS<bool>.load().data.ownable.get_pendingOwner();
+}
+
+get fun getGlobalId(): int {
+    return globalId();
 }
