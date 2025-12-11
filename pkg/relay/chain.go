@@ -130,7 +130,8 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 	}
 
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		signedClient, err := signedClientProvider.Get(ctx)
+		var signedClient tracetracking.SignedAPIClient
+		signedClient, err = signedClientProvider.Get(ctx)
 		if err != nil {
 			return nil, err
 		}

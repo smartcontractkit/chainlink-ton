@@ -39,7 +39,7 @@ func TestBalanceMonitor_DirectClient(t *testing.T) {
 	lggr.Infow("Wallet balance fetched successfully", "address", walletAddr, "balance", bal, "unit", "TON")
 
 	// Verify the balance is exactly 1000 TON (test_utils.StartChain initializes with 1000 TON)
-	require.Equal(t, bal, float64(1000))
+	require.InDelta(t, 1000.0, bal, 0.1)
 }
 
 func TestBalanceMonitor_BalanceChanges(t *testing.T) {
@@ -66,7 +66,7 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	// Confirm recipient starts with 0 TON
 	recipientInitialBalance, err := balanceClient.GetAccountBalance(recipientAddr.String())
 	require.NoError(t, err)
-	require.Equal(t, 0.0, recipientInitialBalance)
+	require.InDelta(t, 0.0, recipientInitialBalance, 0.01)
 	lggr.Infow("Recipient initial balance", "address", recipientAddr.String(), "balance", recipientInitialBalance, "unit", "TON")
 
 	// Send multiple transactions from sender to recipient
@@ -76,7 +76,8 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	totalTransferred := float64(numTxs) * 5.0
 	for i := 0; i < numTxs; i++ {
 		lggr.Infow("Sending transaction", "index", i+1, "from", senderAddr.String(), "to", recipientAddr.String(), "amount", "5 TON")
-		transfer, err := tonChain.Wallet.BuildTransfer(recipientAddr, transferAmount, false, "test transfer")
+		var transfer *ton.Message
+		transfer, err = tonChain.Wallet.BuildTransfer(recipientAddr, transferAmount, false, "test transfer")
 		require.NoError(t, err)
 		_, _, err = signedClient.SendWaitTransaction(t.Context(), *recipientAddr, transfer)
 		require.NoError(t, err)
