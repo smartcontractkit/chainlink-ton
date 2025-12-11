@@ -10,12 +10,12 @@ describe('math', () => {
   let blockchain: Blockchain
 
   var code: {
-    verifier: Cell
+    math: Cell
   }
 
   beforeAll(async () => {
     code = {
-      verifier: await compile('tests.lib.math'),
+      math: await compile('tests.lib.math'),
     }
   }, 10_000)
 
@@ -42,7 +42,7 @@ describe('math', () => {
 
     // Set up verifier contract
     {
-      bind.math = blockchain.openContract(math.ContractClient.newFrom(Cell.EMPTY, code.verifier))
+      bind.math = blockchain.openContract(math.ContractClient.newFrom(Cell.EMPTY, code.math))
     }
 
     // Deploy verifier contract
