@@ -262,6 +262,63 @@ describe('Router', () => {
     }
   })
 
+  it('removes router offramps in batch', async () => {
+    const offRampAddress = await generateRandomTonAddress()
+
+    {
+      const addResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampAdds: {
+            sourceChainSelectors: [
+              Setup.CHAINSEL_EVM_TEST_90000001,
+              Setup.CHAINSEL_EVM_TEST_90000002,
+            ],
+            offRamp: offRampAddress,
+          },
+        },
+      })
+
+      expect(addResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      const removeResult = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: BigInt(0),
+          offRampRemoves: {
+            sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+            offRamp: offRampAddress,
+          },
+        },
+      })
+
+      expect(removeResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(removeResult.transactions, router.address, LogTypes.OffRampRemoved, {
+        sourceChainSelectors: [Setup.CHAINSEL_EVM_TEST_90000001],
+        offRampRemoved: offRampAddress,
+      })
+    }
+
+    {
+      const result = await router.getOffRamps()
+      expect(result).toEqual([
+        { chainSelector: Setup.CHAINSEL_EVM_TEST_90000002, address: offRampAddress },
+      ])
+    }
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(
