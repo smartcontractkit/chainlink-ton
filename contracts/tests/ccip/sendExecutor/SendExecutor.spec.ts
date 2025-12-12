@@ -156,6 +156,24 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
+  it('should throw execute from non-self', async () => {
+    const { sendExecutor, result } = await sendDeploy()
+
+    const execResult = await sendExecutor.sendExecute(sender.getSender(), toNano('0.3'), {
+      onrampSend,
+      config: {
+        feeQuoter: feeQuoterMock.address,
+      },
+    })
+
+    expect(execResult.transactions).toHaveTransaction({
+      from: sender.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.error.Unauthorized,
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'send_executor_unit_tests', [
