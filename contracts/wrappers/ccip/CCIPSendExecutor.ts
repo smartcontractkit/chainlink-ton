@@ -250,6 +250,18 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
     })
   }
 
+  async sendMessageValidationFailed(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint | string,
+    body: fq.MessageValidationFailed,
+  ) {
+    return provider.internal(via, {
+      value,
+      body: fq.builder.message.out.messageValidationFailed.encode(body).asCell(),
+    })
+  }
+
   async getFacilityId(provider: ContractProvider): Promise<bigint> {
     return provider.get('facilityId', []).then((res) => {
       return res.stack.readBigNumber()

@@ -304,6 +304,78 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
+  it('should exit with error on message validation failed from feeQuoter after execute', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendMessageValidationFailed(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        error: 42n,
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedWithError,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.builder.messages.in.executorFinishedWithError.load(
+          x.beginParse(),
+        )
+        return (
+          executorFinishedWithError.executorID === 0n && executorFinishedWithError.error === 42n
+        )
+      },
+    })
+  })
+
+  it('should throw on message validation failed from non-feeQuoter after execute', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendMessageValidationFailed(
+      deployer.getSender(),
+      toNano('0.3'),
+      {
+        error: 42n,
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.error.Unauthorized,
+    })
+  })
+
+  it('should throw on message validation failed from feeQuoter before execute', async () => {
+    const { sendExecutor } = await sendDeploy()
+
+    const result = await sendExecutor.sendMessageValidationFailed(
+      deployer.getSender(),
+      toNano('0.3'),
+      {
+        error: 42n,
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: 63, // Tries to load different message
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'send_executor_unit_tests', [
