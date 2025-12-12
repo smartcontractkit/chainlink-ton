@@ -14,12 +14,12 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 })
 
 type decoder struct {
-	tlbsCtx map[uint64]interface{}
+	tlbsCtx lib.TLBMap
 
 	contractType string
 }
 
-func NewDecoder(tlbsCtx map[uint64]interface{}, t string) lib.ContractDecoder {
+func NewDecoder(tlbsCtx lib.TLBMap, t string) lib.ContractDecoder {
 	return &decoder{tlbsCtx: tlbsCtx, contractType: t}
 }
 

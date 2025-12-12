@@ -20,17 +20,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-// Deprecated: use tvm.NewRandomTestWallet instad
+// Deprecated: use tvm.NewRandomTestWallet instead
 func CreateRandomWallet(client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) (*wallet.Wallet, error) {
 	return tvm.NewRandomTestWallet(client, version, option)
 }
 
-// Deprecated: use tvm.NewRandomHighloadV3TestWallet instad
+// Deprecated: use tvm.NewRandomHighloadV3TestWallet instead
 func CreateRandomHighloadWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	return tvm.NewRandomHighloadV3TestWallet(client)
 }
 
-// Deprecated: use tvm.MyLocalTONWalletDefault instad
+// Deprecated: use tvm.MyLocalTONWalletDefault instead
 func GetLocalnetFunderWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
 	return tvm.MyLocalTONWalletDefault(client)
 }
