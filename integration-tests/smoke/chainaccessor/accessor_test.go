@@ -351,12 +351,13 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
 
-		lp := logpoller.NewService(
+		lp, err := logpoller.NewService(
 			lggr,
 			"test-chain",
 			clientProvider,
 			opts,
 		)
+		require.NoError(t, err)
 
 		// Run test with in-memory store (filterID = 1 for in-memory)
 		testCommitReportsMixedHelper(t, lp, opts.LogStore, 1, merkleRootOnlyCell, priceOnlyCell, bothCell)
@@ -370,12 +371,13 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
 
-		lp := logpoller.NewService(
+		lp, err := logpoller.NewService(
 			lggr,
 			"test-chain",
 			clientProvider,
 			opts,
 		)
+		require.NoError(t, err)
 
 		// Run test with in-memory store (filterID = 1 for in-memory)
 		testCommitReportsBasicHelper(t, lp, opts.LogStore, 1, merkleRootOnlyCell)
@@ -399,12 +401,13 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			LogStore:    postgresstore.NewLogStore("test-chain", orm, lggr),
 		}
 
-		lp := logpoller.NewService(
+		lp, err := logpoller.NewService(
 			lggr,
 			"test-chain",
 			clientProvider,
 			opts,
 		)
+		require.NoError(t, err)
 
 		// Register filter first (required for foreign key constraint)
 		filter := lptypes.Filter{
@@ -438,12 +441,13 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			LogStore:    postgresstore.NewLogStore("test-chain", orm, lggr),
 		}
 
-		lp := logpoller.NewService(
+		lp, err := logpoller.NewService(
 			lggr,
 			"test-chain",
 			clientProvider,
 			opts,
 		)
+		require.NoError(t, err)
 
 		// Register filter first (required for foreign key constraint)
 		filter := lptypes.Filter{
@@ -704,12 +708,13 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 		LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 	}
 
-	lp := logpoller.NewService(
+	lp, err := logpoller.NewService(
 		lggr,
 		"test-chain",
 		clientProvider,
 		opts,
 	)
+	require.NoError(t, err)
 
 	// Run common test logic with in-memory store (filterID = 1 for in-memory)
 	testExecutedMessagesHelper(t, lp, opts.LogStore, 1)
@@ -744,12 +749,13 @@ func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
 		LogStore:    pgStore,
 	}
 
-	lp := logpoller.NewService(
+	lp, err := logpoller.NewService(
 		lggr,
 		"test-chain",
 		clientProvider,
 		opts,
 	)
+	require.NoError(t, err)
 
 	// Register filter first (required for foreign key constraint)
 	filter := lptypes.Filter{

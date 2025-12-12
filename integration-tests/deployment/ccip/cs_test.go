@@ -185,10 +185,11 @@ func TestDeployCCIP(t *testing.T) {
 		TxLoader:    txloader.New(lggr, clientProvider),
 		LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 	}
-	lp := logpoller.NewService(lggr, "test-chain",
+	lp, err := logpoller.NewService(lggr, "test-chain",
 		clientProvider,
 		opts,
 	)
+	require.NoError(t, err)
 	addrCodec := codec.NewAddressCodec()
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)

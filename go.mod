@@ -13,7 +13,8 @@ require (
 	github.com/prometheus/client_golang v1.23.0
 	github.com/smartcontractkit/chain-selectors v1.0.83
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251027185542-babb09e5363e
-	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251023193345-8f2c4380a62c
+	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251003171904-99a82a53b142
+	github.com/smartcontractkit/chainlink-framework/metrics v0.0.0-20251210101658-1c5c8e4c4f15
 	github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
@@ -100,7 +101,6 @@ require (
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.9-0.20251020164035-ab562b473fe2 // indirect
 	github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20251021010742-3f8d3dba17d8 // indirect
-	github.com/smartcontractkit/chainlink-protos/linking-service/go v0.0.0-20251002192024-d2ad9222409b // indirect
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -128,13 +128,13 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.6.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/mod v0.31.0 // indirect
-	golang.org/x/net v0.46.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/telemetry v0.0.0-20251208220230-2638a1023523 // indirect
-	golang.org/x/term v0.36.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
