@@ -114,12 +114,36 @@ describe('Router - Ownable Tests', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    await ownable2StepSpec(deployer, other, router, blockchain, [
-      {
-        code: 'Router',
-        name: 'router',
+    await ownable2StepSpec(deployer, other, router, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: 'Router',
+            name: 'router',
+          },
+        ],
       },
-    ])
+    })
+  })
+
+  it('supports RMN ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+    await ownable2StepSpec(deployer, other, router, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: 'Router',
+            name: 'router',
+          },
+        ],
+      },
+      prefix: {
+        opcode: rt.opcodes.in.rmnOwnableMessage,
+        getter: 'rmn',
+      },
+    })
   })
 
   it('should match facility ID', async () => {

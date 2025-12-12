@@ -51,38 +51,52 @@ export const builder = {
   message: {
     in: (() => {
       // Creates a new `TransferOwnership` message.
-      const transferOwnership: CellCodec<TransferOwnership> = {
-        encode: (msg: TransferOwnership): Builder => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.TransferOwnership, 32)
-            .storeUint(msg.queryId, 64)
-            .storeAddress(msg.newOwner)
-        },
-        load: (src: Slice): TransferOwnership => {
-          src.skip(32) // skip opcode
-          return {
-            queryId: src.loadUintBig(64),
-            newOwner: src.loadAddress(),
-          }
-        },
+      function transferOwnershipWithPrefix(prefix?: number): CellCodec<TransferOwnership> {
+        return {
+          encode: (msg: TransferOwnership): Builder => {
+            return beginCell() // break line
+              .storeUint(prefix ?? 0, prefix ? 32 : 0)
+              .storeUint(opcodes.in.TransferOwnership, 32)
+              .storeUint(msg.queryId, 64)
+              .storeAddress(msg.newOwner)
+          },
+          load: (src: Slice): TransferOwnership => {
+            if (prefix) {
+              src.skip(32) // skip prefix
+            }
+            src.skip(32) // skip opcode
+            return {
+              queryId: src.loadUintBig(64),
+              newOwner: src.loadAddress(),
+            }
+          },
+        }
       }
-      const acceptOwnership: CellCodec<AcceptOwnership> = {
-        encode: (msg: AcceptOwnership): Builder => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.AcceptOwnership, 32)
-            .storeUint(msg.queryId, 64)
-        },
-        load: (src: Slice): AcceptOwnership => {
-          src.skip(32) // skip opcode
-          return {
-            queryId: src.loadUintBig(64),
-          }
-        },
+      function acceptOwnershipWithPrefix(prefix?: number): CellCodec<AcceptOwnership> {
+        return {
+          encode: (msg: AcceptOwnership): Builder => {
+            return beginCell() // break line
+              .storeUint(prefix ?? 0, prefix ? 32 : 0)
+              .storeUint(opcodes.in.AcceptOwnership, 32)
+              .storeUint(msg.queryId, 64)
+          },
+          load: (src: Slice): AcceptOwnership => {
+            if (prefix) {
+              src.skip(32) // skip prefix
+            }
+            src.skip(32) // skip opcode
+            return {
+              queryId: src.loadUintBig(64),
+            }
+          },
+        }
       }
 
       return {
-        transferOwnership,
-        acceptOwnership,
+        transferOwnershipWithPrefix,
+        transferOwnership: transferOwnershipWithPrefix(),
+        acceptOwnershipWithPrefix,
+        acceptOwnership: acceptOwnershipWithPrefix(),
       }
     })(),
   },
@@ -136,12 +150,13 @@ export class ContractClient implements Contract, Interface {
     via: Sender,
     value: bigint = BigInt(0.01),
     body: TransferOwnership,
+    prefix?: number,
   ) {
     return this.sendInternal(
       p,
       via,
       value,
-      builder.message.in.transferOwnership.encode(body).asCell(),
+      builder.message.in.transferOwnershipWithPrefix(prefix).encode(body).asCell(),
     )
   }
 
@@ -150,22 +165,23 @@ export class ContractClient implements Contract, Interface {
     via: Sender,
     value: bigint = BigInt(0.01),
     body: AcceptOwnership,
+    prefix?: number,
   ) {
     return this.sendInternal(
       p,
       via,
       value,
-      builder.message.in.acceptOwnership.encode(body).asCell(),
+      builder.message.in.acceptOwnershipWithPrefix(prefix).encode(body).asCell(),
     )
   }
 
-  async getOwner(provider: ContractProvider): Promise<Address> {
-    const result = await provider.get('owner', [])
+  async getOwner(provider: ContractProvider, prefix?: string): Promise<Address> {
+    const result = await provider.get(`${prefix ? prefix + '_' : ''}owner`, [])
     return result.stack.readAddress()
   }
 
-  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
-    const result = await provider.get('pendingOwner', [])
+  async getPendingOwner(provider: ContractProvider, prefix?: string): Promise<Address | null> {
+    const result = await provider.get(`${prefix ? prefix + '_' : ''}pendingOwner`, [])
     return result.stack.readAddressOpt()
   }
 }

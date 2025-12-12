@@ -11,6 +11,7 @@ import {
   Slice,
   Builder,
   TupleItem,
+  TupleReader,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -623,6 +624,7 @@ export const opcodes = {
   in: {
     onrampSend: 0xdcf993c2,
     getValidatedFee: 0x9c2ccc7e,
+
     get messageValidated() {
       return fq.OutOpcodes.messageValidated
     },
@@ -687,6 +689,10 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
     })
+  }
+
+  async getAny(provider: ContractProvider, name: string, args: TupleItem[]): Promise<TupleReader> {
+    return (await provider.get(name, args)).stack
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

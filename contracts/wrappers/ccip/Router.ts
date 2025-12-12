@@ -5,12 +5,14 @@ import {
   Cell,
   Contract,
   contractAddress,
+  ContractGetMethodResult,
   ContractProvider,
   Dictionary,
   Sender,
   SendMode,
   Slice,
   TupleItem,
+  TupleReader,
 } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
@@ -65,6 +67,7 @@ export const opcodes = {
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
     getValidatedFee: 0x4dd6aa82,
+    rmnOwnableMessage: 0xaf7a9ac6,
   },
   out: {
     messageValidated: 0x9e2155ec,
@@ -168,6 +171,10 @@ export class Router
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
     })
+  }
+
+  async getAny(provider: ContractProvider, name: string, args: TupleItem[]): Promise<TupleReader> {
+    return (await provider.get(name, args)).stack
   }
 
   sendUpgrade(
@@ -421,6 +428,33 @@ export class Router
     body: ownable2step.AcceptOwnership,
   ) {
     return this.ownable.sendAcceptOwnership(p, via, value, body)
+  }
+
+  // RMN Ownership methods
+  async getRMNOwner(provider: ContractProvider): Promise<Address> {
+    return this.ownable.getOwner(provider, 'rmn')
+  }
+
+  async getRMNPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    return this.ownable.getPendingOwner(provider, 'rmn')
+  }
+
+  async sendRMNTransferOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.TransferOwnership,
+  ) {
+    return this.ownable.sendTransferOwnership(p, via, value, body, opcodes.in.rmnOwnableMessage)
+  }
+
+  async sendRMNAcceptOwnership(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: ownable2step.AcceptOwnership,
+  ) {
+    return this.ownable.sendAcceptOwnership(p, via, value, body, opcodes.in.rmnOwnableMessage)
   }
 }
 
@@ -938,6 +972,42 @@ export const builder = (() => {
         },
       }
 
+      const rmnTransferOwnership: CellCodec<ownable2step.TransferOwnership> = {
+        encode: function (data: ownable2step.TransferOwnership): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.rmnOwnableMessage, 32)
+            .storeBuilder(
+              ownable2step.builder.message.in
+                .transferOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+                .encode(data),
+            )
+        },
+        load: function (src: Slice): ownable2step.TransferOwnership {
+          src.skip(32) // opcode
+          return ownable2step.builder.message.in
+            .transferOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+            .load(src)
+        },
+      }
+
+      const rmnAcceptOwnership: CellCodec<ownable2step.AcceptOwnership> = {
+        encode: function (data: ownable2step.AcceptOwnership): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.rmnOwnableMessage, 32)
+            .storeBuilder(
+              ownable2step.builder.message.in
+                .acceptOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+                .encode(data),
+            )
+        },
+        load: function (src: Slice): ownable2step.AcceptOwnership {
+          src.skip(32) // opcode
+          return ownable2step.builder.message.in
+            .acceptOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+            .load(src)
+        },
+      }
+
       return {
         ccipSend,
         getValidatedFee,
@@ -951,6 +1021,8 @@ export const builder = (() => {
         rmnRemoteCurse,
         rmnRemoteUncurse,
         rmnRemoteVerifyNotCursed,
+        rmnTransferOwnership,
+        rmnAcceptOwnership,
       }
     })()
     const out = (() => {

@@ -13,6 +13,7 @@ import {
   Builder,
   Slice,
   TupleItem,
+  TupleReader,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -607,6 +608,10 @@ export class FeeQuoter
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
     })
+  }
+
+  async getAny(provider: ContractProvider, name: string, args: TupleItem[]): Promise<TupleReader> {
+    return (await provider.get(name, args)).stack
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

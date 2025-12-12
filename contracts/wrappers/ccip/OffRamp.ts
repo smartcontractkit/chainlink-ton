@@ -11,6 +11,8 @@ import {
   Builder,
   ContractABI,
   Contract,
+  TupleItem,
+  TupleReader,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'
@@ -641,6 +643,10 @@ export class OffRamp
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
     })
+  }
+
+  async getAny(provider: ContractProvider, name: string, args: TupleItem[]): Promise<TupleReader> {
+    return (await provider.get(name, args)).stack
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
