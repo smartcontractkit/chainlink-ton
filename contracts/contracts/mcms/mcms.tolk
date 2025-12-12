@@ -1606,7 +1606,3 @@ get fun owner(): address {
 get fun pendingOwner(): address? {
     return MCMS<bool>.load().data.ownable.get_pendingOwner();
 }
-
-get fun getGlobalId(): int {
-    return globalId();
-}
