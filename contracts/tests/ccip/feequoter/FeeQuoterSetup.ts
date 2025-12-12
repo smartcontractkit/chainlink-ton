@@ -11,9 +11,8 @@ import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
-import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
-import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import {
   CHAIN_FAMILY_SELECTOR_EVM,
   CHAIN_FAMILY_SELECTOR_SVM,
@@ -568,11 +567,9 @@ export class FeeQuoterSetup {
 
     const body = resp.body.beginParse()
     const errorCode = body.preloadUint(32)
-    if (errorCode !== sendExecutor.Opcodes.messageValidated) {
-      if (errorCode === sendExecutor.Opcodes.messageValidationFailed) {
-        const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
-          resp.body.beginParse(),
-        )
+    if (errorCode !== sx.opcodes.in.messageValidated) {
+      if (errorCode === sx.opcodes.in.messageValidationFailed) {
+        const failure = sx.builder.message.in.messageValidationFailed.load(resp.body.beginParse())
         throw new Error(
           `Message validation failed with error ${printErrorName(Number(failure.error))}`,
         )
@@ -605,7 +602,7 @@ export class FeeQuoterSetup {
     try {
       expect(result.transactions).toHaveTransaction({
         from: this.bind.feeQuoter.address,
-        op: sendExec.Opcodes.messageValidationFailed,
+        op: sx.opcodes.in.messageValidationFailed,
         success: true,
       })
     } catch (error) {
@@ -613,7 +610,7 @@ export class FeeQuoterSetup {
       try {
         expect(result.transactions).toHaveTransaction({
           from: this.bind.feeQuoter.address,
-          op: sendExec.Opcodes.messageValidated,
+          op: sx.opcodes.in.messageValidated,
           success: true,
         })
         success = true
@@ -625,12 +622,12 @@ export class FeeQuoterSetup {
     try {
       expect(result.transactions).toHaveTransaction({
         from: this.bind.feeQuoter.address,
-        op: sendExec.Opcodes.messageValidationFailed,
+        op: sx.opcodes.in.messageValidationFailed,
         success: true,
         body(x) {
           return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
             x,
-            sendExec.builder.message.in.messageValidationFailed,
+            sx.builder.message.in.messageValidationFailed,
             [
               (msg) => {
                 if (msg.error === BigInt(expectedError)) {

@@ -28,7 +28,7 @@ export function opMapFunc(): OpMapFunc {
   Object.entries(rt.opcodes.out).forEach(([name, code]) => {
     opcodeMap.set(code, `Router::Out::${name}`)
   })
-  Object.entries(sx.Opcodes).forEach(([name, code]) => {
+  Object.entries(sx.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `SendExecutor::In::${name}`)
   })
   Object.entries(deployable.Opcodes).forEach(([name, code]) => {
