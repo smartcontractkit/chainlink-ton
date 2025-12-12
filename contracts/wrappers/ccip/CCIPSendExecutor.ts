@@ -226,7 +226,17 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
     })
   }
 
-  // TODO : implement contract methods
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)

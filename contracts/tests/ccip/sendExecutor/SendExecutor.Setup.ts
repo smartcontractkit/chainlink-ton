@@ -1,20 +1,19 @@
 import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
 
-import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 
-export async function setupTestCCIPSendExecutor(
+export async function setup(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
-): Promise<SandboxContract<TypeAndVersionSpec.TypeAndVersionContract>> {
+): Promise<SandboxContract<sx.ContractClient>> {
   let code = await compile('CCIPSendExecutor')
 
   let data: sx.InitialData = {
     onramp: ZERO_ADDRESS,
-    id: 0n,
+    id: generateRandomContractId(),
   }
   let ccipSendExecutor = blockchain.openContract(sx.ContractClient.createFromConfig(data, code))
 
