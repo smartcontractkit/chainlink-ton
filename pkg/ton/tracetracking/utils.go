@@ -14,7 +14,7 @@ import (
 func WaitForTrace(ctx context.Context, c ton.APIClientWrapped, tx *tlb.Transaction) error {
 	r, err := MapToReceivedMessage(tx)
 	if err != nil {
-		return fmt.Errorf("failed to get outgoing messages: %w", err)
+		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
 	err = r.WaitForTrace(ctx, c)
 	if err != nil {

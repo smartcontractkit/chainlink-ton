@@ -41,7 +41,7 @@ func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr addre
 
 	receivedMessage, err := MapToReceivedMessage(tx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
+		return nil, nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
 	return &receivedMessage, block, nil
 }
