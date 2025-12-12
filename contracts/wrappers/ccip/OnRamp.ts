@@ -742,6 +742,20 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return typeAndVersion.getCodeHash(provider)
   }
 
+  async getDestChainConfig(provider: ContractProvider, destChainSelector: bigint): Promise<DestChainConfig> {
+    return provider.get('destChainConfig', [{ type: 'int', value: destChainSelector }]).then((res) => {
+      const stack = res.stack;
+      return {
+        router: stack.readAddress(),
+        sequenceNumber: stack.readBigNumber(),
+        allowlistEnabled: stack.readBoolean(),
+        allowedSenders: stack.readCellOpt() ?
+          Dictionary.loadDirect(Dictionary.Keys.Address(), Dictionary.Values.Bool(), stack.readCell()) :
+          Dictionary.empty(),
+      };
+    });
+  }
+
   static version() {
     return ONRAMP_CONTRACT_VERSION
   }
