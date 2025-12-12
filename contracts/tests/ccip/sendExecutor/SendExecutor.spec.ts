@@ -18,6 +18,7 @@ import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as dep from '../../../wrappers/libraries/Deployable'
+import * as bouncer from '../../../wrappers/test/mock/Bouncer'
 
 describe('SendExecutor - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -35,7 +36,7 @@ describe('SendExecutor - TypeAndVersion Tests', () => {
   })
   currentVersionSpec.run([
     {
-      code: 'SendExecutor',
+      code: 'CCIPSendExecutor',
       name: 'send_executor',
     },
   ])
@@ -123,7 +124,7 @@ describe('SendExecutor - Unit tests', () => {
     expect(errorCode).toBe(BigInt(sx.CCIP_SEND_EXECUTOR_ERROR_CODE))
   })
 
-  async function afterExecute(): Promise<{
+  async function afterExecute(feeQuoterBouncer?: SandboxContract<bouncer.ContractClient>): Promise<{
     sendExecutor: SandboxContract<sx.ContractClient>
     result: SendMessageResult & {
       result: void
@@ -135,7 +136,7 @@ describe('SendExecutor - Unit tests', () => {
         .encode({
           onrampSend,
           config: {
-            feeQuoter: feeQuoterMock.address,
+            feeQuoter: feeQuoterBouncer ? feeQuoterBouncer.address : feeQuoterMock.address,
           },
         })
         .asCell(),
@@ -329,6 +330,48 @@ describe('SendExecutor - Unit tests', () => {
         )
         return (
           executorFinishedWithError.executorID === 0n && executorFinishedWithError.error === 42n
+        )
+      },
+    })
+  })
+
+  it('should handle bounced getValidatedFee', async () => {
+    const feeQuoterBouncer = await blockchain.openContract(
+      bouncer.ContractClient.createFromConfig(await compile('tests.mock.Bouncer')),
+    )
+    {
+      const result = await feeQuoterBouncer.sendDeploy(deployer.getSender(), toNano('0.05'))
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: feeQuoterBouncer.address,
+        deploy: true,
+        success: false,
+      })
+    }
+
+    const { sendExecutor, result } = await afterExecute(feeQuoterBouncer)
+
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoterBouncer.address,
+      to: sendExecutor.address,
+      success: true,
+      op: 0xffffffff,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedWithError,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.builder.messages.in.executorFinishedWithError.load(
+          x.beginParse(),
+        )
+        return (
+          executorFinishedWithError.executorID === 0n &&
+          executorFinishedWithError.error === BigInt(sx.error.FeeQuoterBounce)
         )
       },
     })

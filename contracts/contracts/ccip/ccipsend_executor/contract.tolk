@@ -46,7 +46,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
+            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce as int);
         }
     }
 }

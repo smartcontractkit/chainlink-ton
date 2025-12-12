@@ -28,7 +28,7 @@ export enum error {
   Unauthorized,
   InsufficientFunds,
   InsufficientFee,
-  TokenTransfersNotSupported,
+  FeeQuoterBounce,
 }
 
 export type InitialData = {
