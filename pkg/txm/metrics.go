@@ -3,6 +3,7 @@ package txm
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -39,6 +40,20 @@ var (
 		Name: "ton_txm_tx_error_revert",
 		Help: "Number of finalized transactions that are included and failed onchain",
 	}, []string{"chainID", "exitCode"})
+
+	// Latency metrics
+	promTonTxmBroadcastLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "ton_txm_broadcast_latency_seconds",
+		Help: "Time taken from enqueuing to broadcasting a transaction",
+	}, []string{"chainID"})
+	promTonTxmConfirmationLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "ton_txm_confirmation_latency_seconds",
+		Help: "Time from broadcast to confirmation on-chain",
+	}, []string{"chainID"})
+	promTonTxmFinalizationLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "ton_txm_finalization_latency_seconds",
+		Help: "Time from confirmation to finalization",
+	}, []string{"chainID"})
 )
 
 type txmMetrics struct {
@@ -55,6 +70,11 @@ type txmMetrics struct {
 	// error cases
 	failedToBroadcastTxs metric.Int64Counter
 	revertTxs            metric.Int64Counter
+
+	// latency metrics
+	broadcastLatency     metric.Float64Gauge
+	confirmationLatency  metric.Float64Gauge
+	finalizationLatency  metric.Float64Gauge
 }
 
 func newMetrics(chainID string) (*txmMetrics, error) {
@@ -86,6 +106,21 @@ func newMetrics(chainID string) (*txmMetrics, error) {
 		return nil, fmt.Errorf("failed to register ton revert txs: %w", err)
 	}
 
+	broadcastLatency, err := m.Float64Gauge("ton_txm_broadcast_latency_seconds")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register ton broadcast latency: %w", err)
+	}
+
+	confirmationLatency, err := m.Float64Gauge("ton_txm_confirmation_latency_seconds")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register ton confirmation latency: %w", err)
+	}
+
+	finalizationLatency, err := m.Float64Gauge("ton_txm_finalization_latency_seconds")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register ton finalization latency: %w", err)
+	}
+
 	return &txmMetrics{
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
@@ -96,6 +131,10 @@ func newMetrics(chainID string) (*txmMetrics, error) {
 
 		failedToBroadcastTxs: failedToBroadcastTxs,
 		revertTxs:            revertTxs,
+
+		broadcastLatency:     broadcastLatency,
+		confirmationLatency:  confirmationLatency,
+		finalizationLatency:  finalizationLatency,
 	}, nil
 }
 
@@ -127,4 +166,22 @@ func (m *txmMetrics) IncrementRevertTxs(ctx context.Context, exitCode string) {
 	promTonTxmRevertTxs.WithLabelValues(m.chainID, exitCode).Add(1)
 	attrs := append(m.getOtelAttributes(), attribute.String("exitCode", exitCode))
 	m.revertTxs.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+func (m *txmMetrics) RecordBroadcastLatency(ctx context.Context, duration time.Duration) {
+	seconds := duration.Seconds()
+	promTonTxmBroadcastLatency.WithLabelValues(m.chainID).Set(seconds)
+	m.broadcastLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+func (m *txmMetrics) RecordConfirmationLatency(ctx context.Context, duration time.Duration) {
+	seconds := duration.Seconds()
+	promTonTxmConfirmationLatency.WithLabelValues(m.chainID).Set(seconds)
+	m.confirmationLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+func (m *txmMetrics) RecordFinalizationLatency(ctx context.Context, duration time.Duration) {
+	seconds := duration.Seconds()
+	promTonTxmFinalizationLatency.WithLabelValues(m.chainID).Set(seconds)
+	m.finalizationLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
 }
