@@ -202,6 +202,108 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
+  it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incomming value', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        fee: { feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedSuccessfully,
+      body(x) {
+        if (!x) return false
+        const executorFinishedSuccessfully =
+          or.builder.messages.in.executorFinishedSuccessfully.load(x.beginParse())
+        return (
+          executorFinishedSuccessfully.executorID === 0n &&
+          executorFinishedSuccessfully.fee.feeTokenAmount === toNano('0.1') &&
+          executorFinishedSuccessfully.fee.feeValueJuels === toNano('0.1')
+        )
+      },
+    })
+  })
+
+  it('should exit with error on message validated from feeQuoter after execute if fee is higher than incomming value', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        fee: {
+          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeValueJuels: toNano('0.1'),
+        },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedWithError,
+      body(x) {
+        if (!x) return false
+        const executorFinishedWithError = or.builder.messages.in.executorFinishedWithError.load(
+          x.beginParse(),
+        )
+        return executorFinishedWithError.error === BigInt(sx.error.InsufficientFunds)
+      },
+    })
+  })
+
+  it('should throw on message validated from non-feeQuoter after execute', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const result = await sendExecutor.sendMessageValidated(deployer.getSender(), toNano('0.3'), {
+      fee: {
+        feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+        feeValueJuels: toNano('0.1'),
+      },
+      msg: onrampSend.msg,
+      context: beginCell().asSlice(),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: sx.error.Unauthorized,
+    })
+  })
+
+  it('should throw on message validated from feeQuoter before execute', async () => {
+    const { sendExecutor } = await sendDeploy()
+
+    const result = await sendExecutor.sendMessageValidated(deployer.getSender(), toNano('0.3'), {
+      fee: {
+        feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+        feeValueJuels: toNano('0.1'),
+      },
+      msg: onrampSend.msg,
+      context: beginCell().asSlice(),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: 63, // Tries to load different message
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'send_executor_unit_tests', [
