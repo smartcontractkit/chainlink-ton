@@ -123,7 +123,12 @@ describe('SendExecutor - Unit tests', () => {
     expect(errorCode).toBe(BigInt(sx.CCIP_SEND_EXECUTOR_ERROR_CODE))
   })
 
-  it('should handle execute from self', async () => {
+  async function afterExecute(): Promise<{
+    sendExecutor: SandboxContract<sx.ContractClient>
+    result: SendMessageResult & {
+      result: void
+    }
+  }> {
     const { sendExecutor, result } = await sendDeploy({
       value: toNano('0.3'),
       body: sx.builder.message.in.execute
@@ -147,6 +152,11 @@ describe('SendExecutor - Unit tests', () => {
         return msg.onrampSend.metadata.sender.equals(sender.address)
       },
     })
+    return { sendExecutor, result }
+  }
+
+  it('should handle execute from self', async () => {
+    const { sendExecutor, result } = await afterExecute()
 
     expect(result.transactions).toHaveTransaction({
       from: sendExecutor.address,
@@ -171,6 +181,24 @@ describe('SendExecutor - Unit tests', () => {
       to: sendExecutor.address,
       success: false,
       exitCode: sx.error.Unauthorized,
+    })
+  })
+
+  it('should throw on execute after execute', async () => {
+    const { sendExecutor } = await afterExecute()
+
+    const execResult = await sendExecutor.sendExecute(deployer.getSender(), toNano('0.3'), {
+      onrampSend,
+      config: {
+        feeQuoter: feeQuoterMock.address,
+      },
+    })
+
+    expect(execResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: sendExecutor.address,
+      success: false,
+      exitCode: 9, // Tries to load different state
     })
   })
 
