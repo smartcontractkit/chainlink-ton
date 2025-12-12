@@ -1,15 +1,11 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
-import { Address, beginCell, toNano } from '@ton/core'
+import { beginCell, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
 import { facilityId } from '../../../wrappers/utils'
-import {
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  TEST_LINK_TOKEN_ADDR,
-} from '../router/Router.Setup'
+import { CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
 import { ZERO_ADDRESS } from '../../../src/utils'
 
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
