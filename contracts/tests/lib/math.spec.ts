@@ -1,9 +1,8 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, Cell, toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { SigningKey, randomBytes, computeAddress } from 'ethers'
 import { math } from '../../wrappers/test/lib'
 
 describe('math', () => {
