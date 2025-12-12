@@ -123,6 +123,39 @@ describe('SendExecutor - Unit tests', () => {
     expect(errorCode).toBe(BigInt(sx.CCIP_SEND_EXECUTOR_ERROR_CODE))
   })
 
+  it('should handle execute from self', async () => {
+    const { sendExecutor, result } = await sendDeploy({
+      value: toNano('0.3'),
+      body: sx.builder.message.in.execute
+        .encode({
+          onrampSend,
+          config: {
+            feeQuoter: feeQuoterMock.address,
+          },
+        })
+        .asCell(),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: sendExecutor.address,
+      success: true,
+      op: sx.opcodes.in.execute,
+      body(x) {
+        if (!x) return false
+        const msg = sx.builder.message.in.execute.load(x.beginParse())
+        return msg.onrampSend.metadata.sender.equals(sender.address)
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: feeQuoterMock.address,
+      success: true,
+      op: fq.Opcodes.getValidatedFee,
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(blockchain, 'send_executor_unit_tests', [
