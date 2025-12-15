@@ -13,32 +13,34 @@ func _() {
 	_ = x[ExtraArgOutOfOrderExecutionMustBeTrue-24802]
 	_ = x[ErrorInvalidExtraArgsData-24803]
 	_ = x[ErrorUnsupportedNumberOfTokens-24804]
-	_ = x[ErrorInvalidSuiReceiverAddress-24805]
-	_ = x[ErrorInvalidSVMReceiverAddress-24806]
-	_ = x[ErrorInvalidTokenReceiver-24807]
-	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-24808]
-	_ = x[ErrorMsgDataTooLarge-24809]
-	_ = x[ErrorStaleGasPrice-24810]
-	_ = x[ErrorDestChainNotEnabled-24811]
-	_ = x[ErrorFeeTokenNotSupported-24812]
-	_ = x[ErrorInvalidMsgData-24813]
-	_ = x[ErrorTokenNotSupported-24814]
-	_ = x[ErrorUnknownDestChainSelector-24815]
-	_ = x[ErrorInsufficientFee-24816]
-	_ = x[ErrorTokenTransfersNotSupported-24817]
-	_ = x[ErrorUnauthorizedPriceUpdater-24818]
-	_ = x[ErrorExecutionCostOverflow-24819]
-	_ = x[ErrorPremiumFeeOverflow-24820]
-	_ = x[ErrorDataAvailabilityCostOverflow-24821]
-	_ = x[ErrorFeeCalculationOverflow-24822]
-	_ = x[ErrorTokenPriceTooLow-24823]
-	_ = x[ErrorFeeOverflow-24824]
-	_ = x[ErrorMessageFeeTooHigh-24825]
+	_ = x[ErrorInvalidEVMReceiverAddress-24805]
+	_ = x[ErrorInvalid32ByteReceiverAddress-24806]
+	_ = x[ErrorInvalidSuiReceiverAddress-24807]
+	_ = x[ErrorInvalidSVMReceiverAddress-24808]
+	_ = x[ErrorInvalidTokenReceiver-24809]
+	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-24810]
+	_ = x[ErrorMsgDataTooLarge-24811]
+	_ = x[ErrorStaleGasPrice-24812]
+	_ = x[ErrorDestChainNotEnabled-24813]
+	_ = x[ErrorFeeTokenNotSupported-24814]
+	_ = x[ErrorInvalidMsgData-24815]
+	_ = x[ErrorTokenNotSupported-24816]
+	_ = x[ErrorUnknownDestChainSelector-24817]
+	_ = x[ErrorInsufficientFee-24818]
+	_ = x[ErrorTokenTransfersNotSupported-24819]
+	_ = x[ErrorUnauthorizedPriceUpdater-24820]
+	_ = x[ErrorExecutionCostOverflow-24821]
+	_ = x[ErrorPremiumFeeOverflow-24822]
+	_ = x[ErrorDataAvailabilityCostOverflow-24823]
+	_ = x[ErrorFeeCalculationOverflow-24824]
+	_ = x[ErrorTokenPriceTooLow-24825]
+	_ = x[ErrorFeeOverflow-24826]
+	_ = x[ErrorMessageFeeTooHigh-24827]
 }
 
-const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHigh"
+const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidEVMReceiverAddressErrorInvalid32ByteReceiverAddressErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHigh"
 
-var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 207, 232, 273, 293, 311, 335, 360, 379, 401, 430, 450, 481, 510, 536, 559, 592, 619, 640, 656, 678}
+var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 210, 240, 270, 295, 336, 356, 374, 398, 423, 442, 464, 493, 513, 544, 573, 599, 622, 655, 682, 703, 719, 741}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 24800
