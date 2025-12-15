@@ -92,11 +92,17 @@ export class Router
     Contract
 {
   private ownable: ownable2step.ContractClient
+  readonly RMNOwnable: ownable2step.ContractClient
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
     this.ownable = new ownable2step.ContractClient(address)
+    this.RMNOwnable = new ownable2step.ContractClient(address, {
+      opcode: opcodes.in.rmnOwnableMessage,
+      getter: 'rmn',
+    })
   }
 
   static createFromAddress(address: Address) {
@@ -171,10 +177,6 @@ export class Router
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
     })
-  }
-
-  async getAny(provider: ContractProvider, name: string, args: TupleItem[]): Promise<TupleReader> {
-    return (await provider.get(name, args)).stack
   }
 
   sendUpgrade(
@@ -428,33 +430,6 @@ export class Router
     body: ownable2step.AcceptOwnership,
   ) {
     return this.ownable.sendAcceptOwnership(p, via, value, body)
-  }
-
-  // RMN Ownership methods
-  async getRMNOwner(provider: ContractProvider): Promise<Address> {
-    return this.ownable.getOwner(provider, 'rmn')
-  }
-
-  async getRMNPendingOwner(provider: ContractProvider): Promise<Address | null> {
-    return this.ownable.getPendingOwner(provider, 'rmn')
-  }
-
-  async sendRMNTransferOwnership(
-    p: ContractProvider,
-    via: Sender,
-    value: bigint,
-    body: ownable2step.TransferOwnership,
-  ) {
-    return this.ownable.sendTransferOwnership(p, via, value, body, opcodes.in.rmnOwnableMessage)
-  }
-
-  async sendRMNAcceptOwnership(
-    p: ContractProvider,
-    via: Sender,
-    value: bigint,
-    body: ownable2step.AcceptOwnership,
-  ) {
-    return this.ownable.sendAcceptOwnership(p, via, value, body, opcodes.in.rmnOwnableMessage)
   }
 }
 
@@ -978,14 +953,14 @@ export const builder = (() => {
             .storeUint(opcodes.in.rmnOwnableMessage, 32)
             .storeBuilder(
               ownable2step.builder.message.in
-                .transferOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+                .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
                 .encode(data),
             )
         },
         load: function (src: Slice): ownable2step.TransferOwnership {
           src.skip(32) // opcode
           return ownable2step.builder.message.in
-            .transferOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+            .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
             .load(src)
         },
       }
@@ -996,14 +971,14 @@ export const builder = (() => {
             .storeUint(opcodes.in.rmnOwnableMessage, 32)
             .storeBuilder(
               ownable2step.builder.message.in
-                .acceptOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+                .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
                 .encode(data),
             )
         },
         load: function (src: Slice): ownable2step.AcceptOwnership {
           src.skip(32) // opcode
           return ownable2step.builder.message.in
-            .acceptOwnershipWithPrefix(opcodes.in.rmnOwnableMessage)
+            .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
             .load(src)
         },
       }

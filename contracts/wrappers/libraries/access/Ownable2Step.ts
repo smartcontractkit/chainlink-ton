@@ -51,7 +51,7 @@ export const builder = {
   message: {
     in: (() => {
       // Creates a new `TransferOwnership` message.
-      function transferOwnershipWithPrefix(prefix?: number): CellCodec<TransferOwnership> {
+      function transferOwnershipWithRole(prefix?: number): CellCodec<TransferOwnership> {
         return {
           encode: (msg: TransferOwnership): Builder => {
             return beginCell() // break line
@@ -72,7 +72,7 @@ export const builder = {
           },
         }
       }
-      function acceptOwnershipWithPrefix(prefix?: number): CellCodec<AcceptOwnership> {
+      function acceptOwnershipWithRole(prefix?: number): CellCodec<AcceptOwnership> {
         return {
           encode: (msg: AcceptOwnership): Builder => {
             return beginCell() // break line
@@ -93,10 +93,10 @@ export const builder = {
       }
 
       return {
-        transferOwnershipWithPrefix,
-        transferOwnership: transferOwnershipWithPrefix(),
-        acceptOwnershipWithPrefix,
-        acceptOwnership: acceptOwnershipWithPrefix(),
+        transferOwnershipWithRole,
+        transferOwnership: transferOwnershipWithRole(),
+        acceptOwnershipWithRole,
+        acceptOwnership: acceptOwnershipWithRole(),
       }
     })(),
   },
@@ -127,18 +127,26 @@ export const builder = {
   })(),
 }
 
+export type OwnableRole = {
+  opcode: number
+  getter: string
+}
+
 export class ContractClient implements Contract, Interface {
   constructor(
     readonly address: Address,
-    readonly init?: { code: Cell; data: Cell },
+    readonly role?: OwnableRole,
   ) {}
 
-  static newAt(address: Address): ContractClient {
-    return new ContractClient(address)
+  static createFromAddress(
+    address: Address,
+    role?: { opcode: number; getter: string },
+  ): ContractClient {
+    return new ContractClient(address, role)
   }
 
-  async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {
-    await p.internal(via, {
+  async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
+    await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
@@ -150,13 +158,12 @@ export class ContractClient implements Contract, Interface {
     via: Sender,
     value: bigint = BigInt(0.01),
     body: TransferOwnership,
-    prefix?: number,
   ) {
     return this.sendInternal(
       p,
       via,
       value,
-      builder.message.in.transferOwnershipWithPrefix(prefix).encode(body).asCell(),
+      builder.message.in.transferOwnershipWithRole(this.role?.opcode).encode(body).asCell(),
     )
   }
 
@@ -171,19 +178,23 @@ export class ContractClient implements Contract, Interface {
       p,
       via,
       value,
-      builder.message.in.acceptOwnershipWithPrefix(prefix).encode(body).asCell(),
+      builder.message.in.acceptOwnershipWithRole(this.role?.opcode).encode(body).asCell(),
     )
   }
 
-  async getOwner(provider: ContractProvider, prefix?: string): Promise<Address> {
-    const result = await provider.get(`${prefix ? prefix + '_' : ''}owner`, [])
+  async getOwner(provider: ContractProvider): Promise<Address> {
+    const result = await provider.get(prefixGetter(this.role?.getter, 'owner'), [])
     return result.stack.readAddress()
   }
 
-  async getPendingOwner(provider: ContractProvider, prefix?: string): Promise<Address | null> {
-    const result = await provider.get(`${prefix ? prefix + '_' : ''}pendingOwner`, [])
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    const result = await provider.get(prefixGetter(this.role?.getter, 'pendingOwner'), [])
     return result.stack.readAddressOpt()
   }
+}
+
+function prefixGetter(getter: string | undefined, field: string): string {
+  return `${getter ? getter + '_' : ''}${field}`
 }
 
 export interface Interface extends Contract {

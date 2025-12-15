@@ -691,10 +691,6 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     })
   }
 
-  async getAny(provider: ContractProvider, name: string, args: TupleItem[]): Promise<TupleReader> {
-    return (await provider.get(name, args)).stack
-  }
-
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
     await provider.internal(via, {
       value: value,
