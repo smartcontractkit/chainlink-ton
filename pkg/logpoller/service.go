@@ -48,6 +48,8 @@ type service struct {
 	filterStore FilterStore // Filter store for managing filters
 	logStore    LogStore    // Log store for storing logs
 
+	metrics *logPollerMetrics // metrics for observability
+
 	// configuration for service operation
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
@@ -72,14 +74,25 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
+func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) (Service, error) {
+	// init metrics
+	metrics, err := newMetrics(chainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
+	}
+
+	// wrap stores with observed versions for metrics instrumentation
+	observedFilterStore := NewObservedFilterStore(opts.FilterStore, metrics, lggr)
+	observedLogStore := NewObservedLogStore(opts.LogStore, metrics, lggr)
+
 	lp := &service{
 		lggr:             logger.Sugared(lggr),
 		chainID:          chainID,
 		clientProvider:   clientProvider,
-		filterStore:      opts.FilterStore,
+		filterStore:      observedFilterStore,
 		loader:           opts.TxLoader,
-		logStore:         opts.LogStore,
+		logStore:         observedLogStore,
+		metrics:          metrics,
 		pollPeriod:       opts.Config.PollPeriod.Duration(),
 		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
 		blockTime:        opts.Config.BlockTime.Duration(),
@@ -93,7 +106,7 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		Name:  "TONLogPoller",
 		Start: lp.start,
 	}.NewServiceEngine(lggr)
-	return lp
+	return lp, nil
 }
 
 // NewServiceWith creates a new TON log polling service and registers the provided filters.
@@ -107,7 +120,10 @@ func NewServiceWith(
 	opts *ServiceOptions,
 	filters []models.Filter,
 ) (Service, error) {
-	svc := NewService(lggr, chainID, clientProvider, opts)
+	svc, err := NewService(lggr, chainID, clientProvider, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create service: %w", err)
+	}
 
 	for _, f := range filters {
 		if _, err := svc.RegisterFilter(ctx, f); err != nil {
@@ -122,9 +138,12 @@ func NewServiceWith(
 func (lp *service) start(_ context.Context) error {
 	lp.lggr.Infof("starting TON logpoller")
 	lp.eng.GoTick(services.NewTicker(lp.pollPeriod), func(ctx context.Context) {
+		start := time.Now()
 		if err := lp.run(ctx); err != nil {
 			lp.lggr.Errorw("iteration failed", "err", err)
+			lp.metrics.IncrementPollErrors(ctx)
 		}
+		lp.metrics.SetPollDuration(ctx, time.Since(start))
 	})
 	return nil
 }
@@ -157,6 +176,9 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return fmt.Errorf("failed to apply replay override: %w", err)
 	}
 
+	// Record blocks behind before processing (shows catch-up work needed)
+	lp.metrics.SetBlocksBehind(ctx, blockRange.ToSeqNo(), blockRange.FromSeqNo())
+
 	lp.lggr.Tracew("processing block range", "fromSeq", blockRange.FromSeqNo(), "toSeq", blockRange.ToSeqNo())
 
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
@@ -178,6 +200,9 @@ func (lp *service) run(ctx context.Context) (err error) {
 	}
 
 	lp.lastProcessedBlock = blockRange.ToSeqNo()
+	lp.metrics.SetLastProcessedBlock(ctx, lp.lastProcessedBlock)
+	lp.metrics.AddBlocksProcessed(ctx, int64(blockRange.ToSeqNo()-blockRange.FromSeqNo()))
+
 	return nil
 }
 
@@ -189,18 +214,19 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return fmt.Errorf("failed to build filter index: %w", err)
 	}
 
-	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
+	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
-	// TODO: deal with error metrics here
 	go func() {
-		for err := range loaderErrsCh {
-			lp.lggr.Errorw("loader error", "err", err)
+		for err := range loadErrsCh {
+			lp.metrics.IncrementLoaderErrors(ctx)
+			lp.lggr.Errorw("loading transactions error", "err", err)
 		}
 	}()
 	go func() {
 		for err := range parseErrsCh {
-			lp.lggr.Errorw("parse error", "err", err)
+			lp.metrics.IncrementParseErrors(ctx)
+			lp.lggr.Errorw("parsing transactions error", "err", err)
 		}
 	}()
 
@@ -209,7 +235,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return fmt.Errorf("failed to save logs: %w", err)
 	}
 
-	// Only log when we actually saved logs to reduce noise
+	// Note: logs inserted metric is recorded by ObservedLogStore.SaveLogs
 	if totalSaved > 0 {
 		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.FromSeqNo(), blockRange.ToSeqNo(), totalSaved, len(addresses))
 	}

@@ -10,6 +10,7 @@ import (
 
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -35,8 +36,8 @@ type SetRoot struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Root       *big.Int `tlb:"## 256"` // The new expiring root.
-	ValidUntil uint32   `tlb:"## 32"`  // The time by which the root is valid.
+	Root       *tlbe.Uint256 `tlb:"."`     // The new expiring root.
+	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
 
 	Metadata      RootMetadata                `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
 	MetadataProof common.SnakeData[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
@@ -123,12 +124,12 @@ type SubmitErrorReport struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Op       Op                      `tlb:"^"`      // The operation which produced the error.
-	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree
-	OpTxHash *big.Int                `tlb:"## 256"` // The hash of the execute transaction.
+	Op       Op                      `tlb:"^"` // The operation which produced the error.
+	Proof    common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
+	OpTxHash *tlbe.Uint256           `tlb:"."` // The hash of the execute transaction.
 
-	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored (part of the tx trace).
-	ErrorCode   uint32   `tlb:"## 32"`  // The error code.
+	ErrorTxHash *tlbe.Uint256 `tlb:"."`     // The hash of the transaction which errored (part of the tx trace).
+	ErrorCode   uint32        `tlb:"## 32"` // The error code.
 }
 
 // Message sent by the owner to transfer the oracle role.
@@ -165,9 +166,9 @@ type NewRoot struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Root       *big.Int     `tlb:"## 256"` // The new expiring root.
-	ValidUntil uint32       `tlb:"## 32"`  // The time by which the root is valid.
-	Metadata   RootMetadata `tlb:"."`      // The metadata about the root, which is stored as one of the leaves.
+	Root       *tlbe.Uint256 `tlb:"."`     // The new expiring root.
+	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
+	Metadata   RootMetadata  `tlb:"."`     // The metadata about the root, which is stored as one of the leaves.
 }
 
 // Sent back to sender when a new config is set.
@@ -211,11 +212,11 @@ type ErrorReportSubmitted struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	OpLeafHash *big.Int `tlb:"## 256"` // The (merkle leaf) hash of the operation which produced the error.
-	OpTxHash   *big.Int `tlb:"## 256"` // The hash of the operation execute transaction.
+	OpLeafHash *tlbe.Uint256 `tlb:"."` // The (merkle leaf) hash of the operation which produced the error.
+	OpTxHash   *tlbe.Uint256 `tlb:"."` // The hash of the operation execute transaction.
 
-	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored.
-	ErrorCode   uint32   `tlb:"## 32"`  // The error code.
+	ErrorTxHash *tlbe.Uint256 `tlb:"."`     // The hash of the transaction which errored.
+	ErrorCode   uint32        `tlb:"## 32"` // The error code.
 
 	Root             *cell.Cell `tlb:"^"`    // The current root which was invalidated. // Cell<uint256>
 	MatchesPendingOp bool       `tlb:"bool"` // Whether the operation that was pending was the one for which the error was reported.
@@ -275,7 +276,7 @@ const LenSignerBytes = (160 + 8 + 8) / 8
 // Signer information
 type Signer struct {
 	// The EVM address of the signer.
-	Address *big.Int `tlb:"## 256"`
+	Address *tlbe.Uint160 `tlb:"."`
 	// The index of the signer in data.config.signers
 	Index uint8 `tlb:"## 8"` // 0 <= index < MAX_NUM_SIGNERS
 	// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -361,7 +362,7 @@ type RootInfo struct {
 // opCount in same struct in order to reduce gas costs of reading and writing.
 type ExpiringRootAndOpCount struct {
 	/// The expiring root.
-	Root *big.Int `tlb:"## 256"`
+	Root *tlbe.Uint256 `tlb:"."`
 	/// We prefer using block.timestamp instead of block.number, as a single
 	/// root may target many chains. We assume that block.timestamp can
 	/// be manipulated by block producers but only within relatively tight
@@ -387,7 +388,7 @@ type OpPendingInfo struct {
 	OpPendingReceiver *address.Address `tlb:"addr"`
 	// The truncated body of the pending operation (256 bits from the original message),
 	// stored as the next expected potential bounce, and verified in onBounceMessage handler.
-	OpPendingBodyTruncated *big.Int `tlb:"## 256"`
+	OpPendingBodyTruncated *tlbe.Uint256 `tlb:"."`
 }
 
 // Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -435,18 +436,18 @@ type Op struct {
 
 // Data container used to derive the root ID (hash)
 type RootDescriptor struct {
-	Root       *big.Int `tlb:"## 256"` // The merkle tree root
-	ValidUntil uint32   `tlb:"## 32"`  // The time until which root is valid
+	Root       *tlbe.Uint256 `tlb:"."`     // The merkle tree root
+	ValidUntil uint32        `tlb:"## 32"` // The time until which root is valid
 }
 
 // --- Data (storage & structures) - value wrapper types ---
 
 type Proof struct {
-	Val *big.Int `tlb:"## 256"`
+	Val *tlbe.Uint256 `tlb:"."`
 }
 
 type SignerAddress struct {
-	Val *big.Int `tlb:"## 160"` // 20 byte EVM address
+	Val *tlbe.Uint160 `tlb:"."` // 20 byte EVM address
 }
 
 type SignerGroup struct {
@@ -470,12 +471,12 @@ type SeenSignedHash struct {
 
 // Roots as vec<uint256> value wrapper
 type Root struct {
-	Val *big.Int `tlb:"## 256"`
+	Val *tlbe.Uint256 `tlb:"."`
 }
 
 // ValidUntils as vec<uint32> value wrapper
 type ValidUntil struct {
-	Val *big.Int `tlb:"## 32"`
+	Val uint32 `tlb:"## 32"`
 }
 
 // --- Constants ---
@@ -489,6 +490,9 @@ var ManyChainMultiSigDomainSeparatorOp = sha256.Sum256([]byte("MANY_CHAIN_MULTI_
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
 var ManyChainMultiSigDomainSeparatorMetadata = sha256.Sum256([]byte("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON"))
+
+// Minimum value required for the execute call (fails with Error.InsufficientValue)
+var ExecMinValue = tlb.MustFromTON("0.012")
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode

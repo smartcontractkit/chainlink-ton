@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -66,21 +67,21 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 			Calls: common.SnakeRef[timelock.Call]{
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("0.5").Nano(),
+					Value:  tlb.MustFromTON("0.5"),
 					Data: mustToCell(Bar{
 						Val: big.NewInt(55555555),
 					}),
 				},
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("1.0").Nano(),
+					Value:  tlb.MustFromTON("1.0"),
 					Data: mustToCell(Baz{
 						Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 					}),
 				},
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("1.5").Nano(),
+					Value:  tlb.MustFromTON("1.5"),
 					Data: mustToCell(wallet.AskToTransfer{
 						QueryID:     0,
 						Amount:      tlb.MustFromTON("0.02"),
@@ -91,8 +92,8 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 					}),
 				},
 			},
-			Predecessor: big.NewInt(-1),
-			Salt:        big.NewInt(1337),
+			Predecessor: tlbe.NewUint256(big.NewInt(1111)),
+			Salt:        tlbe.NewUint256(big.NewInt(1337)),
 			Delay:       10000,
 		}),
 	},
@@ -237,21 +238,21 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 						"Calls": []interface{}{
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(500000000),
+								"Value":  "500000000",
 								"Data": map[string]interface{}{
 									"Val": float64(55555555),
 								},
 							},
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1000000000),
+								"Value":  "1000000000",
 								"Data": map[string]interface{}{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 								},
 							},
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1500000000),
+								"Value":  "1500000000",
 								"Data": map[string]interface{}{
 									"QueryID":       float64(0),
 									"Amount":        "20000000",
@@ -267,7 +268,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 								},
 							},
 						},
-						"Predecessor": float64(-1),
+						"Predecessor": float64(1111),
 						"Salt":        float64(1337),
 						"Delay":       float64(10000),
 					},
@@ -342,21 +343,21 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 						"Calls": []interface{}{
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(500000000),
+								"Value":  "500000000",
 								"Data": map[string]interface{}{
 									"Val": float64(55555555),
 								},
 							},
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1000000000),
+								"Value":  "1000000000",
 								"Data": map[string]interface{}{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 								},
 							},
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1500000000),
+								"Value":  "1500000000",
 								"Data": map[string]interface{}{
 									"QueryID":       float64(0),
 									"Amount":        "20000000",
@@ -372,7 +373,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 								},
 							},
 						},
-						"Predecessor": float64(-1),
+						"Predecessor": float64(1111),
 						"Salt":        float64(1337),
 						"Delay":       float64(10000),
 					},
@@ -407,25 +408,25 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 						"Calls": []interface{}{
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(500000000),
+								"Value":  "500000000",
 								"Data": map[string]interface{}{
 									"Val": float64(55555555),
 								},
 							},
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1000000000),
+								"Value":  "1000000000",
 								"Data": map[string]interface{}{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 								},
 							},
 							map[string]interface{}{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1500000000),
+								"Value":  "1500000000",
 								"Data":   "te6cckEBAgEAZQABcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMBAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUNAF680=",
 							},
 						},
-						"Predecessor": float64(-1),
+						"Predecessor": float64(1111),
 						"Salt":        float64(1337),
 						"Delay":       float64(10000),
 					},
@@ -453,7 +454,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data":     "te6cckECCAEAAZYAAaAJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAEDAAIDBAGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAO5rKAQBQGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdzWUAQBwGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAstBeAQBgAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMHAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUA+cVaY=",
+					"Data":     "te6cckECCAEAAUIAAaAJRxj0AAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEVwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAEDAAIDBAFLgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbSDuaygEFAUuAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtIdzWUAQcBS4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0iy0F4BBgAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMHAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUONjwks=",
 				},
 				"Proof": nil,
 			},

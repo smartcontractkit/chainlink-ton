@@ -40,7 +40,7 @@ type Txm struct {
 	keystore loop.Keystore
 	config   Config
 	chainID  string
-	metrics  *tonTxmMetrics
+	metrics  *txmMetrics
 
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
 	broadcastChan  chan *Tx
@@ -68,7 +68,7 @@ func New(
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error),
 	config Config,
 ) (*Txm, error) {
-	metrics, err := newTonTxmMetrics(chainID)
+	metrics, err := newMetrics(chainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
 	}
@@ -398,7 +398,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.metrics.IncrementSuccessTxs(ctx)
 				t.logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
-				t.metrics.IncrementRevertTxs(ctx)
+				t.metrics.IncrementRevertTxs(ctx, fmt.Sprintf("%d", exitCode))
 				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
 		}

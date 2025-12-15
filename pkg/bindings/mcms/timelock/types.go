@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -60,10 +61,10 @@ type ScheduleBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeRef[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *big.Int              `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int              `tlb:"## 256"` // Salt used to derive the operation ID
-	Delay       uint32                `tlb:"## 32"`  // Delay in seconds before the operation can be executed
+	Calls       common.SnakeRef[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *tlbe.Uint256         `tlb:"."`     // Predecessor operation ID
+	Salt        *tlbe.Uint256         `tlb:"."`     // Salt used to derive the operation ID
+	Delay       uint32                `tlb:"## 32"` // Delay in seconds before the operation can be executed
 }
 
 // Cancel an operation.
@@ -77,7 +78,7 @@ type Cancel struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// ID of the operation to cancel.
-	ID *big.Int `tlb:"## 256"`
+	ID *tlbe.Uint256 `tlb:"."`
 }
 
 // Execute an (ready) operation containing a batch of transactions.
@@ -92,9 +93,9 @@ type ExecuteBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeRef[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *big.Int              `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int              `tlb:"## 256"` // Salt used to derive the operation ID
+	Calls       common.SnakeRef[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *tlbe.Uint256         `tlb:"."` // Predecessor operation ID
+	Salt        *tlbe.Uint256         `tlb:"."` // Salt used to derive the operation ID
 }
 
 // Changes the minimum timelock duration for future operations.
@@ -206,10 +207,10 @@ type SubmitErrorReport struct {
 	// The operation which produced the error (used to re-derive the op id).
 	OpBatch OperationBatch `tlb:"^"`
 	// The hash of the execute transaction.
-	OpTxHash *big.Int `tlb:"## 256"`
+	OpTxHash *tlbe.Uint256 `tlb:"."`
 
 	// The hash of the transaction which errored (part of the tx trace).
-	ErrorTxHash *big.Int `tlb:"## 256"`
+	ErrorTxHash *tlbe.Uint256 `tlb:"."`
 	// The error code.
 	ErrorCode uint32 `tlb:"## 32"`
 }
@@ -222,12 +223,12 @@ type CallScheduled struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	ID          *big.Int `tlb:"## 256"` // ID of the operation that was scheduled.
-	Index       uint64   `tlb:"## 64"`  // Index of the call in the operation
-	Call        Call     `tlb:"^"`      // Call to be executed as part of the operation.
-	Predecessor *big.Int `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int `tlb:"## 256"` // Salt used to derive the operation ID
-	Delay       uint32   `tlb:"## 32"`  // Delay in seconds before the operation can be executed
+	ID          *tlbe.Uint256 `tlb:"."`     // ID of the operation that was scheduled.
+	Index       uint64        `tlb:"## 64"` // Index of the call in the operation
+	Call        Call          `tlb:"^"`     // Call to be executed as part of the operation.
+	Predecessor *tlbe.Uint256 `tlb:"."`     // Predecessor operation ID
+	Salt        *tlbe.Uint256 `tlb:"."`     // Salt used to derive the operation ID
+	Delay       uint32        `tlb:"## 32"` // Delay in seconds before the operation can be executed
 }
 
 // Emitted when a call is performed as part of operation `id`.
@@ -236,11 +237,11 @@ type CallExecuted struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	ID     *big.Int         `tlb:"## 256"` // ID of the operation that was executed.
-	Index  uint64           `tlb:"## 64"`  // Index of the call in the operation
-	Target *address.Address `tlb:"addr"`   // Address of the target contract to call.
-	Value  tlb.Coins        `tlb:"."`      // Value in TONs to send with the call.
-	Data   *cell.Cell       `tlb:"^"`      // Data to send with the call - message body.
+	ID     *tlbe.Uint256    `tlb:"."`     // ID of the operation that was executed.
+	Index  uint64           `tlb:"## 64"` // Index of the call in the operation
+	Target *address.Address `tlb:"addr"`  // Address of the target contract to call.
+	Value  tlb.Coins        `tlb:"."`     // Value in TONs to send with the call.
+	Data   *cell.Cell       `tlb:"^"`     // Data to send with the call - message body.
 }
 
 // Emitted when a call is performed via bypasser.
@@ -261,7 +262,7 @@ type Cancelled struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	ID *big.Int `tlb:"## 256"` // ID of the operation that was cancelled.
+	ID *tlbe.Uint256 `tlb:"."` // ID of the operation that was cancelled.
 }
 
 // Emitted when the minimum delay for future operations is modified.
@@ -346,7 +347,7 @@ type Call struct {
 	// Address of the target contract to call.
 	Target *address.Address `tlb:"addr"`
 	// Value in TONs to send with the call.
-	Value *big.Int `tlb:"## 256"`
+	Value tlb.Coins `tlb:"."`
 	// Data to send with the call - message body.
 	Data *cell.Cell `tlb:"^"`
 }
@@ -356,9 +357,9 @@ type OperationBatch struct {
 	// Array of calls to be scheduled
 	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
 	// Predecessor operation ID
-	Predecessor *big.Int `tlb:"## 256"`
+	Predecessor *tlbe.Uint256 `tlb:"."`
 	// Salt used to derive the operation ID
-	Salt *big.Int `tlb:"## 256"`
+	Salt *tlbe.Uint256 `tlb:"."`
 }
 
 // Information about the currently pending operation.
@@ -372,7 +373,7 @@ type OpPendingInfo struct {
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
-	OpPendingID *big.Int `tlb:"## 256"`
+	OpPendingID *tlbe.Uint256 `tlb:"."`
 }
 
 // --- Constants ---
@@ -418,6 +419,9 @@ const (
 	// Timestamp value used to mark an operation as error
 	ErrorTimestamp = 2
 )
+
+// Minimum value required for the schedule call (fails with Error.InsufficientValue)
+var ScheduleCallMinValue = tlb.MustFromTON("0.012")
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode

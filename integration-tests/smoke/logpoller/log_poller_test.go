@@ -196,12 +196,13 @@ func Test_LogPoller(t *testing.T) {
 			TxLoader:    txloader.New(lggr, clientProvider),
 			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
-		lp := logpoller.NewService(
+		lp, err := logpoller.NewService(
 			lggr,
 			"test-chain",
 			clientProvider,
 			opts,
 		)
+		require.NoError(t, err)
 
 		// register filters
 		filterA := models.Filter{
@@ -869,7 +870,8 @@ func Test_LogPoller(t *testing.T) {
 			TxLoader:    txloader.New(lggr, clientProvider),
 			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
-		lp := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+		lp, err := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+		require.NoError(t, err)
 
 		// 4. Register filter (without replay)
 		filter := models.Filter{
