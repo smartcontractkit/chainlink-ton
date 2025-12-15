@@ -599,6 +599,18 @@ get fun pendingOwner(): address? {
     return st.ownable.get_pendingOwner();
 }
 
+/// Gets the current owner of the contract.
+get fun rmn_owner(): address {
+    val st: Storage = lazy Storage.load();
+    return st.rmnRemote.load().admin.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun rmn_pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.rmnRemote.load().admin.get_pendingOwner();
+}
+
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
 }

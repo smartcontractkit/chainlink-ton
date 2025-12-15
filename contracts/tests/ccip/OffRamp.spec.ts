@@ -706,7 +706,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp)
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp, {})
   })
 
   it('should deploy', async () => {

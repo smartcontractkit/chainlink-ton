@@ -65,6 +65,7 @@ export const opcodes = {
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
     getValidatedFee: 0x4dd6aa82,
+    rmnOwnableMessage: 0xaf7a9ac6,
   },
   out: {
     messageValidated: 0x9e2155ec,
@@ -89,11 +90,17 @@ export class Router
     Contract
 {
   private ownable: ownable2step.ContractClient
+  readonly RMNOwnable: ownable2step.ContractClient
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
     this.ownable = new ownable2step.ContractClient(address)
+    this.RMNOwnable = new ownable2step.ContractClient(address, {
+      opcode: opcodes.in.rmnOwnableMessage,
+      getter: 'rmn',
+    })
   }
 
   static createFromAddress(address: Address) {
@@ -938,6 +945,36 @@ export const builder = (() => {
         },
       }
 
+      const rmnTransferOwnership: CellCodec<ownable2step.TransferOwnership> = {
+        encode: function (data: ownable2step.TransferOwnership): Builder {
+          return beginCell().storeBuilder(
+            ownable2step.builder.message.in
+              .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+              .encode(data),
+          )
+        },
+        load: function (src: Slice): ownable2step.TransferOwnership {
+          return ownable2step.builder.message.in
+            .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+            .load(src)
+        },
+      }
+
+      const rmnAcceptOwnership: CellCodec<ownable2step.AcceptOwnership> = {
+        encode: function (data: ownable2step.AcceptOwnership): Builder {
+          return beginCell().storeBuilder(
+            ownable2step.builder.message.in
+              .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+              .encode(data),
+          )
+        },
+        load: function (src: Slice): ownable2step.AcceptOwnership {
+          return ownable2step.builder.message.in
+            .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+            .load(src)
+        },
+      }
+
       return {
         ccipSend,
         getValidatedFee,
@@ -951,6 +988,8 @@ export const builder = (() => {
         rmnRemoteCurse,
         rmnRemoteUncurse,
         rmnRemoteVerifyNotCursed,
+        rmnTransferOwnership,
+        rmnAcceptOwnership,
       }
     })()
     const out = (() => {
