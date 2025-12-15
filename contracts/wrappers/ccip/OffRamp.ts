@@ -785,6 +785,7 @@ export class OffRamp
         .encode({
           queryId: opts.queryId ?? 0n,
           receiveExecutorCode: opts.receiveExecutorCode,
+          merkleRootCode: opts.merkleRootCode,
         })
         .endCell(),
     })

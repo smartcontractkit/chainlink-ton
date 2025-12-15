@@ -343,12 +343,22 @@ fun onSetOCR3Config(msg: OCR3Base_SetOCR3Config) {
 // Updates the deployable contract codes for ReceiveExecutor and MerkleRoot. Only the contract owner can call this function.
 fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
     var deployables = st.deployables.load();
+    debug.printString("original hashes");
+    debug.printString("mr");
+    debug.print(deployables.merkleRootCode.hash());
+    debug.printString("executor");
+    debug.print(deployables.receiveExecutorCode.hash());
 
     if (msg.receiveExecutorCode != null) {
+        debug.printString("received receiveExecutorCode");
+        debug.print(msg.receiveExecutorCode!.hash());
         deployables.receiveExecutorCode = msg.receiveExecutorCode!;
     }
 
     if (msg.merkleRootCode != null) {
+        debug.printString("received mr");
+        debug.print(msg.merkleRootCode!.hash());
+
         deployables.merkleRootCode = msg.merkleRootCode!;
     }
 
@@ -824,6 +834,10 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 get fun deployableHashes() : DeployableHashes {
     val st = lazy Storage.load();
     val deployables = st.deployables.load();
+    debug.printString("mr");
+    debug.print(deployables.merkleRootCode.hash());
+    debug.printString("receiveExecutor");
+    debug.print(deployables.receiveExecutorCode.hash());
     return DeployableHashes {
         merkleRoot: deployables.merkleRootCode.hash(),
         receiveExecutor: deployables.receiveExecutorCode.hash(),

@@ -2401,11 +2401,19 @@ describe('OffRamp - Unit Tests', () => {
     // verify changes
     const deployables = await offRamp.getDeployableHashes()
     console.log(deployables)
+    console.log("original hashes before:")
+    console.log("merkleroot:", uint8ArrayToBigInt(merkleRootCodeRaw.hash()))
+    console.log("receiveExec:", uint8ArrayToBigInt(receiveExecutorCodeRaw.hash()))
+    console.log("deployable:", uint8ArrayToBigInt(deployerCode.hash()))
     
-    expect(deployables.merkleRootCodeHash).
-      toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
-    expect(deployables.receiveExecutorCodeHash).toBe(uint8ArrayToBigInt(mockReceiveExecutorCode.hash()))
-    expect(deployables.receiveExecutorCodeHash).toBe(deployerCode.hash())
+    expect(deployables.merkleRootCodeHash)
+    .toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
+
+    expect(deployables.receiveExecutorCodeHash)
+    .toBe(uint8ArrayToBigInt(mockReceiveExecutorCode.hash()))
+
+    expect(deployables.deployerCodeHash)
+    .toBe(uint8ArrayToBigInt(deployerCode.hash()))
 
     // non-owner cannot update deployables
     const other = await blockchain.treasury('other')
