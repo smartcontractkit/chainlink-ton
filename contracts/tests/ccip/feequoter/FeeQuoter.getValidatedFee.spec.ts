@@ -1177,9 +1177,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             })
             .endCell(),
         }
-
-        const ERROR_INVALID_EVM_ADDRESS = 5001
-        await setup.assertGetFeeValidationError(message, ERROR_INVALID_EVM_ADDRESS)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('should reject EVM address exceeding uint160 max', async () => {
@@ -1203,8 +1201,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        const ERROR_INVALID_EVM_ADDRESS = 5001
-        await setup.assertGetFeeValidationError(message, ERROR_INVALID_EVM_ADDRESS)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('should accept EVM address at precompile boundary', async () => {
@@ -1304,8 +1301,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        const ERROR_INVALID_EVM_ADDRESS = 5001
-        await setup.assertGetFeeValidationError(message, ERROR_INVALID_EVM_ADDRESS)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
     })
 
@@ -1379,8 +1375,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        const ERROR_INVALID_EVM_ADDRESS = 5001
-        await setup.assertGetFeeValidationError(message, ERROR_INVALID_EVM_ADDRESS)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
     })
 
@@ -1455,8 +1450,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        const ERROR_INVALID_EVM_ADDRESS = 5001
-        await setup.assertGetFeeValidationError(message, ERROR_INVALID_EVM_ADDRESS)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('should throw when receiver is zero with gas limit higher than 0', async () => {
@@ -1479,8 +1473,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        const ERROR_INVALID_EVM_ADDRESS = 5001
-        await setup.assertGetFeeValidationError(message, ERROR_INVALID_EVM_ADDRESS)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('receiver can be zero when gas limit is zero and objectIds is empty', async () => {

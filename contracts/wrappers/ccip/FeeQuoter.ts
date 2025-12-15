@@ -62,6 +62,8 @@ export enum FeeQuoterError {
   FeeOverflow,
   MessageFeeTooHigh,
 }
+//TODO this error should be under the FeeQuoterError prefix
+export const ERROR_INVALID_EVM_ADDRESS = 5001
 
 export type FeeQuoterStorage = {
   id: bigint
