@@ -10,10 +10,10 @@ import (
 )
 
 type decoder struct {
-	tlbsCtx map[uint64]interface{}
+	tlbsCtx lib.TLBMap
 }
 
-func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
+func NewDecoder(tlbsCtx lib.TLBMap) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 
