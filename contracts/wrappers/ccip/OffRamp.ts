@@ -841,17 +841,22 @@ export class OffRamp
   async getAllSourceChainConfigs(provider: ContractProvider) {
     const result = await provider.get('allSourceChainConfigs', [])
     const cell = result.stack.readCell()
-    const dict = Dictionary.load(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell(), cell)
-    let configs: {
-      chainSelector: bigint
-      sourceChainConfig: SourceChainConfig
-    }[] = []
+
+    const dictValueSpec: DictionaryValue<SourceChainConfig> = {
+      serialize: builder.data.sourceChainConfig.encode,
+      parse: builder.data.sourceChainConfig.load,
+    }
+
+    const dict = Dictionary.loadDirect(Dictionary.Keys.BigInt(64), dictValueSpec, cell)
+
+    let configs: UpdateSourceChainConfig[] = []
+
+
     dict.keys().forEach((key) => {
       configs.push({
-        chainSelector: key,
-        sourceChainConfig: builder.data.sourceChainConfig.load(dict.get(key)!.beginParse()),
+        sourceChainSelector: key,
+        config: dict.get(key)!,
       })
-      console.log(configs)
     })
     return configs
   }

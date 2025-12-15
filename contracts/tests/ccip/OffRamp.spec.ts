@@ -2398,11 +2398,6 @@ describe('OffRamp - Unit Tests', () => {
 
     // verify changes
     const deployables = await offRamp.getDeployableHashes()
-    console.log(deployables)
-    console.log('original hashes before:')
-    console.log('merkleroot:', uint8ArrayToBigInt(merkleRootCodeRaw.hash()))
-    console.log('receiveExec:', uint8ArrayToBigInt(receiveExecutorCodeRaw.hash()))
-    console.log('deployable:', uint8ArrayToBigInt(deployerCode.hash()))
 
     expect(deployables.merkleRootCodeHash).toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
 
@@ -2430,7 +2425,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupSourceChainConfig()
     const result = await offRamp.getAllSourceChainConfigs()
     const expectedSourceChainConfigs = createDefaultUpdateSourceChainConfigs()
-    expect(expectedSourceChainConfigs.sort()).toBe(result.sort())
+    expect(expectedSourceChainConfigs.sort()).toEqual(result.sort())
   })
 
   afterAll(async () => {
