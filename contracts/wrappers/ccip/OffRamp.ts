@@ -11,8 +11,6 @@ import {
   Builder,
   ContractABI,
   Contract,
-  TupleItem,
-  TupleReader,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'

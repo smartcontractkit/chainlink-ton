@@ -11,7 +11,6 @@ import {
   Slice,
   Builder,
   TupleItem,
-  TupleReader,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -624,7 +623,6 @@ export const opcodes = {
   in: {
     onrampSend: 0xdcf993c2,
     getValidatedFee: 0x9c2ccc7e,
-
     get messageValidated() {
       return fq.OutOpcodes.messageValidated
     },

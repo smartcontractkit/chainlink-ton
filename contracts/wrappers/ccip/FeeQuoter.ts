@@ -13,7 +13,6 @@ import {
   Builder,
   Slice,
   TupleItem,
-  TupleReader,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'

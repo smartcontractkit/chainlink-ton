@@ -5,14 +5,12 @@ import {
   Cell,
   Contract,
   contractAddress,
-  ContractGetMethodResult,
   ContractProvider,
   Dictionary,
   Sender,
   SendMode,
   Slice,
   TupleItem,
-  TupleReader,
 } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
