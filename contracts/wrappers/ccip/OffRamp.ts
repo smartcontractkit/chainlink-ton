@@ -851,7 +851,6 @@ export class OffRamp
 
     let configs: UpdateSourceChainConfig[] = []
 
-
     dict.keys().forEach((key) => {
       configs.push({
         sourceChainSelector: key,
