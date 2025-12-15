@@ -947,16 +947,13 @@ export const builder = (() => {
 
       const rmnTransferOwnership: CellCodec<ownable2step.TransferOwnership> = {
         encode: function (data: ownable2step.TransferOwnership): Builder {
-          return beginCell()
-            .storeUint(opcodes.in.rmnOwnableMessage, 32)
-            .storeBuilder(
-              ownable2step.builder.message.in
-                .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
-                .encode(data),
-            )
+          return beginCell().storeBuilder(
+            ownable2step.builder.message.in
+              .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+              .encode(data),
+          )
         },
         load: function (src: Slice): ownable2step.TransferOwnership {
-          src.skip(32) // opcode
           return ownable2step.builder.message.in
             .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
             .load(src)
@@ -965,16 +962,13 @@ export const builder = (() => {
 
       const rmnAcceptOwnership: CellCodec<ownable2step.AcceptOwnership> = {
         encode: function (data: ownable2step.AcceptOwnership): Builder {
-          return beginCell()
-            .storeUint(opcodes.in.rmnOwnableMessage, 32)
-            .storeBuilder(
-              ownable2step.builder.message.in
-                .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
-                .encode(data),
-            )
+          return beginCell().storeBuilder(
+            ownable2step.builder.message.in
+              .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+              .encode(data),
+          )
         },
         load: function (src: Slice): ownable2step.AcceptOwnership {
-          src.skip(32) // opcode
           return ownable2step.builder.message.in
             .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
             .load(src)
