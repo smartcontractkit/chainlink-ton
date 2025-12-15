@@ -575,7 +575,6 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = offRampCodeRaw
 
-
       // Use a library reference
       let merkleRootLibPrep = beginCell()
         .storeUint(2, 8)
@@ -2351,7 +2350,7 @@ describe('OffRamp - Unit Tests', () => {
     const result = await offRamp.sendSetDynamicConfig(deployer.getSender(), {
       value: toNano('0.1'),
       feeQuoter: newFeeQuoter,
-      permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds
+      permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -2361,8 +2360,10 @@ describe('OffRamp - Unit Tests', () => {
 
     // verify changes
     const dynamicConfig = await offRamp.getConfig()
-    expect (dynamicConfig.feeQuoter.toString()).toBe(newFeeQuoter.toString())
-    expect (dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(newPermissionlessExecutionThresholdSeconds)
+    expect(dynamicConfig.feeQuoter.toString()).toBe(newFeeQuoter.toString())
+    expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
+      newPermissionlessExecutionThresholdSeconds,
+    )
 
     // non-owner cannot call SetDynamicConfig
 
@@ -2370,7 +2371,7 @@ describe('OffRamp - Unit Tests', () => {
     const result2 = await offRamp.sendSetDynamicConfig(other.getSender(), {
       value: toNano('0.1'),
       feeQuoter: newFeeQuoter,
-      permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds
+      permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
     })
     expect(result2.transactions).toHaveTransaction({
       from: other.address,
@@ -2379,13 +2380,10 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
-
   it('test updateDeployables', async () => {
     // owner can update deployables
-    const mockMerkleRootCode = 
-      beginCell().storeUint(0x12345678, 32).endCell()
-    const mockReceiveExecutorCode =
-      beginCell().storeUint(0x87654321, 32).endCell()
+    const mockMerkleRootCode = beginCell().storeUint(0x12345678, 32).endCell()
+    const mockReceiveExecutorCode = beginCell().storeUint(0x87654321, 32).endCell()
 
     const result = await offRamp.sendUpdateDeployables(deployer.getSender(), {
       value: toNano('0.1'),
@@ -2401,19 +2399,18 @@ describe('OffRamp - Unit Tests', () => {
     // verify changes
     const deployables = await offRamp.getDeployableHashes()
     console.log(deployables)
-    console.log("original hashes before:")
-    console.log("merkleroot:", uint8ArrayToBigInt(merkleRootCodeRaw.hash()))
-    console.log("receiveExec:", uint8ArrayToBigInt(receiveExecutorCodeRaw.hash()))
-    console.log("deployable:", uint8ArrayToBigInt(deployerCode.hash()))
-    
-    expect(deployables.merkleRootCodeHash)
-    .toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
+    console.log('original hashes before:')
+    console.log('merkleroot:', uint8ArrayToBigInt(merkleRootCodeRaw.hash()))
+    console.log('receiveExec:', uint8ArrayToBigInt(receiveExecutorCodeRaw.hash()))
+    console.log('deployable:', uint8ArrayToBigInt(deployerCode.hash()))
 
-    expect(deployables.receiveExecutorCodeHash)
-    .toBe(uint8ArrayToBigInt(mockReceiveExecutorCode.hash()))
+    expect(deployables.merkleRootCodeHash).toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
 
-    expect(deployables.deployerCodeHash)
-    .toBe(uint8ArrayToBigInt(deployerCode.hash()))
+    expect(deployables.receiveExecutorCodeHash).toBe(
+      uint8ArrayToBigInt(mockReceiveExecutorCode.hash()),
+    )
+
+    expect(deployables.deployerCodeHash).toBe(uint8ArrayToBigInt(deployerCode.hash()))
 
     // non-owner cannot update deployables
     const other = await blockchain.treasury('other')

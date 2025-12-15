@@ -838,14 +838,12 @@ export class OffRamp
     }
   }
 
-  async getAllSourceChainConfigs(
-    provider: ContractProvider
-  ) {
-    const result = await provider.get('allSourceChainConfigs',[])
+  async getAllSourceChainConfigs(provider: ContractProvider) {
+    const result = await provider.get('allSourceChainConfigs', [])
     const cell = result.stack.readCell()
     const dict = Dictionary.load(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell(), cell)
     let configs: {
-      chainSelector: bigint,
+      chainSelector: bigint
       sourceChainConfig: SourceChainConfig
     }[] = []
     dict.keys().forEach((key) => {
@@ -858,9 +856,7 @@ export class OffRamp
     return configs
   }
 
-  async getConfig(
-    provider: ContractProvider,
-  ): Promise<Config> {
+  async getConfig(provider: ContractProvider): Promise<Config> {
     const result = await provider.get('config', [])
     const chainSelector = result.stack.readBigNumber()
     const feeQuoter = result.stack.readAddress()
@@ -868,7 +864,7 @@ export class OffRamp
     return {
       chainSelector,
       feeQuoter,
-      permissionlessExecutionThresholdSeconds
+      permissionlessExecutionThresholdSeconds,
     }
   }
 
@@ -876,7 +872,7 @@ export class OffRamp
     deployerCodeHash: bigint
     merkleRootCodeHash: bigint
     receiveExecutorCodeHash: bigint
-      }> {
+  }> {
     const result = await provider.get('deployableHashes', [])
     const merkleRootCodeHash = result.stack.readBigNumber()
     const receiveExecutorCodeHash = result.stack.readBigNumber()
