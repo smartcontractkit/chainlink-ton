@@ -59,7 +59,7 @@ fun onInternalMessage(in: InMessage) {
         Router_RouteMessage => {
             val st = lazy Storage.load();
             val message: Any2TVMMessage = msg.message.load();
-            val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
+            val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onRouteMessage(msg, message);
         }

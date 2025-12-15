@@ -99,7 +99,7 @@ describe('Router', () => {
       from: offRamp.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.DestChainNotEnabled, // TODO should be sourceChainNotEnabled
+      exitCode: rt.RouterError.SourceChainNotEnabled,
     })
   })
 
