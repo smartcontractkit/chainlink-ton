@@ -1,6 +1,6 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
-import { beginCell, toNano } from '@ton/core'
+import { Address, beginCell, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
@@ -329,6 +329,100 @@ describe('SendExecutor - Unit tests', () => {
         )
       },
     })
+  })
+
+  function errorExpecter(sendExecutor: SandboxContract<sx.ContractClient>) {
+    return async function expectError(
+      sendMessage: () => Promise<
+        SendMessageResult & {
+          result: void
+        }
+      >,
+    ) {
+      const result = await sendMessage()
+      expect(result.transactions).toHaveTransaction({
+        to: sendExecutor.address,
+        success: false,
+        exitCode: sx.error.StateNotExpected,
+      })
+    }
+  }
+
+  it('should throw on validation message after successful exit', async () => {
+    const { sendExecutor } = await afterExecute()
+    const result = await sendExecutor.sendMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        fee: { feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedSuccessfully,
+    })
+
+    const expectError = errorExpecter(sendExecutor)
+
+    await expectError(() =>
+      sendExecutor.sendMessageValidated(feeQuoterMock.getSender(), toNano('0.3'), {
+        fee: { feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    await expectError(() =>
+      sendExecutor.sendMessageValidationFailed(feeQuoterMock.getSender(), toNano('0.3'), {
+        error: 42n,
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+  })
+
+  it('should throw on validation message after error exit', async () => {
+    const { sendExecutor } = await afterExecute()
+    const result = await sendExecutor.sendMessageValidated(
+      feeQuoterMock.getSender(),
+      toNano('0.3'),
+      {
+        fee: {
+          feeTokenAmount: onrampSend.metadata.value + toNano('0.1'),
+          feeValueJuels: toNano('0.1'),
+        },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      },
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: sendExecutor.address,
+      to: onRampMock.address,
+      success: true,
+      op: or.opcodes.in.executorFinishedWithError,
+    })
+
+    const expectError = errorExpecter(sendExecutor)
+
+    await expectError(() =>
+      sendExecutor.sendMessageValidated(feeQuoterMock.getSender(), toNano('0.3'), {
+        fee: { feeTokenAmount: toNano('0.1'), feeValueJuels: toNano('0.1') },
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
+
+    await expectError(() =>
+      sendExecutor.sendMessageValidationFailed(feeQuoterMock.getSender(), toNano('0.3'), {
+        error: 42n,
+        msg: onrampSend.msg,
+        context: beginCell().asSlice(),
+      }),
+    )
   })
 
   it('should handle bounced getValidatedFee', async () => {

@@ -101,6 +101,15 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 }
 
 fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
+    val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
+        id: self.id,
+        onrampSend: self.onrampSend,
+        addresses: self.addresses,
+        state: CCIPSendExecutor_State_Finalized {
+        }.toCell(),
+    };
+    newState.store();
+
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
@@ -120,6 +129,15 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValid
 }
 
 fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
+    val newState = CCIPSendExecutor<CCIPSendExecutor_State_Finalized> {
+        id: self.id,
+        onrampSend: self.onrampSend,
+        addresses: self.addresses,
+        state: CCIPSendExecutor_State_Finalized {
+        }.toCell(),
+    };
+    newState.store();
+    
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
