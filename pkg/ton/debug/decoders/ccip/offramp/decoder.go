@@ -9,15 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]any{
-	offramp.Execute{},
-	offramp.UpdateSourceChainConfigs{},
-	offramp.SetOCR3Config{},
-	offramp.Commit{},
-	offramp.Execute{},
-	offramp.CCIPReceive{},
-	offramp.SetDynamicConfig{},
-})
+var TLBs = offramp.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

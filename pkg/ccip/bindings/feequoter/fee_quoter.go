@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -358,6 +359,18 @@ type UpdateDestChainConfigs struct {
 	_       tlb.Magic                                   `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
 	Updates ccipcommon.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	GetValidatedFee{},
+	MessageValidated{},
+	MessageValidationFailed{},
+	AddPriceUpdater{},
+	RemovePriceUpdater{},
+	UpdatePrices{},
+	UpdateFeeTokens{},
+	UpdateTokenTransferFeeConfigs{},
+	UpdateDestChainConfigs{},
+})
 
 // binding types that supports FetchResult interface with rpc client
 

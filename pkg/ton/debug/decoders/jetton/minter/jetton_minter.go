@@ -11,14 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	minter.MintMessage{},
-	minter.ChangeAdminMessage{},
-	minter.ClaimAdminMessage{},
-	minter.DropAdminMessage{},
-	minter.ChangeContentMessage{},
-	minter.UpgradeMessage{},
-})
+var TLBs = minter.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

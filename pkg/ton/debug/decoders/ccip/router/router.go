@@ -10,16 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	router.ApplyRampUpdates{},
-	router.CCIPSend{},
-	router.RouteMessage{},
-	router.CCIPReceiveConfirm{},
-	router.CCIPSendACK{},
-	router.CCIPSendNACK{},
-	router.MessageSent{},
-	router.MessageRejected{},
-})
+var TLBs = router.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

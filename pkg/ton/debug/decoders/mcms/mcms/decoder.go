@@ -10,19 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	mcms.SetRoot{},
-	mcms.Execute{},
-	mcms.SetConfig{},
-	mcms.UpdateOpFinalizationTimeout{},
-	mcms.SubmitErrorReport{},
-	mcms.TransferOracleRole{},
-	mcms.NewRoot{},
-	mcms.ConfigSet{},
-	mcms.OpExecuted{},
-	mcms.ErrorReportSubmitted{},
-	mcms.OracleRoleTransferred{},
-})
+var TLBs = mcms.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

@@ -11,11 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	wallet.AskToTransfer{},
-	wallet.InternalTransferMessage{},
-	wallet.TransferNotification{},
-})
+var TLBs = wallet.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

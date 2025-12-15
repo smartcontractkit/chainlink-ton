@@ -1,6 +1,7 @@
 package rbac
 
 import (
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -121,6 +122,15 @@ type RoleAdminChanged struct {
 	PreviousAdminRole *tlbe.Uint256 `tlb:"."` // Previous admin role of the specific role.
 	NewAdminRole      *tlbe.Uint256 `tlb:"."` // New admin role of the specific role.
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	GrantRole{},
+	RevokeRole{},
+	RenounceRole{},
+	RoleGranted{},
+	RoleRevoked{},
+	RoleAdminChanged{},
+})
 
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {

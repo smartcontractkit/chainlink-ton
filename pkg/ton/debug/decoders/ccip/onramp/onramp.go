@@ -13,15 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	onramp.Send{},
-	onramp.WithdrawJettons{},
-	onramp.ExecutorFinishedSuccessfully{},
-	onramp.ExecutorFinishedWithError{},
-	onramp.SetDynamicConfigMessage{},
-	onramp.UpdateDestChainConfigsMessage{},
-	onramp.UpdateAllowlistsMessage{},
-})
+var TLBs = onramp.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

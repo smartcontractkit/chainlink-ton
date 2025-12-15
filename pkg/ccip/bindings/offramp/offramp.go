@@ -15,6 +15,7 @@ import (
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -172,6 +173,16 @@ type UpdateDeployables struct {
 	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
 	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	CCIPReceive{},
+	SetOCR3Config{},
+	UpdateSourceChainConfigs{},
+	Commit{},
+	Execute{},
+	SetDynamicConfig{},
+	UpdateDeployables{},
+})
 
 // Config types that implements getter fetching interface with rpc client
 

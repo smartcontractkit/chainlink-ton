@@ -1,4 +1,4 @@
-package lib
+package lib_test
 
 import (
 	"encoding/json"
@@ -11,15 +11,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
-
-// gotMap = map[Op:map[ChainID:-14 Data:te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31],
-// want     map[Op:map[ChainID:-14 Data:te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31]
 
 type Foo struct {
 	_   tlb.Magic  `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
@@ -36,7 +34,7 @@ type Baz struct {
 	Val *address.Address `tlb:"addr"`
 }
 
-var TLBs = MustNewTLBMap([]any{
+var TLBs = lib.MustNewTLBMap([]any{
 	Foo{},
 	Bar{},
 	Baz{},
@@ -280,7 +278,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotType, norm, err := DecodeTLBValToJSON(tt.cell, TLBs)
+			gotType, norm, err := lib.DecodeTLBValToJSON(tt.cell, TLBs)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON")
 
 			if tt.wantMap == nil {
@@ -310,8 +308,8 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 	tests := []struct {
 		name         string
 		cell         *cell.Cell
-		tlbsMain     TLBMap
-		tlbsPayloads TLBMap
+		tlbsMain     lib.TLBMap
+		tlbsPayloads lib.TLBMap
 		wantType     string
 		wantMap      map[string]any
 		expectErr    bool
@@ -319,10 +317,10 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: MustNewTLBMap([]any{
+			tlbsMain: lib.MustNewTLBMap([]any{
 				mcms.Execute{},
 			}),
-			tlbsPayloads: MustNewTLBMap([]any{
+			tlbsPayloads: lib.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -384,11 +382,11 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (some) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: MustNewTLBMap([]any{
+			tlbsMain: lib.MustNewTLBMap([]any{
 				mcms.Execute{},
 				wallet.AskToTransfer{},
 			}),
-			tlbsPayloads: MustNewTLBMap([]any{
+			tlbsPayloads: lib.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -437,10 +435,10 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (most) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: MustNewTLBMap([]any{
+			tlbsMain: lib.MustNewTLBMap([]any{
 				mcms.Execute{},
 			}),
-			tlbsPayloads: MustNewTLBMap([]any{
+			tlbsPayloads: lib.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -463,10 +461,10 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, norm, err := DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
+			_, norm, err := lib.DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs main")
 
-			gotType, norm, err := DecodeTLBValToJSON(norm, tt.tlbsPayloads)
+			gotType, norm, err := lib.DecodeTLBValToJSON(norm, tt.tlbsPayloads)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs payloads")
 
 			var gotMap map[string]any

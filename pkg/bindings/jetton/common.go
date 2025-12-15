@@ -3,6 +3,7 @@ package jetton
 import (
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -38,3 +39,7 @@ type TopUpMessage struct {
 	_       tlb.Magic `tlb:"#d372158c"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	TopUpMessage{},
+})

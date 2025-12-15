@@ -10,13 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	feequoter.UpdatePrices{},
-	feequoter.UpdateFeeTokens{},
-	feequoter.UpdateTokenTransferFeeConfigs{},
-	feequoter.UpdateDestChainConfigs{},
-	feequoter.GetValidatedFee{},
-})
+var TLBs = feequoter.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap

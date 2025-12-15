@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -314,6 +315,28 @@ type ExecutorRoleCheckUpdated struct {
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	Enabled bool `tlb:"bool"`
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	Init{},
+	ScheduleBatch{},
+	Cancel{},
+	ExecuteBatch{},
+	UpdateDelay{},
+	UpdateOpFinalizationTimeout{},
+	BlockFunctionSelector{},
+	UnblockFunctionSelector{},
+	BypasserExecuteBatch{},
+	UpdateExecutorRoleCheck{},
+	SubmitErrorReport{},
+	CallScheduled{},
+	CallExecuted{},
+	BypasserCallExecuted{},
+	Cancelled{},
+	MinDelayChange{},
+	FunctionSelectorBlocked{},
+	FunctionSelectorUnblocked{},
+	ExecutorRoleCheckUpdated{},
+})
 
 // --- Data (storage & structures) ---
 

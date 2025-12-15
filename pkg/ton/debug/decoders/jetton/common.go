@@ -9,9 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	jetton.TopUpMessage{},
-})
+var TLBs = jetton.TLBs
 
 type decoder struct {
 	tlbsCtx lib.TLBMap
