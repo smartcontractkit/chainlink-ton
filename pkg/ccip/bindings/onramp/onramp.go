@@ -26,7 +26,7 @@ const (
 	OpcodeOnRampWithdrawJettons              = 0x266AEACF
 	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
 	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
-	OpcodeSetDynamicConfig                   = 0x10000003
+	OpcodeSetDynamicConfig                   = 0xa178c62e
 	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
 	OpcodeUpdateSendExecutor                 = 0x82901c45
