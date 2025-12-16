@@ -129,7 +129,7 @@ describe('OnRamp - Send', () => {
     )
 
     expect(msg.stateInit.code.equals(executorCode)).toBe(true)
-    expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.Opcodes.execute)
+    expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.opcodes.in.execute)
     const selfMsg = sx.builder.message.in.execute.load(msg.selfMessage.body.beginParse())
     expect(selfMsg.config.feeQuoter.equals(mockFeeQuoter.address)).toBe(true)
     expect(selfMsg.onrampSend.metadata.sender.equals(senderAddress)).toBe(true)
