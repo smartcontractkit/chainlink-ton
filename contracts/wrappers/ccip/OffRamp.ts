@@ -169,6 +169,11 @@ export type UpdateDeployables = {
   merkleRootCode?: Cell
 }
 
+export type CCIPReceiveConfirm = {
+  execID: bigint
+  receiver: Address
+}
+
 export const builder = {
   data: (() => {
     const contractData: CellCodec<OffRampStorage> = {
@@ -569,6 +574,22 @@ export const builder = {
         },
       }
 
+      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
+        encode: (data: CCIPReceiveConfirm): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(data.execID, 192)
+            .storeAddress(data.receiver)
+        },
+        load: (src: Slice): CCIPReceiveConfirm => {
+          src.skip(32) //opcode
+          return {
+            execID: src.loadUintBig(192),
+            receiver: src.loadAddress(),
+          }
+        },
+      }
+
       return {
         commit,
         execute,
@@ -578,6 +599,7 @@ export const builder = {
         setDynamicConfig,
         dispatchValidated,
         updateDeployables,
+        ccipReceiveConfirm,
       }
     })(),
   },

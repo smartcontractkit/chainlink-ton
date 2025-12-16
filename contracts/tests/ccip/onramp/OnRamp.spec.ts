@@ -84,12 +84,17 @@ describe('OnRamp - Ownable Tests', () => {
     const other = await blockchain.treasury('other')
     const onramp = await deployOnRampContract(blockchain, deployer)
 
-    await Ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, blockchain, [
-      {
-        code: await onramp.getCode(),
-        name: 'onramp',
+    await Ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: await onramp.getCode(),
+            name: 'onramp',
+          },
+        ],
       },
-    ])
+    })
   })
 })
 

@@ -21,6 +21,8 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import * as or from '../ccip/OnRamp'
+import * as of from './OffRamp'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
@@ -30,6 +32,15 @@ export const ROUTER_ERROR_CODE = 49600 //FACILITY_ID * 100
 
 export enum RouterError {
   DestChainNotEnabled = ROUTER_ERROR_CODE,
+  SourceChainNotEnabled,
+  SenderIsNotOffRamp,
+  OffRampNotSetForSelector,
+  OffRampAddressMismatch,
+  SubjectCursed,
+  NotOnRamp,
+  MissingTokenAmounts,
+  NoMultiTokenTransfers,
+  InsufficientFee,
 }
 
 export type Storage = {
@@ -45,23 +56,23 @@ export abstract class Params {}
 export const opcodes = {
   in: {
     applyRampUpdates: 0x7db6745d,
-    setRamps: 0x20272c81,
     ccipSend: 0x38a69e3b,
-    updateOffRamps: 0x234110a7,
     ccipReceiveConfirm: 0xaf0cccef,
     routeMessage: 0xfc69c50b,
-    curse: 0xe6bf1813,
-    uncurse: 0x060d9dd1,
+    rmnRemoteCurse: 0xe6bf1813,
+    rmnRemoteUncurse: 0x060d9dd1,
     verifyNotCursed: 0x49fd38ce,
     messageSent: 0x6513f8e1,
     messageRejected: 0x8ae25114,
     getValidatedFee: 0x4dd6aa82,
+    rmnOwnableMessage: 0xaf7a9ac6,
   },
   out: {
     messageValidated: 0x9e2155ec,
     messageValidationFailed: 0xec23c562,
     ccipSendACK: 0x78d0f21e,
     ccipSendNACK: 0x5a45d434,
+    rmnRemoteVerifyNotCursedResponse: 0x0d9368a9,
   },
 }
 
@@ -79,11 +90,17 @@ export class Router
     Contract
 {
   private ownable: ownable2step.ContractClient
+  readonly RMNOwnable: ownable2step.ContractClient
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
     this.ownable = new ownable2step.ContractClient(address)
+    this.RMNOwnable = new ownable2step.ContractClient(address, {
+      opcode: opcodes.in.rmnOwnableMessage,
+      getter: 'rmn',
+    })
   }
 
   static createFromAddress(address: Address) {
@@ -183,9 +200,48 @@ export class Router
     })
   }
 
+  sendMessageValidated(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: InMessageValidated,
+  ): Promise<void> {
+    return provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageValidated.encode(body).asCell(),
+    })
+  }
+
+  sendMessageValidationFailed(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: InMessageValidationFailed,
+  ): Promise<void> {
+    return provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageValidationFailed.encode(body).asCell(),
+    })
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
+
   getCode(provider: ContractProvider): Promise<Cell> {
     return typeAndVersion.getCode(provider)
   }
@@ -220,28 +276,6 @@ export class Router
     })
   }
 
-  async sendSetRamps(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryID?: number
-      destChainSelector: bigint[]
-      onRamp: Address
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.setRamps, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
-        .storeAddress(opts.onRamp)
-        .endCell(),
-    })
-  }
-
   async sendCcipSend(
     provider: ContractProvider,
     via: Sender,
@@ -251,6 +285,54 @@ export class Router
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.ccipSend.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendMessageSent(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: MessageSent },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageSent.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendMessageRejected(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: MessageRejected },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.messageRejected.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendRouteMessage(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: RouteMessage },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.routeMessage.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendCCIPReceiveConfirm(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: CCIPReceiveConfirm },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.ccipReceiveConfirm.encode(opts.body).asCell(),
     })
   }
 
@@ -264,6 +346,11 @@ export class Router
       return t.value
     })
     return chainSelectors
+  }
+
+  async getVerifyNotCursed(provider: ContractProvider, subject: bigint): Promise<boolean> {
+    const res = await provider.get('verifyNotCursed', [{ type: 'int', value: subject }])
+    return res.stack.readBoolean()
   }
 
   // Withdrawable methods
@@ -280,35 +367,39 @@ export class Router
     return await withdrawable.getReserve(provider)
   }
 
-  async sendCurse(
+  async sendRMNRemoteCurse(
     provider: ContractProvider,
     via: Sender,
-    opts: { value: string | bigint; queryID?: number; subjects: bigint[] },
+    opts: { value: string | bigint; body: RMNRemoteCurse },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.curse, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
-        .asCell(),
+      body: builder.message.in.rmnRemoteCurse.encode(opts.body).asCell(),
     })
   }
 
-  async sendUncurse(
+  async sendRMNRemoteUncurse(
     provider: ContractProvider,
     via: Sender,
-    opts: { value: string | bigint; queryID?: number; subjects: bigint[] },
+    opts: { value: string | bigint; body: RMNRemoteUncurse },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.uncurse, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(asSnakeData<bigint>(opts.subjects, (item) => new Builder().storeUint(item, 128)))
-        .asCell(),
+      body: builder.message.in.rmnRemoteUncurse.encode(opts.body).asCell(),
+    })
+  }
+
+  async sendRMNRemoteVerifyNotCursed(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; body: RMNRemoteVerifyNotCursed },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.message.in.rmnRemoteVerifyNotCursed.encode(opts.body).asCell(),
     })
   }
 
@@ -440,12 +531,29 @@ export const ExtraArgsOpcodes = {
 }
 
 export type CCIPReceiveConfirm = {
-  rootId: bigint
+  execID: bigint
 }
 
 export type GetValidatedFee = {
   msg: CCIPSend
   context: Slice
+}
+
+export type InMessageValidated = {
+  msg: CCIPSend
+  fee: bigint
+  context: GetValidatedFeeContext
+}
+
+export type InMessageValidationFailed = {
+  msg: CCIPSend
+  error: bigint
+  context: GetValidatedFeeContext
+}
+
+export type GetValidatedFeeContext = {
+  routerContext: Address // sender
+  userContext: Slice
 }
 
 export type MessageValidated = {
@@ -458,6 +566,33 @@ export type MessageValidationFailed = {
   msg: CCIPSend
   error: bigint
   context: Slice
+}
+
+export type RMNRemoteCurse = {
+  queryID: bigint
+  subjects: bigint[]
+}
+
+export type RMNRemoteUncurse = {
+  queryID: bigint
+  subjects: bigint[]
+}
+
+export type RMNRemoteVerifyNotCursed = {
+  queryID: bigint
+  subject: bigint
+}
+
+export type RMNRemoteVerifyNotCursedResponse = {
+  queryID: bigint
+  result: boolean
+}
+
+export type RouteMessage = {
+  message: of.Any2TVMMessage
+  execID: bigint
+  receiver: Address
+  gasLimit: bigint
 }
 
 const crossChainAddressCodec: CellCodec<Buffer> = {
@@ -476,8 +611,8 @@ const crossChainAddressCodec: CellCodec<Buffer> = {
   },
 }
 
-export const builder = {
-  data: (() => {
+export const builder = (() => {
+  const dataCodec = (() => {
     const contractData: CellCodec<Storage> = {
       encode: (config: Storage): Builder => {
         return beginCell()
@@ -566,6 +701,18 @@ export const builder = {
       },
     }
 
+    const getValidatedFeeContext: CellCodec<GetValidatedFeeContext> = {
+      encode: function (data: GetValidatedFeeContext): Builder {
+        return beginCell().storeAddress(data.routerContext).storeSlice(data.userContext)
+      },
+      load: function (src: Slice): GetValidatedFeeContext {
+        return {
+          routerContext: src.loadAddress(),
+          userContext: src,
+        }
+      },
+    }
+
     return {
       contractData,
       tokenAmount: tokenAmountCodec,
@@ -573,9 +720,10 @@ export const builder = {
       onRamps,
       offRamps,
       crossChainAddress: crossChainAddressCodec,
+      getValidatedFeeContext,
     }
-  })(),
-  message: (() => {
+  })()
+  const message = (() => {
     const messageIn = (() => {
       const ccipSend: CellCodec<CCIPSend> = {
         encode: (opts: CCIPSend): Builder => {
@@ -603,16 +751,37 @@ export const builder = {
           }
         },
       }
+
+      const routeMessage: CellCodec<RouteMessage> = {
+        encode: (opts: RouteMessage): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.routeMessage, 32)
+            .storeRef(of.builder.data.any2TVMMessage.encode(opts.message))
+            .storeUint(opts.execID, 192)
+            .storeAddress(opts.receiver)
+            .storeCoins(opts.gasLimit)
+        },
+        load: function (src: Slice): RouteMessage {
+          src.skip(32)
+          return {
+            message: of.builder.data.any2TVMMessage.load(src.loadRef().beginParse()),
+            execID: src.loadUintBig(192),
+            receiver: src.loadAddress(),
+            gasLimit: src.loadCoins(),
+          }
+        },
+      }
+
       const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
             .storeUint(opcodes.in.ccipReceiveConfirm, 32)
-            .storeUint(confirm.rootId, 192)
+            .storeUint(confirm.execID, 192)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
           expect(src.loadUint(32)).toBe(opcodes.in.ccipReceiveConfirm)
           return {
-            rootId: src.loadUintBig(192),
+            execID: src.loadUintBig(192),
           }
         },
       }
@@ -691,13 +860,136 @@ export const builder = {
         },
       }
 
+      const messageValidated: CellCodec<InMessageValidated> = {
+        encode: (data: InMessageValidated): Builder => {
+          return or.builder.messages.out.messageValidated.encode({
+            ...data,
+            context: dataCodec.getValidatedFeeContext.encode(data.context).asSlice(),
+          })
+        },
+        load: (src: Slice): InMessageValidated => {
+          const orMessageValidated = or.builder.messages.out.messageValidated.load(src)
+          return {
+            ...orMessageValidated,
+            context: dataCodec.getValidatedFeeContext.load(orMessageValidated.context),
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<InMessageValidationFailed> = {
+        encode: (data: InMessageValidationFailed): Builder => {
+          return or.builder.messages.out.messageValidationFailed.encode({
+            ...data,
+            context: dataCodec.getValidatedFeeContext.encode(data.context).asSlice(),
+          })
+        },
+        load: (src: Slice): InMessageValidationFailed => {
+          const orMessageValidationFailed =
+            or.builder.messages.out.messageValidationFailed.load(src)
+          return {
+            ...orMessageValidationFailed,
+            context: dataCodec.getValidatedFeeContext.load(orMessageValidationFailed.context),
+          }
+        },
+      }
+
+      const rmnRemoteCurse: CellCodec<RMNRemoteCurse> = {
+        encode: (data: RMNRemoteCurse): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.rmnRemoteCurse, 32)
+            .storeUint(data.queryID, 64)
+            .storeRef(
+              asSnakeData<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
+            )
+        },
+        load: (src: Slice): RMNRemoteCurse => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            subjects: fromSnakeData(src.loadRef(), (s) => s.loadUintBig(128)),
+          }
+        },
+      }
+
+      const rmnRemoteUncurse: CellCodec<RMNRemoteUncurse> = {
+        encode: (data: RMNRemoteUncurse): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.rmnRemoteUncurse, 32)
+            .storeUint(data.queryID, 64)
+            .storeRef(
+              asSnakeData<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
+            )
+        },
+        load: (src: Slice): RMNRemoteUncurse => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            subjects: fromSnakeData(src.loadRef(), (s) => s.loadUintBig(128)),
+          }
+        },
+      }
+
+      const rmnRemoteVerifyNotCursed: CellCodec<RMNRemoteVerifyNotCursed> = {
+        encode: (data: RMNRemoteVerifyNotCursed): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.verifyNotCursed, 32)
+            .storeUint(data.queryID, 64)
+            .storeUint(data.subject, 128)
+        },
+        load: (src: Slice): RMNRemoteVerifyNotCursed => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            subject: src.loadUintBig(128),
+          }
+        },
+      }
+
+      const rmnTransferOwnership: CellCodec<ownable2step.TransferOwnership> = {
+        encode: function (data: ownable2step.TransferOwnership): Builder {
+          return beginCell().storeBuilder(
+            ownable2step.builder.message.in
+              .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+              .encode(data),
+          )
+        },
+        load: function (src: Slice): ownable2step.TransferOwnership {
+          return ownable2step.builder.message.in
+            .transferOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+            .load(src)
+        },
+      }
+
+      const rmnAcceptOwnership: CellCodec<ownable2step.AcceptOwnership> = {
+        encode: function (data: ownable2step.AcceptOwnership): Builder {
+          return beginCell().storeBuilder(
+            ownable2step.builder.message.in
+              .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+              .encode(data),
+          )
+        },
+        load: function (src: Slice): ownable2step.AcceptOwnership {
+          return ownable2step.builder.message.in
+            .acceptOwnershipWithRole(opcodes.in.rmnOwnableMessage)
+            .load(src)
+        },
+      }
+
       return {
         ccipSend,
         getValidatedFee,
+        routeMessage,
         ccipReceiveConfirm,
         messageSent,
         messageRejected,
         applyRampUpdates,
+        messageValidated,
+        messageValidationFailed,
+        rmnRemoteCurse,
+        rmnRemoteUncurse,
+        rmnRemoteVerifyNotCursed,
+        rmnTransferOwnership,
+        rmnAcceptOwnership,
       }
     })()
     const out = (() => {
@@ -768,14 +1060,32 @@ export const builder = {
         },
       }
 
+      const rmnRemoteVerifyNotCursedResponse: CellCodec<RMNRemoteVerifyNotCursedResponse> = {
+        encode: (data: RMNRemoteVerifyNotCursedResponse): Builder => {
+          return beginCell()
+            .storeUint(opcodes.out.rmnRemoteVerifyNotCursedResponse, 32)
+            .storeUint(data.queryID, 64)
+            .storeBit(data.result)
+        },
+        load: (src: Slice): RMNRemoteVerifyNotCursedResponse => {
+          src.skip(32) // opcode
+          return {
+            queryID: src.loadUintBig(64),
+            result: src.loadBit(),
+          }
+        },
+      }
+
       return {
         messageValidated,
         messageValidationFailed,
         ccipSendACK,
         ccipSendNACK,
+        rmnRemoteVerifyNotCursedResponse,
       }
     })()
 
     return { in: messageIn, out }
-  })(),
-}
+  })()
+  return { data: dataCodec, message }
+})()

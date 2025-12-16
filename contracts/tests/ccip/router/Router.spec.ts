@@ -114,7 +114,42 @@ describe('Router - Ownable Tests', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    await ownable2StepSpec(deployer, other, router)
+    await ownable2StepSpec(deployer, other, router, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: 'Router',
+            name: 'router',
+          },
+        ],
+      },
+    })
+  })
+
+  it('supports RMN ownable messages', async () => {
+    const other = await blockchain.treasury('other')
+    await ownable2StepSpec(deployer, other, blockchain.openContract(router.RMNOwnable), {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: 'Router',
+            name: 'router',
+          },
+        ],
+      },
+    })
+  })
+
+  it('should match facility ID', async () => {
+    const facilityId = await router.getFacilityId()
+    expect(facilityId).toBe(BigInt(rt.ROUTER_FACILITY_ID))
+  })
+
+  it('should match error code', async () => {
+    const errorCode = await router.getErrorCode(0n)
+    expect(errorCode).toBe(BigInt(rt.ROUTER_ERROR_CODE))
   })
 
   afterAll(async () => {
@@ -131,13 +166,11 @@ describe('Router - Ownable Tests', () => {
 describe('Router - Opcodes', () => {
   it('should match in opcodes', () => {
     expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates'))
-    expect(rt.opcodes.in.setRamps).toBe(crc32('Router_SetRamps'))
     expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CcipSend'))
-    expect(rt.opcodes.in.updateOffRamps).toBe(crc32('Router_UpdateOffRamps'))
     expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CcipReceiveConfirm'))
     expect(rt.opcodes.in.routeMessage).toBe(crc32('Router_RouteMessage'))
-    expect(rt.opcodes.in.curse).toBe(crc32('Router_Curse'))
-    expect(rt.opcodes.in.uncurse).toBe(crc32('Router_Uncurse'))
+    expect(rt.opcodes.in.rmnRemoteCurse).toBe(crc32('Router_Curse'))
+    expect(rt.opcodes.in.rmnRemoteUncurse).toBe(crc32('Router_Uncurse'))
     expect(rt.opcodes.in.verifyNotCursed).toBe(crc32('Router_VerifyNotCursed'))
     expect(rt.opcodes.in.messageSent).toBe(crc32('Router_MessageSent'))
     expect(rt.opcodes.in.messageRejected).toBe(crc32('Router_MessageRejected'))
