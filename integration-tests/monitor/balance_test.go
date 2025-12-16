@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -76,7 +77,7 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	totalTransferred := float64(numTxs) * 5.0
 	for i := 0; i < numTxs; i++ {
 		lggr.Infow("Sending transaction", "index", i+1, "from", senderAddr.String(), "to", recipientAddr.String(), "amount", "5 TON")
-		var transfer *ton.Message
+		var transfer *wallet.Message
 		transfer, err = tonChain.Wallet.BuildTransfer(recipientAddr, transferAmount, false, "test transfer")
 		require.NoError(t, err)
 		_, _, err = signedClient.SendWaitTransaction(t.Context(), *recipientAddr, transfer)
