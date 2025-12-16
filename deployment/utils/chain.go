@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,69 +15,24 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
-	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// Deprecated: use tvm.NewRandomTestWallet instead
 func CreateRandomWallet(client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) (*wallet.Wallet, error) {
-	seed := wallet.NewSeed()
-	rw, err := wallet.FromSeed(client, seed, version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
-	}
-	pw, perr := wallet.FromPrivateKeyWithOptions(client, rw.PrivateKey(), version, option)
-	if perr != nil {
-		return nil, fmt.Errorf("failed to generate random wallet: %w", perr)
-	}
-	return pw, nil
+	return tvm.NewRandomTestWallet(client, version, option)
 }
 
+// Deprecated: use tvm.NewRandomHighloadV3TestWallet instead
 func CreateRandomHighloadWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
-	seed := wallet.NewSeed()
-	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
-		MessageTTL: 60 * 5,
-		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
-			// Due to specific of externals emulation on liteserver,
-			// we need to take something less than or equals to block time, as message creation time,
-			// otherwise external message will be rejected, because time will be > than emulation time
-			// hope it will be fixed in the next LS versions
-			createdAt = time.Now().Unix() - 30
-
-			// example query id which will allow you to send 1 tx per second
-			// but you better to implement your own iterator in database, then you can send unlimited
-			// but make sure id is less than 1 << 23, when it is higher start from 0 again
-			return uint32(createdAt % (1 << 23)), createdAt, nil //nolint:gosec // test wallet
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
-	}
-	return w, nil
+	return tvm.NewRandomHighloadV3TestWallet(client)
 }
 
-// NOTE: Prefunded high-load wallet from MyLocalTon pre-funded wallet, that can send up to 254 messages per 1 external message
-// https://docs.ton.org/v3/documentation/smart-contracts/contracts-specs/highload-wallet#highload-wallet-v2
+// Deprecated: use tvm.MyLocalTONWalletDefault instead
 func GetLocalnetFunderWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {
-	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
-	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
-	}
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(-1))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
-	}
-	subWalletID := uint32(42)
-	funder, err := mcFunderWallet.GetSubwallet(subWalletID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get highload subwallet: %w", err)
-	}
-	// confirm the funder address
-	if funder.Address().StringRaw() != blockchain.DefaultTonHlWalletAddress {
-		return nil, errors.New("funder address mismatch")
-	}
-	return funder, nil
+	return tvm.MyLocalTONWalletDefault(client)
 }
 
 func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {

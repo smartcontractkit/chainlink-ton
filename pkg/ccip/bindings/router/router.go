@@ -15,6 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -160,6 +161,17 @@ type CCIPSendNACK struct {
 	QueryID uint64    `tlb:"## 64"`
 	Error   big.Int   `tlb:"## 256"`
 }
+
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	ApplyRampUpdates{},
+	CCIPSend{},
+	RouteMessage{},
+	CCIPReceiveConfirm{},
+	CCIPSendACK{},
+	CCIPSendNACK{},
+	MessageSent{},
+	MessageRejected{},
+})
 
 // OnRampAddressMap represents a map of destination chain selectors to their on-ramp addresses.
 // This type aligns with the on-chain data structure for on-ramp address mappings.

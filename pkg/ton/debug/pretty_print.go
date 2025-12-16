@@ -69,7 +69,7 @@ func NewDebuggerSequenceTrace(addresses map[string]TypeAndVersion, outputFmt seq
 }
 
 func defaultDecoders() map[string]lib.ContractDecoder {
-	tlbs := make(map[uint64]interface{})
+	tlbs := make(lib.TLBMap)
 	// Jetton contract types
 	maps.Copy(tlbs, wallet.TLBs)
 	maps.Copy(tlbs, minter.TLBs)

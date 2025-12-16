@@ -10,6 +10,7 @@ import (
 
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -242,6 +243,20 @@ type ExpiredRootsCleaned struct {
 	Roots       common.SnakeData[Root]       `tlb:"^"` // The cleaned up roots
 	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	SetRoot{},
+	Execute{},
+	SetConfig{},
+	UpdateOpFinalizationTimeout{},
+	SubmitErrorReport{},
+	TransferOracleRole{},
+	NewRoot{},
+	ConfigSet{},
+	OpExecuted{},
+	ErrorReportSubmitted{},
+	OracleRoleTransferred{},
+})
 
 // --- Data (storage & structures) ---
 

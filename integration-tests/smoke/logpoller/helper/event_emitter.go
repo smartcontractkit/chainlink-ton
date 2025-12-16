@@ -25,12 +25,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
 	// event sending wallet
-	sender, err := test_utils.CreateRandomHighloadWallet(client)
+	sender, err := tvm.NewRandomHighloadV3TestWallet(client)
 	require.NoError(t, err)
 	require.NotNil(t, sender)
 
