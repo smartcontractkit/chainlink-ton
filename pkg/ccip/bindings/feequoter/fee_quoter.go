@@ -47,6 +47,8 @@ const (
 	ExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
 	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidEVMReceiverAddress
+	ErrorInvalid32ByteReceiverAddress
 	ErrorInvalidSuiReceiverAddress
 	ErrorInvalidSVMReceiverAddress
 	ErrorInvalidTokenReceiver
