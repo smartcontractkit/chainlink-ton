@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/relay/monitor"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestBalanceMonitor_DirectClient(t *testing.T) {
@@ -60,7 +61,7 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	lggr.Infow("Sender initial balance", "address", senderAddr.String(), "balance", senderInitialBalance, "unit", "TON")
 
 	// Wallet 2: recipient wallet, starts with 0 TON
-	recipientWallet, err := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+	recipientWallet, err := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 	require.NoError(t, err)
 	recipientAddr := recipientWallet.WalletAddress()
 
