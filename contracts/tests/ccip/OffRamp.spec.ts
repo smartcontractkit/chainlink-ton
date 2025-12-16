@@ -884,7 +884,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupOCRConfig()
     await setupSourceChainConfig()
 
-    const result = await commitReport(
+    await commitReport(
       [root1, root2],
       toNano('0.5'),
       0x01,
