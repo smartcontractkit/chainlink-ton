@@ -462,7 +462,7 @@ fun onWithdrawFeetokens(msg: OnRamp_WithdrawFeeTokens) {
         bounce: true,
         value: 0,
         dest: config.feeAggregator,
-        body: beginCell().endCell(),
+        body: createEmptyCell(),
     });
     withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
