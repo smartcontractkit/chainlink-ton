@@ -111,9 +111,9 @@ type UpdateDestChainConfigs struct {
 }
 
 type UpdateAllowlist struct {
-	DestinationChainSelector uint64                             `tlb:"## 64"`
-	Add                      common.SnakeData[*address.Address] `tlb:"^"`
-	Remove                   common.SnakeData[*address.Address] `tlb:"^"`
+	DestinationChainSelector uint64                               `tlb:"## 64"`
+	Add                      common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Remove                   common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateAllowlists struct {

@@ -150,12 +150,12 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			return fmt.Errorf("error while decoding chain selector from onRamps: %w", err2)
 		}
 
-		var onRamp common.WrappedAddress
+		var onRamp common.AddressWrap
 		if err3 := tlb.LoadFromCell(&onRamp, kv.Value); err3 != nil {
 			return fmt.Errorf("error while decoding OnRamps value: %w", err3)
 		}
 
-		b = b.WithOnRamp(selector, onRamp.WrappedAddress)
+		b = b.WithOnRamp(selector, onRamp.Val)
 	}
 
 	// OffRamp
@@ -169,12 +169,12 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 			return fmt.Errorf("error while decoding chain selector from offRamps: %w", err2)
 		}
 
-		var offRamp common.WrappedAddress
+		var offRamp common.AddressWrap
 		if err3 := tlb.LoadFromCell(&offRamp, kv.Value); err3 != nil {
 			return fmt.Errorf("error while decoding offRamps value: %w", err3)
 		}
 
-		b = b.WithOffRamp(selector, offRamp.WrappedAddress)
+		b = b.WithOffRamp(selector, offRamp.Val)
 	}
 
 	// RMNRemote.ForwardUpdates
@@ -183,12 +183,12 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 		return fmt.Errorf("error while loading RMNRemote.ForwardUpdates: %w", err)
 	}
 	for _, fu := range forwardUpdates {
-		var forwardUpdate common.WrappedAddress
+		var forwardUpdate common.AddressWrap
 		if err2 := tlb.LoadFromCell(&forwardUpdate, fu.Key); err2 != nil {
 			return fmt.Errorf("error while decoding ForwardUpdates value: %w", err2)
 		}
 
-		b = b.WithRMNRemoteForwardUpdates(forwardUpdate.WrappedAddress)
+		b = b.WithRMNRemoteForwardUpdates(forwardUpdate.Val)
 	}
 
 	// RMNRemote.CursedSubjects
@@ -234,8 +234,8 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	// OnRamps
 	st.OnRamps = cell.NewDict(64)
 	for selector, onramp := range s.OnRamps {
-		wrappedOnRamp := common.WrappedAddress{
-			WrappedAddress: onramp,
+		wrappedOnRamp := common.AddressWrap{
+			Val: onramp,
 		}
 
 		onRampCell, err := tlb.ToCell(wrappedOnRamp)
@@ -254,8 +254,8 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	// OffRamps
 	st.OffRamps = cell.NewDict(64)
 	for selector, offramp := range s.OffRamps {
-		wrappedOffRamp := common.WrappedAddress{
-			WrappedAddress: offramp,
+		wrappedOffRamp := common.AddressWrap{
+			Val: offramp,
 		}
 
 		offRampCell, err := tlb.ToCell(wrappedOffRamp)

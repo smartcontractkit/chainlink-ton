@@ -322,12 +322,12 @@ func ocr3ConfigToModel(raw *offramp.OCR3Config) (*OCR3Config, error) {
 
 		var transmitters []*address.Address
 		for _, transmitterEntry := range transmittersMap {
-			var transmitter common.WrappedAddress
+			var transmitter common.AddressWrap
 			if err2 := tlb.LoadFromCell(&transmitter, transmitterEntry.Key); err2 != nil {
 				return nil, fmt.Errorf("error while decoding transmitter value: %w", err2)
 			}
 
-			transmitters = append(transmitters, transmitter.WrappedAddress)
+			transmitters = append(transmitters, transmitter.Val)
 		}
 
 		wrappedSigners, err := bigIntArrayToHexArray(signers, 32) // 256 bits = 32 bytes
