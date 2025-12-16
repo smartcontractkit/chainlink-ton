@@ -39,11 +39,7 @@ export type OnRampStorage = {
   id: bigint
   ownable: ownable2step.Data
   chainSelector: bigint
-  config: {
-    feeQuoter: Address
-    feeAggregator: Address
-    allowlistAdmin: Address
-  }
+  config: DynamicConfig
   destChainConfigs: Dictionary<bigint, Cell>
   executor: ExecutorDeployment
 }
@@ -142,6 +138,7 @@ export type DynamicConfig = {
   feeQuoter: Address
   feeAggregator: Address
   allowlistAdmin: Address
+  reserve: bigint
 }
 
 export type GetValidatedFee = {
@@ -194,12 +191,14 @@ export const builder = (() => {
           .storeAddress(data.feeQuoter)
           .storeAddress(data.feeAggregator)
           .storeAddress(data.allowlistAdmin)
+          .storeCoins(data.reserve)
       },
       load: (src: Slice): DynamicConfig => {
         return {
           feeQuoter: src.loadAddress(),
           feeAggregator: src.loadAddress(),
           allowlistAdmin: src.loadAddress(),
+          reserve: src.loadCoins(),
         }
       },
     }
@@ -635,6 +634,7 @@ export const opcodes = {
     updateDestChainConfigs: 0x1a246b6c,
     updateSendExecutor: 0x82901c45,
     updateAllowlists: 0x9dc06185,
+    withdrawFeeTokens: 0x7052dc75,
   },
   out: {
     messageValidated: 0x2afb11bd,
@@ -647,6 +647,7 @@ export enum Errors {
   Unauthorized,
   SenderNotAllowed,
   InvalidConfig,
+  UnknownToken,
 }
 
 const cloneToSlice = (value?: Slice | Cell): Slice => {
@@ -661,7 +662,7 @@ const cloneToSlice = (value?: Slice | Cell): Slice => {
   return cloned.beginParse()
 }
 
-export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {
+export class OnRamp implements Contract, ownable2step.ContractClient {
   public ownable: ownable2step.ContractClient
 
   constructor(
@@ -928,7 +929,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
   }
 
   // Withdrawable methods
-  async sendWithdraw(
+  async sendWithdrawFeeTokens(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
@@ -943,6 +944,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       feeQuoter: stack.readAddress(),
       feeAggregator: stack.readAddress(),
       allowlistAdmin: stack.readAddress(),
+      reserve: stack.readBigNumber(),
     }
   }
 

@@ -13,7 +13,6 @@ import "../ccipsend_executor/storage"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
-import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "events"
 import "../../deployable/types"
@@ -21,7 +20,6 @@ import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -101,14 +99,10 @@ fun onInternalMessage(in: InMessage) {
             st.executor.executorCode = msg.code;
             st.store();
         }
-        // Sender must be the owner
-        Withdrawable_Withdraw => {
-            var st = lazy OnRamp_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            Withdrawable{
-                reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
-        }
+        // Permissionless
+        OnRamp_WithdrawFeeTokens => {
+            onWithdrawFeetokens(msg);
+        },
         // Sender must be owner
         Upgradeable_Upgrade => {
             var st = lazy OnRamp_Storage.load();
@@ -456,6 +450,23 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version}.upgrade(msg);
 }
 
+fun onWithdrawFeetokens(msg: OnRamp_WithdrawFeeTokens) {
+    val feeTokens = msg.feeTokens.iter();
+    assert (feeTokens.empty()) throw Error.UnknownToken;
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+
+    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_EXACT_AMOUNT);
+
+    val withdrawMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: config.feeAggregator,
+        body: beginCell().endCell(),
+    });
+    withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+}
+
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy OnRamp_Storage.load();
     val entry = st.destChainConfigs.get(destChainSelector);
@@ -541,7 +552,9 @@ get fun errorCode(local: uint16): uint16 {
 }
 
 get fun reserve(): coins {
-    return RESERVE;
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+    return config.reserve;
 }
 
 @method_id(1000)

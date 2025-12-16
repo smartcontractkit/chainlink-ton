@@ -32,6 +32,7 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: randomAddress(),
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
       value: toNano('0.5'),
@@ -49,6 +50,7 @@ describe('OnRamp - set Dynamic Config', () => {
     expect(dynamicConfig.feeQuoter.equals(newConfig.feeQuoter)).toBe(true)
     expect(dynamicConfig.feeAggregator.equals(newConfig.feeAggregator)).toBe(true)
     expect(dynamicConfig.allowlistAdmin.equals(newConfig.allowlistAdmin)).toBe(true)
+    expect(dynamicConfig.reserve).toBe(newConfig.reserve)
   })
 
   it('should fail on non-owner setting dynamic config', async () => {
@@ -57,6 +59,7 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: randomAddress(),
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(nonOwner.getSender(), {
       value: toNano('0.5'),
@@ -77,6 +80,7 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: ZERO_ADDRESS,
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
       value: toNano('0.5'),

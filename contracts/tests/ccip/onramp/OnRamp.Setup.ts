@@ -31,6 +31,7 @@ export async function deployOnRampContract(
       feeQuoter: ZERO_ADDRESS,
       feeAggregator: ZERO_ADDRESS,
       allowlistAdmin: ZERO_ADDRESS,
+      reserve: toNano('0.5'),
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
     executor: {

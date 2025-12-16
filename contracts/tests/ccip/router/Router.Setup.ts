@@ -275,6 +275,7 @@ async function deployOnRampInstance(
       feeQuoter,
       feeAggregator: deployer.address,
       allowlistAdmin: deployer.address,
+      reserve: toNano('10'),
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
     executor: {

@@ -21,7 +21,7 @@ type OnRamp_InMessage =
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
-    | Withdrawable_Withdraw
+    | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
     ;
 
@@ -89,6 +89,10 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
     context: T
+}
+
+struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
+    feeTokens: SnakedCell<address>;
 }
 
 // Costs associated with OnRamp operations

@@ -184,6 +184,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				// TODO:
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
+				Reserve:       "0.5",
 			},
 			ReceiverParams: config.ReceiverParams{
 				ID:              idForContracts,

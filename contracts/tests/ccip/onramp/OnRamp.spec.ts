@@ -1,4 +1,3 @@
-import { compile } from '@ton/blueprint'
 import { beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
@@ -6,7 +5,6 @@ import { crc32 } from 'zlib'
 import * as coverage from '../../coverage/coverage'
 import { facilityId } from '../../../wrappers/utils'
 
-import * as WithdrawableSpec from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
@@ -21,21 +19,6 @@ describe('OnRamp - TypeAndVersion Tests', () => {
     deployContract: deployOnRampContract,
   })
   currentVersionSpec.run([
-    {
-      code: 'OnRamp',
-      name: 'onramp',
-    },
-  ])
-})
-
-describe('OnRamp - Withdrawable Tests', () => {
-  const withdrawableSpec = WithdrawableSpec.newWithdrawableSpec({
-    getCode: () => compile('OnRamp'),
-    ContractConstructor: or.OnRamp,
-    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    deployContract: deployOnRampContract,
-  })
-  withdrawableSpec.run([
     {
       code: 'OnRamp',
       name: 'onramp',
@@ -121,6 +104,7 @@ describe('OnRamp - Opcodes', () => {
     expect(or.opcodes.in.updateDestChainConfigs).toBe(crc32('OnRamp_UpdateDestChainConfigs'))
     expect(or.opcodes.in.updateSendExecutor).toBe(crc32('OnRamp_UpdateSendExecutor'))
     expect(or.opcodes.in.updateAllowlists).toBe(crc32('OnRamp_UpdateAllowlists'))
+    expect(or.opcodes.in.withdrawFeeTokens).toBe(crc32('OnRamp_WithdrawFeeTokens'))
   })
 
   it('should match out opcodes', () => {
