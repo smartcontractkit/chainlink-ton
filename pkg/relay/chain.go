@@ -17,6 +17,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
+	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -73,6 +74,7 @@ type chain struct {
 
 	txm *txm.Txm
 	lp  logpoller.Service
+	bm  services.Service
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
@@ -147,7 +149,29 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		return nil, fmt.Errorf("failed to create logpoller service: %w", err)
 	}
 
-	// TODO: Setup accounts balance monitor
+	// Setup accounts balance monitor
+	chainInfo, err := ch.GetChainInfo(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chain info for balance monitor: %w", err)
+	}
+
+	ch.bm, err = monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
+		ChainInfo: balance.ChainInfo{
+			ChainFamilyName: chainInfo.FamilyName,
+			ChainID:         chainInfo.ChainID,
+			NetworkName:     chainInfo.NetworkName,
+			NetworkNameFull: chainInfo.NetworkNameFull,
+		},
+		Config: balance.GenericBalanceConfig{
+			BalancePollPeriod: *commonconfig.MustNewDuration(1 * time.Minute),
+		},
+		Logger:    lggr,
+		Keystore:  loopKs,
+		NewClient: ch.GetClient,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create balance monitor: %w", err)
+	}
 
 	return ch, nil
 }
@@ -158,21 +182,23 @@ func (c *chain) Name() string {
 
 func (c *chain) Start(ctx context.Context) error {
 	return c.starter.StartOnce("Chain", func() error {
-		c.lggr.Debug("Starting txm and log poller")
+		c.lggr.Debug("Starting txm, log poller, and balance monitor")
 		var ms services.MultiStart
 
 		if err := ms.Start(ctx, c.txm); err != nil {
 			return err
 		}
-		return ms.Start(ctx, c.lp)
+		if err := ms.Start(ctx, c.lp); err != nil {
+			return err
+		}
+		return ms.Start(ctx, c.bm)
 	})
 }
 
 func (c *chain) Close() error {
 	return c.starter.StopOnce("Chain", func() error {
-		c.lggr.Debug("Stopping")
-		c.lggr.Debug("Stopping txm")
-		return services.CloseAll(c.txm, c.lp)
+		c.lggr.Debug("Stopping txm, log poller, and balance monitor")
+		return services.CloseAll(c.txm, c.lp, c.bm)
 	})
 }
 
@@ -184,7 +210,7 @@ func (c *chain) HealthReport() map[string]error {
 	report := map[string]error{c.Name(): c.starter.Healthy()}
 	services.CopyHealth(report, c.txm.HealthReport())
 	services.CopyHealth(report, c.lp.HealthReport())
-	// TODO: Add balance monitor health report once implemented
+	services.CopyHealth(report, c.bm.HealthReport())
 	return report
 }
 
