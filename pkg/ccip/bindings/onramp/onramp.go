@@ -169,8 +169,6 @@ type UpdateSendExecutorMessage struct {
 }
 
 var TLBs = lib.MustNewTLBMap([]any{
-	SetDynamicConfig{},
-	UpdateDestChainConfigs{},
 	UpdateAllowlists{},
 	Send{},
 	WithdrawJettons{},
