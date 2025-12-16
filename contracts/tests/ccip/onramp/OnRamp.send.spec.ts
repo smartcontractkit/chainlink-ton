@@ -278,7 +278,7 @@ describe('OnRamp - Send', () => {
     })
   })
 
-  it('should fail if dest chain selector is unknown', async () => {
+  it('should reject message if dest chain selector is unknown', async () => {
     const unknownChainCCIPSend = {
       ...ccipSend,
       destChainSelector: 0xdeadbeefn,

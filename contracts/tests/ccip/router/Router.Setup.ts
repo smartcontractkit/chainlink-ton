@@ -465,7 +465,7 @@ export const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
 // unit192 where 64 first bits are chain selector
 export function genExecID(opts: {
   sourceChainSelector: bigint // 64 bits
-  messageID: bigint // 256 bits
+  messageID: bigint // 128 bits
 }): bigint {
   return (opts.sourceChainSelector << (192n - 64n)) | (opts.messageID >> 64n)
 }
