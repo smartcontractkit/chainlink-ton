@@ -71,7 +71,7 @@ describe('Deployable - Unit Tests', () => {
     })
 
     const counterContract = blockchain.openContract(
-      counter.ContractClient.newAt(deployable.address),
+      counter.ContractClient.createFromAddress(deployable.address),
     )
     expect(await counterContract.getValue()).toBe(0)
 
@@ -129,7 +129,7 @@ describe('Deployable - Unit Tests', () => {
     })
 
     const counterContract = blockchain.openContract(
-      counter.ContractClient.newAt(deployable.address),
+      counter.ContractClient.createFromAddress(deployable.address),
     )
     expect(await counterContract.getValue()).toBe(42)
   })
