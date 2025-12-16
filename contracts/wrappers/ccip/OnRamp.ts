@@ -146,6 +146,10 @@ export type GetValidatedFee = {
   context: Slice
 }
 
+export type WithdrawFeeTokens = {
+  feeTokens: Address[]
+}
+
 const metadataCodec: CellCodec<Metadata> = {
   encode: function (data: Metadata): Builder {
     return beginCell().storeAddress(data.sender).storeCoins(data.value)
@@ -532,6 +536,24 @@ export const builder = (() => {
         },
       }
 
+      const withdrawFeeTokens: CellCodec<WithdrawFeeTokens> = {
+        encode: function (data: WithdrawFeeTokens): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.withdrawFeeTokens, 32)
+            .storeRef(
+              asSnakeData<Address>(data.feeTokens, (token: Address) =>
+                beginCell().storeAddress(token),
+              ),
+            )
+        },
+        load: function (src: Slice): WithdrawFeeTokens {
+          src.skip(32) // opcode
+          return {
+            feeTokens: fromSnakeData<Address>(src.loadRef(), (cell: Slice) => cell.loadAddress()),
+          }
+        },
+      }
+
       return {
         getValidatedFee,
         messageValidated,
@@ -542,6 +564,7 @@ export const builder = (() => {
         setDynamicConfig,
         updateSendExecutor,
         updateAllowlists,
+        withdrawFeeTokens,
       }
     })()
 
@@ -648,6 +671,7 @@ export enum Errors {
   SenderNotAllowed,
   InvalidConfig,
   UnknownToken,
+  InsufficientValue,
 }
 
 const cloneToSlice = (value?: Slice | Cell): Slice => {
@@ -933,9 +957,13 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     provider: ContractProvider,
     via: Sender,
     value: bigint,
-    body: withdrawable.Withdraw,
+    body: WithdrawFeeTokens,
   ) {
-    return await withdrawable.sendWithdraw(provider, via, value, body)
+    return await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.withdrawFeeTokens.encode(body).asCell(),
+    })
   }
 
   async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {

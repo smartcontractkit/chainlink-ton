@@ -1,21 +1,17 @@
-import { beginCell, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
-import { facilityId } from '../../../wrappers/utils'
 
-import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
-import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
-import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import { deployOnRampContract, CHAINSEL_TON, setup } from './OnRamp.Setup'
+import { setup } from './OnRamp.Setup'
+import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('OnRamp - WithdrawFeeTokens', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
+  let config: or.DynamicConfig
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -29,12 +25,111 @@ describe('OnRamp - WithdrawFeeTokens', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, onramp } = await setup(blockchain))
+    ;({ deployer, onramp, config } = await setup(blockchain))
   })
 
-  it('should withdraw fee tokens', async () => {
-    const facilityId = await onramp.getFacilityId() // TODO
-    expect(facilityId).toBe(BigInt(or.ONRAMP_FACILITY_ID))
+  it('should succeed to withdraw empty fee tokens', async () => {
+    const reserve = await onramp.getReserve()
+    expect(reserve).toBeGreaterThan(BigInt(0))
+
+    const balanceBefore = (await blockchain.getContract(onramp.address)).balance
+    expect(balanceBefore).toBeGreaterThan(reserve)
+
+    const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
+      feeTokens: [],
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: config.feeAggregator,
+      value(x) {
+        if (!x) return false
+        return x > balanceBefore - reserve
+      },
+    })
+
+    const balanceAfter = (await blockchain.getContract(onramp.address)).balance
+    expect(balanceAfter).toBe(reserve)
+  })
+
+  it('should fail to withdraw non empty fee tokens', async () => {
+    const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
+      feeTokens: [ZERO_ADDRESS],
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.UnknownToken,
+    })
+  })
+
+  it('should fail to withdraw fee tokens with low msg value', async () => {
+    const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.01'), {
+      feeTokens: [],
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.InsufficientValue,
+    })
+  })
+
+  it('should fail to withdraw fee tokens with balance lower than reserve', async () => {
+    // First, update reserve to be higher than balance
+    {
+      const balance = (await blockchain.getContract(onramp.address)).balance
+      const result = await onramp.sendSetDynamicConfig(deployer.getSender(), {
+        value: toNano('0.1'),
+        body: {
+          config: {
+            ...config,
+            reserve: balance + toNano('1'),
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onramp.address,
+        success: true,
+      })
+    }
+    const reserve = await onramp.getReserve()
+    const withdrawalFeeTokensMsgValue = toNano('0.5')
+    const prevBalance = (await blockchain.getContract(onramp.address)).balance
+    expect(prevBalance).toBeLessThan(reserve + withdrawalFeeTokensMsgValue) // Ensure balance is lower than reserve + msg value
+
+    // Now, try to withdraw again, which should fail
+    const result = await onramp.sendWithdrawFeeTokens(
+      deployer.getSender(),
+      withdrawalFeeTokensMsgValue,
+      {
+        feeTokens: [],
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: false,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: deployer.address,
+      inMessageBounced: true,
+    })
+
+    const newBalance = (await blockchain.getContract(onramp.address)).balance
+    expect(newBalance).toBe(prevBalance) // Balance should remain unchanged
   })
 
   it('should get reserve', async () => {

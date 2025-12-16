@@ -6,4 +6,5 @@ enum Error {
     SenderNotAllowed
     InvalidConfig
     UnknownToken
+    InsufficientValue
 }

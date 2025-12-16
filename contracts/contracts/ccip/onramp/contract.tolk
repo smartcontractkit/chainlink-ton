@@ -101,6 +101,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless
         OnRamp_WithdrawFeeTokens => {
+            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens(), Error.InsufficientValue);
             onWithdrawFeetokens(msg);
         },
         // Sender must be owner
@@ -363,6 +364,7 @@ Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
     assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
+    assert (!msg.config.feeAggregator.isZero()) throw Error.InvalidConfig;
     // EVM implementation also checks that feeAgregator is non-zero, but it is unused in TON
 
     st.config = msg.config.toCell();
@@ -456,15 +458,15 @@ fun onWithdrawFeetokens(msg: OnRamp_WithdrawFeeTokens) {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
 
-    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_EXACT_AMOUNT);
+    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
-        bounce: true,
+        bounce: false, // We don't want feeAggregator returning message value on failure
         value: 0,
         dest: config.feeAggregator,
         body: createEmptyCell(),
     });
-    withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun isChainSupported(destChainSelector: uint64): bool {

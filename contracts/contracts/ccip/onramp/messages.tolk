@@ -140,3 +140,13 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
         + Router_Costs.MessageRejected()
         ;
 }
+
+// Minimum value for calling OnRamp_WithdrawFeeTokens
+@inline
+fun OnRamp_Costs.WithdrawFeeTokens(): int {
+    return
+        + ton("0.02") // computeFee
+        + ton("0.019") // feeTokens fwdFee
+        + ton("0.05") // feeCollector computeFee
+        ;
+}

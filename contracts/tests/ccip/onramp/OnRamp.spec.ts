@@ -16,7 +16,8 @@ describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: or.OnRamp.type(),
     version: or.OnRamp.version(),
-    deployContract: deployOnRampContract,
+    deployContract: (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+      deployOnRampContract(blockchain, owner).then((c) => c.onramp),
   })
   currentVersionSpec.run([
     {
@@ -65,7 +66,7 @@ describe('OnRamp - Ownable Tests', () => {
 
     const deployer = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
-    const onramp = await deployOnRampContract(blockchain, deployer)
+    const { onramp } = await deployOnRampContract(blockchain, deployer)
 
     await Ownable2StepSpec.ownable2StepSpec(deployer, other, onramp, {
       coverage: {
@@ -87,7 +88,8 @@ describe('OnRamp - Current Version Tests', () => {
     currentVersion: or.OnRamp.version(),
     getCurrentCode: () => or.OnRamp.code(),
     CurrentVersionConstructor: or.OnRamp,
-    deployCurrentContract: deployOnRampContract,
+    deployCurrentContract: (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+      deployOnRampContract(blockchain, owner).then((c) => c.onramp),
   })
   currentVersionSpec.run('onramp')
 })

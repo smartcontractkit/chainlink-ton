@@ -17,6 +17,7 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
+  let config: or.DynamicConfig
   let mockRouter: SandboxContract<TreasuryContract>
   let allowlistAdmin: SandboxContract<TreasuryContract>
   let allowedSendersGroup1: SandboxContract<TreasuryContract>[] = []
@@ -34,16 +35,10 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer, onramp } = await setup(blockchain))
     allowlistAdmin = await blockchain.treasury('allowlistAdmin')
-
-    onramp = await deployOnRampContract(blockchain, deployer, {
-      config: {
-        feeQuoter: ZERO_ADDRESS,
-        feeAggregator: ZERO_ADDRESS,
-        allowlistAdmin: allowlistAdmin.address,
-      },
-    })
+    ;({ deployer, onramp, config } = await setup(blockchain, {
+      config: { allowlistAdmin: allowlistAdmin.address },
+    }))
 
     mockRouter = await blockchain.treasury('mockRouter')
     allowedSendersGroup1 = []
