@@ -119,14 +119,14 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		signers = append(signers, offramp.Signer{Pubkey: signer})
 	}
 
-	transmitters := make([]offramp.Transmitter, 0, len(in.Transmitters))
+	transmitters := make([]common.AddressWrap, 0, len(in.Transmitters))
 	for _, transmitter := range in.Transmitters {
 		if len(transmitter) != 36 {
 			return nil, fmt.Errorf("invalid transmitter address, expected 36 bytes, got %d", len(transmitter))
 		}
 		workchain := int32(binary.BigEndian.Uint32(transmitter[0:4])) //nolint:gosec // G115
 		addr := address.NewAddress(0, byte(workchain), transmitter[4:])
-		transmitters = append(transmitters, offramp.Transmitter{Address: addr})
+		transmitters = append(transmitters, common.AddressWrap{Val: addr})
 	}
 
 	input := offramp.SetOCR3Config{
@@ -136,7 +136,7 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		F:                              in.F,
 		IsSignatureVerificationEnabled: in.IsSignatureVerificationEnabled,
 		Signers:                        common.SnakeData[offramp.Signer](signers),
-		Transmitters:                   common.SnakeData[offramp.Transmitter](transmitters),
+		Transmitters:                   common.SnakeData[common.AddressWrap](transmitters),
 	}
 
 	payload, err := tlb.ToCell(input)

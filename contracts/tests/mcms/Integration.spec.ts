@@ -184,7 +184,7 @@ describe('MCMS - IntegrationTest', () => {
       }
 
       bind.timelock = blockchain.openContract(rbactl.ContractClient.newFrom(data, code.timelock))
-      bind.ac = blockchain.openContract(ac.ContractClient.newAt(bind.timelock.address))
+      bind.ac = blockchain.openContract(ac.ContractClient.createFromAddress(bind.timelock.address))
     }
 
     // Set up Counter contract
