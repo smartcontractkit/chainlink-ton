@@ -20,3 +20,31 @@ var DeployChainContracts = operations.NewSequence(
 		return output, nil
 	},
 )
+
+func (a *TonAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+	return DeployMCMSContracts
+}
+
+var DeployMCMSContracts = operations.NewSequence(
+	"deploy-mcms",
+	semver.MustParse("0.0.4"),
+	"Deploys all MCM contracts with config",
+	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
+		return output, nil
+	},
+)
+
+func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+	return operations.NewSequence(
+		"finalize-deploy-mcms",
+		semver.MustParse("1.0.0"),
+		"On TON, finalizing MCM deployment is a no-op",
+		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
+			return output, nil
+		})
+}
+
+func (a *TonAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
+	// Not implemented for Solana
+	return nil
+}

@@ -8,7 +8,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
@@ -23,6 +27,52 @@ func (a *TonAdapter) ConfigureLaneLegAsSource() *operations.Sequence[lanes.Updat
 
 func (a *TonAdapter) ConfigureLaneLegAsDest() *operations.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsDest
+}
+
+func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	return convertAddress(tonChain.OnRamp)
+}
+
+func (a *TonAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	return convertAddress(tonChain.OffRamp)
+}
+
+func (a *TonAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	return convertAddress(tonChain.FeeQuoter)
+}
+
+func (a *TonAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	return convertAddress(tonChain.Router)
+}
+
+func convertAddress(address address.Address) ([]byte, error) {
+	addrCodec := codec.NewAddressCodec()
+	rawAddress, err := addrCodec.AddressStringToBytes(address.String())
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to convert TON address to bytes: %w", err)
+	}
+
+	return rawAddress, nil
 }
 
 var ConfigureLaneLegAsSource = operations.NewSequence(
