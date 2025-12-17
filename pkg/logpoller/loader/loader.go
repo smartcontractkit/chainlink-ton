@@ -297,7 +297,7 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 // validateTransactionListResponse validates liteserver response to prevent DoS attacks.
 // checks that response doesn't exceed requested limit and that block IDs array matches transaction count (runtime panic prevention).
 func validateTransactionListResponse(txCount, idsCount int, limit uint32) error {
-	if txCount < 0 || txCount > math.MaxUint32 || uint32(txCount) > limit {
+	if txCount > int(limit) {
 		return fmt.Errorf("liteserver returned %d transactions, exceeding requested limit %d", txCount, limit)
 	}
 	if idsCount != txCount {
