@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // GetRoleMembersView retrieves all addresses assigned to a specific role in the RBAC contract.
@@ -27,13 +28,13 @@ func GetRoleMembersView(ctx context.Context, client ton.APIClientWrapped, addr *
 	for j := range n {
 		args := GetRoleMemberArgs{
 			Role:  role,
-			Index: uint64(j),
+			Index: j,
 		}
-		addr, err := tvm.CallGetter(ctx, client, block, addr, GetRoleMember, args)
+		rmAddr, err := tvm.CallGetter(ctx, client, block, addr, GetRoleMember, args)
 		if err != nil {
 			return nil, err
 		}
-		addresses = append(addresses, addr)
+		addresses = append(addresses, rmAddr)
 	}
 
 	return addresses, nil
