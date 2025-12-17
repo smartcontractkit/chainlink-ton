@@ -254,6 +254,10 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"bounce", msg.InternalMessage.Bounce,
 			"hasBody", msg.InternalMessage.Body != nil)
 		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
+		if err != nil {
+			t.logger.Errorw("SendWaitTransaction failed. Continuing with remaining attempts", "err", err, "txID", txID, "attempt", attempt)
+			continue
+		}
 
 		if receivedMessage.ExitCode != 0 {
 			t.logger.Errorw("transaction failed", "exitcode", receivedMessage.ExitCode, "description", receivedMessage.ExitCode.Describe())
