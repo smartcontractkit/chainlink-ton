@@ -117,8 +117,8 @@ type UpdateAllowlists struct {
 }
 
 type WithdrawFeeTokens struct {
-	_         tlb.Magic                               `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
-	FeeTokens common.SnakeData[common.WrappedAddress] `tlb:"."`
+	_         tlb.Magic                            `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
+	FeeTokens common.SnakeData[common.AddressWrap] `tlb:"."`
 }
 
 // Message structures that map to the existing types in onramp.go
