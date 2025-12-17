@@ -10,13 +10,14 @@ import (
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-	"github.com/xssnick/tonutils-go/address"
 )
 
 const defaultMCMSContractCoin = "1.5"
