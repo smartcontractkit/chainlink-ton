@@ -1,12 +1,24 @@
 package sequences
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/xssnick/tonutils-go/address"
 )
+
+const defaultCCIPContractCoin = "0.05"
 
 func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
@@ -17,39 +29,86 @@ var DeployChainContracts = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		return output, nil
+		var txs [][]byte
+
+		tonChain := chains.TonChains()[input.ChainSelector]
+		deps, err := extractTonDepsFromContractDeploymentInput(tonChain)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
+		seqInput := intoDeployCCIPSeqInput(input, deps.TonChain.WalletAddress)
+		ccipSeqReport, err := operations.ExecuteSequence(b, seq.DeployCCIPSequence, deps, seqInput)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
+		}
+
+		txs = append(txs, ccipSeqReport.Output...)
+
+		// Execute the txs || MCMS proposals
+		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
+
+		return sequences.OnChainOutput{}, nil
 	},
 )
 
-func (a *TonAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return DeployMCMSContracts
+func extractTonDepsFromContractDeploymentInput(chain ton.Chain) (ccipConfig.CCIPDeps, error) {
+	deps := ccipConfig.CCIPDeps{
+		TonChain: chain,
+		CCIPOnChainState: map[uint64]state.CCIPChainState{
+			// initialize with zero addresses; actual addresses will be filled in after deployment
+			chain.Selector: {
+				OnRamp:    *tvm.ZeroAddress,
+				OffRamp:   *tvm.ZeroAddress,
+				Router:    *tvm.ZeroAddress,
+				FeeQuoter: *tvm.ZeroAddress,
+			},
+		},
+	}
+	return deps, nil
 }
 
-var DeployMCMSContracts = operations.NewSequence(
-	"deploy-mcms",
-	semver.MustParse("0.0.4"),
-	"Deploys all MCM contracts with config",
-	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		return output, nil
-	},
-)
-
-func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return operations.NewSequence(
-		"finalize-deploy-mcms",
-		semver.MustParse("1.0.0"),
-		"On TON, finalizing MCM deployment is a no-op",
-		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-			return output, nil
-		})
-}
-
-func (a *TonAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return operations.NewSequence(
-		"grant-admin-role-of-timelock-to-timelock",
-		semver.MustParse("1.0.0"),
-		"On TON, GrantAdminRoleToTimelock is a no-op",
-		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector) (output sequences.OnChainOutput, err error) {
-			return output, nil
-		})
+func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddress, deployer *address.Address) seq.DeployCCIPSeqInput {
+	return seq.DeployCCIPSeqInput{
+		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO is it okay to use local version or a hardcoded one?
+		CCIPConfig: ccipConfig.ChainContractParams{
+			FeeQuoterParams: ccipConfig.FeeQuoterParams{
+				ContractsSemver:              cfg.Version,
+				Coin:                         defaultCCIPContractCoin,
+				MaxFeeJuelsPerMsg:            cfg.MaxFeeJuelsPerMsg,
+				TokenPriceStalenessThreshold: uint64(cfg.TokenPriceStalenessThreshold),
+				FeeTokens: map[ccipConfig.TokenSymbol]ccipConfig.FeeToken{
+					"TON": {
+						Address:                    tvm.TonTokenAddr,
+						PremiumMultiplierWeiPerEth: 1,
+					},
+					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
+				},
+			},
+			OffRampParams: ccipConfig.OffRampParams{
+				ContractsSemver:                  cfg.Version,
+				Coin:                             defaultCCIPContractCoin,
+				ChainSelector:                    cfg.ChainSelector,
+				PermissionlessExecutionThreshold: cfg.PermissionLessExecutionThresholdSeconds,
+			},
+			OnRampParams: ccipConfig.OnRampParams{
+				ContractsSemver: cfg.Version,
+				Coin:            defaultCCIPContractCoin,
+				ChainSelector:   cfg.ChainSelector,
+				AllowlistAdmin:  deployer,
+				FeeAggregator:   deployer,
+			},
+			RouterParams: ccipConfig.RouterParams{
+				ContractsSemver: cfg.Version,
+				Coin:            defaultCCIPContractCoin,
+			},
+			ReceiverParams: ccipConfig.ReceiverParams{
+				ContractsSemver: cfg.Version,
+				Coin:            defaultCCIPContractCoin,
+			},
+		},
+		ChainSelector: cfg.ChainSelector,
+	}
 }
