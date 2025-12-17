@@ -45,6 +45,11 @@ func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploy
 }
 
 func (a *TonAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	// Not implemented for Solana
-	return nil
+	return operations.NewSequence(
+		"grant-admin-role-of-timelock-to-timelock",
+		semver.MustParse("1.0.0"),
+		"On TON, GrantAdminRoleToTimelock is a no-op",
+		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector) (output sequences.OnChainOutput, err error) {
+			return output, nil
+		})
 }
