@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -92,7 +93,7 @@ func encodeArgsDefault(input any) ([]any, error) {
 
 	value := reflect.ValueOf(input)
 	if !value.IsValid() {
-		return nil, fmt.Errorf("tvm: cannot encode invalid value as argument")
+		return nil, errors.New("tvm: cannot encode invalid value as argument")
 	}
 
 	switch value.Kind() {
