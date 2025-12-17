@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var GetConfig = tvm.GetterNoArgs[Config]{
+var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 	Name: "getConfig",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (Config, error) {
 		rResult := r.AsTuple()
@@ -63,9 +63,9 @@ var GetConfig = tvm.GetterNoArgs[Config]{
 		}, nil
 
 	}),
-}
+})
 
-var GetOpCount = tvm.GetterNoArgs[uint64]{
+var GetOpCount = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
 	Name: "getOpCount",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
 		ri, err := r.Int(0)
@@ -75,14 +75,14 @@ var GetOpCount = tvm.GetterNoArgs[uint64]{
 
 		return ri.Uint64(), nil
 	}),
-}
+})
 
 type GetRootResult struct {
 	Root       *big.Int
 	ValidUntil uint32
 }
 
-var GetRoot = tvm.GetterNoArgs[GetRootResult]{
+var GetRoot = tvm.NewNoArgsGetter(tvm.NoArgsOpts[GetRootResult]{
 	Name: "getRoot",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (GetRootResult, error) {
 		root, err := r.Int(0)
@@ -95,16 +95,14 @@ var GetRoot = tvm.GetterNoArgs[GetRootResult]{
 			return GetRootResult{}, fmt.Errorf("error getting Int(1) - validUntil: %w", err)
 		}
 
-		//nolint:gosec // G115 conversion safe, validUntil is uint32
 		return GetRootResult{
-			Root: root,
-			//nolint:gosec // G115 conversion safe, validUntil is uint32
+			Root:       root,
 			ValidUntil: uint32(validUntil.Uint64()),
 		}, nil
 	}),
-}
+})
 
-var GetRootMetadata = tvm.GetterNoArgs[RootMetadata]{
+var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 	Name: "getRootMetadata",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (RootMetadata, error) {
 		chainID, err := r.Int(0)
@@ -130,4 +128,4 @@ var GetRootMetadata = tvm.GetterNoArgs[RootMetadata]{
 			OverridePreviousRoot: false, // TODO: not implemented yet
 		}, nil
 	}),
-}
+})

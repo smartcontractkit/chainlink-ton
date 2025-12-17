@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var GetMinDelay = tvm.GetterNoArgs[uint64]{
+var GetMinDelay = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
 	Name: "getMinDelay",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
 		rs, err := r.Int(0)
@@ -19,13 +20,10 @@ var GetMinDelay = tvm.GetterNoArgs[uint64]{
 
 		return rs.Uint64(), nil
 	}),
-}
+})
 
 var GetRoleMemberCount = tvm.Getter[*big.Int, uint64]{
 	Name: "getRoleMemberCount",
-	Encoder: tvm.NewArgsEncoder(func(role *big.Int) ([]any, error) {
-		return []any{role}, nil
-	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
 		rs, err := r.Int(0)
 		if err != nil {
@@ -43,9 +41,6 @@ type GetRoleMemberArgs struct {
 
 var GetRoleMember = tvm.Getter[GetRoleMemberArgs, *address.Address]{
 	Name: "getRoleMember",
-	Encoder: tvm.NewArgsEncoder(func(args GetRoleMemberArgs) ([]any, error) {
-		return []any{args.Role, args.Index}, nil
-	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
 		sAddr, err := r.Slice(0)
 		if err != nil {
@@ -69,36 +64,27 @@ var BoolRes = tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
 	return rs.Uint64() == 1, nil
 })
 
-var BigIntArg = tvm.NewArgsEncoder(func(arg *big.Int) ([]any, error) {
-	return []any{arg}, nil
-})
-
 var IsOperation = tvm.Getter[*big.Int, bool]{
 	Name:    "isOperation",
-	Encoder: BigIntArg,
 	Decoder: BoolRes,
 }
 
 var IsOperationPending = tvm.Getter[*big.Int, bool]{
 	Name:    "isOperationPending",
-	Encoder: BigIntArg,
 	Decoder: BoolRes,
 }
 
 var IsOperationReady = tvm.Getter[*big.Int, bool]{
 	Name:    "isOperationReady",
-	Encoder: BigIntArg,
 	Decoder: BoolRes,
 }
 
 var IsOperationDone = tvm.Getter[*big.Int, bool]{
 	Name:    "isOperationDone",
-	Encoder: BigIntArg,
 	Decoder: BoolRes,
 }
 
 var IsOperationError = tvm.Getter[*big.Int, bool]{
 	Name:    "isOperationError",
-	Encoder: BigIntArg,
 	Decoder: BoolRes,
 }
