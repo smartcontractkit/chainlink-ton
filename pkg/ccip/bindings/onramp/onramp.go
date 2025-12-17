@@ -1,22 +1,23 @@
 package onramp
 
 import (
-	context2 "context"
+	"context"
 	"math/big"
+	"runtime"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
-)
-
-const (
-	dynamicConfigGetter = "dynamicConfig"
-	staticConfigGetter  = "staticConfig"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // OnRamp opcodes
@@ -34,6 +35,14 @@ const (
 // Topics
 const (
 	TopicCCIPMessageSent = 0xA45D293C // CRC32("CCIPMessageSent")
+)
+
+// Registry method names
+const (
+	DestChainsGetter      = "destChainSelectors"
+	destChainConfigGetter = "destChainConfig"
+	dynamicConfigGetter   = "dynamicConfig"
+	staticConfigGetter    = "staticConfig"
 )
 
 // CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
@@ -102,9 +111,9 @@ type UpdateDestChainConfigs struct {
 }
 
 type UpdateAllowlist struct {
-	DestinationChainSelector uint64                             `tlb:"## 64"`
-	Add                      common.SnakeData[*address.Address] `tlb:"^"`
-	Remove                   common.SnakeData[*address.Address] `tlb:"^"`
+	DestinationChainSelector uint64                               `tlb:"## 64"`
+	Add                      common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Remove                   common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateAllowlists struct {
@@ -169,6 +178,20 @@ type UpdateSendExecutorMessage struct {
 	Code *cell.Cell `tlb:"^"`         // New executor code
 }
 
+var TLBs = lib.MustNewTLBMap([]any{
+	SetDynamicConfig{},
+	UpdateDestChainConfigs{},
+	UpdateAllowlists{},
+	Send{},
+	WithdrawJettons{},
+	ExecutorFinishedSuccessfully{},
+	ExecutorFinishedWithError{},
+	SetDynamicConfigMessage{},
+	UpdateDestChainConfigsMessage{},
+	UpdateAllowlistsMessage{},
+	UpdateSendExecutorMessage{},
+})
+
 // binding types that supports FetchResult interface with rpc client
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.
@@ -206,8 +229,8 @@ func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, common.DestChainConfigGetter, destChainSelector, c)
+func (c *DestChainConfig) GetterMethodName() string {
+	return destChainConfigGetter
 }
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
@@ -250,6 +273,10 @@ func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *DynamicConfig) GetterMethodName() string {
+	return dynamicConfigGetter
+}
+
 type StaticConfig struct {
 	ChainSelector uint64 `tlb:"## 64"`
 }
@@ -265,10 +292,67 @@ func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c)
+func (c *StaticConfig) GetterMethodName() string {
+	return staticConfigGetter
 }
 
-func (c *StaticConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, staticConfigGetter, nil, c)
+// DestChainConfigMap represents a map of destination chain selectors to their configurations.
+// This type aligns with the on-chain data structure for destination chain configs.
+type DestChainConfigMap map[uint64]DestChainConfig
+
+// Fetch retrieves all destination chain configurations from the on-ramp contract.
+func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) error {
+	result, err := client.RunGetMethod(ctx, block, onRampAddr, DestChainsGetter)
+	if err != nil {
+		return err
+	}
+
+	chainSelectors := parser.ParseLispTuple(result.AsTuple())
+
+	var lock sync.Mutex
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(runtime.NumCPU())
+	output := make(map[uint64]DestChainConfig)
+	for _, dest := range chainSelectors {
+		eg.Go(func() error {
+			var cfg DestChainConfig
+			opts := []interface{}{dest}
+			if err = tvm.FetchResult(egCtx, client, block, onRampAddr, &cfg, opts); err != nil {
+				return err
+			}
+
+			lock.Lock()
+			output[dest] = cfg
+			lock.Unlock()
+
+			return nil
+		})
+	}
+
+	if err = eg.Wait(); err != nil {
+		return err
+	}
+
+	*d = output
+	return nil
 }
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(UnknownDestChainSelector)
+		ecMax = int32(InvalidConfig)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
+const (
+	UnknownDestChainSelector ExitCode = iota + 18100
+	Unauthorized
+	SenderNotAllowed
+	InvalidConfig
+)

@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "../lib/utils";
 import "../lib/secp256k1";
@@ -360,6 +360,9 @@ fun MCMS_Data.storeAsContractData(self) {
 struct MCMS_Hooks<T> {
     /// Hook to inject custom execution logic.
     execute: ((T?, address, coins, cell) -> void)?;
+
+    /// Hook to inject custom root encoding/hashing logic.
+    hashRoot: ((T?, uint256, uint32) -> uint256)?;
 }
 
 // --- Constants ---
@@ -586,7 +589,7 @@ struct OpPendingInfo {
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
     /// The address that the (pending) operation was sent to (and could bounce from).
-    opPendingReceiver: address;
+    opPendingReceiver: address?;
     /// The truncated body of the pending operation (256 bits from the original message),
     /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
     opPendingBodyTruncated: uint256;
@@ -693,7 +696,7 @@ fun MCMS<T>.setRoot(
     signatures: SnakedCell<Signature>,
 ) {
     /// Construct the message that should be signed by the signers.
-    val signedHash = RootDescriptor{root, validUntil}.toCell().hash();
+    val signedHash = self._hashRoot(root, validUntil);
 
     // Each (root, validUntil) tuple can only bet set once. For example, this prevents a
     // scenario where there are two signed roots with overridePreviousRoot = true and
@@ -830,11 +833,11 @@ fun MCMS<T>.setRoot(
     }
 
     // Check if right environment via chainId
-    if (globalId() as int256 != metadata.chainId) {
+    if (metadata.chainId != globalId() as int256) {
         throw MCMS_Error.WrongChainId;
     }
 
-    if (contract.getAddress() != metadata.multiSig) {
+    if (metadata.multiSig != contract.getAddress()) {
         throw MCMS_Error.WrongMultiSig;
     }
 
@@ -872,7 +875,7 @@ fun MCMS<T>.setRoot(
             opPendingInfo: OpPendingInfo{
                 validAfter: blockchain.now(), // immediate
                 opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
-                opPendingReceiver: createAddressNone(),
+                opPendingReceiver: null,
                 opPendingBodyTruncated: 0,
             }.toCell()
         },
@@ -1183,7 +1186,7 @@ fun MCMS<T>.setConfig(
                 opPendingInfo: OpPendingInfo{
                     validAfter: blockchain.now(), // immediate
                     opFinalizationTimeout: opPendingInfo.opFinalizationTimeout, // cp from storage
-                    opPendingReceiver: createAddressNone(),
+                    opPendingReceiver: null,
                     opPendingBodyTruncated: 0
                 }.toCell()
             },
@@ -1291,7 +1294,9 @@ fun MCMS<T>.submitErrorReport(
     // Check the reported error against the stored pending operation
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
-    val matchesPendingOp = opPendingInfo.opPendingReceiver == op.to
+    val matchesPendingOp =
+        opPendingInfo.opPendingReceiver != null
+        && opPendingInfo.opPendingReceiver == op.to
         && opPendingInfo.opPendingBodyTruncated == extractBouncedBody(op.data.beginParse());
 
     // Store the root in a separate cell (size limit)
@@ -1356,7 +1361,7 @@ fun MCMS<T>.cleanExpiredRoots(
         assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
 
         /// Construct the ID (hash) of the root
-        val signedHash = rd.toCell().hash();
+        val signedHash = self._hashRoot(rd.root, rd.validUntil);
         self.data.seenSignedHashes.delete(signedHash);
     }
 
@@ -1381,6 +1386,29 @@ fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     // Send a message to the target with the provided value and data
     val op = createMessage({bounce: true, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Encode and hash a root with its validUntil timestamp (EIP191 + keccak256)
+fun MCMS<T>._hashRoot(self, root: uint256, validUntil: uint32): uint256 {
+    if (self.hooks != null && self.hooks.hashRoot != null) {
+        return self.hooks.hashRoot(self.context, root, validUntil); // extension hook
+    }
+
+    // ABI encode root (uint256) and validUntil (uint32 padded to 256 bits)
+    // This matches: abi.encode(root, validUntil)
+    val data = beginCell()
+        .storeUint(root, 256)
+        .storeUint(validUntil as uint256, 256);
+    val _hash = keccak256(data);
+
+    // EIP191 Signed Message Hash wrapping
+    // Format: "\x19Ethereum Signed Message:\n32" + messageHash
+    val eip191Prefix = stringHexToSlice("19457468657265756d205369676e6564204d6573736167653a0a3332");
+    val eip191Data = beginCell()
+        .storeSlice(eip191Prefix)
+        .storeUint(_hash, 256);
+
+    return keccak256(eip191Data);
 }
 
 /// Returns the id that derives the (contract) address of this MCMS instance.
@@ -1499,7 +1527,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     //
     // @dev on setRoot the OpPendingInfo is cleared, so a bounce from an old root will not match
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
-    if (opPendingInfo.opPendingReceiver != in.senderAddress
+    if (opPendingInfo.opPendingReceiver! != in.senderAddress
         || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
 
         // Check the case when a new root was just set and no ops yet executed
@@ -1518,7 +1546,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     // If the received bounce equals expected, revert state (allow op retry)
     rootInfo.expiringRootAndOpCount.opCount = rootInfo.expiringRootAndOpCount.opCount - 1;
     opPendingInfo.validAfter = blockchain.now(); // can be retried immediately
-    opPendingInfo.opPendingReceiver = createAddressNone();
+    opPendingInfo.opPendingReceiver = null;
     opPendingInfo.opPendingBodyTruncated = 0;
 
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	helper "github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
@@ -30,6 +30,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func Test_LogPoller(t *testing.T) {
@@ -47,30 +48,43 @@ func Test_LogPoller(t *testing.T) {
 		const txPerBatch = 5
 		const msgPerTx = 2
 
-		// block buffer(lastTx contains original msg and we should discover extOutMsg)
-		const blockBuffer = 10
-
 		// log collector config
 		const pageSize = 5
 
 		expectedEvents := batchCount * txPerBatch * msgPerTx
-		emitter, txs := helper.SendBulkTestEventTxs(t, tonChain.Client, batchCount, txPerBatch, msgPerTx)
 
-		firstTx, lastTx := txs[0], txs[len(txs)-1]
+		// get masterchain info BEFORE sending transactions to establish the lower bound
+		masterBefore, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err)
+
+		// send transactions
+		emitter, txs := helper.SendBulkTestEventTxs(t, tonChain.Client, batchCount, txPerBatch, msgPerTx)
+		lastTx := txs[len(txs)-1]
+
+		// SendWaitTransaction returns the masterchain block that references the shard block
+		// where the transaction actually is. Since the logpoller uses masterchain blocks,
+		// we can use this masterchain block directly. We just need to ensure it's current.
+		var toBlock *ton.BlockIDExt
+		require.Eventually(t, func() bool {
+			master, merr := tonChain.Client.CurrentMasterchainInfo(t.Context())
+			if merr != nil {
+				t.Logf("failed to get masterchain info: %v", merr)
+				return false
+			}
+			if master.SeqNo >= lastTx.Block.SeqNo {
+				toBlock = master
+				return true
+			}
+			return false
+		}, 120*time.Second, 1*time.Second, "waiting for masterchain block %d", lastTx.Block.SeqNo)
+
+		require.NotNil(t, toBlock)
 
 		prevBlock, err := tonChain.Client.LookupBlock(
 			t.Context(),
-			address.MasterchainID,
-			firstTx.Block.Shard,
-			firstTx.Block.SeqNo-1, // exclusive lower bound
-		)
-		require.NoError(t, err)
-
-		toBlock, err := tonChain.Client.WaitForBlock(lastTx.Block.SeqNo+blockBuffer).LookupBlock(
-			t.Context(),
-			address.MasterchainID,
-			lastTx.Block.Shard,
-			lastTx.Block.SeqNo+blockBuffer, // inclusive upper bound + buffer
+			masterBefore.Workchain,
+			masterBefore.Shard,
+			masterBefore.SeqNo,
 		)
 		require.NoError(t, err)
 
@@ -111,13 +125,13 @@ func Test_LogPoller(t *testing.T) {
 			var allLoadedLogCells []*cell.Cell
 			loader := txloader.New(logger.Test(t), clientProvider)
 
-			// iterate block by block from prevBlock to toBlock
+			// iterate masterchain block by block from prevBlock to toBlock
 			currentBlock := prevBlock
 			for seqNo := prevBlock.SeqNo + 1; seqNo <= toBlock.SeqNo; seqNo++ {
 				nextBlock, nberr := tonChain.Client.WaitForBlock(seqNo).LookupBlock(
 					t.Context(),
-					firstTx.Block.Workchain,
-					firstTx.Block.Shard,
+					prevBlock.Workchain, // masterchain workchain (-1)
+					prevBlock.Shard,     // masterchain shard
 					seqNo,
 				)
 				require.NoError(t, nberr)
@@ -158,9 +172,9 @@ func Test_LogPoller(t *testing.T) {
 
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
 		t.Parallel()
-		senderA, saerr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		senderA, saerr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, saerr)
-		senderB, sberr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		senderB, sberr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, sberr)
 
 		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
@@ -183,12 +197,13 @@ func Test_LogPoller(t *testing.T) {
 			TxLoader:    txloader.New(lggr, clientProvider),
 			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
-		lp := logpoller.NewService(
+		lp, err := logpoller.NewService(
 			lggr,
 			"test-chain",
 			clientProvider,
 			opts,
 		)
+		require.NoError(t, err)
 
 		// register filters
 		filterA := models.Filter{
@@ -818,7 +833,7 @@ func Test_LogPoller(t *testing.T) {
 		t.Parallel()
 
 		// 1. Setup: create new wallet and emitter
-		sender, serr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		sender, serr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, serr)
 
 		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{sender.Address()},
@@ -856,7 +871,8 @@ func Test_LogPoller(t *testing.T) {
 			TxLoader:    txloader.New(lggr, clientProvider),
 			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
 		}
-		lp := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+		lp, err := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+		require.NoError(t, err)
 
 		// 4. Register filter (without replay)
 		filter := models.Filter{

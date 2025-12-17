@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -132,7 +133,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 	},
 )
 
-func extractTonDepsFromChainDefinition(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (operation.TonDeps, error) {
+func extractTonDepsFromChainDefinition(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (config.CCIPDeps, error) {
 	return extractTonDepsFrom(chain, chainDefinition.OnRamp, chainDefinition.OffRamp, chainDefinition.Router, chainDefinition.FeeQuoter)
 }
 

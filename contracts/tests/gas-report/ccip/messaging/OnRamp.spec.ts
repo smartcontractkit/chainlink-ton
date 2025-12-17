@@ -21,7 +21,8 @@ import { createMaxPayload, createExtraArgs } from './config'
 import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
-import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
+import { getValidatedFee } from '../../../../src/ccipSend/fee'
+import { opMapFunc } from './opMapFunc'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -57,6 +58,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
   beforeAll(async () => {
     // Use default config (mainnet) to avoid rate limiting
     blockchain = await Blockchain.create()
+    blockchain.verbosity.debugLogs = true
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
 
@@ -123,8 +125,11 @@ describe('CCIP OnRamp Gas Estimation', () => {
         allowlistAdmin: deployer.address,
       },
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-      currentMessageId: 0n,
-      executor_code: await compile('CCIPSendExecutor'),
+      executor: {
+        currentID: 0n,
+        executorCode: await compile('CCIPSendExecutor'),
+        deployableCode: await compile('Deployable'),
+      },
     }
     onRamp = blockchain.openContract(or.OnRamp.createFromConfig(onRampData, code))
     await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -158,17 +163,22 @@ describe('CCIP OnRamp Gas Estimation', () => {
     // Reset metric store before measurement
     resetMetricStore()
 
+    const msg = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST,
+      receiver: EVM_ADDRESS,
+      data: createMaxPayload(),
+      tokenAmounts: [],
+      feeToken: ZERO_ADDRESS,
+      extraArgs: createExtraArgs(),
+    }
+
+    const fee = await getValidatedFee(blockchain, router.address, msg)
+    console.log(`Validated fee for message: ${fee.toString()} nanotons`)
+
     const result = await router.sendCcipSend(sender.getSender(), {
-      value: toNano('0.11'),
-      body: {
-        queryID: 1,
-        destChainSelector: CHAINSEL_EVM_TEST,
-        receiver: EVM_ADDRESS,
-        data: createMaxPayload(),
-        tokenAmounts: [],
-        feeToken: ZERO_ADDRESS,
-        extraArgs: createExtraArgs(),
-      },
+      value: fee + toNano('0.19'),
+      body: msg,
     })
 
     // Assert all expected transactions
@@ -246,6 +256,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
 
     // Also print raw transaction fees for comparison
     console.log('\n=== RAW TRANSACTION FEES (for debugging) ===')
-    printTransactionFees(result.transactions)
+    printTransactionFees(result.transactions, opMapFunc())
   })
 })

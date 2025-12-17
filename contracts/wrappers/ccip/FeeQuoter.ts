@@ -13,6 +13,7 @@ import {
   Builder,
   Slice,
   TupleItem,
+  Tuple,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -25,6 +26,7 @@ import { compile } from '@ton/blueprint'
 import * as rt from './Router'
 import * as sendExecutor from './CCIPSendExecutor'
 import { crc32 } from 'zlib'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 
@@ -60,9 +62,11 @@ export enum FeeQuoterError {
   FeeOverflow,
   MessageFeeTooHigh,
 }
+//TODO this error should be under the FeeQuoterError prefix
+export const ERROR_INVALID_EVM_ADDRESS = 5001
 
 export type FeeQuoterStorage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   allowedPriceUpdaters: Dictionary<Address, Buffer>
   maxFeeJuelsPerMsg: bigint
@@ -119,7 +123,24 @@ export type DestChainConfig = {
 
 export type GetValidatedFee = {
   msg: rt.CCIPSend
-  metadata: Cell
+  context: Slice
+}
+
+export type Fee = {
+  feeTokenAmount: bigint // fee value in fee token
+  feeValueJuels: bigint // fee value in juels
+}
+
+export type MessageValidated = {
+  fee: Fee
+  msg: rt.CCIPSend
+  context: Slice
+}
+
+export type MessageValidationFailed = {
+  error: bigint
+  msg: rt.CCIPSend
+  context: Slice
 }
 
 export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
@@ -144,121 +165,8 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
     .storeUint(config.networkFeeUsdCents, 32)
 }
 
-export const builder = {
-  message: {
-    in: (() => {
-      const addPriceUpdater: CellCodec<AddPriceUpdater> = {
-        encode: (data: AddPriceUpdater): Builder => {
-          return beginCell().storeUint(Opcodes.addPriceUpdater, 32).storeAddress(data.priceUpdater)
-        },
-        load: (src: Slice): AddPriceUpdater => {
-          throw new Error('Not implemented') // TODO implement if needed
-        },
-      }
-      const removePriceUpdater: CellCodec<RemovePriceUpdater> = {
-        encode: (data: RemovePriceUpdater): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.removePriceUpdater, 32)
-            .storeAddress(data.priceUpdater)
-        },
-        load: (src: Slice): RemovePriceUpdater => {
-          throw new Error('Not implemented') // TODO implement if needed
-        },
-      }
-      const updatePrices: CellCodec<UpdatePrices> = {
-        encode: (data: UpdatePrices): Builder => {
-          const tokenPrices = asSnakeData(data.updates.tokenPricesUpdates, encodeTokenPriceUpdate)
-          const gasPrices = asSnakeData(data.updates.gasPricesUpdates, encodeGasPriceUpdate)
-
-          return beginCell()
-            .storeUint(Opcodes.updatePrices, 32)
-            .storeRef(tokenPrices)
-            .storeRef(gasPrices)
-            .storeMaybeBuilder(
-              data.sendExcessesTo ? beginCell().storeAddress(data.sendExcessesTo) : null,
-            )
-        },
-        load: (src: Slice): UpdatePrices => {
-          throw new Error('Not implemented') // TODO implement if needed
-        },
-      }
-      const updateFeeTokens: CellCodec<UpdateFeeTokens> = {
-        encode: (data: UpdateFeeTokens): Builder => {
-          let add = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64))
-          for (const [token, feeToken] of data.add) {
-            add.set(token, feeToken.premiumMultiplierWeiPerEth)
-          }
-          const remove = asSnakeData(data.remove, (addr) => new TonBuilder().storeAddress(addr))
-
-          return beginCell().storeUint(Opcodes.updateFeeTokens, 32).storeDict(add).storeRef(remove)
-        },
-        load: (src: Slice) => {
-          throw new Error('Function not implemented.') // TODO implement if needed
-        },
-      }
-      const updateTokenTransferFeeConfigs: CellCodec<UpdateTokenTransferFeeConfigs> = {
-        encode: (data: UpdateTokenTransferFeeConfigs): Builder => {
-          const updatesDict = Dictionary.empty(
-            Dictionary.Keys.BigUint(64),
-            UpdateTokenTransferFeeConfigDictionaryValueType(),
-          )
-          for (const [destChainSelector, updateTokenTransferFeeConfig] of data.updates) {
-            updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
-          }
-
-          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeDict(updatesDict)
-        },
-        load(src: Slice): UpdateTokenTransferFeeConfigs {
-          throw new Error('Function not implemented.') // TODO implement if needed
-        },
-      }
-      const updateDestChainConfigs: CellCodec<UpdateDestChainConfigs> = {
-        encode: (updates: UpdateDestChainConfigs): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.updateDestChainConfig, 32)
-            .storeRef(
-              asSnakeData(updates, (update) =>
-                new TonBuilder()
-                  .storeUint(update.destChainSelector, 64)
-                  .storeBuilder(destChainConfigToBuilder(update.config)),
-              ),
-            )
-        },
-        load(src: Slice): UpdateDestChainConfigs {
-          throw new Error('Function not implemented.') // TODO implement if needed
-        },
-      }
-
-      const getValidatedFee: CellCodec<GetValidatedFee> = {
-        encode: function (data: GetValidatedFee): Builder {
-          return beginCell()
-            .storeUint(Opcodes.getValidatedFee, 32)
-            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
-            .storeRef(data.metadata)
-        },
-        load: function (src: Slice): GetValidatedFee {
-          src.skip(32) // opcode
-          return {
-            msg: rt.builder.message.in.ccipSend.load(src),
-            metadata: src.loadRef(),
-          }
-        },
-      }
-      return {
-        addPriceUpdater,
-        removePriceUpdater,
-        updatePrices,
-        updateFeeTokens,
-        updateTokenTransferFeeConfigs,
-        updateDestChainConfigs,
-        getValidatedFee,
-      }
-    })(),
-    out: {
-      messageValidated: sendExecutor.builder.message.in.messageValidated,
-    },
-  },
-  data: (() => {
+export const builder = (() => {
+  const dataBuilder = (() => {
     const timestampedPrice: CellCodec<TimestampedPrice> = {
       encode: (data: TimestampedPrice): Builder => {
         return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 32)
@@ -335,7 +243,7 @@ export const builder = {
           .storeDict(data.destChainConfigs)
       },
       load: (src: Slice): FeeQuoterStorage => {
-        const id = src.loadUint(32)
+        const id = src.loadUintBig(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
@@ -384,15 +292,181 @@ export const builder = {
         }
       },
     }
+    const fee: CellCodec<Fee> = {
+      encode: (data: Fee): Builder => {
+        return beginCell().storeCoins(data.feeTokenAmount).storeUint(data.feeValueJuels, 96)
+      },
+      load: (src: Slice): Fee => {
+        return {
+          feeTokenAmount: src.loadCoins(),
+          feeValueJuels: src.loadUintBig(96),
+        }
+      },
+    }
 
     return {
+      fee,
       timestampedPrice,
       destChainConfig,
       tokenTransferFeeConfig,
       contractData,
     }
-  })(),
-}
+  })()
+  const message = {
+    in: (() => {
+      const addPriceUpdater: CellCodec<AddPriceUpdater> = {
+        encode: (data: AddPriceUpdater): Builder => {
+          return beginCell().storeUint(Opcodes.addPriceUpdater, 32).storeAddress(data.priceUpdater)
+        },
+        load: (src: Slice): AddPriceUpdater => {
+          throw new Error('Not implemented') // TODO implement if needed
+        },
+      }
+      const removePriceUpdater: CellCodec<RemovePriceUpdater> = {
+        encode: (data: RemovePriceUpdater): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.removePriceUpdater, 32)
+            .storeAddress(data.priceUpdater)
+        },
+        load: (src: Slice): RemovePriceUpdater => {
+          throw new Error('Not implemented') // TODO implement if needed
+        },
+      }
+      const updatePrices: CellCodec<UpdatePrices> = {
+        encode: (data: UpdatePrices): Builder => {
+          const tokenPrices = asSnakeData(data.updates.tokenPricesUpdates, encodeTokenPriceUpdate)
+          const gasPrices = asSnakeData(data.updates.gasPricesUpdates, encodeGasPriceUpdate)
+
+          return beginCell()
+            .storeUint(Opcodes.updatePrices, 32)
+            .storeRef(tokenPrices)
+            .storeRef(gasPrices)
+            .storeAddress(data.sendExcessesTo)
+        },
+        load: (src: Slice): UpdatePrices => {
+          throw new Error('Not implemented') // TODO implement if needed
+        },
+      }
+      const updateFeeTokens: CellCodec<UpdateFeeTokens> = {
+        encode: (data: UpdateFeeTokens): Builder => {
+          let add = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64))
+          for (const [token, feeToken] of data.add) {
+            add.set(token, feeToken.premiumMultiplierWeiPerEth)
+          }
+          const remove = asSnakeData(data.remove, (addr) => new TonBuilder().storeAddress(addr))
+
+          return beginCell().storeUint(Opcodes.updateFeeTokens, 32).storeDict(add).storeRef(remove)
+        },
+        load: (src: Slice) => {
+          throw new Error('Function not implemented.') // TODO implement if needed
+        },
+      }
+      const updateTokenTransferFeeConfigs: CellCodec<UpdateTokenTransferFeeConfigs> = {
+        encode: (data: UpdateTokenTransferFeeConfigs): Builder => {
+          const updatesDict = Dictionary.empty(
+            Dictionary.Keys.BigUint(64),
+            UpdateTokenTransferFeeConfigDictionaryValueType(),
+          )
+          for (const [destChainSelector, updateTokenTransferFeeConfig] of data.updates) {
+            updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
+          }
+
+          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeDict(updatesDict)
+        },
+        load(src: Slice): UpdateTokenTransferFeeConfigs {
+          throw new Error('Function not implemented.') // TODO implement if needed
+        },
+      }
+      const updateDestChainConfigs: CellCodec<UpdateDestChainConfigs> = {
+        encode: (updates: UpdateDestChainConfigs): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.updateDestChainConfig, 32)
+            .storeRef(
+              asSnakeData(updates, (update) =>
+                new TonBuilder()
+                  .storeUint(update.destChainSelector, 64)
+                  .storeBuilder(destChainConfigToBuilder(update.config)),
+              ),
+            )
+        },
+        load(src: Slice): UpdateDestChainConfigs {
+          throw new Error('Function not implemented.') // TODO implement if needed
+        },
+      }
+
+      const getValidatedFee: CellCodec<GetValidatedFee> = {
+        encode: function (data: GetValidatedFee): Builder {
+          return beginCell()
+            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeSlice(data.context)
+        },
+        load: function (src: Slice): GetValidatedFee {
+          src.skip(32) // opcode
+          return {
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            context: src,
+          }
+        },
+      }
+
+      return {
+        addPriceUpdater,
+        removePriceUpdater,
+        updatePrices,
+        updateFeeTokens,
+        updateTokenTransferFeeConfigs,
+        updateDestChainConfigs,
+        getValidatedFee,
+      }
+    })(),
+    out: (() => {
+      const messageValidated: CellCodec<MessageValidated> = {
+        encode: (data: MessageValidated): TonBuilder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeBuilder(dataBuilder.fee.encode(data.fee))
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidated => {
+          src.skip(32) // opcode
+          return {
+            fee: dataBuilder.fee.load(src),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            context: src,
+          }
+        },
+      }
+
+      const messageValidationFailed: CellCodec<MessageValidationFailed> = {
+        encode: (data: MessageValidationFailed): TonBuilder => {
+          return beginCell()
+            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeUint(data.error, 256)
+            .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
+            .storeSlice(data.context)
+        },
+        load: (src: Slice): MessageValidationFailed => {
+          src.skip(32) // opcode
+          return {
+            error: src.loadUintBig(256),
+            msg: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+            context: src,
+          }
+        },
+      }
+      return {
+        messageValidated,
+        messageValidationFailed,
+      }
+    })(),
+  }
+  return {
+    data: dataBuilder,
+    message,
+  }
+})()
 
 export const stackBuilder = {
   data: {
@@ -435,6 +509,11 @@ export abstract class Opcodes {
   static removePriceUpdater = crc32('FeeQuoter_RemovePriceUpdater')
 }
 
+export abstract class OutOpcodes {
+  static messageValidated = 0x1fa60374
+  static messageValidationFailed = 0xbcf0ab0f
+}
+
 export type TokenPriceUpdate = {
   token: Address
   price: bigint
@@ -461,7 +540,7 @@ export type RemovePriceUpdater = {
 
 export type UpdatePrices = {
   updates: PriceUpdates
-  sendExcessesTo: Address | null
+  sendExcessesTo: Maybe<Address>
 }
 
 export type UpdateFeeTokens = {
@@ -561,6 +640,24 @@ export class FeeQuoter
     const result = await provider.get('validatedFee', stackBuilder.data.ccipSend.encode(msg))
 
     return result.stack.readBigNumber()
+  }
+
+  async getDataAvailabilityCost(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+    dataAvailabilityGasPrice: bigint,
+    calldataLen: bigint,
+    tokenCount: bigint,
+    tokenTransferBytesOverhead: bigint,
+  ): Promise<bigint> {
+    const { stack } = await provider.get('dataAvailabilityCost', [
+      { type: 'int', value: destChainSelector },
+      { type: 'int', value: dataAvailabilityGasPrice },
+      { type: 'int', value: calldataLen },
+      { type: 'int', value: tokenCount },
+      { type: 'int', value: tokenTransferBytesOverhead },
+    ])
+    return stack.readBigNumber()
   }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
@@ -797,6 +894,91 @@ export class FeeQuoter
 
   async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
     return this.ownable.getPendingOwner(provider)
+  }
+
+  async getFeeTokens(provider: ContractProvider): Promise<Address[] | null> {
+    const result = await provider.get('feeTokens', [])
+    const items = result.stack.readLispList()
+    const addresses: Address[] = items.map((t: TupleItem) => {
+      if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+        throw Error('Not a cell: ' + t.type)
+      }
+      return t.cell.beginParse().loadAddress()
+    })
+    return addresses
+  }
+
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[] | null> {
+    const result = await provider.get('destChainSelectors', [])
+    const items = result.stack.readLispList()
+    const selectors: bigint[] = items.map((t: TupleItem) => {
+      if (t.type !== 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return selectors
+  }
+
+  async getTokenPrices(provider: ContractProvider, tokens: Address[]): Promise<TimestampedPrice[]> {
+    const tupleItems: TupleItem[] = []
+    for (const token of tokens) {
+      tupleItems.push({
+        type: 'slice',
+        cell: beginCell().storeAddress(token).endCell(),
+      } as TupleItem)
+    }
+    const tuple = { type: 'tuple', items: tupleItems } as Tuple
+    const result = await provider.get('tokenPrices', [tuple])
+    const resultTuple = result.stack.readTuple()
+    const prices: TimestampedPrice[] = []
+    while (resultTuple.remaining > 0) {
+      const priceCell = resultTuple.readCell()
+      const priceSlice = priceCell.beginParse()
+      prices.push({
+        value: priceSlice.loadUintBig(224),
+        timestamp: priceSlice.loadUintBig(32),
+      })
+    }
+    return prices
+  }
+
+  async getStaticConfig(provider: ContractProvider): Promise<{
+    maxFeeJuelsPerMsg: bigint
+    linkToken: Address
+    tokenPriceStalenessThreshold: bigint
+  }> {
+    const result = await provider.get('staticConfig', [])
+    return {
+      maxFeeJuelsPerMsg: result.stack.readBigNumber(),
+      linkToken: result.stack.readAddress(),
+      tokenPriceStalenessThreshold: result.stack.readBigNumber(),
+    }
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<number> {
+    const result = await provider.get('facilityId', [])
+    return result.stack.readNumber()
+  }
+
+  async getErrorCode(provider: ContractProvider, localErrorCode: number): Promise<number> {
+    const result = await provider.get('errorCode', [
+      { type: 'int', value: BigInt(localErrorCode) } as TupleItem,
+    ])
+    return result.stack.readNumber()
+  }
+
+  async getTokenAndGasPrices(
+    provider: ContractProvider,
+    token: Address,
+    destChainSelector: bigint,
+  ): Promise<any> {
+    const result = await provider.get('tokenAndGasPrices', [
+      { type: 'slice', cell: beginCell().storeAddress(token).endCell() } as TupleItem,
+      { type: 'int', value: destChainSelector } as TupleItem,
+    ])
+    // Note: This getter has an empty implementation in the contract
+    return result
   }
 
   async sendTransferOwnership(

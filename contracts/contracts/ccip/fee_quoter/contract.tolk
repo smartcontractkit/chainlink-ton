@@ -240,9 +240,10 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     var destChainConfig = destChainConfigResult.loadValue();
 
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
-
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
-    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
+    val feeToken = msg.feeToken!;
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
@@ -297,7 +298,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
     // Equivalent to processMessageArgs in Solidity FeeQuoter
-    val feeValueJuels = calculateFeeValueJuels(st, msg, feeTokenValue, feeTokenAmount);
+    val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
 
     return Fee {
         feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
@@ -305,9 +306,9 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     };
 }
 
-fun calculateFeeValueJuels(st: Storage, msg: Router_CCIPSend, feeTokenValue: coins, feeTokenAmount: coins): coins {
+fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
-    if (msg.feeToken != st.linkToken) {
+    if (feeToken != st.linkToken) {
         val linkTokenPriceResult = st.usdPerToken.get(st.linkToken);
         if (!linkTokenPriceResult.isFound) {
             return 0;
@@ -605,6 +606,25 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
 get fun staticConfig(): (uint96, address, uint64) {
     val st = lazy Storage.load();
     return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
+}
+
+get fun dataAvailabilityCost(
+    destChainSelector: uint64,
+    dataAvailabilityGasPrice: uint112,
+    calldataLen: uint256,
+    tokenCount: uint256,
+    tokenTransferBytesOverhead: uint256,
+): uint256 {
+    val st = lazy Storage.load();
+
+    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    return _dataAvailabilityCost(
+        destChainConfig,
+        dataAvailabilityGasPrice,
+        calldataLen,
+        tokenCount,
+        tokenTransferBytesOverhead,
+    );
 }
 
 /// Gets the current owner of the contract.

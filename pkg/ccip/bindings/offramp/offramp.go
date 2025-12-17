@@ -4,20 +4,20 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"runtime"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-)
-
-const (
-	configGetter   = "config"
-	ocr3BaseGetter = "ocr3Config"
 )
 
 // OCR3Config represents the OCR3 configuration stored on-chain
@@ -113,21 +113,16 @@ type Signer struct {
 	Pubkey []byte `tlb:"bits 256"`
 }
 
-// Transmitter represents a transmitter entry in the OCR3 config
-type Transmitter struct { // NOTE: using common.SnakeData[(*)address.Address] directly doesn't work
-	Address *address.Address `tlb:"addr"`
-}
-
 // SetOCR3Config represents the setOCR3Config method call on the offRamp contract
 type SetOCR3Config struct {
-	_                              tlb.Magic                         `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
-	QueryID                        uint64                            `tlb:"## 64"`
-	ConfigDigest                   []byte                            `tlb:"bits 256"`
-	PluginType                     uint16                            `tlb:"## 16"`
-	F                              uint8                             `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool                              `tlb:"bool"`
-	Signers                        ccipcommon.SnakeData[Signer]      `tlb:"^"`
-	Transmitters                   ccipcommon.SnakeData[Transmitter] `tlb:"^"`
+	_                              tlb.Magic                                    `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                                       `tlb:"## 64"`
+	ConfigDigest                   []byte                                       `tlb:"bits 256"`
+	PluginType                     uint16                                       `tlb:"## 16"`
+	F                              uint8                                        `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                                         `tlb:"bool"`
+	Signers                        ccipcommon.SnakeData[Signer]                 `tlb:"^"`
+	Transmitters                   ccipcommon.SnakeData[ccipcommon.AddressWrap] `tlb:"^"`
 }
 
 // UpdateSourceChainConfig represents the updateSourceChainConfig structure
@@ -174,6 +169,16 @@ type UpdateDeployables struct {
 	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
 }
 
+var TLBs = lib.MustNewTLBMap([]any{
+	CCIPReceive{},
+	SetOCR3Config{},
+	UpdateSourceChainConfigs{},
+	Commit{},
+	Execute{},
+	SetDynamicConfig{},
+	UpdateDeployables{},
+})
+
 // Config types that implements getter fetching interface with rpc client
 
 // OCR3Base represents the OCR3 base configuration stored on-chain
@@ -181,10 +186,6 @@ type OCR3Base struct {
 	ChainID uint8       `tlb:"## 8"`
 	Commit  *OCR3Config `tlb:"maybe ^"`
 	Execute *OCR3Config `tlb:"maybe ^"`
-}
-
-func (c *OCR3Base) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ocr3BaseGetter, nil, c)
 }
 
 func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
@@ -234,6 +235,10 @@ func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
+func (c *OCR3Base) GetterMethodName() string {
+	return ocr3BaseGetter
+}
+
 // Config represents the offRamp contract configuration
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
@@ -272,8 +277,8 @@ func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, configGetter, nil, c)
+func (c *Config) GetterMethodName() string {
+	return configGetter
 }
 
 // SourceChainConfig represents the configuration for a specific source chain
@@ -332,8 +337,8 @@ func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.SrcChainConfigGetter, opts, c)
+func (c *SourceChainConfig) GetterMethodName() string {
+	return srcChainConfigGetter
 }
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -363,3 +368,51 @@ const (
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 )
+
+// Getter method names for binding fetchers
+const (
+	SourceChainsGetter   = "sourceChainSelectors"
+	srcChainConfigGetter = "sourceChainConfig"
+	ocr3BaseGetter       = "ocr3Config"
+	configGetter         = "config"
+)
+
+// SourceChainConfigMap represents a map of source chain selectors to their configurations.
+// This type aligns with the on-chain data structure for source chain configs.
+type SourceChainConfigMap map[uint64]SourceChainConfig
+
+// Fetch retrieves all source chain configurations from the off-ramp contract.
+func (s *SourceChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) error {
+	result, err := client.RunGetMethod(ctx, block, offRampAddr, SourceChainsGetter)
+	if err != nil {
+		return err
+	}
+
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(runtime.NumCPU())
+	var lock sync.Mutex
+	output := make(map[uint64]SourceChainConfig)
+	chainSelectors := parser.ParseLispTuple(result.AsTuple())
+
+	for _, dest := range chainSelectors {
+		eg.Go(func() error {
+			var cfg SourceChainConfig
+			opts := []interface{}{dest}
+			if err = tvm.FetchResult(egCtx, client, block, offRampAddr, &cfg, opts); err != nil {
+				return err
+			}
+
+			lock.Lock()
+			output[dest] = cfg
+			lock.Unlock()
+			return nil
+		})
+	}
+
+	if err = eg.Wait(); err != nil {
+		return err
+	}
+
+	*s = output
+	return nil
+}

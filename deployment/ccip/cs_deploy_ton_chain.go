@@ -3,8 +3,9 @@ package ops
 import (
 	"fmt"
 
-	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
@@ -41,12 +42,12 @@ func (cs DeployCCIPContracts) VerifyPreconditions(_ cldf.Environment, _ DeployCC
 	return nil
 }
 
-func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContractsCfg) (cldf.ChangesetOutput, error) {
+func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContractsCfg) (cldf.ChangesetOutput, error) {
 	// TODO: Implement logic of deploying Ton chain packages and modules
 	// - once all contracts are deployed, we can remove the hardcoded addresses from the TonTestDeployPrerequisitesChangeSet
 	// - Deploy TON MCMS, https://smartcontract-it.atlassian.net/browse/NONEVM-1939
-	env.Logger.Infof("deploying contracts for TON chains: %v", config.TonChainSelector)
-	selector := config.TonChainSelector
+	env.Logger.Infof("deploying contracts for TON chains: %v", cfg.TonChainSelector)
+	selector := cfg.TonChainSelector
 
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[selector]
@@ -63,7 +64,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 
-	// TODO: deploy MCMS
 	// TODO: deploy LINK
 	if s.LinkTokenAddress.IsAddrNone() {
 		linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
@@ -77,7 +77,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		})
 	}
 
-	deps := operation.TonDeps{
+	deps := config.CCIPDeps{
 		TonChain:         chain,
 		CCIPOnChainState: states,
 	}
@@ -86,10 +86,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
-		// MCMSAddress:      mcmsSeqReport.Output.MCMSAddress,
-		CCIPConfig:          config.Params,
-		ContractsVersionSha: config.ContractsVersion,
-		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
+		CCIPConfig:          cfg.Params,
+		ContractsVersionSha: cfg.ContractsVersion,
 		ChainSelector:       selector,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, deps, ccipSeqInput)
@@ -97,7 +95,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", selector, err)
 	}
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
-	// mcmsOperations = append(mcmsOperations, ccipSeqReport.Output.MCMSOperations...)
 
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
@@ -120,14 +117,10 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
-	if ccipSeqReport.Output.TimelockAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
-		s.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
-	}
 
 	deps.CCIPOnChainState[selector] = s
 
-	// Execute post-deployment config
+	// Execute post-deployment cfg
 	var txs [][]byte
 
 	// feequoter.addPriceUpdater(offramp)
@@ -141,8 +134,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	txs = append(txs, addPriceUpdaterReport.Output...)
 
 	// feeQuoter.updateFeeTokens
-	feeTokens := make(map[string]operation.FeeTokenConfig, len(config.Params.FeeQuoterParams.FeeTokens))
-	for _, feeToken := range config.Params.FeeQuoterParams.FeeTokens {
+	feeTokens := make(map[string]operation.FeeTokenConfig, len(cfg.Params.FeeQuoterParams.FeeTokens))
+	for _, feeToken := range cfg.Params.FeeQuoterParams.FeeTokens {
 		feeTokens[feeToken.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: feeToken.PremiumMultiplierWeiPerEth}
 	}
 	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
@@ -162,7 +155,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
-	ab, _ := dataStoreToAddressBook(dataStore)
+	ab, _ := utils.DataStoreToAddressBook(dataStore)
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
@@ -171,21 +164,4 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		DataStore:             dataStore,
 		AddressBook:           ab,
 	}, nil
-}
-
-// Temp function to transform a DataStore to the legacy AddressBook. Couldn't find any utility function to do this.
-// Once we adopt this new change set in CLD we can remove returning AddressBook at all :)
-func dataStoreToAddressBook(ds *ds.MemoryDataStore) (*cldf.AddressBookMap, error) {
-	ab := cldf.NewMemoryAddressBook()
-	addresses, err := ds.Addresses().Fetch()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list addresses from datastore: %w", err)
-	}
-	for _, addrRef := range addresses {
-		err := ab.Save(addrRef.ChainSelector, addrRef.Address, cldf.NewTypeAndVersion(cldf.ContractType(addrRef.Type), *addrRef.Version))
-		if err != nil {
-			return nil, fmt.Errorf("failed to save address %s to address book: %w", addrRef.Type, err)
-		}
-	}
-	return ab, nil
 }

@@ -71,12 +71,10 @@ struct FeeQuoter_Costs {}
 
 // Minimum value for calling FeeQuoter_GetValidatedFee
 fun FeeQuoter_Costs.GetValidatedFee(): int {
-    return min(
-        ton("0.05") // MessageValidated fwdFee
-        + SendExecutor_Costs.MessageValidated(),
-        ton("0.05") // MessageValidationFailed fwdFee
-        + SendExecutor_Costs.MessageValidationFailed()
-    );
+    return 
+        + ton("0.05") // computeFee
+        + ton("0.019") // MessageValidated | MessageValidationFailed fwdFee
+        ;
 }
 
 fun FeeQuoter_Costs.updatePrices(): int {

@@ -3,20 +3,19 @@ package feequoter
 import (
 	"context"
 	"math/big"
+	"runtime"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-)
-
-const (
-	tokenPriceGetter               = "tokenPrice"
-	StaticConfigGetter             = "staticConfig"
-	DestinationChainGasPriceGetter = "destinationChainGasPrice"
 )
 
 // Fee Quoter opcodes
@@ -72,16 +71,25 @@ const (
 	ErrorMessageFeeTooHigh
 )
 
+// Registry method names
+const (
+	DestChainsGetter               = "destChainSelectors"
+	tokenPriceGetter               = "tokenPrice"
+	staticConfigGetter             = "staticConfig"
+	destChainConfigGetter          = "destChainConfig"
+	destinationChainGasPriceGetter = "destinationChainGasPrice"
+)
+
 type Storage struct {
-	ID                           uint32                  `tlb:"## 32"`
-	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
-	AllowedPriceUpdaters         *cell.Dictionary        `tlb:"dict 267"`
-	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
-	LinkToken                    *address.Address        `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary        `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary        `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
+	ID                           uint32              `tlb:"## 32"`
+	Ownable                      common.Ownable2Step `tlb:"."`
+	AllowedPriceUpdaters         *cell.Dictionary    `tlb:"dict 267"`
+	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
+	LinkToken                    *address.Address    `tlb:"addr"`
+	TokenPriceStalenessThreshold uint64              `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
 }
 
 type DestChainConfigs struct {
@@ -104,8 +112,8 @@ func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
 	return tlb.LoadFromCell(u, c.BeginParse())
 }
 
-func (u *USDPerUnitGas) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, DestinationChainGasPriceGetter, destChainSelector, u)
+func (u *USDPerUnitGas) GetterMethodName() string {
+	return destinationChainGasPriceGetter
 }
 
 type DestChainConfig struct {
@@ -227,8 +235,8 @@ func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, ccipcommon.DestChainConfigGetter, destChainSelector, c)
+func (c *DestChainConfig) GetterMethodName() string {
+	return destChainConfigGetter
 }
 
 type TokenTransferFeeConfig struct {
@@ -262,8 +270,8 @@ func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (p *TimestampedPrice) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, tokenPriceGetter, opts, p)
+func (p *TimestampedPrice) GetterMethodName() string {
+	return tokenPriceGetter
 }
 
 type TokenPriceUpdate struct {
@@ -321,16 +329,16 @@ type RemovePriceUpdater struct {
 }
 
 type UpdatePrices struct {
-	_              tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
-	TokenPrices    ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices      ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
-	SendExcessesTo *address.Address                       `tlb:"maybe addr"`
+	_              tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	TokenPrices    common.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices      common.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	SendExcessesTo *address.Address                   `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                              `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                       `tlb:"dict 267"`
-	Remove ccipcommon.SnakeData[*address.Address] `tlb:"^"`
+	_      tlb.Magic                            `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	Add    *cell.Dictionary                     `tlb:"dict 267"`
+	Remove common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
@@ -348,9 +356,21 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                                   `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
-	Updates ccipcommon.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	GetValidatedFee{},
+	MessageValidated{},
+	MessageValidationFailed{},
+	AddPriceUpdater{},
+	RemovePriceUpdater{},
+	UpdatePrices{},
+	UpdateFeeTokens{},
+	UpdateTokenTransferFeeConfigs{},
+	UpdateDestChainConfigs{},
+})
 
 // binding types that supports FetchResult interface with rpc client
 
@@ -385,6 +405,47 @@ func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
-	return ccipcommon.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s)
+func (s *StaticConfig) GetterMethodName() string {
+	return staticConfigGetter
+}
+
+// DestChainConfigMap represents a map of destination chain selectors to their configurations.
+// This type aligns with the on-chain data structure for destination chain configs.
+type DestChainConfigMap map[uint64]DestChainConfig
+
+// Fetch retrieves all destination chain configurations from the fee quoter contract.
+func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) error {
+	result, err := client.RunGetMethod(ctx, block, feeQuoter, DestChainsGetter)
+	if err != nil {
+		return err
+	}
+
+	selectorSlice := parser.ParseLispTuple(result.AsTuple())
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	var lock sync.Mutex
+	eg.SetLimit(runtime.NumCPU())
+	output := make(map[uint64]DestChainConfig)
+	for _, dest := range selectorSlice {
+		eg.Go(func() error {
+			var cfg DestChainConfig
+			opts := []interface{}{dest}
+			if err = tvm.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
+				return err
+			}
+
+			lock.Lock()
+			output[dest] = cfg
+			lock.Unlock()
+
+			return nil
+		})
+	}
+
+	if err = eg.Wait(); err != nil {
+		return err
+	}
+
+	*d = output
+	return nil
 }

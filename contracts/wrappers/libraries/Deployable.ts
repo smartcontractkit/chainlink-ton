@@ -10,11 +10,9 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
+import { compile } from '@ton/blueprint'
+
 import { CellCodec } from '../utils'
-import { crc32 } from 'zlib'
-import { CCIP_SEND_EXECUTOR_FACILITY_NAME } from '../ccip/CCIPSendExecutor'
-import { RECEIVE_EXECUTOR_FACILITY_NAME } from '../ccip/OffRamp'
-import { MERKLE_ROOT_FACILITY_NAME } from '../ccip/MerkleRoot'
 
 export type DeployableStorage = {
   owner: Address
@@ -24,6 +22,25 @@ export type DeployableStorage = {
 export type Namespaced = {
   namespace: number
   id: Builder
+}
+
+type ContractState = {
+  code: Cell
+  data: Cell
+}
+
+export type Initialize = {
+  stateInit: ContractState
+}
+
+export type InitializeAndSend = {
+  stateInit: ContractState
+  selfMessage: Message
+}
+
+export type Message = {
+  value: bigint
+  body: Cell
 }
 
 export const builder = {
@@ -54,10 +71,41 @@ export const builder = {
       initialize: ((): CellCodec<Initialize> => {
         return {
           encode: (data: Initialize): Builder => {
-            return beginCell().storeRef(data.code).storeRef(data.data)
+            return beginCell()
+              .storeUint(Opcodes.initialize, 32)
+              .storeRef(data.stateInit.code)
+              .storeRef(data.stateInit.data)
           },
           load: (src: Slice): Initialize => {
-            return { code: src.loadRef(), data: src.loadRef() }
+            src.skip(32) // opcode
+            return {
+              stateInit: { code: src.loadRef(), data: src.loadRef() },
+            }
+          },
+        }
+      })(),
+      initializeAndSend: ((): CellCodec<InitializeAndSend> => {
+        return {
+          encode: (data: InitializeAndSend): Builder => {
+            return beginCell()
+              .storeUint(Opcodes.initializeAndSend, 32)
+              .storeRef(data.stateInit.code)
+              .storeRef(data.stateInit.data)
+              .storeCoins(data.selfMessage.value)
+              .storeRef(data.selfMessage.body)
+          },
+          load: (src: Slice): InitializeAndSend => {
+            src.skip(32) // opcode
+            return {
+              stateInit: {
+                code: src.loadRef(),
+                data: src.loadRef(),
+              },
+              selfMessage: {
+                value: src.loadCoins(),
+                body: src.loadRef(),
+              },
+            }
           },
         }
       })(),
@@ -65,17 +113,13 @@ export const builder = {
   },
 }
 
-export enum OpCodes {
-  Initialize = 0xba466447,
+export abstract class Opcodes {
+  static initialize = 0xba466447
+  static initializeAndSend = 0xb0ec5157
 }
 
 export enum Errors {
-  ErrorNotOwner = 0x1,
-}
-
-export type Initialize = {
-  code: Cell
-  data: Cell
+  ErrorNotOwner = 37400,
 }
 
 export class ContractClient implements Contract {
@@ -94,11 +138,28 @@ export class ContractClient implements Contract {
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
+  static async code(): Promise<Cell> {
+    return compile('Deployable')
+  }
+
   async sendInitialize(provider: ContractProvider, via: Sender, value: bigint, msg: Initialize) {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.initialize.encode(msg).asCell(),
+    })
+  }
+
+  async sendInitializeAndSend(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    msg: InitializeAndSend,
+  ) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.initializeAndSend.encode(msg).asCell(),
     })
   }
 }

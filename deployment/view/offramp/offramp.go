@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	configfetcher "github.com/smartcontractkit/chainlink-ton/pkg/ccip/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -27,12 +27,12 @@ type View struct {
 // FetchView generates a view of the offramp contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	if err := typeVersion.FetchResult(ctx, c.Client, block, offRampAddr, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, offRampAddr, &typeVersion, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
 	var offRampConfig offramp.Config
-	if err := offRampConfig.FetchResult(ctx, c.Client, block, offRampAddr, nil); err != nil {
+	if err := tvm.FetchResult(ctx, c.Client, block, offRampAddr, &offRampConfig, nil); err != nil {
 		return nil, fmt.Errorf("failed to parse OffRamp Config: %w", err)
 	}
 
@@ -46,8 +46,8 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 		return nil, fmt.Errorf("failed to get latestPriceSequenceNumber: %w", err)
 	}
 
-	sourceChainConfigs, err := configfetcher.FetchOffRampSrcChainConfig(ctx, c.Client, block, offRampAddr)
-	if err != nil {
+	var sourceChainConfigs offramp.SourceChainConfigMap
+	if err := sourceChainConfigs.Fetch(ctx, c.Client, block, offRampAddr); err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 

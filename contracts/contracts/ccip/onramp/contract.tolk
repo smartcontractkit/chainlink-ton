@@ -1,4 +1,4 @@
-tolk 1.1
+tolk 1.2
 
 import "types"
 import "events"
@@ -44,9 +44,15 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == feeQuoterAddress, Error.Unauthorized);
             onMessageValidationFailed(msg)
         }
-        // Permissionless
+        // Sender must be the Router
         OnRamp_Send => {
-            onSend(msg, in.senderAddress)
+            var st = lazy OnRamp_Storage.load();
+            val ccipSend = msg.msg.load();
+            // validate allowlist
+            val destChainConfig = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int);
+            // ccipSend must be forwarded from the router
+            assert(destChainConfig.router == in.senderAddress, Error.Unauthorized);
+            onSend(st, destChainConfig, msg)
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
@@ -216,18 +222,8 @@ Handles CCIP send messages forwarded by the Router. Validates that the
 destination chain configuration is enabled, enforces the optional allowlist,
 and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
 */
-fun onSend(payload: OnRamp_Send, sender: address) {
-    var st = lazy OnRamp_Storage.load();
-
-    val msg = payload.msg.load();
-
-    // validate allowlist
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
-
-    // ccipSend must be forwarded from the router
-    assert(destChainConfig.router == sender, Error.Unauthorized);
-
-    if (destChainConfig.allowlistEnabled) {
+fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload: OnRamp_Send) {
+       if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
         assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
     }
@@ -297,7 +293,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
             data: ccipsend.data,
             extraArgs: ccipsend.extraArgs,
             tokenAmounts: ccipsend.tokenAmounts,
-            feeToken: ccipsend.feeToken,
+            feeToken: ccipsend.feeToken!, // guaranteed to be non-null by this point
             feeTokenAmount: msg.fee.feeTokenAmount as uint256, // safe because it is 120 bits
         }.toCell(),
         feeValueJuels: msg.fee.feeValueJuels,
@@ -361,6 +357,9 @@ event. Updates are stored directly from the provided message payload.
 Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
+    assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
+    // EVM implementation also checks that feeAgregator is non-zero, but it is unused in TON
+
     st.config = msg.config.toCell();
 
     emit(
@@ -487,7 +486,6 @@ get fun allowedSendersList(destChainSelector: uint64): tuple? {
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
 
-    // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
     return keysLispList(allowedSenders);
 }
 

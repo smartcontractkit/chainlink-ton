@@ -4,16 +4,15 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Dictionary, Address, CommonMessageInfoInternal } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
 import { crc32 } from 'zlib'
 
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
-import * as feeQuoterHelper from '../../../wrappers/ccip/helpers/FeeQuoterHelper'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
-import { verifyBodyMessage } from '../CCIPRouter.spec'
+import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import {
   CHAIN_FAMILY_SELECTOR_EVM,
@@ -34,7 +33,7 @@ export type TestAccounts = {
 }
 
 export type TestContracts = {
-  feeQuoter: SandboxContract<feeQuoterHelper.FeeQuoterHelper>
+  feeQuoter: SandboxContract<feeQuoter.FeeQuoter>
   counter: SandboxContract<counter.ContractClient>
 }
 
@@ -166,8 +165,8 @@ export class FeeQuoterSetup {
     networkFeeUsdCents: 100,
   }
 
-  constructor() {
-    this.blockchain = null as any
+  constructor(blockchain: Blockchain) {
+    this.blockchain = blockchain
     this.code = null as any
     this.acc = null as any
     this.bind = null as any
@@ -175,7 +174,7 @@ export class FeeQuoterSetup {
 
   static async compileContracts(): Promise<TestCode> {
     return {
-      feeQuoter: await feeQuoterHelper.FeeQuoterHelper.code(),
+      feeQuoter: await feeQuoter.FeeQuoter.code(),
       counter: await compile('examples.Counter'),
     }
   }
@@ -183,14 +182,19 @@ export class FeeQuoterSetup {
   /**
    * Initialize the blockchain and setup accounts
    */
-  async initializeBlockchain(): Promise<void> {
-    this.blockchain = await Blockchain.create()
+  async initializeBlockchain(blockchain: Blockchain): Promise<void> {
+    this.blockchain = blockchain
     this.blockchain.now = 1
     this.blockchain.verbosity = {
       print: true,
       blockchainLogs: false,
       vmLogs: 'none',
       debugLogs: true,
+    }
+    if (process.env['COVERAGE'] === 'true') {
+      this.blockchain.enableCoverage()
+      this.blockchain.verbosity.print = false
+      this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     // Set up accounts
@@ -210,9 +214,9 @@ export class FeeQuoterSetup {
   /**
    * Setup the FeeQuoter contract with minimal configuration (following setupTestFeeQuoter pattern)
    */
-  async setupFeeQuoterContract(testId: string): Promise<void> {
+  async setupFeeQuoterContract(): Promise<void> {
     const data: feeQuoter.FeeQuoterStorage = {
-      id: crc32(`feeQuoter.${testId}`),
+      id: generateRandomContractId(),
       ownable: {
         owner: this.acc.owner.address,
         pendingOwner: null,
@@ -246,16 +250,16 @@ export class FeeQuoterSetup {
     }
 
     this.bind.feeQuoter = this.blockchain.openContract(
-      feeQuoterHelper.FeeQuoterHelper.createFromConfig(data, this.code.feeQuoter),
+      feeQuoter.FeeQuoter.createFromConfig(data, this.code.feeQuoter),
     )
   }
 
   /**
    * Setup the counter contract (equivalent to mock contracts in Solidity tests)
    */
-  async setupCounterContract(testId: string): Promise<void> {
+  async setupCounterContract(): Promise<void> {
     const data: counter.ContractData = {
-      id: crc32(`counter.${testId}`),
+      id: generateRandomContractId(),
       value: 0,
       ownable: {
         owner: this.bind.feeQuoter.address,
@@ -448,11 +452,11 @@ export class FeeQuoterSetup {
   /**
    * Complete setup for all contracts - convenience method
    */
-  async setupAll(testId: string): Promise<void> {
-    await this.initializeBlockchain()
-    await this.setupFeeQuoterContract(testId)
+  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
+    await this.initializeBlockchain(blockchain)
+    await this.setupFeeQuoterContract()
     await this.deployFeeQuoterContract()
-    await this.setupCounterContract(testId)
+    await this.setupCounterContract()
     await this.deployCounterContract()
   }
 
@@ -529,12 +533,12 @@ export class FeeQuoterSetup {
   /**
    * Requests validateMessage
    */
-  async getValidatedFee(msg: rt.CCIPSend, metadata: Cell): Promise<sendExecutor.MessageValidated> {
+  async getValidatedFee(msg: rt.CCIPSend): Promise<feeQuoter.MessageValidated> {
     const res = await this.bind.feeQuoter.sendGetValidatedFee(this.acc.externalCaller.getSender(), {
       value: toNano('1'),
       msg: {
         msg,
-        metadata,
+        context: beginCell().asSlice(),
       },
     })
 
@@ -587,7 +591,7 @@ export class FeeQuoterSetup {
       this.acc.externalCaller.getSender(),
       {
         value: toNano('1'),
-        msg: { msg: message, metadata: beginCell().endCell() },
+        msg: { msg: message, context: beginCell().asSlice() },
       },
     )
 
@@ -624,7 +628,7 @@ export class FeeQuoterSetup {
         op: sendExec.Opcodes.messageValidationFailed,
         success: true,
         body(x) {
-          return verifyBodyMessage<sendExec.MessageValidationFailed>(
+          return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
             x,
             sendExec.builder.message.in.messageValidationFailed,
             [
@@ -633,7 +637,6 @@ export class FeeQuoterSetup {
                   return true
                 }
                 throw new Error(`Validation failed with error ${printErrorName(Number(msg.error))}`)
-                return false
               },
             ],
           )
@@ -651,12 +654,12 @@ export class FeeQuoterSetup {
  * Simplified setup class for fee-related tests (without complex token handling)
  */
 export class FeeQuoterFeeSetup extends FeeQuoterSetup {
-  constructor() {
-    super()
+  constructor(blockchain: Blockchain) {
+    super(blockchain)
   }
 
-  async setupAll(testId: string): Promise<void> {
-    await super.setupAll(testId)
+  async setupAll(testId: string, blockchain: Blockchain): Promise<void> {
+    await super.setupAll(testId, blockchain)
     // In TON, we'll focus on native TON fees rather than complex token pricing
   }
 }
@@ -712,6 +715,8 @@ function printErrorName(error: number): string {
       return 'FeeOverflow'
     case feeQuoter.FeeQuoterError.MessageFeeTooHigh:
       return 'MessageFeeTooHigh'
+    case 5001:
+      return 'Invalid EVM address'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

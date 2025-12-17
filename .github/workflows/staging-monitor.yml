@@ -1,4 +1,4 @@
-name: CCIP Staging Monitor
+name: CCIP TON Staging Monitor
 permissions:
   contents: read
 
@@ -7,30 +7,37 @@ on:
     # Runs at minute 0, 15, 30, and 45 of every hour
     - cron: "*/15 * * * *"
 
+  workflow_dispatch: # Manual trigger from GitHub Actions UI
+
   pull_request:
     types: [opened, synchronize, reopened, labeled]
     branches:
       - main
 
 jobs:
-  monitor-tests:
+  ccip-monitor-tests:
+    # Toggle via CCIP_STAGING_MONITOR_ENABLED variable (set to 'false' to disable)
+    # Manual triggers (workflow_dispatch) always run regardless of toggle
     if: |
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'run-staging-monitor-test'))
+      github.event_name == 'workflow_dispatch' ||
+      (vars.CCIP_STAGING_MONITOR_ENABLED != 'false' && (
+        github.event_name == 'schedule' ||
+        (github.event_name == 'pull_request' &&
+         contains(github.event.pull_request.labels.*.name, 'run-staging-monitor-test'))
+      ))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # Note: add more tests here
-        test: [
-          ton2evm-messaging, 
-          evm2ton-messaging,
-        ]
+        test:
+          # Note: add more tests here, see staging-monitor/cmd/run-test/main.go and staging-monitor/README.md
+          - ton2evm-messaging
+          - evm2ton-messaging
     env:
       TON_TESTNET_SELECTOR: ${{ vars.TON_TESTNET_SELECTOR }}
       ETHEREUM_TESTNET_SEPOLIA_SELECTOR: ${{ vars.ETHEREUM_TESTNET_SEPOLIA_SELECTOR }}
       TON_TESTNET_ROUTER: ${{ secrets.STAGING_TON_TESTNET_ROUTER }}
+      TON_TESTNET_FEE_QUOTER: ${{ secrets.STAGING_TON_TESTNET_FEE_QUOTER }}
       TON_TESTNET_RECEIVER: ${{ secrets.STAGING_TON_TESTNET_RECEIVER }}
       TON_TESTNET_WALLET_KEY: ${{ secrets.STAGING_TON_TESTNET_WALLET_KEY }}
       TON_TESTNET_ENDPOINT: ${{ secrets.STAGING_TON_TESTNET_ENDPOINT }}

@@ -14,10 +14,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/onramp"
 )
 
-// formatETH formats wei to ETH with 6 decimal places
+// formatETH formats wei to ETH with 18 decimal places
 func formatETH(wei *big.Int) string {
 	eth := new(big.Float).Quo(new(big.Float).SetInt(wei), big.NewFloat(1e18))
-	return eth.Text('f', 6)
+	return eth.Text('f', 18)
 }
 
 // buildEVMExtraArgsV2 manually builds the CCIP extra args V2 bytes

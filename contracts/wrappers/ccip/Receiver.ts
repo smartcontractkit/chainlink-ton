@@ -31,7 +31,7 @@ export enum ReceiverBehavior {
 }
 
 export type ReceiverStorage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   authorizedCaller: Address
   behavior: ReceiverBehavior
@@ -163,7 +163,7 @@ export const builder = {
         const behavior = src.loadUint(8)
 
         return {
-          id,
+          id: BigInt(id),
           ownable,
           authorizedCaller,
           behavior,

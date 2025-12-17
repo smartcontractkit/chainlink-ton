@@ -6,7 +6,6 @@ import {
   CommitReport,
   builder,
   ExecutionReport,
-  MerkleRoot,
   OFFRAMP_FACILITY_ID,
   OFFRAMP_FACILITY_NAME,
   OffRampStorage,
@@ -19,11 +18,13 @@ import {
   OffRampError,
   Opcodes,
   UpdateSourceChainConfig,
+  MerkleRoot,
 } from '../../wrappers/ccip/OffRamp'
 import {
   MerkleRootError,
   MERKLE_ROOT_FACILITY_ID,
   MERKLE_ROOT_FACILITY_NAME,
+  MerkleRoot as MerkleRootContract,
 } from '../../wrappers/ccip/MerkleRoot'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
@@ -34,12 +35,15 @@ import {
   bigIntToUint8Array,
   generateEd25519KeyPair,
   generateMockTonAddress,
+  generateRandomContractId,
+  generateRandomTonAddress,
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as coverage from '../coverage/coverage'
 
 import {
   createSignature,
@@ -77,10 +81,6 @@ const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = 60
 const EXECUTION_STATE_IN_PROGRESS = 1n
 const EXECUTION_STATE_SUCCESS = 2n
 const EXECUTION_STATE_FAILURE = 3n
-
-function generateSecureRandomId(): bigint {
-  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
-}
 
 const createSignatures = (
   signerList: KeyPair[],
@@ -149,7 +149,7 @@ async function deployOffRampContract(
 ) {
   const code = await OffRamp.code()
   let data: OffRampStorage = {
-    id: generateSecureRandomId(),
+    id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
       pendingOwner: null,
@@ -178,7 +178,12 @@ describe('OffRamp - TypeAndVersion Tests', () => {
     version: OffRamp.version(),
     deployContract: deployOffRampContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
 })
 
 describe('OffRamp - Withdrawable Tests', () => {
@@ -188,7 +193,12 @@ describe('OffRamp - Withdrawable Tests', () => {
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
   })
-  withdrawableSpec.run()
+  withdrawableSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
 })
 
 // TODO when we have a new version
@@ -227,7 +237,7 @@ describe('OffRamp - Current Version Tests', () => {
     CurrentVersionConstructor: OffRamp,
     deployCurrentContract: deployOffRampContract,
   })
-  currentVersionSpec.run()
+  currentVersionSpec.run('offramp')
 })
 
 describe('OffRamp - Unit Tests', () => {
@@ -240,6 +250,7 @@ describe('OffRamp - Unit Tests', () => {
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let receiveExecutorCodeRaw: Cell
+  let offRampCodeRaw: Cell
   let transmitters: SandboxContract<TreasuryContract>[]
   let signers: KeyPair[]
   let signersPublicKeys: bigint[]
@@ -517,11 +528,17 @@ describe('OffRamp - Unit Tests', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
     receiveExecutorCodeRaw = await compile('ReceiveExecutor')
+    offRampCodeRaw = await compile('OffRamp')
 
     transmitters = await Promise.all([
       blockchain.treasury('transmitter1'),
@@ -556,7 +573,7 @@ describe('OffRamp - Unit Tests', () => {
   beforeEach(async () => {
     // setup offramp
     {
-      let code = await compile('OffRamp')
+      let code = offRampCodeRaw
 
       // Use a library reference
       let merkleRootLibPrep = beginCell()
@@ -580,7 +597,7 @@ describe('OffRamp - Unit Tests', () => {
       })
 
       let data: OffRampStorage = {
-        id: generateSecureRandomId(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -627,7 +644,7 @@ describe('OffRamp - Unit Tests', () => {
     {
       const code = await compile('Router')
       let data: rt.Storage = {
-        id: generateSecureRandomId(),
+        id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -672,7 +689,7 @@ describe('OffRamp - Unit Tests', () => {
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {
-            id: 1,
+            id: generateRandomContractId(),
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,
@@ -1554,7 +1571,7 @@ describe('OffRamp - Unit Tests', () => {
     const badReceiver = blockchain.openContract(
       Receiver.createFromConfig(
         {
-          id: 1,
+          id: generateRandomContractId(),
           ownable: { owner: deployer.address, pendingOwner: null },
           authorizedCaller: wrongRouterAddress,
           behavior: ReceiverBehavior.Accept,
@@ -2323,6 +2340,119 @@ describe('OffRamp - Unit Tests', () => {
         messageId: BigInt(index + 1),
         state: EXECUTION_STATE_SUCCESS,
       })
+    }
+  })
+
+  it('test SetDynamicConfig', async () => {
+    // owner can call SetDynamicConfig
+    const newFeeQuoter = await generateRandomTonAddress()
+    const newPermissionlessExecutionThresholdSeconds = 7200
+    const result = await offRamp.sendSetDynamicConfig(deployer.getSender(), {
+      value: toNano('0.1'),
+      feeQuoter: newFeeQuoter,
+      permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // verify changes
+    const dynamicConfig = await offRamp.getConfig()
+    expect(dynamicConfig.feeQuoter.toString()).toBe(newFeeQuoter.toString())
+    expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
+      newPermissionlessExecutionThresholdSeconds,
+    )
+
+    // non-owner cannot call SetDynamicConfig
+
+    const other = await blockchain.treasury('other')
+    const result2 = await offRamp.sendSetDynamicConfig(other.getSender(), {
+      value: toNano('0.1'),
+      feeQuoter: newFeeQuoter,
+      permissionlessExecutionThresholdSeconds: newPermissionlessExecutionThresholdSeconds,
+    })
+    expect(result2.transactions).toHaveTransaction({
+      from: other.address,
+      to: offRamp.address,
+      success: false,
+    })
+  })
+
+  it('test updateDeployables', async () => {
+    // owner can update deployables
+    const mockMerkleRootCode = beginCell().storeUint(0x12345678, 32).endCell()
+    const mockReceiveExecutorCode = beginCell().storeUint(0x87654321, 32).endCell()
+
+    const result = await offRamp.sendUpdateDeployables(deployer.getSender(), {
+      value: toNano('0.1'),
+      receiveExecutorCode: mockReceiveExecutorCode,
+      merkleRootCode: mockMerkleRootCode,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // verify changes
+    const deployables = await offRamp.getDeployableHashes()
+
+    expect(deployables.merkleRootCodeHash).toBe(uint8ArrayToBigInt(mockMerkleRootCode.hash()))
+
+    expect(deployables.receiveExecutorCodeHash).toBe(
+      uint8ArrayToBigInt(mockReceiveExecutorCode.hash()),
+    )
+
+    expect(deployables.deployerCodeHash).toBe(uint8ArrayToBigInt(deployerCode.hash()))
+
+    // non-owner cannot update deployables
+    const other = await blockchain.treasury('other')
+    const result2 = await offRamp.sendUpdateDeployables(other.getSender(), {
+      value: toNano('0.1'),
+      receiveExecutorCode: mockReceiveExecutorCode,
+      merkleRootCode: mockMerkleRootCode,
+    })
+    expect(result2.transactions).toHaveTransaction({
+      from: other.address,
+      to: offRamp.address,
+      success: false,
+    })
+  })
+
+  it('test getAllSourceChainConfigs', async () => {
+    await setupSourceChainConfig()
+    const result = await offRamp.getAllSourceChainConfigs()
+    const expectedSourceChainConfigs = createDefaultUpdateSourceChainConfigs()
+    expect(expectedSourceChainConfigs.sort()).toEqual(result.sort())
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      const testSuitePrefix = 'offramp_suite'
+      await coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
+          code: await offRamp.getCode(),
+          name: 'offramp',
+        },
+        {
+          code: await router.getCode(),
+          name: 'router',
+        },
+        {
+          code: await feeQuoter.getCode(),
+          name: 'feequoter',
+        },
+        {
+          code: merkleRootCodeRaw,
+          name: 'merkleroot',
+        },
+        {
+          code: receiveExecutorCodeRaw,
+          name: 'receive_executor',
+        },
+      ])
     }
   })
 })

@@ -4,14 +4,21 @@ import { toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
+import { Blockchain } from '@ton/sandbox'
+import { compile } from '@ton/blueprint'
+import * as coverage from '../../coverage/coverage'
 
 describe('FeeQuoter UpdatePrices', () => {
   let setup: FeeQuoterSetup
+  let blockchain: Blockchain
 
+  beforeAll(async () => {
+    blockchain = await Blockchain.create()
+  })
   beforeEach(async () => {
-    setup = new FeeQuoterSetup()
+    setup = new FeeQuoterSetup(blockchain)
     setup.code = await FeeQuoterSetup.compileContracts()
-    await setup.setupAll('updatePrices')
+    await setup.setupAll('updatePrices', blockchain)
   })
 
   it('should only trust allowedPriceUpdaters', async () => {
@@ -258,9 +265,7 @@ describe('FeeQuoter UpdatePrices', () => {
     )
   })
 
-  it.skip('should revert when caller is not authorized', async () => {
-    // TODO: Implement proper authorization in TON FeeQuoter contract
-    // Currently the contract allows any caller to update prices
+  it('should revert when caller is not authorized', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
       tokenPricesUpdates: [
         { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n },
@@ -284,12 +289,7 @@ describe('FeeQuoter UpdatePrices', () => {
     })
   })
 
-  // Note: TON doesn't have a direct equivalent to Solidity's AuthorizedCallers pattern
-  // The authorization in TON FeeQuoter is handled through ownership checks
-  // This test demonstrates the basic unauthorized access behavior
-  it.skip('should only allow owner to update prices', async () => {
-    // TODO: Implement proper authorization in TON FeeQuoter contract
-    // Currently the contract allows any caller to update prices
+  it('should only allow owner to update prices', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
       tokenPricesUpdates: [
         { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n },
@@ -324,5 +324,17 @@ describe('FeeQuoter UpdatePrices', () => {
       to: setup.bind.feeQuoter.address,
       success: false,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      const testSuitePrefix = 'feeQuoter_update_prices_suite'
+      await coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
+        {
+          code: setup.code.feeQuoter,
+          name: 'feequoter',
+        },
+      ])
+    }
   })
 })

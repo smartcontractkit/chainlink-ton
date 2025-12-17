@@ -22,7 +22,7 @@ describe('Counter', () => {
     bind = {
       counter: blockchain.openContract(
         counter.ContractClient.newFrom(
-          { id: 1337, value: 13, ownable: { owner: deployer.address, pendingOwner: null } },
+          { id: BigInt(1337), value: 13, ownable: { owner: deployer.address, pendingOwner: null } },
           code,
         ),
       ),

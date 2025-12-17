@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/Masterminds/semver/v3"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -18,7 +19,6 @@ type ChainContractParams struct {
 	OnRampParams    OnRampParams
 	RouterParams    RouterParams
 	ReceiverParams  ReceiverParams
-	TimelockParams  TimelockParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -32,6 +32,12 @@ func (c ChainContractParams) Validate() error {
 	if err := c.OnRampParams.Validate(); err != nil {
 		return fmt.Errorf("invalid OnRampParams: %w", err)
 	}
+	if err := c.RouterParams.Validate(); err != nil {
+		return fmt.Errorf("invalid RouterParams: %w", err)
+	}
+	if err := c.ReceiverParams.Validate(); err != nil {
+		return fmt.Errorf("invalid ReceiverParams: %w", err)
+	}
 	return nil
 }
 
@@ -42,6 +48,8 @@ type FeeToken struct {
 
 type FeeQuoterParams struct {
 	ID                           uint32
+	ContractsSemver              *semver.Version
+	Coin                         string
 	MaxFeeJuelsPerMsg            *big.Int
 	TokenPriceStalenessThreshold uint64
 	FeeTokens                    map[TokenSymbol]FeeToken
@@ -62,6 +70,8 @@ func (f FeeQuoterParams) Validate() error {
 
 type OffRampParams struct {
 	ID                               uint32
+	ContractsSemver                  *semver.Version
+	Coin                             string
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
 }
@@ -77,10 +87,12 @@ func (o OffRampParams) Validate() error {
 }
 
 type OnRampParams struct {
-	ID             uint32
-	ChainSelector  uint64
-	AllowlistAdmin *address.Address
-	FeeAggregator  *address.Address
+	ID              uint32
+	ContractsSemver *semver.Version
+	Coin            string
+	ChainSelector   uint64
+	AllowlistAdmin  *address.Address
+	FeeAggregator   *address.Address
 }
 
 func (o OnRampParams) Validate() error {
@@ -91,7 +103,9 @@ func (o OnRampParams) Validate() error {
 }
 
 type RouterParams struct {
-	ID uint32
+	ID              uint32
+	Coin            string
+	ContractsSemver *semver.Version
 }
 
 func (r RouterParams) Validate() error {
@@ -100,28 +114,12 @@ func (r RouterParams) Validate() error {
 }
 
 type ReceiverParams struct {
-	ID uint32
+	ID              uint32
+	ContractsSemver *semver.Version
+	Coin            string
 }
 
 func (r ReceiverParams) Validate() error {
 	// No specific validation for now
-	return nil
-}
-
-type TimelockParams struct {
-	ID         uint32
-	MinDelay   uint32
-	Admin      *address.Address
-	Proposers  []*address.Address
-	Executors  []*address.Address
-	Cancellers []*address.Address
-	Bypassers  []*address.Address
-}
-
-func (t TimelockParams) Validate() error {
-	if t.Admin == nil {
-		return errors.New("timelock admin should be specified")
-	}
-
 	return nil
 }
