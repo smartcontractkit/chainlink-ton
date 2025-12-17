@@ -17,6 +17,6 @@ var DeployChainContracts = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-
+		return output, nil
 	},
 )
