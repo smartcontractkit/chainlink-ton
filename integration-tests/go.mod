@@ -8,7 +8,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/smartcontractkit/chain-selectors v1.0.85
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251216154855-949167c7e9d1
-	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20251027185542-babb09e5363e
+	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20251215214345-470a287a4b1f
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251216023617-1123cf0a8502
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251125103916-0b41e73b80c4
 	github.com/smartcontractkit/chainlink-deployments-framework v0.70.0

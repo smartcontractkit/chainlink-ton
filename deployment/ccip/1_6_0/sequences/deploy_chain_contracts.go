@@ -42,7 +42,7 @@ var DeployChainContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
 		}
 
-		txs = append(txs, ccipSeqReport.Output...)
+		txs = append(txs, ccipSeqReport.Output.Transactions...)
 
 		// Execute the txs || MCMS proposals
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)

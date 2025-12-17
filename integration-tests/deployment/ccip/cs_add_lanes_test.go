@@ -25,7 +25,7 @@ import (
 	_ "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/v1_6_0/sequences"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
-	cs_core "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
@@ -55,7 +55,7 @@ func TestAddLanes(t *testing.T) {
 	toolingAPIVersion := semver.MustParse("1.6.0")
 
 	// <deploy-evm>
-	mcmsRegistry := cs_core.NewMCMSReaderRegistry()
+	mcmsRegistry := cs_ccip.GetRegistry()
 	dReg := deployops.GetRegistry()
 
 	out, err := deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
