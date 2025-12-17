@@ -7,25 +7,20 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax
 
 # global ownership
-* @smartcontractkit/bix-build
-# TODO: migrate to @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+* @smartcontractkit/ccip-ton
 
 # off-chain code ownership
-/pkg @smartcontractkit/bix-build
-# TODO: migrate to @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+/pkg @smartcontractkit/ccip-ton
 
 # LOOP Plugin commands ownership
-/pkg/cmd/chainlink-ton @smartcontractkit/bix-build
-# TODO: migrate to @smartcontractkit/foundations @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+/pkg/cmd/chainlink-ton @smartcontractkit/ccip-ton
 
 # e2e test ownership
-/integration-tests @smartcontractkit/bix-build
-# TODO: migrate to @smartcontractkit/qa @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+/integration-tests @smartcontractkit/ccip-ton
 
 # on-chain code ownership
-/contracts @smartcontractkit/bix-build
-# TODO: migrate to @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+/contracts @smartcontractkit/ccip-ton
 
 # CI/CD
-/.github/** @smartcontractkit/bix-build
-# TODO: migrate to @smartcontractkit/releng @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+/.github/** @smartcontractkit/ccip-ton
+# TODO: migrate to @smartcontractkit/releng
