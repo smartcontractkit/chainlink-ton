@@ -70,9 +70,8 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain) (mcmsConfig.MCMSDeps
 }
 
 func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) mcmsSeq.DeployMCMSSeqInput {
-	// Convert proposers, executors, cancellers, bypassers from mcms config
-	// The external config uses mcmstypes.Config which has signers, but for TON we need addresses
-	// For now, use deployer as the default for all roles
+	// The external config uses mcmstypes.Config which has signers, but assumes all evm address for, but
+	// we need ton addresses. For now, use deployer as the default for all roles
 	proposers := []*address.Address{deployer}
 	executors := []*address.Address{deployer}
 	cancellers := []*address.Address{deployer}
