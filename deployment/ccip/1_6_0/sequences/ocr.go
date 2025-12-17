@@ -8,6 +8,7 @@ import (
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
@@ -51,37 +52,37 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	},
 )
 
-func extractTonDepsFromOcrInput(chain ton.Chain, a *TonAdapter, input deployops.SetOCR3ConfigInput) (operation.TonDeps, error) {
+func extractTonDepsFromOcrInput(chain ton.Chain, a *TonAdapter, input deployops.SetOCR3ConfigInput) (config.CCIPDeps, error) {
 	offRampAddr, err := a.GetOffRampAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return operation.TonDeps{}, err
+		return config.CCIPDeps{}, err
 	}
 	onRampAddr, err := a.GetOnRampAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return operation.TonDeps{}, err
+		return config.CCIPDeps{}, err
 	}
 	routerAddr, err := a.GetRouterAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return operation.TonDeps{}, err
+		return config.CCIPDeps{}, err
 	}
 	feeQuoter, err := a.GetFQAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return operation.TonDeps{}, err
+		return config.CCIPDeps{}, err
 	}
 	return extractTonDepsFrom(chain, onRampAddr, offRampAddr, routerAddr, feeQuoter)
 }
 
 func intoOCRConfigs(configs map[ccipocr3.PluginType]deployops.OCR3ConfigArgs) map[operation.PluginType]operation.OCR3ConfigArgs {
 	result := make(map[operation.PluginType]operation.OCR3ConfigArgs)
-	for pluginType, config := range configs {
+	for pluginType, cfg := range configs {
 		var pType = operation.PluginType(pluginType)
 		result[pType] = operation.OCR3ConfigArgs{
-			ConfigDigest:                   config.ConfigDigest,
+			ConfigDigest:                   cfg.ConfigDigest,
 			PluginType:                     pType,
-			F:                              config.F,
-			IsSignatureVerificationEnabled: config.IsSignatureVerificationEnabled,
-			Signers:                        config.Signers,
-			Transmitters:                   config.Transmitters,
+			F:                              cfg.F,
+			IsSignatureVerificationEnabled: cfg.IsSignatureVerificationEnabled,
+			Signers:                        cfg.Signers,
+			Transmitters:                   cfg.Transmitters,
 		}
 	}
 	return result
