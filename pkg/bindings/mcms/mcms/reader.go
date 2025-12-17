@@ -110,6 +110,16 @@ var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 			return RootMetadata{}, fmt.Errorf("error getting chainID int: %w", err)
 		}
 
+		sAddr, err := r.Slice(1)
+		if err != nil {
+			return RootMetadata{}, fmt.Errorf("error decoding MultiSig addr result: %w", err)
+		}
+
+		addr, err := sAddr.LoadAddr()
+		if err != nil {
+			return RootMetadata{}, fmt.Errorf("error decoding MultiSig addr result slice: %w", err)
+		}
+
 		preOpCount, err := r.Int(2)
 		if err != nil {
 			return RootMetadata{}, fmt.Errorf("error getting preOpCount int: %w", err)
@@ -120,12 +130,18 @@ var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 			return RootMetadata{}, fmt.Errorf("error getting postOpCount int: %w", err)
 		}
 
+		rs, err := r.Int(4)
+		if err != nil {
+			return RootMetadata{}, fmt.Errorf("error getting overridePreviousRoot bool result: %w", err)
+		}
+		overridePreviousRoot := rs.Uint64() == 1
+
 		return RootMetadata{
 			ChainID:              chainID,
-			MultiSig:             nil, // TODO: not implemented yet
+			MultiSig:             addr,
 			PreOpCount:           preOpCount.Uint64(),
 			PostOpCount:          postOpCount.Uint64(),
-			OverridePreviousRoot: false, // TODO: not implemented yet
+			OverridePreviousRoot: overridePreviousRoot,
 		}, nil
 	}),
 })
