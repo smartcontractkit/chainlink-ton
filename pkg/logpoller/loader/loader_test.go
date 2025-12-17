@@ -7,28 +7,28 @@ import (
 )
 
 func TestValidateTransactionListResponse(t *testing.T) {
-	t.Run("accepts valid response within limit", func(t *testing.T) {
-		err := validateTransactionListResponse(10, 10, 100)
-		require.NoError(t, err)
-	})
+	tests := []struct {
+		name      string
+		txCount   int
+		idsCount  int
+		limit     uint32
+		expectErr bool
+	}{
+		{"valid response within limit", 10, 10, 100, false},
+		{"response at exact limit", 100, 100, 100, false},
+		{"response exceeding limit", 101, 101, 100, true},
+		{"mismatched IDs count (fewer)", 10, 5, 100, true},
+		{"mismatched IDs count (more)", 5, 10, 100, true},
+	}
 
-	t.Run("accepts response at exact limit", func(t *testing.T) {
-		err := validateTransactionListResponse(100, 100, 100)
-		require.NoError(t, err)
-	})
-
-	t.Run("rejects response exceeding limit", func(t *testing.T) {
-		err := validateTransactionListResponse(101, 101, 100)
-		require.Error(t, err)
-	})
-
-	t.Run("rejects mismatched IDs count (fewer IDs)", func(t *testing.T) {
-		err := validateTransactionListResponse(10, 5, 100)
-		require.Error(t, err)
-	})
-
-	t.Run("rejects mismatched IDs count (more IDs)", func(t *testing.T) {
-		err := validateTransactionListResponse(5, 10, 100)
-		require.Error(t, err)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateTransactionListResponse(tt.txCount, tt.idsCount, tt.limit)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
