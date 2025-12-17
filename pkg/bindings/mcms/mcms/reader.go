@@ -110,12 +110,13 @@ var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 			return RootMetadata{}, fmt.Errorf("error getting chainID int: %w", err)
 		}
 
-		sAddr, err := r.Slice(1)
+		// Notice: encoded as cell, when returned within a struct vs. slice when returned alone
+		cAddr, err := r.Cell(1)
 		if err != nil {
 			return RootMetadata{}, fmt.Errorf("error decoding MultiSig addr result: %w", err)
 		}
 
-		addr, err := sAddr.LoadAddr()
+		addr, err := cAddr.BeginParse().LoadAddr()
 		if err != nil {
 			return RootMetadata{}, fmt.Errorf("error decoding MultiSig addr result slice: %w", err)
 		}
