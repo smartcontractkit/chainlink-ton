@@ -61,6 +61,7 @@ export enum OffRampError {
   TooManyMessagesInReport,
   SignatureVerificationRequiredInCommitPlugin,
   SignatureVerificationNotAllowedInExecutionPlugin,
+  BatchingNotSupported,
 }
 
 export enum ReceiveExecutorError {
