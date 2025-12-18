@@ -62,7 +62,7 @@ export enum OffRampError {
   TooManyMessagesInReport,
   SignatureVerificationRequiredInCommitPlugin,
   SignatureVerificationNotAllowedInExecutionPlugin,
-  InvalidInterval
+  InvalidInterval,
 }
 
 export enum ReceiveExecutorError {
