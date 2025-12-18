@@ -1,6 +1,5 @@
-import '@ton/test-utils'
-
 import { toNano } from '@ton/core'
+import '@ton/test-utils'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
@@ -18,7 +17,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   beforeEach(async () => {
     baseTest = new MCMSBaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-set-config')
+    await baseTest.setupAll()
   })
 
   it('should fail if non-owner tries to set config', async () => {

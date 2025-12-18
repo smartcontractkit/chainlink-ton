@@ -2,7 +2,6 @@ import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { sha256 } from '@ton/crypto'
-import { crc32 } from 'zlib'
 
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
@@ -10,6 +9,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
 import { computeAddress, SigningKey } from 'ethers'
 import { randomBytes } from 'crypto'
+import { generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   let blockchain: Blockchain
@@ -68,10 +68,12 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       }
     }
 
-    const testId = crc32('mcms.manyChainMultiSigSubgroupTest')
     const mcmsBind = blockchain.openContract(
       mcms.ContractClient.newFrom(
-        mcms.builder.data.contractDataEmpty(testId, acc.multisigOwner.address),
+        mcms.builder.data.contractDataEmpty(
+          Number(generateRandomContractId()),
+          acc.multisigOwner.address,
+        ),
         code.mcms,
       ),
     )
@@ -81,7 +83,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       counter: blockchain.openContract(
         counter.ContractClient.newFrom(
           {
-            id: testId,
+            id: generateRandomContractId(),
             value: 0,
             ownable: {
               owner: mcmsBind.address,

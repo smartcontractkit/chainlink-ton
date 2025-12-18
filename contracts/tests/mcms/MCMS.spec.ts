@@ -7,6 +7,7 @@ import { crc32 } from 'zlib'
 
 import { mcms } from '../../wrappers/mcms'
 import { errorCode } from '../../wrappers/utils'
+import { generateRandomContractId } from '../../src/utils'
 
 describe('MCMS', () => {
   let blockchain: Blockchain
@@ -46,7 +47,7 @@ describe('MCMS', () => {
     // Set up MCMS contract
     {
       const data = mcms.builder.data.contractDataEmpty(
-        crc32('mcms.mcms.test-sandbox'),
+        Number(generateRandomContractId()),
         acc.deployer.address,
       )
       bind.mcms = blockchain.openContract(mcms.ContractClient.newFrom(data, code.mcms))

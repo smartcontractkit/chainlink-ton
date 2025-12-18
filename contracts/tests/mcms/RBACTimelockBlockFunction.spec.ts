@@ -18,7 +18,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-cancel')
+    await baseTest.setupAll()
   })
 
   it('should fail if not admin tries to block function selector', async () => {

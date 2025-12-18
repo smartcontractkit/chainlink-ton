@@ -14,7 +14,7 @@ describe('MCMS - RBACTimelockReceivable', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-receivable')
+    await baseTest.setupAll()
   })
 
   it('should be able to receive TON', async () => {

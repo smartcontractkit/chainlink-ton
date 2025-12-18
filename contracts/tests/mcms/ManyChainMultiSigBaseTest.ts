@@ -1,13 +1,11 @@
 import '@ton/test-utils'
-
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano, beginCell } from '@ton/core'
-import { compile } from '@ton/blueprint'
-import { sign } from '@ton/crypto'
-import { crc32 } from 'zlib'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { ZERO_ADDRESS } from '../../src/utils'
+import * as coverage from '../coverage/coverage'
+
+import { generateRandomContractId, ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
@@ -222,9 +220,9 @@ export class MCMSBaseTestSetup {
   /**
    * Setup the MCMS contract
    */
-  async setupMCMSContract(testId: string): Promise<void> {
+  async setupMCMSContract(): Promise<void> {
     const data: mcms.ContractData = {
-      id: crc32(`mcms.test.${testId}`),
+      id: Number(generateRandomContractId()),
       ownable: {
         owner: this.acc.multisigOwner.address,
         pendingOwner: null,
@@ -284,9 +282,9 @@ export class MCMSBaseTestSetup {
     })
   }
 
-  async setupCounterContract(testId: string): Promise<void> {
+  async setupCounterContract(): Promise<void> {
     const data = {
-      id: crc32(`mcms.counter.${testId}`),
+      id: Number(generateRandomContractId()),
       value: 0,
       ownable: {
         owner: this.bind.mcms.address,
@@ -351,12 +349,12 @@ export class MCMSBaseTestSetup {
   /**
    * Complete setup for MCMS contract - convenience method that combines all setup steps
    */
-  async setupAll(testId: string): Promise<void> {
+  async setupAll(): Promise<void> {
     await this.initializeBlockchain()
     await this.setupTestConfiguration()
-    await this.setupMCMSContract(testId)
+    await this.setupMCMSContract()
     await this.deployMCMSContract()
-    await this.setupCounterContract(testId)
+    await this.setupCounterContract()
     await this.deployCounterContract()
     await this.setInitialConfiguration()
   }
@@ -487,8 +485,8 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   /**
    * Setup for SetRoot and Execute tests
    */
-  async setupForSetRootAndExecute(testId: string): Promise<void> {
-    await this.setupAll(testId)
+  async setupForSetRootAndExecute(): Promise<void> {
+    await this.setupAll()
 
     // Create test root metadata
     this.initialTestRootMetadata = this.createTestRootMetadata(

@@ -24,7 +24,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-schedule-batch')
+    await baseTest.setupAll()
 
     calls = asSnakeData<rbactl.Call>(
       [
@@ -226,7 +226,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-schedule')
+    await baseTest.setupAll()
   })
 
   it('should fail if non-proposer tries to schedule', async () => {

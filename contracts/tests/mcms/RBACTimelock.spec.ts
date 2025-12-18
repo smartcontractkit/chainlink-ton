@@ -6,7 +6,7 @@ import { crc32 } from 'zlib'
 
 import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
-import { asSnakeData } from '../../src/utils'
+import { asSnakeData, generateRandomContractId } from '../../src/utils'
 import { errorCode } from '../../wrappers/utils'
 
 describe('RBACTimelock', () => {
@@ -51,7 +51,7 @@ describe('RBACTimelock', () => {
     }
 
     const data = {
-      id: crc32('mcms.timelock.test-sandbox'), // unique ID for this instance
+      id: Number(generateRandomContractId()),
       minDelay,
       executorRoleCheckEnabled: true,
       opPendingInfo: {

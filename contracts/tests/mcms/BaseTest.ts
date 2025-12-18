@@ -1,11 +1,8 @@
 import '@ton/test-utils'
-
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell } from '@ton/core'
-import { compile } from '@ton/blueprint'
-import { crc32 } from 'zlib'
 
-import { asSnakeData } from '../../src/utils'
+import { asSnakeData, generateRandomContractId } from '../../src/utils'
 
 import { mcms, rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
@@ -113,7 +110,7 @@ export class BaseTestSetup {
   /**
    * Setup the timelock contract with RBAC configuration
    */
-  async setupTimelockContract(testId: string): Promise<void> {
+  async setupTimelockContract(): Promise<void> {
     const rbacStorage: ac.ContractData = {
       roles: ac.builder.data.rolesDict(
         new Map([
@@ -162,7 +159,7 @@ export class BaseTestSetup {
     }
 
     const data = {
-      id: crc32(`mcms.timelock.${testId}`),
+      id: Number(generateRandomContractId()),
       minDelay: BaseTestSetup.MIN_DELAY,
       executorRoleCheckEnabled: true,
       opPendingInfo: {
@@ -184,9 +181,9 @@ export class BaseTestSetup {
   /**
    * Setup the counter contract
    */
-  async setupCounterContract(testId: string): Promise<void> {
+  async setupCounterContract(): Promise<void> {
     const data = {
-      id: BigInt(crc32(`mcms.counter.${testId}`)),
+      id: generateRandomContractId(),
       value: 0,
       ownable: {
         owner: this.bind.timelock.address,
@@ -259,11 +256,11 @@ export class BaseTestSetup {
   /**
    * Complete setup for all contracts - convenience method that combines all setup steps
    */
-  async setupAll(testId: string): Promise<void> {
+  async setupAll(): Promise<void> {
     await this.initializeBlockchain()
-    await this.setupTimelockContract(testId)
+    await this.setupTimelockContract()
     await this.deployTimelockContract()
-    await this.setupCounterContract(testId)
+    await this.setupCounterContract()
     await this.deployCounterContract()
   }
 

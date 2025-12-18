@@ -17,7 +17,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
     await baseTest.initializeBlockchain()
-    await baseTest.setupTimelockContract('test-constructor')
+    await baseTest.setupTimelockContract()
     await baseTest.deployTimelockContract()
   })
 

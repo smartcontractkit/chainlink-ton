@@ -18,7 +18,7 @@ describe('MCMS - RBACTimelockGetters', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-getters')
+    await baseTest.setupAll()
   })
 
   describe('isOperation', () => {

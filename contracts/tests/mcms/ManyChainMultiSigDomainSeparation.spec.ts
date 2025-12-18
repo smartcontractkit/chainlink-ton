@@ -17,7 +17,7 @@ describe('MCMS - ManyChainMultiSigDomainSeparationTest', () => {
   beforeEach(async () => {
     baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
     baseTest.code = code
-    await baseTest.setupForSetRootAndExecute('test-domain-separation')
+    await baseTest.setupForSetRootAndExecute()
   })
 
   it('should verify merkle tree preimage domain separation', () => {

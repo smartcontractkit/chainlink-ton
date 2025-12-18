@@ -19,7 +19,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-cancel')
+    await baseTest.setupAll()
   })
 
   it('should fail if non-canceller tries to cancel', async () => {

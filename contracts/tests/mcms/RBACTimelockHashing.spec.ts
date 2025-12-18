@@ -18,7 +18,7 @@ describe('MCMS - RBACTimelockHashingTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-cancel')
+    await baseTest.setupAll()
   })
 
   it('should hash batch operation correctly', async () => {

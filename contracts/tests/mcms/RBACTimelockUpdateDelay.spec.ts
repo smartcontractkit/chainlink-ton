@@ -19,7 +19,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-update-delay')
+    await baseTest.setupAll()
   })
 
   const newDelay = 3 * 24 * 60 * 60 // 3 days in seconds

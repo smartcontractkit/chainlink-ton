@@ -21,7 +21,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   beforeEach(async () => {
     baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
     baseTest.code = code
-    await baseTest.setupForSetRootAndExecute('test-set-root')
+    await baseTest.setupForSetRootAndExecute()
   })
 
   describe('SetRootSanityChecks', () => {
@@ -285,9 +285,9 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.code = code
         await baseTest.initializeBlockchain()
         await baseTest.setupTestConfiguration()
-        await baseTest.setupMCMSContract('test-no-config')
+        await baseTest.setupMCMSContract()
         await baseTest.deployMCMSContract()
-        await baseTest.setupCounterContract('test-no-config')
+        await baseTest.setupCounterContract()
         await baseTest.deployCounterContract()
         // Don't call setInitialConfiguration()
 

@@ -23,7 +23,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
   beforeEach(async () => {
     baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
     baseTest.code = code
-    await baseTest.setupForSetRootAndExecute('test-execute')
+    await baseTest.setupForSetRootAndExecute()
     await baseTest.setInitialRoot()
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }
   })

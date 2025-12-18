@@ -1,5 +1,4 @@
 import '@ton/test-utils'
-
 import { toNano, beginCell, Cell } from '@ton/core'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
@@ -8,7 +7,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { asSnakeData } from '../../src/utils'
+import { asSnakeData, generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -22,11 +21,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-execute')
+    await baseTest.setupAll()
 
     // Create second counter for batch operations
     const counterTwoData = {
-      id: 2,
+      id: Number(generateRandomContractId()),
       value: 0,
       ownable: {
         owner: baseTest.bind.timelock.address,
@@ -34,7 +33,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       },
     }
     counterTwo = baseTest.blockchain.openContract(
-      counter.ContractClient.newFrom(counterTwoData, code.counter),
+      counter.ContractClient.newFrom(counterTwoData, baseTest.code.counter),
     )
     const result = await counterTwo.sendInternal(
       baseTest.acc.deployer.getSender(),
