@@ -394,11 +394,6 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         // hard cap of 128 messages per report
         assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
 
-        /*
-            if (sourceChainConfig.minSeqNr != root.minSeqNr || root.minSeqNr > root.maxSeqNr) {
-      revert InvalidInterval(sourceChainSelector, root.minSeqNr, root.maxSeqNr);
-    }*/
-
         assert((sourceChainConfig.minSeqNr == root.minSeqNr) && (root.maxSeqNr >= root.minSeqNr) , Error.InvalidInterval);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
