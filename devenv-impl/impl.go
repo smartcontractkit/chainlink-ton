@@ -1,0 +1,125 @@
+package ccip_evm
+
+import (
+	"context"
+	"fmt"
+	"math/big"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
+	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
+)
+
+type CCIP16TON struct {
+	e *deployment.Environment
+}
+
+func NewEmptyCCIP16TON() *CCIP16TON {
+	return &CCIP16TON{}
+}
+
+// NewCCIP16EVM creates new smart-contracts wrappers with utility functions for CCIP16EVM implementation.
+func NewCCIP16EVM(ctx context.Context, e *deployment.Environment) (*CCIP16TON, error) {
+	_ = zerolog.Ctx(ctx)
+	out := NewEmptyCCIP16TON()
+	out.e = e
+	return out, nil
+}
+
+func (m *CCIP16TON) SetCLDF(e *deployment.Environment) {
+	m.e = e
+}
+
+func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields any, opts any) error {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Sending CCIP message")
+	return nil
+}
+
+func (m *CCIP16TON) GetExpectedNextSequenceNumber(ctx context.Context, from, to uint64) (uint64, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Getting expected next sequence number")
+	return uint64(0), nil
+}
+
+// WaitOneSentEventBySeqNo wait and fetch strictly one CCIPMessageSent event by selector and sequence number and selector.
+func (m *CCIP16TON) WaitOneSentEventBySeqNo(ctx context.Context, from, to, seq uint64, timeout time.Duration) (any, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Waiting for one sent event for a sequence number")
+	return "", nil
+}
+
+// WaitOneExecEventBySeqNo wait and fetch strictly one ExecutionStateChanged event by sequence number and selector.
+func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq uint64, timeout time.Duration) (any, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Waiting for one exec event for a sequence number")
+	return "", nil
+}
+
+func (m *CCIP16TON) GetEOAReceiverAddress(ctx context.Context, chainSelector uint64) ([]byte, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Getting EOA received address")
+	return nil, nil
+}
+
+func (m *CCIP16TON) GetTokenBalance(ctx context.Context, chainSelector uint64, address, tokenAddress []byte) (*big.Int, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Getting token balance")
+	return big.NewInt(0), nil
+}
+
+func (m *CCIP16TON) ExposeMetrics(
+	ctx context.Context,
+	source, dest uint64,
+	chainIDs []string,
+	wsURLs []string,
+) ([]string, *prometheus.Registry, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Exposing on-chain metrics")
+	return []string{}, nil, nil
+}
+
+func (m *CCIP16TON) DeployLocalNetwork(ctx context.Context, bc *blockchain.Input) (*blockchain.Output, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Deploying EVM networks")
+	out, err := blockchain.NewBlockchainNetwork(bc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blockchain network: %w", err)
+	}
+	return out, nil
+}
+
+func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (string, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Configuring CL nodes")
+	return fmt.Sprintf(``), nil
+}
+
+func (m *CCIP16TON) DeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) (datastore.DataStore, error) {
+	l := zerolog.Ctx(ctx)
+	l.Info().Uint64("Selector", selector).Msg("Deploying contracts for selector")
+	return nil, nil
+}
+
+func (m *CCIP16TON) ConnectContractsWithSelectors(ctx context.Context, e *deployment.Environment, selector uint64, remoteSelectors []uint64) error {
+	l := zerolog.Ctx(ctx)
+	l.Info().Uint64("Selector", selector).Uints64("RemoteSelectors", remoteSelectors).Msg("Connecting contracts with selector")
+	return nil
+}
+
+func (m *CCIP16TON) ConfigureContractsForSelectors(ctx context.Context, e *deployment.Environment, cls []*simple_node_set.Input, ccipHomeSelector uint64, remoteSelectors []uint64) error {
+	l := zerolog.Ctx(ctx)
+	l.Info().Uint64("HomeSelector", ccipHomeSelector).Uints64("RemoteSelectors", remoteSelectors).Msg("Configuring contracts for selector")
+	return nil
+}
+
+func (m *CCIP16TON) FundNodes(ctx context.Context, ns []*simple_node_set.Input, bc *blockchain.Input, linkAmount, nativeAmount *big.Int) error {
+	l := zerolog.Ctx(ctx)
+	l.Info().Msg("Funding CL nodes with native and LINK")
+	return nil
+}
