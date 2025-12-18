@@ -2343,7 +2343,7 @@ describe('OffRamp - Unit Tests', () => {
     }
   })
 
-  it('cannot commit with minSeqNr smallers than current source chain config', async () => {
+  it('cannot commit with minSeqNr smaller than current source chain config', async () => {
     await setupOCRConfig()
     await setupSourceChainConfig()
 
