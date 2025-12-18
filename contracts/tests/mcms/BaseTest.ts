@@ -253,11 +253,17 @@ export class BaseTestSetup {
     })
   }
 
+  static async beforeAll(): Promise<BaseTestSetup> {
+    const self = new BaseTestSetup()
+    await self.initializeBlockchain()
+    self.code = await BaseTestSetup.compileContracts()
+    return self
+  }
+
   /**
    * Complete setup for all contracts - convenience method that combines all setup steps
    */
   async setupAll(): Promise<void> {
-    await this.initializeBlockchain()
     await this.setupTimelockContract()
     await this.deployTimelockContract()
     await this.setupCounterContract()

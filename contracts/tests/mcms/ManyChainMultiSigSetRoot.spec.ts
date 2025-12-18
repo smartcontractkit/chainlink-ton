@@ -12,15 +12,12 @@ import {
 
 describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll()
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    baseTest.code = code
     await baseTest.setupForSetRootAndExecute()
   })
 
@@ -32,7 +29,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         corruptedRootMetadata,
         baseTest.testOps,
       )
@@ -59,7 +56,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         corruptedRootMetadata,
         baseTest.testOps,
       )
@@ -87,7 +84,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         corruptedRootMetadata,
         baseTest.testOps,
       )
@@ -117,7 +114,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         corruptedRootMetadata,
         baseTest.testOps,
       )
@@ -156,7 +153,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         corruptedRootMetadata,
         baseTest.testOps,
       )
@@ -183,7 +180,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -213,7 +210,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
         const [setRoot, opProofs] = merkleProof.build(
           signers,
-          MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+          baseTest.validUntil,
           rootMetadata,
           baseTest.testOps,
         )
@@ -236,7 +233,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         const signers = baseTest.testSigners.map((s) => s.keyPair)
         const [setRoot, opProofs] = merkleProof.build(
           signers,
-          MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+          baseTest.validUntil,
           rootMetadata,
           baseTest.testOps,
         )
@@ -259,7 +256,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1,
+        baseTest.validUntil + 1,
         rootMetadata,
         baseTest.testOps,
       )
@@ -280,10 +277,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
     it('should revert when no config is set', async () => {
       // Create a fresh MCMS instance without setting config
-      baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
       {
-        baseTest.code = code
-        await baseTest.initializeBlockchain()
         await baseTest.setupTestConfiguration()
         await baseTest.setupMCMSContract()
         await baseTest.deployMCMSContract()
@@ -305,7 +299,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -350,7 +344,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         overrideMetadata,
         baseTest.testOps,
       )
@@ -413,7 +407,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         newRootMetadata,
         baseTest.testOps,
       )
@@ -439,7 +433,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1,
+        baseTest.validUntil + 1,
         newRootMetadata,
         baseTest.testOps,
       ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SignedHashAlreadySeen if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
@@ -469,7 +463,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         const signers = baseTest.testSigners.map((s) => s.keyPair)
         const [setRoot, opProofs] = merkleProof.build(
           signers,
-          MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+          baseTest.validUntil,
           emptyRootMetadata,
           baseTest.testOps,
         )
@@ -490,7 +484,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         newRootMetadata,
         baseTest.testOps,
       )
@@ -526,7 +520,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         newRootMetadata,
         baseTest.testOps,
       )
@@ -555,7 +549,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -582,7 +576,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -608,7 +602,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -634,7 +628,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -661,7 +655,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -795,7 +789,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -819,7 +813,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       signers[0] = signers[1] // Repeat the first signer
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -827,7 +821,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       corruptOps[0].data = beginCell().storeUint(0x2222222, 32).endCell()
       const [corruptSetRoot, _] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         corruptOps,
       )
@@ -853,7 +847,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        baseTest.validUntil,
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )

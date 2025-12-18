@@ -64,6 +64,8 @@ export class MCMSBaseTestSetup {
   signerGroups: number[]
   testConfig: mcms.Config
 
+  validUntil: number
+
   constructor() {
     this.blockchain = null as any
     this.code = null as any
@@ -74,6 +76,21 @@ export class MCMSBaseTestSetup {
     this.testGroupParents = new Map<number, number>()
     this.signerGroups = []
     this.testConfig = null as any
+  }
+
+  static async beforeAll(): Promise<MCMSBaseTestSetup> {
+    const self = new MCMSBaseTestSetup()
+    await self.beforeAll()
+    return self
+  }
+
+  async beforeAll() {
+    await this.initializeBlockchain()
+    await this.compileContracts()
+  }
+
+  async compileContracts(): Promise<void> {
+    this.code = await MCMSBaseTestSetup.compileContracts()
   }
 
   static async compileContracts(): Promise<MCMSTestCode> {
@@ -350,7 +367,7 @@ export class MCMSBaseTestSetup {
    * Complete setup for MCMS contract - convenience method that combines all setup steps
    */
   async setupAll(): Promise<void> {
-    await this.initializeBlockchain()
+    this.validUntil = MCMSBaseTestSetup.TEST_VALID_UNTIL + this.blockchain.now!
     await this.setupTestConfiguration()
     await this.setupMCMSContract()
     await this.deployMCMSContract()
@@ -482,6 +499,12 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     this.opProofs = []
   }
 
+  static async beforeAll(): Promise<MCMSBaseSetRootAndExecuteTestSetup> {
+    const self = new MCMSBaseSetRootAndExecuteTestSetup()
+    await self.beforeAll()
+    return self
+  }
+
   /**
    * Setup for SetRoot and Execute tests
    */
@@ -532,7 +555,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     const signers = this.testSigners.map((s) => s.keyPair)
     const [setRoot, opProofs] = merkleProof.build(
       signers,
-      MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+      MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + this.blockchain.now!,
       rootMetadata,
       this.testOps,
     )

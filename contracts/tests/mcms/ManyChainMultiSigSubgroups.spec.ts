@@ -31,10 +31,10 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
   beforeAll(async () => {
     code = await MCMSBaseTestSetup.compileContracts()
+    blockchain = await Blockchain.create()
   })
 
   beforeEach(async () => {
-    blockchain = await Blockchain.create()
     blockchain.now = 1
 
     // Set up accounts

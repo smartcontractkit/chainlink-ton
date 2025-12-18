@@ -6,21 +6,18 @@ import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
-import { BaseTestSetup, TestCode } from './BaseTest'
+import { BaseTestSetup } from './BaseTest'
 import { asSnakeData, generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
   let counterTwo: SandboxContract<counter.ContractClient>
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll()
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
     await baseTest.setupAll()
 
     // Create second counter for batch operations

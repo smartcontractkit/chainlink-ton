@@ -65,8 +65,11 @@ describe('MCMS - IntegrationTest', () => {
 
   let signerKeyPairs: SigningKey[] = []
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
+  })
+
+  beforeEach(async () => {
     blockchain.now = Math.floor(Date.now() / 1000) // set to current unix timestamp
 
     // Set up accounts

@@ -8,15 +8,12 @@ import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMul
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll()
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    baseTest.code = code
     await baseTest.setupForSetRootAndExecute()
     await baseTest.setInitialRoot()
   })

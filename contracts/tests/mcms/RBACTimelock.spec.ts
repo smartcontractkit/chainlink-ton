@@ -26,8 +26,11 @@ describe('RBACTimelock', () => {
 
   let minDelay: number
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
+  })
+
+  beforeEach(async () => {
     deployer = await blockchain.treasury('deployer')
     other = await blockchain.treasury('other')
     minDelay = 7

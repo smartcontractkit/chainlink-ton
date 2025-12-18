@@ -10,19 +10,16 @@ import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMul
 
 describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
-  let code: MCMSTestCode
 
   let acc: {
     oracle: SandboxContract<TreasuryContract>
   }
 
   beforeAll(async () => {
-    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll()
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    baseTest.code = code
     await baseTest.setupForSetRootAndExecute()
     await baseTest.setInitialRoot()
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }

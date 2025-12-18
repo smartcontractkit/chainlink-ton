@@ -12,7 +12,6 @@ import { generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
   let counterTwo: SandboxContract<counter.ContractClient>
 
   let acc: {
@@ -20,12 +19,10 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   }
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll()
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
     await baseTest.setupAll()
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }
 

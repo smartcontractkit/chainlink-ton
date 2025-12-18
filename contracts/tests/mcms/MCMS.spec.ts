@@ -31,9 +31,11 @@ describe('MCMS', () => {
     mcms: SandboxContract<mcms.ContractClient>
   }
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
+  })
 
+  beforeEach(async () => {
     // Set up accounts
     acc = {
       deployer: await blockchain.treasury('deployer'),

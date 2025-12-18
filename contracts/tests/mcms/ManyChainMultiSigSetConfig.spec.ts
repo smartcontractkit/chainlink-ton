@@ -8,15 +8,12 @@ import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSig
 
 describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   let baseTest: MCMSBaseTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseTestSetup.compileContracts()
+    baseTest = await MCMSBaseTestSetup.beforeAll()
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseTestSetup()
-    baseTest.code = code
     await baseTest.setupAll()
   })
 
