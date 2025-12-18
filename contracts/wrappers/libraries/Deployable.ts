@@ -10,7 +10,7 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 
 import { CellCodec } from '../utils'
 
@@ -138,8 +138,8 @@ export class ContractClient implements Contract {
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
-  static async code(): Promise<Cell> {
-    return compile('Deployable')
+  static code(): Promise<Cell> {
+    return loadContractCode('Deployable')
   }
 
   async sendInitialize(provider: ContractProvider, via: Sender, value: bigint, msg: Initialize) {

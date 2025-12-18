@@ -10,7 +10,7 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 
 import { CellCodec } from '../utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -166,8 +166,8 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
     })
   }
 
-  static async code(): Promise<Cell> {
-    return await compile('examples.Counter')
+  static code(): Promise<Cell> {
+    return loadContractCode('examples.Counter')
   }
 
   async getValue(provider: ContractProvider): Promise<number> {

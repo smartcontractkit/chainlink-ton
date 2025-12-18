@@ -20,7 +20,7 @@ import { CellCodec } from '../utils'
 
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
@@ -203,8 +203,8 @@ export class Router
     return ROUTER_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('Router')
+  static code(): Promise<Cell> {
+    return loadContractCode('Router')
   }
 
   async sendApplyRampUpdatesSetRamps(

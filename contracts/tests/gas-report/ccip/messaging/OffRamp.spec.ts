@@ -9,7 +9,6 @@ import {
   resetMetricStore,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/ccip/OnRamp'
 import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
@@ -54,6 +53,9 @@ import { analyzeSnapshot, printFlowAnalysis } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
 import { opMapFunc } from './opMapFunc'
+import { ContractClient as DeployableContract } from '../../../../wrappers/libraries/Deployable'
+import { MerkleRoot } from '../../../../wrappers/ccip/MerkleRoot'
+import { ContractClient as CCIPSendExecutorContract } from '../../../../wrappers/ccip/CCIPSendExecutor'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 
@@ -116,8 +118,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
     signersPublicKeys = signers.map((s) => uint8ArrayToBigInt(s.publicKey))
 
     // Compile contracts
-    deployerCode = await compile('Deployable')
-    merkleRootCodeRaw = await compile('MerkleRoot')
+    deployerCode = await DeployableContract.code()
+    merkleRootCodeRaw = await MerkleRoot.code()
 
     // Setup blockchain libs for MerkleRoot
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
@@ -127,7 +129,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy Router
     {
-      let routerCode = await compile('Router')
+      let routerCode = await rt.Router.code()
       let data: rt.Storage = {
         id: 0n,
         ownable: {
@@ -153,7 +155,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy OnRamp
     {
-      let code = await compile('OnRamp')
+      let code = await or.OnRamp.code()
       let data: or.OnRampStorage = {
         id: 0,
         ownable: {
@@ -169,8 +171,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
         executor: {
           currentID: 0n,
-          executorCode: await compile('CCIPSendExecutor'),
-          deployableCode: await compile('Deployable'),
+          executorCode: await CCIPSendExecutorContract.code(),
+          deployableCode: await DeployableContract.code(),
         },
       }
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -217,7 +219,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy OffRamp
     {
-      let code = await compile('OffRamp')
+      let code = await OffRamp.code()
 
       // Use a library reference for merkleRootCode
       let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
@@ -305,7 +307,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy ExampleReceiver
     {
-      const receiverCode = await compile('ccip.test.receiver')
+      const receiverCode = await Receiver.code()
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {

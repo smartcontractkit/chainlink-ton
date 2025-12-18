@@ -9,6 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { JettonClientConfig, builder, ErrorCodes } from './types'
+import { loadContractCode } from '../../codeLoader'
 
 export type OnrampMockConfig = {
   jettonClient: JettonClientConfig
@@ -54,6 +55,10 @@ export class OnrampMock implements Contract {
     const data = onrampMockConfigToCell(config)
     const init = { code, data }
     return new OnrampMock(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('examples.jetton.OnrampMock')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

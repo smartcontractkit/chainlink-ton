@@ -15,7 +15,7 @@ import {
 
 import { CellCodec } from '../utils'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 import * as or from './OnRamp'
 import * as fq from './FeeQuoter'
 import * as rt from './Router'
@@ -247,7 +247,7 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
     return CCIP_SEND_EXECUTOR_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('CCIPSendExecutor')
+  static code(): Promise<Cell> {
+    return loadContractCode('CCIPSendExecutor')
   }
 }

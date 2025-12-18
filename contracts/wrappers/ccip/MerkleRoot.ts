@@ -13,7 +13,7 @@ import {
 
 import { CellCodec } from '../utils'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 import * as or from './OffRamp'
 
 export const MERKLE_ROOT_CONTRACT_VERSION = '1.6.0'
@@ -153,7 +153,7 @@ export class MerkleRoot implements typeAndVersion.Interface, Contract {
     return MERKLE_ROOT_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('MerkleRoot')
+  static code(): Promise<Cell> {
+    return loadContractCode('MerkleRoot')
   }
 }
