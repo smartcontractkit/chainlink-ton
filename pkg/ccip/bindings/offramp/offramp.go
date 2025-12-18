@@ -349,7 +349,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorZeroAddressNotAllowed)
+		ecMax = int32(ErrorInvalidInterval)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
