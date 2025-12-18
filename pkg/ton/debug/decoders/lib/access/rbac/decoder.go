@@ -10,20 +10,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	rbac.GrantRole{},
-	rbac.RevokeRole{},
-	rbac.RenounceRole{},
-	rbac.RoleGranted{},
-	rbac.RoleRevoked{},
-	rbac.RoleAdminChanged{},
-})
+var TLBs = rbac.TLBs
 
 type decoder struct {
-	tlbsCtx map[uint64]interface{}
+	tlbsCtx lib.TLBMap
 }
 
-func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
+func NewDecoder(tlbsCtx lib.TLBMap) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 

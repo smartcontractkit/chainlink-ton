@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -110,9 +111,9 @@ type UpdateDestChainConfigs struct {
 }
 
 type UpdateAllowlist struct {
-	DestinationChainSelector uint64                             `tlb:"## 64"`
-	Add                      common.SnakeData[*address.Address] `tlb:"^"`
-	Remove                   common.SnakeData[*address.Address] `tlb:"^"`
+	DestinationChainSelector uint64                               `tlb:"## 64"`
+	Add                      common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Remove                   common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateAllowlists struct {
@@ -176,6 +177,20 @@ type UpdateSendExecutorMessage struct {
 	_    tlb.Magic  `tlb:"#82901c45"` //nolint:revive // Ignore opcode tag
 	Code *cell.Cell `tlb:"^"`         // New executor code
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	SetDynamicConfig{},
+	UpdateDestChainConfigs{},
+	UpdateAllowlists{},
+	Send{},
+	WithdrawJettons{},
+	ExecutorFinishedSuccessfully{},
+	ExecutorFinishedWithError{},
+	SetDynamicConfigMessage{},
+	UpdateDestChainConfigsMessage{},
+	UpdateAllowlistsMessage{},
+	UpdateSendExecutorMessage{},
+})
 
 // binding types that supports FetchResult interface with rpc client
 

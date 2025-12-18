@@ -176,7 +176,9 @@ export class BaseTestSetup {
     this.bind.timelock = this.blockchain.openContract(
       rbactl.ContractClient.newFrom(data, this.code.timelock),
     )
-    this.bind.ac = this.blockchain.openContract(ac.ContractClient.newAt(this.bind.timelock.address))
+    this.bind.ac = this.blockchain.openContract(
+      ac.ContractClient.createFromAddress(this.bind.timelock.address),
+    )
   }
 
   /**

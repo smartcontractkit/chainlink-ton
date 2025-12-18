@@ -1,4 +1,4 @@
-package lib
+package lib_test
 
 import (
 	"encoding/json"
@@ -11,14 +11,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
-
-// gotMap = map[Op:map[ChainID:-14 Data:te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31],
-// want     map[Op:map[ChainID:-14 Data:te6cckECCAEAAZoAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAwACAwQBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADuaygEAUBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAcBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALLQXgEAYAEAAAAAIDT7XjAXMPin6lAAAAAAAAAABAExLQCAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtA5iWgAAAAADBwBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1BAjK8m MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31]
 
 type Foo struct {
 	_   tlb.Magic  `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
@@ -35,7 +34,7 @@ type Baz struct {
 	Val *address.Address `tlb:"addr"`
 }
 
-var TLBs = MustNewTLBMap([]interface{}{
+var TLBs = lib.MustNewTLBMap([]any{
 	Foo{},
 	Bar{},
 	Baz{},
@@ -44,7 +43,7 @@ var TLBs = MustNewTLBMap([]interface{}{
 	timelock.ScheduleBatch{},
 })
 
-func mustToCell(v interface{}) *cell.Cell {
+func mustToCell(v any) *cell.Cell {
 	c, err := tlb.ToCell(v)
 	if err != nil {
 		panic(err)
@@ -66,21 +65,21 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 			Calls: common.SnakeRef[timelock.Call]{
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("0.5").Nano(),
+					Value:  tlb.MustFromTON("0.5"),
 					Data: mustToCell(Bar{
 						Val: big.NewInt(55555555),
 					}),
 				},
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("1.0").Nano(),
+					Value:  tlb.MustFromTON("1.0"),
 					Data: mustToCell(Baz{
 						Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 					}),
 				},
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-					Value:  tlb.MustFromTON("1.5").Nano(),
+					Value:  tlb.MustFromTON("1.5"),
 					Data: mustToCell(wallet.AskToTransfer{
 						QueryID:     0,
 						Amount:      tlb.MustFromTON("0.02"),
@@ -91,8 +90,8 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 					}),
 				},
 			},
-			Predecessor: big.NewInt(-1),
-			Salt:        big.NewInt(1337),
+			Predecessor: tlbe.NewUint256(big.NewInt(1111)),
+			Salt:        tlbe.NewUint256(big.NewInt(1337)),
 			Delay:       10000,
 		}),
 	},
@@ -103,14 +102,14 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 		name      string
 		cell      *cell.Cell
 		wantType  string
-		wantMap   map[string]interface{}
+		wantMap   map[string]any
 		expectErr bool
 	}{
 		{
 			name:     "Decode Foo",
 			cell:     mustToCell(Foo{Any: cell.BeginCell().MustStoreBigInt(big.NewInt(42), 256).EndCell()}),
 			wantType: "Foo",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"Any": "te6cckEBAQEAIgAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqudxe9A==",
 			},
 			expectErr: false,
@@ -119,7 +118,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode Bar",
 			cell:     mustToCell(Bar{Val: big.NewInt(1234567890)}),
 			wantType: "Bar",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"Val": float64(1234567890),
 			},
 			expectErr: false,
@@ -128,7 +127,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode Baz",
 			cell:     mustToCell(Baz{Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")}),
 			wantType: "Baz",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 			},
 			expectErr: false,
@@ -158,7 +157,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode Foo with unknown Any",
 			cell:     mustToCell(Foo{Any: cell.BeginCell().MustStoreBigInt(big.NewInt(1), 32).EndCell()}), // not matching any TLB
 			wantType: "Foo",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"Any": "te6cckEBAQEABgAACAAAAAHgg8T9",
 			},
 			expectErr: false,
@@ -167,8 +166,8 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode Foo with Bar in Any",
 			cell:     mustToCell(Foo{Any: mustToCell(Bar{Val: big.NewInt(987654321)})}),
 			wantType: "Foo",
-			wantMap: map[string]interface{}{
-				"Any": map[string]interface{}{
+			wantMap: map[string]any{
+				"Any": map[string]any{
 					"Val": float64(987654321),
 				},
 			},
@@ -178,8 +177,8 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode Foo with Baz in Any",
 			cell:     mustToCell(Foo{Any: mustToCell(Baz{Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")})}),
 			wantType: "Foo",
-			wantMap: map[string]interface{}{
-				"Any": map[string]interface{}{
+			wantMap: map[string]any{
+				"Any": map[string]any{
 					"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 				},
 			},
@@ -189,7 +188,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode Foo with empty cell in Any",
 			cell:     mustToCell(Foo{Any: cell.BeginCell().EndCell()}),
 			wantType: "Foo",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"Any": "te6cckEBAQEAAgAAAEysuc0=",
 			},
 			expectErr: false,
@@ -205,13 +204,13 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 				ForwardTonAmount: tlb.MustFromTON("0.01"),
 			}),
 			wantType: "AskToTransfer",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"QueryID":       float64(0),
 				"Amount":        "20000000",
 				"Destination":   "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 				"CustomPayload": "te6cckEBAgEAMwABDzmJaAAAAAAMAQBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1B7fNdk",
-				"ForwardPayload": map[string]interface{}{
-					"Any": map[string]interface{}{
+				"ForwardPayload": map[string]any{
+					"Any": map[string]any{
 						"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					},
 				},
@@ -224,41 +223,41 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			name:     "Decode MCMS Execute > Timelock ScheduleBatch > Op[]s with Bar and Baz in payload",
 			cell:     testMCMSExecuteCell,
 			wantType: "Execute",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"QueryID": float64(31),
-				"Op": map[string]interface{}{
+				"Op": map[string]any{
 					"ChainID":  float64(-14),
 					"MultiSig": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data": map[string]interface{}{
+					"Data": map[string]any{
 						"QueryID": float64(31),
-						"Calls": []interface{}{
-							map[string]interface{}{
+						"Calls": []any{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(500000000),
-								"Data": map[string]interface{}{
+								"Value":  "500000000",
+								"Data": map[string]any{
 									"Val": float64(55555555),
 								},
 							},
-							map[string]interface{}{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1000000000),
-								"Data": map[string]interface{}{
+								"Value":  "1000000000",
+								"Data": map[string]any{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 								},
 							},
-							map[string]interface{}{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1500000000),
-								"Data": map[string]interface{}{
+								"Value":  "1500000000",
+								"Data": map[string]any{
 									"QueryID":       float64(0),
 									"Amount":        "20000000",
 									"Destination":   "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 									"CustomPayload": "te6cckEBAgEAMwABDzmJaAAAAAAMAQBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1B7fNdk",
-									"ForwardPayload": map[string]interface{}{
-										"Any": map[string]interface{}{
+									"ForwardPayload": map[string]any{
+										"Any": map[string]any{
 											"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 										},
 									},
@@ -267,7 +266,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 								},
 							},
 						},
-						"Predecessor": float64(-1),
+						"Predecessor": float64(1111),
 						"Salt":        float64(1337),
 						"Delay":       float64(10000),
 					},
@@ -279,14 +278,14 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotType, norm, err := DecodeTLBValToJSON(tt.cell, TLBs)
+			gotType, norm, err := lib.DecodeTLBValToJSON(tt.cell, TLBs)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON")
 
 			if tt.wantMap == nil {
 				return // value is not a map
 			}
 
-			var gotMap map[string]interface{}
+			var gotMap map[string]any
 			rawBytes, err := json.Marshal(norm)
 			require.NoError(t, err, "failed to marshal decoded message to JSON")
 			err = json.Unmarshal(rawBytes, &gotMap)
@@ -309,19 +308,19 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 	tests := []struct {
 		name         string
 		cell         *cell.Cell
-		tlbsMain     map[uint64]interface{}
-		tlbsPayloads map[uint64]interface{}
+		tlbsMain     lib.TLBMap
+		tlbsPayloads lib.TLBMap
 		wantType     string
-		wantMap      map[string]interface{}
+		wantMap      map[string]any
 		expectErr    bool
 	}{
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: MustNewTLBMap([]interface{}{
+			tlbsMain: lib.MustNewTLBMap([]any{
 				mcms.Execute{},
 			}),
-			tlbsPayloads: MustNewTLBMap([]interface{}{
+			tlbsPayloads: lib.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -329,41 +328,41 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 				timelock.ScheduleBatch{},
 			}),
 			wantType: "map[string]interface {}",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"QueryID": float64(31),
-				"Op": map[string]interface{}{
+				"Op": map[string]any{
 					"ChainID":  float64(-14),
 					"MultiSig": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data": map[string]interface{}{
+					"Data": map[string]any{
 						"QueryID": float64(31),
-						"Calls": []interface{}{
-							map[string]interface{}{
+						"Calls": []any{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(500000000),
-								"Data": map[string]interface{}{
+								"Value":  "500000000",
+								"Data": map[string]any{
 									"Val": float64(55555555),
 								},
 							},
-							map[string]interface{}{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1000000000),
-								"Data": map[string]interface{}{
+								"Value":  "1000000000",
+								"Data": map[string]any{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 								},
 							},
-							map[string]interface{}{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1500000000),
-								"Data": map[string]interface{}{
+								"Value":  "1500000000",
+								"Data": map[string]any{
 									"QueryID":       float64(0),
 									"Amount":        "20000000",
 									"Destination":   "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 									"CustomPayload": "te6cckEBAgEAMwABDzmJaAAAAAAMAQBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1B7fNdk",
-									"ForwardPayload": map[string]interface{}{
-										"Any": map[string]interface{}{
+									"ForwardPayload": map[string]any{
+										"Any": map[string]any{
 											"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 										},
 									},
@@ -372,7 +371,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 								},
 							},
 						},
-						"Predecessor": float64(-1),
+						"Predecessor": float64(1111),
 						"Salt":        float64(1337),
 						"Delay":       float64(10000),
 					},
@@ -383,49 +382,49 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (some) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: MustNewTLBMap([]interface{}{
+			tlbsMain: lib.MustNewTLBMap([]any{
 				mcms.Execute{},
 				wallet.AskToTransfer{},
 			}),
-			tlbsPayloads: MustNewTLBMap([]interface{}{
+			tlbsPayloads: lib.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
 				timelock.ScheduleBatch{},
 			}),
 			wantType: "map[string]interface {}",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"QueryID": float64(31),
-				"Op": map[string]interface{}{
+				"Op": map[string]any{
 					"ChainID":  float64(-14),
 					"MultiSig": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data": map[string]interface{}{
+					"Data": map[string]any{
 						"QueryID": float64(31),
-						"Calls": []interface{}{
-							map[string]interface{}{
+						"Calls": []any{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(500000000),
-								"Data": map[string]interface{}{
+								"Value":  "500000000",
+								"Data": map[string]any{
 									"Val": float64(55555555),
 								},
 							},
-							map[string]interface{}{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1000000000),
-								"Data": map[string]interface{}{
+								"Value":  "1000000000",
+								"Data": map[string]any{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 								},
 							},
-							map[string]interface{}{
+							map[string]any{
 								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-								"Value":  float64(1500000000),
+								"Value":  "1500000000",
 								"Data":   "te6cckEBAgEAZQABcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMBAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUNAF680=",
 							},
 						},
-						"Predecessor": float64(-1),
+						"Predecessor": float64(1111),
 						"Salt":        float64(1337),
 						"Delay":       float64(10000),
 					},
@@ -436,24 +435,24 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (most) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: MustNewTLBMap([]interface{}{
+			tlbsMain: lib.MustNewTLBMap([]any{
 				mcms.Execute{},
 			}),
-			tlbsPayloads: MustNewTLBMap([]interface{}{
+			tlbsPayloads: lib.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
 			}),
 			wantType: "map[string]interface {}",
-			wantMap: map[string]interface{}{
+			wantMap: map[string]any{
 				"QueryID": float64(31),
-				"Op": map[string]interface{}{
+				"Op": map[string]any{
 					"ChainID":  float64(-14),
 					"MultiSig": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data":     "te6cckECCAEAAZYAAaAJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAEDAAIDBAGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAO5rKAQBQGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdzWUAQBwGDgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAstBeAQBgAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMHAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUA+cVaY=",
+					"Data":     "te6cckECCAEAAUIAAaAJRxj0AAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEVwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAEDAAIDBAFLgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbSDuaygEFAUuAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtIdzWUAQcBS4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0iy0F4BBgAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMHAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUONjwks=",
 				},
 				"Proof": nil,
 			},
@@ -462,13 +461,13 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, norm, err := DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
+			_, norm, err := lib.DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs main")
 
-			gotType, norm, err := DecodeTLBValToJSON(norm, tt.tlbsPayloads)
+			gotType, norm, err := lib.DecodeTLBValToJSON(norm, tt.tlbsPayloads)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs payloads")
 
-			var gotMap map[string]interface{}
+			var gotMap map[string]any
 			rawBytes, err := json.Marshal(norm)
 			require.NoError(t, err, "failed to marshal decoded message to JSON")
 			err = json.Unmarshal(rawBytes, &gotMap)

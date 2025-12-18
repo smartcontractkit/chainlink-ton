@@ -63,7 +63,7 @@ describe('RBACTimelock', () => {
     }
 
     timelock = blockchain.openContract(rbactl.ContractClient.newFrom(data, code))
-    acContract = blockchain.openContract(ac.ContractClient.newAt(timelock.address))
+    acContract = blockchain.openContract(ac.ContractClient.createFromAddress(timelock.address))
   })
 
   it('should compute error code', async () => {

@@ -184,7 +184,7 @@ describe('MCMS - IntegrationTest', () => {
       }
 
       bind.timelock = blockchain.openContract(rbactl.ContractClient.newFrom(data, code.timelock))
-      bind.ac = blockchain.openContract(ac.ContractClient.newAt(bind.timelock.address))
+      bind.ac = blockchain.openContract(ac.ContractClient.createFromAddress(bind.timelock.address))
     }
 
     // Set up Counter contract
@@ -286,7 +286,7 @@ describe('MCMS - IntegrationTest', () => {
 
       // Transfer ownership to Timelock
       const addr = bind.mcmsPropose.address
-      const ownable = blockchain.openContract(ownable2step.ContractClient.newAt(addr))
+      const ownable = blockchain.openContract(ownable2step.ContractClient.createFromAddress(addr))
       await transferOwnershipToTimelock(ownable)
     }
 
@@ -333,7 +333,7 @@ describe('MCMS - IntegrationTest', () => {
 
       // Transfer ownership to Timelock
       const addr = bind.mcmsVeto.address
-      const ownable = blockchain.openContract(ownable2step.ContractClient.newAt(addr))
+      const ownable = blockchain.openContract(ownable2step.ContractClient.createFromAddress(addr))
       await transferOwnershipToTimelock(ownable)
     }
 
@@ -384,7 +384,7 @@ describe('MCMS - IntegrationTest', () => {
 
       // Transfer ownership to Timelock
       const addr = bind.mcmsBypass.address
-      const ownable = blockchain.openContract(ownable2step.ContractClient.newAt(addr))
+      const ownable = blockchain.openContract(ownable2step.ContractClient.createFromAddress(addr))
       await transferOwnershipToTimelock(ownable)
     }
 
@@ -402,7 +402,7 @@ describe('MCMS - IntegrationTest', () => {
       expect(await bind.counter.getValue()).toEqual(0)
       expect(
         await blockchain
-          .openContract(ownable2step.ContractClient.newAt(bind.counter.address))
+          .openContract(ownable2step.ContractClient.createFromAddress(bind.counter.address))
           .getOwner(),
       ).toEqual(bind.timelock.address)
     }

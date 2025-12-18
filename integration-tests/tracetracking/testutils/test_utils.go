@@ -17,6 +17,7 @@ import (
 
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // SetUpTest creates a TON chain using CLDF and sets up funded test accounts
@@ -31,7 +32,7 @@ func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccou
 	amounts := make([]tlb.Coins, fundedAccountsCount)
 
 	for i := range fundedAccountsCount {
-		w, err := testutils.CreateRandomWallet(tonChain.Client, wallet.V3R2, wallet.WithWorkchain(0))
+		w, err := tvm.NewRandomTestWallet(tonChain.Client, wallet.V3R2, wallet.WithWorkchain(0))
 		require.NoError(t, err)
 
 		recipients[i] = w.Address()

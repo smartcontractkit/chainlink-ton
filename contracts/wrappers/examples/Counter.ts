@@ -121,7 +121,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static newAt(address: Address): ContractClient {
+  static createFromAddress(address: Address): ContractClient {
     return new ContractClient(address)
   }
 

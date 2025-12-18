@@ -1,6 +1,5 @@
 import { beginCell, Cell } from '@ton/core'
-import { keccak256 } from '@ethersproject/keccak256'
-import { SigningKey } from 'ethers'
+import { getBytes, hashMessage, keccak256, SigningKey } from 'ethers'
 
 import { asSnakeData, uint8ArrayToBigInt } from '../utils'
 
@@ -157,16 +156,20 @@ export function computeRoot(leaves: bigint[]): bigint {
   return currentLayer[0]
 }
 
+// Notice: constructs and signs an EIP191 message
 function fillSignatures(root: bigint, validUntil: number, signers: SigningKey[]): mcms.Signature[] {
   const signatures: mcms.Signature[] = []
-  const data = beginCell() // TODO: implement as type + CellCodec<T>
+  const data = beginCell()
     .storeUint(root, 256)
-    .storeUint(validUntil, 32)
-    .endCell()
-    .hash()
+    .storeUint(validUntil, 256)
+    .asSlice()
+    .loadBuffer(32 * 2)
+
+  const hash = getBytes(keccak256(data))
+  const msgHash = hashMessage(hash)
 
   for (const signer of signers) {
-    const signature = signer.sign(data)
+    const signature = signer.sign(msgHash)
     // TODO: validate signature
     signatures.push({ v: signature.v, r: BigInt(signature.r), s: BigInt(signature.s) })
   }

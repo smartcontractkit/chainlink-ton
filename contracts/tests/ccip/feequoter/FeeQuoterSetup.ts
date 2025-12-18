@@ -715,6 +715,8 @@ function printErrorName(error: number): string {
       return 'FeeOverflow'
     case feeQuoter.FeeQuoterError.MessageFeeTooHigh:
       return 'MessageFeeTooHigh'
+    case 5001:
+      return 'Invalid EVM address'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }
