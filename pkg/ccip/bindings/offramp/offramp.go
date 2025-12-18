@@ -361,6 +361,7 @@ const (
 	ErrorZeroAddressNotAllowed
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
+	ErrorInvalidInterval
 )
 
 // Getter method names for binding fetchers

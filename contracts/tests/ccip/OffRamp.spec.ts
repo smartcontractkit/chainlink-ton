@@ -2340,6 +2340,44 @@ describe('OffRamp - Unit Tests', () => {
     }
   })
 
+  it('cannot commit with minSeqNr smallers than current source chain config', async () => {
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // First commit to establish minSeqNr
+    const message1 = createTestMessage(1n, 1n)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
+    const root1 = createMerkleRoot(1n, 10n, root1Bytes)
+
+    await commitReport([root1])
+
+    // Check that minSeqNr is now 11
+    const config = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
+    expect(config.minSeqNr).toBe(11n)
+
+    // Try to commit with minSeqNr smaller than current (should fail)
+    const message2 = createTestMessage(5n, 5n)
+    const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const root2 = createMerkleRoot(5n, 15n, root2Bytes) // minSeqNr=5 < 11
+
+    await commitReport([root2], toNano('0.5'), 0x02, undefined, false, OffRampError.InvalidInterval)
+  })
+
+  it('cannot commit with minSeqNr higher than maxSeqNr', async () => {
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    const message = createTestMessage(1n, 1n)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+
+    // Create root with minSeqNr > maxSeqNr
+    const root = createMerkleRoot(10n, 5n, rootBytes) // minSeqNr=10 > maxSeqNr=5
+
+    await commitReport([root], toNano('0.5'), 0x01, undefined, false, OffRampError.InvalidInterval)
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'offramp_suite'
