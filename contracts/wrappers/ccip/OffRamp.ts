@@ -62,7 +62,7 @@ export enum OffRampError {
   TooManyMessagesInReport,
   SignatureVerificationRequiredInCommitPlugin,
   SignatureVerificationNotAllowedInExecutionPlugin,
-  InvalidInterval,
+  InvalidInterval
 }
 
 export enum ReceiveExecutorError {
@@ -368,14 +368,8 @@ export const builder = {
           .storeUint(data.nonce, 64)
       },
 
-      load: (cs: Slice): RampMessageHeader => {
-        return {
-          messageId: cs.loadUintBig(256),
-          sourceChainSelector: cs.loadUintBig(64),
-          destChainSelector: cs.loadUintBig(64),
-          sequenceNumber: cs.loadUintBig(64),
-          nonce: cs.loadUintBig(64),
-        }
+      load: (_: Slice): RampMessageHeader => {
+        throw new Error('Implement me')
       },
     }
 
@@ -395,19 +389,8 @@ export const builder = {
           .storeMaybeRef(data.tokenAmounts)
       },
 
-      load: (cs: Slice): Any2TVMRampMessage => {
-        return {
-          header: rampMessageHeader.load(cs),
-          sender: (() => {
-            const senderSlice = cs.loadRef().beginParse()
-            const senderLength = senderSlice.loadUint(8)
-            return senderSlice.loadBuffer(senderLength * 8)
-          })(),
-          data: cs.loadRef(),
-          receiver: cs.loadAddress(),
-          gasLimit: 0n,
-          //gasLimit: cs.loadCoins(),
-        }
+      load: (_: Slice): Any2TVMRampMessage => {
+        throw new Error('Implement me')
       },
     }
 
@@ -425,19 +408,8 @@ export const builder = {
           .storeUint(data.proofFlagBits, 256)
       },
 
-      load: (cs: Slice): ExecutionReport => {
-        const sourceChainSelector = cs.loadUintBig(64)
-        const messages = fromSnakeData(cs.loadRef(), any2TVMRampMessage.load)
-        const _ = cs.loadRef() //empty token data
-        const proofs = fromSnakeData(cs.loadRef(), (cs) => cs.loadUintBig(256))
-        const proofFlagBits = cs.loadUintBig(256)
-        return {
-          sourceChainSelector,
-          messages,
-          offchainTokenData: [],
-          proofs,
-          proofFlagBits,
-        }
+      load: (_: Slice): ExecutionReport => {
+        throw new Error('Implement me')
       },
     }
 
@@ -515,13 +487,8 @@ export const builder = {
             .storeBuilder(builder.data.executionReport.encode(data.report))
             .storeCoins(data.gasOverride ?? 0)
         },
-        load: (cs: Slice) => {
-          const _ = cs.loadUint(32) //opcode
-          return {
-            queryID: cs.loadUint(64),
-            report: builder.data.executionReport.load(cs.loadRef().beginParse()),
-            gasOverride: cs.loadCoins(),
-          }
+        load: (_: Slice) => {
+          throw new Error('Implement me')
         },
       }
 
