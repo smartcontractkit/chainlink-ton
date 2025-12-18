@@ -1,4 +1,4 @@
-package common //nolint:revive,nolintlint // TODO: update to meaningful package name
+package common //nolint:revive,nolintlint // TODO: move to pkg/ton/tlbe
 
 import (
 	"fmt"

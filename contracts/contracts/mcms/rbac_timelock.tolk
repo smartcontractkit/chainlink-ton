@@ -647,7 +647,7 @@ fun Timelock<T>.isPendingOperationFinal(self): bool {
 }
 
 /// Returns the timestamp at with an operation becomes ready (0 for
-/// unset operations, 1 for done operations).
+/// unset operations, 1 for done operations, 2 for operations in error state).
 fun Timelock<T>.getTimestamp(self, id: uint256): uint64 {
     // Get the timestamp for the given id from the timestamps map
     var timestamp = self.data.timestamps.get(id);

@@ -905,7 +905,7 @@ export class ContractClient implements Contract {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static newAt(address: Address): ContractClient {
+  static createFromAddress(address: Address): ContractClient {
     return new ContractClient(address)
   }
 

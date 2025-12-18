@@ -201,7 +201,7 @@ export const builder = {
 export class ContractClient implements Contract {
   constructor(readonly address: Address) {}
 
-  static newAt(address: Address): ContractClient {
+  static createFromAddress(address: Address): ContractClient {
     return new ContractClient(address)
   }
 

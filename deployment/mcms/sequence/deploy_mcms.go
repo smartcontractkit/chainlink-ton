@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -76,7 +77,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 			OpPendingInfo: timelock.OpPendingInfo{
 				ValidAfter:            0,
 				OpFinalizationTimeout: 0,
-				OpPendingID:           big.NewInt(0),
+				OpPendingID:           tlbe.NewUint256(big.NewInt(0)),
 			},
 			RBAC: rbac.Data{
 				Roles: cell.NewDict(256),
@@ -87,10 +88,10 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 			QueryID:                  0,
 			MinDelay:                 in.ContractsParams.Timelock.MinDelay,
 			Admin:                    in.ContractsParams.Timelock.Admin,
-			Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Proposers)),
-			Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Executors)),
-			Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Cancellers)),
-			Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.ContractsParams.Timelock.Bypassers)),
+			Proposers:                common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Proposers)),
+			Executors:                common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Executors)),
+			Cancellers:               common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Cancellers)),
+			Bypassers:                common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Bypassers)),
 			ExecutorRoleCheckEnabled: true,
 			OpFinalizationTimeout:    0,
 		}
@@ -133,14 +134,14 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 			SeenSignedHashes: cell.NewDict(256),
 			RootInfo: mcms.RootInfo{
 				ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
-					Root:       big.NewInt(0),
+					Root:       tlbe.NewUint256(big.NewInt(0)),
 					ValidUntil: 0,
 					OpCount:    0,
 					OpPendingInfo: mcms.OpPendingInfo{
 						ValidAfter:             0,
 						OpFinalizationTimeout:  0,
 						OpPendingReceiver:      tvm.ZeroAddress,
-						OpPendingBodyTruncated: big.NewInt(0),
+						OpPendingBodyTruncated: tlbe.NewUint256(big.NewInt(0)),
 					},
 				},
 				RootMetadata: mcms.RootMetadata{

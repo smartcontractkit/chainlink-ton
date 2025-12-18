@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -62,6 +63,14 @@ type MessageValidationFailed struct {
 	Msg     *router.CCIPSend `tlb:"^"`
 	Context *cell.Cell       `tlb:"^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	Execute{},
+	MessageValidated{},
+	MessageValidationFailed{},
+	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
+	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
+})
 
 // Metadata structure
 type Metadata struct {

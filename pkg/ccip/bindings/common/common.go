@@ -1,4 +1,4 @@
-package common //nolint:revive,nolintlint // TODO: update to meaningful package name
+package common //nolint:revive,nolintlint // TODO: move to pkg/ton/tlbe
 
 import (
 	"errors"
@@ -47,15 +47,15 @@ const (
 	ErrorDispatchNotFromMerkleRoot
 )
 
-// WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
-type WrappedAddress struct {
-	WrappedAddress *address.Address `tlb:"addr"`
+// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
+type AddressWrap struct {
+	Val *address.Address `tlb:"addr"`
 }
 
-func WrapAddresses(addrs []*address.Address) []WrappedAddress {
-	wrapped := make([]WrappedAddress, len(addrs))
+func WrapAddresses(addrs []*address.Address) []AddressWrap {
+	wrapped := make([]AddressWrap, len(addrs))
 	for i, a := range addrs {
-		wrapped[i] = WrappedAddress{WrappedAddress: a}
+		wrapped[i] = AddressWrap{Val: a}
 	}
 	return wrapped
 }

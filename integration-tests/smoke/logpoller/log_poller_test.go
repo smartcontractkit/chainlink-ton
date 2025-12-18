@@ -30,6 +30,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func Test_LogPoller(t *testing.T) {
@@ -171,9 +172,9 @@ func Test_LogPoller(t *testing.T) {
 
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
 		t.Parallel()
-		senderA, saerr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		senderA, saerr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, saerr)
-		senderB, sberr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		senderB, sberr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, sberr)
 
 		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
@@ -832,7 +833,7 @@ func Test_LogPoller(t *testing.T) {
 		t.Parallel()
 
 		// 1. Setup: create new wallet and emitter
-		sender, serr := test_utils.CreateRandomHighloadWallet(tonChain.Client)
+		sender, serr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, serr)
 
 		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{sender.Address()},

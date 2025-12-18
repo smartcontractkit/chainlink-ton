@@ -13,6 +13,7 @@ import {
   Builder,
   Slice,
   TupleItem,
+  Tuple,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -61,6 +62,8 @@ export enum FeeQuoterError {
   FeeOverflow,
   MessageFeeTooHigh,
 }
+//TODO this error should be under the FeeQuoterError prefix
+export const ERROR_INVALID_EVM_ADDRESS = 5001
 
 export type FeeQuoterStorage = {
   id: bigint
@@ -891,6 +894,91 @@ export class FeeQuoter
 
   async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
     return this.ownable.getPendingOwner(provider)
+  }
+
+  async getFeeTokens(provider: ContractProvider): Promise<Address[] | null> {
+    const result = await provider.get('feeTokens', [])
+    const items = result.stack.readLispList()
+    const addresses: Address[] = items.map((t: TupleItem) => {
+      if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+        throw Error('Not a cell: ' + t.type)
+      }
+      return t.cell.beginParse().loadAddress()
+    })
+    return addresses
+  }
+
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[] | null> {
+    const result = await provider.get('destChainSelectors', [])
+    const items = result.stack.readLispList()
+    const selectors: bigint[] = items.map((t: TupleItem) => {
+      if (t.type !== 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return selectors
+  }
+
+  async getTokenPrices(provider: ContractProvider, tokens: Address[]): Promise<TimestampedPrice[]> {
+    const tupleItems: TupleItem[] = []
+    for (const token of tokens) {
+      tupleItems.push({
+        type: 'slice',
+        cell: beginCell().storeAddress(token).endCell(),
+      } as TupleItem)
+    }
+    const tuple = { type: 'tuple', items: tupleItems } as Tuple
+    const result = await provider.get('tokenPrices', [tuple])
+    const resultTuple = result.stack.readTuple()
+    const prices: TimestampedPrice[] = []
+    while (resultTuple.remaining > 0) {
+      const priceCell = resultTuple.readCell()
+      const priceSlice = priceCell.beginParse()
+      prices.push({
+        value: priceSlice.loadUintBig(224),
+        timestamp: priceSlice.loadUintBig(32),
+      })
+    }
+    return prices
+  }
+
+  async getStaticConfig(provider: ContractProvider): Promise<{
+    maxFeeJuelsPerMsg: bigint
+    linkToken: Address
+    tokenPriceStalenessThreshold: bigint
+  }> {
+    const result = await provider.get('staticConfig', [])
+    return {
+      maxFeeJuelsPerMsg: result.stack.readBigNumber(),
+      linkToken: result.stack.readAddress(),
+      tokenPriceStalenessThreshold: result.stack.readBigNumber(),
+    }
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<number> {
+    const result = await provider.get('facilityId', [])
+    return result.stack.readNumber()
+  }
+
+  async getErrorCode(provider: ContractProvider, localErrorCode: number): Promise<number> {
+    const result = await provider.get('errorCode', [
+      { type: 'int', value: BigInt(localErrorCode) } as TupleItem,
+    ])
+    return result.stack.readNumber()
+  }
+
+  async getTokenAndGasPrices(
+    provider: ContractProvider,
+    token: Address,
+    destChainSelector: bigint,
+  ): Promise<any> {
+    const result = await provider.get('tokenAndGasPrices', [
+      { type: 'slice', cell: beginCell().storeAddress(token).endCell() } as TupleItem,
+      { type: 'int', value: destChainSelector } as TupleItem,
+    ])
+    // Note: This getter has an empty implementation in the contract
+    return result
   }
 
   async sendTransferOwnership(

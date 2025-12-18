@@ -10,33 +10,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
-	timelock.Init{},
-	timelock.ScheduleBatch{},
-	timelock.Cancel{},
-	timelock.ExecuteBatch{},
-	timelock.UpdateDelay{},
-	timelock.UpdateOpFinalizationTimeout{},
-	timelock.BlockFunctionSelector{},
-	timelock.UnblockFunctionSelector{},
-	timelock.BypasserExecuteBatch{},
-	timelock.UpdateExecutorRoleCheck{},
-	timelock.SubmitErrorReport{},
-	timelock.CallScheduled{},
-	timelock.CallExecuted{},
-	timelock.BypasserCallExecuted{},
-	timelock.Cancelled{},
-	timelock.MinDelayChange{},
-	timelock.FunctionSelectorBlocked{},
-	timelock.FunctionSelectorUnblocked{},
-	timelock.ExecutorRoleCheckUpdated{},
-})
+var TLBs = timelock.TLBs
 
 type decoder struct {
-	tlbsCtx map[uint64]interface{}
+	tlbsCtx lib.TLBMap
 }
 
-func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
+func NewDecoder(tlbsCtx lib.TLBMap) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 

@@ -44,7 +44,7 @@ func ExecuteTransactions(context context.Context, logger logger.Logger, client t
 	}
 	msg, err := tracetracking.MapToReceivedMessage(tx)
 	if err != nil {
-		return fmt.Errorf("failed to get outgoing messages: %w", err)
+		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
 	err = msg.WaitForTrace(context, client)
 	if err != nil {

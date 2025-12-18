@@ -8,17 +8,23 @@ import (
 )
 
 // ResultUnmarshaler defines the interface for types that can unmarshal execution results from TON client RPC calls.
+//
+// Deprecated: Use ResultDecoder[T] and Getter[T] instead.
 type ResultUnmarshaler interface {
 	UnmarshalResult(*ton.ExecutionResult) error
 }
 
 // MethodGetter provides the getter method name for a contract binding type.
+//
+// Deprecated: Use Getter[T] instead.
 type MethodGetter interface {
 	GetterMethodName() string
 }
 
 // ResultGetter combines the ability to unmarshal results with knowledge of which getter to call.
 // Types implementing this interface can be used with FetchResult for a simplified API.
+//
+// Deprecated: Use Getter[T] instead.
 type ResultGetter interface {
 	ResultUnmarshaler
 	MethodGetter
