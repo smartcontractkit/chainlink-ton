@@ -255,14 +255,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"bounce", msg.InternalMessage.Bounce,
 			"hasBody", msg.InternalMessage.Body != nil)
 		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
-		if err != nil {
-			// Transaction failed to broadcast. Log error as a warning for now and fall through to retry delay below.
-			t.logger.Warnw("failed to broadcast tx, will retry",
-				"txID", txID,
-				"attempt", attempt,
-				"to", tx.To.String(),
-				"err", err)
-		} else {
+		if err == nil {
 			t.logger.Infow("transaction broadcasted",
 				"txID", txID,
 				"to", tx.To.String(),
@@ -273,7 +266,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				t.logger.Errorw("transaction failed", "exitcode", receivedMessage.ExitCode, "description", receivedMessage.ExitCode.Describe())
 			}
 
-			// Wait for and gather full trace regardless of exit code
+			// Wait for and gather full trace regardless of exit code for debugging purposes
 			err = receivedMessage.WaitForTrace(ctx, client.Client)
 			if err != nil {
 				t.logger.Errorw("failed to wait for trace", "error", err)
@@ -282,6 +275,13 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 			break
 		}
+
+		// Transaction failed to broadcast. Log error as a warning for now and fall through to retry delay below.
+		t.logger.Warnw("failed to broadcast tx, will retry",
+			"txID", txID,
+			"attempt", attempt,
+			"to", tx.To.String(),
+			"err", err)
 
 		select {
 		case <-time.After(t.config.SendRetryDelay.Duration()):
