@@ -926,7 +926,7 @@ describe('OffRamp - Unit Tests', () => {
     )
 
     // Commit with a 127 message gap should succeed
-    const root2 = createMerkleRoot(130n, 130n + 127n, rootBytes)
+    const root2 = createMerkleRoot(1n, 128n, rootBytes)
     await commitReport([root2], toNano('0.5'), 0x02, undefined)
   })
 
