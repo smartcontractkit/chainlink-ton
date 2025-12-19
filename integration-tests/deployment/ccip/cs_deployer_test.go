@@ -12,8 +12,15 @@ import (
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/ton"
 	"google.golang.org/grpc"
 
 	"github.com/smartcontractkit/chainlink-ccip/chainconfig"
@@ -39,6 +46,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	mocks "github.com/smartcontractkit/chainlink-ton/mocks/client"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
@@ -231,6 +239,102 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	})
 	require.NoError(t, err, "Failed to apply SetOCR3Config changeset")
 	t.Log("Successfully set OCR3 config on TON offRamp")
+
+	// initialize accessor to verify configuration
+	// -- TON Accessor tests
+	lpCfg := logpoller.DefaultConfigSet
+	filterStore := inmemorystore.NewFilterStore("test-chain", lggr)
+	tonChain := env.BlockChains.TonChains()[tonSelector]
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return tonChain.Client, nil
+	}
+	opts := &logpoller.ServiceOptions{
+		Config:      lpCfg,
+		FilterStore: filterStore,
+		TxLoader:    txloader.New(lggr, clientProvider),
+		LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
+	}
+	lp, err := logpoller.NewService(lggr, "test-chain",
+		clientProvider,
+		opts,
+	)
+	require.NoError(t, err)
+	addrCodec := codec.NewAddressCodec()
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(tonSelector), tonChain.Client, lp, addrCodec)
+	require.NoError(t, err)
+
+	state, err := tonstate.LoadOnchainState(env)
+	require.NoError(t, err)
+	onRampAddr := state[tonSelector].OnRamp
+	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
+	require.NoError(t, err)
+	offRampAddr := state[tonSelector].OffRamp
+	rawOffRampAddr, err := addrCodec.AddressStringToBytes(offRampAddr.String())
+	require.NoError(t, err)
+	feeQuoterAddr := state[tonSelector].FeeQuoter
+	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
+	require.NoError(t, err)
+
+	err = accessor.Sync(t.Context(), consts.ContractNameOnRamp, rawOnRampAddr)
+	require.NoError(t, err)
+	err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawOffRampAddr)
+	require.NoError(t, err)
+	err = accessor.Sync(t.Context(), consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
+	require.NoError(t, err)
+
+	t.Run("GetConfig", func(t *testing.T) {
+		// Load onchain state to get contract addresses
+		state, err = tonstate.LoadOnchainState(env)
+		require.NoError(t, err)
+
+		// Get addresses from state and convert to raw bytes
+		feeQuoterAddr = state[tonSelector].FeeQuoter
+		rawFeeQuoterAddr, err = addrCodec.AddressStringToBytes(feeQuoterAddr.String())
+		require.NoError(t, err)
+
+		// Compute expected signers and transmitters from mock node setup
+		// Mock nodes generate OCR keys as: ocrKeyBytes[j] = byte(nodeIdx + 1 + j) for j in 0..31
+		signers := make([][]byte, numNodes)
+		transmitters := make([][]byte, numNodes)
+		for nodeIdx := 0; nodeIdx < numNodes; nodeIdx++ {
+			var ocrKeyBytes [32]byte
+			for j := 0; j < 32; j++ {
+				ocrKeyBytes[j] = byte(nodeIdx + 1 + j)
+			}
+			signers[nodeIdx] = ocrKeyBytes[:]
+			tonAddr := address.NewAddress(0, 0, ocrKeyBytes[:])
+			transmitterBytes, err := addrCodec.AddressStringToBytes(tonAddr.String())
+			require.NoError(t, err)
+			transmitters[nodeIdx] = transmitterBytes
+		}
+
+		// destination - query config and verify OCR3 was set correctly
+		cfg, _, err := accessor.GetAllConfigsLegacy(t.Context(), ccipocr3.ChainSelector(tonSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
+		require.NoError(t, err)
+
+		// Verify commit OCR config
+		commitConfig := cfg.Offramp.CommitLatestOCRConfig.OCRConfig
+		require.Equal(t, uint8(1), commitConfig.ConfigInfo.F)
+		require.Equal(t, uint8(4), commitConfig.ConfigInfo.N)
+		require.True(t, commitConfig.ConfigInfo.IsSignatureVerificationEnabled)
+		require.Equal(t, signers, commitConfig.Signers)
+		require.Equal(t, transmitters, commitConfig.Transmitters)
+
+		// Verify exec OCR config
+		execConfig := cfg.Offramp.ExecLatestOCRConfig.OCRConfig
+		require.Equal(t, uint8(1), execConfig.ConfigInfo.F)
+		require.Equal(t, uint8(0), execConfig.ConfigInfo.N) // exec doesn't use signature verification
+		require.False(t, execConfig.ConfigInfo.IsSignatureVerificationEnabled)
+		require.Equal(t, [][]byte{}, execConfig.Signers)
+		require.Equal(t, transmitters, execConfig.Transmitters)
+
+		// Verify static config
+		require.Equal(t, ccipocr3.ChainSelector(tonSelector), cfg.Offramp.StaticConfig.ChainSelector)
+
+		// Verify dynamic config
+		require.Equal(t, rawFeeQuoterAddr, cfg.Offramp.DynamicConfig.FeeQuoter)
+		require.True(t, cfg.Offramp.DynamicConfig.IsRMNVerificationDisabled)
+	})
 }
 
 // setupMockOffChainClient configures a mockery-generated Client mock to simulate
