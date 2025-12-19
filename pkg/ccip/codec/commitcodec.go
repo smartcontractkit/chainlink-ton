@@ -84,12 +84,18 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		}
 	}
 
-	cellReport := ocr.CommitReport{
-		PriceUpdates: &ocr.PriceUpdates{
+	// Set PriceUpdates to nil if both tpuSlice and gpuSlice are empty/nil
+	var priceUpdates *ocr.PriceUpdates
+	if len(tpuSlice) > 0 || len(gpuSlice) > 0 {
+		priceUpdates = &ocr.PriceUpdates{
 			TokenPriceUpdates: tpuSlice,
 			GasPriceUpdates:   gpuSlice,
-		},
-		MerkleRoots: append(mkSlice, unblessedMkSlice...),
+		}
+	}
+
+	cellReport := ocr.CommitReport{
+		PriceUpdates: priceUpdates,
+		MerkleRoots:  append(mkSlice, unblessedMkSlice...),
 	}
 
 	c, err := tlb.ToCell(cellReport)
