@@ -1,0 +1,12 @@
+[
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":12325975920126705752,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAWQ3y2fT","MerkleRootCode":"te6cckEBAQEAAwAAAcxeJvX7"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":3790847855319039991,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAbScKrQA","MerkleRootCode":"te6cckEBAQEAAwAAAWz4k75Z"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":5173918132257461702,"ReceiveExecutorCode":"te6cckEBAQEAAwAAATwrSZsI","MerkleRootCode":"te6cckEBAQEAAwAAAaw8tTOa"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":11606288716966172093,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAQRVWKGy","MerkleRootCode":"te6cckEBAQEAAwAAAWz4k75Z"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":8322759603372395133,"ReceiveExecutorCode":"te6cckEBAQEAAwAAATTkEUKC","MerkleRootCode":"te6cckEBAQEAAwAAAWQ3y2fT"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":12842461261907666602,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAZRCpAkg","MerkleRootCode":"te6cckEBAQEAAwAAAZRCpAkg"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":11748943245542709997,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAQRVWKGy","MerkleRootCode":"te6cckEBAQEAAwAAATTkEUKC"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":16091627818134797167,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAaTz7eoQ","MerkleRootCode":"te6cckEBAQEAAwAAAVxJ2l1p"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":2777045348273274143,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAQRVWKGy","MerkleRootCode":"te6cckEBAQEAAwAAASSL1hyS"}},
+  {"contract":"com.chainlink.ton.ccip.OffRamp","type":"UpdateDeployables","opcode":"0xa015e0e2","payload":{"QueryID":15284476568741430928,"ReceiveExecutorCode":"te6cckEBAQEAAwAAAQyaAHg4","MerkleRootCode":"te6cckEBAQEAAwAAAVxJ2l1p"}},
+]

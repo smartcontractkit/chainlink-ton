@@ -27,7 +27,7 @@ import (
 // - `cancellers`: accounts to be granted canceller role
 // - `bypassers`: accounts to be granted bypasser role
 type Init struct {
-	_ tlb.Magic `tlb:"#4982fcfd"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#4982fcfd" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -58,7 +58,7 @@ type Init struct {
 // - the caller must have the 'proposer' or 'admin' role.
 // - all payloads must not start with a blocked function selector.
 type ScheduleBatch struct {
-	_ tlb.Magic `tlb:"#094718f4"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#094718f4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -74,7 +74,7 @@ type ScheduleBatch struct {
 //
 // - the caller must have the 'canceller' or 'admin' role.
 type Cancel struct {
-	_ tlb.Magic `tlb:"#af3bf1d0"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#af3bf1d0" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -90,7 +90,7 @@ type Cancel struct {
 //
 // - the caller must have the 'executor' or 'admin' role.
 type ExecuteBatch struct {
-	_ tlb.Magic `tlb:"#6e9bf263"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#6e9bf263" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -107,7 +107,7 @@ type ExecuteBatch struct {
 //
 // - the caller must have the 'admin' role.
 type UpdateDelay struct {
-	_ tlb.Magic `tlb:"#7a57a45c"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#7a57a45c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -123,7 +123,7 @@ type UpdateDelay struct {
 //
 // - the caller must have the 'admin' role.
 type UpdateOpFinalizationTimeout struct {
-	_ tlb.Magic `tlb:"#94278d4f"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#94278d4f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -142,7 +142,7 @@ type UpdateOpFinalizationTimeout struct {
 //
 // - the caller must have the 'admin' role.
 type BlockFunctionSelector struct {
-	_ tlb.Magic `tlb:"#2637af77"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#2637af77" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -156,7 +156,7 @@ type BlockFunctionSelector struct {
 //
 // - the caller must have the 'admin' role.
 type UnblockFunctionSelector struct {
-	_ tlb.Magic `tlb:"#26f19f4e"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#26f19f4e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -172,7 +172,7 @@ type UnblockFunctionSelector struct {
 //
 // - the caller must have the 'bypasser' or 'admin' role.
 type BypasserExecuteBatch struct {
-	_ tlb.Magic `tlb:"#bb0e9f7d"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#bb0e9f7d" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -188,7 +188,7 @@ type BypasserExecuteBatch struct {
 //
 // - the caller must have the 'admin' role.
 type UpdateExecutorRoleCheck struct {
-	_ tlb.Magic `tlb:"#34d98baa"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#34d98baa" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -201,7 +201,7 @@ type UpdateExecutorRoleCheck struct {
 // The error report is used for a category of errors which might occur during execution
 // of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
 type SubmitErrorReport struct {
-	_ tlb.Magic `tlb:"#f4538b79"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#f4538b79" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -220,7 +220,7 @@ type SubmitErrorReport struct {
 
 // Emitted when a call is scheduled as part of operation `id`.
 type CallScheduled struct {
-	_ tlb.Magic `tlb:"#c55fca54"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#c55fca54" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -234,7 +234,7 @@ type CallScheduled struct {
 
 // Emitted when a call is performed as part of operation `id`.
 type CallExecuted struct {
-	_ tlb.Magic `tlb:"#49ea5d0e"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#49ea5d0e" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -247,7 +247,7 @@ type CallExecuted struct {
 
 // Emitted when a call is performed via bypasser.
 type BypasserCallExecuted struct {
-	_ tlb.Magic `tlb:"#9c7f3010"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#9c7f3010" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -259,7 +259,7 @@ type BypasserCallExecuted struct {
 
 // Emitted when operation `id` is cancelled.
 type Cancelled struct {
-	_ tlb.Magic `tlb:"#580e80f2"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#580e80f2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -268,7 +268,7 @@ type Cancelled struct {
 
 // Emitted when the minimum delay for future operations is modified.
 type MinDelayChange struct {
-	_ tlb.Magic `tlb:"#904b14e0"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#904b14e0" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -278,7 +278,7 @@ type MinDelayChange struct {
 
 // Replied to sender when the op finalization timeout is modified.
 type OpFinalizationTimeoutChange struct {
-	_ tlb.Magic `tlb:"#1f102718"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#1f102718" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -288,7 +288,7 @@ type OpFinalizationTimeoutChange struct {
 
 // Emitted when a function selector is blocked.
 type FunctionSelectorBlocked struct {
-	_ tlb.Magic `tlb:"#9c4d6d94"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#9c4d6d94" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -298,7 +298,7 @@ type FunctionSelectorBlocked struct {
 
 // Emitted when a function selector is unblocked.
 type FunctionSelectorUnblocked struct {
-	_ tlb.Magic `tlb:"#f410a31b"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#f410a31b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -308,7 +308,7 @@ type FunctionSelectorUnblocked struct {
 
 // Sent back to sender after the executor role check is updated.
 type ExecutorRoleCheckUpdated struct {
-	_ tlb.Magic `tlb:"#c6d451e2"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#c6d451e2" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 

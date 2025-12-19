@@ -1,0 +1,12 @@
+[
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":1647869134899481165}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":5433132422381570390}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":3119695824859479463}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":18194520566348585002}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":9736720372010921460}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":9051669245952093406}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":3918435950325588482}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":3913467511493906864}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":16713464457965379846}},
+  {"contract":"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter","type":"ClaimAdminMessage","opcode":"0xfb88e119","payload":{"QueryID":17313332929539951139}},
+]

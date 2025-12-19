@@ -1,0 +1,12 @@
+[
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+  {"contract":"com.chainlink.ton.ccip.FeeQuoter","type":"RemovePriceUpdater","opcode":"0x5dfbb1bc","payload":{"PriceUpdater":"UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"}},
+]
