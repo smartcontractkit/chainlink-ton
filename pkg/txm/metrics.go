@@ -72,9 +72,9 @@ type txmMetrics struct {
 	revertTxs            metric.Int64Counter
 
 	// latency metrics
-	broadcastLatency     metric.Float64Gauge
-	confirmationLatency  metric.Float64Gauge
-	finalizationLatency  metric.Float64Gauge
+	broadcastLatency    metric.Float64Gauge
+	confirmationLatency metric.Float64Gauge
+	finalizationLatency metric.Float64Gauge
 }
 
 func newMetrics(chainID string) (*txmMetrics, error) {
@@ -132,9 +132,9 @@ func newMetrics(chainID string) (*txmMetrics, error) {
 		failedToBroadcastTxs: failedToBroadcastTxs,
 		revertTxs:            revertTxs,
 
-		broadcastLatency:     broadcastLatency,
-		confirmationLatency:  confirmationLatency,
-		finalizationLatency:  finalizationLatency,
+		broadcastLatency:    broadcastLatency,
+		confirmationLatency: confirmationLatency,
+		finalizationLatency: finalizationLatency,
 	}, nil
 }
 
@@ -185,4 +185,3 @@ func (m *txmMetrics) RecordFinalizationLatency(ctx context.Context, duration tim
 	promTonTxmFinalizationLatency.WithLabelValues(m.chainID).Set(seconds)
 	m.finalizationLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
 }
-
