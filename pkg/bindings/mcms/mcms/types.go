@@ -33,7 +33,7 @@ import (
 // @dev this method can be executed by anyone who has the root and valid signatures.
 // as we validate the correctness of signatures, this imposes no risk.
 type SetRoot struct {
-	_ tlb.Magic `tlb:"#e7fabde3"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#e7fabde3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -61,7 +61,7 @@ type SetRoot struct {
 // @dev the gas limit of the call can be freely determined by the caller of this function.
 // We expect callees to revert if they run out of gas.
 type Execute struct {
-	_ tlb.Magic `tlb:"#9b9ce96a"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#9b9ce96a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -87,7 +87,7 @@ type Execute struct {
 // might be used when the current root was signed under a loser group configuration or when
 // some previous signers aren't trusted any more.
 type SetConfig struct {
-	_ tlb.Magic `tlb:"#89277f4b"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#89277f4b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -106,7 +106,7 @@ type SetConfig struct {
 //
 // - the caller must be the owner
 type UpdateOpFinalizationTimeout struct {
-	_ tlb.Magic `tlb:"#9dcbbab1"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#9dcbbab1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -122,7 +122,7 @@ type UpdateOpFinalizationTimeout struct {
 // @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
 // stale errors for operations that are no longer valid.
 type SubmitErrorReport struct {
-	_ tlb.Magic `tlb:"#43ebc734"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#43ebc734" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -136,7 +136,7 @@ type SubmitErrorReport struct {
 
 // Message sent by the owner to transfer the oracle role.
 type TransferOracleRole struct {
-	_ tlb.Magic `tlb:"#f275742f"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#f275742f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -151,7 +151,7 @@ type TransferOracleRole struct {
 //
 // - the caller must be the owner
 type CleanExpiredRoots struct {
-	_ tlb.Magic `tlb:"#903c276"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#903c276" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -163,7 +163,7 @@ type CleanExpiredRoots struct {
 
 // Sent back to sender when a new root is set.
 type NewRoot struct {
-	_ tlb.Magic `tlb:"#a6533a3d"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#a6533a3d" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -175,7 +175,7 @@ type NewRoot struct {
 
 // Sent back to sender when a new config is set.
 type ConfigSet struct {
-	_ tlb.Magic `tlb:"#d80be574"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#d80be574" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -186,7 +186,7 @@ type ConfigSet struct {
 
 // Replied to sender when the op finalization timeout is modified.
 type OpFinalizationTimeoutChange struct {
-	_ tlb.Magic `tlb:"#16fc10e6"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#16fc10e6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -196,7 +196,7 @@ type OpFinalizationTimeoutChange struct {
 
 // Sent back to sender when an op gets successfully executed.
 type OpExecuted struct {
-	_ tlb.Magic `tlb:"#7cf37cbf"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#7cf37cbf" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -209,7 +209,7 @@ type OpExecuted struct {
 
 // Sent back to sender when an error report is successfully submitted.
 type ErrorReportSubmitted struct {
-	_ tlb.Magic `tlb:"#bbc4deb4"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#bbc4deb4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -226,7 +226,7 @@ type ErrorReportSubmitted struct {
 
 // Sent back to sender when the oracle role is transferred.
 type OracleRoleTransferred struct {
-	_ tlb.Magic `tlb:"#ff4176a3"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#ff4176a3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -237,7 +237,7 @@ type OracleRoleTransferred struct {
 
 // Sent back to sender once roots are cleaned from storage
 type ExpiredRootsCleaned struct {
-	_ tlb.Magic `tlb:"#a86846d5"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#a86846d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
