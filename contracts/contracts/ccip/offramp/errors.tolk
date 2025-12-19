@@ -13,4 +13,5 @@ enum Error {
     SignatureVerificationRequiredInCommitPlugin
     SignatureVerificationNotAllowedInExecutionPlugin
     InvalidInterval
+    BatchingNotSupported
 }

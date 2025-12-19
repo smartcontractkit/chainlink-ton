@@ -79,12 +79,17 @@ describe('FeeQuoter - Ownable Tests', () => {
     const other = await blockchain.treasury('other')
     const feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
 
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, feeQuoter, blockchain, [
-      {
-        code: await feeQuoter.getCode(),
-        name: 'feequoter',
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, feeQuoter, {
+      coverage: {
+        blockchain,
+        conf: [
+          {
+            code: await feeQuoter.getCode(),
+            name: 'feequoter',
+          },
+        ],
       },
-    ])
+    })
   })
 })
 
