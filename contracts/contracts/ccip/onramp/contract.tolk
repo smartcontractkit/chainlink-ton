@@ -49,7 +49,12 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy OnRamp_Storage.load();
             val ccipSend = msg.msg.load();
             // validate allowlist
-            val destChainConfig = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int);
+            val destChainConfigResult = st.destChainConfigs.get(ccipSend.destChainSelector);
+            if (!destChainConfigResult.isFound) {
+                // This is a config error. The Router should not be sending messages to unknown chains.
+                return rejectMessage(Error.UnknownDestChainSelector as int, in.senderAddress, ccipSend, msg.metadata.sender);
+            }
+            val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
             assert(destChainConfig.router == in.senderAddress, Error.Unauthorized);
             onSend(st, destChainConfig, msg)
@@ -223,9 +228,11 @@ destination chain configuration is enabled, enforces the optional allowlist,
 and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
 */
 fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload: OnRamp_Send) {
-       if (destChainConfig.allowlistEnabled) {
+    if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
-        assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
+        if (!entry.isFound || !entry.loadValue()) {
+            return rejectMessage(Error.SenderNotAllowed as int, destChainConfig.router, payload.msg.load(), payload.metadata.sender);
+        }
     }
 
     val config = st.config.load();
@@ -334,18 +341,22 @@ Router_MessageRejected notification to the Router on the destination chain
 with error details for tracking and recovery.
 */
 fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
-    val ccipsend: Router_CCIPSend = msg.msg.load();
+    val ccipSend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
+    val router = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int).router;
+    rejectMessage(msg.error, router, ccipSend, metadata.sender);
+}
 
+fun rejectMessage(error: int, router: address, ccipSend: Router_CCIPSend, sender: address) {
     val errorMsg = createMessage({
         bounce: false,
         value: 0,
-        dest: st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector as int).router,
+        dest: router,
         body: Router_MessageRejected {
-            queryID: ccipsend.queryID,
-            destChainSelector: ccipsend.destChainSelector,
-            sender: metadata.sender,
-            error: msg.error,
+            queryID: ccipSend.queryID,
+            destChainSelector: ccipSend.destChainSelector,
+            sender,
+            error,
         },
     });
     errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -511,8 +522,8 @@ get fun sendExecutorCode(): cell {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode;
 }
-
-get fun getCCIPSendExecutorCodeHash(): uint256 {
+ 
+get fun sendExecutorCodeHash(): uint256 {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode.hash();
 }

@@ -709,7 +709,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('supports ownable messages', async () => {
     const other = await blockchain.treasury('other')
-    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp)
+    await ownable2StepSpec.ownable2StepSpec(deployer, other, offRamp, {})
   })
 
   it('should deploy', async () => {
@@ -872,6 +872,26 @@ describe('OffRamp - Unit Tests', () => {
       deploy: true,
       success: true,
     })
+  })
+
+  it('Test commit report fails if more than one merkle root', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root1 = createMerkleRoot(1n, 1n, rootBytes)
+    const root2 = createMerkleRoot(2n, 2n, rootBytes)
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    await commitReport(
+      [root1, root2],
+      toNano('0.5'),
+      0x01,
+      undefined,
+      false,
+      OffRampError.BatchingNotSupported,
+    )
   })
 
   it('Test commit report fails if source chain is not enabled', async () => {

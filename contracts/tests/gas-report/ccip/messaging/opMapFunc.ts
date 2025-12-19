@@ -13,22 +13,22 @@ export function opMapFunc(): OpMapFunc {
   Object.entries(fq.Opcodes).forEach(([name, code]) => {
     opcodeMap.set(code, `FeeQuoter::In::${name}`)
   })
-  Object.entries(fq.OutgoingOpcodes).forEach(([name, code]) => {
+  Object.entries(fq.OutOpcodes).forEach(([name, code]) => {
     opcodeMap.set(code, `FeeQuoter::Out::${name}`)
   })
-  Object.entries(onRamp.Opcodes).forEach(([name, code]) => {
+  Object.entries(onRamp.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `OnRamp::In::${name}`)
   })
-  Object.entries(onRamp.OutgoingOpcodes).forEach(([name, code]) => {
+  Object.entries(onRamp.opcodes.out).forEach(([name, code]) => {
     opcodeMap.set(code, `OnRamp::Out::${name}`)
   })
-  Object.entries(rt.Opcodes).forEach(([name, code]) => {
+  Object.entries(rt.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `Router::In::${name}`)
   })
-  Object.entries(rt.OutOpcodes).forEach(([name, code]) => {
+  Object.entries(rt.opcodes.out).forEach(([name, code]) => {
     opcodeMap.set(code, `Router::Out::${name}`)
   })
-  Object.entries(sx.Opcodes).forEach(([name, code]) => {
+  Object.entries(sx.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `SendExecutor::In::${name}`)
   })
   Object.entries(deployable.Opcodes).forEach(([name, code]) => {
