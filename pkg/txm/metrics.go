@@ -48,7 +48,7 @@ var (
 	}, []string{"chainID"})
 	promTonTxmConfirmationLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "ton_txm_confirmation_latency_seconds",
-		Help: "Time from broadcast to confirmation on-chain",
+		Help: "Time from broadcast to confirmation on-chain (when received message status reaches Received or Cascading)",
 	}, []string{"chainID"})
 	promTonTxmFinalizationLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "ton_txm_finalization_latency_seconds",
