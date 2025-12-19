@@ -2,8 +2,8 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { crc32 } from 'zlib'
+import * as coverage from '../coverage/coverage'
 
 import { mcms } from '../../wrappers/mcms'
 import { errorCode } from '../../wrappers/utils'
@@ -16,12 +16,6 @@ describe('MCMS', () => {
     mcms: Cell
   }
 
-  beforeAll(async () => {
-    code = {
-      mcms: await mcms.ContractClient.code(),
-    }
-  })
-
   var acc: {
     deployer: SandboxContract<TreasuryContract>
     other: SandboxContract<TreasuryContract>
@@ -32,7 +26,15 @@ describe('MCMS', () => {
   }
 
   beforeAll(async () => {
+    code = {
+      mcms: await mcms.ContractClient.code(),
+    }
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
   })
 
   beforeEach(async () => {
@@ -104,5 +106,16 @@ describe('MCMS', () => {
       deploy: true,
       success: true,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'mcms_unit_tests', [
+        {
+          code: code.mcms,
+          name: 'mcms',
+        },
+      ])
+    }
   })
 })

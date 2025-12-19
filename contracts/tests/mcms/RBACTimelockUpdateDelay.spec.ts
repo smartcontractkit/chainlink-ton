@@ -12,11 +12,11 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('update_delay')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   const newDelay = 3 * 24 * 60 * 60 // 3 days in seconds
@@ -83,4 +83,10 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
     )
     return result
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })

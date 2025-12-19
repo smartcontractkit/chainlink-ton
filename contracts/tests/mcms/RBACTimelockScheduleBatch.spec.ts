@@ -16,11 +16,11 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   let calls: Cell
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('schedule_batch')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
 
     calls = asSnakeData<rbactl.Call>(
       [
@@ -209,17 +209,23 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     expect(await baseTest.bind.timelock.isOperationReady(batchedOperationID)).toBe(false)
     expect(await baseTest.bind.timelock.isOperationDone(batchedOperationID)).toBe(false)
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })
 
 describe('MCMS - RBACTimelockScheduleTest', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('schedule')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   it('should fail if non-proposer tries to schedule', async () => {
@@ -428,4 +434,10 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
 
     expect(await baseTest.bind.timelock.isOperation(operationID)).toBe(true)
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })

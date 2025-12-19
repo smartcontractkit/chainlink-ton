@@ -19,11 +19,12 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   }
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('error_oracle')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
+
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }
 
     // Create second counter for batch operations
@@ -211,5 +212,11 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       success: false,
       exitCode: rbactl.Error.OperationNotReady,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

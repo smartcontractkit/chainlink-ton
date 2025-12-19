@@ -1,8 +1,9 @@
 import '@ton/test-utils'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell } from '@ton/core'
 
 import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import * as coverage from '../coverage/coverage'
 
 import { mcms, rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
@@ -43,11 +44,16 @@ export class BaseTestSetup {
   acc: TestAccounts
   bind: TestContracts
 
-  constructor() {
+  readonly testSuite: string
+  testID = 0
+  snapshot: BlockchainSnapshot
+
+  constructor(testSuite: string) {
     this.blockchain = null as any
     this.code = null as any
     this.acc = null as any
     this.bind = null as any
+    this.testSuite = testSuite
   }
 
   static async compileContracts(): Promise<TestCode> {
@@ -84,6 +90,11 @@ export class BaseTestSetup {
       blockchainLogs: false,
       vmLogs: 'none',
       debugLogs: true,
+    }
+    if (process.env['COVERAGE'] === 'true') {
+      this.blockchain.enableCoverage()
+      this.blockchain.verbosity.print = false
+      this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     // Set up accounts
@@ -253,21 +264,20 @@ export class BaseTestSetup {
     })
   }
 
-  static async beforeAll(): Promise<BaseTestSetup> {
-    const self = new BaseTestSetup()
-    await self.initializeBlockchain()
+  static async beforeAll(testsuite: string): Promise<BaseTestSetup> {
+    const self = new BaseTestSetup(testsuite)
     self.code = await BaseTestSetup.compileContracts()
+    await self.initializeBlockchain()
+    await self.setupTimelockContract()
+    await self.deployTimelockContract()
+    await self.setupCounterContract()
+    await self.deployCounterContract()
+    self.snapshot = self.blockchain.snapshot()
     return self
   }
 
-  /**
-   * Complete setup for all contracts - convenience method that combines all setup steps
-   */
-  async setupAll(): Promise<void> {
-    await this.setupTimelockContract()
-    await this.deployTimelockContract()
-    await this.setupCounterContract()
-    await this.deployCounterContract()
+  async beforeEach() {
+    await this.blockchain.loadFrom(this.snapshot)
   }
 
   /**
@@ -275,5 +285,22 @@ export class BaseTestSetup {
    */
   warpTime(period: number) {
     this.blockchain.now = this.blockchain.now!! + period
+  }
+
+  async generateCoverageArtifacts(): Promise<void> {
+    await coverage.generateCoverageArtifacts(
+      this.blockchain,
+      `rbac_${this.testSuite}_${this.testID++}`,
+      [
+        {
+          code: this.code.mcms,
+          name: 'mcms',
+        },
+        {
+          code: this.code.timelock,
+          name: 'timelock',
+        },
+      ],
+    )
   }
 }

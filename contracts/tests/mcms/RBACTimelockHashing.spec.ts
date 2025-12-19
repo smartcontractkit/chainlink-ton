@@ -11,11 +11,11 @@ describe('MCMS - RBACTimelockHashingTest', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('hashing')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   it('should hash batch operation correctly', async () => {
@@ -56,5 +56,11 @@ describe('MCMS - RBACTimelockHashingTest', () => {
     const expectedHash = BigInt('0x' + offchainId.toString('hex'))
 
     expect(hashedOperation).toEqual(expectedHash)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

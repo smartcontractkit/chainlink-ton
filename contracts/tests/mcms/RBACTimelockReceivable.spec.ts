@@ -7,11 +7,11 @@ describe('MCMS - RBACTimelockReceivable', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('receivable')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   it('should be able to receive TON', async () => {
@@ -41,5 +41,11 @@ describe('MCMS - RBACTimelockReceivable', () => {
     expect(balanceAfter.coins).toEqual(
       balanceBefore.coins + transferAmount - transferTransaction.totalFees.coins,
     )
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

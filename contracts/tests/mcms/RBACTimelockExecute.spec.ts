@@ -14,12 +14,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
   let counterTwo: SandboxContract<counter.ContractClient>
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('execute')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
-
+    await baseTest.beforeEach()
     // Create second counter for batch operations
     const counterTwoData = {
       id: Number(generateRandomContractId()),
@@ -702,5 +701,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         exitCode: ac.Error.UnauthorizedAccount,
       })
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

@@ -414,7 +414,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
   })
 
-  skip('should revert when fee token not supported', async () => {
+  it.skip('should revert when fee token not supported', async () => {
     const notAFeeToken = FeeQuoterSetup.CUSTOM_TOKEN.token
 
     const message: rt.CCIPSend = {

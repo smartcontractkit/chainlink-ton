@@ -12,11 +12,11 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('cancel')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   it('should fail if non-canceller tries to cancel', async () => {
@@ -228,4 +228,10 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     // Verify operation no longer exists
     expect(await baseTest.bind.timelock.isOperation(operationId)).toBe(false)
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })

@@ -1,9 +1,9 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { crc32 } from 'zlib'
 
+import * as coverage from '../coverage/coverage'
 import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
 import { asSnakeData, generateRandomContractId } from '../../src/utils'
@@ -11,10 +11,6 @@ import { errorCode } from '../../wrappers/utils'
 
 describe('RBACTimelock', () => {
   let code: Cell
-
-  beforeAll(async () => {
-    code = await rbactl.ContractClient.code()
-  })
 
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -27,7 +23,14 @@ describe('RBACTimelock', () => {
   let minDelay: number
 
   beforeAll(async () => {
+    code = await rbactl.ContractClient.code()
+
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
   })
 
   beforeEach(async () => {
@@ -571,5 +574,16 @@ describe('RBACTimelock', () => {
     )
     expect(await timelock.isOperationDone(id)).toEqual(false)
     expect(await timelock.isOperationReady(1n)).toEqual(false)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'rbac_unit_tests', [
+        {
+          code,
+          name: 'timelock',
+        },
+      ])
+    }
   })
 })

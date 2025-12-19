@@ -11,6 +11,8 @@ const onRampSuffix = `${coverage.CoverageContractName.onramp}.json`
 const sendExecutorSuffix = `${coverage.CoverageContractName.send_executor}.json`
 const receiveExecutorSuffix = `${coverage.CoverageContractName.receive_executor}.json`
 const deployableSuffix = `${coverage.CoverageContractName.deployable}.json`
+const mcmsSuffix = `${coverage.CoverageContractName.mcms}.json`
+const timelockSuffix = `${coverage.CoverageContractName.timelock}.json`
 
 const offRampCoverageResults: Coverage[] = []
 const routerCoverageResults: Coverage[] = []
@@ -20,6 +22,8 @@ const onrampCoverageResults: Coverage[] = []
 const sendExecutorCoverageResults: Coverage[] = []
 const receiveExecutorCoverageResults: Coverage[] = []
 const deployableCoverageResults: Coverage[] = []
+const mcmsCoverageResults: Coverage[] = []
+const timelockCoverageResults: Coverage[] = []
 
 const coverageDir = './.coverage'
 
@@ -53,6 +57,12 @@ for (const file of files) {
   } else if (file.endsWith(deployableSuffix)) {
     const coverage = Coverage.fromJson(readFileSync(filePath, 'utf-8'))
     deployableCoverageResults.push(coverage)
+  } else if (file.endsWith(mcmsSuffix)) {
+    const coverage = Coverage.fromJson(readFileSync(filePath, 'utf-8'))
+    mcmsCoverageResults.push(coverage)
+  } else if (file.endsWith(timelockSuffix)) {
+    const coverage = Coverage.fromJson(readFileSync(filePath, 'utf-8'))
+    timelockCoverageResults.push(coverage)
   }
 }
 
@@ -70,6 +80,8 @@ const onRampMerged = mergeResults(onrampCoverageResults)
 const sendExecutorMerged = mergeResults(sendExecutorCoverageResults)
 const receiveExecutorMerged = mergeResults(receiveExecutorCoverageResults)
 const deployableMerged = mergeResults(deployableCoverageResults)
+const mcmsMerged = mergeResults(mcmsCoverageResults)
+const timelockMerged = mergeResults(timelockCoverageResults)
 
 // Generate HTML reports
 if (offRampMerged) {
@@ -134,4 +146,17 @@ if (deployableMerged) {
     deployableMerged.report('html'),
   )
   console.log('Generated deployable-coverage.html')
+}
+
+if (mcmsMerged) {
+  writeFileSync(`./.coverage/${coverage.CoverageContractName.mcms}.html`, mcmsMerged.report('html'))
+  console.log('Generated mcms-coverage.html')
+}
+
+if (timelockMerged) {
+  writeFileSync(
+    `./.coverage/${coverage.CoverageContractName.timelock}.html`,
+    timelockMerged.report('html'),
+  )
+  console.log('Generated timelock-coverage.html')
 }

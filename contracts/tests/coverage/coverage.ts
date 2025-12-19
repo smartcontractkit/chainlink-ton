@@ -2,6 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Cell } from '@ton/core'
 import { Blockchain } from '@ton/sandbox'
 import { mkdirSync, writeFileSync } from 'fs'
+import { mcms } from '../../wrappers/mcms'
 
 export const CoverageContractName = {
   router: 'router',
@@ -12,6 +13,8 @@ export const CoverageContractName = {
   send_executor: 'send_executor',
   receive_executor: 'receive_executor',
   deployable: 'deployable',
+  mcms: 'mcms',
+  timelock: 'timelock',
 } as const
 export type CoverageConfigNames = keyof typeof CoverageContractName
 

@@ -11,11 +11,11 @@ describe('MCMS - RBACTimelockGetters', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('getter')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   describe('isOperation', () => {
@@ -541,5 +541,11 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
       expect(operationTimestamp).toBe(rbactl.DONE_TIMESTAMP)
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

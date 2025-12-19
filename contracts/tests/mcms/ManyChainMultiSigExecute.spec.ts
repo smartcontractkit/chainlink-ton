@@ -10,12 +10,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
 
   beforeAll(async () => {
-    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll('execute')
   })
 
   beforeEach(async () => {
-    await baseTest.setupForSetRootAndExecute()
-    await baseTest.setInitialRoot()
+    await baseTest.beforeEach()
   })
 
   it('should revert when post-op count reached', async () => {
@@ -459,5 +458,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(targetBalanceAfter).toBeGreaterThanOrEqual(
       targetBalanceBefore + expectedTransfer - toNano('0.01'),
     ) // Allow for small gas fees
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

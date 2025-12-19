@@ -16,12 +16,11 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
   }
 
   beforeAll(async () => {
-    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll('execute_error_oracle')
   })
 
   beforeEach(async () => {
-    await baseTest.setupForSetRootAndExecute()
-    await baseTest.setInitialRoot()
+    await baseTest.beforeEach()
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }
   })
 
@@ -297,5 +296,11 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       success: false,
       exitCode: mcms.Error.ProofCannotBeVerified,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

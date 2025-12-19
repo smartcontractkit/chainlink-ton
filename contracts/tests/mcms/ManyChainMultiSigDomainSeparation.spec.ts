@@ -5,16 +5,17 @@ import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
+import { Blockchain } from '@ton/sandbox'
 
 describe('MCMS - ManyChainMultiSigDomainSeparationTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
 
   beforeAll(async () => {
-    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll('domain_separation')
   })
 
   beforeEach(async () => {
-    await baseTest.setupForSetRootAndExecute()
+    await baseTest.beforeEach()
   })
 
   it('should verify merkle tree preimage domain separation', () => {
@@ -85,5 +86,11 @@ describe('MCMS - ManyChainMultiSigDomainSeparationTest', () => {
     // Verify that the two domain separators are different
     expect(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA) // </br>
       .not.toEqual(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

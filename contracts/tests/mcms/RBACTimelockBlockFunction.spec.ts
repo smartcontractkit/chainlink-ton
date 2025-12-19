@@ -11,11 +11,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('block_function')
   })
 
   beforeEach(async () => {
-    await baseTest.setupAll()
+    await baseTest.beforeEach()
   })
 
   it('should fail if not admin tries to block function selector', async () => {
@@ -443,6 +443,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       expect(await baseTest.bind.timelock.isOperation(operationID)).toBe(true)
+    }
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
     }
   })
 })

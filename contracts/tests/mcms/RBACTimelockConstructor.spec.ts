@@ -9,12 +9,11 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
   let baseTest: BaseTestSetup
 
   beforeAll(async () => {
-    baseTest = await BaseTestSetup.beforeAll()
+    baseTest = await BaseTestSetup.beforeAll('constructor')
   })
 
   beforeEach(async () => {
-    await baseTest.setupTimelockContract()
-    await baseTest.deployTimelockContract()
+    await baseTest.beforeEach()
   })
 
   it('should not init twice', async () => {
@@ -255,5 +254,11 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
   it('should have no blocked functions initially', async () => {
     const numBlockedFns = await baseTest.bind.timelock.getBlockedFunctionSelectorCount()
     expect(numBlockedFns).toBe(0)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

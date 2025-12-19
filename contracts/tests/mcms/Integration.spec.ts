@@ -5,6 +5,7 @@ import { Address, Cell, toNano } from '@ton/core'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
 import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import * as coverage from '../coverage/coverage'
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
@@ -67,6 +68,11 @@ describe('MCMS - IntegrationTest', () => {
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
   })
 
   beforeEach(async () => {
@@ -1170,4 +1176,19 @@ describe('MCMS - IntegrationTest', () => {
 
     proposePredecessor = callsHash
   }, 20_000) // test can take a while
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'rbac_mcms_integration', [
+        {
+          code: code.timelock,
+          name: 'timelock',
+        },
+        {
+          code: code.mcms,
+          name: 'mcms',
+        },
+      ])
+    }
+  })
 })
