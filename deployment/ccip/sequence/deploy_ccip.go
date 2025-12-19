@@ -1,7 +1,6 @@
 package sequence
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -120,7 +119,8 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	// FeeQuoter
 	linkTokenAddress := deps.CCIPOnChainState[in.ChainSelector].LinkTokenAddress
 	if linkTokenAddress.IsAddrNone() {
-		return output, errors.New("LINK address cannot be zero")
+		// TODO: create a constant in tvm package for the default LINK token address (NONEVM-1651)
+		linkTokenAddress = *address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
 	}
 
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter

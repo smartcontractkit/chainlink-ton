@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/xssnick/tonutils-go/address"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -95,6 +96,11 @@ func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datas
 }
 
 func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddress, deployer *address.Address) seq.DeployCCIPSeqInput {
+	// generate a random contract ID for all contracts in this deployment
+	contractID, err := tonops.RandomUint32()
+	if err != nil {
+		panic(fmt.Sprintf("failed to generate random contract ID: %v", err))
+	}
 	return seq.DeployCCIPSeqInput{
 		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO is it okay to use local version or a hardcoded one?
 		CCIPConfig: ccipConfig.ChainContractParams{
@@ -112,12 +118,14 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				},
 			},
 			OffRampParams: ccipConfig.OffRampParams{
+				ID:                               contractID,
 				ContractsSemver:                  cfg.Version,
 				Coin:                             defaultCCIPContractCoin,
 				ChainSelector:                    cfg.ChainSelector,
 				PermissionlessExecutionThreshold: cfg.PermissionLessExecutionThresholdSeconds,
 			},
 			OnRampParams: ccipConfig.OnRampParams{
+				ID:              contractID,
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 				ChainSelector:   cfg.ChainSelector,
@@ -125,10 +133,12 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				FeeAggregator:   deployer,
 			},
 			RouterParams: ccipConfig.RouterParams{
+				ID:              contractID,
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 			},
 			ReceiverParams: ccipConfig.ReceiverParams{
+				ID:              contractID,
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 			},

@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -41,18 +42,46 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/common/types"
 
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	mocks "github.com/smartcontractkit/chainlink-ton/mocks/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	ccipcaptypes "github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/types"
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	mocks "github.com/smartcontractkit/chainlink-ton/mocks/client"
-
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
+
+func TestDeployContractsWithDeployerAPI(t *testing.T) {
+	// TODO remove this one once the test below resolved the TODO
+	t.Parallel()
+	lggr := logger.Test(t)
+
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().Build(t)
+	require.NoError(t, err)
+
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
+	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
+	tonSelector := tonChainSelectors[0]
+
+	t.Log("TON Chain Selector:", tonSelector)
+
+	dReg := deployops.GetRegistry()
+	_, err = deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
+		Chains: map[uint64]deployops.ContractDeploymentConfigPerChain{
+			tonSelector: {
+				Version:                                 &tonstate.Version1_6_0,
+				TokenDecimals:                           9,
+				MaxFeeJuelsPerMsg:                       big.NewInt(1),
+				TokenPriceStalenessThreshold:            0,
+				LinkPremiumMultiplier:                   1,
+				PermissionLessExecutionThresholdSeconds: 0,
+			},
+		},
+	})
+	require.NoError(t, err, "Failed to deploy TON chain contracts")
+	t.Log("Successfully deployed TON chain contracts")
+}
 
 func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Parallel()
@@ -69,6 +98,7 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("EVM Chain Selector:", evmSelector)
 	t.Log("TON Chain Selector:", tonSelector)
 
+	// TODO use the deployer API to deploy contracts instead of ton changeset. Just need to populate the address from output and store in env
 	// Deploy TON chain contracts (uses LINK token workaround not available in deployops.DeployContracts)
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
@@ -231,7 +261,6 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 
 	// Finally, test SetOCR3Config from tooling deployer API
 	mcmsRegistry := cs_ccip.GetRegistry()
-	dReg := deployops.GetRegistry()
 	_, err = deployops.SetOCR3Config(dReg, mcmsRegistry).Apply(env, deployops.SetOCR3ConfigArgs{
 		HomeChainSel:    evmSelector,
 		RemoteChainSels: tonChainSelectors,
