@@ -8,6 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 
@@ -33,7 +34,7 @@ var DeployChainContracts = operations.NewSequence(
 		var txs [][]byte
 
 		tonChain := chains.TonChains()[input.ChainSelector]
-		deps, err := extractTonDepsFromContractDeploymentInput(tonChain)
+		deps, err := extractTonDepsFromContractDeploymentInput(tonChain, input.ExistingAddresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -55,17 +56,39 @@ var DeployChainContracts = operations.NewSequence(
 	},
 )
 
-func extractTonDepsFromContractDeploymentInput(chain ton.Chain) (ccipConfig.CCIPDeps, error) {
+func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (ccipConfig.CCIPDeps, error) {
+	// initialize with zero addresses
+	init := state.CCIPChainState{
+		OnRamp:    *tvm.ZeroAddress,
+		OffRamp:   *tvm.ZeroAddress,
+		Router:    *tvm.ZeroAddress,
+		FeeQuoter: *tvm.ZeroAddress,
+	}
+
+	// fill in existing addresses
+	for _, e := range existing {
+		tonAddr, err := address.ParseAddr(e.Address)
+		if err != nil {
+			return ccipConfig.CCIPDeps{}, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
+		}
+		switch e.Type {
+		case state.OnRamp:
+			init.OnRamp = *tonAddr
+		case state.OffRamp:
+			init.OffRamp = *tonAddr
+		case state.Router:
+			init.Router = *tonAddr
+		case state.FeeQuoter:
+			init.FeeQuoter = *tonAddr
+		default:
+			// ignore unknown types
+		}
+	}
+
 	deps := ccipConfig.CCIPDeps{
 		TonChain: chain,
 		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			// initialize with zero addresses; actual addresses will be filled in after deployment
-			chain.Selector: {
-				OnRamp:    *tvm.ZeroAddress,
-				OffRamp:   *tvm.ZeroAddress,
-				Router:    *tvm.ZeroAddress,
-				FeeQuoter: *tvm.ZeroAddress,
-			},
+			chain.Selector: init,
 		},
 	}
 	return deps, nil
