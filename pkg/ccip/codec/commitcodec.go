@@ -120,7 +120,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 
 	priceUpdate := report.PriceUpdates
 	var tpuSlice []cciptypes.TokenPrice
-	if len(priceUpdate.TokenPriceUpdates) > 0 {
+	if priceUpdate != nil && len(priceUpdate.TokenPriceUpdates) > 0 {
 		tpuSlice = make([]cciptypes.TokenPrice, len(priceUpdate.TokenPriceUpdates))
 		for i, update := range priceUpdate.TokenPriceUpdates {
 			var tokenPrice *big.Int
@@ -137,7 +137,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	}
 
 	var gpuSlice []cciptypes.GasPriceChain
-	if len(priceUpdate.GasPriceUpdates) > 0 {
+	if priceUpdate != nil && len(priceUpdate.GasPriceUpdates) > 0 {
 		gpuSlice = make([]cciptypes.GasPriceChain, len(priceUpdate.GasPriceUpdates))
 		for i, update := range priceUpdate.GasPriceUpdates {
 			// Pack the two 112-bit fields back into a single 224-bit value
