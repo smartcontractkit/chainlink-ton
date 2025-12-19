@@ -453,6 +453,8 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val feeTokens = msg.feeTokens.iter();
+    // We do not support fee payments in tokens yet, so we only withdraw TON coins for now.
+    // This will change in future versions.
     assert (feeTokens.empty()) throw Error.UnknownToken;
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
