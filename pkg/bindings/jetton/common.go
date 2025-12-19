@@ -36,7 +36,7 @@ const (
 
 // For funding the contract with TON
 type TopUpMessage struct {
-	_       tlb.Magic `tlb:"#d372158c"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#d372158c" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 

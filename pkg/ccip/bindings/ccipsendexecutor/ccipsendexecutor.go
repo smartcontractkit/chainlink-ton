@@ -44,14 +44,14 @@ const (
 
 // CCIPSendExecutor_Execute message structure
 type Execute struct {
-	_          tlb.Magic   `tlb:"#AF3C62B3"` //nolint:revive // Ignore opcode tag
+	_          tlb.Magic   `tlb:"#AF3C62B3" json:"-"` //nolint:revive // Ignore opcode tag
 	OnRampSend onramp.Send `tlb:"."`
 	Config     *cell.Cell  `tlb:"^"`
 }
 
 // FeeQuoter_MessageValidated message structure
 type MessageValidated struct {
-	_        tlb.Magic        `tlb:"#cbc4af76"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic        `tlb:"#cbc4af76" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee      *tlb.Coins       `tlb:"."`
 	Msg      *router.CCIPSend `tlb:"^"`
 	Metadata *cell.Cell       `tlb:"^"`
@@ -59,8 +59,8 @@ type MessageValidated struct {
 
 // FeeQuoter_MessageValidationFailed message structure
 type MessageValidationFailed struct {
-	_       tlb.Magic        `tlb:"#0f756150"` //nolint:revive // Ignore opcode tag
-	Error   big.Int          `tlb:"."`
+	_       tlb.Magic        `tlb:"#0f756150" json:"-"` //nolint:revive // Ignore opcode tag
+	Error   *big.Int         `tlb:"."`
 	Msg     *router.CCIPSend `tlb:"^"`
 	Context *cell.Cell       `tlb:"^"`
 }
@@ -68,7 +68,7 @@ type MessageValidationFailed struct {
 var TLBs = lib.MustNewTLBMap([]any{
 	Execute{},
 	MessageValidated{},
-	MessageValidationFailed{},
+	// MessageValidationFailed{}, // TODO (ops): add back when fix nested msg serialization
 	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
 	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
 })

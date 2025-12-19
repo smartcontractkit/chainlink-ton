@@ -56,7 +56,7 @@ type Storage struct {
 }
 
 type storeMessage struct {
-	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#00000001" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 	Value   uint32    `tlb:"## 32"`
 }

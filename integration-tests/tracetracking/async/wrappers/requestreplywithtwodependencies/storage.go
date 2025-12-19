@@ -55,7 +55,7 @@ type Storage struct {
 }
 
 type getCapitalFromMessage struct {
-	_             tlb.Magic        `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
+	_             tlb.Magic        `tlb:"#00000001" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
 	PriceRegistry *address.Address `tlb:"addr"`
 	Key           uint8            `tlb:"## 8"`

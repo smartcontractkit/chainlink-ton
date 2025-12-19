@@ -22,7 +22,7 @@ import (
 //
 // May emit a {AccessControl_RoleGranted} event.
 type GrantRole struct {
-	_ tlb.Magic `tlb:"#95cd540f"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#95cd540f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -41,7 +41,7 @@ type GrantRole struct {
 //
 // May emit a {AccessControl_RoleRevoked} event.
 type RevokeRole struct {
-	_ tlb.Magic `tlb:"#969b0db9"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#969b0db9" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -65,7 +65,7 @@ type RevokeRole struct {
 //
 // May emit a {AccessControl_RoleRevoked} event.
 type RenounceRole struct {
-	_ tlb.Magic `tlb:"#39452c46"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#39452c46" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -81,7 +81,7 @@ type RenounceRole struct {
 // `sender` is the account that originated the contract call. This account bears the admin role (for the granted role).
 // Expected in cases where the role was granted using the internal {AccessControl-_grantRole}.
 type RoleGranted struct {
-	_ tlb.Magic `tlb:"#cf3ca837"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#cf3ca837" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -98,7 +98,7 @@ type RoleGranted struct {
 //
 // - if using `renounceRole`, it is the role bearer (i.e. `account`)
 type RoleRevoked struct {
-	_ tlb.Magic `tlb:"#990fe1c7"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#990fe1c7" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -113,7 +113,7 @@ type RoleRevoked struct {
 // `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite
 // {AccessControl_RoleAdminChanged} not being emitted to signal this.
 type RoleAdminChanged struct {
-	_ tlb.Magic `tlb:"#bd7e8bce"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#bd7e8bce" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
