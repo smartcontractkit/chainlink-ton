@@ -1,0 +1,12 @@
+[
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":1224758441558909280,"NewDelay":2404198873}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":7060041135577919742,"NewDelay":2263929414}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":18432922860994601832,"NewDelay":3403527404}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":15603787950679449589,"NewDelay":60580228}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":15120253634969704727,"NewDelay":3840007400}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":2173771191308466433,"NewDelay":773319604}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":11322966507187268328,"NewDelay":3539760657}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":10961244307918915926,"NewDelay":2264269367}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":14017515477195312860,"NewDelay":766088387}},
+  {"contract":"com.chainlink.ton.mcms.Timelock","type":"UpdateDelay","opcode":"0x7a57a45c","payload":{"QueryID":13412399011850235809,"NewDelay":4028567998}},
+]

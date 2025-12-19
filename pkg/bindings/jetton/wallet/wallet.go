@@ -43,7 +43,7 @@ const (
 )
 
 type AskToTransfer struct {
-	_                   tlb.Magic        `tlb:"#0f8a7ea5"` //nolint:revive // (opcode) should stay uninitialized
+	_                   tlb.Magic        `tlb:"#0f8a7ea5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID             uint64           `tlb:"## 64"`
 	Amount              tlb.Coins        `tlb:"."`
 	Destination         *address.Address `tlb:"addr"`
@@ -54,7 +54,7 @@ type AskToTransfer struct {
 }
 
 type InternalTransferMessage struct {
-	_                tlb.Magic        `tlb:"#178d4519"` //nolint:revive // (opcode) should stay uninitialized
+	_                tlb.Magic        `tlb:"#178d4519" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
 	From             *address.Address `tlb:"addr"`
@@ -64,7 +64,7 @@ type InternalTransferMessage struct {
 }
 
 type TransferNotification struct {
-	_              tlb.Magic        `tlb:"#7362d09c"` //nolint:revive // Ignore opcode tag
+	_              tlb.Magic        `tlb:"#7362d09c" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID        uint64           `tlb:"## 64"`
 	Amount         tlb.Coins        `tlb:"^"`
 	Sender         *address.Address `tlb:"addr"`

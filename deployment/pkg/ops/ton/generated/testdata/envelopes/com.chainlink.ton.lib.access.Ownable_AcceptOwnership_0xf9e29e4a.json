@@ -1,0 +1,12 @@
+[
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":15262003328580183883}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":7881541587384162249}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":14769905123364990777}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":11555657723119178431}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":13738611230008654653}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":13153220031214942167}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":13752188419535994760}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":14456715213172659664}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":4117921363892508500}},
+  {"contract":"com.chainlink.ton.lib.access.Ownable","type":"AcceptOwnership","opcode":"0xf9e29e4a","payload":{"QueryID":12588592452629939536}},
+]

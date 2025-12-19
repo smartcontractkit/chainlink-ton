@@ -20,17 +20,17 @@ import (
 )
 
 type Foo struct {
-	_   tlb.Magic  `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
+	_   tlb.Magic  `tlb:"#00000001" json:"-"` //nolint:revive // Ignore opcode tag
 	Any *cell.Cell `tlb:"^"`
 }
 
 type Bar struct {
-	_   tlb.Magic `tlb:"#00000002"` //nolint:revive // Ignore opcode tag
+	_   tlb.Magic `tlb:"#00000002" json:"-"` //nolint:revive // Ignore opcode tag
 	Val *big.Int  `tlb:"## 32"`
 }
 
 type Baz struct {
-	_   tlb.Magic        `tlb:"#00000003"` //nolint:revive // Ignore opcode tag
+	_   tlb.Magic        `tlb:"#00000003" json:"-"` //nolint:revive // Ignore opcode tag
 	Val *address.Address `tlb:"addr"`
 }
 
@@ -51,6 +51,7 @@ func mustToCell(v any) *cell.Cell {
 	return c
 }
 
+// TODO: add *cell.Dictionary test case
 // Shared complex test case
 var testMCMSExecuteCell = mustToCell(mcms.Execute{
 	QueryID: 31,
