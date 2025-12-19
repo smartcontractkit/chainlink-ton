@@ -22,12 +22,12 @@ import (
 
 // OnRamp opcodes
 const (
-	OpcodeOnRampSend                         = 0x10000002
+	OpcodeOnRampSend                         = 0xdcf993c2
 	OpcodeOnRampWithdrawJettons              = 0x266AEACF
 	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
 	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
-	OpcodeSetDynamicConfig                   = 0x10000003
-	OpcodeUpdateDestChainConfigs             = 0x10000004
+	OpcodeSetDynamicConfig                   = 0xa178c62e
+	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
 	OpcodeUpdateSendExecutor                 = 0x82901c45
 )
@@ -94,19 +94,14 @@ type ExecutorDeployment struct {
 
 // Methods
 
-type SetDynamicConfig struct {
-	_ tlb.Magic `tlb:"#10000003"` //nolint:revive // Ignore opcode tag
-	DynamicConfig
-}
-
 type UpdateDestChainConfig struct {
 	DestinationChainSelector uint64           `tlb:"## 64"`
 	Router                   *address.Address `tlb:"addr"`
 	AllowListEnabled         bool             `tlb:"bool"`
 }
 
-type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#10000004"` //nolint:revive // Ignore opcode tag
+type UpdateDestChainConfigsMessage struct {
+	_       tlb.Magic                               `tlb:"#1a246b6c"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
@@ -125,7 +120,7 @@ type WithdrawFeeTokens struct{}
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_        tlb.Magic  `tlb:"#10000002"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic  `tlb:"#dcf993c2"` //nolint:revive // Ignore opcode tag
 	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
 	Metadata Metadata   `tlb:"."`         // Cell containing metadata
 }
@@ -159,13 +154,8 @@ type ExecutorFinishedWithError struct {
 }
 
 type SetDynamicConfigMessage struct {
-	_      tlb.Magic     `tlb:"#10000003"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic     `tlb:"#a178c62e"` //nolint:revive // Ignore opcode tag
 	Config DynamicConfig `tlb:"."`
-}
-
-type UpdateDestChainConfigsMessage struct {
-	_       tlb.Magic  `tlb:"#10000004"` //nolint:revive // Ignore opcode tag
-	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
 }
 
 type UpdateAllowlistsMessage struct {
@@ -179,8 +169,6 @@ type UpdateSendExecutorMessage struct {
 }
 
 var TLBs = lib.MustNewTLBMap([]any{
-	SetDynamicConfig{},
-	UpdateDestChainConfigs{},
 	UpdateAllowlists{},
 	Send{},
 	WithdrawJettons{},

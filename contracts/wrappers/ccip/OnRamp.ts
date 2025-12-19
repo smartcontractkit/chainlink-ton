@@ -382,7 +382,7 @@ export const builder = (() => {
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: (data: GetValidatedFee): Builder => {
           return beginCell()
-            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
         },
@@ -398,7 +398,7 @@ export const builder = (() => {
       const onrampSend: CellCodec<OnRampSend> = {
         encode: function (data: OnRampSend): Builder {
           return beginCell()
-            .storeUint(Opcodes.onrampSend, 32)
+            .storeUint(opcodes.in.onrampSend, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeBuilder(metadataCodec.encode(data.metadata))
         },
@@ -414,7 +414,7 @@ export const builder = (() => {
       const executorFinishedSuccessfully: CellCodec<ExecutorFinishedSuccessfully> = {
         encode: function (data: ExecutorFinishedSuccessfully): Builder {
           return beginCell()
-            .storeUint(Opcodes.executorFinishedSuccessfully, 32)
+            .storeUint(opcodes.in.executorFinishedSuccessfully, 32)
             .storeUint(data.executorID, 224)
             .storeBuilder(fq.builder.data.fee.encode(data.fee))
             .storeRef(
@@ -436,7 +436,7 @@ export const builder = (() => {
       const executorFinishedWithError: CellCodec<ExecutorFinishedWithError> = {
         encode: function (data: ExecutorFinishedWithError): Builder {
           return beginCell()
-            .storeUint(Opcodes.executorFinishedWithError, 32)
+            .storeUint(opcodes.in.executorFinishedWithError, 32)
             .storeUint(data.executorID, 224)
             .storeUint(data.error, 256)
             .storeRef(
@@ -457,7 +457,7 @@ export const builder = (() => {
 
       const updateSendExecutor: CellCodec<UpdateSendExecutor> = {
         encode: function (data: UpdateSendExecutor): Builder {
-          return beginCell().storeUint(Opcodes.updateSendExecutor, 32).storeRef(data.code)
+          return beginCell().storeUint(opcodes.in.updateSendExecutor, 32).storeRef(data.code)
         },
         load: function (src: Slice): UpdateSendExecutor {
           src.skip(32)
@@ -470,7 +470,7 @@ export const builder = (() => {
       const updateAllowlists: CellCodec<UpdateAllowlists> = {
         encode: (data: UpdateAllowlists): Builder => {
           return beginCell()
-            .storeUint(Opcodes.updateAllowlists, 32)
+            .storeUint(opcodes.in.updateAllowlists, 32)
             .storeRef(asSnakeData(data.updates, builder.data.updateAllowlist.encode))
         },
         load: (src: Slice): UpdateAllowlists => {
@@ -522,7 +522,7 @@ export const builder = (() => {
       const setDynamicConfig: CellCodec<SetDynamicConfig> = {
         encode: function (data: SetDynamicConfig): Builder {
           return beginCell()
-            .storeUint(Opcodes.setDynamicConfig, 32)
+            .storeUint(opcodes.in.setDynamicConfig, 32)
             .storeBuilder(dataBuilder.dynamicConfig.encode(data.config))
         },
         load: function (src: Slice): SetDynamicConfig {
@@ -550,7 +550,7 @@ export const builder = (() => {
       const messageValidated: CellCodec<MessageValidated> = {
         encode: (data: MessageValidated): Builder => {
           return beginCell()
-            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeUint(opcodes.out.messageValidated, 32)
             .storeCoins(data.fee)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
@@ -568,7 +568,7 @@ export const builder = (() => {
       const messageValidationFailed: CellCodec<MessageValidationFailed> = {
         encode: (data: MessageValidationFailed): Builder => {
           return beginCell()
-            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeUint(opcodes.out.messageValidationFailed, 32)
             .storeUint(data.error, 256)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
@@ -619,22 +619,27 @@ export const builder = (() => {
 
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static onrampSend = 0x10000002
-  static getValidatedFee = 0x9c2ccc7e
-  static messageValidated = fq.OutOpcodes.messageValidated
-  static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
-  static executorFinishedSuccessfully = 0xcfa6b336
-  static executorFinishedWithError = 0xc4068e21
-  static setDynamicConfig = 0x10000003
-  static updateDestChainConfigs = 0x10000004
-  static updateSendExecutor = 0x82901c45
-  static updateAllowlists = 0x9dc06185
-}
-
-export abstract class OutOpcodes {
-  static messageValidated = 0x2afb11bd
-  static messageValidationFailed = 0xac1dd12e
+export const opcodes = {
+  in: {
+    onrampSend: 0xdcf993c2,
+    getValidatedFee: 0x9c2ccc7e,
+    get messageValidated() {
+      return fq.OutOpcodes.messageValidated
+    },
+    get messageValidationFailed() {
+      return fq.OutOpcodes.messageValidationFailed
+    },
+    executorFinishedSuccessfully: 0xcfa6b336,
+    executorFinishedWithError: 0xc4068e21,
+    setDynamicConfig: 0xa178c62e,
+    updateDestChainConfigs: 0x1a246b6c,
+    updateSendExecutor: 0x82901c45,
+    updateAllowlists: 0x9dc06185,
+  },
+  out: {
+    messageValidated: 0x2afb11bd,
+    messageValidationFailed: 0xac1dd12e,
+  },
 }
 
 export enum Errors {
@@ -732,6 +737,11 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
     return stack.readCell()
   }
 
+  async getSendExecutorCodeHash(provider: ContractProvider): Promise<bigint> {
+    const { stack } = await provider.get('sendExecutorCodeHash', [])
+    return stack.readBigNumber()
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
@@ -740,6 +750,18 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
   }
   getCodeHash(provider: ContractProvider): Promise<bigint> {
     return typeAndVersion.getCodeHash(provider)
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
   }
 
   static version() {
@@ -832,7 +854,7 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.updateDestChainConfigs, 32)
+        .storeUint(opcodes.in.updateDestChainConfigs, 32)
         .storeRef(
           asSnakeData(opts.destChainConfigs, (config) =>
             new Builder()
@@ -963,5 +985,56 @@ export class OnRamp implements Contract, withdrawable.Interface, ownable2step.Co
       value,
       builder.messages.in.onrampSend.encode(body).asCell(),
     )
+  }
+
+  async getIsChainSupported(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<boolean> {
+    const { stack } = await provider.get('isChainSupported', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return stack.readBoolean()
+  }
+
+  async getExpectedNextSequenceNumber(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<bigint> {
+    const { stack } = await provider.get('expectedNextSequenceNumber', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return stack.readBigNumber()
+  }
+
+  async getDestChainConfig(
+    provider: ContractProvider,
+    destChainSelector: bigint,
+  ): Promise<DestChainConfig> {
+    const { stack } = await provider.get('destChainConfig', [
+      { type: 'int', value: destChainSelector },
+    ])
+    return {
+      router: stack.readAddress(),
+      sequenceNumber: stack.readBigNumber(),
+      allowlistEnabled: stack.readBoolean(),
+      allowedSenders: (() => {
+        const dictCell = stack.readCellOpt()
+        if (!dictCell) {
+          return Dictionary.empty<Address, boolean>()
+        }
+        return dictCell.beginParse().loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool())
+      })(),
+    }
+  }
+
+  async getDestChainSelectors(provider: ContractProvider): Promise<bigint[]> {
+    const { stack } = await provider.get('destChainSelectors', [])
+    return stack.readLispList().map((t: TupleItem) => {
+      if (t.type !== 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value as bigint
+    })
   }
 }

@@ -6,8 +6,6 @@ import {
   Contract,
   contractAddress,
   ContractProvider,
-  Dictionary,
-  DictionaryValue,
   Sender,
   SendMode,
   Slice,
@@ -18,7 +16,6 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 import * as or from './OnRamp'
 import * as fq from './FeeQuoter'
-import * as rt from './Router'
 
 export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '1.6.0'
 
@@ -31,7 +28,7 @@ export enum error {
   Unauthorized,
   InsufficientFunds,
   InsufficientFee,
-  TokenTransfersNotSupported,
+  FeeQuoterBounce,
 }
 
 export type InitialData = {
@@ -161,7 +158,7 @@ export const builder = (() => {
       const execute: CellCodec<Execute> = {
         encode: (data: Execute): Builder => {
           return beginCell()
-            .storeUint(Opcodes.execute, 32)
+            .storeUint(opcodes.in.execute, 32)
             .storeBuilder(or.builder.messages.in.onrampSend.encode(data.onrampSend))
             .storeRef(dataBuilder.config.encode(data.config).asCell())
         },
@@ -189,10 +186,12 @@ export const builder = (() => {
 })()
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static execute = 0xaf3c62b3
-  static messageValidated = fq.OutOpcodes.messageValidated
-  static messageValidationFailed = fq.OutOpcodes.messageValidationFailed
+export const opcodes = {
+  in: {
+    execute: 0xaf3c62b3,
+    messageValidated: fq.OutOpcodes.messageValidated,
+    messageValidationFailed: fq.OutOpcodes.messageValidationFailed,
+  },
 }
 
 export class ContractClient implements typeAndVersion.Interface, Contract {
@@ -227,7 +226,53 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
     })
   }
 
-  // TODO : implement contract methods
+  async sendExecute(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint | string,
+    body: Execute,
+  ) {
+    return provider.internal(via, {
+      value,
+      body: builder.message.in.execute.encode(body).asCell(),
+    })
+  }
+
+  async sendMessageValidated(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint | string,
+    body: fq.MessageValidated,
+  ) {
+    return provider.internal(via, {
+      value,
+      body: fq.builder.message.out.messageValidated.encode(body).asCell(),
+    })
+  }
+
+  async sendMessageValidationFailed(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint | string,
+    body: fq.MessageValidationFailed,
+  ) {
+    return provider.internal(via, {
+      value,
+      body: fq.builder.message.out.messageValidationFailed.encode(body).asCell(),
+    })
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
 
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
