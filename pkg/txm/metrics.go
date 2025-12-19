@@ -185,3 +185,4 @@ func (m *txmMetrics) RecordFinalizationLatency(ctx context.Context, duration tim
 	promTonTxmFinalizationLatency.WithLabelValues(m.chainID).Set(seconds)
 	m.finalizationLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
 }
+
