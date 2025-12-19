@@ -254,7 +254,7 @@ func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
 		// Verify that empty slices are preserved as nil or empty
 		assert.Empty(t, decodedReport.PriceUpdates.TokenPriceUpdates)
 		assert.Empty(t, decodedReport.PriceUpdates.GasPriceUpdates)
-		assert.Equal(t, len(report.UnblessedMerkleRoots), len(decodedReport.UnblessedMerkleRoots))
+		assert.Len(t, decodedReport.UnblessedMerkleRoots, len(report.UnblessedMerkleRoots))
 	})
 
 	t.Run("decode handles nil PriceUpdates without panic", func(t *testing.T) {
@@ -286,7 +286,7 @@ func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
 		assert.NotNil(t, decodedReport)
 
 		// Verify slices are empty (nil or zero-length)
-		assert.Len(t, decodedReport.PriceUpdates.TokenPriceUpdates, 0)
-		assert.Len(t, decodedReport.PriceUpdates.GasPriceUpdates, 0)
+		assert.Empty(t, decodedReport.PriceUpdates.TokenPriceUpdates)
+		assert.Empty(t, decodedReport.PriceUpdates.GasPriceUpdates)
 	})
 }
