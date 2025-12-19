@@ -462,7 +462,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
 
     val withdrawMsg = createMessage({
-        bounce: false, // We don't want feeAggregator returning message value on failure
+        bounce: true,
         value: 0,
         dest: config.feeAggregator,
         body: createEmptyCell(),

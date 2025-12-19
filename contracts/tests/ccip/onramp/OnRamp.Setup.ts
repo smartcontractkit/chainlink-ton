@@ -30,7 +30,7 @@ export async function deployOnRampContract(
     chainSelector: CHAINSEL_TON,
     config: {
       feeQuoter: randomAddress(),
-      feeAggregator: randomAddress(),
+      feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
       allowlistAdmin: ZERO_ADDRESS,
       reserve: toNano('0.05'),
     },
