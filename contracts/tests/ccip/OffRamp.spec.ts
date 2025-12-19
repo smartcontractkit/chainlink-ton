@@ -1046,12 +1046,12 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   it('Test execute fails when different root was committed', async () => {
-    const message = createTestMessage(1n, 1n, receiver.address)
-    const differentMessage = createTestMessage(2n, 2n, receiver.address)
+    const message = createTestMessage(2n, 2n, receiver.address)
+    const differentMessage = createTestMessage(1n, 1n, receiver.address)
 
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const differentRootBytes = uint8ArrayToBigInt(generateMessageId(differentMessage, metadataHash))
-    const differentRoot = createMerkleRoot(2n, 2n, differentRootBytes)
+    const differentRoot = createMerkleRoot(1n, 1n, differentRootBytes)
 
     // Setup configurations
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
