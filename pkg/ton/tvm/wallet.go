@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -70,7 +71,7 @@ func MyLocalTONWalletDefault(client ton.APIClientWrapped) (*wallet.Wallet, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
 	}
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(-1))
+	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(int8(address.MasterchainID)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create highload wallet: %w", err)
 	}

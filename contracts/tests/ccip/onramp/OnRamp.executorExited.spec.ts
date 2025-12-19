@@ -57,15 +57,12 @@ describe('OnRamp - executor exit', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer } = await setup(blockchain))
     deployableCode = await compile('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
-
     executorID = BigInt(generateRandomContractId())
-
-    onramp = await deployOnRampContract(blockchain, deployer, {
+    ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
@@ -74,7 +71,7 @@ describe('OnRamp - executor exit', () => {
         executorCode: await relay.ContractClient.code(),
         currentID: executorID,
       },
-    })
+    }))
 
     const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
       deployer.getSender(),
@@ -107,7 +104,7 @@ describe('OnRamp - executor exit', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
 
     const deployTX = result.transactions.find(
@@ -132,6 +129,7 @@ describe('OnRamp - executor exit', () => {
   })
 
   it('should return message sent to router', async () => {
+    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)
     const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
       value: toNano('0.5'),
       body: {
@@ -152,7 +150,7 @@ describe('OnRamp - executor exit', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.Opcodes.messageSent,
+      op: rt.opcodes.in.messageSent,
       body(x) {
         if (!x) return false
         const msgSent = rt.builder.message.in.messageSent.load(x.beginParse())
@@ -161,9 +159,12 @@ describe('OnRamp - executor exit', () => {
         )
       },
     })
+
+    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum + 1n)
   })
 
   it('should return message rejected to router', async () => {
+    const nextSeqNum = await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)
     const result = await onramp.sendExecutorFinishedWithError(executorSender, {
       value: toNano('0.5'),
       body: {
@@ -181,7 +182,7 @@ describe('OnRamp - executor exit', () => {
       from: onramp.address,
       to: mockRouter.address,
       success: true,
-      op: rt.Opcodes.messageRejected,
+      op: rt.opcodes.in.messageRejected,
       body(x) {
         if (!x) return false
         const msgSent = rt.builder.message.in.messageRejected.load(x.beginParse())
@@ -192,6 +193,7 @@ describe('OnRamp - executor exit', () => {
         )
       },
     })
+    expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum)
   })
 
   it('should fail to send message sent if executorID is incorrect', async () => {

@@ -378,8 +378,10 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var root: MerkleRoot? = null;
 
     if (!priceUpdatesOnlyReport) {
-        // no batching of roots supported for now, so no need for an iterator
-        root = MerkleRoot.fromCell(report.merkleRoots);
+        // no batching of roots supported for now
+        var iter = report.merkleRoots.iter();
+        root = iter.next();
+        assert(iter.empty(), Error.BatchingNotSupported);
     }
 
     // check that the amount attached is enough to cover message execution and delivery off outgoing messages
@@ -393,6 +395,12 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
 
         // hard cap of 128 messages per report
         assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
+
+        assert(
+            (sourceChainConfig.minSeqNr == root.minSeqNr) && // No seqNr skipped
+            (root.maxSeqNr >= root.minSeqNr), // valid root range
+            Error.InvalidInterval
+        );
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
