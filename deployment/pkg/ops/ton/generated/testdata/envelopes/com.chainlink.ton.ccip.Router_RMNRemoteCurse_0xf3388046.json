@@ -1,0 +1,12 @@
+[
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":3433120451151447635,"Subjects":[{"Value":135934091611469982238620799715543835311}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":75475915089811297,"Subjects":[{"Value":206960110017103021501473427192204135120}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":742046809521679462,"Subjects":[{"Value":274592270946850882625737300877469512201}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":8397770418877294284,"Subjects":[{"Value":79598080104443541143530303691500254116}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":13400928195557972741,"Subjects":[{"Value":146177480097162240177995209382625271454},{"Value":179426903201156628148901201052766665814}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":13196663081388854805,"Subjects":[{"Value":184885179691002015302762073872438113808},{"Value":200541753749731597593056245329751732042}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":17616425387479987305,"Subjects":[{"Value":191686413064997374494962041686476289529},{"Value":319152154373066514019831780677819640143}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":792132577063201848,"Subjects":[{"Value":2646821399038977052390262266317023907}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":10782572350344882922,"Subjects":[{"Value":161256757996623022686267294627713995617},{"Value":31786781079305558201084431399652619089}]}},
+  {"contract":"com.chainlink.ton.ccip.Router","type":"RMNRemoteCurse","opcode":"0xf3388046","payload":{"QueryID":8381972932457466451,"Subjects":[{"Value":118311278304813044851277252412375580788}]}},
+]
