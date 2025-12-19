@@ -429,7 +429,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     }
 
     // update token/gas prices if any
-    if (report.priceUpdates != null) {
+    if (report.priceUpdates != null && !report.priceUpdates.beginParse().isEmpty()) {
         // extract OCR sequence number from report context (matches EVM implementation)
         val ocrSequenceNumber = msg.reportContext.sequenceBytes;
 
