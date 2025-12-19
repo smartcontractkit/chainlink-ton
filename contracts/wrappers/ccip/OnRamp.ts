@@ -39,7 +39,11 @@ export type OnRampStorage = {
   id: bigint
   ownable: ownable2step.Data
   chainSelector: bigint
-  config: DynamicConfig
+  config: {
+    feeQuoter: Address
+    feeAggregator: Address
+    allowlistAdmin: Address
+  }
   destChainConfigs: Dictionary<bigint, Cell>
   executor: ExecutorDeployment
 }
@@ -138,16 +142,11 @@ export type DynamicConfig = {
   feeQuoter: Address
   feeAggregator: Address
   allowlistAdmin: Address
-  reserve: bigint
 }
 
 export type GetValidatedFee = {
   msg: rt.CCIPSend
   context: Slice
-}
-
-export type WithdrawFeeTokens = {
-  feeTokens: Address[]
 }
 
 const metadataCodec: CellCodec<Metadata> = {
@@ -195,14 +194,12 @@ export const builder = (() => {
           .storeAddress(data.feeQuoter)
           .storeAddress(data.feeAggregator)
           .storeAddress(data.allowlistAdmin)
-          .storeCoins(data.reserve)
       },
       load: (src: Slice): DynamicConfig => {
         return {
           feeQuoter: src.loadAddress(),
           feeAggregator: src.loadAddress(),
           allowlistAdmin: src.loadAddress(),
-          reserve: src.loadCoins(),
         }
       },
     }
@@ -536,24 +533,6 @@ export const builder = (() => {
         },
       }
 
-      const withdrawFeeTokens: CellCodec<WithdrawFeeTokens> = {
-        encode: function (data: WithdrawFeeTokens): Builder {
-          return beginCell()
-            .storeUint(opcodes.in.withdrawFeeTokens, 32)
-            .storeRef(
-              asSnakeData<Address>(data.feeTokens, (token: Address) =>
-                beginCell().storeAddress(token),
-              ),
-            )
-        },
-        load: function (src: Slice): WithdrawFeeTokens {
-          src.skip(32) // opcode
-          return {
-            feeTokens: fromSnakeData<Address>(src.loadRef(), (cell: Slice) => cell.loadAddress()),
-          }
-        },
-      }
-
       return {
         getValidatedFee,
         messageValidated,
@@ -564,7 +543,6 @@ export const builder = (() => {
         setDynamicConfig,
         updateSendExecutor,
         updateAllowlists,
-        withdrawFeeTokens,
       }
     })()
 
@@ -657,7 +635,6 @@ export const opcodes = {
     updateDestChainConfigs: 0x1a246b6c,
     updateSendExecutor: 0x82901c45,
     updateAllowlists: 0x9dc06185,
-    withdrawFeeTokens: 0x7052dc75,
   },
   out: {
     messageValidated: 0x2afb11bd,
@@ -670,8 +647,6 @@ export enum Errors {
   Unauthorized,
   SenderNotAllowed,
   InvalidConfig,
-  UnknownToken,
-  InsufficientValue,
 }
 
 const cloneToSlice = (value?: Slice | Cell): Slice => {
@@ -686,7 +661,7 @@ const cloneToSlice = (value?: Slice | Cell): Slice => {
   return cloned.beginParse()
 }
 
-export class OnRamp implements Contract, ownable2step.ContractClient {
+export class OnRamp implements Contract, withdrawable.Interface, ownable2step.ContractClient {
   public ownable: ownable2step.ContractClient
 
   constructor(
@@ -953,17 +928,13 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
   }
 
   // Withdrawable methods
-  async sendWithdrawFeeTokens(
+  async sendWithdraw(
     provider: ContractProvider,
     via: Sender,
     value: bigint,
-    body: WithdrawFeeTokens,
+    body: withdrawable.Withdraw,
   ) {
-    return await provider.internal(via, {
-      value: value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.withdrawFeeTokens.encode(body).asCell(),
-    })
+    return await withdrawable.sendWithdraw(provider, via, value, body)
   }
 
   async getDynamicConfig(provider: ContractProvider): Promise<DynamicConfig> {
@@ -972,7 +943,6 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
       feeQuoter: stack.readAddress(),
       feeAggregator: stack.readAddress(),
       allowlistAdmin: stack.readAddress(),
-      reserve: stack.readBigNumber(),
     }
   }
 

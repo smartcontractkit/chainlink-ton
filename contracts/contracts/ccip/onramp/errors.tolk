@@ -5,6 +5,4 @@ enum Error {
     Unauthorized
     SenderNotAllowed
     InvalidConfig
-    UnknownToken
-    InsufficientValue
 }

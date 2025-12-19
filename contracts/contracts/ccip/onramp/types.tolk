@@ -16,7 +16,6 @@ struct OnRamp_DynamicConfig {
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;
     allowlistAdmin: address;
-    reserve: coins;
 }
 
 struct OnRampUpdateDestChainConfig {

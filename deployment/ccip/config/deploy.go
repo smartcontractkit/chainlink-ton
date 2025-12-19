@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -94,7 +93,6 @@ type OnRampParams struct {
 	ChainSelector   uint64
 	AllowlistAdmin  *address.Address
 	FeeAggregator   *address.Address
-	Reserve         string
 }
 
 func (o OnRampParams) Validate() error {

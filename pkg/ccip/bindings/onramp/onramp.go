@@ -116,10 +116,7 @@ type UpdateAllowlists struct {
 	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
 }
 
-type WithdrawFeeTokens struct {
-	_         tlb.Magic                            `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
-	FeeTokens common.SnakeData[common.AddressWrap] `tlb:"."`
-}
+type WithdrawFeeTokens struct{}
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
@@ -229,7 +226,6 @@ type DynamicConfig struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
 	FeeAggregator  *address.Address `tlb:"addr"`
 	AllowListAdmin *address.Address `tlb:"addr"`
-	Reserve        tlb.Coins        `tlb:"."`
 }
 
 func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
@@ -257,17 +253,10 @@ func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	reserveValue, err := result.Int(3)
-	if err != nil {
-		return err
-	}
-	reserve := tlb.FromNanoTON(reserveValue)
-
 	*c = DynamicConfig{
 		FeeQuoter:      feeQuoterAddress,
 		FeeAggregator:  feeAggregatorAddress,
 		AllowListAdmin: allowlistAdminAddress,
-		Reserve:        reserve,
 	}
 	return nil
 }
@@ -344,7 +333,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(UnknownDestChainSelector)
-		ecMax = int32(InsufficientValue)
+		ecMax = int32(InvalidConfig)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -354,6 +343,4 @@ const (
 	Unauthorized
 	SenderNotAllowed
 	InvalidConfig
-	UnknownToken
-	InsufficientValue
 )

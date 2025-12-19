@@ -184,7 +184,6 @@ func TestStorage(t *testing.T) {
 			FeeAggregator:  dummyAddr,
 			FeeQuoter:      dummyAddr,
 			AllowListAdmin: dummyAddr,
-			Reserve:        tlb.MustFromTON("0.05"),
 		},
 		DestChainConfigs: destConfigMap,
 		Executor: ExecutorDeployment{
