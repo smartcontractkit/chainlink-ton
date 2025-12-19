@@ -12,15 +12,14 @@ import (
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
 	"github.com/smartcontractkit/chainlink-ccip/chainconfig"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/rmn_home"
 	capabilities_registry "github.com/smartcontractkit/chainlink-evm/gethwrappers/keystone/generated/capabilities_registry_1_1_0"
-	csav1 "github.com/smartcontractkit/chainlink-protos/job-distributor/v1/csa"
-	jobv1 "github.com/smartcontractkit/chainlink-protos/job-distributor/v1/job"
-	nodev1 "github.com/smartcontractkit/chainlink-protos/job-distributor/v1/node"
+	"github.com/smartcontractkit/chainlink-protos/job-distributor/v1/node"
 	"github.com/smartcontractkit/chainlink-protos/job-distributor/v1/shared/ptypes"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -35,10 +34,12 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/common/types"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	ccipcaptypes "github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/types"
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
+
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	mocks "github.com/smartcontractkit/chainlink-ton/mocks/client"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
@@ -84,12 +85,12 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	}
 
 	// Mock nodes for v1_6 changesets (simulates Job Distributor responses)
-	mockNodes := make([]*nodev1.Node, numNodes)
+	mockNodes := make([]*node.Node, numNodes)
 	nodeIDs := make([]string, numNodes)
 	for i := range p2pKeys {
 		peerIDStr := p2pKeys[i].PeerID().String()
 		nodeIDs[i] = peerIDStr
-		mockNodes[i] = &nodev1.Node{
+		mockNodes[i] = &node.Node{
 			Id:        peerIDStr,
 			Name:      fmt.Sprintf("node-%d", i+1),
 			PublicKey: hex.EncodeToString(testP2PIDs[i][:]),
@@ -102,7 +103,7 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	tonChainID, err := chainselectors.GetChainIDFromSelector(tonSelector)
 	require.NoError(t, err, "failed to get TON chain ID from selector")
 	env.NodeIDs = nodeIDs
-	env.Offchain = &mockOffchainClient{nodes: mockNodes, tonChainID: tonChainID}
+	env.Offchain = setupMockOffChainClient(t, mockNodes, tonChainID)
 	testNodeOperator := "TestNodeOperator"
 
 	// In order to test SetOCR3Config end-to-end, we need to run few steps to set up Home chain configuration
@@ -232,164 +233,107 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("Successfully set OCR3 config on TON offRamp")
 }
 
-// mockOffchainClient mocks the Job Distributor for testing v1_6 changesets
-type mockOffchainClient struct {
-	nodes      []*nodev1.Node
-	tonChainID string
-}
+// setupMockOffChainClient configures a mockery-generated Client mock to simulate
+// the Job Distributor for testing v1_6 changesets
+func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string) *mocks.Client {
+	mockClient := mocks.NewClient(t)
 
-func (m *mockOffchainClient) ListNodes(ctx context.Context, in *nodev1.ListNodesRequest, opts ...grpc.CallOption) (*nodev1.ListNodesResponse, error) {
-	return &nodev1.ListNodesResponse{Nodes: m.nodes}, nil
-}
+	// ListNodes returns all nodes
+	mockClient.EXPECT().ListNodes(mock.Anything, mock.Anything).
+		Return(&node.ListNodesResponse{Nodes: nodes}, nil).Maybe()
 
-func (m *mockOffchainClient) ListNodeChainConfigs(ctx context.Context, in *nodev1.ListNodeChainConfigsRequest, opts ...grpc.CallOption) (*nodev1.ListNodeChainConfigsResponse, error) {
-	var configs []*nodev1.ChainConfig
+	// ListNodeChainConfigs returns EVM and TON chain configs for each node
+	mockClient.EXPECT().ListNodeChainConfigs(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, in *node.ListNodeChainConfigsRequest, _ ...grpc.CallOption) (*node.ListNodeChainConfigsResponse, error) {
+			var configs []*node.ChainConfig
 
-	requestedNodeIDs := make(map[string]bool)
-	if in.Filter != nil {
-		for _, id := range in.Filter.NodeIds {
-			requestedNodeIDs[id] = true
-		}
-	}
-
-	for nodeIdx, node := range m.nodes {
-		if len(requestedNodeIDs) > 0 && !requestedNodeIDs[node.Id] {
-			continue
-		}
-
-		var peerIDStr string
-		for _, label := range node.Labels {
-			if label.Key == "p2p_id" && label.Value != nil {
-				peerIDStr = *label.Value
-				break
+			requestedNodeIDs := make(map[string]bool)
+			if in.Filter != nil {
+				for _, id := range in.Filter.NodeIds {
+					requestedNodeIDs[id] = true
+				}
 			}
-		}
-		if peerIDStr == "" {
-			continue
-		}
 
-		// Generate unique OCR keys per node
-		var ocrKeyBytes [32]byte
-		for j := 0; j < 32; j++ {
-			ocrKeyBytes[j] = byte(nodeIdx + 1 + j)
-		}
+			for nodeIdx, n := range nodes {
+				if len(requestedNodeIDs) > 0 && !requestedNodeIDs[n.Id] {
+					continue
+				}
 
-		configs = append(configs, &nodev1.ChainConfig{
-			NodeId: node.Id,
-			Chain: &nodev1.Chain{
-				Id:   "1",
-				Type: nodev1.ChainType_CHAIN_TYPE_EVM,
-			},
-			Ocr2Config: &nodev1.OCR2Config{
-				OcrKeyBundle: &nodev1.OCR2Config_OCRKeyBundle{
-					BundleId:              fmt.Sprintf("bundle-evm-%s", node.Id),
-					OnchainSigningAddress: hex.EncodeToString(ocrKeyBytes[:20]),
-					OffchainPublicKey:     hex.EncodeToString(ocrKeyBytes[:32]),
-					ConfigPublicKey:       hex.EncodeToString(ocrKeyBytes[:32]),
-				},
-				P2PKeyBundle: &nodev1.OCR2Config_P2PKeyBundle{
-					PeerId: peerIDStr,
-				},
-			},
-			AccountAddress: fmt.Sprintf("0x%s", hex.EncodeToString(ocrKeyBytes[:20])),
-		})
-		// TON chain config (required by AddDonAndSetCandidateChangeset for TON family OCR setup)
-		if m.tonChainID != "" {
-			tonAddr := address.NewAddress(0, 0, ocrKeyBytes[:])
-			configs = append(configs, &nodev1.ChainConfig{
-				NodeId: node.Id,
-				Chain: &nodev1.Chain{
-					Id:   m.tonChainID,
-					Type: nodev1.ChainType_CHAIN_TYPE_TON,
-				},
-				Ocr2Config: &nodev1.OCR2Config{
-					OcrKeyBundle: &nodev1.OCR2Config_OCRKeyBundle{
-						BundleId:              fmt.Sprintf("bundle-ton-%s", node.Id),
-						OnchainSigningAddress: hex.EncodeToString(ocrKeyBytes[:32]),
-						OffchainPublicKey:     hex.EncodeToString(ocrKeyBytes[:32]),
-						ConfigPublicKey:       hex.EncodeToString(ocrKeyBytes[:32]),
+				var peerIDStr string
+				for _, label := range n.Labels {
+					if label.Key == "p2p_id" && label.Value != nil {
+						peerIDStr = *label.Value
+						break
+					}
+				}
+				if peerIDStr == "" {
+					continue
+				}
+
+				// Generate unique OCR keys per node
+				var ocrKeyBytes [32]byte
+				for j := 0; j < 32; j++ {
+					ocrKeyBytes[j] = byte(nodeIdx + 1 + j)
+				}
+
+				configs = append(configs, &node.ChainConfig{
+					NodeId: n.Id,
+					Chain: &node.Chain{
+						Id:   "1",
+						Type: node.ChainType_CHAIN_TYPE_EVM,
 					},
-					P2PKeyBundle: &nodev1.OCR2Config_P2PKeyBundle{
-						PeerId: peerIDStr,
+					Ocr2Config: &node.OCR2Config{
+						OcrKeyBundle: &node.OCR2Config_OCRKeyBundle{
+							BundleId:              fmt.Sprintf("bundle-evm-%s", n.Id),
+							OnchainSigningAddress: hex.EncodeToString(ocrKeyBytes[:20]),
+							OffchainPublicKey:     hex.EncodeToString(ocrKeyBytes[:32]),
+							ConfigPublicKey:       hex.EncodeToString(ocrKeyBytes[:32]),
+						},
+						P2PKeyBundle: &node.OCR2Config_P2PKeyBundle{
+							PeerId: peerIDStr,
+						},
 					},
-				},
-				AccountAddress: tonAddr.String(),
-			})
-		}
-	}
-	return &nodev1.ListNodeChainConfigsResponse{ChainConfigs: configs}, nil
-}
+					AccountAddress: fmt.Sprintf("0x%s", hex.EncodeToString(ocrKeyBytes[:20])),
+				})
+				// TON chain config (required by AddDonAndSetCandidateChangeset for TON family OCR setup)
+				if tonChainID != "" {
+					tonAddr := address.NewAddress(0, 0, ocrKeyBytes[:])
+					configs = append(configs, &node.ChainConfig{
+						NodeId: n.Id,
+						Chain: &node.Chain{
+							Id:   tonChainID,
+							Type: node.ChainType_CHAIN_TYPE_TON,
+						},
+						Ocr2Config: &node.OCR2Config{
+							OcrKeyBundle: &node.OCR2Config_OCRKeyBundle{
+								BundleId:              fmt.Sprintf("bundle-ton-%s", n.Id),
+								OnchainSigningAddress: hex.EncodeToString(ocrKeyBytes[:32]),
+								OffchainPublicKey:     hex.EncodeToString(ocrKeyBytes[:32]),
+								ConfigPublicKey:       hex.EncodeToString(ocrKeyBytes[:32]),
+							},
+							P2PKeyBundle: &node.OCR2Config_P2PKeyBundle{
+								PeerId: peerIDStr,
+							},
+						},
+						AccountAddress: tonAddr.String(),
+					})
+				}
+			}
+			return &node.ListNodeChainConfigsResponse{ChainConfigs: configs}, nil
+		}).Maybe()
 
-// NodeServiceClient stub methods
-func (m *mockOffchainClient) DisableNode(ctx context.Context, in *nodev1.DisableNodeRequest, opts ...grpc.CallOption) (*nodev1.DisableNodeResponse, error) {
-	return &nodev1.DisableNodeResponse{}, nil
-}
+	// GetNode returns a specific node by ID
+	mockClient.EXPECT().GetNode(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, in *node.GetNodeRequest, _ ...grpc.CallOption) (*node.GetNodeResponse, error) {
+			for _, n := range nodes {
+				if n.Id == in.Id {
+					return &node.GetNodeResponse{Node: n}, nil
+				}
+			}
+			return nil, fmt.Errorf("node not found: %s", in.Id)
+		}).Maybe()
 
-func (m *mockOffchainClient) EnableNode(ctx context.Context, in *nodev1.EnableNodeRequest, opts ...grpc.CallOption) (*nodev1.EnableNodeResponse, error) {
-	return &nodev1.EnableNodeResponse{}, nil
-}
-
-func (m *mockOffchainClient) GetNode(ctx context.Context, in *nodev1.GetNodeRequest, opts ...grpc.CallOption) (*nodev1.GetNodeResponse, error) {
-	for _, node := range m.nodes {
-		if node.Id == in.Id {
-			return &nodev1.GetNodeResponse{Node: node}, nil
-		}
-	}
-	return nil, fmt.Errorf("node not found: %s", in.Id)
-}
-
-func (m *mockOffchainClient) RegisterNode(ctx context.Context, in *nodev1.RegisterNodeRequest, opts ...grpc.CallOption) (*nodev1.RegisterNodeResponse, error) {
-	return &nodev1.RegisterNodeResponse{}, nil
-}
-
-func (m *mockOffchainClient) UpdateNode(ctx context.Context, in *nodev1.UpdateNodeRequest, opts ...grpc.CallOption) (*nodev1.UpdateNodeResponse, error) {
-	return &nodev1.UpdateNodeResponse{}, nil
-}
-
-// JobServiceClient stub methods
-func (m *mockOffchainClient) GetJob(ctx context.Context, in *jobv1.GetJobRequest, opts ...grpc.CallOption) (*jobv1.GetJobResponse, error) {
-	return &jobv1.GetJobResponse{}, nil
-}
-
-func (m *mockOffchainClient) GetProposal(ctx context.Context, in *jobv1.GetProposalRequest, opts ...grpc.CallOption) (*jobv1.GetProposalResponse, error) {
-	return &jobv1.GetProposalResponse{}, nil
-}
-
-func (m *mockOffchainClient) ListJobs(ctx context.Context, in *jobv1.ListJobsRequest, opts ...grpc.CallOption) (*jobv1.ListJobsResponse, error) {
-	return &jobv1.ListJobsResponse{}, nil
-}
-
-func (m *mockOffchainClient) ListProposals(ctx context.Context, in *jobv1.ListProposalsRequest, opts ...grpc.CallOption) (*jobv1.ListProposalsResponse, error) {
-	return &jobv1.ListProposalsResponse{}, nil
-}
-
-func (m *mockOffchainClient) ProposeJob(ctx context.Context, in *jobv1.ProposeJobRequest, opts ...grpc.CallOption) (*jobv1.ProposeJobResponse, error) {
-	return &jobv1.ProposeJobResponse{}, nil
-}
-
-func (m *mockOffchainClient) BatchProposeJob(ctx context.Context, in *jobv1.BatchProposeJobRequest, opts ...grpc.CallOption) (*jobv1.BatchProposeJobResponse, error) {
-	return &jobv1.BatchProposeJobResponse{}, nil
-}
-
-func (m *mockOffchainClient) RevokeJob(ctx context.Context, in *jobv1.RevokeJobRequest, opts ...grpc.CallOption) (*jobv1.RevokeJobResponse, error) {
-	return &jobv1.RevokeJobResponse{}, nil
-}
-
-func (m *mockOffchainClient) DeleteJob(ctx context.Context, in *jobv1.DeleteJobRequest, opts ...grpc.CallOption) (*jobv1.DeleteJobResponse, error) {
-	return &jobv1.DeleteJobResponse{}, nil
-}
-
-func (m *mockOffchainClient) UpdateJob(ctx context.Context, in *jobv1.UpdateJobRequest, opts ...grpc.CallOption) (*jobv1.UpdateJobResponse, error) {
-	return &jobv1.UpdateJobResponse{}, nil
-}
-
-// CSAServiceClient stub methods
-func (m *mockOffchainClient) GetKeypair(ctx context.Context, in *csav1.GetKeypairRequest, opts ...grpc.CallOption) (*csav1.GetKeypairResponse, error) {
-	return &csav1.GetKeypairResponse{}, nil
-}
-
-func (m *mockOffchainClient) ListKeypairs(ctx context.Context, in *csav1.ListKeypairsRequest, opts ...grpc.CallOption) (*csav1.ListKeypairsResponse, error) {
-	return &csav1.ListKeypairsResponse{}, nil
+	return mockClient
 }
 
 // addCapabilitiesRegistryVersionAlias creates a v1.6.0 alias for the v1.0.0 CapabilitiesRegistry
