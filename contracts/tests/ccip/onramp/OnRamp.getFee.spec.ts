@@ -83,7 +83,7 @@ describe('OnRamp - Get Fee', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.getValidatedFee,
+      op: or.Opcodes.getValidatedFee,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
@@ -135,7 +135,7 @@ describe('OnRamp - Get Fee', () => {
       from: anotherSender.address,
       to: onramp.address,
       success: false,
-      op: or.opcodes.in.messageValidated,
+      op: or.Opcodes.messageValidated,
       exitCode: or.Errors.Unauthorized,
     })
   })
@@ -160,12 +160,12 @@ describe('OnRamp - Get Fee', () => {
       from: mockFeeQuoter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.messageValidated,
+      op: or.Opcodes.messageValidated,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockRouter.address,
-      op: or.opcodes.out.messageValidated,
+      op: or.OutOpcodes.messageValidated,
     })
   })
 
@@ -187,12 +187,12 @@ describe('OnRamp - Get Fee', () => {
       from: mockFeeQuoter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.messageValidationFailed,
+      op: or.Opcodes.messageValidationFailed,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockRouter.address,
-      op: or.opcodes.out.messageValidationFailed,
+      op: or.OutOpcodes.messageValidationFailed,
       body: or.builder.messages.out.messageValidationFailed
         .encode({
           error: validationFailedMsg.error,

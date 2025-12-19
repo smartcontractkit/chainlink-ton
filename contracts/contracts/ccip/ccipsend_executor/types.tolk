@@ -24,15 +24,11 @@ struct CCIPSendExecutor_Addresses {
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
-    | Cell<CCIPSendExecutor_State_Finalized>
 
 struct CCIPSendExecutor_State_Initialized {
 }
 
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
-}
-
-struct CCIPSendExecutor_State_Finalized {
 }
 
 struct CCIPSendExecutor_Config {

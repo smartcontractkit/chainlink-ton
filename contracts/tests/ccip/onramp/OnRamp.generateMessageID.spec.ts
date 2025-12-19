@@ -108,7 +108,7 @@ describe('OnRamp - generate message id', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.onrampSend,
+      op: or.Opcodes.onrampSend,
     })
 
     const deployTX = result.transactions.find(
@@ -203,7 +203,7 @@ describe('OnRamp - generate message id', () => {
       from: executorSender.address,
       to: onramp.address,
       success: true,
-      op: or.opcodes.in.executorFinishedSuccessfully,
+      op: or.Opcodes.executorFinishedSuccessfully,
     })
 
     for (const tx of result.transactions) {

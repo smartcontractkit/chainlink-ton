@@ -12,6 +12,7 @@ import {
   ContractABI,
   Contract,
   DictionaryValue,
+  DictionaryKey,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'
@@ -61,7 +62,6 @@ export enum OffRampError {
   TooManyMessagesInReport,
   SignatureVerificationRequiredInCommitPlugin,
   SignatureVerificationNotAllowedInExecutionPlugin,
-  BatchingNotSupported,
 }
 
 export enum ReceiveExecutorError {
@@ -169,11 +169,6 @@ export type UpdateDeployables = {
   queryId?: bigint
   receiveExecutorCode?: Cell
   merkleRootCode?: Cell
-}
-
-export type CCIPReceiveConfirm = {
-  execID: bigint
-  receiver: Address
 }
 
 export type Config = {
@@ -582,22 +577,6 @@ export const builder = {
         },
       }
 
-      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
-        encode: (data: CCIPReceiveConfirm): Builder => {
-          return beginCell()
-            .storeUint(Opcodes.ccipReceiveConfirm, 32)
-            .storeUint(data.execID, 192)
-            .storeAddress(data.receiver)
-        },
-        load: (src: Slice): CCIPReceiveConfirm => {
-          src.skip(32) //opcode
-          return {
-            execID: src.loadUintBig(192),
-            receiver: src.loadAddress(),
-          }
-        },
-      }
-
       return {
         commit,
         execute,
@@ -607,7 +586,6 @@ export const builder = {
         setDynamicConfig,
         dispatchValidated,
         updateDeployables,
-        ccipReceiveConfirm,
       }
     })(),
   },

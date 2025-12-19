@@ -12,12 +12,11 @@ func _() {
 	_ = x[ErrorUnauthorized-43601]
 	_ = x[ErrorInsufficientFunds-43602]
 	_ = x[ErrorInsufficientFee-43603]
-	_ = x[ErrorFeeQuoterBounce-43604]
 }
 
-const _ExitCode_name = "ErrorStateNotExpectedErrorUnauthorizedErrorInsufficientFundsErrorInsufficientFeeErrorFeeQuoterBounce"
+const _ExitCode_name = "ErrorStateNotExpectedErrorUnauthorizedErrorInsufficientFundsErrorInsufficientFee"
 
-var _ExitCode_index = [...]uint8{0, 21, 38, 60, 80, 100}
+var _ExitCode_index = [...]uint8{0, 21, 38, 60, 80}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 43600

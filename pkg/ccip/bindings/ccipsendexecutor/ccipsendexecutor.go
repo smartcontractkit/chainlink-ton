@@ -28,7 +28,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorStateNotExpected)
-		ecMax = int32(ErrorFeeQuoterBounce)
+		ecMax = int32(ErrorInsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -39,7 +39,6 @@ const (
 	ErrorUnauthorized
 	ErrorInsufficientFunds
 	ErrorInsufficientFee
-	ErrorFeeQuoterBounce
 )
 
 // CCIPSendExecutor_Execute message structure

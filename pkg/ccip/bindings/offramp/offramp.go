@@ -349,7 +349,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorBatchingNotSupported)
+		ecMax = int32(ErrorZeroAddressNotAllowed)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -367,7 +367,6 @@ const (
 	ErrorZeroAddressNotAllowed
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
-	ErrorBatchingNotSupported
 )
 
 // Getter method names for binding fetchers

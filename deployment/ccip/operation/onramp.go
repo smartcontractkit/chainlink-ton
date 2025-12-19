@@ -54,7 +54,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in 
 		})
 	}
 
-	input := onramp.UpdateDestChainConfigsMessage{
+	input := onramp.UpdateDestChainConfigs{
 		Updates: common.SnakeData[onramp.UpdateDestChainConfig](configs),
 	}
 

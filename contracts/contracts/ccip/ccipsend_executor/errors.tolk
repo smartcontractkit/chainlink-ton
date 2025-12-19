@@ -3,5 +3,4 @@ enum CCIPSendExecutor_Error {
     Unauthorized
     InsufficientFunds
     InsufficientFee
-    FeeQuoterBounce
 }

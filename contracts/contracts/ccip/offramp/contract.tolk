@@ -378,10 +378,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var root: MerkleRoot? = null;
 
     if (!priceUpdatesOnlyReport) {
-        // no batching of roots supported for now
-        var iter = report.merkleRoots.iter();
-        root = iter.next();
-        assert(iter.empty(), Error.BatchingNotSupported);
+        // no batching of roots supported for now, so no need for an iterator
+        root = MerkleRoot.fromCell(report.merkleRoots);
     }
 
     // check that the amount attached is enough to cover message execution and delivery off outgoing messages

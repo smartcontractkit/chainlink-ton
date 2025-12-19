@@ -11,8 +11,9 @@ import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
 import * as rt from '../../../wrappers/ccip/Router'
-import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
+import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import {
   CHAIN_FAMILY_SELECTOR_EVM,
   CHAIN_FAMILY_SELECTOR_SVM,
@@ -567,9 +568,11 @@ export class FeeQuoterSetup {
 
     const body = resp.body.beginParse()
     const errorCode = body.preloadUint(32)
-    if (errorCode !== sx.opcodes.in.messageValidated) {
-      if (errorCode === sx.opcodes.in.messageValidationFailed) {
-        const failure = sx.builder.message.in.messageValidationFailed.load(resp.body.beginParse())
+    if (errorCode !== sendExecutor.Opcodes.messageValidated) {
+      if (errorCode === sendExecutor.Opcodes.messageValidationFailed) {
+        const failure = sendExecutor.builder.message.in.messageValidationFailed.load(
+          resp.body.beginParse(),
+        )
         throw new Error(
           `Message validation failed with error ${printErrorName(Number(failure.error))}`,
         )
@@ -602,7 +605,7 @@ export class FeeQuoterSetup {
     try {
       expect(result.transactions).toHaveTransaction({
         from: this.bind.feeQuoter.address,
-        op: sx.opcodes.in.messageValidationFailed,
+        op: sendExec.Opcodes.messageValidationFailed,
         success: true,
       })
     } catch (error) {
@@ -610,7 +613,7 @@ export class FeeQuoterSetup {
       try {
         expect(result.transactions).toHaveTransaction({
           from: this.bind.feeQuoter.address,
-          op: sx.opcodes.in.messageValidated,
+          op: sendExec.Opcodes.messageValidated,
           success: true,
         })
         success = true
@@ -622,12 +625,12 @@ export class FeeQuoterSetup {
     try {
       expect(result.transactions).toHaveTransaction({
         from: this.bind.feeQuoter.address,
-        op: sx.opcodes.in.messageValidationFailed,
+        op: sendExec.Opcodes.messageValidationFailed,
         success: true,
         body(x) {
           return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
             x,
-            sx.builder.message.in.messageValidationFailed,
+            sendExec.builder.message.in.messageValidationFailed,
             [
               (msg) => {
                 if (msg.error === BigInt(expectedError)) {
@@ -662,62 +665,58 @@ export class FeeQuoterFeeSetup extends FeeQuoterSetup {
 }
 function printErrorName(error: number): string {
   switch (error) {
-    case feeQuoter.errors.UnsupportedChainFamilySelector:
+    case feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector:
       return 'UnsupportedChainFamilySelector'
-    case feeQuoter.errors.GasLimitTooHigh:
+    case feeQuoter.FeeQuoterError.GasLimitTooHigh:
       return 'GasLimitTooHigh'
-    case feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue:
+    case feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue:
       return 'ExtraArgOutOfOrderExecutionMustBeTrue'
-    case feeQuoter.errors.InvalidExtraArgsData:
+    case feeQuoter.FeeQuoterError.InvalidExtraArgsData:
       return 'InvalidExtraArgsData'
-    case feeQuoter.errors.UnsupportedNumberOfTokens:
+    case feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens:
       return 'UnsupportedNumberOfTokens'
-    case feeQuoter.errors.InvalidEVMReceiverAddress:
-      return 'InvalidEVMReceiverAddress'
-    case feeQuoter.errors.Invalid32ByteReceiverAddress:
-      return 'Invalid32ByteReceiverAddress'
-    case feeQuoter.errors.InvalidSuiReceiverAddress:
+    case feeQuoter.FeeQuoterError.InvalidSuiReceiverAddress:
       return 'InvalidSuiReceiverAddress'
-    case feeQuoter.errors.InvalidSVMReceiverAddress:
-      return 'InvalidSVMReceiverAddress'
-    case feeQuoter.errors.InvalidTokenReceiver:
+    case feeQuoter.FeeQuoterError.InvalidTokenReceiver:
       return 'InvalidTokenReceiver'
-    case feeQuoter.errors.TooManySuiExtraArgsReceiverObjectIds:
+    case feeQuoter.FeeQuoterError.TooManySuiExtraArgsReceiverObjectIds:
       return 'TooManySuiExtraArgsReceiverObjectIds'
-    case feeQuoter.errors.MsgDataTooLarge:
+    case feeQuoter.FeeQuoterError.MsgDataTooLarge:
       return 'MsgDataTooLarge'
-    case feeQuoter.errors.StaleGasPrice:
+    case feeQuoter.FeeQuoterError.StaleGasPrice:
       return 'StaleGasPrice'
-    case feeQuoter.errors.DestChainNotEnabled:
+    case feeQuoter.FeeQuoterError.DestChainNotEnabled:
       return 'DestChainNotEnabled'
-    case feeQuoter.errors.FeeTokenNotSupported:
+    case feeQuoter.FeeQuoterError.FeeTokenNotSupported:
       return 'FeeTokenNotSupported'
-    case feeQuoter.errors.InvalidMsgData:
+    case feeQuoter.FeeQuoterError.InvalidMsgData:
       return 'InvalidMsgData'
-    case feeQuoter.errors.TokenNotSupported:
+    case feeQuoter.FeeQuoterError.TokenNotSupported:
       return 'TokenNotSupported'
-    case feeQuoter.errors.UnknownDestChainSelector:
+    case feeQuoter.FeeQuoterError.UnknownDestChainSelector:
       return 'UnknownDestChainSelector'
-    case feeQuoter.errors.InsufficientFee:
+    case feeQuoter.FeeQuoterError.InsufficientFee:
       return 'InsufficientFee'
-    case feeQuoter.errors.TokenTransfersNotSupported:
+    case feeQuoter.FeeQuoterError.TokenTransfersNotSupported:
       return 'TokenTransfersNotSupported'
-    case feeQuoter.errors.UnauthorizedPriceUpdater:
+    case feeQuoter.FeeQuoterError.UnauthorizedPriceUpdater:
       return 'UnauthorizedPriceUpdater'
-    case feeQuoter.errors.ExecutionCostOverflow:
+    case feeQuoter.FeeQuoterError.ExecutionCostOverflow:
       return 'ExecutionCostOverflow'
-    case feeQuoter.errors.PremiumFeeOverflow:
+    case feeQuoter.FeeQuoterError.PremiumFeeOverflow:
       return 'PremiumFeeOverflow'
-    case feeQuoter.errors.DataAvailabilityCostOverflow:
+    case feeQuoter.FeeQuoterError.DataAvailabilityCostOverflow:
       return 'DataAvailabilityCostOverflow'
-    case feeQuoter.errors.FeeCalculationOverflow:
+    case feeQuoter.FeeQuoterError.FeeCalculationOverflow:
       return 'FeeCalculationOverflow'
-    case feeQuoter.errors.TokenPriceTooLow:
+    case feeQuoter.FeeQuoterError.TokenPriceTooLow:
       return 'TokenPriceTooLow'
-    case feeQuoter.errors.FeeOverflow:
+    case feeQuoter.FeeQuoterError.FeeOverflow:
       return 'FeeOverflow'
-    case feeQuoter.errors.MessageFeeTooHigh:
+    case feeQuoter.FeeQuoterError.MessageFeeTooHigh:
       return 'MessageFeeTooHigh'
+    case 5001:
+      return 'Invalid EVM address'
     default:
       throw new Error(`Unknown error code: ${error.toString()}`)
   }

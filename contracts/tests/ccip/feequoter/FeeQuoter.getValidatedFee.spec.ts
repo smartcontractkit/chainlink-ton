@@ -5,7 +5,7 @@ import { toNano, beginCell, Cell } from '@ton/core'
 import { FeeQuoterSetup, FeeQuoterFeeSetup, Token } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import { ExtraArgs } from '../../../wrappers/ccip/Router'
-import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
+import * as sendExec from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import { asSnakeBytes } from '../../../src/utils'
 import { skip } from 'node:test'
@@ -211,7 +211,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
     await setup.assertGetFeeValidationError(
       message,
-      feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue,
+      feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
     )
   })
 
@@ -248,15 +248,15 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sendExec.builder.message.in.messageValidationFailed,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.DestChainNotEnabled)
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.DestChainNotEnabled)
               // return true
             },
           ],
@@ -297,15 +297,15 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sendExec.builder.message.in.messageValidationFailed,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.MsgDataTooLarge)
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.MsgDataTooLarge)
             },
           ],
         )
@@ -350,15 +350,15 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sendExec.builder.message.in.messageValidationFailed,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.UnsupportedNumberOfTokens)
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.UnsupportedNumberOfTokens)
             },
           ],
         )
@@ -398,15 +398,15 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sendExec.builder.message.in.messageValidationFailed,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.GasLimitTooHigh)
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.GasLimitTooHigh)
             },
           ],
         )
@@ -448,15 +448,15 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
     expect(result.transactions).toHaveTransaction({
       from: setup.bind.feeQuoter.address,
-      op: sx.opcodes.in.messageValidationFailed,
+      op: sendExec.Opcodes.messageValidationFailed,
       success: true,
       body(x) {
         return verifyBodyMessage<feeQuoter.MessageValidationFailed>(
           x,
-          sx.builder.message.in.messageValidationFailed,
+          sendExec.builder.message.in.messageValidationFailed,
           [
             (msg) => {
-              return msg.error === BigInt(feeQuoter.errors.FeeTokenNotSupported)
+              return msg.error === BigInt(feeQuoter.FeeQuoterError.FeeTokenNotSupported)
             },
           ],
         )
@@ -673,7 +673,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('should handle extreme gas price that could cause message fee too high error', async () => {
       await testOverflowScenario(
         'extreme gas price causing MessageFeeTooHigh',
-        feeQuoter.errors.MessageFeeTooHigh,
+        feeQuoter.FeeQuoterError.MessageFeeTooHigh,
         {
           // Max uint112 gas prices
           executionGasPrice: 2n ** 112n - 1n,
@@ -687,7 +687,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('should handle extreme gas price that could cause overflow in final fee calculation', async () => {
       await testOverflowScenario(
         'extreme gas price causing FeeOverflow',
-        feeQuoter.errors.FeeOverflow,
+        feeQuoter.FeeQuoterError.FeeOverflow,
         {
           // Max uint112 gas prices
           executionGasPrice: 2n ** 112n - 1n,
@@ -742,7 +742,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     })
 
     it('should handle token price too low error', async () => {
-      await testOverflowScenario('token price too low', feeQuoter.errors.TokenPriceTooLow, {
+      await testOverflowScenario('token price too low', feeQuoter.FeeQuoterError.TokenPriceTooLow, {
         feeTokenPrice: 0n, // Zero token price should trigger error
       })
     })
@@ -830,7 +830,7 @@ describe('FeeQuoter GetValidatedFee', () => {
     it('should handle final fee overflow when casting to uint120', async () => {
       await testOverflowScenario(
         'final fee overflow when casting to uint120',
-        feeQuoter.errors.FeeOverflow,
+        feeQuoter.FeeQuoterError.FeeOverflow,
         {
           // Try to create a fee that exceeds uint120 max (2^120 - 1 ≈ 1.3e36)
           // Final fee = (premiumFee + executionCost + dataAvailabilityCost) / tokenPrice
@@ -912,7 +912,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
       )
     })
 
@@ -927,7 +927,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
       )
     })
 
@@ -947,7 +947,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue,
+        feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
       )
     })
   })
@@ -986,7 +986,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
       )
     })
 
@@ -1001,7 +1001,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.InvalidExtraArgsData,
+        feeQuoter.FeeQuoterError.InvalidExtraArgsData,
       )
     })
 
@@ -1021,7 +1021,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       }
       const result = await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.ExtraArgOutOfOrderExecutionMustBeTrue,
+        feeQuoter.FeeQuoterError.ExtraArgOutOfOrderExecutionMustBeTrue,
       )
     })
   })
@@ -1047,7 +1047,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           .endCell(),
       }
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidMsgData)
+      await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.InvalidMsgData)
     })
 
     it('should throw InvalidMsgData error for snake data over 128 cells', async () => {
@@ -1077,7 +1077,7 @@ describe('FeeQuoter GetValidatedFee', () => {
           .endCell(),
       }
 
-      await setup.assertGetFeeValidationError(message, feeQuoter.errors.MsgDataTooLarge)
+      await setup.assertGetFeeValidationError(message, feeQuoter.FeeQuoterError.MsgDataTooLarge)
     })
   })
 
@@ -1124,7 +1124,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       await setup.assertGetFeeValidationError(
         message,
-        feeQuoter.errors.UnsupportedChainFamilySelector,
+        feeQuoter.FeeQuoterError.UnsupportedChainFamilySelector,
       )
     })
   })
@@ -1177,7 +1177,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             })
             .endCell(),
         }
-        await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidEVMReceiverAddress)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('should reject EVM address exceeding uint160 max', async () => {
@@ -1201,7 +1201,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidEVMReceiverAddress)
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('should accept EVM address at precompile boundary', async () => {
@@ -1301,10 +1301,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        await setup.assertGetFeeValidationError(
-          message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
-        )
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
     })
 
@@ -1378,10 +1375,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        await setup.assertGetFeeValidationError(
-          message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
-        )
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
     })
 
@@ -1456,10 +1450,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        await setup.assertGetFeeValidationError(
-          message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
-        )
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('should throw when receiver is zero with gas limit higher than 0', async () => {
@@ -1482,10 +1473,7 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        await setup.assertGetFeeValidationError(
-          message,
-          feeQuoter.errors.Invalid32ByteReceiverAddress,
-        )
+        await setup.assertGetFeeValidationError(message, feeQuoter.ERROR_INVALID_EVM_ADDRESS)
       })
 
       it('receiver can be zero when gas limit is zero and objectIds is empty', async () => {
@@ -1532,7 +1520,10 @@ describe('FeeQuoter GetValidatedFee', () => {
             .endCell(),
         }
 
-        await setup.assertGetFeeValidationError(message, feeQuoter.errors.InvalidSuiReceiverAddress)
+        await setup.assertGetFeeValidationError(
+          message,
+          feeQuoter.FeeQuoterError.InvalidSuiReceiverAddress,
+        )
       })
     })
   })
