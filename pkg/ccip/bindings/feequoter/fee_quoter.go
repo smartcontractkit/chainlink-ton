@@ -293,14 +293,14 @@ type FeeToken struct {
 
 // Generic wrapper for fee quoter messages with context
 type GetValidatedFee struct {
-	_       tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
-	Msg     *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
-	Context *cell.Cell `tlb:"maybe ^"`   // Cell containing context
+	_       tlb.Magic  `tlb:"#7496FF56" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg     *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
+	Context *cell.Cell `tlb:"maybe ^"`            // Cell containing context
 }
 
 // --- Response from GetValidatedFee ---
 type MessageValidated struct {
-	_       tlb.Magic  `tlb:"#1fa60374"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic  `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee     Fee        `tlb:"."`
 	Msg     *cell.Cell `tlb:"^"`       // Original message
 	Context *cell.Cell `tlb:"maybe ^"` // Original context
@@ -312,42 +312,42 @@ type Fee struct {
 }
 
 type MessageValidationFailed struct {
-	_         tlb.Magic  `tlb:"#bcf0ab0f"` //nolint:revive // Ignore opcode tag
+	_         tlb.Magic  `tlb:"#bcf0ab0f" json:"-"` //nolint:revive // Ignore opcode tag
 	ErrorCode *big.Int   `tlb:"## 256"`
 	Msg       *cell.Cell `tlb:"^"`       // Original message,
 	Context   *cell.Cell `tlb:"maybe ^"` // Original context
 }
 
 type AddPriceUpdater struct {
-	_            tlb.Magic        `tlb:"#71DF848A"` //nolint:revive // Ignore opcode tag
+	_            tlb.Magic        `tlb:"#71DF848A" json:"-"` //nolint:revive // Ignore opcode tag
 	PriceUpdater *address.Address `tlb:"addr"`
 }
 
 type RemovePriceUpdater struct {
-	_            tlb.Magic        `tlb:"#5DFBB1BC"` //nolint:revive // Ignore opcode tag
+	_            tlb.Magic        `tlb:"#5DFBB1BC" json:"-"` //nolint:revive // Ignore opcode tag
 	PriceUpdater *address.Address `tlb:"addr"`
 }
 
 type UpdatePrices struct {
-	_              tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	_              tlb.Magic                          `tlb:"#20000001" json:"-"` //nolint:revive // Ignore opcode tag
 	TokenPrices    common.SnakeData[TokenPriceUpdate] `tlb:"^"`
 	GasPrices      common.SnakeData[GasPriceUpdate]   `tlb:"^"`
 	SendExcessesTo *address.Address                   `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                            `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic                            `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
 	Add    *cell.Dictionary                     `tlb:"dict 267"`
 	Remove common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
-	_      tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
 	Add    map[*address.Address]TokenTransferFeeConfig
 	Remove []*address.Address `tlb:"addr"`
 }
 type UpdateTokenTransferFeeConfigs struct {
-	_ tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+	_ tlb.Magic `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
 }
 
 type UpdateDestChainConfig struct {
@@ -356,7 +356,7 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                               `tlb:"#29950BAA" json:"-"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 

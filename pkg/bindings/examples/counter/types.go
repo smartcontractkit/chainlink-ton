@@ -23,14 +23,14 @@ type ContractData struct {
 
 // Message to set the counter value.
 type SetCount struct {
-	_        tlb.Magic `tlb:"#00000004"` //nolint:revive // (opcode) should stay uninitialized
+	_        tlb.Magic `tlb:"#00000004" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID  uint64    `tlb:"## 64"`
 	NewCount uint32    `tlb:"## 32"`
 }
 
 // Message to increase the counter value.
 type IncreaseCount struct {
-	_       tlb.Magic `tlb:"#10000005"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#10000005" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
@@ -53,7 +53,7 @@ type CountIncreased struct {
 
 // Reply message to sender when the counter is set.
 type CountSetMsg struct {
-	_      tlb.Magic       `tlb:"#0xf3a02426"` //nolint:revive // (opcode) should stay uninitialized
+	_      tlb.Magic       `tlb:"#0xf3a02426" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ID     uint32          `tlb:"## 32"`
 	Value  uint32          `tlb:"## 32"`
 	Sender address.Address `tlb:"addr"`
@@ -61,7 +61,7 @@ type CountSetMsg struct {
 
 // Reply message to sender when the counter is increased.
 type CountIncreasedMsg struct {
-	_      tlb.Magic       `tlb:"#0x41c92746"` //nolint:revive // (opcode) should stay uninitialized
+	_      tlb.Magic       `tlb:"#0x41c92746" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	ID     uint32          `tlb:"## 32"`
 	Value  uint32          `tlb:"## 32"`
 	Sender address.Address `tlb:"addr"`
