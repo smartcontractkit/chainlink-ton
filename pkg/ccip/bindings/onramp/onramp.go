@@ -264,10 +264,10 @@ func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	reserve := tlb.FromNanoTON(reserveValue)
 
 	*c = DynamicConfig{
-		feeQuoterAddress,
-		feeAggregatorAddress,
-		allowlistAdminAddress,
-		reserve,
+		FeeQuoter:      feeQuoterAddress,
+		FeeAggregator:  feeAggregatorAddress,
+		AllowListAdmin: allowlistAdminAddress,
+		Reserve:        reserve,
 	}
 	return nil
 }

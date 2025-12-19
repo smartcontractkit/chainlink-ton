@@ -102,7 +102,7 @@ fun onInternalMessage(in: InMessage) {
         // Permissionless
         OnRamp_WithdrawFeeTokens => {
             assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens(), Error.InsufficientValue);
-            onWithdrawFeetokens(msg);
+            onWithdrawFeeTokens(msg);
         },
         // Sender must be owner
         Upgradeable_Upgrade => {
@@ -365,7 +365,6 @@ Only the owner is authorized to call this function.
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
     assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
     assert (!msg.config.feeAggregator.isZero()) throw Error.InvalidConfig;
-    // EVM implementation also checks that feeAgregator is non-zero, but it is unused in TON
 
     st.config = msg.config.toCell();
 
@@ -452,7 +451,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version}.upgrade(msg);
 }
 
-fun onWithdrawFeetokens(msg: OnRamp_WithdrawFeeTokens) {
+fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
     val feeTokens = msg.feeTokens.iter();
     assert (feeTokens.empty()) throw Error.UnknownToken;
     val st = lazy OnRamp_Storage.load();
