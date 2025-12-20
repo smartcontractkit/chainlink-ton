@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -20,7 +21,7 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 		}
 
 		keySz := uint(tvm.SizeUINT8)
-		signers := cell.NewDict(keySz)
+		_signers := cell.NewDict(keySz)
 		if rResult[0] != nil {
 			rc0, err := r.Cell(0)
 			if err != nil {
@@ -28,11 +29,11 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			}
 
 			if rc0 != nil {
-				signers = rc0.AsDict(keySz)
+				_signers = rc0.AsDict(keySz)
 			}
 		}
 
-		groupQuorums := cell.NewDict(keySz)
+		_groupQuorums := cell.NewDict(keySz)
 		if rResult[1] != nil {
 			rc1, err := r.Cell(1)
 			if err != nil {
@@ -40,11 +41,11 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			}
 
 			if rc1 != nil {
-				groupQuorums = rc1.AsDict(keySz)
+				_groupQuorums = rc1.AsDict(keySz)
 			}
 		}
 
-		groupParents := cell.NewDict(keySz)
+		_groupParents := cell.NewDict(keySz)
 		if rResult[2] != nil {
 			rc2, err := r.Cell(2) //nolint:mnd // 2 index for 3rd return value
 			if err != nil {
@@ -52,8 +53,23 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			}
 
 			if rc2 != nil {
-				groupParents = rc2.AsDict(keySz)
+				_groupParents = rc2.AsDict(keySz)
 			}
+		}
+
+		signers, err := tlbe.NewDict[uint8, Signer](_signers)
+		if err != nil {
+			return Config{}, fmt.Errorf("error decoding Config.Signers dict: %w", err)
+		}
+
+		groupQuorums, err := tlbe.NewDict[uint8, uint8](_groupQuorums)
+		if err != nil {
+			return Config{}, fmt.Errorf("error decoding Config.GroupQuorums dict: %w", err)
+		}
+
+		groupParents, err := tlbe.NewDict[uint8, uint8](_groupParents)
+		if err != nil {
+			return Config{}, fmt.Errorf("error decoding Config.GroupParents dict: %w", err)
 		}
 
 		return Config{

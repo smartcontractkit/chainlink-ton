@@ -28,9 +28,9 @@ func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 		Oracle:  tvm.ZeroAddress,
 		Signers: must(tvm.MakeDict(map[*big.Int]Signer{}, 160)), // TODO: tvm.KeyUINT160
 		Config: Config{
-			Signers:      must(tvm.MakeDictFrom([]Signer{}, tvm.KeyUINT8)),
-			GroupQuorums: must(tvm.MakeDictFrom([]GroupQuorum{}, tvm.KeyUINT8)),
-			GroupParents: must(tvm.MakeDictFrom([]GroupParent{}, tvm.KeyUINT8)),
+			Signers:      tlbe.NewEmptyDict[uint8, Signer](),
+			GroupQuorums: tlbe.NewEmptyDict[uint8, uint8](),
+			GroupParents: tlbe.NewEmptyDict[uint8, uint8](),
 		},
 		SeenSignedHashes: must(tvm.MakeDict(map[*big.Int]SeenSignedHash{}, tvm.KeyUINT256)),
 		RootInfo: RootInfo{
