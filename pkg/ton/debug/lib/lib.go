@@ -105,12 +105,12 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs TLBMap) (any, error) {
 	if r.BitsLeft() == 0 {
 		return nil, &UnknownMessageError{}
 	}
-	opCode, err := r.PreloadUInt(32)
+	opcode, err := r.PreloadUInt(32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to preload opcode: %w", err)
 	}
 
-	i, ok := tlbs[opCode]
+	i, ok := tlbs[opcode]
 	if !ok {
 		return nil, &UnknownMessageError{}
 	}
@@ -121,7 +121,7 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs TLBMap) (any, error) {
 
 	// Attempt decode - replace tlb.FromCell with the actual decode API you have
 	if err = tlb.LoadFromCell(inst, r); err != nil {
-		return nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
+		return nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opcode, err)
 	}
 
 	return inst, nil
