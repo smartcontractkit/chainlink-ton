@@ -88,6 +88,10 @@ func NewUint160(v *big.Int) *Uint160 {
 	return (*Uint160)(AsUnsigned(v, 160))
 }
 
+func (Uint160) BitsLen() uint {
+	return 160
+}
+
 // LoadFromCell implements tlb.Unmarshaler.
 func (u *Uint160) LoadFromCell(loader *cell.Slice) error {
 	b := new(BigUint)
@@ -142,6 +146,14 @@ type Uint256 big.Int
 
 func NewUint256(v *big.Int) *Uint256 {
 	return (*Uint256)(AsUnsigned(v, 256))
+}
+
+func (Uint256) DictKeyBits() uint {
+	return 256
+}
+
+func (x *Uint256) Cmp(y *Uint256) (r int) {
+	return x.Value().Cmp(y.Value())
 }
 
 // LoadFromCell implements tlb.Unmarshaler.
