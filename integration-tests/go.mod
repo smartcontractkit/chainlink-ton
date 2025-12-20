@@ -19,6 +19,7 @@ require (
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20251128154102-ae6a4d19188f
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20251201102914-ca8e10040285
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20251201102914-ca8e10040285
+	github.com/smartcontractkit/mcms v0.31.1
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	google.golang.org/grpc v1.77.0
@@ -370,7 +371,6 @@ require (
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20251031190958-7324c200a6b0 // indirect
-	github.com/smartcontractkit/mcms v0.31.1 // indirect
 	github.com/smartcontractkit/smdkg v0.0.0-20251029093710-c38905e58aeb // indirect
 	github.com/smartcontractkit/wsrpc v0.8.5-0.20250502134807-c57d3d995945 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
