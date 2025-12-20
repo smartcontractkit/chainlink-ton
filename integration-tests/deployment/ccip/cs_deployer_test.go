@@ -3,6 +3,7 @@ package ccip
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -52,38 +52,7 @@ import (
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
 
-func TestDeployContractsWithDeployerAPI(t *testing.T) {
-	// TODO remove this one once the test below resolved the TODO
-	t.Parallel()
-	lggr := logger.Test(t)
-
-	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().Build(t)
-	require.NoError(t, err)
-
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
-	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
-	tonSelector := tonChainSelectors[0]
-
-	t.Log("TON Chain Selector:", tonSelector)
-
-	dReg := deployops.GetRegistry()
-	_, err = deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
-		Chains: map[uint64]deployops.ContractDeploymentConfigPerChain{
-			tonSelector: {
-				Version:                                 &tonstate.Version1_6_0,
-				TokenDecimals:                           9,
-				MaxFeeJuelsPerMsg:                       big.NewInt(1),
-				TokenPriceStalenessThreshold:            0,
-				LinkPremiumMultiplier:                   1,
-				PermissionLessExecutionThresholdSeconds: 0,
-			},
-		},
-	})
-	require.NoError(t, err, "Failed to deploy TON chain contracts")
-	t.Log("Successfully deployed TON chain contracts")
-}
-
-func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
+func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
 
@@ -98,13 +67,46 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("EVM Chain Selector:", evmSelector)
 	t.Log("TON Chain Selector:", tonSelector)
 
-	// TODO use the deployer API to deploy contracts instead of ton changeset. Just need to populate the address from output and store in env
-	// Deploy TON chain contracts (uses LINK token workaround not available in deployops.DeployContracts)
-	contractID, err := tonops.RandomUint32()
-	require.NoError(t, err)
-	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonSelector, sequence.ContractsLocalVersion, contractID))
-	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
-	require.NoError(t, err, "failed to deploy TON chain contracts")
+	// Testing DeployContracts from Tooling API, and SetOCR3Config, without calling AddLane
+	dReg := deployops.GetRegistry()
+	output, err := deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
+		Chains: map[uint64]deployops.ContractDeploymentConfigPerChain{
+			tonSelector: {
+				Version:                                 &tonstate.Version1_6_0,
+				TokenDecimals:                           9,
+				MaxFeeJuelsPerMsg:                       big.NewInt(1),
+				TokenPriceStalenessThreshold:            0,
+				LinkPremiumMultiplier:                   1,
+				PermissionLessExecutionThresholdSeconds: 0,
+			},
+		},
+	})
+	require.NoError(t, err, "Failed to deploy TON chain contracts")
+	t.Log("Successfully deployed TON chain contracts")
+
+	// Merge deployed contract addresses into environment datastore
+	require.NoError(t, output.DataStore.Merge(env.DataStore))
+	env.DataStore = output.DataStore.Seal()
+
+	// Test idempotency by deploying again
+	dReg = deployops.GetRegistry()
+	output, err = deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
+		Chains: map[uint64]deployops.ContractDeploymentConfigPerChain{
+			tonSelector: {
+				Version:                                 &tonstate.Version1_6_0,
+				TokenDecimals:                           9,
+				MaxFeeJuelsPerMsg:                       big.NewInt(1),
+				TokenPriceStalenessThreshold:            0,
+				LinkPremiumMultiplier:                   1,
+				PermissionLessExecutionThresholdSeconds: 0,
+			},
+		},
+	})
+	require.NoError(t, err, "Failed to deploy TON chain contracts")
+
+	// Merge deployed contract addresses into environment datastore
+	require.NoError(t, output.DataStore.Merge(env.DataStore))
+	env.DataStore = output.DataStore.Seal()
 
 	// 4 nodes required for F=1 fault tolerance: F = (n-1)/3 = 1, must be >= FChain
 	numNodes := 4
@@ -311,7 +313,35 @@ func TestSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	err = accessor.Sync(t.Context(), consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
 
-	t.Run("GetConfig", func(t *testing.T) {
+	t.Run("StateViewAfterDeployContracts", func(t *testing.T) {
+		generatedView, err := state[tonSelector].GenerateView(&env, tonSelector, "-1")
+		require.NoError(t, err)
+		require.Equal(t, "-1", generatedView.ChainID)
+		require.Equal(t, tonSelector, generatedView.ChainSelector)
+		onRampView, exit := generatedView.OnRamp[onRampAddr.String()]
+		require.True(t, exit, "onRamp view not found")
+		require.Equal(t, onRampAddr, *onRampView.Address)
+
+		router := state[tonSelector].Router
+		routerView, exit := generatedView.Router[router.String()]
+		require.True(t, exit, "onRamp view not found")
+		require.Equal(t, router, *routerView.Address)
+
+		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
+		require.True(t, exit, "feeQuoter view not found")
+		require.Equal(t, feeQuoterAddr, *feeQuoterView.Address)
+
+		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
+		require.True(t, exit, "offRamp view not found")
+		require.Equal(t, offRampAddr, *offRampView.Address)
+		require.Equal(t, tonSelector, offRampView.Config.ChainSelector)
+		require.Equal(t, feeQuoterAddr.String(), offRampView.Config.FeeQuoterAddress.String())
+		data, err := json.MarshalIndent(generatedView, "", "  ")
+		require.NoError(t, err)
+		fmt.Print("JSON encoded TON state view:\n" + string(data))
+	})
+
+	t.Run("GetConfigAfterSetOCR3Config", func(t *testing.T) {
 		// Load onchain state to get contract addresses
 		state, err = tonstate.LoadOnchainState(env)
 		require.NoError(t, err)

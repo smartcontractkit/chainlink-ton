@@ -11,10 +11,11 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/xssnick/tonutils-go/address"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
@@ -32,8 +33,6 @@ var DeployChainContracts = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		var txs [][]byte
-
 		tonChain := chains.TonChains()[input.ChainSelector]
 		deps, err := extractTonDepsFromContractDeploymentInput(tonChain, input.ExistingAddresses)
 		if err != nil {
@@ -45,25 +44,84 @@ var DeployChainContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
 		}
 
-		txs = append(txs, ccipSeqReport.Output.Transactions...)
-
-		// Execute the txs || MCMS proposals
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+		deps, err = updateTonDepsWithDeployedAddresses(deps, ccipSeqReport.Output.Addresses)
 		if err != nil {
-			return sequences.OnChainOutput{}, err
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
+		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
+		var txs [][]byte
+		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+		// feequoter.addPriceUpdater(offramp)
+		addPriceUpdaterInput := operation.AddPriceUpdaterInput{
+			PriceUpdater: &offrampAddr,
+		}
+		addPriceUpdaterReport, err := operations.ExecuteOperation(b, operation.AddPriceUpdaterOp, deps, addPriceUpdaterInput)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
+		}
+		txs = append(txs, addPriceUpdaterReport.Output...)
 
-		return sequences.OnChainOutput{}, nil
+		// feeQuoter.updateFeeTokens
+		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
+			Lggr: b.Logger,
+			FeeTokens: map[string]operation.FeeTokenConfig{
+				tvm.TonTokenAddr.String(): {
+					PremiumMultiplierWeiPerEth: 1,
+				},
+				// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
+			},
+		}
+		updateFeeTokensReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
+		}
+		txs = append(txs, updateFeeTokensReport.Output...)
+
+		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, txs)
+
+		return sequences.OnChainOutput{
+			Addresses: ccipSeqReport.Output.Addresses,
+			BatchOps:  ccipSeqReport.Output.BatchOps,
+		}, nil
 	},
 )
 
+func updateTonDepsWithDeployedAddresses(deps ccipConfig.CCIPDeps, deployed []datastore.AddressRef) (ccipConfig.CCIPDeps, error) {
+	existingAddr := deps.CCIPOnChainState[deps.TonChain.Selector]
+	for _, r := range deployed {
+		tonAddr, err := address.ParseAddr(r.Address)
+		if err != nil {
+			return ccipConfig.CCIPDeps{}, err
+		}
+		if r.ChainSelector != deps.TonChain.Selector {
+			continue
+		}
+		switch r.Type {
+		case state.OnRamp:
+			existingAddr.OnRamp = *tonAddr
+		case state.OffRamp:
+			existingAddr.OffRamp = *tonAddr
+		case state.Router:
+			existingAddr.Router = *tonAddr
+		case state.FeeQuoter:
+			existingAddr.FeeQuoter = *tonAddr
+		case state.TonReceiver:
+			existingAddr.ReceiverAddress = *tonAddr
+		default:
+			// ignore unknown types
+		}
+	}
+	deps.CCIPOnChainState[deps.TonChain.Selector] = existingAddr
+	return deps, nil
+}
+
 func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (ccipConfig.CCIPDeps, error) {
-	// initialize with zero addresses
+	noneAddr := address.NewAddressNone()
 	init := state.CCIPChainState{
-		OnRamp:    *tvm.ZeroAddress,
-		OffRamp:   *tvm.ZeroAddress,
-		Router:    *tvm.ZeroAddress,
-		FeeQuoter: *tvm.ZeroAddress,
+		OnRamp:    *noneAddr,
+		OffRamp:   *noneAddr,
+		Router:    *noneAddr,
+		FeeQuoter: *noneAddr,
 	}
 
 	// fill in existing addresses
@@ -81,6 +139,8 @@ func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datas
 			init.Router = *tonAddr
 		case state.FeeQuoter:
 			init.FeeQuoter = *tonAddr
+		case state.TonReceiver:
+			init.ReceiverAddress = *tonAddr
 		default:
 			// ignore unknown types
 		}

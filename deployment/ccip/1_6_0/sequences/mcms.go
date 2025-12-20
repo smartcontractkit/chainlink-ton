@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -31,8 +30,6 @@ var DeployMCMSContracts = operations.NewSequence(
 	semver.MustParse("0.0.4"), // TODO mcms and timelock has different versions, can we pick mcms version here?
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		var txs [][]byte
-
 		tonChain := chains.TonChains()[input.ChainSelector]
 		deps, err := extractTonDepsFromMCMSDeploymentInput(tonChain)
 		if err != nil {
@@ -44,15 +41,9 @@ var DeployMCMSContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
 		}
 
-		txs = append(txs, mcmsSeqReport.Output.Transactions...)
-
-		// Execute the txs || MCMS proposals
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
-		}
-
-		return sequences.OnChainOutput{}, nil
+		return sequences.OnChainOutput{
+			BatchOps: mcmsSeqReport.Output.BatchOps,
+		}, nil
 	},
 )
 
