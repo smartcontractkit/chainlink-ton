@@ -101,10 +101,5 @@ type OpOpts struct {
 }
 
 func NewMessageOp[T any](opts OpOpts) *operations.Operation[MessageOpInput[T], MessageOpOutput, MessageOpDeps] {
-	return operations.NewOperation(
-		opts.Name,
-		opts.Version,
-		opts.Desc,
-		handler[T],
-	)
+	return operations.NewOperation(opts.Name, opts.Version, opts.Desc, handler[T])
 }

@@ -206,7 +206,7 @@ func RegisterTLBOperations(contract string, tlbMap TLBMap) error {
 type messageJSON struct {
 	Contract string          `json:"contract"`
 	Type     string          `json:"type"`
-	OpCode   string          `json:"opCode"`
+	Opcode   string          `json:"opcode"`
 	Payload  json.RawMessage `json:"payload"`
 }
 
@@ -257,7 +257,7 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	out := messageJSON{
 		Contract: e.Metadata.Contract,
 		Type:     e.Metadata.TypeName,
-		OpCode:   fmt.Sprintf("0x%08x", e.Metadata.Opcode),
+		Opcode:   fmt.Sprintf("0x%08x", e.Metadata.Opcode),
 		Payload:  payload,
 	}
 
@@ -272,7 +272,7 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	meta, err := defaultRegistry.lookup(raw.Contract, raw.Type, raw.OpCode)
+	meta, err := defaultRegistry.lookup(raw.Contract, raw.Type, raw.Opcode)
 	if err != nil {
 		return err
 	}
