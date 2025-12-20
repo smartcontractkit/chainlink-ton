@@ -147,29 +147,7 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 				assert.Equalf(t, originalHash, decodedHash, "cell hash mismatch after round-trip: contract=%s opcode=0x%08x original=%x decoded=%x", contract, opcode, originalHash, decodedHash)
 
 				// Generate an operation and execute
-				op := NewMessageOp[any](OpOpts{
-					Version: semver.MustParse("0.1.0"),
-					Name:    fmt.Sprintf("op:%s:0x%08x", contract, opcode),
-					Desc:    "An operation generated during testing from message envelope",
-				})
-				assert.NotEmpty(t, op)
-
-				lggr, _ := logger.New()
-				rptr := operations.NewMemoryReporter()
-				ctxFn := func() context.Context {
-					return t.Context()
-				}
-				b := operations.NewBundle(ctxFn, lggr, rptr)
-				deps := MessageOpDeps{
-					Wallet: nil, // No actual sending in tests
-				}
-				r, err := operations.ExecuteOperation(b, op, deps, MessageOpInput[any]{
-					Envelope: decoded,
-					Plan:     true,
-					DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
-					Amount:   tlb.MustFromTON("0.25"),
-				})
-				assert.NotEmpty(t, r)
+				r := makeExecuteOp(t, contract, opcode, decoded)
 
 				rraw, err := json.Marshal(r)
 				require.NoError(t, err)
@@ -190,6 +168,36 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 			require.NoError(t, os.WriteFile(file, []byte(jsonBlob), 0o644))
 		}
 	}
+}
+
+func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.MessageEnvelope[any]) operations.Report[MessageOpInput[any], MessageOpOutput] {
+	t.Helper()
+
+	op := NewMessageOp[any](OpOpts{
+		Version: semver.MustParse("0.1.0"),
+		Name:    fmt.Sprintf("op:%s:0x%08x", contract, opcode),
+		Desc:    "An operation generated during testing from message envelope",
+	})
+	assert.NotEmpty(t, op)
+
+	lggr, _ := logger.New()
+	rptr := operations.NewMemoryReporter()
+	ctxFn := func() context.Context {
+		return t.Context()
+	}
+	b := operations.NewBundle(ctxFn, lggr, rptr)
+	deps := MessageOpDeps{
+		Wallet: nil, // No actual sending in tests
+	}
+	r, err := operations.ExecuteOperation(b, op, deps, MessageOpInput[any]{
+		Envelope: decoded,
+		Plan:     true,
+		DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
+		Amount:   tlb.MustFromTON("0.25"),
+	})
+	assert.NotEmpty(t, r)
+	assert.NoError(t, err)
+	return r
 }
 
 func TestMessageEnvelope_IsSerializable(t *testing.T) {
