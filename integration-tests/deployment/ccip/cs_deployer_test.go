@@ -294,7 +294,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(tonSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)
 
-	state, err := tonstate.LoadOnChainState(env)
+	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 	onRampAddr := state[tonSelector].OnRamp
 	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
@@ -343,7 +343,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 
 	t.Run("GetConfigAfterSetOCR3Config", func(t *testing.T) {
 		// Load onchain state to get contract addresses
-		state, err = tonstate.LoadOnChainState(env)
+		state, err = tonstate.LoadOnchainState(env)
 		require.NoError(t, err)
 
 		// Get addresses from state and convert to raw bytes
