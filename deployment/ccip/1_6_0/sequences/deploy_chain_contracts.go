@@ -10,10 +10,11 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	"github.com/xssnick/tonutils-go/address"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
@@ -80,6 +81,9 @@ var DeployChainContracts = operations.NewSequence(
 		txs = append(txs, updateFeeTokensReport.Output...)
 
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, txs)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
+		}
 
 		return sequences.OnChainOutput{
 			Addresses: ccipSeqReport.Output.Addresses,
