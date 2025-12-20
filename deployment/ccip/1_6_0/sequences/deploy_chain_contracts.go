@@ -24,6 +24,7 @@ import (
 )
 
 const defaultCCIPContractCoin = "0.05"
+const defaultReserveAmount = "0.5"
 
 func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
@@ -197,6 +198,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ChainSelector:   cfg.ChainSelector,
 				AllowlistAdmin:  deployer,
 				FeeAggregator:   deployer,
+				Reserve:         defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{
 				ID:              contractID,
