@@ -12,27 +12,90 @@ import (
 // MessageMeta keeps the information required to serialize/deserialize TL-B messages.
 type MessageMeta struct {
 	Contract string
+	Opcode   uint64
+
+	// Go runtime type information
 	TypeName string
 	GoType   reflect.Type
-	Opcode   uint64
 }
 
-func (m MessageMeta) qualifiedKey() string {
+func NewMessageMetaFromValue(contract string, v any) (MessageMeta, error) {
+	v, err := EnsureTLBStructPointer(v)
+	if err != nil {
+		return MessageMeta{}, fmt.Errorf("failed to ensure TL-B struct pointer: %w", err)
+	}
+
+	typ := reflect.TypeOf(v)
+	if typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+
+	return NewMessageMeta(contract, typ)
+}
+
+// EnsureTLBStructPointer ensures that the provided value is a pointer to a TL-B struct or struct itself.
+func EnsureTLBStructPointer(value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() {
+		return nil, fmt.Errorf("invalid value")
+	}
+
+	// Traverse pointer indirections until we reach a struct or a nil pointer.
+	for rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return value, nil
+		}
+		if rv.Elem().Kind() == reflect.Struct {
+			return value, nil
+		}
+		rv = rv.Elem()
+		value = rv.Interface()
+	}
+
+	if rv.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("unsupported TL-B value type %T", value)
+	}
+
+	ptr := reflect.New(rv.Type())
+	ptr.Elem().Set(rv)
+	return ptr.Interface(), nil
+}
+
+func NewMessageMeta(contract string, typ reflect.Type) (MessageMeta, error) {
+	opcode, err := ExtractMagic(typ)
+	if err != nil {
+		return MessageMeta{}, fmt.Errorf("failed to parse opcode for %s: %w", typ, err)
+	}
+
+	typeName := typ.Name()
+	if typeName == "" {
+		typeName = typ.String()
+	}
+
+	return MessageMeta{
+		Contract: contract,
+		TypeName: typeName,
+		GoType:   typ,
+		Opcode:   opcode,
+	}, nil
+}
+
+func (m MessageMeta) QualifiedKey() string {
 	return fmt.Sprintf("%s:%d", m.Contract, m.Opcode)
 }
 
 type messageRegistry struct {
 	mu          sync.RWMutex
-	byGoType    map[reflect.Type]MessageMeta
 	byQualified map[string]MessageMeta
-	byOpcode    map[uint64]MessageMeta
 }
 
 func newMessageRegistry() *messageRegistry {
 	return &messageRegistry{
-		byGoType:    make(map[reflect.Type]MessageMeta),
 		byQualified: make(map[string]MessageMeta),
-		byOpcode:    make(map[uint64]MessageMeta),
 	}
 }
 
@@ -41,16 +104,7 @@ func (r *messageRegistry) register(contract string, op any) (MessageMeta, error)
 		return MessageMeta{}, errors.New("message prototype is nil")
 	}
 
-	typ := reflect.TypeOf(op)
-	if typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
-	}
-
-	if typ.Kind() != reflect.Struct {
-		return MessageMeta{}, fmt.Errorf("message must be a struct, got %s", typ)
-	}
-
-	meta, err := buildMetadata(contract, typ)
+	meta, err := NewMessageMetaFromValue(contract, op)
 	if err != nil {
 		return MessageMeta{}, err
 	}
@@ -58,35 +112,34 @@ func (r *messageRegistry) register(contract string, op any) (MessageMeta, error)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if existing, ok := r.byGoType[typ]; ok {
+	if existing, ok := r.byQualified[meta.QualifiedKey()]; ok {
 		if existing != meta {
-			return MessageMeta{}, fmt.Errorf("duplicate registration with conflicting metadata for %s", typ)
+			return MessageMeta{}, fmt.Errorf("duplicate registration with conflicting metadata: %v", meta)
 		}
 		return existing, nil
 	}
 
-	r.byGoType[typ] = meta
-	r.byQualified[meta.qualifiedKey()] = meta
-	r.byOpcode[meta.Opcode] = meta
+	r.byQualified[meta.QualifiedKey()] = meta
 
 	return meta, nil
 }
 
-func (r *messageRegistry) lookupByValue(op any) (MessageMeta, error) {
+func (r *messageRegistry) lookupByValue(contract string, op any) (MessageMeta, error) {
 	if op == nil {
 		return MessageMeta{}, errors.New("message is nil")
 	}
-	typ := reflect.TypeOf(op)
-	if typ.Kind() == reflect.Pointer {
-		typ = typ.Elem()
+
+	meta, err := NewMessageMetaFromValue(contract, op)
+	if err != nil {
+		return MessageMeta{}, err
 	}
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	meta, ok := r.byGoType[typ]
+	meta, ok := r.byQualified[meta.QualifiedKey()]
 	if !ok {
-		return MessageMeta{}, fmt.Errorf("unregistered message type %s", typ)
+		return MessageMeta{}, fmt.Errorf("unregistered message with meta: %v", meta)
 	}
 	return meta, nil
 }
@@ -95,9 +148,9 @@ func (r *messageRegistry) snapshotTLBMap() TLBMap {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	out := make(TLBMap, len(r.byOpcode))
-	for opcode, meta := range r.byOpcode {
-		out[opcode] = reflect.New(meta.GoType).Elem().Interface()
+	out := make(TLBMap, len(r.byQualified))
+	for _, meta := range r.byQualified {
+		out[meta.Opcode] = reflect.New(meta.GoType).Elem().Interface()
 	}
 	return out
 }
@@ -125,7 +178,7 @@ func (r *messageRegistry) lookup(contract, typeName string, opcodeHex string) (M
 			Opcode:   opcode,
 		}
 
-		if meta, ok := r.byQualified[meta.qualifiedKey()]; ok {
+		if meta, ok := r.byQualified[meta.QualifiedKey()]; ok {
 			return meta, nil
 		}
 	}
@@ -149,25 +202,6 @@ func RegisterTLBOperations(contract string, tlbMap TLBMap) error {
 	return nil
 }
 
-func buildMetadata(contract string, typ reflect.Type) (MessageMeta, error) {
-	opcode, err := ExtractMagic(typ)
-	if err != nil {
-		return MessageMeta{}, fmt.Errorf("failed to parse opcode for %s: %w", typ, err)
-	}
-
-	typeName := typ.Name()
-	if typeName == "" {
-		typeName = typ.String()
-	}
-
-	return MessageMeta{
-		Contract: contract,
-		TypeName: typeName,
-		GoType:   typ,
-		Opcode:   opcode,
-	}, nil
-}
-
 // messageJSON is the JSON representation of a MessageEnvelope, used in marshaling/unmarshaling.
 type messageJSON struct {
 	Contract string          `json:"contract"`
@@ -179,18 +213,15 @@ type messageJSON struct {
 // MessageEnvelope is the JSON-friendly representation of a TL-B message.
 // The generic type parameter T represents the specific message type being wrapped.
 type MessageEnvelope[T any] struct {
-	Contract string          `json:"contract"`
-	Type     string          `json:"type"`
-	OpCode   string          `json:"opCode"`
+	Metadata MessageMeta     `json:"metadata"`
 	Payload  json.RawMessage `json:"payload"`
 
-	Value    T           `json:"-"`
-	Metadata MessageMeta `json:"-"`
+	Value T `json:"-"`
 }
 
 // WrapMessage prepares a type-safe envelope for the provided TL-B message.
-func WrapMessage[T any](op T) (MessageEnvelope[T], error) {
-	meta, err := defaultRegistry.lookupByValue(op)
+func WrapMessage[T any](contract string, op T) (MessageEnvelope[T], error) {
+	meta, err := defaultRegistry.lookupByValue(contract, op)
 	if err != nil {
 		return MessageEnvelope[T]{}, err
 	}
@@ -201,12 +232,9 @@ func WrapMessage[T any](op T) (MessageEnvelope[T], error) {
 	}
 
 	return MessageEnvelope[T]{
-		Contract: meta.Contract,
-		Type:     meta.TypeName,
-		OpCode:   fmt.Sprintf("0x%08x", meta.Opcode),
+		Metadata: meta,
 		Payload:  json.RawMessage(payload),
 		Value:    op,
-		Metadata: meta,
 	}, nil
 }
 
@@ -227,9 +255,9 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	}
 
 	out := messageJSON{
-		Contract: e.Contract,
-		Type:     e.Type,
-		OpCode:   e.OpCode,
+		Contract: e.Metadata.Contract,
+		Type:     e.Metadata.TypeName,
+		OpCode:   fmt.Sprintf("0x%08x", e.Metadata.Opcode),
 		Payload:  payload,
 	}
 
@@ -259,9 +287,7 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to decode payload for %s: %w", meta.TypeName, err)
 	}
 
-	e.Contract = raw.Contract
-	e.Type = raw.Type
-	e.OpCode = raw.OpCode
+	e.Metadata = meta
 	e.Payload = payload
 
 	// Type assertion to T
@@ -287,7 +313,7 @@ func (e MessageEnvelope[T]) Decode() (T, error) {
 	var zero T
 
 	if e.Metadata.GoType == nil {
-		meta, err := defaultRegistry.lookup(e.Contract, e.Type, e.OpCode)
+		meta, err := defaultRegistry.lookup(e.Metadata.Contract, e.Metadata.TypeName, fmt.Sprintf("0x%08x", e.Metadata.Opcode))
 		if err != nil {
 			return zero, err
 		}
