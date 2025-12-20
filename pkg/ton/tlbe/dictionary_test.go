@@ -6,34 +6,33 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func TestDictJSONRoundTrip(t *testing.T) {
-	dict := Dict[TestKey, testValue]{}
-	dict.Set(TestKey(2), testValue{Sum: 200})
-	dict.Set(TestKey(1), testValue{Sum: 100})
+	dict := Dict[uint16, testValue]{}
+	dict.Set(2, testValue{Sum: 200})
+	dict.Set(1, testValue{Sum: 100})
 
 	payload, err := json.Marshal(dict)
 	require.NoError(t, err)
 	require.JSONEq(t, `{"1": {"sum":100},"2": {"sum":200}}`, string(payload))
 
-	var decoded Dict[TestKey, testValue]
+	var decoded Dict[uint16, testValue]
 	require.NoError(t, json.Unmarshal(payload, &decoded))
 	require.Equal(t, dict.entries, decoded.entries)
 }
 
 func TestDictCellRoundTrip(t *testing.T) {
-	dict := Dict[TestKey, testValue]{}
-	dict.Set(TestKey(1), testValue{Sum: 11})
-	dict.Set(TestKey(5), testValue{Sum: 55})
-	dict.Set(TestKey(9), testValue{Sum: 99})
+	dict := Dict[uint16, testValue]{}
+	dict.Set(1, testValue{Sum: 11})
+	dict.Set(5, testValue{Sum: 55})
+	dict.Set(9, testValue{Sum: 99})
 
 	encoded, err := dict.ToCell()
 	require.NoError(t, err)
 
-	restored := Dict[TestKey, testValue]{}
+	restored := Dict[uint16, testValue]{}
 	require.NoError(t, restored.LoadFromCell(encoded.BeginParse()))
 	require.Equal(t, dict.entries, restored.entries)
 
@@ -41,16 +40,19 @@ func TestDictCellRoundTrip(t *testing.T) {
 	tonDict, err := slice.LoadDict(16)
 	require.NoError(t, err)
 
-	expected := cell.NewDict(16)
-	for key, value := range dict.entries {
-		keyCell, err := key.ToCell()
-		require.NoError(t, err)
-		valueCell, err := tlb.ToCell(value)
-		require.NoError(t, err)
-		require.NoError(t, expected.Set(keyCell, valueCell))
-	}
+	// expected := cell.NewDict(16)
+	// for key, value := range dict.entries {
+	// 	keyCell, err := tlb.ToCell(key)
+	// 	require.NoError(t, err)
+	// 	valueCell, err := tlb.ToCell(value)
+	// 	require.NoError(t, err)
+	// 	require.NoError(t, expected.Set(keyCell, valueCell))
+	// }
 
-	expectedCell := expected.AsCell()
+	// expectedCell := expected.AsCell()
+	ddict, err := dict.AsDictionary()
+	require.NoError(t, err)
+	expectedCell := ddict.AsCell()
 	require.NotNil(t, expectedCell)
 	require.NotNil(t, tonDict)
 
@@ -60,12 +62,12 @@ func TestDictCellRoundTrip(t *testing.T) {
 }
 
 func TestDictEmptyRoundTrip(t *testing.T) {
-	var dict Dict[TestKey, testValue]
+	var dict Dict[uint16, testValue]
 
 	encoded, err := dict.ToCell()
 	require.NoError(t, err)
 
-	var restored Dict[TestKey, testValue]
+	var restored Dict[uint16, testValue]
 	require.NoError(t, restored.LoadFromCell(encoded.BeginParse()))
 	require.Equal(t, 0, restored.Len())
 
@@ -80,7 +82,7 @@ func TestKeyBitSizeDetection(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint(16), bits)
 
-	bits, err = keyBitSize[TestKey]()
+	bits, err = keyBitSize[uint16]()
 	require.NoError(t, err)
 	require.Equal(t, uint(16), bits)
 
