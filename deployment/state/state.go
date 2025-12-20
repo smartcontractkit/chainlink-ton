@@ -152,7 +152,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return tonView, errGroup.Wait()
 }
 
-func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64) (CCIPChainState, error) {
+func LoadCCIPOnChainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64) (CCIPChainState, error) {
 	addresses := dataStore.Addresses().Filter(
 		ds.AddressRefByChainSelector(chainSelector),
 	)
@@ -164,10 +164,10 @@ func LoadOnchainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64
 	return chainState, nil
 }
 
-func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
+func LoadCCIPOnChainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	chains := make(map[uint64]CCIPChainState)
 	for chainSelector := range e.BlockChains.TonChains() {
-		chainState, err := LoadOnchainStateUsingDataStore(e.DataStore, chainSelector)
+		chainState, err := LoadCCIPOnChainStateUsingDataStore(e.DataStore, chainSelector)
 		if err != nil {
 			return chains, err
 		}
@@ -177,7 +177,7 @@ func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	return chains, nil
 }
 
-func LoadMCMSOnchainState(e cldf.Environment) (map[uint64]MCMSChainState, error) {
+func LoadMCMSOnChainState(e cldf.Environment) (map[uint64]MCMSChainState, error) {
 	chains := make(map[uint64]MCMSChainState)
 	for chainSelector := range e.BlockChains.TonChains() {
 		addresses := e.DataStore.Addresses().Filter(
@@ -191,6 +191,18 @@ func LoadMCMSOnchainState(e cldf.Environment) (map[uint64]MCMSChainState, error)
 		chains[chainSelector] = chainState
 	}
 	return chains, nil
+}
+
+func LoadMCMSOnChainStateUsingDataStore(dataStore ds.DataStore, chainSelector uint64) (MCMSChainState, error) {
+	addresses := dataStore.Addresses().Filter(
+		ds.AddressRefByChainSelector(chainSelector),
+	)
+	chainState, err := loadMCMSChainState(addresses)
+	if err != nil {
+		return chainState, err
+	}
+
+	return chainState, nil
 }
 
 func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {

@@ -55,7 +55,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	seqReports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
-	states, err := state.LoadOnchainState(env)
+	states, err := state.LoadCCIPOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
@@ -112,7 +112,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		env.DataStore = dataStore.Seal()
 
 		// Reload the state from the updated data store to include newly deployed addresses
-		s, err = state.LoadOnchainStateUsingDataStore(env.DataStore, selector)
+		s, err = state.LoadCCIPOnChainStateUsingDataStore(env.DataStore, selector)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to reload state from data store: %w", err)
 		}

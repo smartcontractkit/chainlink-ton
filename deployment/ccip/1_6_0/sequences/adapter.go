@@ -28,7 +28,7 @@ func init() {
 type TonAdapter struct{}
 
 func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	tonChain, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
@@ -37,7 +37,7 @@ func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint
 }
 
 func (a *TonAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	tonChain, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
@@ -46,7 +46,7 @@ func (a *TonAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uin
 }
 
 func (a *TonAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	tonChain, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
@@ -55,7 +55,7 @@ func (a *TonAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) 
 }
 
 func (a *TonAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)
+	tonChain, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}

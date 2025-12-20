@@ -51,7 +51,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 
 	// Add lane on TON chains
 	// Execute UpdateTonLanesSequence for each ton chain
-	s, err := tonstate.LoadOnchainState(env)
+	s, err := tonstate.LoadCCIPOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}

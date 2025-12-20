@@ -34,6 +34,8 @@ var DeployChainContracts = operations.NewSequence(
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
 		tonChain := chains.TonChains()[input.ChainSelector]
+
+		// deps used for op
 		deps, err := extractTonDepsFromContractDeploymentInput(tonChain, input.ExistingAddresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
@@ -162,7 +164,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		panic(fmt.Sprintf("failed to generate random contract ID: %v", err))
 	}
 	return seq.DeployCCIPSeqInput{
-		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO is it okay to use local version or a hardcoded one?
+		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO This needs to be provided from deployer interface, need config param update
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
 				ContractsSemver:              cfg.Version,

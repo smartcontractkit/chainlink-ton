@@ -71,7 +71,7 @@ func TestDeployCCIP(t *testing.T) {
 	require.Empty(t, addresses, "expected no new addresses on redeploy, got: %v", addresses)
 	// </redeploy>
 
-	state, err := tonstate.LoadOnchainState(env)
+	state, err := tonstate.LoadCCIPOnChainState(env)
 	require.NoError(t, err)
 
 	linkAddr := state[chainSelector].LinkTokenAddress
@@ -173,7 +173,7 @@ func TestDeployCCIP(t *testing.T) {
 	})
 	require.NoError(t, err, "failed to set ocr3 config")
 
-	state, err = tonstate.LoadOnchainState(env)
+	state, err = tonstate.LoadCCIPOnChainState(env)
 	require.NoError(t, err)
 
 	// -- TON Accessor tests

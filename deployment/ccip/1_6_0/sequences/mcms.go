@@ -9,14 +9,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const defaultMCMSContractCoin = "1.5"
@@ -31,7 +32,7 @@ var DeployMCMSContracts = operations.NewSequence(
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
 		tonChain := chains.TonChains()[input.ChainSelector]
-		deps, err := extractTonDepsFromMCMSDeploymentInput(tonChain)
+		deps, err := extractTonDepsFromMCMSDeploymentInput(tonChain, input.ExistingAddresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -42,20 +43,39 @@ var DeployMCMSContracts = operations.NewSequence(
 		}
 
 		return sequences.OnChainOutput{
-			BatchOps: mcmsSeqReport.Output.BatchOps,
+			Addresses: mcmsSeqReport.Output.Addresses,
+			BatchOps:  mcmsSeqReport.Output.BatchOps,
 		}, nil
 	},
 )
 
-func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain) (mcmsConfig.MCMSDeps, error) {
+func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (mcmsConfig.MCMSDeps, error) {
+	noneAddr := address.NewAddressNone()
+	init := state.MCMSChainState{
+		Timelock: *noneAddr,
+		MCMS:     *noneAddr,
+	}
+
+	// fill in existing addresses
+	for _, e := range existing {
+		tonAddr, err := address.ParseAddr(e.Address)
+		if err != nil {
+			return mcmsConfig.MCMSDeps{}, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
+		}
+		switch e.Type {
+		case state.Timelock:
+			init.Timelock = *tonAddr
+		case state.MCMS:
+			init.MCMS = *tonAddr
+		default:
+			// ignore unknown types
+		}
+	}
+
 	deps := mcmsConfig.MCMSDeps{
 		TonChain: chain,
 		MCMSChainState: map[uint64]state.MCMSChainState{
-			// initialize with zero addresses; actual addresses will be filled in after deployment
-			chain.Selector: {
-				Timelock: *tvm.ZeroAddress,
-				MCMS:     *tvm.ZeroAddress,
-			},
+			chain.Selector: init,
 		},
 	}
 	return deps, nil
@@ -69,6 +89,12 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 	cancellers := []*address.Address{deployer}
 	bypassers := []*address.Address{deployer}
 
+	// Generate a random contract ID for all contracts in this deployment
+	contractID, err := tonops.RandomUint32()
+	if err != nil {
+		panic(fmt.Sprintf("failed to generate random contract ID: %v", err))
+	}
+
 	// MinDelay from cfg.TimelockMinDelay (big.Int) to uint32 safely
 	var minDelay uint32
 	if cfg.TimelockMinDelay != nil && cfg.TimelockMinDelay.IsUint64() {
@@ -81,20 +107,28 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 		}
 	}
 
+	// Set contract versions to match expected MCMS deployment versions
+	timelockSemver := semver.MustParse("0.0.3")
+	mcmsSemver := semver.MustParse("0.0.4")
+
 	return mcmsSeq.DeployMCMSSeqInput{
-		ContractsVersionSha: sequence.ContractsLocalVersion,
+		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO This needs to be provided from deployer interface, need config param update
 		ContractsParams: mcmsConfig.ChainContractParams{
 			Timelock: mcmsConfig.TimelockParams{
-				Coin:       defaultMCMSContractCoin,
-				MinDelay:   minDelay,
-				Admin:      deployer,
-				Proposers:  proposers,
-				Executors:  executors,
-				Cancellers: cancellers,
-				Bypassers:  bypassers,
+				ID:              contractID,
+				Coin:            defaultMCMSContractCoin,
+				MinDelay:        minDelay,
+				Admin:           deployer,
+				Proposers:       proposers,
+				Executors:       executors,
+				Cancellers:      cancellers,
+				Bypassers:       bypassers,
+				ContractsSemver: timelockSemver,
 			},
 			MCMS: mcmsConfig.MCMSParams{
-				Coin: defaultMCMSContractCoin,
+				ID:              contractID,
+				Coin:            defaultMCMSContractCoin,
+				ContractsSemver: mcmsSemver,
 			},
 		},
 		ChainSelector: cfg.ChainSelector,
