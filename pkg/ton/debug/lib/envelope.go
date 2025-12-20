@@ -12,7 +12,7 @@ import (
 // MessageMeta keeps the information required to serialize/deserialize TL-B messages.
 type MessageMeta struct {
 	Contract string
-	Opcode   uint64
+	Opcode   uint32
 
 	// Go runtime type information
 	TypeName string
@@ -175,7 +175,7 @@ func (r *messageRegistry) lookup(contract, typeName string, opcodeHex string) (M
 			Contract: contract,
 			TypeName: typeName,
 			GoType:   nil,
-			Opcode:   opcode,
+			Opcode:   uint32(opcode),
 		}
 
 		if meta, ok := r.byQualified[meta.QualifiedKey()]; ok {
