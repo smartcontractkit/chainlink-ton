@@ -131,7 +131,7 @@ func TestAddLanes(t *testing.T) {
 	require.NoError(t, err, "Failed to apply ConnectChains changeset")
 
 	// Check TON state
-	state, err := tonstate.LoadCCIPOnChainState(env)
+	state, err := tonstate.LoadOnChainState(env)
 	require.NoError(t, err)
 
 	// addrCodec := codec.NewAddressCodec()

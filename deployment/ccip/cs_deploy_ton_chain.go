@@ -55,7 +55,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	seqReports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
-	states, err := state.LoadCCIPOnChainState(env)
+	states, err := state.LoadOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}

@@ -47,7 +47,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 	)
 	seqReports := make([]operations.Report[any, any], 0)
 
-	state, err := state.LoadCCIPOnChainState(env)
+	state, err := state.LoadOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
