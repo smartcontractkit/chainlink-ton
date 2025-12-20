@@ -18,7 +18,7 @@ import (
 )
 
 // TLBMap is a map of opcodes to their corresponding TL-B types.
-type TLBMap map[uint64]any
+type TLBMap map[uint32]any
 
 type TxInfo struct {
 	Msg      MessageInfo
@@ -110,7 +110,7 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs TLBMap) (any, error) {
 		return nil, fmt.Errorf("failed to preload opcode: %w", err)
 	}
 
-	i, ok := tlbs[opcode]
+	i, ok := tlbs[uint32(opcode)]
 	if !ok {
 		return nil, &UnknownMessageError{}
 	}
