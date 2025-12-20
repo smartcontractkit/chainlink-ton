@@ -9,12 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 )
 
-func ExtractMagicFromValue(v any) (uint64, error) {
+func ExtractMagicFromValue(v any) (uint32, error) {
 	// reflect to get the magic number from the struct
 	return ExtractMagic(reflect.TypeOf(v))
 }
 
-func ExtractMagic(rt reflect.Type) (uint64, error) {
+func ExtractMagic(rt reflect.Type) (uint32, error) {
 	if rt.Field(0).Type != reflect.TypeOf(tlb.Magic{}) {
 		return 0, fmt.Errorf("first field of %s is not of type Magic", rt.Name())
 	}
@@ -28,7 +28,7 @@ func ExtractMagic(rt reflect.Type) (uint64, error) {
 }
 
 // Notice: vendoring github:xssnick/tonutils-go tlb package
-func LoadMagic(tag string) (uint64, error) {
+func LoadMagic(tag string) (uint32, error) {
 	tag = strings.TrimSpace(tag)
 	var sz, base int
 	if strings.HasPrefix(tag, "#") { //nolint:gocritic // vendored from tonutils-go
@@ -50,5 +50,5 @@ func LoadMagic(tag string) (uint64, error) {
 		return 0, fmt.Errorf("corrupted magic value in tag") //nolint:perfsprint // vendored from tonutils-go
 	}
 
-	return uint64(magic), nil //nolint:gosec // vendored from tonutils-go
+	return uint32(magic), nil //nolint:gosec // vendored from tonutils-go
 }
