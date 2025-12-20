@@ -11,10 +11,12 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ErrUnsupportedSample is returned when the generator cannot construct a value for a type.
@@ -552,6 +554,27 @@ func buildDefaultFactories() map[reflect.Type]Factory {
 				data = []byte{0x01}
 			}
 			return reflect.ValueOf(common.CrossChainAddress(data)), nil
+		},
+		reflect.TypeOf(tlbe.Dict[tlbe.TestKey, common.AddressWrap]{}): func(ctx *Context) (reflect.Value, error) {
+			keyBits := 16
+			_, err := ctx.Generator.randomDictionary(keyBits)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			wrappedDict := tlbe.Dict[tlbe.TestKey, common.AddressWrap]{}
+
+			entries := ctx.Generator.randomCollectionSize()
+			for i := 0; i < entries; i++ {
+				key := tlbe.TestKey(uint16(ctx.Generator.rng.Intn(1 << keyBits)))
+				var api wallet.TonAPI
+				w, err := tvm.NewRandomV5R1TestWallet(api, -217)
+				if err != nil {
+					return reflect.Value{}, err
+				}
+				addr := w.Address()
+				wrappedDict.Set(key, common.AddressWrap{Val: addr})
+			}
+			return reflect.ValueOf(wrappedDict), nil
 		},
 	}
 }
