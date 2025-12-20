@@ -66,6 +66,11 @@ func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID s
 		return nil, errors.New("transaction is nil")
 	}
 
+	// validate block metadata is present - required for log storage
+	if block == nil {
+		return nil, errors.New("block is nil")
+	}
+
 	if tx.IO.Out == nil {
 		// this should never happen, since we filter out transactions without output messages in the loader
 		return nil, errors.New("transaction has no output messages")

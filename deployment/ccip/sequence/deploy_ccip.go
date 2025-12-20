@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 
@@ -145,6 +146,11 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 		feeQuoterAddress = *address.MustParseAddr(outputAddr.Address)
 	}
 
+	reserve, err := tlb.FromTON(in.CCIPConfig.OnRampParams.Reserve)
+	if err != nil {
+		return output, err
+	}
+
 	// OnRamp (has to be deployed after FeeQuoter to have feeQuoter address ready)
 	onRampAddr := deps.CCIPOnChainState[in.ChainSelector].OnRamp
 	if onRampAddr.IsAddrNone() {
@@ -159,6 +165,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 				FeeQuoter:      &feeQuoterAddress,
 				FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
 				AllowListAdmin: deps.TonChain.WalletAddress,
+				Reserve:        reserve,
 			},
 			DestChainConfigs: nil,
 			Executor: onramp.ExecutorDeployment{

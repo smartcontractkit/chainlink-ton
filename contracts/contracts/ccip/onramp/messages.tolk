@@ -21,7 +21,7 @@ type OnRamp_InMessage =
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
-    | Withdrawable_Withdraw
+    | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
     ;
 
@@ -29,7 +29,7 @@ type OnRamp_NotificationInMessage =
     | OnRamp_Send
     ;
 
-struct (0x10000002) OnRamp_Send {
+struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata
@@ -45,7 +45,7 @@ struct OnRamp_GetValidatedFeeContext {
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
 }
 
-struct (0x10000003) OnRamp_SetDynamicConfig {
+struct (0xa178c62e) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
 
@@ -63,7 +63,7 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     metadata: Metadata,
 }
 
-struct (0x10000004) OnRamp_UpdateDestChainConfigs {
+struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
 }
 
@@ -89,6 +89,10 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
     context: T
+}
+
+struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
+    feeTokens: SnakedCell<address>;
 }
 
 // Costs associated with OnRamp operations
@@ -134,5 +138,15 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
         + ton("0.019") // MessageRejected fwdFee
         + Router_Costs.MessageRejected()
+        ;
+}
+
+// Minimum value for calling OnRamp_WithdrawFeeTokens
+@inline
+fun OnRamp_Costs.WithdrawFeeTokens(): int {
+    return
+        + ton("0.02") // computeFee
+        + ton("0.019") // feeTokens fwdFee
+        + ton("0.05") // feeCollector computeFee
         ;
 }
