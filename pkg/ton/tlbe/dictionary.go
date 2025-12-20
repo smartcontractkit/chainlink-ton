@@ -6,12 +6,25 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type Dict[K comparable, V any] struct {
 	entries map[K]V
+}
+
+func NewEmptyDict[K comparable, V any]() *Dict[K, V] {
+	return &Dict[K, V]{
+		entries: make(map[K]V),
+	}
+}
+
+func NewDict[K comparable, V any](dict *cell.Dictionary) (*Dict[K, V], error) {
+	d := &Dict[K, V]{}
+	if err := d.LoadFromDictionary(dict); err != nil {
+		return nil, fmt.Errorf("cannot load Dict from *cell.Dictionary: %w", err)
+	}
+	return d, nil
 }
 
 func (d *Dict[K, V]) ensure() {
@@ -81,14 +94,16 @@ func (d Dict[K, V]) AsDictionary() (*cell.Dictionary, error) {
 	dict := cell.NewDict(bits)
 
 	for key, value := range d.entries {
-		keyCell, err := tlb.ToCell(key)
+		keyCell, err := ToCell(key)
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode key: %w", err)
 		}
+
 		if keyCell.BitsSize() != bits {
 			return nil, fmt.Errorf("invalid key: produced %d bits, expected %d", keyCell.BitsSize(), bits)
 		}
-		valueCell, err := tlb.ToCell(value)
+
+		valueCell, err := ToCell(value)
 		if err != nil {
 			return nil, fmt.Errorf("cannot encode value: %w", err)
 		}
@@ -114,11 +129,12 @@ func (d *Dict[K, V]) LoadFromDictionary(dict *cell.Dictionary) error {
 	d.entries = make(map[K]V, len(kvs))
 	for _, kv := range kvs {
 		var key K
-		if err := tlb.LoadFromCell(&key, kv.Key.Copy()); err != nil {
+		if err := LoadFromCell(&key, kv.Key.Copy()); err != nil {
 			return fmt.Errorf("cannot decode key: %w", err)
 		}
+
 		var value V
-		if err := tlb.LoadFromCell(&value, kv.Value.Copy()); err != nil {
+		if err := LoadFromCell(&value, kv.Value.Copy()); err != nil {
 			return fmt.Errorf("cannot decode value: %w", err)
 		}
 		d.entries[key] = value
@@ -222,29 +238,4 @@ func lookupDictKeyBits(t reflect.Type) uint {
 	}
 
 	return 0
-}
-
-// TODO: not requrired as all key types can be TL-B wrapper types,
-// and we can extract key bits from there.
-type TestKey uint16
-
-func (k TestKey) ToCell() (*cell.Cell, error) {
-	builder := cell.BeginCell()
-	if err := builder.StoreUInt(uint64(k), 16); err != nil {
-		return nil, err
-	}
-	return builder.EndCell(), nil
-}
-
-func (k *TestKey) LoadFromCell(slice *cell.Slice) error {
-	value, err := slice.LoadUInt(16)
-	if err != nil {
-		return err
-	}
-	*k = TestKey(value)
-	return nil
-}
-
-func (TestKey) BitsLen() uint {
-	return 16
 }

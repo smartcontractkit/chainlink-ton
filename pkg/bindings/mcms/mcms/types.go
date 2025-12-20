@@ -93,8 +93,8 @@ type SetConfig struct {
 
 	SignerAddresses common.SnakeData[SignerAddress] `tlb:"^"`
 	SignerGroups    common.SnakeData[SignerGroup]   `tlb:"^"`
-	GroupQuorums    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupQuorums    *tlbe.Dict[uint8, uint8]        `tlb:"^"` // indexed, iterable backwards
+	GroupParents    *tlbe.Dict[uint8, uint8]        `tlb:"^"` // indexed, iterable backwards
 	ClearRoot       bool                            `tlb:"bool"`
 }
 
@@ -349,17 +349,17 @@ type Signer struct {
 //	  {addr: address(D), index: 4, group: 2}, {addr: address(B), index: 5, group: 1},
 //	]
 type Config struct {
-	Signers *cell.Dictionary `tlb:"dict 8"` // map<uint8, Signer> - (indexed)
+	Signers *tlbe.Dict[uint8, Signer] `tlb:"^"` // indexed
 	// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
 	// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
 	// it is enabled and at least groupQuorums[i] of its children are successful.
-	GroupQuorums *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupQuorums *tlbe.Dict[uint8, uint8] `tlb:"^"` // indexed, iterable backwards
 	// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
 	// groups form a tree structure (where the root/0-th signer group points to itself as
 	// parent) by enforcing
 	// - (i != 0) implies (groupParents[i] < i)
 	// - groupParents[0] == 0
-	GroupParents *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *tlbe.Dict[uint8, uint8] `tlb:"^"` // indexed, iterable backwards
 }
 
 // Information about the current root, extracted into a separate struct (wrapped in a cell).
