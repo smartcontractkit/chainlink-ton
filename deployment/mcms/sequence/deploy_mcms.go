@@ -122,9 +122,9 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 			Oracle:  tvm.ZeroAddress,
 			Signers: cell.NewDict(256),
 			Config: mcms.Config{
-				Signers:      cell.NewDict(8),
-				GroupQuorums: cell.NewDict(8),
-				GroupParents: cell.NewDict(8),
+				Signers:      tlbe.NewEmptyDict[uint8, mcms.Signer](),
+				GroupQuorums: tlbe.NewEmptyDict[uint8, uint8](),
+				GroupParents: tlbe.NewEmptyDict[uint8, uint8](),
 			},
 			SeenSignedHashes: cell.NewDict(256),
 			RootInfo: mcms.RootInfo{

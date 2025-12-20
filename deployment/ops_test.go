@@ -87,9 +87,10 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 
 			for i := 0; i < iter; i++ {
 				sample, err := gen.Generate(proto)
+				require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
 
-				t.Logf("Testing contract=%s opcode=0x%08x iteration=%d", contract, opcode, i+1)
-				t.Logf("Sample value: %#v", sample)
+				// t.Logf("Testing contract=%s opcode=0x%08x iteration=%d", contract, opcode, i+1)
+				// t.Logf("Sample value: %#v", sample)
 
 				if errors.Is(err, ErrUnsupportedSample) {
 					t.Logf("skip envelope round-trip for %s opcode=0x%08x (%T): %v", contract, opcode, proto, err)
@@ -106,8 +107,6 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 
 				envelope, err := lib.WrapMessage(contract, sample)
 				require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
-
-				t.Logf("Sample JSON: %s", canonicalPayload(t, sample))
 
 				// Append to big Pretty JSON blob which we write to file analyze after test
 				jsonBlob += "  " + canonicalPayload(t, envelope) + ",\n"
