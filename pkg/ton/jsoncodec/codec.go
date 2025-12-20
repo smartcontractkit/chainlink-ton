@@ -144,49 +144,9 @@ func (c *Codec) encodePointer(val reflect.Value) (any, bool, error) {
 	switch val.Type() {
 	case dictPtrType:
 		return encodeDictionary(val.Interface().(*cell.Dictionary))
-	case cellPtrType:
-		payload, err := c.encodeCell(val.Interface().(*cell.Cell))
-		return payload, true, err
 	default:
 		return nil, false, nil
 	}
-}
-
-func (c *Codec) encodeCell(src *cell.Cell) (cellJSON, error) {
-	if src == nil {
-		return cellJSON{}, nil
-	}
-
-	payload := cellJSON{BOC: base64.StdEncoding.EncodeToString(src.ToBOC())}
-	if c.opts.cellPresenter == nil {
-		return payload, nil
-	}
-
-	presentation, err := c.opts.cellPresenter(src)
-	if err != nil {
-		return cellJSON{}, err
-	}
-
-	if presentation.Type == "" && presentation.Value == nil {
-		return payload, nil
-	}
-
-	payload.Type = presentation.Type
-	if presentation.Value == nil {
-		return payload, nil
-	}
-
-	if presentation.Normalized {
-		payload.Decoded = presentation.Value
-		return payload, nil
-	}
-
-	decoded, err := c.Normalize(presentation.Value)
-	if err != nil {
-		return cellJSON{}, err
-	}
-	payload.Decoded = decoded
-	return payload, nil
 }
 
 func (c *Codec) normalizeStruct(val reflect.Value) (map[string]any, error) {
@@ -275,8 +235,6 @@ func (c *Codec) assign(target reflect.Value, data any) error {
 				target.Set(reflect.New(target.Type().Elem()))
 			}
 			return decodeDictionary(target, data)
-		case cellPtrType:
-			return decodeCell(target, data)
 		default:
 			if target.IsNil() {
 				target.Set(reflect.New(target.Type().Elem()))
@@ -556,12 +514,6 @@ type dictionaryJSON struct {
 	BOC     string `json:"boc"`
 }
 
-type cellJSON struct {
-	Type    string `json:"type,omitempty"`
-	Decoded any    `json:"decoded,omitempty"`
-	BOC     string `json:"boc"`
-}
-
 func encodeDictionary(dict *cell.Dictionary) (any, bool, error) {
 	if dict == nil {
 		return dictionaryJSON{}, true, nil
@@ -615,41 +567,6 @@ func decodeDictionary(target reflect.Value, data any) error {
 	}
 
 	target.Set(reflect.ValueOf(dict))
-	return nil
-}
-
-func decodeCell(target reflect.Value, data any) error {
-	if data == nil {
-		target.SetZero()
-		return nil
-	}
-
-	switch typed := data.(type) {
-	case string:
-		return setCellFromBOC(target, typed)
-	case map[string]any:
-		boc, ok := typed["boc"].(string)
-		if !ok {
-			return errors.New("cell surrogate missing boc")
-		}
-		return setCellFromBOC(target, boc)
-	default:
-		return fmt.Errorf("invalid cell payload (type %T)", data)
-	}
-}
-
-func setCellFromBOC(target reflect.Value, encoded string) error {
-	raw, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return fmt.Errorf("failed to decode cell boc: %w", err)
-	}
-
-	cellValue, err := cell.FromBOC(raw)
-	if err != nil {
-		return fmt.Errorf("failed to rebuild cell: %w", err)
-	}
-
-	target.Set(reflect.ValueOf(cellValue))
 	return nil
 }
 
