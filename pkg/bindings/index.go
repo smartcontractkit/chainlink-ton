@@ -40,14 +40,14 @@ var TypeToTLBMap = map[string]lib.TLBMap{
 }
 
 // Sent back to sender after the executor role check is updated.
-type TestDummy struct {
+type TestMessage struct {
 	_ tlb.Magic `tlb:"#c6d451e1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Data tlbe.Dict[tlbe.TestKey, common.AddressWrap] `tlb:"^" json:"data"`
+	Data tlbe.Dict[uint16, common.AddressWrap] `tlb:"^" json:"data"`
 }
 
 var TestTLBs = lib.MustNewTLBMap([]any{
-	TestDummy{},
+	TestMessage{},
 })
