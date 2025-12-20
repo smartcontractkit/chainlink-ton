@@ -148,7 +148,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 
 	reserve, err := tlb.FromTON(in.CCIPConfig.OnRampParams.Reserve)
 	if err != nil {
-		return output, err
+		return sequences.OnChainOutput{}, err
 	}
 
 	// OnRamp (has to be deployed after FeeQuoter to have feeQuoter address ready)
