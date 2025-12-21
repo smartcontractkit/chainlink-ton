@@ -11,6 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-testing-framework/framework/clclient"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 )
@@ -101,25 +102,22 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 }
 
 func (m *CCIP16TON) DeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) (datastore.DataStore, error) {
-	l := zerolog.Ctx(ctx)
-	l.Info().Uint64("Selector", selector).Msg("Deploying contracts for selector")
 	return nil, nil
+	// return devenvcommon.DeployContractsForSelector(ctx, env, cls, selector, ccipHomeSelector, crAddr)
 }
 
 func (m *CCIP16TON) ConnectContractsWithSelectors(ctx context.Context, e *deployment.Environment, selector uint64, remoteSelectors []uint64) error {
-	l := zerolog.Ctx(ctx)
-	l.Info().Uint64("Selector", selector).Uints64("RemoteSelectors", remoteSelectors).Msg("Connecting contracts with selector")
 	return nil
+	// return devenvcommon.ConnectContractsWithSelectors(ctx, e, selector, remoteSelectors)
 }
 
-func (m *CCIP16TON) ConfigureContractsForSelectors(ctx context.Context, e *deployment.Environment, cls []*simple_node_set.Input, ccipHomeSelector uint64, remoteSelectors []uint64) error {
-	l := zerolog.Ctx(ctx)
-	l.Info().Uint64("HomeSelector", ccipHomeSelector).Uints64("RemoteSelectors", remoteSelectors).Msg("Configuring contracts for selector")
+func (m *CCIP16TON) ConfigureContractsForSelectors(ctx context.Context, e *deployment.Environment, cls []*simple_node_set.Input, nodeKeyBundles map[string]map[string]clclient.NodeKeysBundle, ccipHomeSelector uint64, remoteSelectors []uint64) error {
 	return nil
+	// return devenvcommon.ConfigureContractsForSelectors(ctx, e, cls, nodeKeyBundles, ccipHomeSelector, remoteSelectors)
 }
 
-func (m *CCIP16TON) FundNodes(ctx context.Context, ns []*simple_node_set.Input, bc *blockchain.Input, linkAmount, nativeAmount *big.Int) error {
+func (m *CCIP16TON) FundNodes(ctx context.Context, ns []*simple_node_set.Input, bc *blockchain.Input, linkAmount, nativeAmount *big.Int) (map[string]clclient.NodeKeysBundle, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Funding CL nodes with native and LINK")
-	return nil
+	return nil, nil
 }
