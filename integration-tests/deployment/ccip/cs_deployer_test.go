@@ -15,15 +15,16 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/ton"
+	"google.golang.org/grpc"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/ton"
-	"google.golang.org/grpc"
 
 	"github.com/smartcontractkit/chainlink-ccip/chainconfig"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/rmn_home"
@@ -43,11 +44,12 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/common/types"
 
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	mocks "github.com/smartcontractkit/chainlink-ton/mocks/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	ccipcaptypes "github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/types"
 	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
+
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	mocks "github.com/smartcontractkit/chainlink-ton/mocks/client"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -334,12 +336,13 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 		require.True(t, exit, "feeQuoter view not found")
 		require.Equal(t, feeQuoterAddr, *feeQuoterView.Address)
 
+		var data []byte
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
 		require.True(t, exit, "offRamp view not found")
 		require.Equal(t, offRampAddr, *offRampView.Address)
 		require.Equal(t, tonSelector, offRampView.Config.ChainSelector)
 		require.Equal(t, feeQuoterAddr.String(), offRampView.Config.FeeQuoterAddress.String())
-		data, err := json.MarshalIndent(generatedView, "", "  ")
+		data, err = json.MarshalIndent(generatedView, "", "  ")
 		require.NoError(t, err)
 		fmt.Print("JSON encoded TON state view:\n" + string(data))
 	})
@@ -450,7 +453,7 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 					},
 					Ocr2Config: &node.OCR2Config{
 						OcrKeyBundle: &node.OCR2Config_OCRKeyBundle{
-							BundleId:              fmt.Sprintf("bundle-evm-%s", n.Id),
+							BundleId:              "bundle-evm-" + n.Id,
 							OnchainSigningAddress: hex.EncodeToString(ocrKeyBytes[:20]),
 							OffchainPublicKey:     hex.EncodeToString(ocrKeyBytes[:32]),
 							ConfigPublicKey:       hex.EncodeToString(ocrKeyBytes[:32]),

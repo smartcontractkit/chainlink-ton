@@ -96,7 +96,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 
-	// Only add new deployed addresses from DeployCCIPSequence to the output data store
+	// Add newly deployed TON addresses to our output data store
 	if len(ccipSeqReport.Output.Addresses) > 0 {
 		for _, addr := range ccipSeqReport.Output.Addresses {
 			err = dataStore.Addresses().Add(addr)
@@ -105,16 +105,20 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 			}
 		}
 
-		err = dataStore.Merge(env.DataStore)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to merge deployed addresses to env data store: %w", err)
+		// Reload state with complete address set (existing env.DataStore + new TON addresses)
+		// Note: We use a temporary merged store only for loading state, not for output.
+		// The output should only contain new TON addresses (in dataStore above).
+		mergedStore := ds.NewMemoryDataStore()
+		if err = mergedStore.Merge(env.DataStore); err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to merge existing addresses: %w", err)
 		}
-		env.DataStore = dataStore.Seal()
+		if err = mergedStore.Merge(dataStore.Seal()); err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to merge new TON addresses: %w", err)
+		}
 
-		// Reload the state from the updated data store to include newly deployed addresses
-		s, err = state.LoadCCIPOnChainStateUsingDataStore(env.DataStore, selector)
+		s, err = state.LoadCCIPOnChainStateUsingDataStore(mergedStore.Seal(), selector)
 		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to reload state from data store: %w", err)
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to reload state: %w", err)
 		}
 	}
 
