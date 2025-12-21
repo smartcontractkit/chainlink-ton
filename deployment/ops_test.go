@@ -5,14 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -30,7 +34,7 @@ var unsupported = []uint32{
 	0xD0984986, // feequoter.UpdateFeeTokens, requires dictionary surrogate
 }
 
-func TestIsSerializable_AllContractMessages(t *testing.T) {
+func TestIsSerializable_AllMessages(t *testing.T) {
 	lggr, _ := logger.New()
 	gen := NewGenerator()
 
@@ -48,11 +52,46 @@ func TestIsSerializable_AllContractMessages(t *testing.T) {
 	}
 }
 
-func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
+func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 	lggr, _ := logger.New()
 	gen := NewGenerator()
 
-	iter := 100
+	for contract, tlbMap := range bindings.Registry {
+		for opcode, proto := range tlbMap {
+			sample, err := gen.Generate(proto)
+			if errors.Is(err, ErrUnsupportedSample) {
+				t.Logf("skip envelope serializable for %s opcode=0x%08x (%T): %v", contract, opcode, proto, err)
+				continue
+			}
+			require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
+
+			envelope, err := lib.WrapMessage(contract, sample)
+			require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
+
+			assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
+		}
+	}
+}
+
+func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
+	messageEnvelopeRoundTrip(t, 42, 50, true)
+}
+
+func FuzzMessageEnvelope_SerializationRoundTrip(f *testing.F) {
+	seeds := []int64{1, 42, -7, 1234567890, 9876543210}
+	for _, seed := range seeds {
+		f.Add(seed)
+	}
+
+	f.Fuzz(func(t *testing.T, seed int64) {
+		messageEnvelopeRoundTrip(t, seed, 10, false)
+	})
+}
+
+func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArtifacts bool) {
+	lggr, _ := logger.New()
+	randSource := rand.New(rand.NewSource(seed))
+	gen := NewGenerator(WithRand(randSource))
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
@@ -63,21 +102,27 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 
 			meta, err := lib.NewMessageMetaFromValue(contract, proto)
 			require.NoErrorf(t, err, "creating message meta for %s opcode=0x%08x (%T)", contract, opcode, proto)
-			file := fmt.Sprintf("generated/testdata/envelopes/%s_%s_0x%08x.json", contract, meta.TypeName, opcode)
-			jsonBlob := "[\n"
 
-			for i := 0; i < iter; i++ {
+			var builder strings.Builder
+			if writeArtifacts {
+				builder.WriteString("[\n")
+			}
+
+			for i := 0; i < iterations; i++ {
 				sample, err := gen.Generate(proto)
 				require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
 
 				envelope, err := lib.WrapMessage(contract, sample)
 				require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
 
-				// Marshal to JSON
 				raw, err := json.Marshal(envelope)
 				require.NoError(t, err)
-				// Append to big Pretty JSON blob which we write to file analyze after test
-				jsonBlob += "  " + string(raw) + ",\n"
+
+				if writeArtifacts {
+					builder.WriteString("  ")
+					builder.Write(raw)
+					builder.WriteString(",\n")
+				}
 
 				var decoded lib.MessageEnvelope[any]
 				require.NoError(t, json.Unmarshal(raw, &decoded))
@@ -90,7 +135,6 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 				assert.JSONEqf(t, string(raw), string(rawDecoded), "payload mismatch for contract=%s opcode=0x%08x", contract, opcode)
 				assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope serializable check failed: contract=%s opcode=0x%08x", contract, opcode)
 
-				// Verify round-trip cell hash integrity
 				originalTLB, err := lib.EnsureTLBStructPointer(sample)
 				require.NoErrorf(t, err, "original value is not a TL-B struct pointer: contract=%s opcode=0x%08x", contract, opcode)
 				decodedTLB, err := lib.EnsureTLBStructPointer(*decoded.Value)
@@ -105,7 +149,6 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 				decodedHash := decodedCell.Hash()
 				assert.Equalf(t, originalHash, decodedHash, "cell hash mismatch after round-trip: contract=%s opcode=0x%08x original=%x decoded=%x", contract, opcode, originalHash, decodedHash)
 
-				// Generate an operation and execute
 				r := makeExecuteOp(t, contract, opcode, decoded)
 
 				rraw, err := json.Marshal(r)
@@ -116,10 +159,13 @@ func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
 				t.Log("--------------------")
 			}
 
-			jsonBlob += "]\n"
-			// Save to file for analysis (create if not exists)
-			require.NoError(t, os.MkdirAll("generated/testdata/envelopes", 0o755))
-			require.NoError(t, os.WriteFile(file, []byte(jsonBlob), 0o644))
+			if writeArtifacts {
+				builder.WriteString("]\n")
+				path := "generated/testdata/envelopes"
+				file := fmt.Sprintf("%s/%s_%s_0x%08x.json", path, contract, meta.TypeName, opcode)
+				require.NoError(t, os.MkdirAll(path, 0o755))
+				require.NoError(t, os.WriteFile(file, []byte(builder.String()), 0o644))
+			}
 		}
 	}
 }
@@ -153,60 +199,3 @@ func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.Mes
 	assert.NoError(t, err)
 	return r
 }
-
-func TestMessageEnvelope_IsSerializable(t *testing.T) {
-	lggr, _ := logger.New()
-	gen := NewGenerator()
-
-	for contract, tlbMap := range bindings.Registry {
-		for opcode, proto := range tlbMap {
-			sample, err := gen.Generate(proto)
-			if errors.Is(err, ErrUnsupportedSample) {
-				t.Logf("skip envelope serializable for %s opcode=0x%08x (%T): %v", contract, opcode, proto, err)
-				continue
-			}
-			require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
-
-			envelope, err := lib.WrapMessage(contract, sample)
-			require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
-
-			assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
-		}
-	}
-}
-
-// func FuzzDictionarySurrogate(f *testing.F) {
-// 	f.Add(uint8(4), uint32(1), uint32(2))
-
-// 	f.Fuzz(func(t *testing.T, keyBits uint8, key uint32, value uint32) {
-// 		if keyBits == 0 {
-// 			t.Skip("key bits cannot be zero")
-// 		}
-
-// 		if keyBits > 32 {
-// 			keyBits = keyBits%32 + 1
-// 		}
-
-// 		dict := cell.NewDict(uint(keyBits))
-// 		keyBuilder := cell.BeginCell()
-// 		keyMask := uint64(1<<keyBits) - 1
-// 		keyBuilder.MustStoreUInt(uint64(key)&keyMask, uint(keyBits))
-
-// 		valueBuilder := cell.BeginCell()
-// 		valueBuilder.MustStoreUInt(uint64(value), 32)
-
-// 		require.NoError(t, dict.Set(keyBuilder.EndCell(), valueBuilder.EndCell()))
-
-// 		payload, err := lib.MarshalWithSurrogates(dict)
-// 		require.NoError(t, err)
-
-// 		var restored *cell.Dictionary
-// 		require.NoError(t, lib.UnmarshalWithSurrogates(payload, &restored))
-// 		require.NotNil(t, restored)
-
-// 		roundTrip, err := lib.MarshalWithSurrogates(restored)
-// 		require.NoError(t, err)
-
-// 		assert.JSONEq(t, string(payload), string(roundTrip))
-// 	})
-// }
