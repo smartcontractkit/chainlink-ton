@@ -483,6 +483,7 @@ func ensureAssignable(value reflect.Value, targetType reflect.Type) (reflect.Val
 	return reflect.Value{}, fmt.Errorf("%w: cannot assign %s to %s", ErrUnsupportedSample, value.Type(), targetType)
 }
 
+// TODO: all these should be injected via options (to avoid circular dependencies)
 func buildDefaultFactories() map[reflect.Type]Factory {
 	coinsVal := tlb.MustFromTON("0.125")
 	return map[reflect.Type]Factory{
