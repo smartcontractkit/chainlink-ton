@@ -146,6 +146,16 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsState, err = tonstate.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
 
+	mcmsAddr = mcmsState[chainSelector].MCMS
+	err = tvm.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, &tv, nil)
+	require.NoError(t, err)
+	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
+	t.Log("Verified MCMS contract type and version")
+
+	timelockAddr = mcmsState[chainSelector].Timelock
+	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
+	require.NoError(t, err)
+
 	// Verify timelock is still initialized
 	isInitializedResponse, err = tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)

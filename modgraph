@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # Generates go.md
+# Run as "./modgraph.sh > go.md"
 
 set -e
 

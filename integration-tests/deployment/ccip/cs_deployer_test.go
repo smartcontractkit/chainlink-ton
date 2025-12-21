@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/pkg/errors"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
@@ -114,7 +115,8 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	p2pKeys := make([]p2pkey.KeyV2, numNodes)
 	testP2PIDs := make([][32]byte, numNodes)
 	for i := 0; i < numNodes; i++ {
-		key, err := p2pkey.NewV2()
+		var key p2pkey.KeyV2
+		key, err = p2pkey.NewV2()
 		require.NoError(t, err, "failed to generate p2p key")
 		p2pKeys[i] = key
 		testP2PIDs[i] = key.PeerID()
@@ -314,7 +316,8 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("StateViewAfterDeployContracts", func(t *testing.T) {
-		generatedView, err := state[tonSelector].GenerateView(&env, tonSelector, "-1")
+		var generatedView tonstate.TONChainView
+		generatedView, err = state[tonSelector].GenerateView(&env, tonSelector, "-1")
 		require.NoError(t, err)
 		require.Equal(t, "-1", generatedView.ChainID)
 		require.Equal(t, tonSelector, generatedView.ChainSelector)
@@ -456,7 +459,7 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 							PeerId: peerIDStr,
 						},
 					},
-					AccountAddress: fmt.Sprintf("0x%s", hex.EncodeToString(ocrKeyBytes[:20])),
+					AccountAddress: "0x" + hex.EncodeToString(ocrKeyBytes[:20]),
 				})
 				// TON chain config (required by AddDonAndSetCandidateChangeset for TON family OCR setup)
 				if tonChainID != "" {
@@ -469,7 +472,7 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 						},
 						Ocr2Config: &node.OCR2Config{
 							OcrKeyBundle: &node.OCR2Config_OCRKeyBundle{
-								BundleId:              fmt.Sprintf("bundle-ton-%s", n.Id),
+								BundleId:              "bundle-ton-" + n.Id,
 								OnchainSigningAddress: hex.EncodeToString(ocrKeyBytes[:32]),
 								OffchainPublicKey:     hex.EncodeToString(ocrKeyBytes[:32]),
 								ConfigPublicKey:       hex.EncodeToString(ocrKeyBytes[:32]),
@@ -493,7 +496,7 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 					return &node.GetNodeResponse{Node: n}, nil
 				}
 			}
-			return nil, fmt.Errorf("node not found: %s", in.Id)
+			return nil, errors.New("node not found: %s" + in.Id)
 		}).Maybe()
 
 	return mockClient
@@ -518,7 +521,7 @@ func addCapabilitiesRegistryVersionAlias(t *testing.T, env cldf.Environment, cha
 
 	newDS := datastore.NewMemoryDataStore()
 	for _, addr := range existingAddrs {
-		err := newDS.Addresses().Add(addr)
+		err = newDS.Addresses().Add(addr)
 		require.NoError(t, err, "failed to add address to new datastore")
 	}
 
