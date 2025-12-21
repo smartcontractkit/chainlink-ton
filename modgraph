@@ -4,6 +4,10 @@
 
 set -e
 
+# Unset GOROOT to avoid conflicts with locally installed Go versions
+# This ensures we use the Go toolchain in PATH (e.g., from nix)
+unset GOROOT
+
 echo "# smartcontractkit Go modules
 ## Main module
 \`\`\`mermaid
