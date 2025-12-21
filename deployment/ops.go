@@ -48,7 +48,7 @@ type MessageOpDeps struct {
 func handler[T any](b operations.Bundle, deps MessageOpDeps, in MessageOpInput[T]) (MessageOpOutput, error) {
 	ctx := b.GetContext()
 
-	body, err := tlb.ToCell(in.Envelope.Value)
+	body, err := tlb.ToCell(*in.Envelope.Value)
 	if err != nil {
 		return MessageOpOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
 	}
