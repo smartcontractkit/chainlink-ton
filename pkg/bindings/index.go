@@ -20,7 +20,7 @@ import (
 )
 
 // Map of TLBs keyed by contract type
-var TypeToTLBMap = map[string]lib.TLBMap{
+var Registry = lib.MessageRegistry{
 	// Jetton contract types
 	"com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet": wallet.TLBs,
 	"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter": minter.TLBs,
