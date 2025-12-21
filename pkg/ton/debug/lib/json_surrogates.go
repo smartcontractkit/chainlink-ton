@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/jsoncodec"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -23,7 +24,7 @@ func presentCell(c *cell.Cell) (jsoncodec.CellPresentation, error) {
 		return jsoncodec.CellPresentation{}, nil
 	}
 
-	tlbMap := defaultRegistry.snapshotTLBMap()
+	tlbMap := bindings.Registry.Snapshot()
 	if len(tlbMap) == 0 {
 		return jsoncodec.CellPresentation{}, nil
 	}

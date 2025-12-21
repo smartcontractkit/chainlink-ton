@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"sync"
+
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // MessageMeta keeps the information required to serialize/deserialize TL-B messages.
@@ -88,120 +90,6 @@ func (m MessageMeta) QualifiedKey() string {
 	return fmt.Sprintf("%s:%d", m.Contract, m.Opcode)
 }
 
-type messageRegistry struct {
-	mu          sync.RWMutex
-	byQualified map[string]MessageMeta
-}
-
-func newMessageRegistry() *messageRegistry {
-	return &messageRegistry{
-		byQualified: make(map[string]MessageMeta),
-	}
-}
-
-func (r *messageRegistry) register(contract string, op any) (MessageMeta, error) {
-	if op == nil {
-		return MessageMeta{}, errors.New("message prototype is nil")
-	}
-
-	meta, err := NewMessageMetaFromValue(contract, op)
-	if err != nil {
-		return MessageMeta{}, err
-	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if existing, ok := r.byQualified[meta.QualifiedKey()]; ok {
-		if existing != meta {
-			return MessageMeta{}, fmt.Errorf("duplicate registration with conflicting metadata: %v", meta)
-		}
-		return existing, nil
-	}
-
-	r.byQualified[meta.QualifiedKey()] = meta
-
-	return meta, nil
-}
-
-func (r *messageRegistry) lookupByValue(contract string, op any) (MessageMeta, error) {
-	if op == nil {
-		return MessageMeta{}, errors.New("message is nil")
-	}
-
-	meta, err := NewMessageMetaFromValue(contract, op)
-	if err != nil {
-		return MessageMeta{}, err
-	}
-
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	meta, ok := r.byQualified[meta.QualifiedKey()]
-	if !ok {
-		return MessageMeta{}, fmt.Errorf("unregistered message with meta: %v", meta)
-	}
-	return meta, nil
-}
-
-func (r *messageRegistry) snapshotTLBMap() TLBMap {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	out := make(TLBMap, len(r.byQualified))
-	for _, meta := range r.byQualified {
-		out[meta.Opcode] = reflect.New(meta.GoType).Elem().Interface()
-	}
-	return out
-}
-
-func (r *messageRegistry) lookup(contract, typeName string, opcodeHex string) (MessageMeta, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if typeName != "" {
-		key := fmt.Sprintf("%s:%s", contract, typeName)
-		if meta, ok := r.byQualified[key]; ok {
-			return meta, nil
-		}
-	}
-
-	if opcodeHex != "" {
-		opcode, err := strconv.ParseUint(opcodeHex[2:], 16, 32)
-		if err != nil {
-			return MessageMeta{}, fmt.Errorf("invalid opcode format %s: %w", opcodeHex, err)
-		}
-		meta := MessageMeta{
-			Contract: contract,
-			TypeName: typeName,
-			GoType:   nil,
-			Opcode:   uint32(opcode),
-		}
-
-		if meta, ok := r.byQualified[meta.QualifiedKey()]; ok {
-			return meta, nil
-		}
-	}
-
-	return MessageMeta{}, fmt.Errorf("unable to resolve message metadata for contract=%s type=%s opcode=%s", contract, typeName, opcodeHex)
-}
-
-var defaultRegistry = newMessageRegistry()
-
-// RegisterTLBOperations registers all TL-B messages for a contract so that they can be wrapped into MessageEnvelope values.
-func RegisterTLBOperations(contract string, tlbMap TLBMap) error {
-	for opcode, op := range tlbMap {
-		meta, err := defaultRegistry.register(contract, op)
-		if err != nil {
-			return err
-		}
-		if meta.Opcode != opcode {
-			return fmt.Errorf("opcode mismatch for %s: tag=0x%08x map=0x%08x", meta.TypeName, meta.Opcode, opcode)
-		}
-	}
-	return nil
-}
-
 // messageJSON is the JSON representation of a MessageEnvelope, used in marshaling/unmarshaling.
 type messageJSON struct {
 	Contract string          `json:"contract"`
@@ -215,26 +103,20 @@ type messageJSON struct {
 type MessageEnvelope[T any] struct {
 	Metadata MessageMeta     `json:"metadata"`
 	Payload  json.RawMessage `json:"payload"`
-
-	Value T `json:"-"`
+	Cell     *cell.Cell      `json:"-"`
+	Value    *T              `json:"-"`
 }
 
 // WrapMessage prepares a type-safe envelope for the provided TL-B message.
 func WrapMessage[T any](contract string, op T) (MessageEnvelope[T], error) {
-	meta, err := defaultRegistry.lookupByValue(contract, op)
-	if err != nil {
-		return MessageEnvelope[T]{}, err
-	}
-
-	payload, err := MarshalWithSurrogates(op)
+	meta, err := NewMessageMetaFromValue(contract, op)
 	if err != nil {
 		return MessageEnvelope[T]{}, err
 	}
 
 	return MessageEnvelope[T]{
 		Metadata: meta,
-		Payload:  json.RawMessage(payload),
-		Value:    op,
+		Value:    &op,
 	}, nil
 }
 
@@ -246,9 +128,9 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 		if reflect.DeepEqual(e.Value, zero) {
 			payload = json.RawMessage("null")
 		} else {
-			data, err := MarshalWithSurrogates(e.Value)
+			data, err := json.Marshal(e.Value)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to marshal message value: %w", err)
 			}
 			payload = json.RawMessage(data)
 		}
@@ -267,14 +149,8 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON populates the envelope metadata and rebuilds the typed value.
 func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 	var raw messageJSON
-
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	meta, err := defaultRegistry.lookup(raw.Contract, raw.Type, raw.Opcode)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal message envelope: %w", err)
 	}
 
 	payload := raw.Payload
@@ -282,70 +158,169 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 		payload = json.RawMessage("null")
 	}
 
-	inst := reflect.New(meta.GoType)
-	if err := UnmarshalWithSurrogates(payload, inst.Interface()); err != nil {
-		return fmt.Errorf("failed to decode payload for %s: %w", meta.TypeName, err)
+	opcode, err := strconv.ParseUint(raw.Opcode[2:], 16, 32)
+	if err != nil {
+		return fmt.Errorf("invalid opcode format %s: %w", raw.Opcode, err)
 	}
-
-	e.Metadata = meta
+	e.Metadata = MessageMeta{
+		Contract: raw.Contract,
+		TypeName: raw.Type,
+		Opcode:   uint32(opcode),
+	}
 	e.Payload = payload
-
-	// Type assertion to T
-	value, ok := inst.Interface().(T)
-	if !ok {
-		// If direct assertion fails, try dereferencing pointer
-		if inst.Kind() == reflect.Ptr && inst.Elem().CanInterface() {
-			value, ok = inst.Elem().Interface().(T)
-		}
-		if !ok {
-			return fmt.Errorf("decoded value type %T does not match envelope type parameter", inst.Interface())
-		}
-	}
-
-	e.Value = value
-	e.Metadata = meta
 
 	return nil
 }
 
-// Decode instantiates a fresh TL-B message based on the registered metadata.
-func (e MessageEnvelope[T]) Decode() (T, error) {
-	var zero T
-
-	if e.Metadata.GoType == nil {
-		meta, err := defaultRegistry.lookup(e.Metadata.Contract, e.Metadata.TypeName, fmt.Sprintf("0x%08x", e.Metadata.Opcode))
-		if err != nil {
-			return zero, err
-		}
-		return decodePayload[T](e.Payload, meta)
+func (e MessageEnvelope[T]) ToCell() (*cell.Cell, error) {
+	if e.Cell != nil {
+		return e.Cell, nil
 	}
 
-	return decodePayload[T](e.Payload, e.Metadata)
+	if e.Value == nil {
+		return nil, fmt.Errorf("cannot convert to cell: no value present")
+	}
+
+	return tlb.ToCell(e.Value)
 }
 
-func decodePayload[T any](payload json.RawMessage, meta MessageMeta) (T, error) {
+func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
+	if e == nil {
+		return errors.New("invalid nil receiver")
+	}
+
+	var err error
+	e.Cell, err = slice.ToCell()
+	return err
+}
+
+// LoadFromRegistry attempts to populate the Value T field from the Payload or Cell using the provided registry.
+func (e *MessageEnvelope[T]) LoadDecoded(r MessageRegistry) error {
+	val, err := e.Decode(r)
+	if err != nil {
+		return fmt.Errorf("failed to load message from registry: %w", err)
+	}
+
+	e.Value = &val
+	return nil
+}
+
+type envelopeLoader interface {
+	LoadDecoded(MessageRegistry) error
+}
+
+var envelopeLoaderType = reflect.TypeOf((*envelopeLoader)(nil)).Elem()
+
+// Decode attempts to decode the message recursively using either the Payload or Cell and the provided registry.
+func (e MessageEnvelope[T]) Decode(r MessageRegistry) (T, error) {
+	decoded, err := e.decode(r)
+	if err != nil {
+		var zero T
+		return zero, fmt.Errorf("failed to decode message: %w", err)
+	}
+
+	value := reflect.ValueOf(decoded)
+	if !value.IsValid() {
+		return decoded, nil
+	}
+
+	var structVal reflect.Value
+	switch value.Kind() {
+	case reflect.Pointer:
+		if value.IsNil() {
+			return decoded, nil
+		}
+		if value.Elem().Kind() != reflect.Struct {
+			return decoded, nil
+		}
+		structVal = value.Elem()
+	case reflect.Struct:
+		structVal = value
+	default:
+		return decoded, nil
+	}
+
+	for i := 0; i < structVal.NumField(); i++ {
+		fieldVal := structVal.Field(i)
+		fieldType := structVal.Type().Field(i)
+
+		var loader envelopeLoader
+		// Handle pointer fields
+		if fieldVal.Kind() == reflect.Pointer {
+			if fieldVal.IsNil() {
+				continue
+			}
+			if fieldVal.Type().Implements(envelopeLoaderType) && fieldVal.CanInterface() {
+				loader = fieldVal.Interface().(envelopeLoader)
+			}
+		}
+
+		// Handle non-pointer fields
+		if loader == nil && fieldVal.CanAddr() {
+			addr := fieldVal.Addr()
+			if addr.Type().Implements(envelopeLoaderType) && addr.CanInterface() {
+				loader = addr.Interface().(envelopeLoader)
+			}
+		}
+
+		if loader == nil {
+			continue
+		}
+
+		if err := loader.LoadDecoded(r); err != nil {
+			return decoded, fmt.Errorf("failed to decode nested envelope field %s: %w", fieldType.Name, err)
+		}
+	}
+
+	return decoded, nil
+}
+
+// decode attempts to decode the message using either the Payload or Cell and the provided registry.
+func (e MessageEnvelope[T]) decode(r MessageRegistry) (T, error) {
+	// Check if already loaded
+	if e.Value != nil {
+		return *e.Value, nil
+	}
+
 	var zero T
 
-	if payload == nil {
-		payload = json.RawMessage("null")
-	}
-
-	inst := reflect.New(meta.GoType)
-	if err := UnmarshalWithSurrogates(payload, inst.Interface()); err != nil {
-		return zero, fmt.Errorf("failed to decode payload for %s: %w", meta.TypeName, err)
-	}
-
-	// Type assertion to T
-	value, ok := inst.Interface().(T)
-	if !ok {
-		// If direct assertion fails, try dereferencing pointer
-		if inst.Kind() == reflect.Ptr && inst.Elem().CanInterface() {
-			value, ok = inst.Elem().Interface().(T)
-		}
+	// Try to load from JSON payload + registry
+	if e.Payload != nil {
+		typ, ok := r.Lookup(e.Metadata.Contract, e.Metadata.Opcode)
 		if !ok {
-			return zero, fmt.Errorf("decoded value type %T does not match expected type", inst.Interface())
+			return zero, fmt.Errorf("message type not found in registry for contract=%s opcode=0x%08x", e.Metadata.Contract, e.Metadata.Opcode)
 		}
+
+		// Create new instance of the candidate type
+		rt := reflect.TypeOf(typ)
+		inst := reflect.New(rt).Interface() // pointer to zero value
+
+		if err := json.Unmarshal(e.Payload, inst); err != nil {
+			return zero, fmt.Errorf("failed to unmarshal payload into type %s: %w", rt.String(), err)
+		}
+
+		val, ok := inst.(T)
+		if !ok {
+			return zero, fmt.Errorf("decoded value type %T does not match envelope type parameter", inst)
+		}
+
+		return val, nil
 	}
 
-	return value, nil
+	// Try to load cell + registry
+	if e.Cell != nil {
+		inst, err := DecodeTLBCellToAny(e.Cell, r.Snapshot())
+		if err != nil {
+			return zero, fmt.Errorf("failed to decode cell for contract=%s opcode=0x%08x: %w", e.Metadata.Contract, e.Metadata.Opcode, err)
+		}
+
+		val, ok := inst.(T)
+		if !ok {
+			return zero, fmt.Errorf("decoded value type %T does not match envelope type parameter", inst)
+		}
+
+		return val, nil
+	}
+
+	return zero, fmt.Errorf("no data available to decode message")
 }
