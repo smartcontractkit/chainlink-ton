@@ -17,7 +17,6 @@ import (
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 )
 
 const defaultMCMSContractCoin = "1.5"
@@ -112,7 +111,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 	mcmsSemver := semver.MustParse("0.0.4")
 
 	return mcmsSeq.DeployMCMSSeqInput{
-		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO This needs to be provided from deployer interface, need config param update
+		ContractsVersionSha: cfg.ContractVersion,
 		ContractsParams: mcmsConfig.ChainContractParams{
 			Timelock: mcmsConfig.TimelockParams{
 				ID:              contractID,

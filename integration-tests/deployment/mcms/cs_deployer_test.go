@@ -10,6 +10,7 @@ import (
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
@@ -54,6 +55,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 				Bypasser:         mcmstypes.Config{}, // Will be replaced by TON adapter
 				Proposer:         mcmstypes.Config{}, // Will be replaced by TON adapter
 				TimelockMinDelay: big.NewInt(0),
+				ContractVersion:  sequence.ContractsLocalVersion,
 			},
 		},
 		AdapterVersion: adapterVersion,
@@ -131,6 +133,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 				Bypasser:         mcmstypes.Config{},
 				Proposer:         mcmstypes.Config{},
 				TimelockMinDelay: big.NewInt(0),
+				ContractVersion:  sequence.ContractsLocalVersion,
 			},
 		},
 		AdapterVersion: adapterVersion,

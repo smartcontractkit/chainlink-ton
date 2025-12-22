@@ -19,7 +19,6 @@ import (
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -169,7 +168,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		panic(fmt.Sprintf("failed to generate random contract ID: %v", err))
 	}
 	return seq.DeployCCIPSeqInput{
-		ContractsVersionSha: sequence.ContractsLocalVersion, // TODO This needs to be provided from deployer interface, need config param update
+		ContractsVersionSha: cfg.ContractVersion,
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
 				ContractsSemver:              cfg.Version,

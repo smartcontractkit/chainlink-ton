@@ -8,13 +8,13 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/pkg/errors"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/ton"
@@ -37,7 +37,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
@@ -81,6 +80,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
+				ContractVersion:                         sequence.ContractsLocalVersion,
 			},
 		},
 	})
@@ -102,6 +102,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
+				ContractVersion:                         sequence.ContractsLocalVersion,
 			},
 		},
 	})
@@ -175,9 +176,6 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 		}),
 	})
 	require.NoError(t, err, "failed to deploy home chain")
-
-	// Alias CapabilitiesRegistry v1.0.0 -> v1.6.0 (SetOCR3Config expects v1.6.0, but DeployHomeChain deploys v1.0.0)
-	env = addCapabilitiesRegistryVersionAlias(t, env, evmSelector)
 
 	// Step 2: Deploy MCMS with Timelock (required for ValidateOwnership)
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
@@ -403,7 +401,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 }
 
 // setupMockOffChainClient configures a mockery-generated Client mock to simulate
-// the Job Distributor for testing v1_6 changesets
+// the Job Distributor for testing v1_6 changesets to return the mocked transmitter keys, ocr3 config etc.
 func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string) *mocks.Client {
 	mockClient := mocks.NewClient(t)
 
@@ -503,41 +501,4 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 		}).Maybe()
 
 	return mockClient
-}
-
-// addCapabilitiesRegistryVersionAlias creates a v1.6.0 alias for the v1.0.0 CapabilitiesRegistry
-// (DeployHomeChain deploys v1.0.0, but SetOCR3Config expects v1.6.0)
-func addCapabilitiesRegistryVersionAlias(t *testing.T, env cldf.Environment, chainSelector uint64) cldf.Environment {
-	existingAddrs, err := env.DataStore.Addresses().Fetch()
-	require.NoError(t, err, "failed to fetch addresses from datastore")
-
-	var capRegAddr string
-	for _, addr := range existingAddrs {
-		if addr.ChainSelector == chainSelector &&
-			addr.Type == datastore.ContractType(utils.CapabilitiesRegistry) &&
-			addr.Version != nil && addr.Version.String() == "1.0.0" {
-			capRegAddr = addr.Address
-			break
-		}
-	}
-	require.NotEmpty(t, capRegAddr, "CapabilitiesRegistry address not found in datastore")
-
-	newDS := datastore.NewMemoryDataStore()
-	for _, addr := range existingAddrs {
-		err = newDS.Addresses().Add(addr)
-		require.NoError(t, err, "failed to add address to new datastore")
-	}
-
-	version160 := semver.MustParse("1.6.0")
-	err = newDS.Addresses().Add(datastore.AddressRef{
-		ChainSelector: chainSelector,
-		Address:       capRegAddr,
-		Type:          datastore.ContractType(utils.CapabilitiesRegistry),
-		Version:       version160,
-		Qualifier:     fmt.Sprintf("%s-%s-v1.6.0", capRegAddr, utils.CapabilitiesRegistry),
-	})
-	require.NoError(t, err, "failed to add CapabilitiesRegistry version alias")
-
-	env.DataStore = newDS.Seal()
-	return env
 }
