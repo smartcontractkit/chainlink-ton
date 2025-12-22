@@ -21,7 +21,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
 export async function deployReceiver(
   provider: NetworkProvider,
-  offRampAddress: Address,
+  routerAddress: Address,
 ): Promise<Address> {
   const deployer = provider.sender().address!
   const receiver = provider.open(
@@ -33,7 +33,7 @@ export async function deployReceiver(
           owner: deployer,
           pendingOwner: null,
         },
-        authorizedCaller: offRampAddress,
+        authorizedCaller: routerAddress,
       },
       await compile('ccip.test.receiver'),
     ),
