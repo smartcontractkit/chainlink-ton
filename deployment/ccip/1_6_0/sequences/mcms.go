@@ -19,6 +19,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
+// defaultMCMSContractCoin is the default amount of TON coins to allocate for MCMS contract deployment.
+// MCMS contracts require more storage and operational capacity, hence the higher allocation compared to CCIP contracts.
 const defaultMCMSContractCoin = "1.5"
 
 func (a *TonAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
@@ -35,7 +37,10 @@ var DeployMCMSContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		seqInput := intoDeployMCMSSeqInput(input, deps.TonChain.WalletAddress)
+		seqInput, err := intoDeployMCMSSeqInput(input, deps.TonChain.WalletAddress)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
 		mcmsSeqReport, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, deps, seqInput)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
@@ -80,7 +85,7 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore
 	return deps, nil
 }
 
-func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) mcmsSeq.DeployMCMSSeqInput {
+func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) (mcmsSeq.DeployMCMSSeqInput, error) {
 	// The external config uses mcmstypes.Config which has signers, but assumes all evm address for, but
 	// we need ton addresses. For now, use deployer as the default for all roles
 	proposers := []*address.Address{deployer}
@@ -91,7 +96,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 	// Generate a random contract ID for all contracts in this deployment
 	contractID, err := tonops.RandomUint32()
 	if err != nil {
-		panic(fmt.Sprintf("failed to generate random contract ID: %v", err))
+		return mcmsSeq.DeployMCMSSeqInput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 	}
 
 	// MinDelay from cfg.TimelockMinDelay (big.Int) to uint32 safely
@@ -131,7 +136,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 			},
 		},
 		ChainSelector: cfg.ChainSelector,
-	}
+	}, nil
 }
 
 func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {

@@ -498,7 +498,7 @@ func setupMockOffChainClient(t *testing.T, nodes []*node.Node, tonChainID string
 					return &node.GetNodeResponse{Node: n}, nil
 				}
 			}
-			return nil, errors.New("node not found: %s" + in.Id)
+			return nil, fmt.Errorf("node not found: %s", in.Id)
 		}).Maybe()
 
 	return mockClient

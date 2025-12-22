@@ -22,7 +22,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.
+// This value is chosen to cover contract initialization and storage costs on TON blockchain.
 const defaultCCIPContractCoin = "0.05"
+
+// defaultReserveAmount is the default reserve amount allocated to the OnRamp contract.
+// This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
 func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
@@ -41,7 +46,10 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		seqInput := intoDeployCCIPSeqInput(input, deps.TonChain.WalletAddress)
+		seqInput, err := intoDeployCCIPSeqInput(input, deps.TonChain.WalletAddress)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
 		ccipSeqReport, err := operations.ExecuteSequence(b, seq.DeployCCIPSequence, deps, seqInput)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
@@ -161,11 +169,11 @@ func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datas
 	return deps, nil
 }
 
-func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddress, deployer *address.Address) seq.DeployCCIPSeqInput {
+func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddress, deployer *address.Address) (seq.DeployCCIPSeqInput, error) {
 	// generate a random contract ID for all contracts in this deployment
 	contractID, err := tonops.RandomUint32()
 	if err != nil {
-		panic(fmt.Sprintf("failed to generate random contract ID: %v", err))
+		return seq.DeployCCIPSeqInput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 	}
 	return seq.DeployCCIPSeqInput{
 		ContractsVersionSha: cfg.ContractVersion,
@@ -211,5 +219,5 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 			},
 		},
 		ChainSelector: cfg.ChainSelector,
-	}
+	}, nil
 }
