@@ -34,7 +34,7 @@ fun onInternalMessage(in:InMessage) {
     match(msg) {
         // Sender must be OCR transmitter
         OffRamp_Commit => {
-            onCommit(msg, in.senderAddress, in.valueCoins)
+           onCommit(msg, in.senderAddress, in.valueCoins)
         }
         // Sender must be OCR transmitter
         OffRamp_Execute => {
@@ -429,30 +429,36 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     }
 
     // update token/gas prices if any
-    if (report.priceUpdates != null && !report.priceUpdates.beginParse().isEmpty()) {
-        // extract OCR sequence number from report context (matches EVM implementation)
-        val ocrSequenceNumber = msg.reportContext.sequenceBytes;
+    // don't send the UpdatePrices message
 
-        // check for price staleness based on the OCR sequence number
-        if (st.latestPriceSequenceNumber < ocrSequenceNumber) {
-            // if prices are not stale, update the latest sequence number
-            st.latestPriceSequenceNumber = ocrSequenceNumber;
+    if (report.priceUpdates != null) {
+        val priceUpdates = report.priceUpdates!.load();
 
-            // and update the prices in the fee quoter
+        // Ignore price updates if both are empty
+        if (!(priceUpdates.tokenPriceUpdates.empty() && priceUpdates.gasPriceUpdates.empty())) {
+            // extract OCR sequence number from report context (matches EVM implementation)
+            val ocrSequenceNumber = msg.reportContext.sequenceBytes;
 
-            val updatePricesMsg = createMessage({
-                bounce: true,
-                value: FeeQuoter_Costs.updatePrices(),
-                dest: st.feeQuoter,
-                body: FeeQuoter_UpdatePrices {
-                    updates: report.priceUpdates!.load(),
-                    sendExcessesTo: sender,
-                }
-            });
-            updatePricesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+            // check for price staleness based on the OCR sequence number
+            if (st.latestPriceSequenceNumber < ocrSequenceNumber) {
+                // if prices are not stale, update the latest sequence number
+                st.latestPriceSequenceNumber = ocrSequenceNumber;
+
+                // and update the prices in the fee quoter
+
+                val updatePricesMsg = createMessage({
+                    bounce: true,
+                    value: FeeQuoter_Costs.updatePrices(),
+                    dest: st.feeQuoter,
+                    body: FeeQuoter_UpdatePrices {
+                        updates: report.priceUpdates!.load(),
+                        sendExcessesTo: sender,
+                    }
+                });
+                updatePricesMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+            }
         }
     }
-
     // store updated state (latestPriceSequenceNumber and sourceChainConfigs)
     st.store();
 
@@ -464,7 +470,6 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         report.toCell(),
         msg.signatures
     );
-
     emit(
         TOPIC_COMMIT_REPORT_ACCEPTED,
         CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
