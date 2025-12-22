@@ -34,13 +34,16 @@ export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
 export const FEE_QUOTER_FACILITY_ID = 248
 export const FEE_QUOTER_ERROR_CODE = 24800 //FACILITY_ID * 100
 
-export enum FeeQuoterError {
+export enum errors {
   UnsupportedChainFamilySelector = FEE_QUOTER_ERROR_CODE,
   GasLimitTooHigh,
   ExtraArgOutOfOrderExecutionMustBeTrue,
   InvalidExtraArgsData,
   UnsupportedNumberOfTokens,
+  InvalidEVMReceiverAddress,
+  Invalid32ByteReceiverAddress,
   InvalidSuiReceiverAddress,
+  InvalidSVMReceiverAddress,
   InvalidTokenReceiver,
   TooManySuiExtraArgsReceiverObjectIds,
   MsgDataTooLarge,
@@ -62,8 +65,6 @@ export enum FeeQuoterError {
   FeeOverflow,
   MessageFeeTooHigh,
 }
-//TODO this error should be under the FeeQuoterError prefix
-export const ERROR_INVALID_EVM_ADDRESS = 5001
 
 export type FeeQuoterStorage = {
   id: bigint
@@ -574,8 +575,6 @@ export type UpdateDestChainConfigs = {
   destChainSelector: bigint
   config: DestChainConfig
 }[]
-
-export abstract class Errors {}
 
 export class FeeQuoter
   implements

@@ -113,7 +113,7 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
  * ```
  * external -- (opcode: 0xd7d5ec75, exit code 0) --> TreasuryContract-sender
  * └ TreasuryContract-sender -- (opcode: 0x00000001, amount: 1000000000, exit code 0) --> Router
- * │ └ Router -- (opcode: 0x10000002, amount: 99141200, exit code 0) --> OnRamp
+ * │ └ Router -- (opcode: 0xdcf993c2, amount: 99141200, exit code 0) --> OnRamp
  * │ │ └ OnRamp -- (opcode: 0x20000005, amount: 48941600, exit code 0) --> FeeQuoter
  * │ │ │ └ FeeQuoter -- (opcode: 0x00000003, amount: 48839200, exit code 0) --> OnRamp
  * │ │ │ │ └ OnRamp emit: (opcode: 0x32a99a2b)

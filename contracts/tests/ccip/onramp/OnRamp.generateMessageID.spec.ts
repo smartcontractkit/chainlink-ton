@@ -58,15 +58,13 @@ describe('OnRamp - generate message id', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer } = await setup(blockchain))
     deployableCode = await compile('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
     executorID = BigInt(generateRandomContractId())
-
-    onramp = await deployOnRampContract(blockchain, deployer, {
+    ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
@@ -75,7 +73,7 @@ describe('OnRamp - generate message id', () => {
         executorCode: await relay.ContractClient.code(),
         currentID: executorID,
       },
-    })
+    }))
 
     const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
       deployer.getSender(),
@@ -108,7 +106,7 @@ describe('OnRamp - generate message id', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
 
     const deployTX = result.transactions.find(
@@ -203,7 +201,7 @@ describe('OnRamp - generate message id', () => {
       from: executorSender.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.executorFinishedSuccessfully,
+      op: or.opcodes.in.executorFinishedSuccessfully,
     })
 
     for (const tx of result.transactions) {

@@ -13,7 +13,6 @@ import "../ccipsend_executor/storage"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
-import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "events"
 import "../../deployable/types"
@@ -21,7 +20,6 @@ import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -49,7 +47,12 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy OnRamp_Storage.load();
             val ccipSend = msg.msg.load();
             // validate allowlist
-            val destChainConfig = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int);
+            val destChainConfigResult = st.destChainConfigs.get(ccipSend.destChainSelector);
+            if (!destChainConfigResult.isFound) {
+                // This is a config error. The Router should not be sending messages to unknown chains.
+                return rejectMessage(Error.UnknownDestChainSelector as int, in.senderAddress, ccipSend, msg.metadata.sender);
+            }
+            val destChainConfig = destChainConfigResult.loadValue();
             // ccipSend must be forwarded from the router
             assert(destChainConfig.router == in.senderAddress, Error.Unauthorized);
             onSend(st, destChainConfig, msg)
@@ -96,14 +99,11 @@ fun onInternalMessage(in: InMessage) {
             st.executor.executorCode = msg.code;
             st.store();
         }
-        // Sender must be the owner
-        Withdrawable_Withdraw => {
-            var st = lazy OnRamp_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            Withdrawable{
-                reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
-        }
+        // Permissionless
+        OnRamp_WithdrawFeeTokens => {
+            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens(), Error.InsufficientValue);
+            onWithdrawFeeTokens(msg);
+        },
         // Sender must be owner
         Upgradeable_Upgrade => {
             var st = lazy OnRamp_Storage.load();
@@ -223,9 +223,11 @@ destination chain configuration is enabled, enforces the optional allowlist,
 and deploys a CCIPSendExecutor to perform the send, carrying remaining value.
 */
 fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload: OnRamp_Send) {
-       if (destChainConfig.allowlistEnabled) {
+    if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
-        assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
+        if (!entry.isFound || !entry.loadValue()) {
+            return rejectMessage(Error.SenderNotAllowed as int, destChainConfig.router, payload.msg.load(), payload.metadata.sender);
+        }
     }
 
     val config = st.config.load();
@@ -334,18 +336,22 @@ Router_MessageRejected notification to the Router on the destination chain
 with error details for tracking and recovery.
 */
 fun onExecutorFinishedWithError(st: OnRamp_Storage, msg: OnRamp_ExecutorFinishedWithError) {
-    val ccipsend: Router_CCIPSend = msg.msg.load();
+    val ccipSend: Router_CCIPSend = msg.msg.load();
     val metadata = msg.metadata;
+    val router = st.destChainConfigs.mustGet(ccipSend.destChainSelector, Error.UnknownDestChainSelector as int).router;
+    rejectMessage(msg.error, router, ccipSend, metadata.sender);
+}
 
+fun rejectMessage(error: int, router: address, ccipSend: Router_CCIPSend, sender: address) {
     val errorMsg = createMessage({
         bounce: false,
         value: 0,
-        dest: st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector as int).router,
+        dest: router,
         body: Router_MessageRejected {
-            queryID: ccipsend.queryID,
-            destChainSelector: ccipsend.destChainSelector,
-            sender: metadata.sender,
-            error: msg.error,
+            queryID: ccipSend.queryID,
+            destChainSelector: ccipSend.destChainSelector,
+            sender,
+            error,
         },
     });
     errorMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -358,7 +364,7 @@ Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
     assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
-    // EVM implementation also checks that feeAgregator is non-zero, but it is unused in TON
+    assert (!msg.config.feeAggregator.isZero()) throw Error.InvalidConfig;
 
     st.config = msg.config.toCell();
 
@@ -445,6 +451,25 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version}.upgrade(msg);
 }
 
+fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
+    val feeTokens = msg.feeTokens.iter();
+    // We do not support fee payments in tokens yet, so we only withdraw TON coins for now.
+    // This will change in future versions.
+    assert (feeTokens.empty()) throw Error.UnknownToken;
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+
+    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
+
+    val withdrawMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: config.feeAggregator,
+        body: createEmptyCell(),
+    });
+    withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy OnRamp_Storage.load();
     val entry = st.destChainConfigs.get(destChainSelector);
@@ -511,8 +536,8 @@ get fun sendExecutorCode(): cell {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode;
 }
-
-get fun getCCIPSendExecutorCodeHash(): uint256 {
+ 
+get fun sendExecutorCodeHash(): uint256 {
     val st = lazy OnRamp_Storage.load();
     return st.executor.executorCode.hash();
 }
@@ -530,7 +555,9 @@ get fun errorCode(local: uint16): uint16 {
 }
 
 get fun reserve(): coins {
-    return RESERVE;
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+    return config.reserve;
 }
 
 @method_id(1000)

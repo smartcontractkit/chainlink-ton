@@ -51,38 +51,52 @@ export const builder = {
   message: {
     in: (() => {
       // Creates a new `TransferOwnership` message.
-      const transferOwnership: CellCodec<TransferOwnership> = {
-        encode: (msg: TransferOwnership): Builder => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.TransferOwnership, 32)
-            .storeUint(msg.queryId, 64)
-            .storeAddress(msg.newOwner)
-        },
-        load: (src: Slice): TransferOwnership => {
-          src.skip(32) // skip opcode
-          return {
-            queryId: src.loadUintBig(64),
-            newOwner: src.loadAddress(),
-          }
-        },
+      function transferOwnershipWithRole(prefix?: number): CellCodec<TransferOwnership> {
+        return {
+          encode: (msg: TransferOwnership): Builder => {
+            return beginCell() // break line
+              .storeUint(prefix ?? 0, prefix ? 32 : 0)
+              .storeUint(opcodes.in.TransferOwnership, 32)
+              .storeUint(msg.queryId, 64)
+              .storeAddress(msg.newOwner)
+          },
+          load: (src: Slice): TransferOwnership => {
+            if (prefix) {
+              src.skip(32) // skip prefix
+            }
+            src.skip(32) // skip opcode
+            return {
+              queryId: src.loadUintBig(64),
+              newOwner: src.loadAddress(),
+            }
+          },
+        }
       }
-      const acceptOwnership: CellCodec<AcceptOwnership> = {
-        encode: (msg: AcceptOwnership): Builder => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.AcceptOwnership, 32)
-            .storeUint(msg.queryId, 64)
-        },
-        load: (src: Slice): AcceptOwnership => {
-          src.skip(32) // skip opcode
-          return {
-            queryId: src.loadUintBig(64),
-          }
-        },
+      function acceptOwnershipWithRole(prefix?: number): CellCodec<AcceptOwnership> {
+        return {
+          encode: (msg: AcceptOwnership): Builder => {
+            return beginCell() // break line
+              .storeUint(prefix ?? 0, prefix ? 32 : 0)
+              .storeUint(opcodes.in.AcceptOwnership, 32)
+              .storeUint(msg.queryId, 64)
+          },
+          load: (src: Slice): AcceptOwnership => {
+            if (prefix) {
+              src.skip(32) // skip prefix
+            }
+            src.skip(32) // skip opcode
+            return {
+              queryId: src.loadUintBig(64),
+            }
+          },
+        }
       }
 
       return {
-        transferOwnership,
-        acceptOwnership,
+        transferOwnershipWithRole,
+        transferOwnership: transferOwnershipWithRole(),
+        acceptOwnershipWithRole,
+        acceptOwnership: acceptOwnershipWithRole(),
       }
     })(),
   },
@@ -113,18 +127,26 @@ export const builder = {
   })(),
 }
 
+export type OwnableRole = {
+  opcode: number
+  getter: string
+}
+
 export class ContractClient implements Contract, Interface {
   constructor(
     readonly address: Address,
-    readonly init?: { code: Cell; data: Cell },
+    readonly role?: OwnableRole,
   ) {}
 
-  static createFromAddress(address: Address): ContractClient {
-    return new ContractClient(address)
+  static createFromAddress(
+    address: Address,
+    role?: { opcode: number; getter: string },
+  ): ContractClient {
+    return new ContractClient(address, role)
   }
 
-  async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {
-    await p.internal(via, {
+  async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
+    await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: body,
@@ -141,7 +163,7 @@ export class ContractClient implements Contract, Interface {
       p,
       via,
       value,
-      builder.message.in.transferOwnership.encode(body).asCell(),
+      builder.message.in.transferOwnershipWithRole(this.role?.opcode).encode(body).asCell(),
     )
   }
 
@@ -150,24 +172,29 @@ export class ContractClient implements Contract, Interface {
     via: Sender,
     value: bigint = BigInt(0.01),
     body: AcceptOwnership,
+    prefix?: number,
   ) {
     return this.sendInternal(
       p,
       via,
       value,
-      builder.message.in.acceptOwnership.encode(body).asCell(),
+      builder.message.in.acceptOwnershipWithRole(this.role?.opcode).encode(body).asCell(),
     )
   }
 
   async getOwner(provider: ContractProvider): Promise<Address> {
-    const result = await provider.get('owner', [])
+    const result = await provider.get(prefixGetter(this.role?.getter, 'owner'), [])
     return result.stack.readAddress()
   }
 
   async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
-    const result = await provider.get('pendingOwner', [])
+    const result = await provider.get(prefixGetter(this.role?.getter, 'pendingOwner'), [])
     return result.stack.readAddressOpt()
   }
+}
+
+function prefixGetter(getter: string | undefined, field: string): string {
+  return `${getter ? getter + '_' : ''}${field}`
 }
 
 export interface Interface extends Contract {
