@@ -11,6 +11,7 @@ import {
   Builder,
   ContractABI,
   Contract,
+  DictionaryValue,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'
@@ -60,6 +61,8 @@ export enum OffRampError {
   TooManyMessagesInReport,
   SignatureVerificationRequiredInCommitPlugin,
   SignatureVerificationNotAllowedInExecutionPlugin,
+  InvalidInterval,
+  BatchingNotSupported,
 }
 
 export enum ReceiveExecutorError {
@@ -164,9 +167,20 @@ export type MerkleRoot = {
 }
 
 export type UpdateDeployables = {
-  queryId: bigint
+  queryId?: bigint
   receiveExecutorCode?: Cell
   merkleRootCode?: Cell
+}
+
+export type CCIPReceiveConfirm = {
+  execID: bigint
+  receiver: Address
+}
+
+export type Config = {
+  chainSelector: bigint
+  feeQuoter: Address
+  permissionlessExecutionThresholdSeconds: number
 }
 
 export const builder = {
@@ -518,14 +532,14 @@ export const builder = {
       }
 
       const setDynamicConfig: CellCodec<{
-        queryId: bigint
+        queryId?: bigint
         feeQuoter: Address
         permissionlessExecutionThresholdSeconds: number
       }> = {
         encode: (data): Builder => {
           return beginCell()
             .storeUint(Opcodes.setDynamicConfig, 32)
-            .storeUint(data.queryId, 64)
+            .storeUint(data.queryId ?? 0, 64)
             .storeAddress(data.feeQuoter)
             .storeUint(data.permissionlessExecutionThresholdSeconds, 32)
         },
@@ -554,7 +568,7 @@ export const builder = {
         encode: (message: UpdateDeployables): Builder => {
           return beginCell()
             .storeUint(Opcodes.updateDeployables, 32)
-            .storeUint(message.queryId, 64)
+            .storeUint(message.queryId ?? 0, 64)
             .storeMaybeRef(message.receiveExecutorCode)
             .storeMaybeRef(message.merkleRootCode)
         },
@@ -569,6 +583,22 @@ export const builder = {
         },
       }
 
+      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
+        encode: (data: CCIPReceiveConfirm): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(data.execID, 192)
+            .storeAddress(data.receiver)
+        },
+        load: (src: Slice): CCIPReceiveConfirm => {
+          src.skip(32) //opcode
+          return {
+            execID: src.loadUintBig(192),
+            receiver: src.loadAddress(),
+          }
+        },
+      }
+
       return {
         commit,
         execute,
@@ -578,6 +608,7 @@ export const builder = {
         setDynamicConfig,
         dispatchValidated,
         updateDeployables,
+        ccipReceiveConfirm,
       }
     })(),
   },
@@ -748,7 +779,7 @@ export class OffRamp
     via: Sender,
     opts: {
       value: bigint
-      queryId: bigint
+      queryId?: bigint
       feeQuoter: Address
       permissionlessExecutionThresholdSeconds: number
     },
@@ -765,7 +796,7 @@ export class OffRamp
     via: Sender,
     opts: {
       value: bigint
-      queryId: bigint
+      queryId?: bigint
       receiveExecutorCode?: Cell
       merkleRootCode?: Cell
     },
@@ -775,8 +806,9 @@ export class OffRamp
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.updateDeployables
         .encode({
-          queryId: opts.queryId,
+          queryId: opts.queryId ?? 0n,
           receiveExecutorCode: opts.receiveExecutorCode,
+          merkleRootCode: opts.merkleRootCode,
         })
         .endCell(),
     })
@@ -826,6 +858,56 @@ export class OffRamp
       minSeqNr,
       isRMNVerificationDisabled,
       onRamp,
+    }
+  }
+
+  async getAllSourceChainConfigs(provider: ContractProvider) {
+    const result = await provider.get('allSourceChainConfigs', [])
+    const cell = result.stack.readCell()
+
+    const dictValueSpec: DictionaryValue<SourceChainConfig> = {
+      serialize: builder.data.sourceChainConfig.encode,
+      parse: builder.data.sourceChainConfig.load,
+    }
+
+    const dict = Dictionary.loadDirect(Dictionary.Keys.BigInt(64), dictValueSpec, cell)
+
+    let configs: UpdateSourceChainConfig[] = []
+
+    dict.keys().forEach((key) => {
+      configs.push({
+        sourceChainSelector: key,
+        config: dict.get(key)!,
+      })
+    })
+    return configs
+  }
+
+  async getConfig(provider: ContractProvider): Promise<Config> {
+    const result = await provider.get('config', [])
+    const chainSelector = result.stack.readBigNumber()
+    const feeQuoter = result.stack.readAddress()
+    const permissionlessExecutionThresholdSeconds = result.stack.readNumber()
+    return {
+      chainSelector,
+      feeQuoter,
+      permissionlessExecutionThresholdSeconds,
+    }
+  }
+
+  async getDeployableHashes(provider: ContractProvider): Promise<{
+    deployerCodeHash: bigint
+    merkleRootCodeHash: bigint
+    receiveExecutorCodeHash: bigint
+  }> {
+    const result = await provider.get('deployableHashes', [])
+    const merkleRootCodeHash = result.stack.readBigNumber()
+    const receiveExecutorCodeHash = result.stack.readBigNumber()
+    const deployerCodeHash = result.stack.readBigNumber()
+    return {
+      merkleRootCodeHash,
+      receiveExecutorCodeHash,
+      deployerCodeHash,
     }
   }
 

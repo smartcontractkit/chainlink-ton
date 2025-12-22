@@ -9,6 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -27,7 +28,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorStateNotExpected)
-		ecMax = int32(ErrorInsufficientFee)
+		ecMax = int32(ErrorFeeQuoterBounce)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -38,6 +39,7 @@ const (
 	ErrorUnauthorized
 	ErrorInsufficientFunds
 	ErrorInsufficientFee
+	ErrorFeeQuoterBounce
 )
 
 // CCIPSendExecutor_Execute message structure
@@ -62,6 +64,14 @@ type MessageValidationFailed struct {
 	Msg     *router.CCIPSend `tlb:"^"`
 	Context *cell.Cell       `tlb:"^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	Execute{},
+	MessageValidated{},
+	MessageValidationFailed{},
+	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
+	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
+})
 
 // Metadata structure
 type Metadata struct {

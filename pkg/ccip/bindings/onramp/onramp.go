@@ -15,18 +15,19 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // OnRamp opcodes
 const (
-	OpcodeOnRampSend                         = 0x10000002
+	OpcodeOnRampSend                         = 0xdcf993c2
 	OpcodeOnRampWithdrawJettons              = 0x266AEACF
 	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
 	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
-	OpcodeSetDynamicConfig                   = 0x10000003
-	OpcodeUpdateDestChainConfigs             = 0x10000004
+	OpcodeSetDynamicConfig                   = 0xa178c62e
+	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
 	OpcodeUpdateSendExecutor                 = 0x82901c45
 )
@@ -93,26 +94,21 @@ type ExecutorDeployment struct {
 
 // Methods
 
-type SetDynamicConfig struct {
-	_ tlb.Magic `tlb:"#10000003"` //nolint:revive // Ignore opcode tag
-	DynamicConfig
-}
-
 type UpdateDestChainConfig struct {
 	DestinationChainSelector uint64           `tlb:"## 64"`
 	Router                   *address.Address `tlb:"addr"`
 	AllowListEnabled         bool             `tlb:"bool"`
 }
 
-type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#10000004"` //nolint:revive // Ignore opcode tag
+type UpdateDestChainConfigsMessage struct {
+	_       tlb.Magic                               `tlb:"#1a246b6c"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
 type UpdateAllowlist struct {
-	DestinationChainSelector uint64                             `tlb:"## 64"`
-	Add                      common.SnakeData[*address.Address] `tlb:"^"`
-	Remove                   common.SnakeData[*address.Address] `tlb:"^"`
+	DestinationChainSelector uint64                               `tlb:"## 64"`
+	Add                      common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Remove                   common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateAllowlists struct {
@@ -120,11 +116,14 @@ type UpdateAllowlists struct {
 	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
 }
 
-type WithdrawFeeTokens struct{}
+type WithdrawFeeTokens struct {
+	_         tlb.Magic                            `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
+	FeeTokens common.SnakeData[common.AddressWrap] `tlb:"."`
+}
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_        tlb.Magic  `tlb:"#10000002"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic  `tlb:"#dcf993c2"` //nolint:revive // Ignore opcode tag
 	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
 	Metadata Metadata   `tlb:"."`         // Cell containing metadata
 }
@@ -158,13 +157,8 @@ type ExecutorFinishedWithError struct {
 }
 
 type SetDynamicConfigMessage struct {
-	_      tlb.Magic     `tlb:"#10000003"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic     `tlb:"#a178c62e"` //nolint:revive // Ignore opcode tag
 	Config DynamicConfig `tlb:"."`
-}
-
-type UpdateDestChainConfigsMessage struct {
-	_       tlb.Magic  `tlb:"#10000004"` //nolint:revive // Ignore opcode tag
-	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
 }
 
 type UpdateAllowlistsMessage struct {
@@ -176,6 +170,18 @@ type UpdateSendExecutorMessage struct {
 	_    tlb.Magic  `tlb:"#82901c45"` //nolint:revive // Ignore opcode tag
 	Code *cell.Cell `tlb:"^"`         // New executor code
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	UpdateAllowlists{},
+	Send{},
+	WithdrawJettons{},
+	ExecutorFinishedSuccessfully{},
+	ExecutorFinishedWithError{},
+	SetDynamicConfigMessage{},
+	UpdateDestChainConfigsMessage{},
+	UpdateAllowlistsMessage{},
+	UpdateSendExecutorMessage{},
+})
 
 // binding types that supports FetchResult interface with rpc client
 
@@ -223,6 +229,7 @@ type DynamicConfig struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
 	FeeAggregator  *address.Address `tlb:"addr"`
 	AllowListAdmin *address.Address `tlb:"addr"`
+	Reserve        tlb.Coins        `tlb:"."`
 }
 
 func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
@@ -250,10 +257,17 @@ func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
+	reserveValue, err := result.Int(3)
+	if err != nil {
+		return err
+	}
+	reserve := tlb.FromNanoTON(reserveValue)
+
 	*c = DynamicConfig{
 		FeeQuoter:      feeQuoterAddress,
 		FeeAggregator:  feeAggregatorAddress,
 		AllowListAdmin: allowlistAdminAddress,
+		Reserve:        reserve,
 	}
 	return nil
 }
@@ -330,7 +344,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(UnknownDestChainSelector)
-		ecMax = int32(InvalidConfig)
+		ecMax = int32(InsufficientValue)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -340,4 +354,6 @@ const (
 	Unauthorized
 	SenderNotAllowed
 	InvalidConfig
+	UnknownToken
+	InsufficientValue
 )

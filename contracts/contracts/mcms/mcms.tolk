@@ -360,6 +360,9 @@ fun MCMS_Data.storeAsContractData(self) {
 struct MCMS_Hooks<T> {
     /// Hook to inject custom execution logic.
     execute: ((T?, address, coins, cell) -> void)?;
+
+    /// Hook to inject custom root encoding/hashing logic.
+    hashRoot: ((T?, uint256, uint32) -> uint256)?;
 }
 
 // --- Constants ---
@@ -693,7 +696,7 @@ fun MCMS<T>.setRoot(
     signatures: SnakedCell<Signature>,
 ) {
     /// Construct the message that should be signed by the signers.
-    val signedHash = RootDescriptor{root, validUntil}.toCell().hash();
+    val signedHash = self._hashRoot(root, validUntil);
 
     // Each (root, validUntil) tuple can only bet set once. For example, this prevents a
     // scenario where there are two signed roots with overridePreviousRoot = true and
@@ -830,11 +833,11 @@ fun MCMS<T>.setRoot(
     }
 
     // Check if right environment via chainId
-    if (globalId() as int256 != metadata.chainId) {
+    if (metadata.chainId != globalId() as int256) {
         throw MCMS_Error.WrongChainId;
     }
 
-    if (contract.getAddress() != metadata.multiSig) {
+    if (metadata.multiSig != contract.getAddress()) {
         throw MCMS_Error.WrongMultiSig;
     }
 
@@ -1358,7 +1361,7 @@ fun MCMS<T>.cleanExpiredRoots(
         assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
 
         /// Construct the ID (hash) of the root
-        val signedHash = rd.toCell().hash();
+        val signedHash = self._hashRoot(rd.root, rd.validUntil);
         self.data.seenSignedHashes.delete(signedHash);
     }
 
@@ -1383,6 +1386,29 @@ fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
     // Send a message to the target with the provided value and data
     val op = createMessage({bounce: true, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Encode and hash a root with its validUntil timestamp (EIP191 + keccak256)
+fun MCMS<T>._hashRoot(self, root: uint256, validUntil: uint32): uint256 {
+    if (self.hooks != null && self.hooks.hashRoot != null) {
+        return self.hooks.hashRoot(self.context, root, validUntil); // extension hook
+    }
+
+    // ABI encode root (uint256) and validUntil (uint32 padded to 256 bits)
+    // This matches: abi.encode(root, validUntil)
+    val data = beginCell()
+        .storeUint(root, 256)
+        .storeUint(validUntil as uint256, 256);
+    val _hash = keccak256(data);
+
+    // EIP191 Signed Message Hash wrapping
+    // Format: "\x19Ethereum Signed Message:\n32" + messageHash
+    val eip191Prefix = stringHexToSlice("19457468657265756d205369676e6564204d6573736167653a0a3332");
+    val eip191Data = beginCell()
+        .storeSlice(eip191Prefix)
+        .storeUint(_hash, 256);
+
+    return keccak256(eip191Data);
 }
 
 /// Returns the id that derives the (contract) address of this MCMS instance.

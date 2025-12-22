@@ -195,11 +195,11 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 		return fmt.Errorf("error while loading AllowedPriceUpdaters: %w", err)
 	}
 	for _, kv := range apus {
-		var w common.WrappedAddress
+		var w common.AddressWrap
 		if err2 := tlb.LoadFromCell(&w, kv.Key); err2 != nil {
 			return fmt.Errorf("error while decoding AllowedPriceUpdater key: %w", err2)
 		}
-		b = b.WithAllowedPriceUpdater(w.WrappedAddress)
+		b = b.WithAllowedPriceUpdater(w.Val)
 	}
 
 	// DestChainConfigs
@@ -264,7 +264,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 		return fmt.Errorf("error while loading UsdPerToken: %w", err)
 	}
 	for _, kv := range usdItems {
-		var token common.WrappedAddress
+		var token common.AddressWrap
 		if err2 := tlb.LoadFromCell(&token, kv.Key); err2 != nil {
 			return fmt.Errorf("error while decoding UsdPerToken key: %w", err2)
 		}
@@ -274,7 +274,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 			return fmt.Errorf("error while decoding UsdPerToken value: %w", err3)
 		}
 
-		b = b.WithUSDPerToken(token.WrappedAddress, price.Value, time.Unix(int64(price.Timestamp), 0).UTC())
+		b = b.WithUSDPerToken(token.Val, price.Value, time.Unix(int64(price.Timestamp), 0).UTC())
 	}
 
 	// PremiumMultiplierWeiPerEth
@@ -283,7 +283,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 		return fmt.Errorf("error while loading PremiumMultiplierWeiPerEth: %w", err)
 	}
 	for _, kv := range pmItems {
-		var token common.WrappedAddress
+		var token common.AddressWrap
 		if err2 := tlb.LoadFromCell(&token, kv.Key); err2 != nil {
 			return fmt.Errorf("error while decoding PremiumMultiplier key: %w", err2)
 		}
@@ -293,7 +293,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 			return fmt.Errorf("error while decoding PremiumMultiplier value: %w", err3)
 		}
 
-		b = b.WithPremiumMultiplier(token.WrappedAddress, val)
+		b = b.WithPremiumMultiplier(token.Val, val)
 	}
 
 	built, err := b.Build()

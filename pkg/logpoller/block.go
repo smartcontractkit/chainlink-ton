@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
@@ -22,6 +23,13 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockR
 	toBlock, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	// validate that the returned block belongs to the masterchain.
+	// a compromised or faulty liteserver could return valid blocks from the wrong workchain,
+	// which would cause the logpoller to track incorrect chain data.
+	if toBlock.Workchain != address.MasterchainID {
+		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, toBlock.Workchain)
 	}
 
 	lastProcessedBlock, err := lp.getLastProcessedBlock(toBlock)

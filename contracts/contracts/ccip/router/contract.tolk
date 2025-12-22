@@ -59,7 +59,7 @@ fun onInternalMessage(in: InMessage) {
         Router_RouteMessage => {
             val st = lazy Storage.load();
             val message: Any2TVMMessage = msg.message.load();
-            val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
+            val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onRouteMessage(msg, message);
         }
@@ -597,6 +597,18 @@ get fun owner(): address {
 get fun pendingOwner(): address? {
     val st = lazy Storage.load();
     return st.ownable.get_pendingOwner();
+}
+
+/// Gets the current owner of the contract.
+get fun rmn_owner(): address {
+    val st: Storage = lazy Storage.load();
+    return st.rmnRemote.load().admin.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun rmn_pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.rmnRemote.load().admin.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

@@ -13,6 +13,7 @@ describe('OnRamp - set Dynamic Config', () => {
   let blockchain: Blockchain
   let owner: SandboxContract<TreasuryContract>
   let onramp: SandboxContract<or.OnRamp>
+  let config: or.DynamicConfig
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -24,7 +25,7 @@ describe('OnRamp - set Dynamic Config', () => {
 
   beforeEach(async () => {
     owner = await blockchain.treasury('deployer')
-    onramp = await deployOnRampContract(blockchain, owner)
+    ;({ onramp, config } = await deployOnRampContract(blockchain, owner))
   })
 
   it('should allow owner to set dynamic config', async () => {
@@ -32,6 +33,7 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: randomAddress(),
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
       value: toNano('0.5'),
@@ -49,6 +51,7 @@ describe('OnRamp - set Dynamic Config', () => {
     expect(dynamicConfig.feeQuoter.equals(newConfig.feeQuoter)).toBe(true)
     expect(dynamicConfig.feeAggregator.equals(newConfig.feeAggregator)).toBe(true)
     expect(dynamicConfig.allowlistAdmin.equals(newConfig.allowlistAdmin)).toBe(true)
+    expect(dynamicConfig.reserve).toBe(newConfig.reserve)
   })
 
   it('should fail on non-owner setting dynamic config', async () => {
@@ -57,6 +60,7 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: randomAddress(),
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(nonOwner.getSender(), {
       value: toNano('0.5'),
@@ -77,6 +81,28 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: ZERO_ADDRESS,
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
+    }
+    const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        config: newConfig,
+      },
+    })
+    expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
+      from: owner.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.InvalidConfig,
+    })
+  })
+
+  it('should not allow zero address for feeAggregator', async () => {
+    const newConfig = {
+      feeQuoter: randomAddress(),
+      feeAggregator: ZERO_ADDRESS,
+      allowlistAdmin: randomAddress(),
+      reserve: toNano('42'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
       value: toNano('0.5'),

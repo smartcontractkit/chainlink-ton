@@ -1,8 +1,8 @@
 package rbac
 
 import (
-	"math/big"
-
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -27,8 +27,8 @@ type GrantRole struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Role    *big.Int         `tlb:"## 256"` // Role definition.
-	Account *address.Address `tlb:"addr"`   // New account to add.
+	Role    *tlbe.Uint256    `tlb:"."`    // Role definition.
+	Account *address.Address `tlb:"addr"` // New account to add.
 }
 
 // @dev Revokes `role` from `account`.
@@ -46,8 +46,8 @@ type RevokeRole struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Role    *big.Int         `tlb:"## 256"` // Role definition.
-	Account *address.Address `tlb:"addr"`   // Account to revoke.
+	Role    *tlbe.Uint256    `tlb:"."`    // Role definition.
+	Account *address.Address `tlb:"addr"` // Account to revoke.
 }
 
 // @dev Revokes `role` from the calling account.
@@ -70,8 +70,8 @@ type RenounceRole struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Role               *big.Int         `tlb:"## 256"` // Role definition.
-	CallerConfirmation *address.Address `tlb:"addr"`   // Account to revoke.
+	Role               *tlbe.Uint256    `tlb:"."`    // Role definition.
+	CallerConfirmation *address.Address `tlb:"addr"` // Account to revoke.
 }
 
 // --- Messages - outgoing ---
@@ -86,9 +86,9 @@ type RoleGranted struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Role    *big.Int         `tlb:"## 256"` // Role definition.
-	Account *address.Address `tlb:"addr"`   // New account added.
-	Sender  *address.Address `tlb:"addr"`   // Account that requested the change.
+	Role    *tlbe.Uint256    `tlb:"."`    // Role definition.
+	Account *address.Address `tlb:"addr"` // New account added.
+	Sender  *address.Address `tlb:"addr"` // Account that requested the change.
 }
 
 // @dev Emitted when `account` is revoked `role`.
@@ -103,9 +103,9 @@ type RoleRevoked struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Role    *big.Int         `tlb:"## 256"` // Role definition.
-	Account *address.Address `tlb:"addr"`   // Account revoked.
-	Sender  *address.Address `tlb:"addr"`   // Account that requested the change.
+	Role    *tlbe.Uint256    `tlb:"."`    // Role definition.
+	Account *address.Address `tlb:"addr"` // Account revoked.
+	Sender  *address.Address `tlb:"addr"` // Account that requested the change.
 }
 
 // @dev Emitted when `newAdminRole` is set as “role“'s admin role, replacing `previousAdminRole`
@@ -118,10 +118,19 @@ type RoleAdminChanged struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Role              *big.Int `tlb:"## 256"` // Role definition.
-	PreviousAdminRole *big.Int `tlb:"## 256"` // Previous admin role of the specific role.
-	NewAdminRole      *big.Int `tlb:"## 256"` // New admin role of the specific role.
+	Role              *tlbe.Uint256 `tlb:"."` // Role definition.
+	PreviousAdminRole *tlbe.Uint256 `tlb:"."` // Previous admin role of the specific role.
+	NewAdminRole      *tlbe.Uint256 `tlb:"."` // New admin role of the specific role.
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	GrantRole{},
+	RevokeRole{},
+	RenounceRole{},
+	RoleGranted{},
+	RoleRevoked{},
+	RoleAdminChanged{},
+})
 
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {
@@ -134,7 +143,7 @@ type Data struct {
 // Each role has a mapping of accounts that have been granted that role,
 // and an admin role that can manage that role.
 type RoleData struct {
-	AdminRole *big.Int `tlb:"## 256"`
+	AdminRole *tlbe.Uint256 `tlb:"."`
 	// Number of members in the role
 	MembersLen uint64 `tlb:"## 64"`
 	// Members of the role, indexed by their address hash.
