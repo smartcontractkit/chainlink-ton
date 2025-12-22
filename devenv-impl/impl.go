@@ -104,7 +104,7 @@ func (m *CCIP16TON) PreDeployContractsForSelector(ctx context.Context, env *depl
 	return nil
 }
 
-func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, e *deployment.Environment, selector uint64, remoteSelectors []uint64) error {
+func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
 	return nil
 }
 
