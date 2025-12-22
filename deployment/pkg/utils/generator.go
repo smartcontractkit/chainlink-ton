@@ -1,4 +1,4 @@
-package deployment
+package utils
 
 import (
 	"errors"

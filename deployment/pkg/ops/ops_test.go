@@ -1,4 +1,4 @@
-package deployment
+package ops
 
 import (
 	"context"
@@ -24,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 )
@@ -36,7 +37,7 @@ var unsupported = []uint32{
 
 func TestIsSerializable_AllMessages(t *testing.T) {
 	lggr, _ := logger.New()
-	gen := NewGenerator()
+	gen := utils.NewGenerator()
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
@@ -54,12 +55,12 @@ func TestIsSerializable_AllMessages(t *testing.T) {
 
 func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 	lggr, _ := logger.New()
-	gen := NewGenerator()
+	gen := utils.NewGenerator()
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
 			sample, err := gen.Generate(proto)
-			if errors.Is(err, ErrUnsupportedSample) {
+			if errors.Is(err, utils.ErrUnsupportedSample) {
 				t.Logf("skip envelope serializable for %s opcode=0x%08x (%T): %v", contract, opcode, proto, err)
 				continue
 			}
@@ -91,7 +92,7 @@ func FuzzMessageEnvelope_SerializationRoundTrip(f *testing.F) {
 func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArtifacts bool) {
 	lggr, _ := logger.New()
 	randSource := rand.New(rand.NewSource(seed))
-	gen := NewGenerator(WithRand(randSource))
+	gen := utils.NewGenerator(utils.WithRand(randSource))
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
@@ -170,10 +171,10 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.MessageEnvelope[any]) operations.Report[MessageOpInput[any], MessageOpOutput] {
+func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
 	t.Helper()
 
-	op := NewMessageOp[any](OpOpts{
+	op := NewSendMessageOp[any](OpOpts{
 		Version: semver.MustParse("0.1.0"),
 		Name:    fmt.Sprintf("op:%s:0x%08x", contract, opcode),
 		Desc:    "An operation generated during testing from message envelope",
@@ -186,10 +187,10 @@ func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.Mes
 		return t.Context()
 	}
 	b := operations.NewBundle(ctxFn, lggr, rptr)
-	deps := MessageOpDeps{
+	deps := SendMessageDeps{
 		Wallet: nil, // No actual sending in tests
 	}
-	r, err := operations.ExecuteOperation(b, op, deps, MessageOpInput[any]{
+	r, err := operations.ExecuteOperation(b, op, deps, SendMessageInput[any]{
 		Envelope: decoded,
 		Plan:     true,
 		DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
