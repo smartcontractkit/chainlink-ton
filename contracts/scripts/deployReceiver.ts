@@ -6,13 +6,13 @@ import { generateRandomContractId } from '../src/utils'
 export async function run(provider: NetworkProvider, args: string[]) {
   const [routerRaw] = args
 
-  if (!offRampRaw) {
+  if (!routerRaw) {
     throw new Error(
       'Usage: yarn blueprint run deployReceiver --<network> --mnemonic <routerAddress>',
     )
   }
 
-  const offRampAddress = Address.parse(offRampRaw)
+  const routerAddress = Address.parse(routerRaw)
 
   const receiverAddress = await deployReceiver(provider, routerAddress)
 
