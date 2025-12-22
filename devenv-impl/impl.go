@@ -13,6 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/clclient"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
+	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
+
 )
 
 type CCIP16TON struct {
