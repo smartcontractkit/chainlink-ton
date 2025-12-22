@@ -87,7 +87,7 @@ func (m *CCIP16TON) ExposeMetrics(
 
 func (m *CCIP16TON) DeployLocalNetwork(ctx context.Context, bc *blockchain.Input) (*blockchain.Output, error) {
 	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Deploying EVM networks")
+	l.Info().Msg("Deploying TON networks")
 	out, err := blockchain.NewBlockchainNetwork(bc)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create blockchain network: %w", err)
