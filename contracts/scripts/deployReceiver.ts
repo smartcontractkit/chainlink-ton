@@ -8,7 +8,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
   if (!offRampRaw) {
     throw new Error(
-      'Usage: yarn blueprint run deployReceiver --<network> --mnemonic <offRampAddress>',
+      'Usage: yarn blueprint run deployReceiver --<network> --mnemonic <routerAddress>',
     )
   }
 
