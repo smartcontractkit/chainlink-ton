@@ -148,7 +148,7 @@ func NewUint256(v *big.Int) *Uint256 {
 	return (*Uint256)(AsUnsigned(v, 256))
 }
 
-func (Uint256) DictKeyBits() uint {
+func (Uint256) BitsLen() uint {
 	return 256
 }
 
