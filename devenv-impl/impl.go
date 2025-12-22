@@ -64,7 +64,7 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 
 func (m *CCIP16TON) GetEOAReceiverAddress(ctx context.Context, chainSelector uint64) ([]byte, error) {
 	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Getting EOA received address")
+	l.Info().Msg("Getting EOA receiver address")
 	return nil, nil
 }
 
