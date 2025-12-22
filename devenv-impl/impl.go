@@ -24,8 +24,8 @@ func NewEmptyCCIP16TON() *CCIP16TON {
 	return &CCIP16TON{}
 }
 
-// NewCCIP16EVM creates new smart-contracts wrappers with utility functions for CCIP16EVM implementation.
-func NewCCIP16EVM(ctx context.Context, e *deployment.Environment) (*CCIP16TON, error) {
+// NewCCIP16TON creates new smart-contracts wrappers with utility functions for CCIP16TON implementation.
+func NewCCIP16TON(ctx context.Context, e *deployment.Environment) (*CCIP16TON, error) {
 	_ = zerolog.Ctx(ctx)
 	out := NewEmptyCCIP16TON()
 	out.e = e
