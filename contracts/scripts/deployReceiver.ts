@@ -14,7 +14,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
   const offRampAddress = Address.parse(offRampRaw)
 
-  const receiverAddress = await deployReceiver(provider, offRampAddress)
+  const receiverAddress = await deployReceiver(provider, routerAddress)
 
   console.log('✅ Receiver deployed at:', receiverAddress.toString())
 }
