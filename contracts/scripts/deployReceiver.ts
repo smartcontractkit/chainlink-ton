@@ -4,7 +4,7 @@ import { Receiver, ReceiverBehavior } from '../wrappers/ccip/Receiver'
 import { generateRandomContractId } from '../src/utils'
 
 export async function run(provider: NetworkProvider, args: string[]) {
-  const [offRampRaw] = args
+  const [routerRaw] = args
 
   if (!offRampRaw) {
     throw new Error(
