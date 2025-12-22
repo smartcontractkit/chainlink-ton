@@ -1,4 +1,4 @@
-package ccip_evm
+package ccip_ton
 
 import (
 	"context"
