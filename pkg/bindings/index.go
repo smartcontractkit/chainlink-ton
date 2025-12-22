@@ -19,24 +19,37 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 )
 
+const (
+	// TODO: rename as "link.chain.ton.<...>"?
+	PkgLib  = "com.chainlink.ton.lib"
+	PkgCCIP = "com.chainlink.ton.ccip"
+	PkgMCMS = "com.chainlink.ton.mcms"
+
+	// Test contract types
+	PkgTest = "com.chainlink.ton.test"
+
+	// Third-party contract types
+	PkgJetton = "com.github.ton-blockchain.jetton-contract"
+)
+
 // Map of TLBs keyed by contract type
 var Registry = lib.MessageRegistry{
 	// Jetton contract types
-	"com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet": wallet.TLBs,
-	"com.github.ton-blockchain.jetton-contract.contracts.jetton-minter": minter.TLBs,
+	PkgJetton + ".contracts.jetton-wallet": wallet.TLBs,
+	PkgJetton + ".contracts.jetton-minter": minter.TLBs,
 	// CCIP contract types
-	"com.chainlink.ton.ccip.Router":           router.TLBs,
-	"com.chainlink.ton.ccip.OnRamp":           onramp.TLBs,
-	"com.chainlink.ton.ccip.OffRamp":          offramp.TLBs,
-	"com.chainlink.ton.ccip.FeeQuoter":        feequoter.TLBs,
-	"com.chainlink.ton.ccip.CCIPSendExecutor": ccipsendexecutor.TLBs,
+	PkgCCIP + ".Router":           router.TLBs,
+	PkgCCIP + ".OnRamp":           onramp.TLBs,
+	PkgCCIP + ".OffRamp":          offramp.TLBs,
+	PkgCCIP + ".FeeQuoter":        feequoter.TLBs,
+	PkgCCIP + ".CCIPSendExecutor": ccipsendexecutor.TLBs,
 	// MCMS contract types
-	"com.chainlink.ton.lib.access.RBAC": rbac.TLBs,
-	"com.chainlink.ton.mcms.MCMS":       mcms.TLBs,
-	"com.chainlink.ton.mcms.Timelock":   timelock.TLBs,
+	PkgLib + ".access.RBAC": rbac.TLBs,
+	PkgMCMS + ".MCMS":       mcms.TLBs,
+	PkgMCMS + ".Timelock":   timelock.TLBs,
 
-	//
-	"com.chainlink.ton.test": TestTLBs,
+	// Test contract types // TODO: (tmp) remove from here, move to test file
+	PkgTest + ".Foo": TestTLBs,
 }
 
 // Sent back to sender after the executor role check is updated.
