@@ -40,8 +40,9 @@ func (rs ReplayStatus) String() string {
 type TxHash [32]byte // transaction hash
 
 type Tx struct {
-	Transaction *tlb.Transaction // raw TON transaction from blockchain
-	Block       *ton.BlockIDExt  // block metadata
+	Transaction      *tlb.Transaction // raw TON transaction from blockchain
+	Block            *ton.BlockIDExt  // shard block metadata (workchain 0)
+	MasterBlockSeqno uint32           // masterchain block seqno that finalized this shard block
 }
 
 // BlockRange represents a range of blocks to process

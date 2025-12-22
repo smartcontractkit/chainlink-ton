@@ -54,3 +54,13 @@ func (o *ObservedLogStore) QueryLogs(ctx context.Context, logQuery *query.LogQue
 
 	return logs, hasMore, nextCursor, err
 }
+
+// GetLatestMasterBlockSeqno wraps the underlying GetLatestMasterBlockSeqno with metrics
+func (o *ObservedLogStore) GetLatestMasterBlockSeqno(ctx context.Context) (uint32, error) {
+	start := time.Now()
+	seqno, err := o.LogStore.GetLatestMasterBlockSeqno(ctx)
+
+	o.metrics.RecordQueryDuration(ctx, "GetLatestMasterBlockSeqno", frameworkmetrics.Read, time.Since(start))
+
+	return seqno, err
+}

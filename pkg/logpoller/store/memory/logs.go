@@ -445,3 +445,18 @@ func (s *inMemoryLogs) compareLogToCursor(log models.Log, cursorAddr *address.Ad
 
 	return 0
 }
+
+// GetLatestMasterBlockSeqno returns the highest masterchain block sequence number
+// from stored logs. Returns 0 if no logs exist.
+func (s *inMemoryLogs) GetLatestMasterBlockSeqno(_ context.Context) (uint32, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var maxSeqno uint32
+	for _, log := range s.logs {
+		if log.MasterBlockSeqno > maxSeqno {
+			maxSeqno = log.MasterBlockSeqno
+		}
+	}
+	return maxSeqno, nil
+}

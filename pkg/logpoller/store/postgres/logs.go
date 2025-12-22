@@ -195,3 +195,23 @@ func (s *pgLogStore) QueryLogs(
 
 	return logs, hasMore, nextCursor, nil
 }
+
+// GetLatestMasterBlockSeqno retrieves the highest masterchain block sequence number
+// from stored logs for this chain. Returns 0 if no logs exist.
+func (s *pgLogStore) GetLatestMasterBlockSeqno(ctx context.Context) (uint32, error) {
+	var result *int64
+
+	sql := `SELECT MAX(master_block_seqno) FROM ton.log_poller_logs WHERE chain_id = :chain_id`
+	err := s.orm.NamedGetContext(ctx, &result, sql, map[string]any{"chain_id": s.chainID})
+	if err != nil {
+		return 0, fmt.Errorf("failed to query latest master block seqno: %w", err)
+	}
+
+	// MAX returns NULL if no rows exist
+	if result == nil {
+		return 0, nil
+	}
+
+	//nolint:gosec // G115: safe conversion - master_block_seqno is always positive and within uint32 range
+	return uint32(*result), nil
+}

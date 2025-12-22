@@ -32,7 +32,7 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockR
 		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, toBlock.Workchain)
 	}
 
-	lastProcessedBlock, err := lp.getLastProcessedBlock(toBlock)
+	lastProcessedBlock, err := lp.getLastProcessedBlock(ctx, toBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last processed block: %w", err)
 	}
@@ -51,38 +51,41 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockR
 }
 
 // getLastProcessedBlock retrieves the last processed masterchain sequence number.
-// If no previous block has been processed, it uses the lookback window to determine
-// an appropriate starting point to avoid missing recent events.
-func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, error) {
+// Priority order:
+// 1. In-memory lastProcessedBlock (from previous poll iterations)
+// 2. Database (highest master_block_seqno from stored logs - for service restart resumption)
+// 3. Lookback window calculation (for fresh start)
+func (lp *service) getLastProcessedBlock(ctx context.Context, currentBlock *ton.BlockIDExt) (uint32, error) {
+	// Check in-memory state first (fastest)
 	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
 		return lastProcessed, nil
 	}
 
-	// TODO: get the latest processed seqno from log table when persistent storage is implemented
-	// TODO: need to implement a separate routine to fetch and cache the masterchain seqno from shard block in each message
+	// try to resume from database on service restart
+	dbSeqno, err := lp.logStore.GetLatestMasterBlockSeqno(ctx)
+	if err != nil {
+		lp.lggr.Warnw("Failed to query latest master block seqno from database, falling back to lookback window",
+			"err", err)
+	} else if dbSeqno > 0 {
+		lp.lggr.Infow("Resuming from database state", "masterBlockSeqno", dbSeqno, "currentSeqNo", currentBlock.SeqNo)
+		return dbSeqno, nil
+	}
 
+	// fresh start: use lookback window
 	if currentBlock.SeqNo == 0 {
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
 	lookbackSeqNo := computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
-	if lookbackSeqNo > lastProcessed {
-		blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
-		lp.lggr.Debugw("Starting from lookback window",
-			"fromSeqNo", lookbackSeqNo,
-			"toSeqNo", currentBlock.SeqNo,
-			"blocksToProcess", blocksToProcess,
-		)
-		return lookbackSeqNo, nil
-	}
-
-	// Only log when actually resuming from previous work (lastProcessed > 0)
-	if lastProcessed > 0 {
-		lp.lggr.Debugw("Resuming from last processed", "seqNo", lastProcessed)
-	}
-	return lastProcessed, nil
+	blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
+	lp.lggr.Debugw("Starting from lookback window",
+		"fromSeqNo", lookbackSeqNo,
+		"toSeqNo", currentBlock.SeqNo,
+		"blocksToProcess", blocksToProcess,
+	)
+	return lookbackSeqNo, nil
 }
 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
