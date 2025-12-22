@@ -244,6 +244,10 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 			return nil, nil, fmt.Errorf("failed to parse cell from transaction bytes: %w", err)
 		}
 
+		if err = validateTransactionListResponse(len(txList), len(t.IDs), limit); err != nil {
+			return nil, nil, err
+		}
+
 		resTxs := make([]*tlb.Transaction, len(txList))
 		resBlocks := make([]*ton.BlockIDExt, len(txList))
 
@@ -288,4 +292,16 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 	}
 
 	return nil, nil, errors.New("unknown response type")
+}
+
+// validateTransactionListResponse validates liteserver response to prevent DoS attacks.
+// checks that response doesn't exceed requested limit and that block IDs array matches transaction count (runtime panic prevention).
+func validateTransactionListResponse(txCount, idsCount int, limit uint32) error {
+	if txCount > int(limit) {
+		return fmt.Errorf("liteserver returned %d transactions, exceeding requested limit %d", txCount, limit)
+	}
+	if idsCount != txCount {
+		return fmt.Errorf("block IDs count (%d) does not match transaction count (%d)", idsCount, txCount)
+	}
+	return nil
 }
