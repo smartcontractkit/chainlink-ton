@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -127,7 +128,7 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	payload := e.Payload
 	if payload == nil {
 		var zero T
-		if reflect.DeepEqual(e.Value, zero) {
+		if e.Value == nil || reflect.DeepEqual(e.Value, zero) {
 			payload = json.RawMessage("null")
 		} else {
 			data, err := json.Marshal(e.Value)
@@ -158,6 +159,10 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 	payload := raw.Payload
 	if payload == nil {
 		payload = json.RawMessage("null")
+	}
+
+	if !strings.HasPrefix(raw.Opcode, "0x") {
+		return fmt.Errorf("invalid opcode format %s: missing 0x prefix", raw.Opcode)
 	}
 
 	opcode, err := strconv.ParseUint(raw.Opcode[2:], 16, 64)
