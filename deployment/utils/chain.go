@@ -69,7 +69,7 @@ func FundWalletsNoT(client ton.APIClientWrapped, recipients []*address.Address, 
 	if err != nil {
 		return fmt.Errorf("airdrop completion verification failed: %w", err)
 	}
-	fmt.Println("✓ %d funded successfully", len(recipients))
+	fmt.Printf("✓ %d funded successfully\n", len(recipients))
 	return nil
 }
 

@@ -2,6 +2,7 @@ package ccip_ton
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"time"
@@ -146,12 +147,19 @@ func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input,
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Funding CL nodes with native and LINK")
 	var keys []*address.Address
+	var amounts []tlb.Coins
 	for _, nk := range nodeKeyBundles {
-		keys = append(keys, address.MustParseRawAddr(nk.TXKey.Data.Attributes.PublicKey))
+		k, err := hex.DecodeString(nk.TXKey.Data.Attributes.PublicKey)
+		if err != nil {
+			return fmt.Errorf("failed to decode public key: %w", err)
+		}
+		addr := address.NewAddress(0, byte(0), k)
+		keys = append(keys, addr)
+		amounts = append(amounts, tlb.MustFromTON("1000"))
 	}
 	client, err := testutils.CreateClient(ctx, bc.Out.Nodes[0].ExternalHTTPUrl)
 	if err != nil {
 		return fmt.Errorf("failed to create TON client: %w", err)
 	}
-	return testutils.FundWalletsNoT(client, keys, []tlb.Coins{tlb.MustFromTON("1000")})
+	return testutils.FundWalletsNoT(client, keys, amounts)
 }
