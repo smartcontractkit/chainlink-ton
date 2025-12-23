@@ -37,7 +37,7 @@ fun Receiver_CCIPReceive.validateAndConfirm(self, opts: Receiver_ValidateOptions
     assert( opts.inMsg.senderAddress == opts.router) throw (Receiver_Error.Unauthorized as int);
 
     // 2. Check that enough value is sent
-    // assert( opts.inMsg.valueCoins >= opts.minValue) throw (Receiver_Error.LowValue as int);
+    assert( opts.inMsg.valueCoins >= opts.minValue) throw (Receiver_Error.LowValue as int);
 
     // 3. Enqueue CCIPReceiveConfirm to msg.callback
     val receiveConfirm = createMessage({
