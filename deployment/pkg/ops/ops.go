@@ -99,17 +99,12 @@ func handler[T any](b operations.Bundle, deps SendMessageDeps, in SendMessageInp
 	}, nil
 }
 
-// TODO: do we need this? Same as operations.Definition
-type OpOpts struct {
-	Version *semver.Version
-	Name    string
-	Desc    string
-}
-
-// TODO: make an instance (vs. factory) similar to AnySequence sequence
-func NewSendMessageOp[T any](opts OpOpts) *operations.Operation[SendMessageInput[T], SendMessageOutput, SendMessageDeps] {
-	return operations.NewOperation(opts.Name, opts.Version, opts.Desc, handler[T])
-}
+var SendMessage = operations.NewOperation(
+	"ton/ops/send-message",
+	semver.MustParse("0.1.0"),
+	"Sends and/or plans a message as defined by the inputs",
+	handler[any],
+)
 
 // TODO: add SendManyMessagesOp (check ExecuteTransactions in deployment/ccip/helpers/execute.go)
 // TODO: add WaitTrace option
