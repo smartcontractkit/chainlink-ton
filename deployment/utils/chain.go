@@ -36,6 +36,10 @@ func GetLocalnetFunderWallet(client ton.APIClientWrapped) (*wallet.Wallet, error
 }
 
 func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
+	return FundWalletsNoT(client, recipients, amounts)
+}
+
+func FundWalletsNoT(client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
 	funder, err := GetLocalnetFunderWallet(client)
 	if err != nil {
 		return fmt.Errorf("failed to get prefunded wallet: %w", err)
@@ -53,16 +57,16 @@ func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*addres
 		}
 		messages[i] = transfer
 	}
-	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
+	_, _, txerr := funder.SendManyWaitTransaction(context.Background(), messages)
 	if txerr != nil {
 		return fmt.Errorf("airdrop transaction failed: %w", txerr)
 	}
 
-	err = waitForAirdropCompletion(t.Context(), client, recipients, amounts, 120*time.Second)
+	err = waitForAirdropCompletion(context.Background(), client, recipients, amounts, 120*time.Second)
 	if err != nil {
 		return fmt.Errorf("airdrop completion verification failed: %w", err)
 	}
-	t.Logf("✓ %d funded successfully", len(recipients))
+	fmt.Println("✓ %d funded successfully", len(recipients))
 	return nil
 }
 
