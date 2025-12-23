@@ -53,6 +53,20 @@ func TestTokenPrice(t *testing.T) {
 			tokenDecimals: 9,
 			expected:      padZeros("11234567890123456789", 8),
 		},
+		{
+			title:         "previous TON value",
+			usdPrice:      "2",
+			tokenDecimals: 9,
+			expected: func() string {
+				const TONtoUSD = 2                 // Example Value
+				const TONtoNanoTON = 1e9           // Smallest denomination
+				const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
+				var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
+				var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
+				tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
+				return tonTokenPrice.String()
+			}(),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.usdPrice, func(t *testing.T) {
