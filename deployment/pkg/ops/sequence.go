@@ -64,7 +64,7 @@ func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenc
 		po, ok := r.Input.(MessagePlannerOption)
 		if ok && po.IsPlan() {
 			// If planning option is set, extract the plan
-			planer, ok := r.Output.(MessagePlanner)
+			planer, ok := r.Output.(MessagePlanner) //nolint:govet // should be ok
 			if !ok {
 				return output, fmt.Errorf("operation %s output does not implement MessagePlanner interface", def.ID)
 			}
