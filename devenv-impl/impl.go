@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
-
 )
 
 type CCIP16TON struct {
@@ -98,8 +98,36 @@ func (m *CCIP16TON) DeployLocalNetwork(ctx context.Context, bc *blockchain.Input
 
 func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (string, error) {
 	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Configuring CL nodes")
-	return fmt.Sprintf(``), nil
+	l.Info().Msg("Configuring CL nodes for TON")
+	name := fmt.Sprintf("node-ton-%s", uuid.New().String()[0:5])
+	return fmt.Sprintf(`
+	[[TON]]
+	ChainID = '%s'
+	Enabled = true
+	NetworkName = 'ton-localnet'
+
+	[TON.TransactionManager]
+	BroadcastChanSize = 100
+	ConfirmPollInterval = '5s'
+	SendRetryDelay = '3s'
+	MaxSendRetryAttempts = 5
+	TxExpiration = '5m'
+	CleanupInterval = '1h'
+
+	[TON.LogPoller]
+	PollPeriod = '5s'
+	PageSize = 100
+	LogPollerStartingLookback = '1440m'
+	BlockTime = '2500ms'
+	BatchInsertSize = 3500
+
+	[[TON.Nodes]]
+	Name = '%s'
+	URL = '%s'`,
+		bc.ChainID,
+		name,
+		bc.Out.Nodes[0].InternalHTTPUrl,
+	), nil
 }
 
 func (m *CCIP16TON) PreDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
