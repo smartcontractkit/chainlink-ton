@@ -149,13 +149,8 @@ func (d Dict[K, V]) ToCell() (*cell.Cell, error) {
 		return nil, fmt.Errorf("cannot make *cell.Dictionary: %w", err)
 	}
 
-	var root *cell.Cell
-	if len(d.entries) > 0 {
-		root = dict.AsCell()
-	}
-
 	builder := cell.BeginCell()
-	err = builder.StoreMaybeRef(root)
+	err = builder.StoreDict(dict)
 	if err != nil {
 		return nil, fmt.Errorf("cannot store dictionary ref: %w", err)
 	}
