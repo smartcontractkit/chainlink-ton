@@ -1,4 +1,4 @@
-package lib
+package codec
 
 import (
 	"encoding/json"
@@ -7,9 +7,10 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // MessageMeta keeps the information required to serialize/deserialize TL-B messages.

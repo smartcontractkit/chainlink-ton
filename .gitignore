@@ -53,4 +53,4 @@ cmd/chainlink-ton/chainlink-ton
 .env
 
 # Experimental files
-pkg/ton/debug/lib/jsoncodec
+pkg/ton/codec/jsoncodec
