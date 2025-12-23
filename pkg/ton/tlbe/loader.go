@@ -8,7 +8,8 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// ToCell is a helper that encodes basic types directly, and falls back to tlb.ToCell for others.
+// ToCell is a helper that encodes basic types directly,
+// and falls back to tlb.ToCell for others.
 func ToCell(v any) (*cell.Cell, error) {
 	switch reflect.TypeOf(v).Kind() {
 	case reflect.Uint8:
@@ -32,10 +33,9 @@ func ToCell(v any) (*cell.Cell, error) {
 	return tlb.ToCell(v)
 }
 
-// LoadFromCell is a helper that decodes basic types directly, and falls back to tlb.LoadFromCell for others.
+// LoadFromCell is a helper that decodes basic types directly,
+// and falls back to tlb.LoadFromCell for others.
 func LoadFromCell(v any, loader *cell.Slice, skipMagic ...bool) error {
-	fmt.Println("DEBUG: LoadFromCell called for type:", reflect.TypeOf(v))
-
 	switch reflect.TypeOf(v).Elem().Kind() {
 	case reflect.Uint8:
 		val, err := loader.LoadUInt(8)
