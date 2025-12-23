@@ -113,7 +113,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		require.Contains(t, err.Error(), "batch_insert_size")
 	})
 
-	t.Run("fails when BatchInsertSize exceeds postgresql parameter limit", func(t *testing.T) {
+	t.Run("fails when BatchInsertSize exceeds PostgreSQL parameter limit", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
 			BatchInsertSize: 4000,
