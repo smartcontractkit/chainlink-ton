@@ -1,3 +1,4 @@
+import { compile } from '@ton/blueprint'
 import { Cell } from '@ton/core'
 import { promises as fs } from 'fs'
 import { join, resolve } from 'path'
@@ -10,7 +11,17 @@ const codeCache = new Map<string, Promise<Cell>>()
 
 async function readContractCode(contractName: string): Promise<Cell> {
   const filePath = join(BUILD_ROOT, `${contractName}.compiled.json`)
-  const fileContents = await fs.readFile(filePath, 'utf8')
+  let fileContents: string
+  try {
+    fileContents = await fs.readFile(filePath, 'utf8')
+  } catch (error) {
+    // if file not found
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.log(`Compiled contract not found at '${filePath}', building from source...`)
+      return compile(contractName)
+    }
+    throw new Error(`Failed to read compiled contract ${contractName} at ${filePath}: ${error}`)
+  }
 
   let hex: string | undefined
   try {
