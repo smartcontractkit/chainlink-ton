@@ -23,6 +23,8 @@ const config: Config = {
   workerThreads: true,
 
   testTimeout: 30000, // Overwrite default 5s timeout
+
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
 }
 
 export default config
