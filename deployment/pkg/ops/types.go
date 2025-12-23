@@ -1,6 +1,7 @@
 package ops // alias: opston
 
 import (
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -14,9 +15,10 @@ type MessagePlannerOption interface {
 
 // MessagePlanner is an interface for op OUT types that can produce a message plan.
 type MessagePlanner interface {
-	GetPlan() MessagePlanRaw
+	GetPlans() []MessagePlanRaw
 }
 
+// TODO: can be merged/replaced with InternamlMessage type?
 type MessagePlanRaw struct {
 	Body    *cell.Cell       `json:"body"`
 	DstAddr *address.Address `json:"dst_addr"`
@@ -34,4 +36,18 @@ type TransactionInfo struct {
 	OutMsgCount uint16            `json:"out_msg_count"`
 	EndStatus   tlb.AccountStatus `json:"end_status"`
 	TotalFees   tlb.Coins         `json:"total_fees"`
+}
+
+// &tlb.InternalMessage representation
+type InternalMessage[T any] struct {
+	Bounce    bool                     `json:"bounce"`
+	DstAddr   *address.Address         `json:"dst_addr"`
+	Amount    tlb.Coins                `json:"amount"`
+	Body      codec.MessageEnvelope[T] `json:"body"`
+	StateInit *StateInit               `json:"state_init,omitempty"`
+}
+
+type StateInit struct {
+	Code *cell.Cell `json:"code,omitempty"`
+	Data *cell.Cell `json:"data,omitempty"`
 }

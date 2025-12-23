@@ -188,7 +188,7 @@ func (e MessageEnvelope[T]) ToCell() (*cell.Cell, error) {
 		return nil, errors.New("cannot convert to cell: no value present")
 	}
 
-	return tlb.ToCell(e.Value)
+	return tlb.ToCell(*(e.Value))
 }
 
 func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {

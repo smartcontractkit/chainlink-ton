@@ -174,7 +174,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[SendMessagesInput[any], SendMessagesOutput] {
 	t.Helper()
 
 	// Setup execution environment
@@ -184,17 +184,23 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 		return t.Context()
 	}
 	b := operations.NewBundle(ctxFn, lggr, rptr)
-	deps := SendMessageDeps{
+	deps := SendMessagesDeps{
 		Wallet: nil, // No actual sending in tests
 	}
 
-	r, err := operations.ExecuteOperation(b, SendMessage, deps, SendMessageInput[any]{
-		Envelope: decoded,
-		Plan:     true,
-		DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
-		Amount:   tlb.MustFromTON("0.25"),
+	r, err := operations.ExecuteOperation(b, SendMessages, deps, SendMessagesInput[any]{
+		Messages: []InternalMessage[any]{
+			{
+				Body:    decoded,
+				DstAddr: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
+				Amount:  tlb.MustFromTON("0.25"),
+				Bounce:  true,
+			},
+		},
+		Plan: true,
 	})
 	assert.NotEmpty(t, r)
+	assert.Len(t, r.Output.Plans, 1)
 	assert.NoError(t, err)
 	return r
 }
@@ -207,12 +213,23 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 	inputs := make([]any, n)
 
 	for i, e := range envelopes {
-		defs[i] = SendMessage.Def()
-		inputs[i] = SendMessageInput[any]{
-			Envelope: e,
-			Plan:     true,
-			DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
-			Amount:   tlb.MustFromTON("0.25"),
+		defs[i] = SendMessages.Def()
+		inputs[i] = SendMessagesInput[any]{
+			Messages: []InternalMessage[any]{
+				{
+					Body:    e,
+					DstAddr: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
+					Amount:  tlb.MustFromTON("0.25"),
+					Bounce:  true,
+				},
+				{
+					Body:    e,
+					DstAddr: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
+					Amount:  tlb.MustFromTON("0.25"),
+					Bounce:  true,
+				},
+			},
+			Plan: true,
 		}
 	}
 
@@ -224,7 +241,7 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 	}
 
 	ops := []*operations.Operation[any, any, any]{
-		SendMessage.AsUntyped(),
+		SendMessages.AsUntyped(),
 	}
 	opsr := operations.NewOperationRegistry(ops...)
 
@@ -235,8 +252,8 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 	// Dependencies currently injected per-operation
 	// TODO: generalize dependency injection per-type/s in sequences
 	deps := AnySequenceDeps{}
-	depsKey := SendMessage.Def().ID
-	deps[depsKey] = SendMessageDeps{
+	depsKey := SendMessages.Def().ID
+	deps[depsKey] = SendMessagesDeps{
 		Wallet: nil, // No actual sending in tests
 	}
 

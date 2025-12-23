@@ -8,88 +8,95 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
 var (
-	_ MessagePlannerOption = SendMessageInput[any]{}
-	_ MessagePlanner       = SendMessageOutput{}
-	_ MessageSender        = SendMessageOutput{}
+	_ MessagePlannerOption = SendMessagesInput[any]{}
+	_ MessagePlanner       = SendMessagesOutput{}
+	_ MessageSender        = SendMessagesOutput{}
 )
 
-type SendMessageInput[T any] struct {
-	Envelope codec.MessageEnvelope[T] `json:"envelope"`
-	Plan     bool                     `json:"plan"`
+type SendMessagesInput[T any] struct {
+	Messages []InternalMessage[T] `json:"messages"`
+	Plan     bool                 `json:"plan"`
 
-	// Tx options
-	DstAddr *address.Address `json:"dst_addr"`
-	Amount  tlb.Coins        `json:"amount"`
+	// TODO: add WaitTrace option
 }
 
-func (in SendMessageInput[T]) IsPlan() bool {
+func (in SendMessagesInput[T]) IsPlan() bool {
 	return in.Plan
 }
 
-type SendMessageOutput struct {
-	Plan        MessagePlanRaw   `json:"plan"`
+type SendMessagesOutput struct {
+	Plans       []MessagePlanRaw `json:"plans"`
 	Transaction *TransactionInfo `json:"transaction,omitempty"`
 }
 
-func (o SendMessageOutput) GetPlan() MessagePlanRaw {
-	return o.Plan
+func (o SendMessagesOutput) GetPlans() []MessagePlanRaw {
+	return o.Plans
 }
 
-func (o SendMessageOutput) GetTransaction() *TransactionInfo {
+func (o SendMessagesOutput) GetTransaction() *TransactionInfo {
 	return o.Transaction
 }
 
-type SendMessageDeps struct {
+type SendMessagesDeps struct {
 	Wallet *wallet.Wallet
 }
 
-func handler[T any](b operations.Bundle, deps SendMessageDeps, in SendMessageInput[T]) (SendMessageOutput, error) {
+func handler[T any](b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput[T]) (SendMessagesOutput, error) {
 	ctx := b.GetContext()
 
-	body, err := tlb.ToCell(*in.Envelope.Value)
-	if err != nil {
-		return SendMessageOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
-	}
+	n := len(in.Messages)
+	plans := make([]MessagePlanRaw, 0, n)
+	msgs := make([]*wallet.Message, 0, n)
 
-	plan := MessagePlanRaw{
-		Body:    body,
-		DstAddr: in.DstAddr,
-		Amount:  in.Amount,
+	for _, m := range in.Messages {
+		body, err := m.Body.ToCell() // TODO: body may be nil
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
+		}
+
+		plan := MessagePlanRaw{
+			Body:    body,
+			DstAddr: m.DstAddr,
+			Amount:  m.Amount,
+		}
+
+		if in.Plan {
+			plans = append(plans, plan)
+			continue
+		}
+
+		msgs = append(msgs, &wallet.Message{
+			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      m.Bounce, // TODO: default to true
+				DstAddr:     m.DstAddr,
+				Amount:      m.Amount,
+				Body:        body,
+				StateInit: &tlb.StateInit{
+					Code: m.StateInit.Code,
+					Data: m.StateInit.Data,
+				},
+			},
+		})
 	}
 
 	if in.Plan {
-		return SendMessageOutput{
-			Plan:        plan,
-			Transaction: nil,
-		}, nil
+		return SendMessagesOutput{Plans: plans}, nil // return early
 	}
 
-	msg := &wallet.Message{
-		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      true,
-			DstAddr:     in.DstAddr,
-			Amount:      in.Amount,
-			Body:        body,
-		},
-	}
-
-	tx, _, err := deps.Wallet.SendWaitTransaction(ctx, msg)
+	tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
 	if err != nil {
-		return SendMessageOutput{}, fmt.Errorf("failed to send transaction: %w", err)
+		return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
 	}
 
-	return SendMessageOutput{
-		Plan: plan,
+	return SendMessagesOutput{
+		Plans: plans,
 		Transaction: &TransactionInfo{
 			// TODO: AccountAddr
 			Hash:        hex.EncodeToString(tx.Hash),
@@ -100,12 +107,9 @@ func handler[T any](b operations.Bundle, deps SendMessageDeps, in SendMessageInp
 	}, nil
 }
 
-var SendMessage = operations.NewOperation(
-	"ton/ops/send-message",
+var SendMessages = operations.NewOperation(
+	"ton/ops/send-messages",
 	semver.MustParse("0.1.0"),
-	"Sends and/or plans a message as defined by the inputs",
+	"Sends and/or plans messages as defined by the inputs",
 	handler[any],
 )
-
-// TODO: add SendManyMessagesOp (check ExecuteTransactions in deployment/ccip/helpers/execute.go)
-// TODO: add WaitTrace option
