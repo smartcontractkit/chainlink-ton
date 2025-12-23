@@ -17,12 +17,26 @@ import { CellCodec } from '../utils'
 import { Any2TVMMessage, builder as OffRampBuilder } from './OffRamp'
 import { loadContractCode } from '../codeLoader'
 
-export const RECEIVER_FACILITY_ID = 346
-export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
+export const RECEIVER_FACILITY_NAME = 'com.chainlink.ton.ccip.lib.Receiver'
+export const RECEIVER_FACILITY_ID = 235
+export const RECEIVER_ERROR_CODE = 23500 //FACILITY_ID * 100
+
+export const TEST_RECEIVER_FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
+export const TEST_RECEIVER_FACILITY_ID = 346
+export const TEST_RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
 
 export enum ReceiverError {
   Unauthorized = RECEIVER_ERROR_CODE,
-  ReceiverIsConfigureToFailGracefully,
+  LowValue,
+}
+
+export enum TestReceiverSpecificError {
+  Rejected = TEST_RECEIVER_ERROR_CODE,
+}
+
+export const TestReceiverError = {
+  ...ReceiverError,
+  ...TestReceiverSpecificError,
 }
 
 export enum ReceiverBehavior {

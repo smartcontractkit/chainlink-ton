@@ -25,11 +25,18 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Receiver_CCIPReceive => {
             var st = lazy Storage.load();
-            // Standard for every receiver to implement:
-            // - Check CCIPReceive only comes from router
-            // - Send CCIPReceiveConfirm to msg.callback
-            assert(in.senderAddress == st.authorizedCaller, Error.Unauthorized);
-
+            msg.validateAndConfirm({
+                router: st.authorizedCaller,
+                minValue: ton("0.01"),
+                inMsg: {
+                    senderAddress: in.senderAddress,
+                    valueCoins: in.valueCoins,
+                },
+                confirmationMsg: {
+                    sendMode: SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+                }
+            });
+           
             match (st.behavior) {
                 ReceiverBehavior.Accept => {
                     processAccept(msg, in.senderAddress)
@@ -56,23 +63,13 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
-    val receiveConfirm = createMessage({
-        bounce: true,
-        value: 0,
-        dest: senderAddress,
-        body: Router_CCIPReceiveConfirm {
-            execId: msg.execId,
-        }
-    });
-    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message,
     });
 }
 
 fun processRejectAll() {
-    throw Error.Rejected;
+    throw TestReceiver_Error.Rejected;
 }
 
 // This is just for testing purposes

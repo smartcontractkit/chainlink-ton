@@ -3,9 +3,14 @@ import { beginCell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
+import { generateRandomContractId } from '../../src/utils'
+import { facilityId } from '../../wrappers/utils'
+import { crc32 } from 'zlib'
+
 import {
   Receiver,
   ReceiverError,
+  TestReceiverError,
   ReceiverStorage,
   ReceiverBehavior,
   CCIPReceive,
@@ -14,12 +19,15 @@ import {
   RECEIVER_ERROR_CODE,
   UpdateAuthorizedCaller,
   UpdateBehavior,
+  RECEIVER_FACILITY_NAME,
+  TEST_RECEIVER_FACILITY_ID,
+  TEST_RECEIVER_FACILITY_NAME,
+  TEST_RECEIVER_ERROR_CODE,
 } from '../../wrappers/ccip/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
-import { generateRandomContractId } from '../../src/utils'
 
 const ccipReceiveSampleMessage: CCIPReceive = {
   rootId: BigInt(1),
@@ -30,6 +38,14 @@ const ccipReceiveSampleMessage: CCIPReceive = {
     data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
   },
 }
+
+describe('Receiver - Unit Tests', () => {
+  it('Test facilityId matches facility name', () => {
+    expect(RECEIVER_FACILITY_ID).toEqual(facilityId(crc32(RECEIVER_FACILITY_NAME)))
+
+    expect(TEST_RECEIVER_FACILITY_ID).toEqual(facilityId(crc32(TEST_RECEIVER_FACILITY_NAME)))
+  })
+})
 
 describe('Receiver', () => {
   let blockchain: Blockchain
@@ -83,8 +99,8 @@ describe('Receiver', () => {
 
     expect(id).toBeDefined()
     expect(authorizedCaller.toString()).toEqual(deployer.address.toString())
-    expect(facilityId).toEqual(RECEIVER_FACILITY_ID)
-    expect(errorCode).toEqual(RECEIVER_ERROR_CODE)
+    expect(facilityId).toEqual(TEST_RECEIVER_FACILITY_ID)
+    expect(errorCode).toEqual(TEST_RECEIVER_ERROR_CODE)
   })
 
   it('should emit an event when calling with the right sender', async () => {
@@ -122,7 +138,7 @@ describe('Receiver', () => {
     )
   })
 
-  it('should failed with unauthorized when calling ccipReceive with a different sender as the offramp address', async () => {
+  it('should failed with unauthorized when calling ccipReceive with a different sender as the router address', async () => {
     const result = await receiver.sendCCIPReceive(
       unauthorized.getSender(),
       toNano('1'),
@@ -211,7 +227,7 @@ describe('Receiver', () => {
       to: receiver.address,
       success: false,
       aborted: true,
-      exitCode: ReceiverError.ReceiverIsConfigureToFailGracefully,
+      exitCode: TestReceiverError.Rejected,
     })
   })
 
