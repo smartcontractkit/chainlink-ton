@@ -15,6 +15,14 @@ func ExtractMagicFromValue(v any) (uint64, error) {
 }
 
 func ExtractMagic(rt reflect.Type) (uint64, error) {
+	if rt.Kind() != reflect.Struct {
+		return 0, fmt.Errorf("type %s is not a struct", rt.Name())
+	}
+
+	if rt.NumField() == 0 {
+		return 0, fmt.Errorf("type %s has no fields", rt.Name())
+	}
+
 	if rt.Field(0).Type != reflect.TypeOf(tlb.Magic{}) {
 		return 0, fmt.Errorf("first field of %s is not of type Magic", rt.Name())
 	}
