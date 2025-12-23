@@ -107,7 +107,7 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: r.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
+      body: tr.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
     })
 
     expect(result.transactions).toHaveTransaction({
