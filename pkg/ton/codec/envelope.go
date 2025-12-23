@@ -16,7 +16,7 @@ import (
 // MessageMeta keeps the information required to serialize/deserialize TL-B messages.
 type MessageMeta struct {
 	Contract string
-	Opcode   uint32
+	Opcode   uint64
 
 	// Go runtime type information
 	TypeName string
@@ -160,14 +160,14 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 		payload = json.RawMessage("null")
 	}
 
-	opcode, err := strconv.ParseUint(raw.Opcode[2:], 16, 32)
+	opcode, err := strconv.ParseUint(raw.Opcode[2:], 16, 64)
 	if err != nil {
 		return fmt.Errorf("invalid opcode format %s: %w", raw.Opcode, err)
 	}
 	e.Metadata = MessageMeta{
 		Contract: raw.Contract,
 		TypeName: raw.Type,
-		Opcode:   uint32(opcode),
+		Opcode:   opcode,
 	}
 	e.Payload = payload
 

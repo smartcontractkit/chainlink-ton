@@ -35,7 +35,7 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs tvm.TLBMap) (any, error) {
 		return nil, fmt.Errorf("failed to preload opcode: %w", err)
 	}
 
-	i, ok := tlbs[uint32(opcode)]
+	i, ok := tlbs[opcode]
 	if !ok {
 		return nil, &UnknownMessageError{}
 	}

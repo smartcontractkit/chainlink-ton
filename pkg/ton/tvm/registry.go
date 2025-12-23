@@ -5,7 +5,7 @@ import (
 )
 
 // tvm.TLBMap is a map of opcodes to their corresponding TL-B types.
-type TLBMap map[uint32]any
+type TLBMap map[uint64]any
 
 // NewTLBMap creates a map of TL-B magic numbers (opcodes) to their corresponding types
 // from a set of TL-B annotated struct instances.
@@ -49,7 +49,7 @@ func (r MessageRegistry) Snapshot() TLBMap {
 }
 
 // Lookup retrieves the TL-B type for the given contract and opcode.
-func (r MessageRegistry) Lookup(contract string, opcode uint32) (any, bool) {
+func (r MessageRegistry) Lookup(contract string, opcode uint64) (any, bool) {
 	tlbs, ok := r[contract]
 	if !ok {
 		return nil, false
@@ -61,7 +61,7 @@ func (r MessageRegistry) Lookup(contract string, opcode uint32) (any, bool) {
 
 // LookupByOpcode retrieves the TL-B type for the given opcode
 // across all registered contracts (snapshot).
-func (r MessageRegistry) LookupByOpcode(opcode uint32) (any, bool) {
+func (r MessageRegistry) LookupByOpcode(opcode uint64) (any, bool) {
 	for _, tlbMap := range r {
 		if typ, ok := tlbMap[opcode]; ok {
 			return typ, true
