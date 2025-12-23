@@ -68,7 +68,7 @@ func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenc
 			if !ok {
 				return output, fmt.Errorf("operation %s output does not implement MessagePlanner interface", def.ID)
 			}
-			output.Plans = append(output.Plans, planer.GetPlan())
+			output.Plans = append(output.Plans, planer.GetPlans()...)
 		}
 
 		sender, ok := r.Output.(MessageSender)
