@@ -310,8 +310,8 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 	tests := []struct {
 		name         string
 		cell         *cell.Cell
-		tlbsMain     tvm.tvm.TLBMap
-		tlbsPayloads tvm.tvm.TLBMap
+		tlbsMain     tvm.TLBMap
+		tlbsPayloads tvm.TLBMap
 		wantType     string
 		wantMap      map[string]any
 		expectErr    bool
