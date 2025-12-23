@@ -22,13 +22,13 @@ export const FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
 export const FACILITY_ID = 346
 export const ERROR_CODE = 34600 //FACILITY_ID * 100
 
-export enum TestReceiverSpecificError {
+enum TestReceiverError {
   Rejected = ERROR_CODE,
 }
 
 export const error = {
   ...receiver.error,
-  ...TestReceiverSpecificError,
+  ...TestReceiverError,
 }
 
 export enum ReceiverBehavior {
