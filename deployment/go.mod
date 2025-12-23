@@ -14,10 +14,13 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251222203705-84e93cab86b5
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251023193345-8f2c4380a62c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
+	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20250904183752-4ea5c19ee886
 	github.com/smartcontractkit/mcms v0.31.1
+	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/sync v0.19.0
+	google.golang.org/grpc v1.77.0
 )
 
 require (
@@ -162,7 +165,6 @@ require (
 	github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.9-0.20251020164035-ab562b473fe2 // indirect
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20250808121824-2c3544aab8f3 // indirect
 	github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20251021010742-3f8d3dba17d8 // indirect
-	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0 // indirect
 	github.com/smartcontractkit/chainlink-protos/linking-service/go v0.0.0-20251002192024-d2ad9222409b // indirect
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20251104205009-00bd79b81471 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.12.1 // indirect
@@ -174,7 +176,6 @@ require (
 	github.com/stephenlacy/go-ethereum-hdwallet v0.0.0-20230913225845-a4fa94429863 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/supranational/blst v0.3.16-0.20250831170142-f48500c1fdbe // indirect
 	github.com/testcontainers/testcontainers-go v0.39.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -223,7 +224,6 @@ require (
 	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
-	google.golang.org/grpc v1.77.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
