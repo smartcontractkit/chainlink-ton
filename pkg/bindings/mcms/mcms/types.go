@@ -11,7 +11,6 @@ import (
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -245,7 +244,7 @@ type ExpiredRootsCleaned struct {
 	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	SetRoot{},
 	Execute{},
 	SetConfig{},

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -68,7 +69,7 @@ func EnsureTLBStructPointer(value any) (any, error) {
 }
 
 func NewMessageMeta(contract string, typ reflect.Type) (MessageMeta, error) {
-	opcode, err := ExtractMagic(typ)
+	opcode, err := tvm.ExtractMagic(typ)
 	if err != nil {
 		return MessageMeta{}, fmt.Errorf("failed to parse opcode for %s: %w", typ, err)
 	}
@@ -195,7 +196,7 @@ func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
 }
 
 // LoadFromRegistry attempts to populate the Value T field from the Payload or Cell using the provided registry.
-func (e *MessageEnvelope[T]) LoadDecoded(r MessageRegistry) error {
+func (e *MessageEnvelope[T]) LoadDecoded(r tvm.MessageRegistry) error {
 	val, err := e.Decode(r)
 	if err != nil {
 		return fmt.Errorf("failed to load message from registry: %w", err)
@@ -206,13 +207,13 @@ func (e *MessageEnvelope[T]) LoadDecoded(r MessageRegistry) error {
 }
 
 type envelopeLoader interface {
-	LoadDecoded(MessageRegistry) error
+	LoadDecoded(tvm.MessageRegistry) error
 }
 
 var envelopeLoaderType = reflect.TypeOf((*envelopeLoader)(nil)).Elem()
 
 // Decode attempts to decode the message recursively using either the Payload or Cell and the provided registry.
-func (e MessageEnvelope[T]) Decode(r MessageRegistry) (T, error) {
+func (e MessageEnvelope[T]) Decode(r tvm.MessageRegistry) (T, error) {
 	decoded, err := e.decode(r)
 	if err != nil {
 		var zero T
@@ -276,7 +277,7 @@ func (e MessageEnvelope[T]) Decode(r MessageRegistry) (T, error) {
 }
 
 // decode attempts to decode the message using either the Payload or Cell and the provided registry.
-func (e MessageEnvelope[T]) decode(r MessageRegistry) (T, error) {
+func (e MessageEnvelope[T]) decode(r tvm.MessageRegistry) (T, error) {
 	// Check if already loaded
 	if e.Value != nil {
 		return *e.Value, nil

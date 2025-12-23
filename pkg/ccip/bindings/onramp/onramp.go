@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -166,7 +165,7 @@ type UpdateSendExecutorMessage struct {
 	Code *cell.Cell `tlb:"^"`                  // New executor code
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateAllowlists{},
 	Send{},
 	WithdrawJettons{},

@@ -10,7 +10,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -316,7 +315,7 @@ type ExecutorRoleCheckUpdated struct {
 	Enabled bool `tlb:"bool"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	Init{},
 	ScheduleBatch{},
 	Cancel{},

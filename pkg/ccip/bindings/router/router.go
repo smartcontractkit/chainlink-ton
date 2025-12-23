@@ -10,7 +10,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -173,7 +172,7 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakeData[Subject] `tlb:"^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
+var TLBs = tvm.MustNewTLBMap([]interface{}{
 	ApplyRampUpdates{},
 	CCIPSend{},
 	RouteMessage{},
