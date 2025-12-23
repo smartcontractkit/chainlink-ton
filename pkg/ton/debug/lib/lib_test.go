@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -34,7 +35,7 @@ type Baz struct {
 	Val *address.Address `tlb:"addr"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	Foo{},
 	Bar{},
 	Baz{},
@@ -309,8 +310,8 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 	tests := []struct {
 		name         string
 		cell         *cell.Cell
-		tlbsMain     lib.TLBMap
-		tlbsPayloads lib.TLBMap
+		tlbsMain     tvm.tvm.TLBMap
+		tlbsPayloads tvm.tvm.TLBMap
 		wantType     string
 		wantMap      map[string]any
 		expectErr    bool
@@ -318,10 +319,10 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: lib.MustNewTLBMap([]any{
+			tlbsMain: tvm.MustNewTLBMap([]any{
 				mcms.Execute{},
 			}),
-			tlbsPayloads: lib.MustNewTLBMap([]any{
+			tlbsPayloads: tvm.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -383,11 +384,11 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (some) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: lib.MustNewTLBMap([]any{
+			tlbsMain: tvm.MustNewTLBMap([]any{
 				mcms.Execute{},
 				wallet.AskToTransfer{},
 			}),
-			tlbsPayloads: lib.MustNewTLBMap([]any{
+			tlbsPayloads: tvm.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -436,10 +437,10 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (most) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: lib.MustNewTLBMap([]any{
+			tlbsMain: tvm.MustNewTLBMap([]any{
 				mcms.Execute{},
 			}),
-			tlbsPayloads: lib.MustNewTLBMap([]any{
+			tlbsPayloads: tvm.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},

@@ -1,7 +1,6 @@
 package rbac
 
 import (
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -123,7 +122,7 @@ type RoleAdminChanged struct {
 	NewAdminRole      *tlbe.Uint256 `tlb:"."` // New admin role of the specific role.
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	GrantRole{},
 	RevokeRole{},
 	RenounceRole{},
