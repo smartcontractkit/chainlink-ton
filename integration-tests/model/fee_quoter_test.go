@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/model"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- Helpers ----------
@@ -37,8 +38,6 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 	ownerAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAu8e")
 	pendingOwnerAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABZ_5")
 	offRampAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_8_")
-	tonTokenAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99")
-	linkTokenAddress := address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABI_Y")
 
 	storage, err := model.NewFeeQuoterStorageBuilder().
 		WithID(1000).
@@ -48,13 +47,13 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 		).
 		WithAllowedPriceUpdater(offRampAddress).
 		WithMaxFeeJuelsPerMsg(big.NewInt(1000)).
-		WithLinkToken(linkTokenAddress).
+		WithLinkToken(tvm.LinkTokenAddr).
 		WithTokenPriceStalenessThreshold(uint64(3600)).
 		// USDPerToken
-		WithUSDPerToken(tonTokenAddress, big.NewInt(1804194200000000000), mustTimestamp("2025-11-18T17:58:08Z")).
-		WithUSDPerToken(linkTokenAddress, mustBigInt("13819996070000000000"), mustTimestamp("2025-11-18T17:58:08Z")).
+		WithUSDPerToken(tvm.TonTokenAddr, big.NewInt(1804194200000000000), mustTimestamp("2025-11-18T17:58:08Z")).
+		WithUSDPerToken(tvm.LinkTokenAddr, mustBigInt("13819996070000000000"), mustTimestamp("2025-11-18T17:58:08Z")).
 		// PremiumMultiplierWeiPerEthByToken
-		WithPremiumMultiplier(tonTokenAddress, 1).
+		WithPremiumMultiplier(tvm.TonTokenAddr, 1).
 		// DestChainConfigs
 		WithDestChainConfig(14767482510784806043, model.DestChainConfigs{
 			Config: model.DestChainConfig{
@@ -158,7 +157,7 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 		require.Equal(t, big.NewInt(1000), storage.MaxFeeJuelsPerMsg)
 
 		// LinkToken
-		require.Equal(t, linkTokenAddress, storage.LinkToken)
+		require.Equal(t, tvm.LinkTokenAddr, storage.LinkToken)
 
 		// TokenPriceStalenessThreshold
 		require.Equal(t, uint64(3600), storage.TokenPriceStalenessThreshold)
@@ -166,19 +165,19 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 		// USDPerToken
 		require.Len(t, storage.USDPerToken, 2)
 
-		tonPrice, ok := storage.USDPerToken[tonTokenAddress.String()]
+		tonPrice, ok := storage.USDPerToken[tvm.TonTokenAddr.String()]
 		require.True(t, ok)
 		require.Equal(t, "1804194200000000000", tonPrice.Value.String())
 		require.Equal(t, mustTimestamp("2025-11-18T17:58:08Z"), tonPrice.Timestamp)
 
-		linkPrice, ok := storage.USDPerToken[linkTokenAddress.String()]
+		linkPrice, ok := storage.USDPerToken[tvm.LinkTokenAddr.String()]
 		require.True(t, ok)
 		require.Equal(t, "13819996070000000000", linkPrice.Value.String())
 		require.Equal(t, mustTimestamp("2025-11-18T17:58:08Z"), linkPrice.Timestamp)
 
 		// PremiumMultiplierWeiPerEthByToken
 		require.Len(t, storage.PremiumMultiplierWeiPerEthByToken, 1)
-		require.Equal(t, uint64(1), storage.PremiumMultiplierWeiPerEthByToken[tonTokenAddress.String()])
+		require.Equal(t, uint64(1), storage.PremiumMultiplierWeiPerEthByToken[tvm.TonTokenAddr.String()])
 
 		// DestChainConfigs
 		require.Len(t, storage.DestChainConfigsByChainSelector, 3)
