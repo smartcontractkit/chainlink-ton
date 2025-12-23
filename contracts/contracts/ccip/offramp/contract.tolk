@@ -428,8 +428,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         initMsg.send(SEND_MODE_REGULAR);
     }
 
-    // update token/gas prices if any
-    // don't send the UpdatePrices message
+    // Update token/gas prices if there are any updates.
+    // Don't send the UpdatePrices message if both tokenPriceUpdates and gasPriceUpdates are empty.
 
     if (report.priceUpdates != null) {
         val priceUpdates = report.priceUpdates!.load();
