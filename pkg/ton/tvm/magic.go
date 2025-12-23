@@ -58,5 +58,5 @@ func LoadMagic(tag string) (uint64, error) {
 		return 0, fmt.Errorf("corrupted magic value in tag") //nolint:perfsprint // vendored from tonutils-go
 	}
 
-	return magic, nil //nolint:gosec // vendored from tonutils-go
+	return magic, nil
 }
