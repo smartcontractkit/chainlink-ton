@@ -14,10 +14,10 @@ import (
 var TLBs = wallet.TLBs
 
 type decoder struct {
-	tlbsCtx lib.TLBMap
+	tlbsCtx tvm.tvm.TLBMap
 }
 
-func NewDecoder(tlbsCtx lib.TLBMap) lib.ContractDecoder {
+func NewDecoder(tlbsCtx tvm.tvm.TLBMap) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 
