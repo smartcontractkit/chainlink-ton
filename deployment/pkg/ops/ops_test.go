@@ -138,7 +138,6 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				decodedTLB, err := codec.EnsureTLBStructPointer(*decoded.Value)
 				require.NoErrorf(t, err, "decoded value is not a TL-B struct pointer: contract=%s opcode=0x%08x", contract, opcode)
 
-				t.Log("DEBUG:", string(raw))
 				originalCell, err := tlb.ToCell(originalTLB)
 				require.NoErrorf(t, err, "tlb.ToCell failed for original value: contract=%s opcode=0x%08x", contract, opcode)
 				decodedCell, err := tlb.ToCell(decodedTLB)
