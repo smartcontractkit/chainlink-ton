@@ -46,7 +46,7 @@ func EnsureTLBStructPointer(value any) (any, error) {
 
 	rv := reflect.ValueOf(value)
 	if !rv.IsValid() {
-		return nil, fmt.Errorf("invalid value")
+		return nil, errors.New("invalid value")
 	}
 
 	// Traverse pointer indirections until we reach a struct or a nil pointer.
@@ -185,7 +185,7 @@ func (e MessageEnvelope[T]) ToCell() (*cell.Cell, error) {
 	}
 
 	if e.Value == nil {
-		return nil, fmt.Errorf("cannot convert to cell: no value present")
+		return nil, errors.New("cannot convert to cell: no value present")
 	}
 
 	return tlb.ToCell(e.Value)
