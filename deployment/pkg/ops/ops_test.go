@@ -7,19 +7,15 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/Masterminds/semver/v3"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -28,8 +24,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 )
-
-var dictionaryPtrType = reflect.TypeOf((*cell.Dictionary)(nil))
 
 var unsupported = []uint32{
 	0xD0984986, // feequoter.UpdateFeeTokens, requires dictionary surrogate
@@ -95,6 +89,8 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	gen := utils.NewGenerator(utils.WithRand(randSource))
 
 	for contract, tlbMap := range bindings.Registry {
+
+		toSequence := make([]lib.MessageEnvelope[any], 0)
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
 				t.Logf("skip serializability check for unsupported %s opcode=0x%08x (%T)", contract, opcode, proto)
@@ -150,7 +146,11 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				decodedHash := decodedCell.Hash()
 				assert.Equalf(t, originalHash, decodedHash, "cell hash mismatch after round-trip: contract=%s opcode=0x%08x original=%x decoded=%x", contract, opcode, originalHash, decodedHash)
 
-				r := makeExecuteOp(t, contract, opcode, decoded)
+				// Generate operation report
+				r := testMakeExecuteOp(t, contract, opcode, decoded)
+
+				// Accumulate for sequence testing
+				toSequence = append(toSequence, decoded)
 
 				rraw, err := json.Marshal(r)
 				require.NoError(t, err)
@@ -168,19 +168,16 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				require.NoError(t, os.WriteFile(file, []byte(builder.String()), 0o644))
 			}
 		}
+
+		// Test sequence execution/planning with all messages for this contract
+		testMakeExecuteSeq(t, contract, toSequence)
 	}
 }
 
-func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
 	t.Helper()
 
-	op := NewSendMessageOp[any](OpOpts{
-		Version: semver.MustParse("0.1.0"),
-		Name:    fmt.Sprintf("op:%s:0x%08x", contract, opcode),
-		Desc:    "An operation generated during testing from message envelope",
-	})
-	assert.NotEmpty(t, op)
-
+	// Setup execution environment
 	lggr, _ := logger.New()
 	rptr := operations.NewMemoryReporter()
 	ctxFn := func() context.Context {
@@ -190,7 +187,8 @@ func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.Mes
 	deps := SendMessageDeps{
 		Wallet: nil, // No actual sending in tests
 	}
-	r, err := operations.ExecuteOperation(b, op, deps, SendMessageInput[any]{
+
+	r, err := operations.ExecuteOperation(b, SendMessage, deps, SendMessageInput[any]{
 		Envelope: decoded,
 		Plan:     true,
 		DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
@@ -199,4 +197,54 @@ func makeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.Mes
 	assert.NotEmpty(t, r)
 	assert.NoError(t, err)
 	return r
+}
+
+func testMakeExecuteSeq(t *testing.T, contract string, envelopes []lib.MessageEnvelope[any]) {
+	t.Helper()
+
+	n := len(envelopes)
+	defs := make([]operations.Definition, n)
+	inputs := make([]any, n)
+
+	for i, e := range envelopes {
+		defs[i] = SendMessage.Def()
+		inputs[i] = SendMessageInput[any]{
+			Envelope: e,
+			Plan:     true,
+			DstAddr:  address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
+			Amount:   tlb.MustFromTON("0.25"),
+		}
+	}
+
+	// Setup execution environment
+	lggr, _ := logger.New()
+	rptr := operations.NewMemoryReporter()
+	ctxFn := func() context.Context {
+		return t.Context()
+	}
+
+	ops := []*operations.Operation[any, any, any]{
+		SendMessage.AsUntyped(),
+	}
+	opsr := operations.NewOperationRegistry(ops...)
+
+	opts := []operations.BundleOption{
+		operations.WithOperationRegistry(opsr),
+	}
+	b := operations.NewBundle(ctxFn, lggr, rptr, opts...)
+	// Dependencies currently injected per-operation
+	// TODO: generalize dependency injection per-type/s in sequences
+	deps := AnySequenceDeps{}
+	depsKey := SendMessage.Def().ID
+	deps[depsKey] = SendMessageDeps{
+		Wallet: nil, // No actual sending in tests
+	}
+
+	input := AnySequenceInput{
+		Defs:   defs,
+		Inputs: inputs,
+	}
+	r, err := operations.ExecuteSequence(b, AnySequence, deps, input)
+	assert.NotEmpty(t, r)
+	assert.NoError(t, err)
 }
