@@ -11,7 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -81,7 +81,7 @@ type UpgradeMessage struct {
 	NewCode *cell.Cell `tlb:"^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	MintMessage{},
 	ChangeAdminMessage{},
 	ClaimAdminMessage{},

@@ -12,12 +12,12 @@ import (
 var TLBs = jetton.TLBs
 
 type decoder struct {
-	tlbsCtx lib.TLBMap
+	tlbsCtx tvm.tvm.TLBMap
 
 	contractType string
 }
 
-func NewDecoder(tlbsCtx lib.TLBMap, t string) lib.ContractDecoder {
+func NewDecoder(tlbsCtx tvm.tvm.TLBMap, t string) lib.ContractDecoder {
 	return &decoder{tlbsCtx: tlbsCtx, contractType: t}
 }
 

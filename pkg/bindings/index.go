@@ -8,8 +8,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -33,7 +33,7 @@ const (
 )
 
 // Map of TLBs keyed by contract type
-var Registry = lib.MessageRegistry{
+var Registry = tvm.MessageRegistry{
 	// Jetton contract types
 	PkgJetton + ".contracts.jetton-wallet": wallet.TLBs,
 	PkgJetton + ".contracts.jetton-minter": minter.TLBs,
@@ -61,6 +61,6 @@ type TestMessage struct {
 	Data tlbe.Dict[uint16, common.AddressWrap] `tlb:"^" json:"data"`
 }
 
-var TestTLBs = lib.MustNewTLBMap([]any{
+var TestTLBs = tvm.MustNewTLBMap([]any{
 	TestMessage{},
 })

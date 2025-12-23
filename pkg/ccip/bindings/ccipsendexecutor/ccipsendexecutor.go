@@ -9,7 +9,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -65,7 +64,7 @@ type MessageValidationFailed struct {
 	Context *cell.Cell       `tlb:"^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	Execute{},
 	MessageValidated{},
 	// MessageValidationFailed{}, // TODO (ops): add back when fix nested msg serialization
