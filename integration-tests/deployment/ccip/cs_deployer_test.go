@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/pkg/errors"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
