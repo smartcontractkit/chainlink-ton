@@ -14,10 +14,10 @@ import (
 var TLBs = minter.TLBs
 
 type decoder struct {
-	tlbsCtx tvm.tvm.TLBMap
+	tlbsCtx tvm.TLBMap
 }
 
-func NewDecoder(tlbsCtx tvm.tvm.TLBMap) lib.ContractDecoder {
+func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 
