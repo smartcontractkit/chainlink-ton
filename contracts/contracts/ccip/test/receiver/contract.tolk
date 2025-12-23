@@ -9,7 +9,6 @@ import "messages"
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
 import "../../../lib/utils";
-import "../../router/messages"
 import "../../../lib/access/ownable_2step"
 
 const CONTRACT_VERSION = "1.6.0";
@@ -21,7 +20,7 @@ struct CCIPMessageReceived {
 }
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Receiver_InMessage.fromSlice(in.body);
+    val msg = lazy TestReceiver_InMessage.fromSlice(in.body);
     match (msg) {
         Receiver_CCIPReceive => {
             var st = lazy Storage.load();
@@ -38,21 +37,21 @@ fun onInternalMessage(in: InMessage) {
             });
            
             match (st.behavior) {
-                ReceiverBehavior.Accept => {
+                TestReceiverBehavior.Accept => {
                     processAccept(msg, in.senderAddress)
                 },
-                ReceiverBehavior.RejectAll => {
+                TestReceiverBehavior.RejectAll => {
                     processRejectAll()
                 },
-                ReceiverBehavior.ConsumeAllGas => {
+                TestReceiverBehavior.ConsumeAllGas => {
                     processConsumeAllGas()
                 }
             }
         }
-        Receiver_UpdateAuthorizedCaller => {
+        TestReceiver_UpdateAuthorizedCaller => {
             onUpdateAuthorizedCaller(msg, in.senderAddress)
         }
-        Receiver_UpdateBehavior => {
+        TestReceiver_UpdateBehavior => {
             onUpdateBehavior(msg, in.senderAddress)
         }
         else => {
@@ -78,7 +77,7 @@ fun processConsumeAllGas() {
     while (true) { x = x + 1; }
 }
 
-fun onUpdateAuthorizedCaller(msg: Receiver_UpdateAuthorizedCaller, senderAddress: address) {
+fun onUpdateAuthorizedCaller(msg: TestReceiver_UpdateAuthorizedCaller, senderAddress: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(senderAddress);
 
@@ -86,7 +85,7 @@ fun onUpdateAuthorizedCaller(msg: Receiver_UpdateAuthorizedCaller, senderAddress
     st.store();
 }
 
-fun onUpdateBehavior(msg: Receiver_UpdateBehavior, senderAddress: address) {
+fun onUpdateBehavior(msg: TestReceiver_UpdateBehavior, senderAddress: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(senderAddress);
 

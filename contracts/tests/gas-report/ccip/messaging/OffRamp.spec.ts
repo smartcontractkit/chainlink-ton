@@ -31,7 +31,7 @@ import {
   generateEd25519KeyPair,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
-import { Receiver, ReceiverBehavior } from '../../../../wrappers/ccip/Receiver'
+import { Receiver, ReceiverBehavior } from '../../../../wrappers/libraries/Receiver'
 import {
   hashReport,
   OCR3_PLUGIN_TYPE_COMMIT,
