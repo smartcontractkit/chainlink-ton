@@ -204,11 +204,11 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 
 	var src, dest config.ChainDefinition
 
-	tonTokenPrice, err := config.TokenPrice("3.15", 9) // As of September 2025
+	tonTokenPrice, err := config.TokenPrice("2", 9) // Example value
 	if err != nil {
 		env.Logger.Fatalf("AddLaneTONChangesets: failed to get TON token price: %v", err)
 	}
-	linkTokenPrice, err := config.TokenPrice("12.21", 18) // As of December 2025
+	linkTokenPrice, err := config.TokenPrice("10", 18) // Example value
 	if err != nil {
 		env.Logger.Fatalf("AddLaneTONChangesets: failed to get Link token price: %v", err)
 	}

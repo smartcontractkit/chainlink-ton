@@ -1,4 +1,4 @@
-package config
+package ccip
 
 import (
 	"math/big"
@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 )
 
 func TestTokenPrice(t *testing.T) {
@@ -54,7 +56,7 @@ func TestTokenPrice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.usdPrice, func(t *testing.T) {
-			price, err := TokenPrice(tt.usdPrice, tt.tokenDecimals)
+			price, err := config.TokenPrice(tt.usdPrice, tt.tokenDecimals)
 			if err != nil {
 				t.Fatalf("TokenPrice() error = %v", err)
 			}
