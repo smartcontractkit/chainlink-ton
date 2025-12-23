@@ -1,0 +1,45 @@
+package offramp
+
+import (
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+)
+
+var TLBs = offramp.TLBs
+
+type decoder struct {
+	tlbsCtx tvm.TLBMap
+}
+
+func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
+	return &decoder{tlbsCtx}
+}
+
+func (d *decoder) ContractType() string {
+	return "com.chainlink.ton.ccip.OffRamp"
+}
+
+func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
+	return nil, &lib.UnknownMessageError{}
+}
+
+func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+	return nil, &lib.UnknownMessageError{}
+}
+
+func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
+}
+
+func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
+	ec, err := offramp.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
+		return "", &lib.UnknownMessageError{}
+	}
+
+	return ec.String(), nil
+}

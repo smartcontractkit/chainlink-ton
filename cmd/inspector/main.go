@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/inspector"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/inspector"
 )
 
 var rootCmd = inspector.GenerateInspectorCmd(nil, nil)
