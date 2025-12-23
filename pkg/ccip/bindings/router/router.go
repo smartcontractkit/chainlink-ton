@@ -127,7 +127,7 @@ type RouteMessage struct {
 
 type CCIPReceiveConfirm struct {
 	_      tlb.Magic `tlb:"#1e55bbf6" json:"-"` //nolint:revive // Ignore opcode tag
-	ExecID big.Int   `tlb:"## 192"`
+	ExecID *big.Int  `tlb:"## 192"`
 }
 
 type MessageSent struct {
