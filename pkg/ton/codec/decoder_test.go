@@ -1,4 +1,4 @@
-package lib_test
+package codec_test
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -280,7 +280,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotType, norm, err := lib.DecodeTLBValToJSON(tt.cell, TLBs)
+			gotType, norm, err := codec.DecodeTLBValToJSON(tt.cell, TLBs)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON")
 
 			if tt.wantMap == nil {
@@ -463,10 +463,10 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, norm, err := lib.DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
+			_, norm, err := codec.DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs main")
 
-			gotType, norm, err := lib.DecodeTLBValToJSON(norm, tt.tlbsPayloads)
+			gotType, norm, err := codec.DecodeTLBValToJSON(norm, tt.tlbsPayloads)
 			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs payloads")
 
 			var gotMap map[string]any

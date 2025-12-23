@@ -7,11 +7,12 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ton/codec"
 )
 
 var (
@@ -21,8 +22,8 @@ var (
 )
 
 type SendMessageInput[T any] struct {
-	Envelope lib.MessageEnvelope[T] `json:"envelope"`
-	Plan     bool                   `json:"plan"`
+	Envelope codec.MessageEnvelope[T] `json:"envelope"`
+	Plan     bool                     `json:"plan"`
 
 	// Tx options
 	DstAddr *address.Address `json:"dst_addr"`
