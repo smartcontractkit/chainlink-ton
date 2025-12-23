@@ -96,26 +96,30 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 
-	if ccipSeqReport.Output.RouterAddress != nil {
-		// FYI Add method will never fail given that the dataStore is empty
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)
-		s.Router = ccipSeqReport.Output.RouterAddress.TONAddress
-	}
-	if ccipSeqReport.Output.FeeQuoterAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.FeeQuoterAddress.CLDFAddressRef)
-		s.FeeQuoter = ccipSeqReport.Output.FeeQuoterAddress.TONAddress
-	}
-	if ccipSeqReport.Output.OnRampAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.OnRampAddress.CLDFAddressRef)
-		s.OnRamp = ccipSeqReport.Output.OnRampAddress.TONAddress
-	}
-	if ccipSeqReport.Output.OffRampAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.OffRampAddress.CLDFAddressRef)
-		s.OffRamp = ccipSeqReport.Output.OffRampAddress.TONAddress
-	}
-	if ccipSeqReport.Output.ReceiverAddress != nil {
-		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
-		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
+	// Add newly deployed TON addresses to our output data store
+	if len(ccipSeqReport.Output.Addresses) > 0 {
+		for _, addr := range ccipSeqReport.Output.Addresses {
+			err = dataStore.Addresses().Add(addr)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to add deployed address to data store: %w", err)
+			}
+		}
+
+		// Reload state with complete address set (existing env.DataStore + new TON addresses)
+		// Note: We use a temporary merged store only for loading state, not for output.
+		// The output should only contain new TON addresses (in dataStore above).
+		mergedStore := ds.NewMemoryDataStore()
+		if err = mergedStore.Merge(env.DataStore); err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to merge existing addresses: %w", err)
+		}
+		if err = mergedStore.Merge(dataStore.Seal()); err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to merge new TON addresses: %w", err)
+		}
+
+		s, err = state.LoadCCIPOnChainStateUsingDataStore(mergedStore.Seal(), selector)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to reload state: %w", err)
+		}
 	}
 
 	deps.CCIPOnChainState[selector] = s
@@ -155,7 +159,10 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
-	ab, _ := utils.DataStoreToAddressBook(dataStore)
+	ab, err := utils.DataStoreToAddressBook(dataStore)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to convert data store to address book: %w", err)
+	}
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{

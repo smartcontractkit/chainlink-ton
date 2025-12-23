@@ -9,3 +9,8 @@ packages:
     interfaces:
       SourceChainExtraDataCodec:
       ChainSpecificAddressCodec:
+  github.com/smartcontractkit/chainlink-deployments-framework/offchain:
+    config:
+      dir: ./mocks/client
+    interfaces:
+      Client:

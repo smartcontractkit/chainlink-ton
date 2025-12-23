@@ -13,7 +13,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 )
@@ -36,7 +35,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		chainSelector := input.Source.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDeps(tonChain, input.Source)
+		deps, err := extractTonDepsFromChainDefinition(tonChain, input.Source)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -100,7 +99,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDeps(tonChain, input.Dest)
+		deps, err := extractTonDepsFromChainDefinition(tonChain, input.Dest)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -134,38 +133,8 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 	},
 )
 
-func extractTonDeps(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (config.CCIPDeps, error) {
-	onRampAddr, err := codec.AddressBytesToTONAddress(chainDefinition.OnRamp)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert onramp address: %w", err)
-	}
-	offRampAddr, err := codec.AddressBytesToTONAddress(chainDefinition.OffRamp)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert offramp address: %w", err)
-	}
-	routerAddr, err := codec.AddressBytesToTONAddress(chainDefinition.Router)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert router address: %w", err)
-	}
-	feeQuoterAddr, err := codec.AddressBytesToTONAddress(chainDefinition.FeeQuoter)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert feequoter address: %w", err)
-	}
-
-	// Only fill in the fields that are relevant to the operations used
-
-	deps := config.CCIPDeps{
-		TonChain: chain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			chain.Selector: {
-				OnRamp:    *onRampAddr,
-				OffRamp:   *offRampAddr,
-				Router:    *routerAddr,
-				FeeQuoter: *feeQuoterAddr,
-			},
-		},
-	}
-	return deps, nil
+func extractTonDepsFromChainDefinition(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (config.CCIPDeps, error) {
+	return extractTonDepsFrom(chain, chainDefinition.OnRamp, chainDefinition.OffRamp, chainDefinition.Router, chainDefinition.FeeQuoter)
 }
 
 ///////////////
