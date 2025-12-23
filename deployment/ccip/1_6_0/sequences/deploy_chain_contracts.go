@@ -60,7 +60,7 @@ var DeployChainContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
-		var txs [][]byte
+		txs := helpers.NewEmptyTransactions()
 		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 		// feequoter.addPriceUpdater(offramp)
 		addPriceUpdaterInput := operation.AddPriceUpdaterInput{
@@ -70,7 +70,7 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
 		}
-		txs = append(txs, addPriceUpdaterReport.Output...)
+		txs.Append(addPriceUpdaterReport.Output)
 
 		// feeQuoter.updateFeeTokens
 		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
@@ -85,7 +85,7 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 		}
-		txs = append(txs, updateFeeTokensReport.Output...)
+		txs.Append(updateFeeTokensReport.Output)
 
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, txs)
 		if err != nil {

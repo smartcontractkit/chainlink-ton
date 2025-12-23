@@ -28,7 +28,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as source on CCIP 1.6.0",
 	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
-		var txs [][]byte
+		txs := helpers.NewEmptyTransactions()
 
 		chainSelector := input.Source.Selector
 		tonChain := chains.TonChains()[chainSelector]
@@ -45,7 +45,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter destinations: %w", err)
 		}
-		txs = append(txs, feeQuoterReport.Output...)
+		txs.Append(feeQuoterReport.Output)
 
 		// update onramp with dest chain configs
 		updateOnRampDestChainConfigs := intoUpdateOnRampDestChainConfigs(input)
@@ -54,7 +54,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update onramp destinations: %w", err)
 		}
-		txs = append(txs, onRampReport.Output...)
+		txs.Append(onRampReport.Output)
 
 		// update fee quoter with gas prices
 		updateFeeQuoterPricesConfig := intoUpdateFeeQuoterPricesConfig(input)
@@ -63,7 +63,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
 		}
-		txs = append(txs, updatePricesReport.Output...)
+		txs.Append(updatePricesReport.Output)
 
 		// update router with onramps
 		applyRampUpdatesConfig, err := intoUpdateRouterOnrampsConfig(input)
@@ -75,7 +75,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 		}
-		txs = append(txs, routerReport.Output...)
+		txs.Append(routerReport.Output)
 
 		// Execute the txs || MCMS proposals
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
@@ -92,7 +92,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as dest on CCIP 1.6.0",
 	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
-		var txs [][]byte
+		txs := helpers.NewEmptyTransactions()
 
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]
@@ -109,7 +109,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
 		}
-		txs = append(txs, offRampReport.Output...)
+		txs.Append(offRampReport.Output)
 
 		applyRampUpdatesConfig, err := intoUpdateRouterOfframpsConfig(input)
 		if err != nil {
@@ -120,7 +120,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 		}
-		txs = append(txs, routerReport.Output...)
+		txs.Append(routerReport.Output)
 
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {

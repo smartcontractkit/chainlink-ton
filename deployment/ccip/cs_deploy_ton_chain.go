@@ -125,7 +125,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	deps.CCIPOnChainState[selector] = s
 
 	// Execute post-deployment cfg
-	var txs [][]byte
+	txs := helpers.NewEmptyTransactions()
 
 	// feequoter.addPriceUpdater(offramp)
 	addPriceUpdaterInput := operation.AddPriceUpdaterInput{
@@ -135,7 +135,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
 	}
-	txs = append(txs, addPriceUpdaterReport.Output...)
+	txs.Append(addPriceUpdaterReport.Output)
 
 	// feeQuoter.updateFeeTokens
 	feeTokens := make(map[string]operation.FeeTokenConfig, len(cfg.Params.FeeQuoterParams.FeeTokens))
@@ -149,7 +149,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 	}
-	txs = append(txs, updateFeeTokensReport.Output...)
+	txs.Append(updateFeeTokensReport.Output)
 
 	err = helpers.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
 
