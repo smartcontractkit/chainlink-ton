@@ -12,7 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
 var (
