@@ -29,7 +29,7 @@ type AnySequenceOutput struct {
 type AnySequenceDeps map[string]any
 
 var AnySequence = operations.NewSequence(
-	"ton/sequence/any",
+	"ton/sequences/any",
 	semver.MustParse("0.1.0"),
 	"Executes and/or plans a sequence of operations as defined by the inputs",
 	anySequenceHandler,
@@ -90,7 +90,7 @@ func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenc
 // TODO: figure out how to best implement MCMS/Timelock wrapping sequence/changeset
 //
 // var MCMSTimelockAnySequence = operations.NewSequence(
-// 	"ton/sequence/mcms/any-via-timelock",
+// 	"ton/sequences/mcms/any-via-timelock",
 // 	semver.MustParse("0.1.0"),
 // 	"Executes and/or plans (via MCMS/Timelock) a sequence of operations as defined by the inputs",
 // 	anySequenceHandler2,
