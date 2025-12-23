@@ -95,7 +95,7 @@ func (Uint160) BitsLen() uint {
 // LoadFromCell implements tlb.Unmarshaler.
 func (u *Uint160) LoadFromCell(loader *cell.Slice) error {
 	b := new(BigUint)
-	err := b.loadFromCell(160, loader)
+	err := b.loadFromCell(u.BitsLen(), loader)
 	if err != nil {
 		return fmt.Errorf("failed to load Uint160 from cell: %w", err)
 	}
@@ -107,10 +107,10 @@ func (u *Uint160) LoadFromCell(loader *cell.Slice) error {
 // ToCell implements tlb.Marshaller.
 func (u Uint160) ToCell() (*cell.Cell, error) {
 	b := BigUint{
-		Bits:  160,
+		Bits:  u.BitsLen(),
 		Value: (*big.Int)(&u),
 	}
-	return b.toCell(160)
+	return b.toCell(u.BitsLen())
 }
 
 func (u *Uint160) MarshalJSON() ([]byte, error) {
@@ -128,7 +128,7 @@ func (u *Uint160) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Uint160 from JSON: %w", err)
 	}
 
-	unsigned := AsUnsigned(b, 160)
+	unsigned := AsUnsigned(b, u.BitsLen())
 	*u = Uint160(*unsigned)
 	return nil
 }
@@ -159,7 +159,7 @@ func (x *Uint256) Cmp(y *Uint256) (r int) {
 // LoadFromCell implements tlb.Unmarshaler.
 func (u *Uint256) LoadFromCell(loader *cell.Slice) error {
 	b := new(BigUint)
-	err := b.loadFromCell(256, loader)
+	err := b.loadFromCell(u.BitsLen(), loader)
 	if err != nil {
 		return fmt.Errorf("failed to load Uint256 from cell: %w", err)
 	}
@@ -171,10 +171,10 @@ func (u *Uint256) LoadFromCell(loader *cell.Slice) error {
 // ToCell implements tlb.Marshaller.
 func (u Uint256) ToCell() (*cell.Cell, error) {
 	b := BigUint{
-		Bits:  256,
+		Bits:  u.BitsLen(),
 		Value: (*big.Int)(&u),
 	}
-	return b.toCell(256)
+	return b.toCell(u.BitsLen())
 }
 
 func (u *Uint256) MarshalJSON() ([]byte, error) {
@@ -192,7 +192,7 @@ func (u *Uint256) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Uint256 from JSON: %w", err)
 	}
 
-	unsigned := AsUnsigned(b, 256)
+	unsigned := AsUnsigned(b, u.BitsLen())
 	*u = Uint256(*unsigned)
 	return nil
 }

@@ -88,7 +88,7 @@ func (d *Dict[K, V]) UnmarshalJSON(data []byte) error {
 func (d Dict[K, V]) AsDictionary() (*cell.Dictionary, error) {
 	bits, err := keyBitSize[K]()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot determine key bit size: %w", err)
 	}
 
 	dict := cell.NewDict(bits)
@@ -170,7 +170,7 @@ func (d *Dict[K, V]) LoadFromCell(slice *cell.Slice) error {
 
 	bits, err := keyBitSize[K]()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot determine key bit size: %w", err)
 	}
 
 	dict, err := slice.LoadDict(bits)
