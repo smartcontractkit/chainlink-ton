@@ -26,7 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
-var unsupported = []uint32{
+var unsupported = []uint64{
 	0xD0984986, // feequoter.UpdateFeeTokens, requires dictionary surrogate
 }
 
@@ -176,7 +176,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func testMakeExecuteOp(t *testing.T, contract string, opcode uint32, decoded codec.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
 	t.Helper()
 
 	// Setup execution environment
