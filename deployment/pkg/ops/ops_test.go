@@ -43,7 +43,7 @@ func TestIsSerializable_AllMessages(t *testing.T) {
 
 			sample, err := gen.Generate(proto)
 			require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
-			assert.Equalf(t, true, operations.IsSerializable(lggr, sample), "operation should be serializable: contract=%s opcode=0x%08x type=%T", contract, opcode, sample)
+			assert.Truef(t, operations.IsSerializable(lggr, sample), "operation should be serializable: contract=%s opcode=0x%08x type=%T", contract, opcode, sample)
 		}
 	}
 }
@@ -64,7 +64,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 			envelope, err := codec.WrapMessage(contract, sample)
 			require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
 
-			assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
+			assert.Truef(t, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
 		}
 	}
 }
@@ -90,7 +90,6 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	gen := utils.NewGenerator(utils.WithRand(randSource))
 
 	for contract, tlbMap := range bindings.Registry {
-
 		toSequence := make([]codec.MessageEnvelope[any], 0)
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
@@ -131,7 +130,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				require.NoError(t, err)
 
 				assert.JSONEqf(t, string(raw), string(rawDecoded), "payload mismatch for contract=%s opcode=0x%08x", contract, opcode)
-				assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope serializable check failed: contract=%s opcode=0x%08x", contract, opcode)
+				assert.Truef(t, operations.IsSerializable(lggr, envelope), "envelope serializable check failed: contract=%s opcode=0x%08x", contract, opcode)
 
 				originalTLB, err := codec.EnsureTLBStructPointer(sample)
 				require.NoErrorf(t, err, "original value is not a TL-B struct pointer: contract=%s opcode=0x%08x", contract, opcode)
@@ -166,7 +165,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				path := "generated/testdata/envelopes"
 				file := fmt.Sprintf("%s/%s_%s_0x%08x.json", path, contract, meta.TypeName, opcode)
 				require.NoError(t, os.MkdirAll(path, 0o755))
-				require.NoError(t, os.WriteFile(file, []byte(builder.String()), 0o644))
+				require.NoError(t, os.WriteFile(file, []byte(builder.String()), 0o600))
 			}
 		}
 
