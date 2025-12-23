@@ -35,7 +35,7 @@ func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.Contract
 }
 
 var DeployChainContracts = operations.NewSequence(
-	"deploy-chain-contracts",
+	"ton/sequences/ccip/deploy-chain-contracts",
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -74,7 +74,6 @@ var DeployChainContracts = operations.NewSequence(
 
 		// feeQuoter.updateFeeTokens
 		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-			Lggr: b.Logger,
 			FeeTokens: map[string]operation.FeeTokenConfig{
 				tvm.TonTokenAddr.String(): {
 					PremiumMultiplierWeiPerEth: 1,
@@ -203,8 +202,6 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 				ChainSelector:   cfg.ChainSelector,
-				AllowlistAdmin:  deployer,
-				FeeAggregator:   deployer,
 				Reserve:         defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{

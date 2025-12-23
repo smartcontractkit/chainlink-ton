@@ -143,7 +143,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		feeTokens[feeToken.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: feeToken.PremiumMultiplierWeiPerEth}
 	}
 	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-		Lggr:      env.Logger,
 		FeeTokens: feeTokens,
 	}
 	updateFeeTokensReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)

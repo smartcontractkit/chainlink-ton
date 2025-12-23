@@ -43,7 +43,8 @@ var SetOCR3Config = cldf_ops.NewSequence(
 		}
 		txs = append(txs, setOCR3SeqReport.Output...)
 
-		// Execute the txs || MCMS proposals
+		//  TODO: 1. When executing directly (with injected DEP/wallet) execution is processed outside a cldf.Sequence
+		//        2. When executing indirectly - via MCMS (plan/proposal returned) - not currently supported
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {
 			return sequences.OnChainOutput{}, err

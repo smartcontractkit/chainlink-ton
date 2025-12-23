@@ -7,10 +7,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -35,7 +33,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		chainSelector := input.Source.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDepsFromChainDefinition(tonChain, input.Source)
+		deps, err := extractTonDepsFrom(tonChain, input.Source.OnRamp, input.Source.OffRamp, input.Source.Router, input.Source.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -99,7 +97,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDepsFromChainDefinition(tonChain, input.Dest)
+		deps, err := extractTonDepsFrom(tonChain, input.Dest.OnRamp, input.Dest.OffRamp, input.Dest.Router, input.Dest.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -132,10 +130,6 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		return sequences.OnChainOutput{}, nil
 	},
 )
-
-func extractTonDepsFromChainDefinition(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (config.CCIPDeps, error) {
-	return extractTonDepsFrom(chain, chainDefinition.OnRamp, chainDefinition.OffRamp, chainDefinition.Router, chainDefinition.FeeQuoter)
-}
 
 ///////////////
 /// Mappers ///

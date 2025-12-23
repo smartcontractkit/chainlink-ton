@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -65,7 +64,6 @@ type FeeTokenConfig struct {
 
 // UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens
 type UpdateFeeQuoterFeeTokensInput struct {
-	Lggr      logger.Logger
 	FeeTokens map[string]FeeTokenConfig // token address (string) -> { premium multiplier }
 }
 
@@ -98,7 +96,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 		}
 	}
 
-	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
+	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
 
 	// skip if there's no updates
 	if len(in.FeeTokens) == 0 {

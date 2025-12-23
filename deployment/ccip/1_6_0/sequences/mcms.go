@@ -86,13 +86,6 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore
 }
 
 func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) (mcmsSeq.DeployMCMSSeqInput, error) {
-	// The external config uses mcmstypes.Config which has signers, but assumes all evm address for, but
-	// we need ton addresses. For now, use deployer as the default for all roles
-	proposers := []*address.Address{deployer}
-	executors := []*address.Address{deployer}
-	cancellers := []*address.Address{deployer}
-	bypassers := []*address.Address{deployer}
-
 	// Generate a random contract ID for all contracts in this deployment
 	contractID, err := tonops.RandomUint32()
 	if err != nil {
@@ -123,10 +116,6 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 				Coin:            defaultMCMSContractCoin,
 				MinDelay:        minDelay,
 				Admin:           deployer,
-				Proposers:       proposers,
-				Executors:       executors,
-				Cancellers:      cancellers,
-				Bypassers:       bypassers,
 				ContractsSemver: timelockSemver,
 			},
 			MCMS: mcmsConfig.MCMSParams{
