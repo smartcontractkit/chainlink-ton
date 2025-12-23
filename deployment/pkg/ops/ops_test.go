@@ -20,9 +20,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 )
 
 var unsupported = []uint32{
@@ -60,7 +61,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 			}
 			require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
 
-			envelope, err := lib.WrapMessage(contract, sample)
+			envelope, err := codec.WrapMessage(contract, sample)
 			require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
 
 			assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
@@ -90,14 +91,14 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 
 	for contract, tlbMap := range bindings.Registry {
 
-		toSequence := make([]lib.MessageEnvelope[any], 0)
+		toSequence := make([]codec.MessageEnvelope[any], 0)
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
 				t.Logf("skip serializability check for unsupported %s opcode=0x%08x (%T)", contract, opcode, proto)
 				continue
 			}
 
-			meta, err := lib.NewMessageMetaFromValue(contract, proto)
+			meta, err := codec.NewMessageMetaFromValue(contract, proto)
 			require.NoErrorf(t, err, "creating message meta for %s opcode=0x%08x (%T)", contract, opcode, proto)
 
 			var builder strings.Builder
@@ -109,7 +110,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				sample, err := gen.Generate(proto)
 				require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
 
-				envelope, err := lib.WrapMessage(contract, sample)
+				envelope, err := codec.WrapMessage(contract, sample)
 				require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
 
 				raw, err := json.Marshal(envelope)
@@ -121,7 +122,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 					builder.WriteString(",\n")
 				}
 
-				var decoded lib.MessageEnvelope[any]
+				var decoded codec.MessageEnvelope[any]
 				require.NoError(t, json.Unmarshal(raw, &decoded))
 				err = decoded.LoadDecoded(bindings.Registry)
 				require.NoError(t, err)
@@ -132,9 +133,9 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				assert.JSONEqf(t, string(raw), string(rawDecoded), "payload mismatch for contract=%s opcode=0x%08x", contract, opcode)
 				assert.Equalf(t, true, operations.IsSerializable(lggr, envelope), "envelope serializable check failed: contract=%s opcode=0x%08x", contract, opcode)
 
-				originalTLB, err := lib.EnsureTLBStructPointer(sample)
+				originalTLB, err := codec.EnsureTLBStructPointer(sample)
 				require.NoErrorf(t, err, "original value is not a TL-B struct pointer: contract=%s opcode=0x%08x", contract, opcode)
-				decodedTLB, err := lib.EnsureTLBStructPointer(*decoded.Value)
+				decodedTLB, err := codec.EnsureTLBStructPointer(*decoded.Value)
 				require.NoErrorf(t, err, "decoded value is not a TL-B struct pointer: contract=%s opcode=0x%08x", contract, opcode)
 
 				originalCell, err := tlb.ToCell(originalTLB)
@@ -174,7 +175,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func testMakeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint32, decoded codec.MessageEnvelope[any]) operations.Report[SendMessageInput[any], SendMessageOutput] {
 	t.Helper()
 
 	// Setup execution environment
@@ -199,7 +200,7 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint32, decoded lib
 	return r
 }
 
-func testMakeExecuteSeq(t *testing.T, contract string, envelopes []lib.MessageEnvelope[any]) {
+func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.MessageEnvelope[any]) {
 	t.Helper()
 
 	n := len(envelopes)
