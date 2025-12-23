@@ -9,7 +9,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -71,7 +70,7 @@ type TransferNotification struct {
 	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	AskToTransfer{},
 	InternalTransferMessage{},
 	TransferNotification{},
