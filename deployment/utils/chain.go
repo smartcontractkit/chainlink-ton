@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -17,6 +19,7 @@ import (
 	cldf_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
+	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -166,4 +169,28 @@ func StartChain(t *testing.T, chainID uint64, once *sync.Once) (cldf_ton.Chain, 
 	t.Logf("TON chain started and funded wallet: %s", tonChain.WalletAddress.String())
 
 	return tonChain, nil
+}
+
+func CreateClient(ctx context.Context, url string) (*ton.APIClient, error) {
+	var client *ton.APIClient
+	if strings.HasPrefix(url, "liteserver://") {
+		pool, err := tonchainpkg.CreateLiteserverConnectionPool(ctx, url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
+		}
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
+	} else {
+		// connect via config URL
+		cfg, err := liteclient.GetConfigFromUrl(ctx, url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get TON config: %w", err)
+		}
+		pool := liteclient.NewConnectionPool()
+		err = pool.AddConnectionsFromConfig(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to TON: %w", err)
+		}
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
+	}
+	return client, nil
 }

@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,7 +19,6 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 )
 
 type CCIP16TON struct {
@@ -153,24 +149,9 @@ func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input,
 	for _, nk := range nodeKeyBundles {
 		keys = append(keys, address.MustParseRawAddr(nk.TXKey.Data.Attributes.PublicKey))
 	}
-	var client *ton.APIClient
-	if strings.HasPrefix(bc.Out.Nodes[0].ExternalHTTPUrl, "liteserver://") {
-		pool, err := tonchain.CreateLiteserverConnectionPool(context.Background(), bc.Out.Nodes[0].ExternalHTTPUrl)
-		if err != nil {
-			return fmt.Errorf("failed to create liteserver connection pool: %w", err)
-		}
-		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
-	}
-	// connect via config URL
-	cfg, err := liteclient.GetConfigFromUrl(context.Background(), bc.Out.Nodes[0].ExternalHTTPUrl)
+	client, err := testutils.CreateClient(ctx, bc.Out.Nodes[0].ExternalHTTPUrl)
 	if err != nil {
-		return fmt.Errorf("failed to get TON config: %w", err)
+		return fmt.Errorf("failed to create TON client: %w", err)
 	}
-	pool := liteclient.NewConnectionPool()
-	err = pool.AddConnectionsFromConfig(context.Background(), cfg)
-	if err != nil {
-		return fmt.Errorf("failed to connect to TON: %w", err)
-	}
-	client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
 	return testutils.FundWalletsNoT(client, keys, []tlb.Coins{tlb.MustFromTON("1000")})
 }
