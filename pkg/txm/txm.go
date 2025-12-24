@@ -393,10 +393,8 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(&receivedMessage))
 			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 
-			currentStatus := receivedMessage.Status()
-
 			// Track confirmation latency when first confirmed (Received or Cascading)
-			if tx.ConfirmedAt.IsZero() && (currentStatus == tracetracking.Received || currentStatus == tracetracking.Cascading) {
+			if tx.ConfirmedAt.IsZero() && receivedMessage.IsConfirmed() {
 				tx.ConfirmedAt = time.Now()
 				if !tx.BroadcastAt.IsZero() {
 					confirmationLatency := tx.ConfirmedAt.Sub(tx.BroadcastAt)
@@ -407,7 +405,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				}
 			}
 
-			if currentStatus != tracetracking.Finalized {
+			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
 			}
 
