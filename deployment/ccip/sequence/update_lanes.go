@@ -16,6 +16,7 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
@@ -35,8 +36,8 @@ var UpdateTonLanesSequence = operations.NewSequence(
 	updateLanes,
 )
 
-func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([][]byte, error) {
-	var txs [][]byte
+func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) (*helpers.Transactions, error) {
+	txs := helpers.NewEmptyTransactions()
 
 	// update fee quoter with dest chain configs
 	b.Logger.Infow("Updating destination configs on FeeQuoter", "input", in.UpdateFeeQuoterDestChainConfigs)
@@ -44,7 +45,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 	if err != nil {
 		return nil, fmt.Errorf("failed to update feequoter destinations: %w", err)
 	}
-	txs = append(txs, feeQuoterReport.Output...)
+	txs.Append(feeQuoterReport.Output)
 
 	// update onramp with dest chain configs
 	b.Logger.Infow("Updating destination configs on OnRamp", "input", in.UpdateOnRampDestChainConfigs)
@@ -52,7 +53,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 	if err != nil {
 		return nil, fmt.Errorf("failed to update onramp destinations: %w", err)
 	}
-	txs = append(txs, onRampReport.Output...)
+	txs.Append(onRampReport.Output)
 
 	// configure offramp sources
 	b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
@@ -60,7 +61,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 	if err != nil {
 		return nil, fmt.Errorf("failed to update offramp sources: %w", err)
 	}
-	txs = append(txs, offRampReport.Output...)
+	txs.Append(offRampReport.Output)
 
 	// add ccip owner to offramp allowlist
 
@@ -70,7 +71,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 	if err != nil {
 		return nil, fmt.Errorf("failed to update feequoter prices: %w", err)
 	}
-	txs = append(txs, updatePricesReport.Output...)
+	txs.Append(updatePricesReport.Output)
 
 	// router with onramps and offramps
 	b.Logger.Infow("Updating Router onramps & offramps", "input", in.ApplyRampUpdatesConfig)
@@ -78,7 +79,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 	if err != nil {
 		return nil, fmt.Errorf("failed to update router onramps: %w", err)
 	}
-	txs = append(txs, routerApplyRampUpdatesReport.Output...)
+	txs.Append(routerApplyRampUpdatesReport.Output)
 
 	return txs, nil
 }

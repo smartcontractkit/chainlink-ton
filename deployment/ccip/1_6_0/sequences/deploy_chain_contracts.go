@@ -35,7 +35,7 @@ func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.Contract
 }
 
 var DeployChainContracts = operations.NewSequence(
-	"deploy-chain-contracts",
+	"ton/sequences/ccip/deploy-chain-contracts",
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -60,7 +60,7 @@ var DeployChainContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
-		var txs [][]byte
+		txs := helpers.NewEmptyTransactions()
 		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 		// feequoter.addPriceUpdater(offramp)
 		addPriceUpdaterInput := operation.AddPriceUpdaterInput{
@@ -70,11 +70,10 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
 		}
-		txs = append(txs, addPriceUpdaterReport.Output...)
+		txs.Append(addPriceUpdaterReport.Output)
 
 		// feeQuoter.updateFeeTokens
 		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-			Lggr: b.Logger,
 			FeeTokens: map[string]operation.FeeTokenConfig{
 				tvm.TonTokenAddr.String(): {
 					PremiumMultiplierWeiPerEth: 1,
@@ -86,7 +85,7 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 		}
-		txs = append(txs, updateFeeTokensReport.Output...)
+		txs.Append(updateFeeTokensReport.Output)
 
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, txs)
 		if err != nil {
@@ -203,8 +202,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 				ChainSelector:   cfg.ChainSelector,
-				AllowlistAdmin:  deployer,
-				FeeAggregator:   deployer,
+				FeeAggregator:   tvm.ZeroAddress, // default to zero address
 				Reserve:         defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{

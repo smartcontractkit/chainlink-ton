@@ -102,19 +102,15 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	getAdminResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
 	require.NoError(t, err)
 
-	shouldBeDeployer1 := getProposerResponse.MustSlice(0).MustLoadAddr()
-	shouldBeDeployer2 := getExecutorResponse.MustSlice(0).MustLoadAddr()
-	shouldBeDeployer3 := getCancellerResponse.MustSlice(0).MustLoadAddr()
-	shouldBeDeployer4 := getBypasserResponse.MustSlice(0).MustLoadAddr()
+	require.True(t, getProposerResponse.MustIsNil(0), "Proposer should be empty")
+	require.True(t, getExecutorResponse.MustIsNil(0), "Executor should be empty")
+	require.True(t, getCancellerResponse.MustIsNil(0), "Canceller should be empty")
+	require.True(t, getBypasserResponse.MustIsNil(0), "Bypasser should be empty")
 	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
 
 	expectedDeployerAddr := deployer.WalletAddress().Bounce(true).String()
-	require.Equal(t, expectedDeployerAddr, shouldBeDeployer1.String(), "Proposer should be deployer")
-	require.Equal(t, expectedDeployerAddr, shouldBeDeployer2.String(), "Executor should be deployer")
-	require.Equal(t, expectedDeployerAddr, shouldBeDeployer3.String(), "Canceller should be deployer")
-	require.Equal(t, expectedDeployerAddr, shouldBeDeployer4.String(), "Bypasser should be deployer")
 	require.Equal(t, expectedDeployerAddr, shouldBeDeployer5.String(), "Admin should be deployer")
-	t.Log("Verified all timelock roles are set to deployer")
+	t.Log("Verified all timelock admin is set to deployer, while other roles are empty")
 
 	// Verify MCMS contract
 	mcmsAddr := mcmsState[chainSelector].MCMS

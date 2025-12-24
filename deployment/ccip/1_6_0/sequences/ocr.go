@@ -25,7 +25,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
-		var txs [][]byte
+		txs := helpers.NewEmptyTransactions()
 		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
 		tonChain := chains.TonChains()[chainSelector]
@@ -41,9 +41,10 @@ var SetOCR3Config = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		txs = append(txs, setOCR3SeqReport.Output...)
+		txs.Append(setOCR3SeqReport.Output)
 
-		// Execute the txs || MCMS proposals
+		//  TODO: 1. When executing directly (with injected DEP/wallet) execution is processed outside a cldf.Sequence
+		//        2. When executing indirectly - via MCMS (plan/proposal returned) - not currently supported
 		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
