@@ -13,7 +13,6 @@ import "../ccipsend_executor/storage"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"
-import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 import "events"
 import "../../deployable/types"
@@ -21,7 +20,6 @@ import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -101,14 +99,11 @@ fun onInternalMessage(in: InMessage) {
             st.executor.executorCode = msg.code;
             st.store();
         }
-        // Sender must be the owner
-        Withdrawable_Withdraw => {
-            var st = lazy OnRamp_Storage.load();
-            st.ownable.requireOwner(in.senderAddress);
-            Withdrawable{
-                reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
-        }
+        // Permissionless
+        OnRamp_WithdrawFeeTokens => {
+            assert (in.valueCoins > OnRamp_Costs.WithdrawFeeTokens(), Error.InsufficientValue);
+            onWithdrawFeeTokens(msg);
+        },
         // Sender must be owner
         Upgradeable_Upgrade => {
             var st = lazy OnRamp_Storage.load();
@@ -369,7 +364,7 @@ Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
     assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
-    // EVM implementation also checks that feeAgregator is non-zero, but it is unused in TON
+    assert (!msg.config.feeAggregator.isZero()) throw Error.InvalidConfig;
 
     st.config = msg.config.toCell();
 
@@ -454,6 +449,25 @@ upgrade process with the current migrate function and version metadata.
 */
 fun onUpgrade(msg: Upgradeable_Upgrade) {
     Upgradeable{ migrate, version}.upgrade(msg);
+}
+
+fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
+    val feeTokens = msg.feeTokens.iter();
+    // We do not support fee payments in tokens yet, so we only withdraw TON coins for now.
+    // This will change in future versions.
+    assert (feeTokens.empty()) throw Error.UnknownToken;
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+
+    reserveToncoinsOnBalance(config.reserve, RESERVE_MODE_AT_MOST);
+
+    val withdrawMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: config.feeAggregator,
+        body: createEmptyCell(),
+    });
+    withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun isChainSupported(destChainSelector: uint64): bool {
@@ -541,7 +555,9 @@ get fun errorCode(local: uint16): uint16 {
 }
 
 get fun reserve(): coins {
-    return RESERVE;
+    val st = lazy OnRamp_Storage.load();
+    val config = st.config.load();
+    return config.reserve;
 }
 
 @method_id(1000)

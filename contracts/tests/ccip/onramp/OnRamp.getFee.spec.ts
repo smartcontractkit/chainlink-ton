@@ -51,15 +51,13 @@ describe('OnRamp - Get Fee', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer } = await setup(blockchain))
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
-
-    onramp = await deployOnRampContract(blockchain, deployer, {
+    ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
-    })
+    }))
   })
 
   it('should get feequoter offchain', async () => {

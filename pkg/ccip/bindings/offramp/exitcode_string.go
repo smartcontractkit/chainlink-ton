@@ -20,12 +20,13 @@ func _() {
 	_ = x[ErrorZeroAddressNotAllowed-8409]
 	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-8410]
 	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-8411]
-	_ = x[ErrorBatchingNotSupported-8412]
+	_ = x[ErrorInvalidInterval-8412]
+	_ = x[ErrorBatchingNotSupported-8413]
 }
 
-const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorSenderIsNotRouterErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorBatchingNotSupported"
+const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorSenderIsNotRouterErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupported"
 
-var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 197, 215, 232, 258, 306, 359, 384}
+var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 197, 215, 232, 258, 306, 359, 379, 404}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 8400

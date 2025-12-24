@@ -21,7 +21,7 @@ type OnRamp_InMessage =
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
-    | Withdrawable_Withdraw
+    | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
     ;
 
@@ -91,6 +91,10 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     context: T
 }
 
+struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
+    feeTokens: SnakedCell<address>;
+}
+
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}
 
@@ -134,5 +138,15 @@ fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
         + ton("0.019") // MessageRejected fwdFee
         + Router_Costs.MessageRejected()
+        ;
+}
+
+// Minimum value for calling OnRamp_WithdrawFeeTokens
+@inline
+fun OnRamp_Costs.WithdrawFeeTokens(): int {
+    return
+        + ton("0.02") // computeFee
+        + ton("0.019") // feeTokens fwdFee
+        + ton("0.05") // feeCollector computeFee
         ;
 }

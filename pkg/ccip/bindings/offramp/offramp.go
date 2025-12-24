@@ -367,6 +367,7 @@ const (
 	ErrorZeroAddressNotAllowed
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
+	ErrorInvalidInterval
 	ErrorBatchingNotSupported
 )
 

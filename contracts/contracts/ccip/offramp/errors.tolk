@@ -12,5 +12,6 @@ enum Error {
     TooManyMessagesInReport
     SignatureVerificationRequiredInCommitPlugin
     SignatureVerificationNotAllowedInExecutionPlugin
+    InvalidInterval
     BatchingNotSupported
 }
