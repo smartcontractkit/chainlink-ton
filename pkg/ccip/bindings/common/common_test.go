@@ -495,16 +495,6 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 			},
 			expectErr: "exceeds maximum of 64 bytes",
 		},
-		{
-			name: "address not byte-aligned",
-			setupFunc: func() *cell.Slice {
-				builder := cell.BeginCell()
-				// Store 5 bits instead of full bytes
-				_ = builder.StoreUInt(0b10101, 5)
-				return builder.EndCell().BeginParse()
-			},
-			expectErr: "not byte-aligned",
-		},
 	}
 
 	for _, tt := range tests {
@@ -522,24 +512,6 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Test validation for CrossChainAddress.LoadFromCell byte alignment
-func TestCrossChainAddress_LoadFromCell_ByteAlignment(t *testing.T) {
-	t.Run("non-byte-aligned data after length prefix", func(t *testing.T) {
-		builder := cell.BeginCell()
-		// Store length prefix (1 byte)
-		_ = builder.StoreSlice([]byte{0x05}, 8)
-		// Store 5 bits instead of full bytes (not byte-aligned)
-		_ = builder.StoreUInt(0b10101, 5)
-
-		c := builder.EndCell()
-		var addr CrossChainAddress
-		err := addr.LoadFromCell(c.BeginParse())
-
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "not byte-aligned")
-	})
 }
 
 // Test validation for unloadCellToByteArray

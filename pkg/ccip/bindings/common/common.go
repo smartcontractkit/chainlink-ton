@@ -163,12 +163,7 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 		return fmt.Errorf("invalid crosschain address length %d", addrLength)
 	}
 
-	// Verify that the remaining bits are byte-aligned to match on-chain
 	bitsLeft := s.BitsLeft()
-	if bitsLeft%8 != 0 {
-		return fmt.Errorf("address bits (%d) are not byte-aligned", bitsLeft)
-	}
-
 	// Check if the remaining bits are enough for the address
 	if bitsLeft < uint(addrLength)*8 {
 		return errors.New("crosschain address is too short")
@@ -186,11 +181,6 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 // LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data if lacks a length prefix as the first byte.
 func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
 	bitsLeft := s.BitsLeft()
-
-	// Verify that the remaining bits are byte-aligned (matches contract requirement)
-	if bitsLeft%8 != 0 {
-		return nil, fmt.Errorf("address bits (%d) are not byte-aligned", bitsLeft)
-	}
 
 	// Check that the byte length falls within the protocol-defined 1-64 byte range
 	byteLength := bitsLeft / 8
