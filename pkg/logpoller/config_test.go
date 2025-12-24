@@ -184,7 +184,6 @@ func TestConfig_ValidateConfig(t *testing.T) {
 		require.Contains(t, err.Error(), "poll_period must be positive")
 	})
 
-
 	t.Run("fails when PollPeriod is too small", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,

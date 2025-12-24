@@ -642,7 +642,7 @@ func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
 
 		result, err := unpackArrayWithRefChaining[SnakeBytes](c)
 		require.NoError(t, err)
-		require.Equal(t, len(testArray), len(result))
+		require.Len(t, result, len(testArray))
 	})
 }
 
@@ -675,6 +675,6 @@ func TestUnpackArrayWithStaticType_Validation(t *testing.T) {
 
 		result, err := unpackArrayWithStaticType[tokenPriceUpdate](c)
 		require.NoError(t, err)
-		require.Equal(t, len(testArray), len(result))
+		require.Len(t, result, len(testArray))
 	})
 }
