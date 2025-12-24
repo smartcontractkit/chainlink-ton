@@ -38,10 +38,10 @@ type Init struct {
 	Admin *address.Address `tlb:"addr"`
 
 	// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-	Proposers  common.SnakeRef[common.WrappedAddress] `tlb:"^"`
-	Executors  common.SnakeRef[common.WrappedAddress] `tlb:"^"`
-	Cancellers common.SnakeRef[common.WrappedAddress] `tlb:"^"`
-	Bypassers  common.SnakeRef[common.WrappedAddress] `tlb:"^"`
+	Proposers  common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Executors  common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Cancellers common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Bypassers  common.SnakeData[common.AddressWrap] `tlb:"^"`
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`

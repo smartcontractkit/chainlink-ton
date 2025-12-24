@@ -33,7 +33,9 @@ describe('Ownable2Step Counter', () => {
     }
 
     bind.counter = blockchain.openContract(counter.ContractClient.newFrom(data, code))
-    bind.ownable = blockchain.openContract(ownable2Step.ContractClient.newAt(bind.counter.address))
+    bind.ownable = blockchain.openContract(
+      ownable2Step.ContractClient.createFromAddress(bind.counter.address),
+    )
 
     const deployResult = await bind.counter.sendDeploy(deployer.getSender(), toNano('0.05'))
 

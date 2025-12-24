@@ -108,7 +108,7 @@ describe('Receiver', () => {
       success: true,
       deploy: false,
       body: rt.builder.message.in.ccipReceiveConfirm
-        .encode({ rootId: ccipReceiveSampleMessage.rootId })
+        .encode({ execID: ccipReceiveSampleMessage.rootId })
         .endCell(),
     })
 

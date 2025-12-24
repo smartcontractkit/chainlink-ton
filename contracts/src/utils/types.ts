@@ -98,7 +98,7 @@ export function hashSync(data: string): bigint {
   return uint8ArrayToBigInt(sha256_sync(data))
 }
 
-function tonEquals(a, b) {
+export function tonEquals(a, b) {
   if (a instanceof Address) {
     if (!(b instanceof Address)) return false
     return a.equals(b)
@@ -161,9 +161,7 @@ export function generateRandomMockSigners(count: number) {
 }
 
 // Extend expect to support Address and Cell equality
-import { expect } from '@jest/globals'
 import { WalletContractV4 } from '@ton/ton'
-expect.addEqualityTesters([tonEquals])
 
 export function generateRandomContractId(): bigint {
   return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32

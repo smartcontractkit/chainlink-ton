@@ -113,21 +113,16 @@ type Signer struct {
 	Pubkey []byte `tlb:"bits 256"`
 }
 
-// Transmitter represents a transmitter entry in the OCR3 config
-type Transmitter struct { // NOTE: using common.SnakeData[(*)address.Address] directly doesn't work
-	Address *address.Address `tlb:"addr"`
-}
-
 // SetOCR3Config represents the setOCR3Config method call on the offRamp contract
 type SetOCR3Config struct {
-	_                              tlb.Magic                         `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
-	QueryID                        uint64                            `tlb:"## 64"`
-	ConfigDigest                   []byte                            `tlb:"bits 256"`
-	PluginType                     uint16                            `tlb:"## 16"`
-	F                              uint8                             `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool                              `tlb:"bool"`
-	Signers                        ccipcommon.SnakeData[Signer]      `tlb:"^"`
-	Transmitters                   ccipcommon.SnakeData[Transmitter] `tlb:"^"`
+	_                              tlb.Magic                                    `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                                       `tlb:"## 64"`
+	ConfigDigest                   []byte                                       `tlb:"bits 256"`
+	PluginType                     uint16                                       `tlb:"## 16"`
+	F                              uint8                                        `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                                         `tlb:"bool"`
+	Signers                        ccipcommon.SnakeData[Signer]                 `tlb:"^"`
+	Transmitters                   ccipcommon.SnakeData[ccipcommon.AddressWrap] `tlb:"^"`
 }
 
 // UpdateSourceChainConfig represents the updateSourceChainConfig structure
@@ -354,7 +349,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorZeroAddressNotAllowed)
+		ecMax = int32(ErrorBatchingNotSupported)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -372,6 +367,8 @@ const (
 	ErrorZeroAddressNotAllowed
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
+	ErrorInvalidInterval
+	ErrorBatchingNotSupported
 )
 
 // Getter method names for binding fetchers

@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	OpcodeApplyRampUpdates   = 0xf6b0a5ca
-	OpcodeCCIPSend           = 0x31768d95
+	OpcodeApplyRampUpdates   = 0x7db6745d
+	OpcodeCCIPSend           = 0x38a69e3b
 	OpcodeRouteMessage       = 0xfc69c50b
-	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
+	OpcodeCCIPReceiveConfirm = 0xaf0cccef
 	OpcodeMessageSent        = 0x6513f8e1
 	OpcodeMessageRejected    = 0x8ae25114
 )
@@ -87,7 +87,7 @@ type ChainSelector struct {
 
 // crc32("ApplyRampUpdates")
 type ApplyRampUpdates struct {
-	_              tlb.Magic `tlb:"#f6b0a5ca"` //nolint:revive // Ignore opcode tag
+	_              tlb.Magic `tlb:"#7db6745d"` //nolint:revive // Ignore opcode tag
 	QueryID        uint64    `tlb:"## 64"`
 	OnRampUpdates  *OnRamps  `tlb:"maybe ."`
 	OffRampAdds    *OffRamps `tlb:"maybe ."`
@@ -111,7 +111,7 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#31768d95"` //nolint:revive // Ignore opcode tag
+	_                 tlb.Magic                    `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                       `tlb:"## 64"`
 	DestChainSelector uint64                       `tlb:"## 64"`
 	Receiver          common.CrossChainAddress     `tlb:"."`
@@ -130,7 +130,7 @@ type RouteMessage struct {
 }
 
 type CCIPReceiveConfirm struct {
-	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#af0cccef"` //nolint:revive // Ignore opcode tag
 	ExecID big.Int   `tlb:"## 192"`
 }
 
