@@ -93,8 +93,8 @@ func (c balanceClient) GetAccountBalance(addrString string) (float64, error) {
 
 // Convert nanoTON to TON as 1/10^9 TON
 func nanoTONtoTON(nanoTON *big.Int) float64 {
-	ton := new(big.Float).Quo(new(big.Float).SetInt(nanoTON), new(big.Float).SetInt64(1e9))
-	result, _ := ton.Float64()
+	tonFloat := new(big.Float).Quo(new(big.Float).SetInt(nanoTON), new(big.Float).SetInt64(1e9))
+	result, _ := tonFloat.Float64()
 	return result
 }
 
