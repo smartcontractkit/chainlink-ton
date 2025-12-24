@@ -163,9 +163,8 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 		return fmt.Errorf("invalid crosschain address length %d", addrLength)
 	}
 
-	bitsLeft := s.BitsLeft()
 	// Check if the remaining bits are enough for the address
-	if bitsLeft < uint(addrLength)*8 {
+	if s.BitsLeft() < uint(addrLength)*8 {
 		return errors.New("crosschain address is too short")
 	}
 
