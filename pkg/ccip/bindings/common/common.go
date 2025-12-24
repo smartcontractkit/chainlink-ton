@@ -31,6 +31,18 @@ const (
 	versionGetter = "typeAndVersion"
 )
 
+// TVM limits for cell chain unpacking.
+// These limits are enforced by the TON blockchain and prevent memory exhaustion.
+const (
+	// MaxCellChainDepth is the maximum depth of a cell chain in TON (~512 cells).
+	MaxCellChainDepth = 512
+	// MaxCellDataBytes is the maximum data per cell in TON (~127 bytes).
+	MaxCellDataBytes = 127
+	// MaxCellChainBytes is the maximum total bytes in a cell chain (MaxCellChainDepth * MaxCellDataBytes = ~65KB).
+	MaxCellChainBytes = MaxCellChainDepth * MaxCellDataBytes // 65,024 bytes
+)
+
+// Common error codes constants
 const (
 	ErrorUnknownDestChainSelector ExitCode = iota + 256
 	ErrorDestChainNotEnabled
@@ -151,8 +163,14 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 		return fmt.Errorf("invalid crosschain address length %d", addrLength)
 	}
 
+	// Verify that the remaining bits are byte-aligned to match on-chain
+	bitsLeft := s.BitsLeft()
+	if bitsLeft%8 != 0 {
+		return fmt.Errorf("address bits (%d) are not byte-aligned", bitsLeft)
+	}
+
 	// Check if the remaining bits are enough for the address
-	if s.BitsLeft() < uint(addrLength)*8 {
+	if bitsLeft < uint(addrLength)*8 {
 		return errors.New("crosschain address is too short")
 	}
 
@@ -167,11 +185,27 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 
 // LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data if lacks a length prefix as the first byte.
 func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
-	data, err := s.LoadSlice(s.BitsLeft())
+	bitsLeft := s.BitsLeft()
+
+	// Verify that the remaining bits are byte-aligned (matches contract requirement)
+	if bitsLeft%8 != 0 {
+		return nil, fmt.Errorf("address bits (%d) are not byte-aligned", bitsLeft)
+	}
+
+	// Check that the byte length falls within the protocol-defined 1-64 byte range
+	byteLength := bitsLeft / 8
+	if byteLength < 1 {
+		return nil, errors.New("crosschain address is empty")
+	}
+	if byteLength > 64 {
+		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of 64 bytes", byteLength)
+	}
+
+	data, err := s.LoadSlice(bitsLeft)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load data for cross chain address: %w", err)
 	}
-	return CrossChainAddress(data), nil
+	return data, nil
 }
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
@@ -213,10 +247,20 @@ func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 // unpackArrayWithRefChaining unpacks a linked cell structure created by packArrayWithRefChaining
 // into a slice of type T. Each element is stored as a cell reference. If a cell has 4 references,
 // the last reference is used for chaining to the next cell and is not decoded as an element.
+// Validates against TVM limits to document assumptions and prevent potential issues
+// if this code is extended to handle untrusted data sources.
 func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
+	cellCount := 0
+
 	for curr != nil {
+		// Validate cell chain depth against TVM maximum
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
 		length := curr.RefsNum()
 
 		// sanity check for length
@@ -284,10 +328,20 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 // unpackArrayWithStaticType unpacks a linked cell structure created by packArrayWithStaticType
 // into a slice of type T. Elements are read from the cell's bits, and the function follows references
 // to subsequent cells as needed.
+// Validates against TVM limits to document assumptions and prevent potential issues
+// if this code is extended to handle untrusted data sources.
 func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
+	cellCount := 0
+
 	for curr != nil {
+		// Validate cell chain depth against TVM maximum
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
 		s := curr.BeginParse()
 		for s.BitsLeft() > 0 {
 			var v T
@@ -359,19 +413,37 @@ func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 }
 
 // unloadCellToByteArray unpacks a linked cell structure into a byte array, supporting empty arrays.
+// Validates against TVM limits to document assumptions and prevent potential issues
+// if this code is extended to handle untrusted data sources.
 func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	if c == nil {
 		return []byte{}, nil
 	}
 	result := make([]byte, 0)
 	curr := c
+	cellCount := 0
+	totalBytes := 0
+
 	for curr != nil {
+		// Validate cell chain depth against TVM maximum
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
 		s := curr.BeginParse()
 		for s.BitsLeft() > 0 {
 			part, err := s.LoadSlice(s.BitsLeft())
 			if err != nil {
 				return nil, fmt.Errorf("failed to load bytes: %w", err)
 			}
+
+			// Validate total byte size against TVM maximum
+			totalBytes += len(part)
+			if totalBytes > MaxCellChainBytes {
+				return nil, fmt.Errorf("total bytes %d exceeds maximum of %d bytes", totalBytes, MaxCellChainBytes)
+			}
+
 			result = append(result, part...)
 		}
 		if curr.RefsNum() > 0 {

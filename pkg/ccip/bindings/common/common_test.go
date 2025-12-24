@@ -90,7 +90,7 @@ func TestPackAndUnloadCellToByteArray(t *testing.T) {
 		{"empty", []byte{}},
 		{"short", []byte("hello")},
 		{"long", make([]byte, 1024)},
-		{"very long", make([]byte, 100_000)},
+		{"very long", make([]byte, 50_000)}, // Within MaxCellChainBytes limit (65,024)
 	}
 
 	for _, tt := range tests {
@@ -118,8 +118,8 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 		{"single short", SnakeRef[SnakeBytes]{[]byte("abc")}, false},
 		{"multiple short", SnakeRef[SnakeBytes]{[]byte("abc"), []byte("defg")}, false},
 
-		// Size boundary cases
-		{"max length array", SnakeRef[SnakeBytes]{make([]byte, 0xFFFF)}, false},
+		// Size boundary cases - stay within MaxCellChainBytes limit (65,024 bytes)
+		{"max length array", SnakeRef[SnakeBytes]{make([]byte, 50_000)}, false},
 
 		// Mixed sizes
 		{"mixed empty and data", SnakeRef[SnakeBytes]{{}, []byte("test"), {}, []byte("data")}, false},
@@ -458,4 +458,223 @@ func getTotalReference(c *cell.Cell) (uint, error) {
 		}
 	}
 	return totalRefs, nil
+}
+
+// Test validation for LoadCrossChainAddressWithoutPrefix
+func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupFunc func() *cell.Slice
+		expectErr string
+	}{
+		{
+			name: "valid address",
+			setupFunc: func() *cell.Slice {
+				builder := cell.BeginCell()
+				addr := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
+				_ = builder.StoreSlice(addr, uint(len(addr))*8)
+				return builder.EndCell().BeginParse()
+			},
+			expectErr: "",
+		},
+		{
+			name: "empty address",
+			setupFunc: func() *cell.Slice {
+				builder := cell.BeginCell()
+				return builder.EndCell().BeginParse()
+			},
+			expectErr: "crosschain address is empty",
+		},
+		{
+			name: "address exceeds 64 bytes",
+			setupFunc: func() *cell.Slice {
+				builder := cell.BeginCell()
+				addr := make([]byte, 65)
+				_ = builder.StoreSlice(addr, uint(len(addr))*8)
+				return builder.EndCell().BeginParse()
+			},
+			expectErr: "exceeds maximum of 64 bytes",
+		},
+		{
+			name: "address not byte-aligned",
+			setupFunc: func() *cell.Slice {
+				builder := cell.BeginCell()
+				// Store 5 bits instead of full bytes
+				_ = builder.StoreUInt(0b10101, 5)
+				return builder.EndCell().BeginParse()
+			},
+			expectErr: "not byte-aligned",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			slice := tt.setupFunc()
+			addr, err := LoadCrossChainAddressWithoutPrefix(slice)
+
+			if tt.expectErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectErr)
+				require.Nil(t, addr)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, addr)
+			}
+		})
+	}
+}
+
+// Test validation for CrossChainAddress.LoadFromCell byte alignment
+func TestCrossChainAddress_LoadFromCell_ByteAlignment(t *testing.T) {
+	t.Run("non-byte-aligned data after length prefix", func(t *testing.T) {
+		builder := cell.BeginCell()
+		// Store length prefix (1 byte)
+		_ = builder.StoreSlice([]byte{0x05}, 8)
+		// Store 5 bits instead of full bytes (not byte-aligned)
+		_ = builder.StoreUInt(0b10101, 5)
+
+		c := builder.EndCell()
+		var addr CrossChainAddress
+		err := addr.LoadFromCell(c.BeginParse())
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not byte-aligned")
+	})
+}
+
+// Test validation for unloadCellToByteArray
+func TestUnloadCellToByteArray_Validation(t *testing.T) {
+	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
+		// Create a cell chain that exceeds MaxCellChainDepth
+		builder := cell.BeginCell()
+		_ = builder.StoreSlice([]byte{0x01}, 8)
+		root := builder.EndCell()
+
+		// Build a chain longer than MaxCellChainDepth
+		for i := 0; i < MaxCellChainDepth+1; i++ {
+			builder = cell.BeginCell()
+			_ = builder.StoreSlice([]byte{0x01}, 8)
+			_ = builder.StoreRef(root)
+			root = builder.EndCell()
+		}
+
+		_, err := unloadCellToByteArray(root)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "exceeds maximum of")
+		require.Contains(t, err.Error(), "cells")
+	})
+
+	t.Run("exceeds platform limits", func(t *testing.T) {
+		// Create a byte array that would exceed MaxCellChainBytes if cells were infinite
+		// In practice, this will hit the depth limit first since:
+		// MaxCellChainBytes = 512 cells * 127 bytes = 65,024 bytes
+		// So creating > 65KB of data requires > 512 cells
+		largeData := make([]byte, MaxCellChainBytes+1000)
+		c, err := packByteArrayToCell(largeData)
+		require.NoError(t, err)
+
+		// Unpacking should fail due to either depth or byte limit
+		// (depth limit will be hit first given TON constraints)
+		_, err = unloadCellToByteArray(c)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "exceeds maximum of")
+		// Either "cells" or "bytes" is acceptable
+	})
+
+	t.Run("valid cell chain within limits", func(t *testing.T) {
+		// Create a valid cell chain well within limits
+		testData := []byte("test data")
+		c, err := packByteArrayToCell(testData)
+		require.NoError(t, err)
+
+		result, err := unloadCellToByteArray(c)
+		require.NoError(t, err)
+		require.Equal(t, testData, result)
+	})
+}
+
+// Test validation for unpackArrayWithRefChaining
+func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
+	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
+		// Create a cell chain that exceeds MaxCellChainDepth by building a deep chain
+		// Start with a valid element cell
+		elemBuilder := cell.BeginCell()
+		_ = elemBuilder.StoreSlice([]byte{0x01}, 8)
+		elemCell := elemBuilder.EndCell()
+
+		// Build initial cell with 3 data refs and 1 chain ref
+		builder := cell.BeginCell()
+		for i := 0; i < 3; i++ {
+			_ = builder.StoreRef(elemCell)
+		}
+		// Add a chain ref to continue
+		chainBuilder := cell.BeginCell()
+		_ = chainBuilder.StoreRef(elemCell)
+		chainCell := chainBuilder.EndCell()
+		_ = builder.StoreRef(chainCell)
+		root := builder.EndCell()
+
+		// Now extend the chain beyond MaxCellChainDepth
+		for i := 0; i < MaxCellChainDepth; i++ {
+			builder = cell.BeginCell()
+			for j := 0; j < 3; j++ {
+				_ = builder.StoreRef(elemCell)
+			}
+			_ = builder.StoreRef(root)
+			root = builder.EndCell()
+		}
+
+		_, err := unpackArrayWithRefChaining[SnakeBytes](root)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "exceeds maximum of")
+		require.Contains(t, err.Error(), "cells")
+	})
+
+	t.Run("valid ref chain within limits", func(t *testing.T) {
+		// Create a valid array well within limits
+		testArray := SnakeRef[SnakeBytes]{
+			[]byte{0x01, 0x02},
+			[]byte{0x03, 0x04},
+			[]byte{0x05, 0x06},
+		}
+		c, err := tlb.ToCell(testArray)
+		require.NoError(t, err)
+
+		result, err := unpackArrayWithRefChaining[SnakeBytes](c)
+		require.NoError(t, err)
+		require.Equal(t, len(testArray), len(result))
+	})
+}
+
+// Test validation for unpackArrayWithStaticType
+func TestUnpackArrayWithStaticType_Validation(t *testing.T) {
+	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
+		// Create a cell chain that exceeds MaxCellChainDepth using SnakeBytes
+		// which uses the same unpacking function
+		// Create a long byte array that will be split across many cells
+		largeData := make([]byte, MaxCellChainDepth*127+100)
+		c, err := packByteArrayToCell(largeData)
+		require.NoError(t, err)
+
+		// This should fail when unpacking due to depth limit
+		var snakeBytes SnakeBytes
+		err = snakeBytes.LoadFromCell(c.BeginParse())
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "exceeds maximum of")
+		require.Contains(t, err.Error(), "cells")
+	})
+
+	t.Run("valid static array within limits", func(t *testing.T) {
+		// Create a valid array well within limits
+		testArray := []tokenPriceUpdate{
+			{UsdPerToken: big.NewInt(1000000)},
+			{UsdPerToken: big.NewInt(2000000)},
+		}
+		c, err := packArrayWithStaticType(testArray)
+		require.NoError(t, err)
+
+		result, err := unpackArrayWithStaticType[tokenPriceUpdate](c)
+		require.NoError(t, err)
+		require.Equal(t, len(testArray), len(result))
+	})
 }
