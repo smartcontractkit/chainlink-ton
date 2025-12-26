@@ -30,9 +30,9 @@ describe('MCMS - IntegrationTest', () => {
 
   beforeAll(async () => {
     code = {
-      mcms: await compile('mcms.MCMS'),
-      timelock: await compile('mcms.RBACTimelock'),
-      counter: await compile('examples.Counter'),
+      mcms: await mcms.ContractClient.code(),
+      timelock: await rbactl.ContractClient.code(),
+      counter: await counter.ContractClient.code(),
     }
   }, 10_000)
 

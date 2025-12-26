@@ -2,9 +2,9 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { beginCell, Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 import { secp256k1_verifier } from '../../wrappers/test/lib'
+import { loadContractCode } from '../../wrappers/codeLoader'
 
 describe('secp256k1_verifier', () => {
   let blockchain: Blockchain
@@ -15,7 +15,7 @@ describe('secp256k1_verifier', () => {
 
   beforeAll(async () => {
     code = {
-      verifier: await compile('tests.lib.secp256k1_verifier'),
+      verifier: await loadContractCode('tests.lib.secp256k1_verifier'),
     }
   }, 10_000)
 

@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 
 import * as counter from '../wrappers/examples/Counter'
 
@@ -16,7 +15,7 @@ describe('Counter', () => {
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
-    code = await compile('examples.Counter')
+    code = await counter.ContractClient.code()
     deployer = await blockchain.treasury('deployer')
 
     bind = {
