@@ -2,10 +2,10 @@ package ccip_ton
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand/v2"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +14,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,10 +24,14 @@ import (
 	ccipocr3common "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/clclient"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 	tonseqs "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -40,8 +43,10 @@ import (
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type SourceDestPair struct {
@@ -88,10 +93,6 @@ func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields an
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 	a := &tonseqs.TonAdapter{}
-	tonChain := m.e.BlockChains.TonChains()[src]
-	senderWallet := tonChain.Wallet
-	// senderAddr := tonChain.WalletAddress
-	clientConn := tonChain.Client
 	routerAddr, err := a.GetRouterAddress(m.e.DataStore, src)
 	if err != nil {
 		return fmt.Errorf("failed to get router address: %w", err)
@@ -117,9 +118,9 @@ func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields an
 	if err != nil {
 		return fmt.Errorf("failed to parse router address: %w", err)
 	}
-	receiver := common.LeftPadBytes([]byte("dead"), 32)
+	receiver := common.LeftPadBytes(m.e.BlockChains.EVMChains()[dest].DeployerKey.From.Bytes(), 32)
 	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(1_000_000),
+		GasLimit:                 big.NewInt(1000000),
 		AllowOutOfOrderExecution: true,
 	}
 	extraArgsCell, err := tlb.ToCell(extraArgs)
@@ -127,7 +128,7 @@ func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields an
 		return fmt.Errorf("failed to serialize extra args: %w", err)
 	}
 	msg := router.CCIPSend{
-		QueryID:           0,
+		QueryID:           rand.Uint64(),
 		DestChainSelector: dest,
 		Receiver:          receiver,
 		Data:              []byte("hello eoa"),
@@ -135,58 +136,15 @@ func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields an
 		FeeToken:          tvm.TonTokenAddr,
 		ExtraArgs:         extraArgsCell,
 	}
-
-	ccipSendCell, err := tlb.ToCell(msg)
+	onchainState := state.CCIPChainState{
+		FeeQuoter: *fqContractAddress,
+		Router:    *routerContractAddress,
+	}
+	_, rawEvent, err := tonops.SendCCIPMessage(*m.e, onchainState, src, msg)
 	if err != nil {
-		return fmt.Errorf("failed to serialize CCIPSend message: %w", err)
+		return fmt.Errorf("failed to send CCIP message: %w", err)
 	}
-
-	block, err := clientConn.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-	getResult, err := clientConn.RunGetMethod(ctx, block, fqContractAddress, "validatedFeeCell", ccipSendCell)
-	if err != nil {
-		return fmt.Errorf("failed to get validatedFee: %w", err)
-	}
-
-	fee, err := getResult.Int(0)
-	if err != nil {
-		return fmt.Errorf("failed to get fee: %w", err)
-	}
-
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
-
-	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     routerContractAddress,
-			Amount:      tlb.MustFromNano(value, 9),
-			Body:        ccipSendCell,
-		},
-	}
-
-	ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
-	receivedMsg, _, err := ttConn.SendWaitTransaction(ctx, *routerContractAddress, walletMsg)
-	if err != nil {
-		return fmt.Errorf("failed to send transaction: %w", err)
-	}
-
-	if receivedMsg.ExitCode != 0 {
-		return fmt.Errorf("transaction failed: with exitcode %d: %s", receivedMsg.ExitCode, receivedMsg.ExitCode.Describe())
-	}
-
-	err = receivedMsg.WaitForTrace(ctx, clientConn)
-	if err != nil {
-		return fmt.Errorf("failed to wait for trace: %w", err)
-	}
-	event, err := waitForReceivedMsgFlatten(clientConn, receivedMsg)
-	if err != nil {
-		return fmt.Errorf("failed to get CCIPMessageSent from flattening received messages: %w", err)
-	}
-
+	event := rawEvent.(onramp.CCIPMessageSent)
 	sourceDest := SourceDestPair{SourceChainSelector: src, DestChainSelector: dest}
 	m.MsgSentEvents = append(m.MsgSentEvents, &AnyMsgSentEvent{
 		SequenceNumber: event.Message.Header.SequenceNumber,
@@ -200,68 +158,6 @@ func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields an
 		event.Message.Header.SequenceNumber)
 
 	return nil
-}
-
-func waitForReceivedMsgFlatten(clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSent, error) {
-	if msg == nil {
-		return onramp.CCIPMessageSent{}, errors.New("received message is nil")
-	}
-
-	// Collect all messages to process in a queue
-	var messagesToProcess []*tracetracking.ReceivedMessage
-	messagesToProcess = append(messagesToProcess, msg)
-
-	var commitMessage *tracetracking.ReceivedMessage
-
-	// Process messages iteratively
-	for len(messagesToProcess) > 0 {
-		// Get the first message from the queue
-		currentMsg := messagesToProcess[0]
-		messagesToProcess = messagesToProcess[1:]
-
-		if len(currentMsg.OutgoingInternalReceivedMessages) == 0 {
-			continue
-		}
-
-		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
-			fmt.Printf("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-				i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-
-			if outMsg.ExitCode != 0 {
-				fmt.Printf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-			}
-			if !outMsg.Success {
-				fmt.Printf("Outgoing message %d was not successful", i)
-			}
-			if outMsg.EmittedBouncedMessage {
-				fmt.Printf("Outgoing message %d was bounced", i)
-			}
-
-			err := outMsg.WaitForTrace(context.Background(), clientConn)
-			if err != nil {
-				continue
-			}
-
-			// Add this message to the queue for further processing
-			messagesToProcess = append(messagesToProcess, outMsg)
-			opcode, err := outMsg.InternalMsg.Body.BeginParse().LoadUInt(32)
-			if err == nil && opcode == onramp.OpcodeOnRampExecutorFinishedSuccessfully {
-				commitMessage = outMsg
-			}
-		}
-	}
-
-	if commitMessage == nil || len(commitMessage.OutgoingExternalMessages) == 0 {
-		return onramp.CCIPMessageSent{}, errors.New("no received messages were processed")
-	}
-
-	var event onramp.CCIPMessageSent
-	err := tlb.LoadFromCell(&event, commitMessage.OutgoingExternalMessages[0].Body.BeginParse())
-	if err != nil {
-		return onramp.CCIPMessageSent{}, err
-	}
-
-	return event, nil
 }
 
 func (m *CCIP16TON) GetExpectedNextSequenceNumber(ctx context.Context, from, to uint64) (uint64, error) {
@@ -443,23 +339,23 @@ func (m *CCIP16TON) WaitOneSentEventBySeqNo(ctx context.Context, from, to, seq u
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Waiting for one sent event for a sequence number")
 	a := &tonseqs.TonAdapter{}
-	tonChain := m.e.BlockChains.TonChains()[from]
+	tonChain := m.e.BlockChains.TonChains()[to]
 	seqRange := ccipocr3common.SeqNumRange{ccipocr3common.SeqNum(seq), ccipocr3common.SeqNum(seq)}
 	tracker := NewCommitReportTracker(from, seqRange)
 	reportsProcessed := 0
 
-	offRampAddr, err := a.GetOffRampAddress(m.e.DataStore, from)
+	offRampAddr, err := a.GetOffRampAddress(m.e.DataStore, to)
 	if err != nil {
-		return false, fmt.Errorf("failed to get router address: %w", err)
+		return false, fmt.Errorf("failed to get offramp address: %w", err)
 	}
 	addrCodec := codec.NewAddressCodec()
-	rawRouter, err := addrCodec.AddressBytesToString(offRampAddr)
+	rawOffRamp, err := addrCodec.AddressBytesToString(offRampAddr)
 	if err != nil {
 		return false, fmt.Errorf("failed to convert TON address to bytes: %w", err)
 	}
-	offRamp, err := address.ParseAddr(rawRouter)
+	offRamp, err := address.ParseAddr(rawOffRamp)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse router address: %w", err)
+		return false, fmt.Errorf("failed to parse offramp address: %w", err)
 	}
 
 	err = waitForTONEvent(tonChain, offRamp, consts.EventNameCommitReportAccepted, "TON_EVENT_ASSERTION:COMMIT", timeout,
@@ -507,31 +403,28 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Waiting for one exec event for a sequence number")
 	a := &tonseqs.TonAdapter{}
-	tonChain := m.e.BlockChains.TonChains()[from]
-	executionStates := make(map[uint64]int)
-	pending := make(map[uint64]bool)
-	pending[seq] = true
+	tonChain := m.e.BlockChains.TonChains()[to]
 	eventsProcessed := 0
 
-	offRampAddr, err := a.GetOffRampAddress(m.e.DataStore, from)
+	offRampAddr, err := a.GetOffRampAddress(m.e.DataStore, to)
 	if err != nil {
-		return false, fmt.Errorf("failed to get router address: %w", err)
+		return false, fmt.Errorf("failed to get offramp address: %w", err)
 	}
 	addrCodec := codec.NewAddressCodec()
-	rawRouter, err := addrCodec.AddressBytesToString(offRampAddr)
+	rawOffRamp, err := addrCodec.AddressBytesToString(offRampAddr)
 	if err != nil {
 		return false, fmt.Errorf("failed to convert TON address to bytes: %w", err)
 	}
-	offRamp, err := address.ParseAddr(rawRouter)
+	offRamp, err := address.ParseAddr(rawOffRamp)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse router address: %w", err)
+		return false, fmt.Errorf("failed to parse offramp address: %w", err)
 	}
 
 	err = waitForTONEvent(tonChain, offRamp, consts.EventNameExecutionStateChanged, "TON_EVENT_ASSERTION:EXEC", timeout,
 		func(event tonlptypes.TypedLog[offramp.ExecutionStateChanged]) (bool, error) {
 			exec := event.TypedData
 
-			if exec.SourceChainSelector != from || (!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) {
+			if exec.SourceChainSelector != from || exec.SequenceNumber != seq {
 				return false, nil
 			}
 
@@ -542,36 +435,26 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 				return false, nil
 
 			case EXECUTION_STATE_FAILURE:
-				l.Error().Msgf("Execution failed for sequence number %d, message ID: %x", exec.SequenceNumber, exec.MessageID)
+				fmt.Printf("Execution failed for sequence number %d, message ID: %x\n", exec.SequenceNumber, exec.MessageID)
 				return false, fmt.Errorf("execution failed for seq %d on chain %d, message ID: %x",
 					exec.SequenceNumber, exec.SourceChainSelector, exec.MessageID)
 
 			case EXECUTION_STATE_SUCCESS:
-				executionStates[exec.SequenceNumber] = int(exec.State)
-				delete(pending, exec.SequenceNumber)
-				l.Info().Msgf("Execution successful for sequence number %d, remaining %d", exec.SequenceNumber, len(pending))
-
-				if len(pending) == 0 {
-					l.Info().Msg("All sequence numbers executed")
-					return true, nil
-				}
+				fmt.Printf("Execution successful for sequence number %d, message ID: %x\n", exec.SequenceNumber, exec.MessageID)
+				return true, nil
 
 			default:
-				l.Warn().Msgf("Unknown execution state %d for sequence number %d", exec.State, exec.SequenceNumber)
+				fmt.Printf("Unknown execution state %d for sequence number %d\n", exec.State, exec.SequenceNumber)
 			}
 
 			return false, nil
 		})
 
 	if errors.Is(err, ErrTimeout) {
-		missing := make([]uint64, 0, len(pending))
-		for seqNum := range pending {
-			missing = append(missing, seqNum)
-		}
-		return executionStates, fmt.Errorf("timed out waiting for execution on chain %d from source %d, missing: %v (%d events, %d successful): %w",
-			tonChain.Selector, from, missing, eventsProcessed, len(executionStates), err)
+		return nil, fmt.Errorf("timed out waiting for execution on chain %d from source %d: %w",
+			tonChain.Selector, from, err)
 	}
-	return executionStates, err
+	return nil, err
 }
 
 func (m *CCIP16TON) GetEOAReceiverAddress(ctx context.Context, chainSelector uint64) ([]byte, error) {
@@ -616,7 +499,6 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 	ChainID = '%s'
 	Enabled = true
 	NetworkName = 'ton-localnet'
-	NetworkNameFull = 'ton-localnet'
 
 	[[TON.Nodes]]
 	Name = '%s'
@@ -627,31 +509,62 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 	), nil
 }
 
-// [TON.TransactionManager]
-// BroadcastChanSize = 100
-// ConfirmPollInterval = '5s'
-// SendRetryDelay = '3s'
-// MaxSendRetryAttempts = 5
-// TxExpiration = '5m'
-// CleanupInterval = '1h'
-
-// [TON.LogPoller]
-// PollPeriod = '5s'
-// PageSize = 100
-// LogPollerStartingLookback = '1440m'
-// BlockTime = '2500ms'
-// BatchInsertSize = 3500
-
-// [TON.ContractTransmitter]
-// CommitPriceUpdateOnlyCostTON = 0.08
-// CommitPriceAndRootCostTON = 0.12
-// ExecuteCostTON = 0.15
-
 func (m *CCIP16TON) PreDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
 	return nil
 }
 
 func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
+	const TONtoUSD = 2                 // Example value
+	const TONtoNanoTON = 1e9           // Smallest denomination
+	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
+	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
+	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
+	tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
+	updateConfig := operation.UpdateFeeQuoterPricesInput{
+		TokenPrices: map[string]*big.Int{
+			tvm.TonTokenAddr.String(): tonTokenPrice,
+		},
+	}
+	bundle := operations.NewBundle(
+		func() context.Context { return context.Background() },
+		env.Logger,
+		operations.NewMemoryReporter(),
+	)
+	env.OperationsBundle = bundle
+	bundle.Logger.Infow("Updating prices on FeeQuoter", "input", updateConfig)
+	a := &tonseqs.TonAdapter{}
+	tonChain := env.BlockChains.TonChains()[selector]
+	fqAddr, err := a.GetFQAddress(env.DataStore, selector)
+	if err != nil {
+		return fmt.Errorf("failed to get router address: %w", err)
+	}
+	addrCodec := codec.NewAddressCodec()
+	rawFq, err := addrCodec.AddressBytesToString(fqAddr)
+	if err != nil {
+		return fmt.Errorf("failed to convert TON address to bytes: %w", err)
+	}
+	fqContractAddress, err := address.ParseAddr(rawFq)
+	if err != nil {
+		return fmt.Errorf("failed to parse router address: %w", err)
+	}
+	deps := config.CCIPDeps{
+		TonChain: tonChain,
+		CCIPOnChainState: map[uint64]state.CCIPChainState{
+			tonChain.Selector: {
+				FeeQuoter: *fqContractAddress,
+			},
+		},
+	}
+	updatePricesReport, err := operations.ExecuteOperation(bundle, operation.UpdateFeeQuoterPricesOp, deps, updateConfig)
+	if err != nil {
+		return fmt.Errorf("failed to update feequoter prices: %w", err)
+	}
+	txs := updatePricesReport.Output
+	// Execute the txs || MCMS proposals
+	err = helpers.ExecuteTransactions(bundle.GetContext(), bundle.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+	if err != nil {
+		return fmt.Errorf("failed to execute update feequoter prices txs: %w", err)
+	}
 	return nil
 }
 
@@ -661,12 +574,11 @@ func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input,
 	var keys []*address.Address
 	var amounts []tlb.Coins
 	for _, nk := range nodeKeyBundles {
-		k, err := hex.DecodeString(nk.TXKey.Data.Attributes.PublicKey)
+		addr, err := GetNodeAddressFromBundle(&nk)
 		if err != nil {
-			return fmt.Errorf("failed to decode public key: %w", err)
+			return err
 		}
-		addr := address.NewAddress(0, byte(0), k)
-		keys = append(keys, addr)
+		keys = append(keys, address.MustParseAddr(addr))
 		amounts = append(amounts, tlb.MustFromTON("1000"))
 	}
 	client, err := testutils.CreateClient(ctx, bc.Out.Nodes[0].ExternalHTTPUrl)

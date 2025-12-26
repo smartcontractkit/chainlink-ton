@@ -5,6 +5,8 @@ go 1.25.4
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
+	github.com/smartcontractkit/chainlink-testing-framework/framework => ../../chainlink-testing-framework/framework
+
 	github.com/smartcontractkit/chainlink-ton => ..
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
