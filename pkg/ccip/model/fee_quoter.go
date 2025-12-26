@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 )
 
 // ---------- Fee Quoter Model Struct Definitions ----------
@@ -308,7 +309,7 @@ func (s *FeeQuoterStorage) FromBinding(raw *feequoter.Storage) error {
 func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 	st := feequoter.Storage{
 		ID: s.ID,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},

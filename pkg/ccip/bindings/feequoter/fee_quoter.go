@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -84,15 +85,15 @@ const (
 )
 
 type Storage struct {
-	ID                           uint32              `tlb:"## 32"`
-	Ownable                      common.Ownable2Step `tlb:"."`
-	AllowedPriceUpdaters         *cell.Dictionary    `tlb:"dict 267"`
-	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
-	LinkToken                    *address.Address    `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64              `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
+	ID                           uint32               `tlb:"## 32"`
+	Ownable                      ownable2step.Storage `tlb:"."`
+	AllowedPriceUpdaters         *cell.Dictionary     `tlb:"dict 267"`
+	MaxFeeJuelsPerMsg            *big.Int             `tlb:"## 96"`
+	LinkToken                    *address.Address     `tlb:"addr"`
+	TokenPriceStalenessThreshold uint64               `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary     `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary     `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary     `tlb:"dict 64"`
 }
 
 type DestChainConfigs struct {

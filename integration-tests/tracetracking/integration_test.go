@@ -23,7 +23,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -94,7 +94,7 @@ func TestIntegration(t *testing.T) {
 		data := counter.ContractData{
 			ID:    getNextID(),
 			Value: 100,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        alice.Wallet.WalletAddress(),
 				PendingOwner: address.NewAddressNone(),
 			},
