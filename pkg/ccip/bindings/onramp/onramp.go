@@ -79,12 +79,12 @@ type SVMExtraArgsV1 struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
-	ID               uint32              `tlb:"## 32"`
+	ID               uint32               `tlb:"## 32"`
 	Ownable          ownable2step.Storage `tlb:"."`
-	ChainSelector    uint64              `tlb:"## 64"`
-	Config           DynamicConfig       `tlb:"^"`
-	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
-	Executor         ExecutorDeployment  `tlb:"."`
+	ChainSelector    uint64               `tlb:"## 64"`
+	Config           DynamicConfig        `tlb:"^"`
+	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
+	Executor         ExecutorDeployment   `tlb:"."`
 }
 
 type ExecutorDeployment struct {
