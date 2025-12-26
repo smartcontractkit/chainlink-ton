@@ -15,6 +15,7 @@ import {
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { Any2TVMMessage, builder as OffRampBuilder } from './OffRamp'
+import { loadContractCode } from '../codeLoader'
 
 export const RECEIVER_FACILITY_ID = 346
 export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
@@ -72,6 +73,10 @@ export class Receiver implements Contract {
     const data = builder.data.contractData.encode(config).asCell()
     const init = { code, data }
     return new Receiver(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('ccip.test.receiver')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

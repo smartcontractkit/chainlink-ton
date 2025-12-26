@@ -17,7 +17,7 @@ describe('MCMS', () => {
 
   beforeAll(async () => {
     code = {
-      mcms: await compile('mcms.MCMS'),
+      mcms: await mcms.ContractClient.code(),
     }
   })
 
