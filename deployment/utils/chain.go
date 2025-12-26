@@ -39,10 +39,14 @@ func GetLocalnetFunderWallet(client ton.APIClientWrapped) (*wallet.Wallet, error
 }
 
 func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
-	return FundWalletsNoT(client, recipients, amounts)
+	return FundWalletsWithCtx(t.Context(), client, recipients, amounts)
 }
 
 func FundWalletsNoT(client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
+    return FundWalletsWithCtx(context.Background(), client, recipients, amounts)
+}
+
+func FundWalletsWithCtx(ctx context.Context, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
 	funder, err := GetLocalnetFunderWallet(client)
 	if err != nil {
 		return fmt.Errorf("failed to get prefunded wallet: %w", err)
