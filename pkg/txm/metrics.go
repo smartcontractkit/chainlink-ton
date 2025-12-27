@@ -46,13 +46,9 @@ var (
 		Name: "ton_txm_broadcast_latency_seconds",
 		Help: "Time taken from enqueuing to broadcasting a transaction",
 	}, []string{"chainID"})
-	promTonTxmConfirmationLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ton_txm_confirmation_latency_seconds",
-		Help: "Time from broadcast to confirmation on-chain (when received message status reaches Received or Cascading)",
-	}, []string{"chainID"})
 	promTonTxmFinalizationLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "ton_txm_finalization_latency_seconds",
-		Help: "Time from confirmation to finalization",
+		Help: "Time from broadcast to finalization",
 	}, []string{"chainID"})
 )
 
@@ -73,7 +69,6 @@ type txmMetrics struct {
 
 	// latency metrics
 	broadcastLatency    metric.Float64Gauge
-	confirmationLatency metric.Float64Gauge
 	finalizationLatency metric.Float64Gauge
 }
 
@@ -111,11 +106,6 @@ func newMetrics(chainID string) (*txmMetrics, error) {
 		return nil, fmt.Errorf("failed to register ton broadcast latency: %w", err)
 	}
 
-	confirmationLatency, err := m.Float64Gauge("ton_txm_confirmation_latency_seconds")
-	if err != nil {
-		return nil, fmt.Errorf("failed to register ton confirmation latency: %w", err)
-	}
-
 	finalizationLatency, err := m.Float64Gauge("ton_txm_finalization_latency_seconds")
 	if err != nil {
 		return nil, fmt.Errorf("failed to register ton finalization latency: %w", err)
@@ -133,7 +123,6 @@ func newMetrics(chainID string) (*txmMetrics, error) {
 		revertTxs:            revertTxs,
 
 		broadcastLatency:    broadcastLatency,
-		confirmationLatency: confirmationLatency,
 		finalizationLatency: finalizationLatency,
 	}, nil
 }
@@ -172,12 +161,6 @@ func (m *txmMetrics) RecordBroadcastLatency(ctx context.Context, duration time.D
 	seconds := duration.Seconds()
 	promTonTxmBroadcastLatency.WithLabelValues(m.chainID).Set(seconds)
 	m.broadcastLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
-}
-
-func (m *txmMetrics) RecordConfirmationLatency(ctx context.Context, duration time.Duration) {
-	seconds := duration.Seconds()
-	promTonTxmConfirmationLatency.WithLabelValues(m.chainID).Set(seconds)
-	m.confirmationLatency.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
 func (m *txmMetrics) RecordFinalizationLatency(ctx context.Context, duration time.Duration) {

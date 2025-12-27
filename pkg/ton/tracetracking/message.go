@@ -156,12 +156,6 @@ func (m *ReceivedMessage) Status() MsgStatus {
 	return Received
 }
 
-// IsConfirmed checks if the message has reached a confirmed state, which we consider Received or Cascading.
-func (m *ReceivedMessage) IsConfirmed() bool {
-	status := m.Status()
-	return status == Received || status == Cascading
-}
-
 // NetCreditResult calculates the net amount credited to the recipient after
 // accounting for all outgoing payments. This is the amount received minus
 // the total amount sent in outgoing messages.

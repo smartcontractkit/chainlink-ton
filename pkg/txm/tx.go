@@ -20,7 +20,6 @@ type Tx struct {
 	Bounceable      bool                          // whether the destination is bounceable
 	CreatedAt       time.Time                     // when the tx was first enqueued
 	BroadcastAt     time.Time                     // when the tx was successfully broadcasted
-	ConfirmedAt     time.Time                     // when the message status is received or cascading
 	FinalizedAt     time.Time                     // when the message status is finalized
 	Expiration      time.Time                     // expiration timestamp based on TTL
 	ReceivedMessage tracetracking.ReceivedMessage // received message

@@ -393,31 +393,17 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(&receivedMessage))
 			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 
-			// Track confirmation latency when first confirmed (Received or Cascading)
-			if tx.ConfirmedAt.IsZero() && receivedMessage.IsConfirmed() {
-				tx.ConfirmedAt = time.Now()
-				if !tx.BroadcastAt.IsZero() {
-					confirmationLatency := tx.ConfirmedAt.Sub(tx.BroadcastAt)
-					t.metrics.RecordConfirmationLatency(ctx, confirmationLatency)
-					t.logger.Debugw("transaction confirmation latency recorded",
-						"LT", unconfirmedTx.LT,
-						"latency", confirmationLatency.String())
-				}
-			}
-
 			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
 			}
 
 			// Track finalization latency
 			tx.FinalizedAt = time.Now()
-			if !tx.ConfirmedAt.IsZero() {
-				finalizationLatency := tx.FinalizedAt.Sub(tx.ConfirmedAt)
-				t.metrics.RecordFinalizationLatency(ctx, finalizationLatency)
-				t.logger.Debugw("transaction finalization latency recorded",
-					"LT", unconfirmedTx.LT,
-					"latency", finalizationLatency.String())
-			}
+			finalizationLatency := tx.FinalizedAt.Sub(tx.BroadcastAt)
+			t.metrics.RecordFinalizationLatency(ctx, finalizationLatency)
+			t.logger.Debugw("transaction finalization latency recorded",
+				"LT", unconfirmedTx.LT,
+				"latency", finalizationLatency.String())
 
 			exitCode := receivedMessage.OutcomeExitCode()
 			traceSucceeded := receivedMessage.TraceSucceeded()
