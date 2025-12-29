@@ -217,8 +217,6 @@ func (t *Txm) broadcastLoop() {
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String(),
 				"mode", tx.Mode,
-				"hasBody", tx.Body != nil,
-				"body", tx.Body,
 				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
 			err := t.broadcastWithRetry(ctx, tx, msg, txID)
