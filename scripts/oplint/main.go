@@ -205,6 +205,30 @@ func validateStructOpcodes(structs []structWithOpcode) []string {
 	return errors
 }
 
+// checkForDuplicateOpcodes checks if any opcode is used by multiple structs
+func checkForDuplicateOpcodes(structs []structWithOpcode) []string {
+	var errors []string
+	opcodeMap := make(map[uint32][]structWithOpcode)
+
+	// Group structs by opcode
+	for _, s := range structs {
+		opcodeMap[s.opcode] = append(opcodeMap[s.opcode], s)
+	}
+
+	// Check for duplicates
+	for opcode, structList := range opcodeMap {
+		if len(structList) > 1 {
+			error := fmt.Sprintf("❌ Duplicate opcode 0x%08x found in %d structs:", opcode, len(structList))
+			for _, s := range structList {
+				error += fmt.Sprintf("\n  - %s | %s", s.name, fmtLocation(s.loc))
+			}
+			errors = append(errors, error)
+		}
+	}
+
+	return errors
+}
+
 func fmtLocation(loc location) string {
 	return fmt.Sprintf("%s:%d:%d", loc.filePath, loc.row, loc.column)
 }
@@ -338,18 +362,28 @@ func main() {
 	// Validate opcodes
 	errors := validateStructOpcodes(allStructs)
 
+	// Check for duplicate opcodes
+	fmt.Println()
+	fmt.Println("Checking for duplicate opcodes...")
+	duplicateErrors := checkForDuplicateOpcodes(allStructs)
+	errors = append(errors, duplicateErrors...)
+
 	if len(errors) > 0 {
-		fmt.Printf("❌ Found %d validation errors:\n\n", len(errors))
+		fmt.Printf("\n❌ Found %d validation errors:\n\n", len(errors))
 		for _, err := range errors {
 			fmt.Println(err)
 			fmt.Println()
 		}
-		fmt.Printf("\n💡 To automatically fix these, run with --fix flag:\n")
-		fmt.Printf("   %s --fix %s\n", os.Args[0], strings.Join(patterns, " "))
+		if len(duplicateErrors) == 0 {
+			fmt.Printf("\n💡 To automatically fix these, run with --fix flag:\n")
+			fmt.Printf("   %s --fix %s\n", os.Args[0], strings.Join(patterns, " "))
+		} else {
+			fmt.Printf("\n⚠️  Duplicate opcodes cannot be auto-fixed. Please resolve manually.\n")
+		}
 		os.Exit(1)
 	}
 
-	fmt.Println("✅ All struct opcodes are valid!")
+	fmt.Println("✅ All struct opcodes are valid and unique!")
 }
 
 func printHelp() {
