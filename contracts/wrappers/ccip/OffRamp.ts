@@ -612,9 +612,9 @@ export const builder = {
         },
         load: (src: Slice): FreezeMerkleRoot => {
           return {
-            merkleRootAddress: src.loadAddress()
+            merkleRootAddress: src.loadAddress(),
           }
-        }
+        },
       }
 
       return {
@@ -854,12 +854,12 @@ export class OffRamp
     provider: ContractProvider,
     via: Sender,
     opts: {
-      value: bigint,
+      value: bigint
       merkleRootAddress: Address
-    }
-  ){
+    },
+  ) {
     await provider.internal(via, {
-      value:opts.value,
+      value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.freezeMerkleRoot.encode(opts).endCell(),
     })

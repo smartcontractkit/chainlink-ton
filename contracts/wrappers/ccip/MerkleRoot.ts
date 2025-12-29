@@ -140,9 +140,7 @@ export class MerkleRoot implements typeAndVersion.Interface, Contract {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.freeze, 32)
-        .endCell()
+      body: beginCell().storeUint(Opcodes.freeze, 32).endCell(),
     })
   }
 

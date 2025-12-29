@@ -1,5 +1,14 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, contractAddress, Dictionary, SendMode, StateInit, toNano } from '@ton/core'
+import {
+  Address,
+  beginCell,
+  Cell,
+  contractAddress,
+  Dictionary,
+  SendMode,
+  StateInit,
+  toNano,
+} from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -2560,7 +2569,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     expect(freezeResult.transactions).toHaveTransaction({
-      from : deployer.address,
+      from: deployer.address,
       to: offRamp.address,
       success: true,
     })
@@ -2575,9 +2584,8 @@ describe('OffRamp - Unit Tests', () => {
       from: merkleRootAddress(root),
       to: offRamp.address,
       success: true,
-      mode: SendMode.CARRY_ALL_REMAINING_BALANCE
+      mode: SendMode.CARRY_ALL_REMAINING_BALANCE,
     })
-
   })
 
   it('test non owner cannot freeze merkleroot', async () => {
@@ -2602,14 +2610,14 @@ describe('OffRamp - Unit Tests', () => {
       merkleRootAddress: merkleRootAddress(root),
     })
     expect(freezeResult.transactions).toHaveTransaction({
-      from : other.address,
+      from: other.address,
       to: offRamp.address,
       success: false,
     })
 
     //cannot call Freeze on MerkleRoot directly
     const rootContract = blockchain.openContract(
-      MerkleRootContract.createFromAddress(merkleRootAddress(root))
+      MerkleRootContract.createFromAddress(merkleRootAddress(root)),
     )
     const directFreezeResult = await rootContract.sendFreeze(other.getSender(), toNano('0.1'))
     expect(directFreezeResult.transactions).toHaveTransaction({
