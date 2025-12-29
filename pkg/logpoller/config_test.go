@@ -172,7 +172,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("fails when PollPeriod is nil", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      nil,
@@ -185,7 +185,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("fails when PollPeriod is zero", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      config.MustNewDuration(0),
@@ -198,7 +198,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("fails when PollPeriod is too small", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      config.MustNewDuration(1 * time.Millisecond),
@@ -213,7 +213,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("fails when PollPeriod is too large", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      config.MustNewDuration(2 * time.Hour),
@@ -228,7 +228,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("succeeds with PollPeriod at minimum boundary", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      config.MustNewDuration(100 * time.Millisecond),
@@ -240,7 +240,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("succeeds with PollPeriod at maximum boundary", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      config.MustNewDuration(1 * time.Hour),
@@ -252,7 +252,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("succeeds with valid PollPeriod", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
 			PollPeriod:      config.MustNewDuration(5 * time.Second),
