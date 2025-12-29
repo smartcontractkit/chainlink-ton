@@ -12,12 +12,8 @@ var AddressRes = tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Add
 	if err != nil {
 		return nil, err
 	}
-	owner, err := ownerSlice.LoadAddr()
-	if err != nil {
-		return nil, err
-	}
 
-	return owner, nil
+	return ownerSlice.LoadAddr()
 })
 
 func GetOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
