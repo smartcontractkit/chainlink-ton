@@ -14,7 +14,7 @@ import {
   DictionaryValue,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 import { crc32 } from 'zlib'
 
 import { CellCodec } from '../utils'
@@ -687,8 +687,8 @@ export class OffRamp
     return OFFRAMP_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('OffRamp')
+  static code(): Promise<Cell> {
+    return loadContractCode('OffRamp')
   }
 
   async sendCommit(

@@ -7,6 +7,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
+import { loadContractCode } from '../../codeLoader'
 
 export class ContractClient implements Contract {
   constructor(
@@ -21,6 +22,10 @@ export class ContractClient implements Contract {
   static newFrom(data: Cell, code: Cell, workchain = 0) {
     const init = { code, data }
     return new ContractClient(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('tests.lib.math')
   }
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {

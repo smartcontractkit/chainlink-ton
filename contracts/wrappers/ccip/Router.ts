@@ -12,10 +12,10 @@ import {
   Slice,
   TupleItem,
 } from '@ton/core'
-import { compile } from '@ton/blueprint'
 
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
+import { loadContractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
@@ -257,8 +257,8 @@ export class Router
     return ROUTER_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('Router')
+  static code(): Promise<Cell> {
+    return loadContractCode('Router')
   }
 
   async sendApplyRampUpdatesSetRamps(

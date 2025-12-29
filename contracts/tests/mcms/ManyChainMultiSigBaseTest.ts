@@ -80,8 +80,8 @@ export class MCMSBaseTestSetup {
 
   static async compileContracts(): Promise<MCMSTestCode> {
     return {
-      mcms: await compile('mcms.MCMS'),
-      counter: await compile('examples.Counter'),
+      mcms: await mcms.ContractClient.code(),
+      counter: await counter.ContractClient.code(),
     }
   }
 

@@ -13,7 +13,7 @@ describe('RBACTimelock', () => {
   let code: Cell
 
   beforeAll(async () => {
-    code = await compile('mcms.RBACTimelock')
+    code = await rbactl.ContractClient.code()
   })
 
   let blockchain: Blockchain

@@ -10,6 +10,7 @@ import {
 } from '@ton/core'
 import { JettonClientConfig, builder, JettonOpcodes } from './types'
 import { crc32 } from 'zlib'
+import { loadContractCode } from '../../codeLoader'
 
 export type JettonSenderConfig = {
   jettonClient: JettonClientConfig
@@ -53,6 +54,10 @@ export class JettonSender implements Contract {
     const data = jettonSenderConfigToCell(config)
     const init = { code, data }
     return new JettonSender(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('examples.jetton.JettonSender')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

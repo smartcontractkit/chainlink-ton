@@ -14,6 +14,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// MaxArrayLength defines the maximum length for arrays packed with reference chaining to prevent excessive resource consumption.
+const MaxArrayLength = 1000
+
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
@@ -219,10 +222,16 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	for curr != nil {
 		length := curr.RefsNum()
 
-		// sanity check for length
+		// defensive sanity check for length, in real scenarios this should never happen since cell refs are limited to 4
 		if length > uint(math.MaxInt) {
 			return result, fmt.Errorf("length %d overflows int", length)
 		}
+
+		// same defensive sanity check for length, in real scenarios this should never happen
+		if length > MaxArrayLength {
+			return nil, fmt.Errorf("array length %d exceeds maximum of %d", length, MaxArrayLength)
+		}
+
 		for i := 0; i < int(length); i++ {
 			ref, err := curr.PeekRef(i)
 			if err != nil {
