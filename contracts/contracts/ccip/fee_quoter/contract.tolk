@@ -558,9 +558,11 @@ get fun tokenPrices(tokens: tuple): tuple {
 
     while(!iter.empty()) {
         val token = iter.next();
-        // NOTE: Need to skip missing items as nil entries rather than fail the query
         val entry = st.usdPerToken.get(token);
-        list.push(entry.loadValue().toCell());
+        // NOTE: Need to skip missing items as nil entries rather than fail the query
+        if (entry.isFound) {
+            list.push(entry.loadValue().toCell());
+        }
     }
     return list;
 }
