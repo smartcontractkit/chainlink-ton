@@ -160,7 +160,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:                           idForContracts,
 				Coin:                         "0.05",
 				ContractsSemver:              ccipContractSemver,
-				MaxFeeJuelsPerMsg:            big.NewInt(1),
+				MaxFeeJuelsPerMsg:            big.NewInt(0).Mul(big.NewInt(2e2), big.NewInt(1e18)),
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
 					"TON": {
