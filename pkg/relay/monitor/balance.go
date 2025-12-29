@@ -98,19 +98,27 @@ func nanoTONtoTON(nanoTON *big.Int) float64 {
 	return result
 }
 
-// hexPublicKeyToWalletAddress converts a hex-encoded ed25519 public key to a TON wallet address string.
-// This is a pure cryptographic operation that doesn't require a blockchain client.
-func hexPublicKeyToWalletAddress(hexPubKey string) (string, error) {
+// DecodeHexPublicKey decodes a hex-encoded ed25519 public key and validates its size.
+func DecodeHexPublicKey(hexPubKey string) (ed25519.PublicKey, error) {
 	pubKeyBytes, err := hex.DecodeString(hexPubKey)
 	if err != nil {
-		return "", fmt.Errorf("invalid hex-encoded public key: %w", err)
+		return nil, fmt.Errorf("invalid hex-encoded public key: %w", err)
 	}
 
 	if len(pubKeyBytes) != ed25519.PublicKeySize {
-		return "", fmt.Errorf("invalid public key size: expected %d bytes, got %d", ed25519.PublicKeySize, len(pubKeyBytes))
+		return nil, fmt.Errorf("invalid public key size: expected %d bytes, got %d", ed25519.PublicKeySize, len(pubKeyBytes))
 	}
 
-	pubKey := ed25519.PublicKey(pubKeyBytes)
+	return ed25519.PublicKey(pubKeyBytes), nil
+}
+
+// hexPublicKeyToWalletAddress converts a hex-encoded ed25519 public key to a TON wallet address string.
+// This should remain a pure cryptographic operation that doesn't require a blockchain client.
+func hexPublicKeyToWalletAddress(hexPubKey string) (string, error) {
+	pubKey, err := DecodeHexPublicKey(hexPubKey)
+	if err != nil {
+		return "", err
+	}
 
 	// Derive the wallet address directly from the public key
 	// Use DefaultSubwallet to match what wallet.FromSigner() uses for HighloadV3 wallets

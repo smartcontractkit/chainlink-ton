@@ -42,6 +42,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
+const (
+	balancePollPeriod = 1 * time.Minute
+)
+
 type Chain interface {
 	commontypes.ChainService
 
@@ -165,7 +169,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 			NetworkNameFull: chainInfo.NetworkNameFull,
 		},
 		Config: balance.GenericBalanceConfig{
-			BalancePollPeriod: *commonconfig.MustNewDuration(1 * time.Minute),
+			BalancePollPeriod: *commonconfig.MustNewDuration(balancePollPeriod),
 		},
 		Logger:    lggr,
 		Keystore:  loopKs,
@@ -188,12 +192,15 @@ func (c *chain) Start(ctx context.Context) error {
 		var ms services.MultiStart
 
 		if err := ms.Start(ctx, c.txm); err != nil {
-			return err
+			return errors.New("failed to start txm service")
 		}
 		if err := ms.Start(ctx, c.lp); err != nil {
-			return err
+			return errors.New("failed to start log poller service")
 		}
-		return ms.Start(ctx, c.bm)
+		if err := ms.Start(ctx, c.bm); err != nil {
+			return errors.New("failed to start balance monitor service")
+		}
+		return nil
 	})
 }
 
