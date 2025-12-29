@@ -75,9 +75,9 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("valid config passes validation", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3500,
 			MinBatchSize:    500,
-			SaveThreshold:   8000,
+			SaveThreshold:   7000,
 		}
 		err := cfg.ValidateConfig()
 		require.NoError(t, err)
@@ -92,9 +92,9 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("fails when PageSize is zero", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        0,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3500,
 			MinBatchSize:    500,
-			SaveThreshold:   8000,
+			SaveThreshold:   7000,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
@@ -106,19 +106,30 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			PageSize:        100,
 			BatchInsertSize: 0,
 			MinBatchSize:    500,
-			SaveThreshold:   8000,
+			SaveThreshold:   7000,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "batch_insert_size")
 	})
 
-	t.Run("fails when MinBatchSize is zero", func(t *testing.T) {
+	t.Run("fails when BatchInsertSize exceeds PostgreSQL parameter limit", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
 			BatchInsertSize: 4000,
+			MinBatchSize:    500,
+			SaveThreshold:   7000,
+		}
+		err := cfg.ValidateConfig()
+		require.Error(t, err)
+	})
+
+	t.Run("fails when MinBatchSize is zero", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3500,
 			MinBatchSize:    0,
-			SaveThreshold:   8000,
+			SaveThreshold:   7000,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
@@ -128,7 +139,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("fails when SaveThreshold is zero", func(t *testing.T) {
 		cfg := &Config{
 			PageSize:        100,
-			BatchInsertSize: 4000,
+			BatchInsertSize: 3500,
 			MinBatchSize:    500,
 			SaveThreshold:   0,
 		}
@@ -142,7 +153,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			PageSize:        100,
 			BatchInsertSize: 500,
 			MinBatchSize:    1000,
-			SaveThreshold:   8000,
+			SaveThreshold:   7000,
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)

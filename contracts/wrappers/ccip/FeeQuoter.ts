@@ -22,7 +22,7 @@ import { CellCodec, StackCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 import * as rt from './Router'
 import * as sendExecutor from './CCIPSendExecutor'
 import { crc32 } from 'zlib'
@@ -677,8 +677,8 @@ export class FeeQuoter
     return FEE_QUOTER_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('FeeQuoter')
+  static code(): Promise<Cell> {
+    return loadContractCode('FeeQuoter')
   }
 
   async sendUpdateDestChainConfigs(
