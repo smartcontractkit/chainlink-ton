@@ -50,54 +50,58 @@ func findFilesFromPatterns(patterns []string) ([]string, error) {
 	for _, pattern := range patterns {
 		// Check if it's a directory
 		info, err := os.Stat(pattern)
-		if err == nil && info.IsDir() {
-			// It's a directory, find all .tolk files recursively
-			dirFiles, err := findTolkFilesInDir(pattern)
-			if err != nil {
-				return nil, fmt.Errorf("error finding files in directory %s: %w", pattern, err)
-			}
-			for _, f := range dirFiles {
-				if !fileSet[f] {
-					fileSet[f] = true
-					files = append(files, f)
+		switch {
+		case err == nil && info.IsDir():
+			{
+				// It's a directory, find all .tolk files recursively
+				dirFiles, err2 := findTolkFilesInDir(pattern)
+				if err2 != nil {
+					return nil, fmt.Errorf("error finding files in directory %s: %w", pattern, err2)
+				}
+				for _, f := range dirFiles {
+					if !fileSet[f] {
+						fileSet[f] = true
+						files = append(files, f)
+					}
 				}
 			}
-		} else if err == nil && !info.IsDir() {
-			// It's a file, add it directly
-			if !fileSet[pattern] {
-				fileSet[pattern] = true
-				files = append(files, pattern)
+		case err == nil && !info.IsDir():
+			{
+				// It's a file, add it directly
+				if !fileSet[pattern] {
+					fileSet[pattern] = true
+					files = append(files, pattern)
+				}
 			}
-		} else {
-			// Try as glob pattern
-			matches, err := filepath.Glob(pattern)
-			if err != nil {
-				return nil, fmt.Errorf("invalid pattern %s: %w", pattern, err)
-			}
-			if len(matches) == 0 {
-				fmt.Fprintf(os.Stderr, "Warning: Pattern %s matched no files\n", pattern)
-				continue
-			}
-			for _, match := range matches {
-				info, err := os.Stat(match)
+		default:
+			{
+				// Try as glob pattern
+				matches, err := filepath.Glob(pattern)
 				if err != nil {
+					return nil, fmt.Errorf("invalid pattern %s: %w", pattern, err)
+				}
+				if len(matches) == 0 {
+					fmt.Fprintf(os.Stderr, "Warning: Pattern %s matched no files\n", pattern)
 					continue
 				}
-				if info.IsDir() {
-					// If glob matched a directory, find all .tolk files in it
-					dirFiles, err := findTolkFilesInDir(match)
+				for _, match := range matches {
+					info, err := os.Stat(match)
 					if err != nil {
-						return nil, fmt.Errorf("error finding files in directory %s: %w", match, err)
+						continue
 					}
-					for _, f := range dirFiles {
-						if !fileSet[f] {
-							fileSet[f] = true
-							files = append(files, f)
+					if info.IsDir() {
+						// If glob matched a directory, find all .tolk files in it
+						dirFiles, err := findTolkFilesInDir(match)
+						if err != nil {
+							return nil, fmt.Errorf("error finding files in directory %s: %w", match, err)
 						}
-					}
-				} else {
-					// It's a file
-					if !fileSet[match] {
+						for _, f := range dirFiles {
+							if !fileSet[f] {
+								fileSet[f] = true
+								files = append(files, f)
+							}
+						}
+					} else if !fileSet[match] { // It's a file
 						fileSet[match] = true
 						files = append(files, match)
 					}
@@ -218,11 +222,11 @@ func checkForDuplicateOpcodes(structs []structWithOpcode) []string {
 	// Check for duplicates
 	for opcode, structList := range opcodeMap {
 		if len(structList) > 1 {
-			error := fmt.Sprintf("❌ Duplicate opcode 0x%08x found in %d structs:", opcode, len(structList))
+			errorMsg := fmt.Sprintf("❌ Duplicate opcode 0x%08x found in %d structs:", opcode, len(structList))
 			for _, s := range structList {
-				error += fmt.Sprintf("\n  - %s | %s", s.name, fmtLocation(s.loc))
+				errorMsg += fmt.Sprintf("\n  - %s | %s", s.name, fmtLocation(s.loc))
 			}
-			errors = append(errors, error)
+			errors = append(errors, errorMsg)
 		}
 	}
 
@@ -251,8 +255,15 @@ func fixStructOpcodes(structs []structWithOpcode) error {
 
 	fixCount := 0
 	for filePath, structs := range fileStructs {
+		// Open file for reading and writing
+		file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %w", filePath, err)
+		}
+
 		content, err := os.ReadFile(filePath)
 		if err != nil {
+			file.Close()
 			return fmt.Errorf("failed to read %s: %w", filePath, err)
 		}
 
@@ -280,12 +291,25 @@ func fixStructOpcodes(structs []structWithOpcode) error {
 		}
 
 		if modified {
-			err = os.WriteFile(filePath, []byte(fileContent), 0644)
-			if err != nil {
+			// Truncate file and seek to beginning
+			if err := file.Truncate(0); err != nil {
+				file.Close()
+				return fmt.Errorf("failed to truncate %s: %w", filePath, err)
+			}
+			if _, err := file.Seek(0, 0); err != nil {
+				file.Close()
+				return fmt.Errorf("failed to seek %s: %w", filePath, err)
+			}
+
+			// Write modified content
+			if _, err := file.WriteString(fileContent); err != nil {
+				file.Close()
 				return fmt.Errorf("failed to write %s: %w", filePath, err)
 			}
 			fmt.Printf("  ✓ Updated %s\n", filePath)
 		}
+
+		file.Close()
 	}
 
 	fmt.Printf("\n✅ Fixed %d struct opcodes\n", fixCount)
