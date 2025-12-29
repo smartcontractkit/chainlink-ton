@@ -4,10 +4,46 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/stretchr/testify/require"
 
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+type Foo struct {
+	Dict *cell.Dictionary `tlb:"dict 16"`
+}
+
+type ValWrapper struct {
+	Value uint32 `tlb:"## 32"`
+}
+
+type Bar struct {
+	Dict *Dict[uint16, uint32] `tlb:"."`
+}
+
+func TestCellDictionaryEquivalence(t *testing.T) {
+	foo := Foo{}
+	var err error
+	foo.Dict, err = tvm.MakeDictFrom([]ValWrapper{
+		{Value: 100},
+		{Value: 200},
+	}, 16)
+
+	bar := Bar{}
+	bar.Dict, err = NewDictFromSlice[uint16]([]uint32{100, 200})
+	require.NoError(t, err)
+
+	fooCell, err := tlb.ToCell(foo)
+	require.NoError(t, err)
+
+	barCell, err := tlb.ToCell(bar)
+	require.NoError(t, err)
+
+	require.Equal(t, fooCell, barCell)
+	require.Equal(t, fooCell.Hash(), barCell.Hash())
+}
 
 func TestDictJSONRoundTrip(t *testing.T) {
 	dict := Dict[uint16, testValue]{}
