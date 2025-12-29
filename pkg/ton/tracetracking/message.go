@@ -343,7 +343,7 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Contex
 		transactionsReceived := make(chan *tlb.Transaction)
 		go c.SubscribeOnTransactions(ctx, sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
 
-		receivedMessage, err := waitForMatchingMessage(transactionsReceived, sentMessage)
+		receivedMessage, err := waitForMatchingMessage(ctx, transactionsReceived, sentMessage)
 		if err != nil {
 			return err
 		}
@@ -353,19 +353,27 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Contex
 	return nil
 }
 
-func waitForMatchingMessage(transactionsReceived chan *tlb.Transaction, sentMessage *SentMessage) (*ReceivedMessage, error) {
-	for rTX := range transactionsReceived {
-		if rTX.IO.In != nil && rTX.IO.In.MsgType == tlb.MsgTypeInternal {
-			receivedMessage, err := sentMessage.MapToReceivedMessageIfMatches(rTX)
-			if err != nil {
-				return nil, fmt.Errorf("failed to process incoming message: %w", err)
+func waitForMatchingMessage(ctx context.Context, transactionsReceived chan *tlb.Transaction, sentMessage *SentMessage) (*ReceivedMessage, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case rTX, ok := <-transactionsReceived:
+			if !ok {
+				return nil, errors.New("transaction channel closed")
 			}
-			if receivedMessage != nil {
-				return receivedMessage, nil
+
+			if rTX.IO.In != nil && rTX.IO.In.MsgType == tlb.MsgTypeInternal {
+				receivedMessage, err := sentMessage.MapToReceivedMessageIfMatches(rTX)
+				if err != nil {
+					return nil, fmt.Errorf("failed to process incoming message: %w", err)
+				}
+				if receivedMessage != nil {
+					return receivedMessage, nil
+				}
 			}
 		}
 	}
-	return nil, errors.New("channel closed before matching message was found")
 }
 
 // MapToReceivedMessageIfMatches checks if a transaction corresponds to the reception
