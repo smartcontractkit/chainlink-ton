@@ -23,6 +23,7 @@ func (a *TonAdapter) ConfigureLaneLegAsDest() *operations.Sequence[lanes.UpdateL
 	return ConfigureLaneLegAsDest
 }
 
+// TODO: this product level API is designed to always plan and return output.BatchOps
 var ConfigureLaneLegAsSource = operations.NewSequence(
 	"ConfigureLaneLegAsSource",
 	semver.MustParse("1.6.0"),

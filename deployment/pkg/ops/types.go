@@ -1,10 +1,16 @@
 package ops // alias: opston
 
 import (
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"fmt"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
+	"github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
 // MessagePlannerOption is an interface an op IN type providing
@@ -16,6 +22,33 @@ type MessagePlannerOption interface {
 // MessagePlanner is an interface for op OUT types that can produce a message plan.
 type MessagePlanner interface {
 	GetPlans() []MessagePlanRaw
+}
+
+func PlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw) (types.BatchOperation, error) {
+	mcmsTxs := make([]types.Transaction, len(plans))
+	for i, planRaw := range plans {
+		data := cell.BeginCell().EndCell() // empty body by default
+		if planRaw.Body != nil {
+			data = planRaw.Body
+		}
+
+		var err error
+		mcmsTxs[i], err = mcmston.NewTransaction(
+			planRaw.DstAddr,
+			data.BeginParse(),
+			planRaw.Amount.Nano(),
+			"", // TODO: extract contract type and tags as input parameters
+			[]string{},
+		)
+		if err != nil {
+			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
+		}
+	}
+
+	return types.BatchOperation{
+		ChainSelector: types.ChainSelector(selector),
+		Transactions:  mcmsTxs,
+	}, nil
 }
 
 // TODO: can be merged/replaced with InternamlMessage type?
