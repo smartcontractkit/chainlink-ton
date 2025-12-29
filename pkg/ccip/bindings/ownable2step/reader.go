@@ -16,19 +16,23 @@ var AddressRes = tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Add
 	return ownerSlice.LoadAddr()
 })
 
-func GetOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
+func MakeGetOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
 	return tvm.Getter[struct{}, *address.Address]{
 		Name:    prefixGetter("owner", role),
 		Decoder: AddressRes,
 	}
 }
 
-func GetPendingOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
+var GetOwner = MakeGetOwner()
+
+func MakeGetPendingOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
 	return tvm.Getter[struct{}, *address.Address]{
 		Name:    prefixGetter("pendingOwner", role),
 		Decoder: AddressRes,
 	}
 }
+
+var GetPendingOwner = MakeGetPendingOwner()
 
 func prefixGetter(getterMethodName string, role []string) string {
 	if len(role) > 1 {
