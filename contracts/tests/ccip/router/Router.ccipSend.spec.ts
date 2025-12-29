@@ -124,10 +124,9 @@ describe('Router', () => {
       })
     }
 
-    const badMsg = { ...msg, destChainSelector: msg.destChainSelector }
     const result = await router.sendCcipSend(sender.getSender(), {
       value: toNano('1'),
-      body: badMsg,
+      body: msg,
     })
 
     expect(result.transactions).toHaveTransaction({
