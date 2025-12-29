@@ -32,7 +32,8 @@ type OffRamp_InMessage =
     ;
 
 struct (0x9d431905) OffRamp_Commit {
-    queryId: uint64; reportContext: ReportContext;
+    queryId: uint64;
+    reportContext: ReportContext;
     report: CommitReport;
     signatures: SnakedCell<SignatureEd25519>;
 }
