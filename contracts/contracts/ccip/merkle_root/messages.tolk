@@ -3,7 +3,8 @@ import "../offramp/messages"
 
 type MerkleRoot_InMessage = 
     | MerkleRoot_Validate
-    | MerkleRoot_MarkState;
+    | MerkleRoot_MarkState
+    | MerkleRoot_Freeze;
 
 struct (0x038ede91) MerkleRoot_Validate {
     message: Cell<Any2TVMRampMessage>,
@@ -12,11 +13,12 @@ struct (0x038ede91) MerkleRoot_Validate {
     gasOverride: coins?,
 }
 
-//crc32('MerkleRoot_MarkState')
 struct (0x019f4cd2) MerkleRoot_MarkState {
     seqNum: uint64,
     state: ExecutionState
 }
+
+struct (0x0214e358) MerkleRoot_Freeze {}
 
 struct MerkleRoot_Costs{}
 

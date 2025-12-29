@@ -35,6 +35,7 @@ export const Opcodes = {
   updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
   setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
   updateDeployables: crc32('OffRamp_UpdateDeployables'),
+  freezeMerkleRoot: crc32('OffRamp_FreezeMerkleRoot'),
 }
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
@@ -175,6 +176,9 @@ export type UpdateDeployables = {
 export type CCIPReceiveConfirm = {
   execID: bigint
   receiver: Address
+}
+export type FreezeMerkleRoot = {
+  merkleRootAddress: Address
 }
 
 export type Config = {
@@ -599,6 +603,20 @@ export const builder = {
         },
       }
 
+      const freezeMerkleRoot: CellCodec<FreezeMerkleRoot> = {
+        encode: (data: FreezeMerkleRoot): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.freezeMerkleRoot, 32)
+            .storeUint(0, 64) // queryId
+            .storeAddress(data.merkleRootAddress)
+        },
+        load: (src: Slice): FreezeMerkleRoot => {
+          return {
+            merkleRootAddress: src.loadAddress()
+          }
+        }
+      }
+
       return {
         commit,
         execute,
@@ -609,6 +627,7 @@ export const builder = {
         dispatchValidated,
         updateDeployables,
         ccipReceiveConfirm,
+        freezeMerkleRoot,
       }
     })(),
   },
@@ -828,6 +847,21 @@ export class OffRamp
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.dispatchValidated.encode(opts).endCell(),
+    })
+  }
+
+  async sendFreezeMerkleRoot(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint,
+      merkleRootAddress: Address
+    }
+  ){
+    await provider.internal(via, {
+      value:opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.freezeMerkleRoot.encode(opts).endCell(),
     })
   }
 

@@ -37,6 +37,7 @@ export type TokenBalance = {
 export abstract class Opcodes {
   static validate = 0x038ede91
   static markState = 0x019f4cd2
+  static freeze = 0x0214e358
 }
 
 export type MerkleRootStorage = {
@@ -132,6 +133,16 @@ export class MerkleRoot implements typeAndVersion.Interface, Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
+    })
+  }
+
+  async sendFreeze(provider: ContractProvider, via: Sender, value: bigint) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.freeze, 32)
+        .endCell()
     })
   }
 

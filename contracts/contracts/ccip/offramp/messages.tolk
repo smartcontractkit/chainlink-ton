@@ -20,19 +20,19 @@ type OffRamp_InMessage =
     | OffRamp_UpdateSourceChainConfigs
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_CCIPReceiveBounced
-    | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
     | OffRamp_UpdateCursedSubjects
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
     | OffRamp_UpdateDeployables
+    | OffRamp_FreezeMerkleRoot
     | Upgradeable_Upgrade
-    | Withdrawable_Withdraw;
+    | Withdrawable_Withdraw
+    ;
 
 struct (0x9d431905) OffRamp_Commit {
-    queryId: uint64;
-    reportContext: ReportContext;
+    queryId: uint64; reportContext: ReportContext;
     report: CommitReport;
     signatures: SnakedCell<SignatureEd25519>;
 }
@@ -111,6 +111,11 @@ struct (0xa015e0e2) OffRamp_UpdateDeployables {
     queryId: uint64;
     receiveExecutorCode: cell?;
     merkleRootCode: cell?;
+}
+
+struct (0x304e248f) OffRamp_FreezeMerkleRoot {
+    queryId: uint64;
+    merkleRootAddress: address;
 }
 
 struct OffRamp_Costs{}

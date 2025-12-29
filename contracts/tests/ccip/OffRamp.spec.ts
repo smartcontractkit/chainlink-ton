@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
+import { Address, beginCell, Cell, contractAddress, Dictionary, SendMode, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
@@ -2532,6 +2532,90 @@ describe('OffRamp - Unit Tests', () => {
       from: offRamp.address,
       to: feeQuoter.address,
       success: true,
+    })
+  })
+
+  it('test owner can freeze merkleroot and retrieve funds', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    const result = await commitReport([root])
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    // Owner can freeze merkleroot
+    const freezeResult = await offRamp.sendFreezeMerkleRoot(deployer.getSender(), {
+      value: toNano('0.1'),
+      merkleRootAddress: merkleRootAddress(root),
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from : deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: merkleRootAddress(root),
+      to: offRamp.address,
+      success: true,
+      mode: SendMode.CARRY_ALL_REMAINING_BALANCE
+    })
+
+  })
+
+  it('test non owner cannot freeze merkleroot', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+    const result = await commitReport([root])
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    //cannot call freezeMerkleRoot on OffRamp
+    const other = await blockchain.treasury('other')
+    const freezeResult = await offRamp.sendFreezeMerkleRoot(other.getSender(), {
+      value: toNano('0.1'),
+      merkleRootAddress: merkleRootAddress(root),
+    })
+    expect(freezeResult.transactions).toHaveTransaction({
+      from : other.address,
+      to: offRamp.address,
+      success: false,
+    })
+
+    //cannot call Freeze on MerkleRoot directly
+    const rootContract = blockchain.openContract(
+      MerkleRootContract.createFromAddress(merkleRootAddress(root))
+    )
+    const directFreezeResult = await rootContract.sendFreeze(other.getSender(), toNano('0.1'))
+    expect(directFreezeResult.transactions).toHaveTransaction({
+      from: other.address,
+      to: merkleRootAddress(root),
+      success: false,
     })
   })
 

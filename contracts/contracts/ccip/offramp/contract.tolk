@@ -110,6 +110,12 @@ fun onInternalMessage(in:InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             onSetDynamicConfig(msg);
         }
+        //Sender must be owner
+        OffRamp_FreezeMerkleRoot => {
+            val st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onFreezeMerkleRoot(msg);
+        }
         // Sender must be owner
         Withdrawable_Withdraw => {
             var st = lazy Storage.load();
@@ -695,6 +701,17 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         }
     });
     initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+}
+
+//Sends Freeze message to merkle root
+fun onFreezeMerkleRoot(msg: OffRamp_FreezeMerkleRoot) {
+    val freezeMessage = createMessage ({
+        bounce: true,
+        value: ton("0.002"),
+        dest: msg.merkleRootAddress,
+        body: MerkleRoot_Freeze{},
+    });
+    freezeMessage.send(SEND_MODE_REGULAR);
 }
 
 /*

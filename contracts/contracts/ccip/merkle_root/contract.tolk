@@ -32,6 +32,11 @@ fun onInternalMessage(in: InMessage) {
             onMarkState(mutate st, msg);
             st.store();
         }
+        MerkleRoot_Freeze => {
+            val st = lazy MerkleRoot_Storage.load();
+            assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
+            onFreeze(st);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -105,6 +110,16 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         }
     });
     executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onFreeze(st: MerkleRoot_Storage) {
+    val destroyMsg = createMessage({
+        bounce: false,
+        value: 0,
+        dest: st.owner,
+        body: createEmptyCell()
+    });
+    destroyMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 get fun typeAndVersion(): (slice, slice) {
