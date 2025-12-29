@@ -8,18 +8,16 @@ import (
 )
 
 var (
-	_ MessagePlanner = AnySequenceOutput{}
+	_ Planner[MessagePlanRaw] = AnySequenceOutput{}
 )
 
 type AnySequenceInput struct {
 	// Definitions and Inputs should be of the same length and order
 	Defs   []operations.Definition
 	Inputs []any // Each element should be the corresponding input type for its operation
-
-	ChainSelector uint64
 }
 
-// TODO: reuse MessagePlannerOption, MessagePlanner, MessageSender interfaces for
+// TODO: reuse PlannerOption, Planner, MessageSender interfaces for
 // sequences as well. The interfaces would need to return a collection of plans/txs,
 // where an operation or a sequence may plan/produce multiple messages.
 type AnySequenceOutput struct {
@@ -40,10 +38,10 @@ var AnySequence = operations.NewSequence(
 	"ton/sequences/any",
 	semver.MustParse("0.1.0"),
 	"Executes and/or plans a sequence of operations as defined by the inputs",
-	anySequenceHandler,
+	anySeqHandler,
 )
 
-func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInput) (AnySequenceOutput, error) {
+func anySeqHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInput) (AnySequenceOutput, error) {
 	// Initialize the output
 	output := AnySequenceOutput{
 		Plans:        make([]MessagePlanRaw, 0),
@@ -69,12 +67,12 @@ func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenc
 		}
 
 		// Extract plan and transaction info from the output
-		po, ok := r.Input.(MessagePlannerOption)
+		po, ok := r.Input.(PlannerOption)
 		if ok && po.IsPlan() {
 			// If planning option is set, extract the plan
-			planer, ok := r.Output.(MessagePlanner) //nolint:govet // should be ok
+			planer, ok := r.Output.(Planner[MessagePlanRaw]) //nolint:govet // should be ok
 			if !ok {
-				return output, fmt.Errorf("operation %s output does not implement MessagePlanner interface", def.ID)
+				return output, fmt.Errorf("operation %s output does not implement Planner interface", def.ID)
 			}
 			output.Plans = append(output.Plans, planer.GetPlans()...)
 		}
@@ -83,7 +81,7 @@ func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenc
 		if ok {
 			tx := sender.GetTransaction()
 			if tx != nil {
-				po, ok := r.Input.(MessagePlannerOption)
+				po, ok := r.Input.(PlannerOption)
 				if ok && po.IsPlan() {
 					return output, fmt.Errorf("operation %s declared as a plan but returned a transaction", def.ID)
 				}
@@ -94,12 +92,3 @@ func anySequenceHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenc
 
 	return output, nil
 }
-
-// TODO: figure out how to best implement MCMS/Timelock wrapping sequence/changeset
-//
-// var MCMSTimelockAnySequence = operations.NewSequence(
-// 	"ton/sequences/mcms/any-via-timelock",
-// 	semver.MustParse("0.1.0"),
-// 	"Executes and/or plans (via MCMS/Timelock) a sequence of operations as defined by the inputs",
-// 	anySequenceHandler2,
-// )

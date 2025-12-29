@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	_ MessagePlannerOption = SendMessagesInput[any]{}
-	_ MessagePlanner       = SendMessagesOutput{}
-	_ MessageSender        = SendMessagesOutput{}
+	_ PlannerOption           = SendMessagesInput[any]{}
+	_ Planner[MessagePlanRaw] = SendMessagesOutput{}
+	_ MessageSender           = SendMessagesOutput{}
 )
 
 type SendMessagesInput[T any] struct {
@@ -44,6 +44,10 @@ func (o SendMessagesOutput) GetTransaction() *TransactionInfo {
 
 type SendMessagesDeps struct {
 	Wallet *wallet.Wallet
+}
+
+type ProviderDeps struct {
+	Client *wallet.Wallet
 }
 
 func handler[T any](b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput[T]) (SendMessagesOutput, error) {
