@@ -2,7 +2,6 @@ package sequence
 
 import (
 	"fmt"
-	"math/big"
 	"strconv"
 
 	"github.com/Masterminds/semver/v3"
@@ -10,21 +9,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type DeployMCMSSeqInput struct {
@@ -62,22 +55,8 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 	// Invoke deploy Timelock changeset operation
 	a := deps.MCMSChainState[in.ChainSelector].Timelock
 	if a.IsAddrNone() { // Deploy Timelock only if not deployed yet
-		storage := timelock.Data{
-			ID:                       in.ContractsParams.Timelock.ID,
-			MinDelay:                 in.ContractsParams.Timelock.MinDelay,
-			Timestamps:               cell.NewDict(256),
-			BlockedFnSelectorsLen:    0,
-			BlockedFnSelectors:       cell.NewDict(32),
-			ExecutorRoleCheckEnabled: true,
-			OpPendingInfo: timelock.OpPendingInfo{
-				ValidAfter:            0,
-				OpFinalizationTimeout: 0,
-				OpPendingID:           tlbe.NewUint256(big.NewInt(0)),
-			},
-			RBAC: rbac.Data{
-				Roles: cell.NewDict(256),
-			},
-		}
+		storage := timelock.EmptyDataFrom(in.ContractsParams.Timelock.ID)
+		storage.MinDelay = in.ContractsParams.Timelock.MinDelay
 
 		body := timelock.Init{
 			QueryID:                  0,
@@ -112,42 +91,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
 		}
-		chainID := big.NewInt(chainIDInt)
-		initStorage := mcms.Data{
-			ID: in.ContractsParams.MCMS.ID,
-			Ownable: ownable2step.Storage{
-				Owner:        deps.TonChain.WalletAddress,
-				PendingOwner: address.NewAddressNone(),
-			},
-			Oracle:  tvm.ZeroAddress,
-			Signers: cell.NewDict(256),
-			Config: mcms.Config{
-				Signers:      tlbe.NewEmptyDict[uint8, mcms.Signer](),
-				GroupQuorums: tlbe.NewEmptyDict[uint8, uint8](),
-				GroupParents: tlbe.NewEmptyDict[uint8, uint8](),
-			},
-			SeenSignedHashes: cell.NewDict(256),
-			RootInfo: mcms.RootInfo{
-				ExpiringRootAndOpCount: mcms.ExpiringRootAndOpCount{
-					Root:       tlbe.NewUint256(big.NewInt(0)),
-					ValidUntil: 0,
-					OpCount:    0,
-					OpPendingInfo: mcms.OpPendingInfo{
-						ValidAfter:             0,
-						OpFinalizationTimeout:  0,
-						OpPendingReceiver:      tvm.ZeroAddress,
-						OpPendingBodyTruncated: tlbe.NewUint256(big.NewInt(0)),
-					},
-				},
-				RootMetadata: mcms.RootMetadata{
-					ChainID:              chainID,
-					MultiSig:             tvm.ZeroAddress,
-					PreOpCount:           0,
-					PostOpCount:          0,
-					OverridePreviousRoot: false,
-				},
-			},
-		}
+		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, deps.TonChain.WalletAddress, chainIDInt)
 		outputAddr, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
