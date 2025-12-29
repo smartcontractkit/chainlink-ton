@@ -119,7 +119,8 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 		{"multiple short", SnakeRef[SnakeBytes]{[]byte("abc"), []byte("defg")}, false},
 
 		// Size boundary cases - stay within MaxCellChainBytes limit (65,024 bytes)
-		{"max length array", SnakeRef[SnakeBytes]{make([]byte, 50_000)}, false},
+		{"under max length array", SnakeRef[SnakeBytes]{make([]byte, 50_000)}, false},
+		{"exceed max length array", SnakeRef[SnakeBytes]{make([]byte, MaxCellChainBytes+1)}, true},
 
 		// Mixed sizes
 		{"mixed empty and data", SnakeRef[SnakeBytes]{{}, []byte("test"), {}, []byte("data")}, false},
@@ -193,16 +194,22 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Note: ToCell() enforces per-cell data limits (127 bytes) via Builder operations,
+			// but does NOT enforce chain depth limits (512 cells for c4/c5). Cell chains
+			// exceeding depth limits can be created locally but will fail during LoadFromCell
+			// validation, matching TON blockchain behavior where depth limits are enforced
+			// during smart contract execution (specifically for c4/c5 registers).
 			c, err := tlb.ToCell(tt.input)
+			require.NoError(t, err, "ToCell should succeed - depth limits enforced during LoadFromCell")
+
+			var output SnakeRef[SnakeBytes]
+			err = tlb.LoadFromCell(&output, c.BeginParse())
 
 			if tt.expectErr {
-				require.Error(t, err)
+				require.Error(t, err, "LoadFromCell should fail due to platform limits")
 				return
 			}
 
-			require.NoError(t, err)
-			var output SnakeRef[SnakeBytes]
-			err = tlb.LoadFromCell(&output, c.BeginParse())
 			require.NoError(t, err)
 			require.Len(t, tt.input, len(output), "array count mismatch")
 

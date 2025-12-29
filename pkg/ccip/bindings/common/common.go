@@ -34,14 +34,22 @@ const (
 	versionGetter = "typeAndVersion"
 )
 
-// TVM limits for cell chain unpacking.
-// These limits are enforced by the TON blockchain and prevent memory exhaustion.
+// TVM limits for cell chains, enforced at different stages:
+// - Per-cell limits (MaxCellDataBytes): Enforced by Builder during cell creation
+// - Chain depth limits (MaxCellChainDepth): Enforced during TVM execution (not during creation)
+//
+// The 512-depth limit specifically applies to c4 (persistent storage) and c5 (output actions)
+// registers during smart contract execution. Cell chains exceeding this depth can be created
+// locally but will fail when used in contract state or validated during blockchain processing.
 const (
-	// MaxCellChainDepth is the maximum depth of a cell chain in TON (~512 cells).
+	// MaxCellChainDepth is the maximum depth for c4/c5 registers in TON (512 cells).
+	// General execution depth limit is <1024, but c4/c5 specifically limited to 512.
 	MaxCellChainDepth = 512
-	// MaxCellDataBytes is the maximum data per cell in TON (~127 bytes).
+	// MaxCellDataBytes is the maximum data per cell in TON (127 bytes, ~1023 bits).
+	// This limit is enforced during cell creation by Builder operations (StoreSlice, etc).
 	MaxCellDataBytes = 127
 	// MaxCellChainBytes is the maximum total bytes in a cell chain (MaxCellChainDepth * MaxCellDataBytes = ~65KB).
+	// Represents the practical limit for c4/c5 register data.
 	MaxCellChainBytes = MaxCellChainDepth * MaxCellDataBytes // 65,024 bytes
 )
 
@@ -411,8 +419,10 @@ func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 }
 
 // unloadCellToByteArray unpacks a linked cell structure into a byte array, supporting empty arrays.
-// Validates against TVM limits to document assumptions and prevent potential issues
-// if this code is extended to handle untrusted data sources.
+// Validates chain depth and total byte limits during unpacking. While individual cell data limits
+// (127 bytes) are enforced by Builder during creation, chain depth limits (512 for c4/c5) are only
+// enforced during TVM execution. This validation ensures data compatibility with TON blockchain
+// execution constraints before use in contract state or output actions.
 func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	if c == nil {
 		return []byte{}, nil
