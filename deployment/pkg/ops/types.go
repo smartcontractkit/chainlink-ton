@@ -13,18 +13,18 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
-// MessagePlannerOption is an interface an op IN type providing
+// PlannerOption is an interface an op IN type providing
 // an option to produce a message plan.
-type MessagePlannerOption interface {
+type PlannerOption interface {
 	IsPlan() bool
 }
 
-// MessagePlanner is an interface for op OUT types that can produce a message plan.
-type MessagePlanner interface {
-	GetPlans() []MessagePlanRaw
+// Planner is an interface for op OUT types that can produce a message plan.
+type Planner[T any] interface {
+	GetPlans() []T
 }
 
-func PlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw) (types.BatchOperation, error) {
+func RawPlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw) (types.BatchOperation, error) {
 	mcmsTxs := make([]types.Transaction, len(plans))
 	for i, planRaw := range plans {
 		data := cell.BeginCell().EndCell() // empty body by default
