@@ -5,8 +5,6 @@ go 1.25.4
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
-	github.com/smartcontractkit/chainlink-testing-framework/framework => ../../chainlink-testing-framework/framework
-
 	github.com/smartcontractkit/chainlink-ton => ..
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
@@ -19,7 +17,7 @@ require (
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251216154855-949167c7e9d1
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251023193345-8f2c4380a62c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.12.1
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.12.3
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20251222225825-082db6f6514f
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20251222225825-082db6f6514f
 	github.com/xssnick/tonutils-go v1.14.1
