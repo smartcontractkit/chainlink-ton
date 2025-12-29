@@ -7,6 +7,10 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 )
 
+var (
+	_ MessagePlanner = AnySequenceOutput{}
+)
+
 type AnySequenceInput struct {
 	// Definitions and Inputs should be of the same length and order
 	Defs   []operations.Definition
@@ -22,6 +26,10 @@ type AnySequenceOutput struct {
 	Plans        []MessagePlanRaw
 	Transactions []TransactionInfo
 	// TODO: add deployed contract addresses mapping
+}
+
+func (o AnySequenceOutput) GetPlans() []MessagePlanRaw {
+	return o.Plans
 }
 
 // AnySequenceDeps is a generic map of dependencies
