@@ -57,17 +57,17 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 			}
 		}
 
-		signers, err := tlbe.NewDict[uint8, Signer](_signers)
+		signers, err := tlbe.NewDictFromDictionary[uint8, Signer](_signers)
 		if err != nil {
 			return Config{}, fmt.Errorf("error decoding Config.Signers dict: %w", err)
 		}
 
-		groupQuorums, err := tlbe.NewDict[uint8, uint8](_groupQuorums)
+		groupQuorums, err := tlbe.NewDictFromDictionary[uint8, uint8](_groupQuorums)
 		if err != nil {
 			return Config{}, fmt.Errorf("error decoding Config.GroupQuorums dict: %w", err)
 		}
 
-		groupParents, err := tlbe.NewDict[uint8, uint8](_groupParents)
+		groupParents, err := tlbe.NewDictFromDictionary[uint8, uint8](_groupParents)
 		if err != nil {
 			return Config{}, fmt.Errorf("error decoding Config.GroupParents dict: %w", err)
 		}
