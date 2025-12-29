@@ -2,6 +2,7 @@ package tracetracking
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -364,7 +365,7 @@ func waitForMatchingMessage(transactionsReceived chan *tlb.Transaction, sentMess
 			}
 		}
 	}
-	return nil, fmt.Errorf("channel closed before matching message was found")
+	return nil, errors.New("channel closed before matching message was found")
 }
 
 // MapToReceivedMessageIfMatches checks if a transaction corresponds to the reception
