@@ -1,3 +1,4 @@
+// validate-struct-opcodes:skip
 struct (0x7362d09c) Common_JettonTransferNotification {
     queryId: uint64;
     amount: coins;
