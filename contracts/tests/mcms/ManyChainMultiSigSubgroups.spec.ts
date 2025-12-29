@@ -500,7 +500,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       await coverage.generateCoverageArtifacts(blockchain, 'mcms_subgroups', [
         {
           code: code.mcms,
-          name: 'timelock',
+          name: 'mcms',
         },
       ])
     }
