@@ -40,7 +40,7 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
 // Answers with Router_CCIPReceive
-struct (0x38a69e3b) Router_CCIPSend {
+struct (0x31768d95) Router_CCIPSend {
     queryID: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;
@@ -57,28 +57,28 @@ struct (0xfc69c50b) Router_RouteMessage {
     gasLimit: coins;
 }
 
-struct (0xaf0cccef) Router_CCIPReceiveConfirm {
+struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     execId: ReceiveExecutorId;
 }
 
 // curse/uncurse/verify uncursed (also as getter)
-struct (0xe6bf1813) Router_RMNRemoteCurse {
+struct (0xf3388046) Router_RMNRemoteCurse {
     queryId: uint64
     subjects: SnakedCell<uint128>
 }
 
-struct (0x060d9dd1) Router_RMNRemoteUncurse {
+struct (0x3f153a31) Router_RMNRemoteUncurse {
     queryId: uint64
     subjects: SnakedCell<uint128>
 }
 
 // Internal contracts can have their own cache, but external contracts will need to fetch the curse status via this method.
-struct (0x49fd38ce) Router_RMNRemoteVerifyNotCursed {
+struct (0x0b95aa4e) Router_RMNRemoteVerifyNotCursed {
     queryId: uint64
     subject: uint128
 }
 
-struct (0x0d9368a9) Router_RMNRemoteVerifyNotCursedResponse {
+struct (0x22ba83b3) Router_RMNRemoteVerifyNotCursedResponse {
     queryId: uint64
     result: bool
 }
