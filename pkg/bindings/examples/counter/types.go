@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -18,7 +18,7 @@ type ContractData struct {
 	Value uint32 `tlb:"## 32"`
 
 	// TODO: import as ownable2step.Data bindings from pkg/bindings/lib/access/ownable_2step
-	Ownable common.Ownable2Step `tlb:"."`
+	Ownable ownable2step.Storage `tlb:"."`
 }
 
 // Message to set the counter value.

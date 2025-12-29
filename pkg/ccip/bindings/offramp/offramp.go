@@ -15,6 +15,7 @@ import (
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -60,16 +61,16 @@ type DynamicConfigSet struct {
 
 // Storage represents the offRamp contract storage state
 type Storage struct {
-	ID                                      uint32                  `tlb:"## 32"`
-	Ownable                                 ccipcommon.Ownable2Step `tlb:"."`
-	Deployables                             Deployables             `tlb:"^"`
-	FeeQuoter                               *address.Address        `tlb:"addr"`
-	OCR3Base                                OCR3Base                `tlb:"^"`
-	CursedSubjects                          *cell.Dictionary        `tlb:"dict 128"`
-	ChainSelector                           uint64                  `tlb:"## 64"`
-	PermissionlessExecutionThresholdSeconds uint32                  `tlb:"## 32"`
-	SourceChainConfigs                      *cell.Dictionary        `tlb:"dict 64"`
-	LatestPriceSequenceNumber               uint64                  `tlb:"## 64"`
+	ID                                      uint32               `tlb:"## 32"`
+	Ownable                                 ownable2step.Storage `tlb:"."`
+	Deployables                             Deployables          `tlb:"^"`
+	FeeQuoter                               *address.Address     `tlb:"addr"`
+	OCR3Base                                OCR3Base             `tlb:"^"`
+	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
+	ChainSelector                           uint64               `tlb:"## 64"`
+	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
+	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
+	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
 }
 
 // Deployables holds the deployable code cells for the offRamp contract

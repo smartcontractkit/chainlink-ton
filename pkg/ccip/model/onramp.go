@@ -3,8 +3,8 @@ package model
 import (
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 )
 
 // ---------- OnRamp Model Struct Definitions ----------
@@ -78,7 +78,7 @@ func (s *OnRampStorage) FromBinding(raw *onramp.Storage) error {
 func (s *OnRampStorage) ToBinding() (*onramp.Storage, error) {
 	st := onramp.Storage{
 		ID: s.ID,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
