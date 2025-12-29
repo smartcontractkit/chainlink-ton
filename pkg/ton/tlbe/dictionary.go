@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -14,17 +15,92 @@ type Dict[K comparable, V any] struct {
 }
 
 func NewEmptyDict[K comparable, V any]() *Dict[K, V] {
-	return &Dict[K, V]{
-		entries: make(map[K]V),
-	}
+	return NewDict(make(map[K]V))
 }
 
-func NewDict[K comparable, V any](dict *cell.Dictionary) (*Dict[K, V], error) {
+func NewDict[K comparable, V any](entries map[K]V) *Dict[K, V] {
+	return &Dict[K, V]{entries}
+}
+
+func NewDictFromDictionary[K comparable, V any](dict *cell.Dictionary) (*Dict[K, V], error) {
 	d := &Dict[K, V]{}
 	if err := d.LoadFromDictionary(dict); err != nil {
 		return nil, fmt.Errorf("cannot load Dict from *cell.Dictionary: %w", err)
 	}
 	return d, nil
+}
+
+func NewDictFromSlice[K integerKey, V any](data []V) (*Dict[K, V], error) {
+	d := NewEmptyDict[K, V]()
+
+	for i, v := range data {
+		key, err := toIntKey[K](i)
+		if err != nil {
+			return nil, fmt.Errorf("cannot convert index %d to key: %w", i, err)
+		}
+		d.Set(key, v)
+	}
+	return d, nil
+}
+
+// integerKey is a constraint that matches all integer types.
+type integerKey interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+// toIntKey converts an integer index to the specified integer key type K,
+// ensuring that the conversion does not overflow.
+func toIntKey[K integerKey](i int) (K, error) {
+	var zero K
+	switch any(zero).(type) {
+	case uint8:
+		if i < 0 || i > math.MaxUint8 {
+			return zero, fmt.Errorf("index %d overflows uint8", i)
+		}
+		return K(uint8(i)), nil
+	case uint16:
+		if i < 0 || i > math.MaxUint16 {
+			return zero, fmt.Errorf("index %d overflows uint16", i)
+		}
+		return K(uint16(i)), nil
+	case uint32:
+		if i < 0 || i > math.MaxUint32 {
+			return zero, fmt.Errorf("index %d overflows uint32", i)
+		}
+		return K(uint32(i)), nil
+	case uint64:
+		if i < 0 {
+			return zero, fmt.Errorf("index %d overflows uint64", i)
+		}
+		return K(uint64(i)), nil
+	case uint:
+		if i < 0 {
+			return zero, fmt.Errorf("index %d overflows uint", i)
+		}
+		return K(uint(i)), nil
+	case int8:
+		if i < math.MinInt8 || i > math.MaxInt8 {
+			return zero, fmt.Errorf("index %d overflows int8", i)
+		}
+		return K(int8(i)), nil
+	case int16:
+		if i < math.MinInt16 || i > math.MaxInt16 {
+			return zero, fmt.Errorf("index %d overflows int16", i)
+		}
+		return K(int16(i)), nil
+	case int32:
+		if i < math.MinInt32 || i > math.MaxInt32 {
+			return zero, fmt.Errorf("index %d overflows int32", i)
+		}
+		return K(int32(i)), nil
+	case int64:
+		return K(int64(i)), nil
+	case int:
+		return K(i), nil
+	default:
+		return zero, fmt.Errorf("unsupported key type %T", zero)
+	}
 }
 
 func (d *Dict[K, V]) ensure() {
@@ -62,6 +138,11 @@ func (d Dict[K, V]) Len() int {
 		return 0
 	}
 	return len(d.entries)
+}
+
+func (d *Dict[K, V]) AsMap() map[K]V {
+	d.ensure()
+	return d.entries
 }
 
 func (d Dict[K, V]) MarshalJSON() ([]byte, error) {
