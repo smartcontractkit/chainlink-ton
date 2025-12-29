@@ -5,13 +5,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
-import {
-  setup,
-  CHAINSEL_EVM_TEST_90000001,
-  EVM_ADDRESS,
-  TEST_TOKEN_ADDR,
-  contractsCoverageConfig,
-} from './Router.Setup'
+import { setup, CHAINSEL_EVM_TEST_90000001, contractsCoverageConfig } from './Router.Setup'
 
 describe('Router', () => {
   let blockchain: Blockchain

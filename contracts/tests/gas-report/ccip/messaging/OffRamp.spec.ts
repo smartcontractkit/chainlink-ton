@@ -25,11 +25,11 @@ import {
 } from '../../../../wrappers/ccip/OffRamp'
 import '@ton/test-utils'
 import {
-  ZERO_ADDRESS,
   generateMockTonAddress,
   bigIntToBuffer,
   uint8ArrayToBigInt,
   generateEd25519KeyPair,
+  WRAPPED_NATIVE,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { Receiver, ReceiverBehavior } from '../../../../wrappers/ccip/Receiver'
@@ -134,7 +134,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
-        wrappedNative: ZERO_ADDRESS,
+        wrappedNative: WRAPPED_NATIVE,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }
@@ -155,7 +155,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     {
       let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
-        id: 0,
+        id: 0n,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -165,6 +165,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           feeQuoter: feeQuoter.address,
           feeAggregator: deployer.address,
           allowlistAdmin: deployer.address,
+          reserve: toNano('0.1'),
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
         executor: {
@@ -309,7 +310,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {
-            id: 0,
+            id: 0n,
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,

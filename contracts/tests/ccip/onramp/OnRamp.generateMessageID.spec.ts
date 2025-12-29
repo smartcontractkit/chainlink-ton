@@ -4,7 +4,7 @@ import { compile } from '@ton/blueprint'
 import { sha256 } from '@ton/crypto'
 
 import * as coverage from '../../coverage/coverage'
-import { asSnakeData, generateRandomContractId } from '../../../src/utils'
+import { asSnakeData, generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
@@ -15,9 +15,6 @@ const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
-const TEST_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
 
 describe('OnRamp - generate message id', () => {
   let blockchain: Blockchain
@@ -36,7 +33,7 @@ describe('OnRamp - generate message id', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: WRAPPED_NATIVE,
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',

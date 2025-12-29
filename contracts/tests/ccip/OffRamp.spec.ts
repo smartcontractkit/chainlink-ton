@@ -39,6 +39,7 @@ import {
   generateRandomTonAddress,
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
+  WRAPPED_NATIVE,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
@@ -649,7 +650,7 @@ describe('OffRamp - Unit Tests', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
-        wrappedNative: ZERO_ADDRESS,
+        wrappedNative: WRAPPED_NATIVE,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }

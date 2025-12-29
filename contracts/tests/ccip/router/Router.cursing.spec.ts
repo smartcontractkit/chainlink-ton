@@ -4,13 +4,13 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
 import { assertLog } from '../../Logs'
 import * as coverage from '../../coverage/coverage'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as rt from '../../../wrappers/ccip/Router'
 import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
   EVM_ADDRESS,
-  TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from './Router.Setup'
 
@@ -50,7 +50,7 @@ describe('Router', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: rt.builder.data.extraArgs
         .encode({
           kind: 'generic-v2',

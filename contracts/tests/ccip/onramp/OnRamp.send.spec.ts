@@ -10,14 +10,12 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { CHAINSEL_EVM_TEST, CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
-const TEST_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
 
 describe('OnRamp - Send', () => {
   let blockchain: Blockchain
@@ -35,7 +33,7 @@ describe('OnRamp - Send', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: WRAPPED_NATIVE,
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',
