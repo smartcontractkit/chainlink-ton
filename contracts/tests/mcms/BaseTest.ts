@@ -7,7 +7,7 @@ import { crc32 } from 'zlib'
 
 import { asSnakeData } from '../../src/utils'
 
-import { rbactl } from '../../wrappers/mcms'
+import { mcms, rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 
@@ -55,9 +55,9 @@ export class BaseTestSetup {
 
   static async compileContracts(): Promise<TestCode> {
     return {
-      mcms: await compile('mcms.MCMS'),
-      timelock: await compile('mcms.RBACTimelock'),
-      counter: await compile('examples.Counter'),
+      mcms: await mcms.ContractClient.code(),
+      timelock: await rbactl.ContractClient.code(),
+      counter: await counter.ContractClient.code(),
     }
   }
 

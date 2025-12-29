@@ -11,7 +11,7 @@ import {
   Slice,
 } from '@ton/core'
 import * as upgradeable from '../../libraries/versioning/Upgradeable'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../../codeLoader'
 import * as typeAndVersion from '../../libraries/versioning/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
@@ -84,7 +84,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface, upgra
   }
 
   code(): Promise<Cell> {
-    return compile('examples.versioning.upgrades.UpgradeableCounterV2')
+    return ContractClient.code()
   }
 
   static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
@@ -138,7 +138,7 @@ export class ContractClient implements Contract, typeAndVersion.Interface, upgra
   }
 
   static code(): Promise<Cell> {
-    return compile('examples.versioning.upgrades.UpgradeableCounterV2')
+    return loadContractCode('examples.versioning.upgrades.UpgradeableCounterV2')
   }
 
   static version() {
