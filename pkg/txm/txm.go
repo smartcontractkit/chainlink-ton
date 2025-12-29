@@ -207,6 +207,10 @@ func (t *Txm) broadcastLoop() {
 			if tx.ID != nil {
 				txID = *tx.ID
 			}
+			bodyBOC := "none"
+			if tx.Body != nil {
+				bodyBOC = hex.EncodeToString(tx.Body.ToBOC())
+			}
 			t.logger.Debugw("attempting to broadcast transaction",
 				"txID", txID,
 				"from", tx.From.String(),
@@ -215,7 +219,7 @@ func (t *Txm) broadcastLoop() {
 				"mode", tx.Mode,
 				"hasBody", tx.Body != nil,
 				"body", tx.Body,
-				"bodyBOC", hex.EncodeToString(tx.Body.ToBOC()),
+				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
 			err := t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
