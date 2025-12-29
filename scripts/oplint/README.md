@@ -15,14 +15,17 @@ go run main.go [--fix|-f] <file pattern> [<file pattern> ...]
 ## Examples
 
 ```bash
-# Validate all contracts
-go run main.go ../../contracts/contracts
+# Enter the development shell with the oplint tool
+nix develop .#contracts -c
 
-# Validate a specific file
-go run main.go ../../contracts/contracts/test/examples/ocr3_base.tolk
+# Validate all contracts in the working directory
+oplint
+
+# Validate a specific directory, file or pattern
+oplint test/examples/ocr3_base.tolk
 
 # Automatically fix all incorrect opcodes
-go run main.go --fix|-f ../../contracts/contracts
+oplint --fix|-f
 ```
 
 ## How It Works
@@ -40,7 +43,7 @@ The tool:
 To skip validation for a specific struct (e.g., for backwards compatibility or intentional custom opcodes), add a comment before the struct definition:
 
 ```tolk
-// validate-struct-opcodes:skip
+// oplint:skip
 struct (0x00000002) Transmit {
     ocrPluginType: uint16,
     reportContext: ReportContext,

@@ -1,4 +1,4 @@
-// validate-struct-opcodes:skip
+// oplint:skip
 struct (0x0f8a7ea5) AskToTransferFwdPayload {
     queryId: uint64
     jettonAmount: coins

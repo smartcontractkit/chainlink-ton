@@ -128,7 +128,7 @@ func parseStructsWithOpcodes(filePath string) ([]structWithOpcode, error) {
 
 	for i, line := range lines {
 		// Check for skip validation comment
-		if strings.Contains(line, "validate-struct-opcodes:skip") {
+		if strings.Contains(line, "oplint:skip") {
 			skipNextStruct = true
 			continue
 		}
@@ -273,6 +273,9 @@ func main() {
 	args := os.Args[1:]
 
 	// Parse flags
+	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+		printHelp()
+	}
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--fix" || args[i] == "-f" {
 			fixMode = true
@@ -281,16 +284,8 @@ func main() {
 		}
 	}
 
-	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Usage: %s [--fix|-f] <pattern> [pattern...]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Examples:\n")
-		fmt.Fprintf(os.Stderr, "  %s ./contracts                    # directory\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s contracts/**/*.tolk            # glob pattern\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s file1.tolk file2.tolk          # specific files\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s contracts/ pkg/                # multiple directories\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Options:\n")
-		fmt.Fprintf(os.Stderr, "  --fix, -f  Automatically fix incorrect opcodes\n")
-		os.Exit(1)
+	if len(args) == 0 {
+		args = []string{"."}
 	}
 
 	patterns := args
@@ -355,4 +350,16 @@ func main() {
 	}
 
 	fmt.Println("✅ All struct opcodes are valid!")
+}
+
+func printHelp() {
+	fmt.Fprintf(os.Stderr, "Usage: %s [--fix|-f] <pattern> [pattern...]\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Examples:\n")
+	fmt.Fprintf(os.Stderr, "  %s ./contracts                    # directory\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s contracts/**/*.tolk            # glob pattern\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s file1.tolk file2.tolk          # specific files\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "  %s contracts/ pkg/                # multiple directories\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Options:\n")
+	fmt.Fprintf(os.Stderr, "  --fix, -f  Automatically fix incorrect opcodes\n")
+	os.Exit(1)
 }
