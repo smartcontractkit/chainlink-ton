@@ -308,11 +308,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (feeToken != st.linkToken) {
-        val linkTokenPriceResult = st.usdPerToken.get(st.linkToken);
-        if (!linkTokenPriceResult.isFound) {
-            return 0;
-        }
-        val linkTokenPrice = linkTokenPriceResult.loadValue();
+        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported as int);
         // Check for division by zero (zero token prices)
         assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
         // convert from USD to juels
