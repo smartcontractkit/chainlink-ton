@@ -7,8 +7,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/mcms/types"
-
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -25,14 +23,12 @@ func (cs OpsAnySequence) VerifyPreconditions(_ cldf.Environment, _ opsmcms.Timel
 }
 
 func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySequenceInput) (cldf.ChangesetOutput, error) {
-	selector := types.ChainSelector(in.ChainSelector)
-
 	// Address resolution: load existing MCMS and Timelock addresses if not provided
 	mcmsStates, err := state.LoadMCMSOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
-	state, ok := mcmsStates[uint64(selector)]
+	state, ok := mcmsStates[uint64(in.ChainSelector)]
 	if ok {
 		if in.MCMSAddr == nil {
 			in.MCMSAddr = &state.MCMS
@@ -43,7 +39,7 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	}
 
 	tonChains := env.BlockChains.TonChains()
-	chain := tonChains[uint64(selector)]
+	chain := tonChains[uint64(in.ChainSelector)]
 
 	// Dependencies currently injected per-operation
 	// TODO: generalize dependency injection per-type/s in sequences
@@ -56,7 +52,7 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	// Execute the (any) sequence based on the provided input
 	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, in)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", in.ChainSelector, err)
 	}
 
 	// TODO: check outputs for deployed addresses and update dataStore.Addresses()
