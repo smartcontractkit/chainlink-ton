@@ -1,4 +1,4 @@
-package ops_test
+package ton_test
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
@@ -175,7 +176,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[ops.SendMessagesInput[any], ops.SendMessagesOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[ton.SendMessagesInput[any], ton.SendMessagesOutput] {
 	t.Helper()
 
 	// Setup execution environment
@@ -185,12 +186,12 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 		return t.Context()
 	}
 	b := operations.NewBundle(ctxFn, lggr, rptr)
-	deps := ops.SendMessagesDeps{
+	deps := ton.SendMessagesDeps{
 		Wallet: nil, // No actual sending in tests
 	}
 
-	r, err := operations.ExecuteOperation(b, ops.SendMessages, deps, ops.SendMessagesInput[any]{
-		Messages: []ops.InternalMessage[any]{
+	r, err := operations.ExecuteOperation(b, ton.SendMessages, deps, ton.SendMessagesInput[any]{
+		Messages: []ton.InternalMessage[any]{
 			{
 				Body:    decoded,
 				DstAddr: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
@@ -214,9 +215,9 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 	inputs := make([]any, n)
 
 	for i, e := range envelopes {
-		defs[i] = ops.SendMessages.Def()
-		inputs[i] = ops.SendMessagesInput[any]{
-			Messages: []ops.InternalMessage[any]{
+		defs[i] = ton.SendMessages.Def()
+		inputs[i] = ton.SendMessagesInput[any]{
+			Messages: []ton.InternalMessage[any]{
 				{
 					Body:    e,
 					DstAddr: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"),
@@ -241,28 +242,23 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 		return t.Context()
 	}
 
-	_ops := []*operations.Operation[any, any, any]{
-		ops.SendMessages.AsUntyped(),
-	}
-	opsr := operations.NewOperationRegistry(_ops...)
-
 	opts := []operations.BundleOption{
-		operations.WithOperationRegistry(opsr),
+		operations.WithOperationRegistry(ops.Registry),
 	}
 	b := operations.NewBundle(ctxFn, lggr, rptr, opts...)
 	// Dependencies currently injected per-operation
 	// TODO: generalize dependency injection per-type/s in sequences
-	deps := ops.AnySequenceDeps{}
-	depsKey := ops.SendMessages.Def().ID
-	deps[depsKey] = ops.SendMessagesDeps{
+	deps := ton.AnySequenceDeps{}
+	depsKey := ton.SendMessages.Def().ID
+	deps[depsKey] = ton.SendMessagesDeps{
 		Wallet: nil, // No actual sending in tests
 	}
 
-	input := ops.AnySequenceInput{
+	input := ton.AnySequenceInput{
 		Defs:   defs,
 		Inputs: inputs,
 	}
-	r, err := operations.ExecuteSequence(b, ops.AnySequence, deps, input)
+	r, err := operations.ExecuteSequence(b, ton.AnySequence, deps, input)
 	assert.NotEmpty(t, r)
 	assert.NoError(t, err)
 }
