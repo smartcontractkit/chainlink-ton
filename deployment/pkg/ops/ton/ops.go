@@ -14,19 +14,19 @@ import (
 )
 
 var (
-	_ PlannerOption           = SendMessagesInput[any]{}
+	_ PlannerOption           = SendMessagesInput{}
 	_ Planner[MessagePlanRaw] = SendMessagesOutput{}
 	_ MessageSender           = SendMessagesOutput{}
 )
 
-type SendMessagesInput[T any] struct {
-	Messages []InternalMessage[T] `json:"messages"`
-	Plan     bool                 `json:"plan"`
+type SendMessagesInput struct {
+	Messages []InternalMessage[any] `json:"messages"`
+	Plan     bool                   `json:"plan"`
 
 	// TODO: add WaitTrace option
 }
 
-func (in SendMessagesInput[T]) IsPlan() bool {
+func (in SendMessagesInput) IsPlan() bool {
 	return in.Plan
 }
 
@@ -55,7 +55,7 @@ var SendMessages = operations.NewOperation(
 	"ton/ops/send-messages",
 	semver.MustParse("0.1.0"),
 	"Sends and/or plans messages as defined by the inputs",
-	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput[any]) (SendMessagesOutput, error) {
+	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput) (SendMessagesOutput, error) {
 		ctx := b.GetContext()
 
 		n := len(in.Messages)
