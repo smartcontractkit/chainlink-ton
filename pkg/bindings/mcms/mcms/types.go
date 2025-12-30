@@ -469,16 +469,6 @@ type SignerGroup struct {
 	Val uint8 `tlb:"## 8"`
 }
 
-// Config.GroupQuorums value wrapper
-type GroupQuorum struct {
-	Val uint8 `tlb:"## 8"`
-}
-
-// Config.GroupParents value wrapper
-type GroupParent struct {
-	Val uint8 `tlb:"## 8"`
-}
-
 // Data.SeenSignedHashes value wrapper
 type SeenSignedHash struct {
 	Val bool `tlb:"bool"`
