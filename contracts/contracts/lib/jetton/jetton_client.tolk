@@ -130,6 +130,9 @@ fun loadForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
         forwardPayload.assertEnd();
         return forwardPayloadCell;
     }
+    if (forwardPayload.isEmpty()) {
+        return null;
+    }
     return beginCell().storeSlice(forwardPayload).endCell();
 }
 
@@ -139,6 +142,9 @@ fun loadForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
     if (forwardPayloadCell != null) {
         forwardPayload.assertEnd();
         return forwardPayloadCell!.beginParse();
+    }
+    if (forwardPayload.isEmpty()) {
+        return null;
     }
     return forwardPayload;
 }
