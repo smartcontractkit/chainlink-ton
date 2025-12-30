@@ -8,10 +8,10 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
+import { generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
   let counterTwo: SandboxContract<counter.ContractClient>
 
   let acc: {
@@ -19,18 +19,17 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   }
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('error_oracle')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-execute-error-oracle')
+    await baseTest.beforeEach()
+
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }
 
     // Create second counter for batch operations
     const counterTwoData = {
-      id: 2,
+      id: Number(generateRandomContractId()),
       value: 0,
       ownable: {
         owner: baseTest.bind.timelock.address,
@@ -38,7 +37,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       },
     }
     counterTwo = baseTest.blockchain.openContract(
-      counter.ContractClient.newFrom(counterTwoData, code.counter),
+      counter.ContractClient.newFrom(counterTwoData, baseTest.code.counter),
     )
     const result = await counterTwo.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -213,5 +212,11 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       success: false,
       exitCode: rbactl.Error.OperationNotReady,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

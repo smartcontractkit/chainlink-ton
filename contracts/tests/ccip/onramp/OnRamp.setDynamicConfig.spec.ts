@@ -120,7 +120,7 @@ describe('OnRamp - set Dynamic Config', () => {
 
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
-      coverage.generateCoverageArtifacts(blockchain, 'onramp_set-dynamic_config_tests', [
+      await coverage.generateCoverageArtifacts(blockchain, 'onramp_set-dynamic_config_tests', [
         {
           code: await onramp.getCode(),
           name: 'onramp',
