@@ -7,15 +7,20 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var AddressRes = tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
-	ownerSlice, err := r.Slice(0)
-	if err != nil {
-		return nil, err
-	}
+var (
+	GetOwner        = MakeGetOwner()        // default (owner) role - owner getter
+	GetPendingOwner = MakeGetPendingOwner() // default (owner) role - pending owner getter
+	AddressRes      = tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
+		ownerSlice, err := r.Slice(0)
+		if err != nil {
+			return nil, err
+		}
 
-	return ownerSlice.LoadAddr()
-})
+		return ownerSlice.LoadAddr()
+	})
+)
 
+// MakeGetOwner creates a getter for the owner address, for a specified role (prefix).
 func MakeGetOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
 	return tvm.Getter[struct{}, *address.Address]{
 		Name:    prefixGetter("owner", role),
@@ -23,8 +28,7 @@ func MakeGetOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
 	}
 }
 
-var GetOwner = MakeGetOwner()
-
+// MakeGetPendingOwner creates a getter for the pending owner address, for a specified role (prefix).
 func MakeGetPendingOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
 	return tvm.Getter[struct{}, *address.Address]{
 		Name:    prefixGetter("pendingOwner", role),
@@ -32,10 +36,9 @@ func MakeGetPendingOwner(role ...string) tvm.Getter[struct{}, *address.Address] 
 	}
 }
 
-var GetPendingOwner = MakeGetPendingOwner()
-
 func prefixGetter(getterMethodName string, role []string) string {
 	if len(role) > 1 {
+		// TODO: panic?
 		panic("only one role argument is allowed")
 	}
 	if len(role) == 1 {

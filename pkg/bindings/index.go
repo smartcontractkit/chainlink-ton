@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -51,8 +52,9 @@ var Registry = tvm.MessageRegistry{
 	PkgMCMS + ".Timelock": timelock.TLBs,
 
 	// Libs and traits
+	PkgLib + ".access.Ownable":       ownable2step.TLBs,
 	PkgLib + ".access.RBAC":          rbac.TLBs,
-	PkgLib + ".funding.withdrawable": withdrawable.TLBs,
+	PkgLib + ".funding.Withdrawable": withdrawable.TLBs,
 
 	// Test contract types // TODO: (tmp) remove from here, move to test file
 	PkgTest + ".Foo": TestTLBs,
@@ -64,7 +66,7 @@ type TestMessage struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Data tlbe.Dict[uint16, common.AddressWrap] `tlb:"^" json:"data"`
+	Data *tlbe.Dict[uint16, common.AddressWrap] `tlb:"." json:"data"`
 }
 
 var TestTLBs = tvm.MustNewTLBMap([]any{
