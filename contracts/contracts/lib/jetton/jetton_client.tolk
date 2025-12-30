@@ -1,6 +1,5 @@
 import "./utils.tolk"
 import "messages"
-import "../../lib/jetton/messages.tolk"
 
 struct JettonClient {
     masterAddress: address
