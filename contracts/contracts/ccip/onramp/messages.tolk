@@ -127,6 +127,8 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
+        + ton("0.002") // computeFee
+        + ton("0.019") // emit CCIPMessageSent event
         + ton("0.019") // MessageSent fwdFee
         + Router_Costs.MessageSent() 
         ;
@@ -136,6 +138,7 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
+        + ton("0.002") // computeFee
         + ton("0.019") // MessageRejected fwdFee
         + Router_Costs.MessageRejected()
         ;
