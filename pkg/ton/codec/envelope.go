@@ -291,6 +291,7 @@ func (e MessageEnvelope[T]) decode(r tvm.MessageRegistry) (T, error) {
 
 	var zero T
 
+	// TODO: map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry
 	if e.Payload != nil {
 		typ, ok := r.Lookup(e.Metadata.Contract, e.Metadata.Opcode)
