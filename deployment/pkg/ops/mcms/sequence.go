@@ -9,6 +9,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -92,7 +93,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 		}, nil
 	}
 
-	batchOp, err := opston.RawPlansToBatch(in.ChainSelector, r.Output.GetPlans(), in.OpsMetadata)
+	batchOp, err := RawPlansToBatch(in.ChainSelector, r.Output.GetPlans(), in.OpsMetadata)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
 	}
@@ -142,5 +143,42 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 	return TimelockAnySequenceOutput{
 		Proposals:    []mcms.TimelockProposal{*proposal},
 		Transactions: nil,
+	}, nil
+}
+
+// RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.
+func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw, meta []types.OperationMetadata) (types.BatchOperation, error) {
+	mcmsTxs := make([]types.Transaction, len(plans))
+	for i, planRaw := range plans {
+		data := cell.BeginCell().EndCell() // empty body by default
+		if planRaw.Body != nil {
+			data = planRaw.Body
+		}
+
+		// Extract metadata for the transaction
+		m := types.OperationMetadata{
+			ContractType: "",
+			Tags:         []string{},
+		}
+		if len(meta) > i {
+			m = meta[i]
+		}
+
+		var err error
+		mcmsTxs[i], err = mcmston.NewTransaction(
+			planRaw.DstAddr,
+			data.BeginParse(),
+			planRaw.Amount.Nano(),
+			m.ContractType,
+			m.Tags,
+		)
+		if err != nil {
+			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
+		}
+	}
+
+	return types.BatchOperation{
+		ChainSelector: selector,
+		Transactions:  mcmsTxs,
 	}, nil
 }
