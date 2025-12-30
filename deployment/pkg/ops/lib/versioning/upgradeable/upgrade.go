@@ -57,54 +57,53 @@ type UpgradeDeps struct {
 var Upgrade = operations.NewOperation(
 	"ton/ops/lib/versioning/upgradeable/upgrade",
 	semver.MustParse("0.1.0"),
-	"Upgrades an Upgradeable contract to a new implementation",
-	handler,
-)
+	"Upgrades upgradeable contracts to a new implementation",
+	func(b operations.Bundle, deps UpgradeDeps, in UpgradeInput) (UpgradeOutput, error) {
+		// Load contracts and prepare the underlying []ton.InternalMessage[any]
+		_messages := make([]ton.InternalMessage[any], len(in.Messages))
+		for i, u := range in.Messages {
+			c, err := deps.ContractProvider.GetContract(u.ContractMeta)
+			if err != nil {
+				return UpgradeOutput{}, fmt.Errorf("failed to get contract code: %w", err)
+			}
 
-func handler(b operations.Bundle, deps UpgradeDeps, in UpgradeInput) (UpgradeOutput, error) {
-	// Convert messages to use any type
-	_messages := make([]ton.InternalMessage[any], len(in.Messages))
-	for i, u := range in.Messages {
-		m := u.Message
-		val := m.Body.Value
+			// prepare message with loaded code
+			m := u.Message
+			val := m.Body.Value
+			val.Code = c.Code
+			valAny := any(val)
 
-		c, err := deps.ContractProvider.GetContract(u.ContractMeta)
+			_messages[i] = ton.InternalMessage[any]{
+				Bounce:  m.Bounce,
+				DstAddr: m.DstAddr,
+				Amount:  m.Amount,
+				Body: codec.MessageEnvelope[any]{
+					Metadata: m.Body.Metadata,
+					Payload:  m.Body.Payload,
+					Cell:     m.Body.Cell,
+					Value:    &valAny,
+				},
+			}
+		}
+
+		_in := ton.SendMessagesInput[any]{
+			Messages: _messages,
+			Plan:     in.Plan,
+		}
+
+		// TOOD: improve deps passing
+		opdeps := ton.SendMessagesDeps{
+			Wallet: deps.Wallet,
+		}
+
+		r, err := operations.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
 		if err != nil {
-			return UpgradeOutput{}, fmt.Errorf("failed to get contract code: %w", err)
+			return UpgradeOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
-		val.Code = c.Code
-		valAny := any(val)
 
-		_messages[i] = ton.InternalMessage[any]{
-			Bounce:  m.Bounce,
-			DstAddr: m.DstAddr,
-			Amount:  m.Amount,
-			Body: codec.MessageEnvelope[any]{
-				Metadata: m.Body.Metadata,
-				Payload:  m.Body.Payload,
-				Cell:     m.Body.Cell,
-				Value:    &valAny,
-			},
-		}
-	}
-
-	_in := ton.SendMessagesInput[any]{
-		Messages: _messages,
-		Plan:     in.Plan,
-	}
-
-	// TOOD: improve deps passing
-	opdeps := ton.SendMessagesDeps{
-		Wallet: deps.Wallet,
-	}
-
-	r, err := operations.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
-	if err != nil {
-		return UpgradeOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
-	}
-
-	return UpgradeOutput{
-		Plans:       r.Output.GetPlans(),
-		Transaction: r.Output.GetTransaction(),
-	}, nil
-}
+		return UpgradeOutput{
+			Plans:       r.Output.GetPlans(),
+			Transaction: r.Output.GetTransaction(),
+		}, nil
+	},
+)
