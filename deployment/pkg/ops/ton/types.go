@@ -1,14 +1,10 @@
 package ton // alias: opston
 
 import (
-	"fmt"
-
+	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
-	"github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
@@ -24,48 +20,12 @@ type Planner[T any] interface {
 	GetPlans() []T
 }
 
-// RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.
-func RawPlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw, meta []types.OperationMetadata) (types.BatchOperation, error) {
-	mcmsTxs := make([]types.Transaction, len(plans))
-	for i, planRaw := range plans {
-		data := cell.BeginCell().EndCell() // empty body by default
-		if planRaw.Body != nil {
-			data = planRaw.Body
-		}
-
-		// Extract metadata for the transaction
-		m := types.OperationMetadata{
-			ContractType: "",
-			Tags:         []string{},
-		}
-		if len(meta) > i {
-			m = meta[i]
-		}
-
-		var err error
-		mcmsTxs[i], err = mcmston.NewTransaction(
-			planRaw.DstAddr,
-			data.BeginParse(),
-			planRaw.Amount.Nano(),
-			m.ContractType,
-			m.Tags,
-		)
-		if err != nil {
-			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
-		}
-	}
-
-	return types.BatchOperation{
-		ChainSelector: selector,
-		Transactions:  mcmsTxs,
-	}, nil
-}
-
 // TODO: can be merged/replaced with InternamlMessage type?
 type MessagePlanRaw struct {
 	Body    *cell.Cell       `json:"body"`
 	DstAddr *address.Address `json:"dst_addr"`
 	Amount  tlb.Coins        `json:"amount"`
+	// TODO: StateInit missing?
 }
 
 // MessageSender is an interface for op OUT types that can provide transaction info.
@@ -93,4 +53,21 @@ type InternalMessage[T any] struct {
 type StateInit struct {
 	Code *cell.Cell `json:"code,omitempty"`
 	Data *cell.Cell `json:"data,omitempty"`
+}
+
+// ContractProvider provides compiled contract code based on metadata.
+type ContractProvider interface {
+	GetContract(meta ContractMetadata) (CompiledContract, error)
+}
+
+type ContractMetadata struct {
+	Package string          `json:"package"` // Name of the package where the contract is defined (e.g., "github.com/smartcontractkit/chainlink-ton")
+	Version *semver.Version `json:"version"` // Version of the contract package (e.g., semver.MustParse("0.1.0"))
+	ID      string          `json:"id"`      // Contract identifier within the package (e.g., "mcms.RBACTimelock") (can be a path, or maps to a path within the package)
+}
+
+// CompiledContract represents a compiled TON contract with its name and code (cell).
+type CompiledContract struct {
+	Name string
+	Code *cell.Cell
 }

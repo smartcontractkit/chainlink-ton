@@ -3,13 +3,15 @@ package ops
 import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/lib/versioning/upgradeable"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 )
 
 var (
 	AllOperations = []*operations.Operation[any, any, any]{
-		opston.SendMessages.AsUntyped(),
+		ton.SendMessages.AsUntyped(),
+		upgradeable.Upgrade.AsUntyped(),
 
 		// TODO: refactor ops below
 		operation.DeployTONContractOp.AsUntyped(),
