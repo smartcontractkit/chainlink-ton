@@ -51,86 +51,84 @@ type ProviderDeps struct {
 	Client *wallet.Wallet
 }
 
-func handler[T any](b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput[T]) (SendMessagesOutput, error) {
-	ctx := b.GetContext()
-
-	n := len(in.Messages)
-	plans := make([]MessagePlanRaw, 0, n)
-	msgs := make([]*wallet.Message, 0, n)
-
-	for _, m := range in.Messages {
-		body, err := m.Body.ToCell() // TODO: body may be nil
-		if err != nil {
-			return SendMessagesOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
-		}
-
-		plan := MessagePlanRaw{
-			Body:    body,
-			DstAddr: m.DstAddr,
-			Amount:  m.Amount,
-		}
-
-		if in.Plan {
-			plans = append(plans, plan)
-			continue
-		}
-
-		// StateInit is optional, and will derive dstAddr if available
-		dstAddr := m.DstAddr
-
-		var state *tlb.StateInit
-		if m.StateInit != nil {
-			state = &tlb.StateInit{
-				Code: m.StateInit.Code,
-				Data: m.StateInit.Data,
-			}
-
-			stateCell, err := tlb.ToCell(state)
-			if err != nil {
-				return SendMessagesOutput{}, fmt.Errorf("failed to convert state init to cell: %w", err)
-			}
-
-			wc := int8(0) // TODO: expose option to set workchain (default ok for now)
-			dstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
-		}
-
-		msgs = append(msgs, &wallet.Message{
-			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-			InternalMessage: &tlb.InternalMessage{
-				IHRDisabled: true,
-				Bounce:      m.Bounce, // TODO: default to true
-				DstAddr:     dstAddr,
-				Amount:      m.Amount,
-				Body:        body,
-				StateInit:   state,
-			},
-		})
-	}
-
-	if in.Plan {
-		return SendMessagesOutput{Plans: plans}, nil // return early
-	}
-
-	tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
-	if err != nil {
-		return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
-	}
-
-	return SendMessagesOutput{
-		Plans: plans,
-		Transaction: &TransactionInfo{
-			// TODO: AccountAddr
-			Hash:        hex.EncodeToString(tx.Hash),
-			OutMsgCount: tx.OutMsgCount,
-			EndStatus:   tx.EndStatus,
-			TotalFees:   tx.TotalFees.Coins,
-		},
-	}, nil
-}
-
 var SendMessages = operations.NewOperation(
 	"ton/ops/send-messages",
 	semver.MustParse("0.1.0"),
 	"Sends and/or plans messages as defined by the inputs",
-	handler[any],
+	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput[any]) (SendMessagesOutput, error) {
+		ctx := b.GetContext()
+
+		n := len(in.Messages)
+		plans := make([]MessagePlanRaw, 0, n)
+		msgs := make([]*wallet.Message, 0, n)
+
+		for _, m := range in.Messages {
+			body, err := m.Body.ToCell() // TODO: body may be nil
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
+			}
+
+			plan := MessagePlanRaw{
+				Body:    body,
+				DstAddr: m.DstAddr,
+				Amount:  m.Amount,
+			}
+
+			if in.Plan {
+				plans = append(plans, plan)
+				continue
+			}
+
+			// StateInit is optional, and will derive dstAddr if available
+			dstAddr := m.DstAddr
+
+			var state *tlb.StateInit
+			if m.StateInit != nil {
+				state = &tlb.StateInit{
+					Code: m.StateInit.Code,
+					Data: m.StateInit.Data,
+				}
+
+				stateCell, err := tlb.ToCell(state)
+				if err != nil {
+					return SendMessagesOutput{}, fmt.Errorf("failed to convert state init to cell: %w", err)
+				}
+
+				wc := int8(0) // TODO: expose option to set workchain (default ok for now)
+				dstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
+			}
+
+			msgs = append(msgs, &wallet.Message{
+				Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+				InternalMessage: &tlb.InternalMessage{
+					IHRDisabled: true,
+					Bounce:      m.Bounce, // TODO: default to true
+					DstAddr:     dstAddr,
+					Amount:      m.Amount,
+					Body:        body,
+					StateInit:   state,
+				},
+			})
+		}
+
+		if in.Plan {
+			return SendMessagesOutput{Plans: plans}, nil // return early
+		}
+
+		tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
+		}
+
+		return SendMessagesOutput{
+			Plans: plans,
+			Transaction: &TransactionInfo{
+				// TODO: AccountAddr
+				Hash:        hex.EncodeToString(tx.Hash),
+				OutMsgCount: tx.OutMsgCount,
+				EndStatus:   tx.EndStatus,
+				TotalFees:   tx.TotalFees.Coins,
+			},
+		}, nil
+	},
 )
