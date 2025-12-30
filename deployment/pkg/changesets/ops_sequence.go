@@ -9,8 +9,8 @@ import (
 
 	"github.com/smartcontractkit/mcms/types"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
@@ -47,9 +47,9 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 
 	// Dependencies currently injected per-operation
 	// TODO: generalize dependency injection per-type/s in sequences
-	deps := ops.AnySequenceDeps{}
+	deps := opston.AnySequenceDeps{}
 	deps["chain"] = chain
-	deps[ops.SendMessages.Def().ID] = ops.SendMessagesDeps{
+	deps[opston.SendMessages.Def().ID] = opston.SendMessagesDeps{
 		Wallet: chain.Wallet,
 	}
 
