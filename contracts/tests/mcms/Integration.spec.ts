@@ -2,10 +2,10 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { asSnakeData } from '../../src/utils'
+import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import * as coverage from '../coverage/coverage'
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
@@ -13,7 +13,6 @@ import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
-import { crc32 } from 'zlib'
 import { merkleProof } from '../../src/mcms'
 
 describe('MCMS - IntegrationTest', () => {
@@ -67,8 +66,16 @@ describe('MCMS - IntegrationTest', () => {
 
   let signerKeyPairs: SigningKey[] = []
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
+  })
+
+  beforeEach(async () => {
     blockchain.now = Math.floor(Date.now() / 1000) // set to current unix timestamp
 
     // Set up accounts
@@ -94,7 +101,7 @@ describe('MCMS - IntegrationTest', () => {
       bind.mcmsPropose = blockchain.openContract(
         mcms.ContractClient.newFrom(
           mcms.builder.data.contractDataEmpty(
-            crc32('mcms.mcms.test-integration-propose'),
+            Number(generateRandomContractId()),
             acc.deployer.address,
           ),
           code.mcms,
@@ -104,7 +111,7 @@ describe('MCMS - IntegrationTest', () => {
       bind.mcmsVeto = blockchain.openContract(
         mcms.ContractClient.newFrom(
           mcms.builder.data.contractDataEmpty(
-            crc32('mcms.mcms.test-integration-veto'),
+            Number(generateRandomContractId()),
             acc.deployer.address,
           ),
           code.mcms,
@@ -114,7 +121,7 @@ describe('MCMS - IntegrationTest', () => {
       bind.mcmsBypass = blockchain.openContract(
         mcms.ContractClient.newFrom(
           mcms.builder.data.contractDataEmpty(
-            crc32('mcms.mcms.test-integration-bypass'),
+            Number(generateRandomContractId()),
             acc.deployer.address,
           ),
           code.mcms,
@@ -172,7 +179,7 @@ describe('MCMS - IntegrationTest', () => {
       }
 
       const data = {
-        id: crc32('mcms.timelock.test-integration'), // unique ID for this instance
+        id: Number(generateRandomContractId()),
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
         opPendingInfo: {
@@ -190,7 +197,7 @@ describe('MCMS - IntegrationTest', () => {
     // Set up Counter contract
     {
       const data = {
-        id: crc32('mcms.counter.test-integration'), // unique ID for this instance
+        id: Number(generateRandomContractId()),
         value: 0,
         ownable: {
           owner: bind.timelock.address,
@@ -1169,4 +1176,19 @@ describe('MCMS - IntegrationTest', () => {
 
     proposePredecessor = callsHash
   }, 20_000) // test can take a while
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'rbac_mcms_integration', [
+        {
+          code: code.timelock,
+          name: 'timelock',
+        },
+        {
+          code: code.mcms,
+          name: 'mcms',
+        },
+      ])
+    }
+  })
 })

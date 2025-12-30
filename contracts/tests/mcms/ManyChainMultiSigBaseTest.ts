@@ -1,13 +1,11 @@
 import '@ton/test-utils'
-
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano, beginCell } from '@ton/core'
-import { compile } from '@ton/blueprint'
-import { sign } from '@ton/crypto'
-import { crc32 } from 'zlib'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { ZERO_ADDRESS } from '../../src/utils'
+import * as coverage from '../coverage/coverage'
+
+import { generateRandomContractId, ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
@@ -66,7 +64,22 @@ export class MCMSBaseTestSetup {
   signerGroups: number[]
   testConfig: mcms.Config
 
-  constructor() {
+  testID = 0
+  testSuite: string
+  snapshot: BlockchainSnapshot
+  snapshotState: {
+    testSigners: TestSigner[]
+    testGroupQuorums: Map<number, number>
+    testGroupParents: Map<number, number>
+    signerGroups: number[]
+    testConfig: mcms.Config
+    bindAddresses: {
+      mcms: Address
+      counter: Address
+    }
+  } | null
+
+  constructor(testSuite: string) {
     this.blockchain = null as any
     this.code = null as any
     this.acc = null as any
@@ -76,6 +89,51 @@ export class MCMSBaseTestSetup {
     this.testGroupParents = new Map<number, number>()
     this.signerGroups = []
     this.testConfig = null as any
+    this.testSuite = testSuite
+    this.snapshot = null as any
+    this.snapshotState = null
+  }
+
+  static async beforeAll(testSuite: string): Promise<MCMSBaseTestSetup> {
+    const self = new MCMSBaseTestSetup(testSuite)
+    await self.beforeAll()
+    self.saveSnapshot()
+    return self
+  }
+
+  saveSnapshot() {
+    this.snapshot = this.blockchain.snapshot()
+    this.snapshotState = {
+      testSigners: this.cloneTestSigners(this.testSigners),
+      testGroupQuorums: new Map(this.testGroupQuorums),
+      testGroupParents: new Map(this.testGroupParents),
+      signerGroups: [...this.signerGroups],
+      testConfig: this.cloneConfig(this.testConfig),
+      bindAddresses: {
+        mcms: this.bind.mcms.address,
+        counter: this.bind.counter.address,
+      },
+    }
+  }
+
+  async beforeAll() {
+    await this.initializeBlockchain()
+    await this.compileContracts()
+    await this.setupTestConfiguration()
+    await this.setupMCMSContract()
+    await this.deployMCMSContract()
+    await this.setupCounterContract()
+    await this.deployCounterContract()
+    await this.setInitialConfiguration()
+  }
+
+  async beforeEach() {
+    await this.blockchain.loadFrom(this.snapshot)
+    this.restoreSnapshotState()
+  }
+
+  async compileContracts(): Promise<void> {
+    this.code = await MCMSBaseTestSetup.compileContracts()
   }
 
   static async compileContracts(): Promise<MCMSTestCode> {
@@ -130,6 +188,11 @@ export class MCMSBaseTestSetup {
       blockchainLogs: false,
       vmLogs: 'none',
       debugLogs: true,
+    }
+    if (process.env['COVERAGE'] === 'true') {
+      this.blockchain.enableCoverage()
+      this.blockchain.verbosity.print = false
+      this.blockchain.verbosity.vmLogs = 'vm_logs_verbose'
     }
 
     // Set blockchain to use our test chain ID
@@ -222,9 +285,9 @@ export class MCMSBaseTestSetup {
   /**
    * Setup the MCMS contract
    */
-  async setupMCMSContract(testId: string): Promise<void> {
+  async setupMCMSContract(): Promise<void> {
     const data: mcms.ContractData = {
-      id: crc32(`mcms.test.${testId}`),
+      id: Number(generateRandomContractId()),
       ownable: {
         owner: this.acc.multisigOwner.address,
         pendingOwner: null,
@@ -284,9 +347,9 @@ export class MCMSBaseTestSetup {
     })
   }
 
-  async setupCounterContract(testId: string): Promise<void> {
+  async setupCounterContract(): Promise<void> {
     const data = {
-      id: crc32(`mcms.counter.${testId}`),
+      id: Number(generateRandomContractId()),
       value: 0,
       ownable: {
         owner: this.bind.mcms.address,
@@ -349,23 +412,55 @@ export class MCMSBaseTestSetup {
   }
 
   /**
-   * Complete setup for MCMS contract - convenience method that combines all setup steps
-   */
-  async setupAll(testId: string): Promise<void> {
-    await this.initializeBlockchain()
-    await this.setupTestConfiguration()
-    await this.setupMCMSContract(testId)
-    await this.deployMCMSContract()
-    await this.setupCounterContract(testId)
-    await this.deployCounterContract()
-    await this.setInitialConfiguration()
-  }
-
-  /**
    * Move time forward by a specific period (in seconds)
    */
   warpTime(period: number) {
     this.blockchain.now = this.blockchain.now!! + period
+  }
+
+  private restoreSnapshotState() {
+    if (!this.snapshotState) {
+      throw new Error('Snapshot state not initialized. Did you call saveSnapshot()?')
+    }
+
+    const {
+      bindAddresses,
+      testSigners,
+      testGroupParents,
+      testGroupQuorums,
+      testConfig,
+      signerGroups,
+    } = this.snapshotState
+
+    this.testSigners = this.cloneTestSigners(testSigners)
+    this.testGroupParents = new Map(testGroupParents)
+    this.testGroupQuorums = new Map(testGroupQuorums)
+    this.signerGroups = [...signerGroups]
+    this.testConfig = this.cloneConfig(testConfig)
+
+    this.bind.mcms = this.blockchain.openContract(
+      mcms.ContractClient.createFromAddress(bindAddresses.mcms),
+    )
+    this.bind.counter = this.blockchain.openContract(
+      counter.ContractClient.createFromAddress(bindAddresses.counter),
+    )
+  }
+
+  private cloneTestSigners(signers: TestSigner[]): TestSigner[] {
+    return signers.map((signer) => ({ ...signer, keyPair: signer.keyPair }))
+  }
+
+  private cloneConfig(config: mcms.Config): mcms.Config {
+    const signers = new Map<number, Buffer>()
+    for (const [idx, data] of config.signers.entries()) {
+      signers.set(idx, Buffer.from(data))
+    }
+
+    return {
+      signers,
+      groupQuorums: new Map(config.groupQuorums),
+      groupParents: new Map(config.groupParents),
+    }
   }
 
   /**
@@ -462,6 +557,19 @@ export class MCMSBaseTestSetup {
 
     return BigInt('0x' + currentLevel[0].toString('hex'))
   }
+
+  async generateCoverageArtifacts() {
+    await coverage.generateCoverageArtifacts(
+      this.blockchain,
+      `mcms_${this.testSuite}_${this.testID++}`,
+      [
+        {
+          code: this.code.mcms,
+          name: 'mcms',
+        },
+      ],
+    )
+  }
 }
 
 // Extended base test for SetRoot and Execute operations
@@ -470,6 +578,9 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   testOps: mcms.Op[]
   initialTestRootMetadata: mcms.RootMetadata
   opProofs: bigint[][] // Proofs for each operation
+  snapshotTestOps: mcms.Op[] | null
+  snapshotOpProofs: bigint[][] | null
+  snapshotRootMetadata: mcms.RootMetadata | null
 
   static readonly OPS_NUM = 7
   static readonly REVERTING_OP_INDEX = 5
@@ -477,19 +588,47 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   static readonly LEAVES_NUM = 8
   static readonly ROOT_METADATA_LEAF_INDEX = 0
 
-  constructor() {
-    super()
+  constructor(testSuite: string) {
+    super(testSuite)
     this.testOps = []
     this.initialTestRootMetadata = null as any
     this.opProofs = []
+    this.snapshotTestOps = null
+    this.snapshotOpProofs = null
+    this.snapshotRootMetadata = null
+  }
+
+  static async beforeAll(
+    testSuite: string,
+    options?: { setInitialRoot?: boolean },
+  ): Promise<MCMSBaseSetRootAndExecuteTestSetup> {
+    const optionals = { setInitialRoot: true, ...options }
+    const self = new MCMSBaseSetRootAndExecuteTestSetup(testSuite)
+    await self.beforeAll()
+    await self.setupForSetRootAndExecute()
+    if (optionals.setInitialRoot) {
+      await self.setInitialRoot()
+    }
+    self.saveSnapshot()
+    return self
+  }
+
+  async beforeEach() {
+    await super.beforeEach()
+    this.restoreSnapshotData()
+  }
+
+  saveSnapshot() {
+    super.saveSnapshot()
+    this.snapshotTestOps = this.cloneOps(this.testOps)
+    this.snapshotOpProofs = this.cloneOpProofs(this.opProofs)
+    this.snapshotRootMetadata = { ...this.initialTestRootMetadata }
   }
 
   /**
    * Setup for SetRoot and Execute tests
    */
-  async setupForSetRootAndExecute(testId: string): Promise<void> {
-    await this.setupAll(testId)
-
+  private async setupForSetRootAndExecute(): Promise<void> {
     // Create test root metadata
     this.initialTestRootMetadata = this.createTestRootMetadata(
       0n,
@@ -590,5 +729,22 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
         success: true,
       })
     }
+  }
+
+  private restoreSnapshotData() {
+    if (!this.snapshotTestOps || !this.snapshotOpProofs || !this.snapshotRootMetadata) {
+      throw new Error('Snapshot data not initialized. Call saveSnapshot() after setup.')
+    }
+    this.testOps = this.cloneOps(this.snapshotTestOps)
+    this.opProofs = this.cloneOpProofs(this.snapshotOpProofs)
+    this.initialTestRootMetadata = { ...this.snapshotRootMetadata }
+  }
+
+  private cloneOps(ops: mcms.Op[]): mcms.Op[] {
+    return ops.map((op) => ({ ...op }))
+  }
+
+  private cloneOpProofs(proofs: bigint[][]): bigint[][] {
+    return proofs.map((proof) => [...proof])
   }
 }
