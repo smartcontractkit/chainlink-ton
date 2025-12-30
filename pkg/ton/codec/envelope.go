@@ -329,5 +329,5 @@ func (e MessageEnvelope[T]) decode(r tvm.MessageRegistry) (T, error) {
 		return val, nil
 	}
 
-	return zero, fmt.Errorf("no data available to decode message")
+	return zero, errors.New("no data available to decode message")
 }

@@ -56,7 +56,7 @@ func RawPlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw, meta 
 	}
 
 	return types.BatchOperation{
-		ChainSelector: types.ChainSelector(selector),
+		ChainSelector: selector,
 		Transactions:  mcmsTxs,
 	}, nil
 }
