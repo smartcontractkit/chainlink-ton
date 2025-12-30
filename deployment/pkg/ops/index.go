@@ -11,6 +11,7 @@ import (
 var (
 	AllOperations = []*operations.Operation[any, any, any]{
 		ton.SendMessages.AsUntyped(),
+		ton.Deploy.AsUntyped(),
 		upgradeable.Upgrade.AsUntyped(),
 
 		// TODO: refactor ops below
