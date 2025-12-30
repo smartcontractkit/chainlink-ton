@@ -39,10 +39,10 @@ jobs:
       env:
         GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
         # Deployment configuration
-        WORKFLOW_FILE: test_smoke.yml
+        WORKFLOW_FILE: .github/workflows/test_smoke.yml
         TARGET_REPO: smartcontractkit/chainlink-ccip
         TARGET_BRANCH: tt/ton
-        TON_REF: ${{ github.ref || github.sha }}
+        TON_REF: ${{ github.head_ref || github.sha }}
         CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
         CUSTOM_CONFIG: env.toml,env-cl-rebuild.toml,${{ github.workspace }}/chainlink-ton/devenv-impl/ton.toml
       run: |
