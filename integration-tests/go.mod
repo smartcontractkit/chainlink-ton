@@ -16,11 +16,11 @@ require (
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20251211123524-f0c4fe7cfc0a
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20251219221624-54a39a031e62
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20251229193709-08e5eefac63c
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20251209123958-08209efcf3f3
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20251201102914-ca8e10040285
-	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260112151929-df8c89f36b4c
-	github.com/smartcontractkit/mcms v0.31.1
+	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20251201102914-ca8e10040285
+	github.com/smartcontractkit/mcms v0.31.2-0.20251229194704-cfba89de60a5
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	google.golang.org/grpc v1.77.0
