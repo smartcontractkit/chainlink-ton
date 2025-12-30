@@ -17,12 +17,12 @@ import (
 	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
 	"github.com/smartcontractkit/mcms/types"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 var (
-	_ ops.Planner[mcms.TimelockProposal] = TimelockAnySequenceOutput{}
+	_ opston.Planner[mcms.TimelockProposal] = TimelockAnySequenceOutput{}
 )
 
 const (
@@ -38,7 +38,7 @@ var TimelockAnySequence = operations.NewSequence(
 )
 
 type TimelockAnySequenceInput struct {
-	AnySequenceIn ops.AnySequenceInput
+	AnySequenceIn opston.AnySequenceInput
 
 	ChainSelector types.ChainSelector
 	MCMSAddr      *address.Address
@@ -54,20 +54,20 @@ type TimelockAnySequenceInput struct {
 
 type TimelockAnySequenceOutput struct {
 	Proposals    []mcms.TimelockProposal
-	Transactions []ops.TransactionInfo
+	Transactions []opston.TransactionInfo
 }
 
 func (o TimelockAnySequenceOutput) GetPlans() []mcms.TimelockProposal {
 	return o.Proposals
 }
 
-func timelockAnySeqHandler(b operations.Bundle, deps ops.AnySequenceDeps, in TimelockAnySequenceInput) (TimelockAnySequenceOutput, error) {
+func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in TimelockAnySequenceInput) (TimelockAnySequenceOutput, error) {
 	ctx := b.GetContext()
 
 	// Check if any of the inputs requests planning only (this requires MCMS state)
 	plannerOptionSet := false
 	for _, input := range in.AnySequenceIn.Inputs {
-		po, ok := input.(ops.PlannerOption)
+		po, ok := input.(opston.PlannerOption)
 		if ok && po.IsPlan() {
 			plannerOptionSet = true
 			break
@@ -79,7 +79,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps ops.AnySequenceDeps, in Tim
 	}
 
 	// Execute the (any) sequence based on the provided input
-	r, err := operations.ExecuteSequence(b, ops.AnySequence, deps, in.AnySequenceIn)
+	r, err := operations.ExecuteSequence(b, opston.AnySequence, deps, in.AnySequenceIn)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to execute (underlying) any sequence: %w", err)
 	}
@@ -92,7 +92,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps ops.AnySequenceDeps, in Tim
 		}, nil
 	}
 
-	batchOp, err := ops.RawPlansToBatch(in.ChainSelector, r.Output.GetPlans(), in.OpsMetadata)
+	batchOp, err := opston.RawPlansToBatch(in.ChainSelector, r.Output.GetPlans(), in.OpsMetadata)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
 	}
