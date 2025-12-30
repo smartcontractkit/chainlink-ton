@@ -1,4 +1,4 @@
-package ops // alias: opston
+package ton // alias: opston
 
 import (
 	"fmt"
