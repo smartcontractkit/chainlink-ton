@@ -1,0 +1,53 @@
+name: Run TON Smoke Tests
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+  schedule:
+    - cron: '0 3 * * *'       # runs each night at 03:00 UTC
+
+jobs:
+  run-ton-smoke-tests:
+    name: Run TON Smoke Tests in Chainlink CCIP
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+    - name: Set Chainlink version
+      id: set-version
+      run: |
+        # Default to the pinned version for PRs
+        CHAINLINK_VERSION="80e09da8e48b1d52534530a7882dffffae0858db" Dec 30, 2025
+
+        # If this is a scheduled (nightly) run, switch to develop
+        if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            CHAINLINK_VERSION="develop"
+        fi
+
+        echo "chainlink_version=$CHAINLINK_VERSION" >> "$GITHUB_OUTPUT"
+    - name: Setup GitHub Token
+      id: setup-github-token
+      uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+      with:
+        aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }}
+        aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
+        aws-region: ${{ vars.AWS_REGION }}
+        aws-role-duration-seconds: "1800"
+    - name: Trigger Chainlink CCIP TON Smoke Tests
+      env:
+        GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+        # Deployment configuration
+        WORKFLOW_FILE: test_smoke.yml
+        TARGET_REPO: smartcontractkit/chainlink-ccip
+        TARGET_BRANCH: tt/ton
+        TON_REF: ${{ github.ref || github.sha }}
+        CHAINLINK_VERSION: develop
+      run: |
+        gh workflow run "${WORKFLOW_FILE}" \
+        --repo "${TARGET_REPO}" \
+        --ref "${TARGET_BRANCH}" \
+        --field "ton_ref=${TON_REF}" \
+        --field "chainlink_version=${steps.set-version.outputs.chainlink_version}" \
+        --field "custom_config=env.toml,env-cl-rebuild.toml,${{ github.workspace }}/chainlink-ton/devenv-impl/ton.toml"
