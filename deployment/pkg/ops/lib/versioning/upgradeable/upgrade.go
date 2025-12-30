@@ -86,7 +86,7 @@ var Upgrade = operations.NewOperation(
 			}
 		}
 
-		_in := ton.SendMessagesInput[any]{
+		_in := ton.SendMessagesInput{
 			Messages: _messages,
 			Plan:     in.Plan,
 		}
