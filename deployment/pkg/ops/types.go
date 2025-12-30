@@ -24,7 +24,8 @@ type Planner[T any] interface {
 	GetPlans() []T
 }
 
-func RawPlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw) (types.BatchOperation, error) {
+// RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.
+func RawPlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw, meta []types.OperationMetadata) (types.BatchOperation, error) {
 	mcmsTxs := make([]types.Transaction, len(plans))
 	for i, planRaw := range plans {
 		data := cell.BeginCell().EndCell() // empty body by default
@@ -32,13 +33,22 @@ func RawPlansToBatch(selector types.ChainSelector, plans []MessagePlanRaw) (type
 			data = planRaw.Body
 		}
 
+		// Extract metadata for the transaction
+		m := types.OperationMetadata{
+			ContractType: "",
+			Tags:         []string{},
+		}
+		if len(meta) > i {
+			m = meta[i]
+		}
+
 		var err error
 		mcmsTxs[i], err = mcmston.NewTransaction(
 			planRaw.DstAddr,
 			data.BeginParse(),
 			planRaw.Amount.Nano(),
-			"", // TODO: extract contract type and tags as input parameters
-			[]string{},
+			m.ContractType,
+			m.Tags,
 		)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)

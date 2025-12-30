@@ -42,6 +42,10 @@ var AnySequence = operations.NewSequence(
 )
 
 func anySeqHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInput) (AnySequenceOutput, error) {
+	if len(in.Defs) != len(in.Inputs) {
+		return AnySequenceOutput{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(in.Defs), len(in.Inputs))
+	}
+
 	// Initialize the output
 	output := AnySequenceOutput{
 		Plans:        make([]MessagePlanRaw, 0),
