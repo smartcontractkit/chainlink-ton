@@ -5,6 +5,8 @@ import (
 	"math/big"
 )
 
+// TokenPrice formats the token price from USD string to big.Int representation used in CCIP FeeQuoter
+// That is the price of 1e18 units of the token's smallest denomination in USD with 18 decimals
 func TokenPrice(usdPrice string, tokenDecimals int) (*big.Int, error) {
 	const TokenPriceBaseAmountDigits = 18 // Defined for `TokenPrices`
 	tokenPriceBaseAmount := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(TokenPriceBaseAmountDigits)), nil)
