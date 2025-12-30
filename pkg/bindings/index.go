@@ -5,6 +5,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
@@ -52,9 +53,10 @@ var Registry = tvm.MessageRegistry{
 	PkgMCMS + ".Timelock": timelock.TLBs,
 
 	// Libs and traits
-	PkgLib + ".access.Ownable":       ownable2step.TLBs,
-	PkgLib + ".access.RBAC":          rbac.TLBs,
-	PkgLib + ".funding.Withdrawable": withdrawable.TLBs,
+	PkgLib + ".access.Ownable":         ownable2step.TLBs,
+	PkgLib + ".access.RBAC":            rbac.TLBs,
+	PkgLib + ".funding.Withdrawable":   withdrawable.TLBs,
+	PkgLib + ".versioning.Upgradeable": upgradeable.TLBs,
 
 	// Test contract types // TODO: (tmp) remove from here, move to test file
 	PkgTest + ".Foo": TestTLBs,
