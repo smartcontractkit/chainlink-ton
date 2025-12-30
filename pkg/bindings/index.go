@@ -4,6 +4,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/funding/withdrawable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
@@ -37,16 +38,21 @@ var Registry = tvm.MessageRegistry{
 	// Jetton contract types
 	PkgJetton + ".contracts.jetton-wallet": wallet.TLBs,
 	PkgJetton + ".contracts.jetton-minter": minter.TLBs,
+
 	// CCIP contract types
 	PkgCCIP + ".Router":           router.TLBs,
 	PkgCCIP + ".OnRamp":           onramp.TLBs,
 	PkgCCIP + ".OffRamp":          offramp.TLBs,
 	PkgCCIP + ".FeeQuoter":        feequoter.TLBs,
 	PkgCCIP + ".CCIPSendExecutor": ccipsendexecutor.TLBs,
+
 	// MCMS contract types
-	PkgLib + ".access.RBAC": rbac.TLBs,
-	PkgMCMS + ".MCMS":       mcms.TLBs,
-	PkgMCMS + ".Timelock":   timelock.TLBs,
+	PkgMCMS + ".MCMS":     mcms.TLBs,
+	PkgMCMS + ".Timelock": timelock.TLBs,
+
+	// Libs and traits
+	PkgLib + ".access.RBAC":          rbac.TLBs,
+	PkgLib + ".funding.withdrawable": withdrawable.TLBs,
 
 	// Test contract types // TODO: (tmp) remove from here, move to test file
 	PkgTest + ".Foo": TestTLBs,
