@@ -53,15 +53,11 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 		Wallet: chain.Wallet,
 	}
 
-	reports := make([]operations.Report[any, any], 0)
-
 	// Execute the (any) sequence based on the provided input
 	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, in)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
 	}
-
-	reports = append(reports, r.ExecutionReports...)
 
 	// TODO: check outputs for deployed addresses and update dataStore.Addresses()
 	// Use data store to track new deployed addresses
@@ -73,6 +69,6 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 		MCMSTimelockProposals: r.Output.Proposals,
 		DataStore:             dataStore,
 		AddressBook:           ab,
-		Reports:               reports,
+		Reports:               r.ExecutionReports,
 	}, nil
 }

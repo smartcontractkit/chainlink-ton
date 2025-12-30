@@ -44,6 +44,8 @@ type TimelockAnySequenceInput struct {
 	MCMSAddr      *address.Address
 	TimelockAddr  *address.Address
 
+	OpsMetadata []types.OperationMetadata
+
 	Description string
 	Action      types.TimelockAction
 	Value       tlb.Coins
@@ -90,7 +92,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps ops.AnySequenceDeps, in Tim
 		}, nil
 	}
 
-	batchOp, err := ops.RawPlansToBatch(in.ChainSelector, r.Output.GetPlans())
+	batchOp, err := ops.RawPlansToBatch(in.ChainSelector, r.Output.GetPlans(), in.OpsMetadata)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
 	}
