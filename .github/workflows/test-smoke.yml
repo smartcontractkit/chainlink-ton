@@ -43,11 +43,12 @@ jobs:
         TARGET_REPO: smartcontractkit/chainlink-ccip
         TARGET_BRANCH: tt/ton
         TON_REF: ${{ github.ref || github.sha }}
-        CHAINLINK_VERSION: develop
+        CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
+        CUSTOM_CONFIG: env.toml,env-cl-rebuild.toml,${{ github.workspace }}/chainlink-ton/devenv-impl/ton.toml
       run: |
         gh workflow run "${WORKFLOW_FILE}" \
         --repo "${TARGET_REPO}" \
         --ref "${TARGET_BRANCH}" \
         --field "ton_ref=${TON_REF}" \
-        --field "chainlink_version=${steps.set-version.outputs.chainlink_version}" \
-        --field "custom_config=env.toml,env-cl-rebuild.toml,${{ github.workspace }}/chainlink-ton/devenv-impl/ton.toml"
+        --field "chainlink_version=${CHAINLINK_VERSION}" \
+        --field "custom_config=${CUSTOM_CONFIG}"
