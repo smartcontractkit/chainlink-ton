@@ -81,12 +81,9 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 		var transfer *wallet.Message
 		transfer, err = tonChain.Wallet.BuildTransfer(recipientAddr, transferAmount, false, "test transfer")
 		require.NoError(t, err)
-		_, _, err = signedClient.SendWaitTransaction(t.Context(), *recipientAddr, transfer)
+		_, err = signedClient.SendAndWaitForTrace(t.Context(), *recipientAddr, transfer)
 		require.NoError(t, err)
 	}
-
-	// Wait for transactions to settle
-	time.Sleep(3 * time.Second)
 
 	// Check final balances
 	senderFinalBalance, err := balanceClient.GetAccountBalance(senderAddr.String())
