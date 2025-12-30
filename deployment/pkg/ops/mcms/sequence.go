@@ -111,7 +111,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 
 	value := in.Value.Nano().Uint64()
 	metadata := types.ChainMetadata{
-		StartingOpCount:  uint64(opCount),
+		StartingOpCount:  opCount,
 		MCMAddress:       in.MCMSAddr.String(),
 		AdditionalFields: json.RawMessage(fmt.Sprintf(`{"value": %d}`, value)),
 	}
