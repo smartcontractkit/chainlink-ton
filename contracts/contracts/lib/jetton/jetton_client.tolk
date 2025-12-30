@@ -41,7 +41,7 @@ fun JettonClient.sendSimple(
             queryId: queryId,
             jettonAmount: amount,
             transferRecipient: destination,
-            sendExcessesTo: contract.getAddress(),
+            sendExcessesTo: responseDestination,
             customPayload: null,
             forwardTonAmount: 0,
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
