@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -74,18 +75,34 @@ func handler[T any](b operations.Bundle, deps SendMessagesDeps, in SendMessagesI
 			continue
 		}
 
+		// StateInit is optional, and will derive dstAddr if available
+		dstAddr := m.DstAddr
+
+		var state *tlb.StateInit
+		if m.StateInit != nil {
+			state = &tlb.StateInit{
+				Code: m.StateInit.Code,
+				Data: m.StateInit.Data,
+			}
+
+			stateCell, err := tlb.ToCell(state)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to convert state init to cell: %w", err)
+			}
+
+			wc := int8(0) // TODO: expose option to set workchain (default ok for now)
+			dstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
+		}
+
 		msgs = append(msgs, &wallet.Message{
 			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 			InternalMessage: &tlb.InternalMessage{
 				IHRDisabled: true,
 				Bounce:      m.Bounce, // TODO: default to true
-				DstAddr:     m.DstAddr,
+				DstAddr:     dstAddr,
 				Amount:      m.Amount,
 				Body:        body,
-				StateInit: &tlb.StateInit{
-					Code: m.StateInit.Code,
-					Data: m.StateInit.Data,
-				},
+				StateInit:   state,
 			},
 		})
 	}
