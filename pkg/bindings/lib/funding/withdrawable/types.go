@@ -1,9 +1,10 @@
 package withdrawable
 
 import (
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Withdraw TON from the contract balance.
