@@ -21,7 +21,7 @@ jobs:
       - name: Run oplint
         run: |
           pushd contracts/contracts
-          nix develop .#contracts -c oplint ccip deployable lib mcms
+          nix run .#oplint -- ccip deployable lib mcms
       - name: Run build
         run: |
           pushd contracts
