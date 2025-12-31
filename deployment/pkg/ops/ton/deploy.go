@@ -88,6 +88,10 @@ var Deploy = operations.NewOperation(
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
+				// TODO: is an envelope too complex here?
+				// -- needs adoption everywhere, but folks are used to using *cell.Cell directly
+				// -- maybe a simpler desing would be to have different types of resolvers/encoders
+				//    for body: raw cell, contract: raw cell, storage: raw cell, etc.
 				Body: codec.MessageEnvelope[any]{
 					Metadata: m.Body.Metadata,
 					Payload:  m.Body.Payload,
