@@ -49,8 +49,15 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 		Wallet: chain.Wallet,
 	}
 
+	// TODO: enable direct generic input unmarshaling, requires resolving
+	// generic any (map[string]interface{}) to specific types based on operation definitions.
+	//
+	// This will require depth first traversal of the input map and resolving all resolver types,
+	// until the final map is unmarshaled into the specific input struct (by op definition).
+	resolvedInput := in
+
 	// Execute the (any) sequence based on the provided input
-	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, in)
+	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, resolvedInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", in.ChainSelector, err)
 	}
