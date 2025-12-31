@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -308,21 +309,18 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 // double decoding test (1) domain TLBs or error, (2) context/payload TLBs
 func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 	tests := []struct {
-		name         string
-		cell         *cell.Cell
-		tlbsMain     tvm.TLBMap
-		tlbsPayloads tvm.TLBMap
-		wantType     string
-		wantMap      map[string]any
-		expectErr    bool
+		name      string
+		cell      *cell.Cell
+		tlbs      tvm.TLBMap
+		wantType  string
+		wantMap   map[string]any
+		expectErr bool
 	}{
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: tvm.MustNewTLBMap([]any{
+			tlbs: tvm.MustNewTLBMap([]any{
 				mcms.Execute{},
-			}),
-			tlbsPayloads: tvm.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -384,11 +382,8 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (some) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: tvm.MustNewTLBMap([]any{
+			tlbs: tvm.MustNewTLBMap([]any{
 				mcms.Execute{},
-				wallet.AskToTransfer{},
-			}),
-			tlbsPayloads: tvm.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -437,10 +432,8 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 		{
 			name: "Decode MCMS Execute > Timelock ScheduleBatch > Ops - payload TLBs (most) NOT available",
 			cell: testMCMSExecuteCell,
-			tlbsMain: tvm.MustNewTLBMap([]any{
+			tlbs: tvm.MustNewTLBMap([]any{
 				mcms.Execute{},
-			}),
-			tlbsPayloads: tvm.MustNewTLBMap([]any{
 				Foo{},
 				Bar{},
 				Baz{},
@@ -463,26 +456,24 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, norm, err := codec.DecodeTLBValToJSON(tt.cell, tt.tlbsMain)
-			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs main")
+			registry := codec.NewResolverRegistry(
+				codec.NewTypedResolver(resolvers.NewCellToStructResolver(tt.tlbs)),
+				codec.NewTypedResolver(resolvers.NewStructToMapResolver(tt.tlbs)),
+			)
+			norm, err := registry.Resolve(tt.cell)
+			require.NoError(t, err, "failed to Resolve - tlbs main")
 
-			gotType, norm, err := codec.DecodeTLBValToJSON(norm, tt.tlbsPayloads)
-			require.NoError(t, err, "failed to DecodeTLBValToJSON - tlbs payloads")
-
-			var gotMap map[string]any
 			rawBytes, err := json.Marshal(norm)
 			require.NoError(t, err, "failed to marshal decoded message to JSON")
+			var gotMap map[string]any
 			err = json.Unmarshal(rawBytes, &gotMap)
 			require.NoError(t, err, "failed to unmarshal decoded message JSON to map")
 
 			if (err != nil) != tt.expectErr {
-				t.Errorf("DecodeTLBValToJSON() error = %v, expectErr %v", err, tt.expectErr)
-			}
-			if gotType != tt.wantType {
-				t.Errorf("DecodeTLBValToJSON() gotType = %v, want %v", gotType, tt.wantType)
+				t.Errorf("Resolve() error = %v, expectErr %v", err, tt.expectErr)
 			}
 
-			require.Equal(t, tt.wantMap, gotMap, "DecodeTLBValToJSON() gotMap = %v, want %v", gotMap, tt.wantMap)
+			require.Equal(t, tt.wantMap, gotMap, "Resolve() gotMap = %v, want %v", gotMap, tt.wantMap)
 		})
 	}
 }
