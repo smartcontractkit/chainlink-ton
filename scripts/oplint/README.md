@@ -43,7 +43,7 @@ The tool:
 To skip validation for a specific struct (e.g., for backwards compatibility or intentional custom opcodes), add a comment before the struct definition:
 
 ```tolk
-// oplint:skip
+// nolint:opcode
 struct (0x00000002) Transmit {
     ocrPluginType: uint16,
     reportContext: ReportContext,

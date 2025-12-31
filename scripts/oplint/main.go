@@ -132,7 +132,7 @@ func parseStructsWithOpcodes(filePath string) ([]structWithOpcode, error) {
 
 	for i, line := range lines {
 		// Check for skip validation comment
-		if strings.Contains(line, "oplint:skip") {
+		if strings.Contains(line, "nolint:opcode") {
 			skipNextStruct = true
 			continue
 		}
