@@ -27,9 +27,17 @@ jobs:
         fi
 
         echo "chainlink_version=$CHAINLINK_VERSION" >> "$GITHUB_OUTPUT"
+    - name: Setup GitHub Token
+      id: setup-github-token
+      uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+      with:
+        aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }}
+        aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+        aws-region: ${{ vars.AWS_REGION }}
+        aws-role-duration-seconds: "1800"
     - name: Trigger Chainlink CCIP TON Smoke Tests
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
         # Deployment configuration
         WORKFLOW_FILE: .github/workflows/test_smoke.yml
         TARGET_REPO: smartcontractkit/chainlink-ccip
@@ -37,11 +45,13 @@ jobs:
         TON_REF: ${{ github.head_ref || github.sha }}
         CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
         # relative to chainlink-ccip/devenv. Assumes chainlink-ton is checked out to top level
-        CUSTOM_CONFIG: env.toml,env-cl-rebuild.toml,../chainlink-ton/devenv-impl/ton.toml
+        CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
+        CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
       run: |
         gh workflow run "${WORKFLOW_FILE}" \
         --repo "${TARGET_REPO}" \
         --ref "${TARGET_BRANCH}" \
         --field "ton_ref=${TON_REF}" \
         --field "chainlink_version=${CHAINLINK_VERSION}" \
+        --field "contract_version=${CONTRACT_VERSION}" \
         --field "custom_config=${CUSTOM_CONFIG}"
