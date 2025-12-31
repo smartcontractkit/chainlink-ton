@@ -176,7 +176,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[ton.SendMessagesInput[any], ton.SendMessagesOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[ton.SendMessagesInput, ton.SendMessagesOutput] {
 	t.Helper()
 
 	// Setup execution environment
@@ -190,7 +190,7 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 		Wallet: nil, // No actual sending in tests
 	}
 
-	r, err := operations.ExecuteOperation(b, ton.SendMessages, deps, ton.SendMessagesInput[any]{
+	r, err := operations.ExecuteOperation(b, ton.SendMessages, deps, ton.SendMessagesInput{
 		Messages: []ton.InternalMessage[any]{
 			{
 				Body:    decoded,
@@ -216,7 +216,7 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 
 	for i, e := range envelopes {
 		defs[i] = ton.SendMessages.Def()
-		inputs[i] = ton.SendMessagesInput[any]{
+		inputs[i] = ton.SendMessagesInput{
 			Messages: []ton.InternalMessage[any]{
 				{
 					Body:    e,
