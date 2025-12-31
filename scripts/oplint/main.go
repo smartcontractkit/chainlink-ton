@@ -261,10 +261,24 @@ func fixStructOpcodes(structs []structWithOpcode) error {
 			return fmt.Errorf("failed to open %s: %w", filePath, err)
 		}
 
-		content, err := os.ReadFile(filePath)
+		stat, err := file.Stat()
 		if err != nil {
 			file.Close()
-			return fmt.Errorf("failed to read %s: %w", filePath, err)
+			return fmt.Errorf("failed to stat %s: %w", filePath, err)
+		}
+		content := make([]byte, stat.Size())
+		read := 0
+		// Handle short reads
+		for {
+			n, err := file.Read(content)
+			if err != nil {
+				file.Close()
+				return fmt.Errorf("failed to read %s: %w", filePath, err)
+			}
+			read += n
+			if read >= int(stat.Size()) {
+				break
+			}
 		}
 
 		fileContent := string(content)
