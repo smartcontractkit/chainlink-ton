@@ -9,14 +9,16 @@ import (
 )
 
 var (
+	// Notice: AsUntypedRelaxed is used to preserve op.IN type information in the registry,
+	// which allows relaxed (e.g., generic map[string]interface{}) input unmarshaling.
 	AllOperations = []*operations.Operation[any, any, any]{
-		ton.SendMessages.AsUntyped(),
-		ton.Deploy.AsUntyped(),
-		upgradeable.Upgrade.AsUntyped(),
+		ton.SendMessages.AsUntypedRelaxed(),
+		ton.Deploy.AsUntypedRelaxed(),
+		upgradeable.Upgrade.AsUntypedRelaxed(),
 
 		// TODO: refactor ops below
-		operation.DeployTONContractOp.AsUntyped(),
-		operation.DownloadArtifactsOp.AsUntyped(),
+		operation.DeployTONContractOp.AsUntypedRelaxed(),
+		operation.DownloadArtifactsOp.AsUntypedRelaxed(),
 	}
 	// Registry is the (default) operations registry for available TON operations.
 	Registry = operations.NewOperationRegistry(AllOperations...)
