@@ -9,10 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var (
-	_ codec.Resolver[*cell.Cell, any] = (*cellToStructResolver)(nil)
-	_ codec.ResolverKeyProvider       = (*cellToStructResolver)(nil)
-)
+var _ codec.Resolver[*cell.Cell, any] = (*cellToStructResolver)(nil)
 
 // cellToStructResolver resolves a cell to a structured map (expansion)
 type cellToStructResolver struct {
@@ -21,10 +18,6 @@ type cellToStructResolver struct {
 
 func NewCellToStructResolver(tlbMap tvm.TLBMap) codec.Resolver[*cell.Cell, any] {
 	return &cellToStructResolver{TLBMap: tlbMap}
-}
-
-func (r *cellToStructResolver) Key() string {
-	return "codec.resolvers.cell-to-msg-struct"
 }
 
 // Decode cell to struct using loaded TLB registry
