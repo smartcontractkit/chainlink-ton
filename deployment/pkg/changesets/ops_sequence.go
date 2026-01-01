@@ -7,22 +7,41 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var _ cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] = OpsAnySequence{}
+var _ cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] = opsAnySequence{}
 
-// OpsAnySequence deploys MCMS packages and modules
-type OpsAnySequence struct{}
+// opsAnySequence deploys MCMS packages and modules
+type opsAnySequence struct {
+	rregistry codec.ResolverRegistry
+}
 
-func (cs OpsAnySequence) VerifyPreconditions(_ cldf.Environment, _ opsmcms.TimelockAnySequenceInput) error {
+func NewOpsAnySequence(registry tvm.MessageRegistry, provider ton.ContractProvider) cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] {
+	return opsAnySequence{
+		rregistry: *codec.NewResolverRegistry(
+			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
+			// TODO: add storage type resolver (deployment data - struct to cell)
+			// codec.NewTypedResolver(resolvers.NewDataEnvelopeToCellResolver(registry)),
+			codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),
+		),
+	}
+}
+
+func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ opsmcms.TimelockAnySequenceInput) error {
 	return nil
 }
 
-func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySequenceInput) (cldf.ChangesetOutput, error) {
+func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySequenceInput) (cldf.ChangesetOutput, error) {
 	// Address resolution: load existing MCMS and Timelock addresses if not provided
 	mcmsStates, err := state.LoadMCMSOnchainState(env)
 	if err != nil {
@@ -49,15 +68,18 @@ func (cs OpsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 		Wallet: chain.Wallet,
 	}
 
-	// TODO: enable direct generic input unmarshaling, requires resolving
-	// generic any (map[string]interface{}) to specific types based on operation definitions.
+	// Resolve (operation) input values
 	//
-	// This will require depth first traversal of the input map and resolving all resolver types,
-	// until the final map is unmarshaled into the specific input struct (by op definition).
-	resolvedInput := in
+	// Notice: we try to resolve the the underlying operation inputs using the registered resolvers.
+	// For example, this allows resolving extended high-level input (any) before unmarshaling into (raw) op.IN types.
+	resolvedInputs, err := cs.rregistry.Resolve(in.AnySequenceIn.Inputs)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to resolve input: %w", err)
+	}
+	in.AnySequenceIn.Inputs = resolvedInputs.([]any)
 
 	// Execute the (any) sequence based on the provided input
-	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, resolvedInput)
+	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, in)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", in.ChainSelector, err)
 	}
