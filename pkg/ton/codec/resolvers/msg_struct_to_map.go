@@ -11,6 +11,7 @@ import (
 var (
 	_ codec.Resolver[any, map[string]any] = (*structToMapResolver)(nil)
 	_ codec.ResolverChecker[any]          = (*structToMapResolver)(nil)
+	_ codec.ResolverKeyProvider           = (*structToMapResolver)(nil)
 )
 
 // structToMapResolver resolves a structs to a map[string]any
@@ -23,7 +24,7 @@ func NewStructToMapResolver(tlbMap tvm.TLBMap) codec.Resolver[any, map[string]an
 }
 
 func (r *structToMapResolver) Key() string {
-	return "codec.resolvers.struct-to-map"
+	return "codec.resolvers.msg-struct-to-map"
 }
 
 func (r *structToMapResolver) Resolve(input any) (map[string]any, error) {
