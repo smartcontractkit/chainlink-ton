@@ -40,7 +40,6 @@ jobs:
         GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
         # Deployment configuration
         WORKFLOW_FILE: .github/workflows/test_smoke.yml
-        WORKFLOW: test_smoke.yml
         TARGET_REPO: smartcontractkit/chainlink-ccip
         TARGET_BRANCH: tt/ton
         TON_REF: ${{ github.head_ref || github.sha }}
@@ -49,4 +48,26 @@ jobs:
         CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
         CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
       run: |
-        ./scripts/run_chainlink_ccip_workflow.sh
+        gh workflow run "${WORKFLOW_FILE}" \
+        --repo "${TARGET_REPO}" \
+        --ref "${TARGET_BRANCH}" \
+        --field "ton_ref=${TON_REF}" \
+        --field "chainlink_version=${CHAINLINK_VERSION}" \
+        --field "contract_version=${CONTRACT_VERSION}" \
+        --field "custom_config=${CUSTOM_CONFIG}"
+        
+        # wait for workflow to be registered
+        sleep 60
+  
+        # Get the newest in‑progress run and extract its databaseId
+        RUN_ID=$(gh run list \
+          --repo "${TARGET_REPO}" \
+          --workflow test_smoke.yml \
+          --branch "${TARGET_BRANCH}" \
+          --status in_progress \
+          --json databaseId \
+          --limit 1 \
+          --jq '.[0].databaseId')
+
+        # Watch the run until complete
+        gh run watch --repo "${TARGET_REPO}" $RUN_ID
