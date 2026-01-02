@@ -68,14 +68,14 @@ jobs:
         --field "contract_version=${CONTRACT_VERSION}" \
         --field "custom_config=${CUSTOM_CONFIG}"
         
-        prev_id="$(fetch_ids)"   # initial snapshot (may be empty)
+        prev_id="$(fetch_latest)"   # initial snapshot (may be empty)
         attempt=0
 
         while (( attempt < MAX_ATTEMPTS )); do
           ((attempt++))
           sleep "$POLL_INTERVAL"
 
-          cur_id="$(fetch_ids)"
+          cur_id="$(fetch_latest)"
 
           # If the id changed, we have a new run
           # Note: this simple logic assumes only one new run can appear during the polling period
