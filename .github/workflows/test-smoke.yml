@@ -31,8 +31,8 @@ jobs:
       id: setup-github-token
       uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
       with:
-        aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }}
-        aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+        aws-role-arn: ${{ secrets.AWS_ROLE_ARN_WORKFLOWS_CHAINLINKCCIP }}
+        aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHAINLINKCCIP }}
         aws-region: ${{ vars.AWS_REGION }}
         aws-role-duration-seconds: "1800"
     - name: Trigger Chainlink CCIP TON Smoke Tests
