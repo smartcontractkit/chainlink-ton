@@ -48,6 +48,7 @@ jobs:
         CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
         CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
       run: |
+        set -euo pipefail
         POLL_INTERVAL=5   # seconds between successive polls
         MAX_ATTEMPTS=120  # stop after ~10 minutes (adjust as needed)
         fetch_latest() {
@@ -81,9 +82,9 @@ jobs:
           # Note: this simple logic assumes only one new run can appear during the polling period
           # so we don't actually know which ID is ours
           if [[ "$cur_id" != "$prev_id" ]]; then
-            echo "New in‑progress run detected: databaseId=$newest_id"
+            echo "New in‑progress run detected: databaseId=$cur_id"
             echo "Starting watch…"
-            gh run watch --repo "$REPO" "$newest_id" --exit-status
+            gh run watch --repo "$TARGET_REPO" "$cur_id"
             exit 0
           fi
 
