@@ -9,14 +9,14 @@ on:
     - cron: '0 3 * * *'       # runs each night at 03:00 UTC
 
 jobs:
-  get_chainlink_version:
-    name: Get Chainlink Version
+  run-ton-smoke-tests:
+    name: Run TON Smoke Tests in Chainlink CCIP
     runs-on: ubuntu-24.04
-    outputs:
-      chainlink_version: ${{ steps.get-version.outputs.chainlink_version }}
+    permissions:
+      id-token: write
     steps:
     - name: Set Chainlink version
-      id: get-version
+      id: set-version
       run: |
         # Default to the pinned version for PRs
         CHAINLINK_VERSION="80e09da8e48b1d52534530a7882dffffae0858db" # Dec 30, 2025
@@ -27,12 +27,47 @@ jobs:
         fi
 
         echo "chainlink_version=$CHAINLINK_VERSION" >> "$GITHUB_OUTPUT"
-  run-ton-smoke-tests:
-    name: Run TON Smoke Tests in Chainlink CCIP
-    uses: smartcontractkit/chainlink-ccip/.github/workflows/test_smoke.yml@tt/ton
-    needs: [get_chainlink_version]
-    with:
-      ton_ref: ${{ github.head_ref || github.sha }}
-      chainlink_version: ${{ needs.get_chainlink_version.outputs.chainlink_version }}
-      contract_version: 99dca5448b92 #todo: allow to use local
-      custom_config: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
+    - name: Setup GitHub Token
+      id: setup-github-token
+      uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+      with:
+        aws-role-arn: ${{ secrets.AWS_ROLE_ARN_WORKFLOWS_CHAINLINKCCIP }}
+        aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHAINLINKCCIP }}
+        aws-region: ${{ vars.AWS_REGION }}
+        aws-role-duration-seconds: "1800"
+    - name: Trigger Chainlink CCIP TON Smoke Tests
+      env:
+        GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+        # Deployment configuration
+        WORKFLOW_FILE: .github/workflows/test_smoke.yml
+        TARGET_REPO: smartcontractkit/chainlink-ccip
+        TARGET_BRANCH: tt/ton
+        TON_REF: ${{ github.head_ref || github.sha }}
+        CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
+        # relative to chainlink-ccip/devenv. Assumes chainlink-ton is checked out to top level
+        CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
+        CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
+      run: |
+        gh workflow run "${WORKFLOW_FILE}" \
+        --repo "${TARGET_REPO}" \
+        --ref "${TARGET_BRANCH}" \
+        --field "ton_ref=${TON_REF}" \
+        --field "chainlink_version=${CHAINLINK_VERSION}" \
+        --field "contract_version=${CONTRACT_VERSION}" \
+        --field "custom_config=${CUSTOM_CONFIG}"
+        
+        # wait for workflow to be registered
+        sleep 60
+  
+        # Get the newest in‑progress run and extract its databaseId
+        RUN_ID=$(gh run list \
+          --repo "${TARGET_REPO}" \
+          --workflow test_smoke.yml \
+          --branch "${TARGET_BRANCH}" \
+          --status in_progress \
+          --json databaseId \
+          --limit 1 \
+          --jq '.[0].databaseId')
+
+        # Watch the run until complete
+        gh run watch --repo "${TARGET_REPO}" $RUN_ID
