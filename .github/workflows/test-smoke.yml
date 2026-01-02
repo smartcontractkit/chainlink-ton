@@ -55,3 +55,19 @@ jobs:
         --field "chainlink_version=${CHAINLINK_VERSION}" \
         --field "contract_version=${CONTRACT_VERSION}" \
         --field "custom_config=${CUSTOM_CONFIG}"
+        
+        # wait for workflow to be registered
+        sleep 10
+  
+        # Get the newest in‑progress run and extract its databaseId
+        RUN_ID=$(gh run list \
+          --repo "${TARGET_REPO}" \
+          --workflow test_smoke.yml \
+          --branch "${TARGET_BRANCH}" \
+          --status in_progress \
+          --json databaseId,createdAt \
+          --order desc \
+          --jq '.[0].databaseId')
+
+        # Watch the run until complete
+        gh run watch --repo "${TARGET_REPO}" $RUN_ID
