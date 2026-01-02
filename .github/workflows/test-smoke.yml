@@ -48,6 +48,18 @@ jobs:
         CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
         CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
       run: |
+        POLL_INTERVAL=5   # seconds between successive polls
+        MAX_ATTEMPTS=120  # stop after ~10 minutes (adjust as needed)
+        fetch_latest() {
+          gh run list \
+          --repo "${TARGET_REPO}" \
+          --workflow test_smoke.yml \
+          --branch "${TARGET_BRANCH}" \
+          --status in_progress \
+          --json databaseId \
+          --limit 1 \
+          --jq '.[0].databaseId'
+        }
         gh workflow run "${WORKFLOW_FILE}" \
         --repo "${TARGET_REPO}" \
         --ref "${TARGET_BRANCH}" \
@@ -56,18 +68,28 @@ jobs:
         --field "contract_version=${CONTRACT_VERSION}" \
         --field "custom_config=${CUSTOM_CONFIG}"
         
-        # # wait for workflow to be registered
-        # sleep 10
-  
-        # # Get the newest in‑progress run and extract its databaseId
-        # RUN_ID=$(gh run list \
-        #   --repo "${TARGET_REPO}" \
-        #   --workflow test_smoke.yml \
-        #   --branch "${TARGET_BRANCH}" \
-        #   --status in_progress \
-        #   --json databaseId,createdAt \
-        #   --order desc \
-        #   --jq '.[0].databaseId')
+        prev_id="$(fetch_ids)"   # initial snapshot (may be empty)
+        attempt=0
 
-        # # Watch the run until complete
-        # gh run watch --repo "${TARGET_REPO}" $RUN_ID
+        while (( attempt < MAX_ATTEMPTS )); do
+          ((attempt++))
+          sleep "$POLL_INTERVAL"
+
+          cur_id="$(fetch_ids)"
+
+          # If the id changed, we have a new run
+          # Note: this simple logic assumes only one new run can appear during the polling period
+          # so we don't actually know which ID is ours
+          if [[ "$cur_id" != "$prev_id" ]]; then
+            echo "New in‑progress run detected: databaseId=$newest_id"
+            echo "Starting watch…"
+            gh run watch --repo "$REPO" "$newest_id" --exit-status
+            exit 0
+          fi
+
+          # Keep the last snapshot for the next iteration
+          prev_id="$cur_id"
+        done
+
+        echo "Timeout reached – no new in‑progress run appeared."
+        exit 1
