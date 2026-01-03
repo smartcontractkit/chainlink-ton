@@ -48,6 +48,17 @@ jobs:
         CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
         CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
       run: |
+        fetch_id() {
+          gh run list \
+            --repo "${TARGET_REPO}" \
+            --workflow test_smoke.yml \
+            --branch "${TARGET_BRANCH}" \
+            --status in_progress \
+            --json databaseId \
+            --limit 1 \
+            --jq '.[0].databaseId'
+        }
+        current_run_id=$(fetch_id)
         gh workflow run "${WORKFLOW_FILE}" \
         --repo "${TARGET_REPO}" \
         --ref "${TARGET_BRANCH}" \
@@ -56,18 +67,13 @@ jobs:
         --field "contract_version=${CONTRACT_VERSION}" \
         --field "custom_config=${CUSTOM_CONFIG}"
         
-        # wait for workflow to be registered
-        sleep 60
-  
-        # Get the newest in‑progress run and extract its databaseId
-        RUN_ID=$(gh run list \
-          --repo "${TARGET_REPO}" \
-          --workflow test_smoke.yml \
-          --branch "${TARGET_BRANCH}" \
-          --status in_progress \
-          --json databaseId \
-          --limit 1 \
-          --jq '.[0].databaseId')
+        new_run_id=""
+        while [ -z "$new_run_id" ] || [ "$new_run_id" == "$current_run_id" ]; do
+          echo "Waiting for new workflow run to start..."
+          sleep 10
+          new_run_id=$(fetch_id)
+        done
+        RUN_ID=$new_run_id
 
         # Watch the run until complete
         gh run watch --repo "${TARGET_REPO}" $RUN_ID
