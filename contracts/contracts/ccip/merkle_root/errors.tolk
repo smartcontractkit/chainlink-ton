@@ -5,4 +5,5 @@ enum MerkleRoot_Error {
     SkippedAlreadyExecutedMessage
     InvalidState
     SeqNumOutOfBounds
+    CannotFreezeWithUntouchedMessages
 }

@@ -707,11 +707,11 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 fun onFreezeMerkleRoot(msg: OffRamp_FreezeMerkleRoot) {
     val freezeMessage = createMessage ({
         bounce: true,
-        value: ton("0.002"),
+        value: 0,
         dest: msg.merkleRootAddress,
         body: MerkleRoot_Freeze{},
     });
-    freezeMessage.send(SEND_MODE_REGULAR);
+    freezeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /*

@@ -27,6 +27,9 @@ export enum MerkleRootError {
   NotOwner,
   ManualExecutionNotYetEnabled,
   SkippedAlreadyExecutedMessage,
+  InvalidState,
+  SeqNumOutOfBounds,
+  CannotFreezeWithUntouchedMessages,
 }
 
 export type TokenBalance = {

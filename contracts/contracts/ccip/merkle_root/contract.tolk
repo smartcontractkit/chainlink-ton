@@ -113,6 +113,12 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
 }
 
 fun onFreeze(st: MerkleRoot_Storage) {
+    var seqNum = st.minMsgNr;
+    while (seqNum <= st.maxMsgNr) {
+        val state = st.getMessageState(seqNum);
+        assert(state != ExecutionState.Untouched, MerkleRoot_Error.CannotFreezeWithUntouchedMessages);
+        seqNum += 1;
+    }
     val destroyMsg = createMessage({
         bounce: false,
         value: 0,

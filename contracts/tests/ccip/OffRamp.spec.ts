@@ -312,7 +312,7 @@ describe('OffRamp - Unit Tests', () => {
   const createTestMessage = (
     sequenceNumber = 1n,
     messageId = 1n,
-    receiverAddress = generateMockTonAddress(),
+    receiverAddress = receiver.address,
     data: Cell = Cell.EMPTY,
   ): Any2TVMRampMessage => {
     const header: RampMessageHeader = {
@@ -2496,7 +2496,8 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   it('price updates are not sent to feequoter if they are empty', async () => {
-    await setupOCRConfig()
+    await setupOCRConfigs()
+
     const priceUpdates: PriceUpdates = {
       tokenPriceUpdates: [],
       gasPriceUpdates: [],
@@ -2544,17 +2545,27 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
-  it('test owner can freeze merkleroot and retrieve funds', async () => {
+  it('test owner can freeze merkleroot and retrieve funds with one failed message', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
-    await setupOCRConfig()
-    await setupSourceChainConfig()
+    {
+      // set receiver to reject message
+      const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+        behavior: ReceiverBehavior.RejectAll,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        success: true,
+      })
+    }
+
+    await setupOCRConfigs()
 
     const result = await commitReport([root])
-
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       to: merkleRootAddress(root),
@@ -2562,7 +2573,27 @@ describe('OffRamp - Unit Tests', () => {
       success: true,
     })
 
-    // Owner can freeze merkleroot
+    const report = createExecuteReport([message])
+    const resultExecuteReport = await executeReport(report)
+    expect(resultExecuteReport.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    assertLog(
+      resultExecuteReport.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_FAILURE,
+      },
+    )
+
+    // Owner can freeze merkleroot with failed messages
     const freezeResult = await offRamp.sendFreezeMerkleRoot(deployer.getSender(), {
       value: toNano('0.1'),
       merkleRootAddress: merkleRootAddress(root),
@@ -2588,13 +2619,14 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
-  it('test non owner cannot freeze merkleroot', async () => {
+  it('test unauthorized call to freeze merkleroot', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
-    await setupOCRConfig()
-    await setupSourceChainConfig()
+
+    await setupOCRConfigs()
+
     const result = await commitReport([root])
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
@@ -2624,6 +2656,362 @@ describe('OffRamp - Unit Tests', () => {
       from: other.address,
       to: merkleRootAddress(root),
       success: false,
+    })
+  })
+
+  it('test owner can freeze merkleroot and retrieve funds with multiple failed messages', async () => {
+    const message1 = createTestMessage()
+    const message2 = createTestMessage(2n, 2n)
+    const message3 = createTestMessage(3n, 3n)
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+
+    const merkleHelper = new MerkleHelper()
+
+    const tree = merkleHelper.createTree(
+      [message1, message2, message3].map((x) =>
+        uint8ArrayToBigInt(generateMessageId(x, metadataHash)),
+      ),
+    )
+
+    const rootBytes = tree.getRoot()
+    const root = createMerkleRoot(1n, 3n, rootBytes)
+
+    {
+      // set receiver to reject message
+      const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+        behavior: ReceiverBehavior.RejectAll,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        success: true,
+      })
+    }
+
+    await setupOCRConfigs()
+
+    const result = await commitReport([root])
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    const proof = tree.prove([0])
+    let proofFlagBits = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+    const report: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message1],
+      offchainTokenData: [],
+      proofs: proof.hashes,
+      proofFlagBits,
+    }
+
+    const resultExecuteReport = await executeReport(report)
+    expect(resultExecuteReport.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    const proof2 = tree.prove([1])
+    let proofFlagBits2 = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+    const report2: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message2],
+      offchainTokenData: [],
+      proofs: proof2.hashes,
+      proofFlagBits: proofFlagBits2,
+    }
+
+    const resultExecuteReport2 = await executeReport(report2)
+    expect(resultExecuteReport2.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    const proof3 = tree.prove([2])
+    let proofFlagBits3 = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+    const report3: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message3],
+      offchainTokenData: [],
+      proofs: proof3.hashes,
+      proofFlagBits: proofFlagBits3,
+    }
+
+    const resultExecuteReport3 = await executeReport(report3)
+    expect(resultExecuteReport3.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    // Owner can freeze merkleroot with failed messages
+    const freezeResult = await offRamp.sendFreezeMerkleRoot(deployer.getSender(), {
+      value: toNano('0.1'),
+      merkleRootAddress: merkleRootAddress(root),
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: merkleRootAddress(root),
+      to: offRamp.address,
+      success: true,
+      mode: SendMode.CARRY_ALL_REMAINING_BALANCE,
+    })
+  })
+
+  it('test owner cannot freeze with [untouched, failed, failed]', async () => {
+    const message1 = createTestMessage()
+    const message2 = createTestMessage(2n, 2n)
+    const message3 = createTestMessage(3n, 3n)
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+
+    const merkleHelper = new MerkleHelper()
+
+    const tree = merkleHelper.createTree(
+      [message1, message2, message3].map((x) =>
+        uint8ArrayToBigInt(generateMessageId(x, metadataHash)),
+      ),
+    )
+
+    const rootBytes = tree.getRoot()
+    const root = createMerkleRoot(1n, 3n, rootBytes)
+
+    {
+      // set receiver to reject message
+      const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+        behavior: ReceiverBehavior.RejectAll,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        success: true,
+      })
+    }
+
+    await setupOCRConfigs()
+
+    const result = await commitReport([root])
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    const proof = tree.prove([1])
+    let proofFlagBits = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+
+    const report: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message2],
+      offchainTokenData: [],
+      proofs: proof.hashes,
+      proofFlagBits,
+    }
+
+    const resultExecuteReport = await executeReport(report)
+    expect(resultExecuteReport.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    const proof2 = tree.prove([2])
+    let proofFlagBits2 = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+
+    const report2: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message3],
+      offchainTokenData: [],
+      proofs: proof2.hashes,
+      proofFlagBits: proofFlagBits2,
+    }
+
+    const resultExecuteReport2 = await executeReport(report2)
+    expect(resultExecuteReport2.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    // Owner cannot freeze merkleroot with untouched messages
+    const freezeResult = await offRamp.sendFreezeMerkleRoot(deployer.getSender(), {
+      value: toNano('0.1'),
+      merkleRootAddress: merkleRootAddress(root),
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      success: false,
+      exitCode: MerkleRootError.CannotFreezeWithUntouchedMessages,
+    })
+  })
+
+  it('test owner cannot freeze merkleroot with [failed, failed, untouched]', async () => {
+    const message1 = createTestMessage()
+    const message2 = createTestMessage(2n, 2n)
+    const message3 = createTestMessage(3n, 3n)
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+
+    const merkleHelper = new MerkleHelper()
+
+    const tree = merkleHelper.createTree(
+      [message1, message2, message3].map((x) =>
+        uint8ArrayToBigInt(generateMessageId(x, metadataHash)),
+      ),
+    )
+
+    const rootBytes = tree.getRoot()
+    const root = createMerkleRoot(1n, 3n, rootBytes)
+
+    {
+      // set receiver to reject message
+      const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+        behavior: ReceiverBehavior.RejectAll,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        success: true,
+      })
+    }
+
+    await setupOCRConfigs()
+
+    const result = await commitReport([root])
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    const proof = tree.prove([0])
+    let proofFlagBits = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+
+    const report: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message1],
+      offchainTokenData: [],
+      proofs: proof.hashes,
+      proofFlagBits,
+    }
+
+    const resultExecuteReport = await executeReport(report)
+
+    expect(resultExecuteReport.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    assertLog(
+      resultExecuteReport.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_FAILURE,
+      },
+    )
+
+    const proof2 = tree.prove([1])
+    let proofFlagBits2 = 0n
+    for (let i = 0; i < proof.sourceFlags.length; i++) {
+      if (proof.sourceFlags[i]) {
+        proofFlagBits |= 1n << BigInt(i)
+      }
+    }
+    const report2: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message2],
+      offchainTokenData: [],
+      proofs: proof2.hashes,
+      proofFlagBits: proofFlagBits2,
+    }
+
+    const resultExecuteReport2 = await executeReport(report2)
+    expect(resultExecuteReport2.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    // Owner cannot freeze merkleroot with untouched messages
+    const freezeResult = await offRamp.sendFreezeMerkleRoot(deployer.getSender(), {
+      value: toNano('0.1'),
+      merkleRootAddress: merkleRootAddress(root),
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      success: false,
+      exitCode: MerkleRootError.CannotFreezeWithUntouchedMessages,
     })
   })
 
