@@ -36,6 +36,7 @@ export const Opcodes = {
   setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
   updateDeployables: crc32('OffRamp_UpdateDeployables'),
   freezeMerkleRoot: crc32('OffRamp_FreezeMerkleRoot'),
+  freezeReceiveExecutor: crc32('OffRamp_FreezeReceiveExecutor'),
 }
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
@@ -43,10 +44,6 @@ export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
 export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
-
-export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
-export const RECEIVE_EXECUTOR_FACILITY_ID = 338
-export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
 
 export enum OffRampError {
   MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
@@ -64,13 +61,6 @@ export enum OffRampError {
   SignatureVerificationNotAllowedInExecutionPlugin,
   InvalidInterval,
   BatchingNotSupported,
-}
-
-export enum ReceiveExecutorError {
-  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
-  UpdatingStateOfNonExecutedMessage,
-  NotificationFromInvalidReceiver,
-  Unauthorized,
 }
 
 export type OffRampStorage = {
@@ -177,8 +167,15 @@ export type CCIPReceiveConfirm = {
   execID: bigint
   receiver: Address
 }
+
 export type FreezeMerkleRoot = {
+  queryId?: bigint
   merkleRootAddress: Address
+}
+
+export type FreezeReceiveExecutor = {
+  queryId?: bigint
+  receiveExecutorAddress: Address
 }
 
 export type Config = {
@@ -611,8 +608,26 @@ export const builder = {
             .storeAddress(data.merkleRootAddress)
         },
         load: (src: Slice): FreezeMerkleRoot => {
+          src.skip(32) //opcode
           return {
+            queryId: src.loadUintBig(64),
             merkleRootAddress: src.loadAddress(),
+          }
+        },
+      }
+
+      const freezeReceiveExecutor: CellCodec<FreezeReceiveExecutor> = {
+        encode: (data: FreezeReceiveExecutor): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.freezeReceiveExecutor, 32)
+            .storeUint(0, 64) // queryId
+            .storeAddress(data.receiveExecutorAddress)
+        },
+        load: (src: Slice): FreezeReceiveExecutor => {
+          src.skip(32) //opcode
+          return {
+            queryId: src.loadUintBig(64),
+            receiveExecutorAddress: src.loadAddress(),
           }
         },
       }
@@ -628,6 +643,7 @@ export const builder = {
         updateDeployables,
         ccipReceiveConfirm,
         freezeMerkleRoot,
+        freezeReceiveExecutor,
       }
     })(),
   },
@@ -850,6 +866,20 @@ export class OffRamp
     })
   }
 
+  async sendFreezeReceiveExecutor(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      receiveExecutorAddress: Address
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.freezeReceiveExecutor.encode(opts).endCell(),
+    })
+  }
   async sendFreezeMerkleRoot(
     provider: ContractProvider,
     via: Sender,

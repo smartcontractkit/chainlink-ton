@@ -32,6 +32,11 @@ fun onInternalMessage(in: InMessage) {
             onCCIPReceiveBounced(mutate st, msg);
             st.store();
         }
+        ReceiveExecutor_Freeze => {
+            var st = ReceiveExecutor_Storage.load();
+            assert(in.senderAddress == st.owner, Error.Unauthorized);
+            onFreeze(st);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -105,6 +110,17 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onFreeze(st: ReceiveExecutor_Storage) {
+    assert(st.state != ReceiveExecutor_MessageState.Untouched, Error.CannotFreezeWithUntouchedState);
+    val drainMsg = createMessage({
+        bounce: false,
+        value: 0,
+        dest: st.owner,
+        body: createEmptyCell()
+    });
+    drainMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 get fun typeAndVersion(): (slice, slice) {

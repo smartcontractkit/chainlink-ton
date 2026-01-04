@@ -27,6 +27,7 @@ type OffRamp_InMessage =
     | OCR3Base_SetOCR3Config
     | OffRamp_UpdateDeployables
     | OffRamp_FreezeMerkleRoot
+    | OffRamp_FreezeReceiveExecutor
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     ;
@@ -117,6 +118,11 @@ struct (0xa015e0e2) OffRamp_UpdateDeployables {
 struct (0x304e248f) OffRamp_FreezeMerkleRoot {
     queryId: uint64;
     merkleRootAddress: address;
+}
+
+struct (0x97f24208) OffRamp_FreezeReceiveExecutor{
+    queryId: uint64;
+    receiveExecutorAddress: address;
 }
 
 struct OffRamp_Costs{}

@@ -3,4 +3,5 @@ enum Error {
     UpdatingStateOfNonExecutedMessage
     NotificationFromInvalidReceiver
     Unauthorized
+    CannotFreezeWithUntouchedState
 }

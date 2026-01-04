@@ -20,8 +20,6 @@ import {
   OffRampStorage,
   PriceUpdates,
   RampMessageHeader,
-  RECEIVE_EXECUTOR_FACILITY_ID,
-  RECEIVE_EXECUTOR_FACILITY_NAME,
   SourceChainConfig,
   OffRamp,
   OffRampError,
@@ -77,6 +75,11 @@ import * as deployable from '../../wrappers/libraries/Deployable'
 
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
+import {
+  RECEIVE_EXECUTOR_FACILITY_ID,
+  RECEIVE_EXECUTOR_FACILITY_NAME,
+  ReceiveExecutor,
+} from '../../wrappers/ccip/ReceiveExecutor'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -513,6 +516,34 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([root])
 
     return { root, metadataHash, rootBytes }
+  }
+  const RECEIVE_EXECUTOR_ID_SIZE = 192
+  const receiveExecutorAddress = (message: Any2TVMRampMessage, sourceChainSelector: bigint) => {
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const messageId = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const cs = beginCell().storeUint(messageId, 256).endCell().beginParse()
+
+    const data = deployable.builder.data.contractData
+      .encode({
+        owner: offRamp.address,
+        id: deployable.builder.data.namespaced.encode({
+          namespace: NameSpace.CCIPNamespace.ReceiveExecutor,
+          id: beginCell()
+            .storeUint(sourceChainSelector, 64)
+            .storeUint(
+              cs.loadUintBig(RECEIVE_EXECUTOR_ID_SIZE - 64),
+              RECEIVE_EXECUTOR_ID_SIZE - 64,
+            ),
+        }),
+      })
+      .endCell()
+    const init: StateInit = {
+      code: deployerCode,
+      data,
+    }
+
+    const workchain = 0
+    return contractAddress(workchain, init)
   }
 
   const merkleRootAddress = (root: MerkleRoot) => {
@@ -3012,6 +3043,130 @@ describe('OffRamp - Unit Tests', () => {
       to: merkleRootAddress(root),
       success: false,
       exitCode: MerkleRootError.CannotFreezeWithUntouchedMessages,
+    })
+  })
+
+  it('test owner can freeze receiveExecutor with message that was not confirmed or denied', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    {
+      // set receiver to consume all gas and not answer
+      const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+        behavior: ReceiverBehavior.ConsumeAllGas,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        success: true,
+      })
+    }
+
+    await setupOCRConfigs()
+
+    const result = await commitReport([root])
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    const report = createExecuteReport([message])
+    const resultExecuteReport = await executeReport(report)
+    expect(resultExecuteReport.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    // Owner can freeze receiveExecutor with in-progress state
+    const freezeResult = await offRamp.sendFreezeReceiveExecutor(deployer.getSender(), {
+      value: toNano('0.1'),
+      receiveExecutorAddress: receiveExecutorAddress(message, CHAINSEL_EVM_TEST_90000001),
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiveExecutorAddress(message, CHAINSEL_EVM_TEST_90000001),
+      success: true,
+    })
+
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: receiveExecutorAddress(message, CHAINSEL_EVM_TEST_90000001),
+      to: offRamp.address,
+      success: true,
+      mode: SendMode.CARRY_ALL_REMAINING_BALANCE,
+    })
+  })
+
+  it('test unauthorized call to freeze receiveExecutor', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    {
+      // set receiver to consume all gas and not answer
+      const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
+        behavior: ReceiverBehavior.ConsumeAllGas,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        success: true,
+      })
+    }
+
+    await setupOCRConfigs()
+
+    const result = await commitReport([root])
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root),
+      deploy: true,
+      success: true,
+    })
+
+    const report = createExecuteReport([message])
+    const resultExecuteReport = await executeReport(report)
+    expect(resultExecuteReport.transactions).toHaveTransaction({
+      from: router.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    //cannot call freezeReceiveExecutor on OffRamp
+    const other = await blockchain.treasury('other')
+    const freezeResult = await offRamp.sendFreezeReceiveExecutor(other.getSender(), {
+      value: toNano('0.1'),
+      receiveExecutorAddress: receiveExecutorAddress(message, CHAINSEL_EVM_TEST_90000001),
+    })
+    expect(freezeResult.transactions).toHaveTransaction({
+      from: other.address,
+      to: offRamp.address,
+      success: false,
+    })
+
+    //cannot call freezeReceiveExecutor directly
+    const executorContract = blockchain.openContract(
+      ReceiveExecutor.createFromAddress(
+        receiveExecutorAddress(message, CHAINSEL_EVM_TEST_90000001),
+      ),
+    )
+    const directFreezeResult = await executorContract.sendFreeze(other.getSender(), toNano('0.1'))
+    expect(directFreezeResult.transactions).toHaveTransaction({
+      from: other.address,
+      to: receiveExecutorAddress(message, CHAINSEL_EVM_TEST_90000001),
+      success: false,
     })
   })
 

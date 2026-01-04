@@ -110,11 +110,17 @@ fun onInternalMessage(in:InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             onSetDynamicConfig(msg);
         }
-        //Sender must be owner
+        // Sender must be owner
         OffRamp_FreezeMerkleRoot => {
             val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onFreezeMerkleRoot(msg);
+        }
+        // Sender must be owner
+        OffRamp_FreezeReceiveExecutor => {
+            val st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onFreezeReceiveExecutor(msg);
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
@@ -710,6 +716,16 @@ fun onFreezeMerkleRoot(msg: OffRamp_FreezeMerkleRoot) {
         value: 0,
         dest: msg.merkleRootAddress,
         body: MerkleRoot_Freeze{},
+    });
+    freezeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun onFreezeReceiveExecutor(msg: OffRamp_FreezeReceiveExecutor) {
+    val freezeMessage = createMessage ({
+        bounce: true,
+        value: 0,
+        dest: msg.receiveExecutorAddress,
+        body: ReceiveExecutor_Freeze{},
     });
     freezeMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

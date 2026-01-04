@@ -119,13 +119,13 @@ fun onFreeze(st: MerkleRoot_Storage) {
         assert(state != ExecutionState.Untouched, MerkleRoot_Error.CannotFreezeWithUntouchedMessages);
         seqNum += 1;
     }
-    val destroyMsg = createMessage({
+    val drainMsg = createMessage({
         bounce: false,
         value: 0,
         dest: st.owner,
         body: createEmptyCell()
     });
-    destroyMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
+    drainMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 get fun typeAndVersion(): (slice, slice) {
