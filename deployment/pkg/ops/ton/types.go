@@ -1,6 +1,8 @@
 package ton // alias: opston
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -23,7 +25,7 @@ type Planner[T any] interface {
 // TODO: can be merged/replaced with InternamlMessage type?
 type MessagePlanRaw struct {
 	Body    *cell.Cell       `json:"body"`
-	DstAddr *address.Address `json:"dst_addr"`
+	DstAddr *address.Address `json:"dstAddr"`
 	Amount  tlb.Coins        `json:"amount"`
 	// TODO: StateInit missing?
 }
@@ -34,20 +36,20 @@ type MessageSender interface {
 }
 
 type TransactionInfo struct {
-	AccountAddr *address.Address  `json:"account_addr"`
+	AccountAddr *address.Address  `json:"accountAddr"`
 	Hash        string            `json:"hash"`
-	OutMsgCount uint16            `json:"out_msg_count"`
-	EndStatus   tlb.AccountStatus `json:"end_status"`
-	TotalFees   tlb.Coins         `json:"total_fees"`
+	OutMsgCount uint16            `json:"outMsgCount"`
+	EndStatus   tlb.AccountStatus `json:"endStatus"`
+	TotalFees   tlb.Coins         `json:"totalFees"`
 }
 
 // &tlb.InternalMessage representation
 type InternalMessage[T any] struct {
 	Bounce    bool                     `json:"bounce"`
-	DstAddr   *address.Address         `json:"dst_addr"`
+	DstAddr   *address.Address         `json:"dstAddr"`
 	Amount    tlb.Coins                `json:"amount"`
 	Body      codec.MessageEnvelope[T] `json:"body"`
-	StateInit *StateInit               `json:"state_init,omitempty"`
+	StateInit *StateInit               `json:"stateInit,omitempty"`
 }
 
 type StateInit struct {
@@ -66,8 +68,12 @@ type ContractMetadata struct {
 	ID      string          `json:"id"`      // Contract identifier within the package (e.g., "mcms.RBACTimelock") (can be a path, or maps to a path within the package)
 }
 
+func (m ContractMetadata) Key() string {
+	return fmt.Sprintf("%s@%s:%s", m.Package, m.Version.String(), m.ID)
+}
+
 // CompiledContract represents a compiled TON contract with its name and code (cell).
 type CompiledContract struct {
-	Name string
-	Code *cell.Cell
+	Metadata ContractMetadata
+	Code     *cell.Cell
 }
