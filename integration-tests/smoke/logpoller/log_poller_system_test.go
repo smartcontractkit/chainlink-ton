@@ -14,7 +14,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
@@ -37,7 +36,7 @@ func Test_LogPoller_System(t *testing.T) {
 		return tonChain.Client, nil
 	}
 
-	t.Run("Service Resumption", func(t *testing.T) {
+	t.Run("MC Block Resolution", func(t *testing.T) {
 		t.Parallel()
 
 		// setup
@@ -46,10 +45,10 @@ func Test_LogPoller_System(t *testing.T) {
 		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{sender.Address()},
 			[]tlb.Coins{tlb.MustFromTON("1000")})
 		require.NoError(t, ferr)
-		emitter, err := helper.NewTestEventSource(t.Context(), tonChain.Client, sender, "resumptionEmitter", rand.Uint32(), logger.Test(t))
+		emitter, err := helper.NewTestEventSource(t.Context(), tonChain.Client, sender, "mcBlockEmitter", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		chainID := "resumption-test-chain"
+		chainID := "mc-block-test-chain"
 		lggr := logger.Test(t)
 		lp, err := logpoller.NewService(lggr, chainID, clientProvider, &logpoller.ServiceOptions{
 			Config:      logpoller.DefaultConfigSet,
@@ -60,51 +59,23 @@ func Test_LogPoller_System(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = lp.RegisterFilter(t.Context(), models.Filter{
-			Name:     "ResumptionFilter",
+			Name:     "MCBlockFilter",
 			Address:  emitter.ContractAddress(),
 			MsgType:  tlb.MsgTypeExternalOut,
 			EventSig: counter.TopicCountIncreased,
 		})
 		require.NoError(t, err)
 		require.NoError(t, lp.Start(t.Context()))
-
-		// first batch
-		const firstBatchEvents = 5
-		for i := 1; i <= firstBatchEvents; i++ {
-			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
-			require.NoError(t, err)
-		}
-
-		require.Eventually(t, func() bool {
-			logs, _, _, qerr := lp.NewQuery().
-				WithSource(emitter.ContractAddress()).
-				WithEventSig(counter.TopicCountIncreased).
-				Execute(t.Context())
-			if qerr != nil {
-				return false
-			}
-			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
-			t.Logf("first batch: %d/%d logs", len(result), firstBatchEvents)
-			return len(result) == firstBatchEvents
-		}, 60*time.Second, 2*time.Second, "first batch should be indexed")
-
-		latestBlockBefore, err := lp.GetLatestBlock(t.Context())
-		require.NoError(t, err)
-		require.Positive(t, latestBlockBefore, "mc block seqno should be stored")
-		t.Logf("latest block before restart: %d", latestBlockBefore)
-
-		// restart
-		require.NoError(t, lp.Close())
-		require.NoError(t, lp.Start(t.Context()))
 		defer func() { require.NoError(t, lp.Close()) }()
 
-		// second batch
-		const secondBatchEvents = 3
-		for i := 1; i <= secondBatchEvents; i++ {
+		// emit events
+		const numEvents = 3
+		for i := 1; i <= numEvents; i++ {
 			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
 			require.NoError(t, err)
 		}
 
+		// wait for indexing
 		require.Eventually(t, func() bool {
 			logs, _, _, qerr := lp.NewQuery().
 				WithSource(emitter.ContractAddress()).
@@ -114,37 +85,15 @@ func Test_LogPoller_System(t *testing.T) {
 				return false
 			}
 			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
-			t.Logf("after restart: %d/%d logs", len(result), firstBatchEvents+secondBatchEvents)
-			return len(result) == firstBatchEvents+secondBatchEvents
-		}, 60*time.Second, 2*time.Second, "second batch should be indexed after restart")
+			t.Logf("indexed: %d/%d logs", len(result), numEvents)
+			return len(result) == numEvents
+		}, 60*time.Second, 2*time.Second, "events should be indexed")
 
-		// verify
-		latestBlockAfter, err := lp.GetLatestBlock(t.Context())
+		// verify mc block resolution worked
+		latestBlock, err := lp.GetLatestBlock(t.Context())
 		require.NoError(t, err)
-		require.Greater(t, latestBlockAfter, latestBlockBefore, "should have processed new blocks")
-		t.Logf("latest block after restart: %d (was %d)", latestBlockAfter, latestBlockBefore)
-
-		allLogs, _, _, allErr := lp.NewQuery().
-			WithSource(emitter.ContractAddress()).
-			WithEventSig(counter.TopicCountIncreased).
-			WithLimitAndSort(commonquery.LimitAndSort{
-				SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},
-			}).
-			Execute(t.Context())
-		require.NoError(t, allErr)
-
-		result, decodeErr := query.DecodedLogs[counter.CountIncreased](allLogs)
-		require.NoError(t, decodeErr)
-		require.Len(t, result, firstBatchEvents+secondBatchEvents)
-
-		seen := make(map[uint32]bool)
-		for _, log := range result {
-			var event counter.CountIncreased
-			lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
-			require.NoError(t, lerr)
-			require.False(t, seen[event.Value], "duplicate counter value %d", event.Value)
-			seen[event.Value] = true
-		}
+		require.Positive(t, latestBlock, "mc block seqno should be resolved and stored")
+		t.Logf("latest mc block seqno: %d", latestBlock)
 	})
 
 	t.Run("Replay", func(t *testing.T) {

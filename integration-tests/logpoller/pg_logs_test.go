@@ -297,6 +297,7 @@ func TestPgLogStore(t *testing.T) {
 }
 
 func TestGetLatestBlock(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
 

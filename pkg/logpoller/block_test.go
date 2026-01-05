@@ -62,6 +62,7 @@ func TestGetMasterchainBlockRange_WorkchainValidation(t *testing.T) {
 }
 
 func TestShardBlockKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		block    *ton.BlockIDExt
