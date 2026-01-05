@@ -2,8 +2,6 @@ package offramp
 
 import (
 	"context"
-	"fmt"
-	"math/big"
 	"runtime"
 	"sync"
 
@@ -189,53 +187,17 @@ type OCR3Base struct {
 	Execute *OCR3Config `tlb:"maybe ^"`
 }
 
+// Deprecated: Use GetOCR3Config getter instead.
 func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
-	// chainID (index 0)
-	chainIDInt, err := result.Int(0)
-	if err != nil {
-		return fmt.Errorf("failed to get ChainID: %w", err)
-	}
-	c.ChainID = uint8(chainIDInt.Uint64()) //nolint:gosec // this type is uint8 onchain
-
-	// commit (index 1)
-	isNil, err := result.IsNil(1)
+	res, err := GetOCR3Config.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	if !isNil {
-		configCell, err1 := result.Cell(1)
-		if err1 != nil {
-			return err1
-		}
-
-		var config OCR3Config
-		if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-			return fmt.Errorf("load OCR3Config from cell: %w", err)
-		}
-		c.Commit = &config
-	}
-
-	// execute (index 2)
-	isNil, err = result.IsNil(2)
-	if err != nil {
-		return err
-	}
-	if !isNil {
-		configCell, err2 := result.Cell(2)
-		if err2 != nil {
-			return err2
-		}
-
-		var config OCR3Config
-		if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-			return fmt.Errorf("load OCR3Config from cell: %w", err)
-		}
-		c.Execute = &config
-	}
-
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetOCR3Config getter instead.
 func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
@@ -247,37 +209,17 @@ type Config struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
+// Deprecated: Use GetConfig getter instead.
 func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
-	cs, err := result.Int(0)
+	res, err := GetConfig.Decoder.Decode(result)
 	if err != nil {
-		return fmt.Errorf("failed to get ChainSelector: %w", err)
+		return err
 	}
-
-	chainSelector := cs.Uint64()
-
-	feeQuoterAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return fmt.Errorf("failed to get feeQuoter address slice: %w", err)
-	}
-
-	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
-	if err != nil {
-		return fmt.Errorf("failed to load feeQuoter address: %w", err)
-	}
-
-	thresholdInt, err := result.Int(2)
-	if err != nil {
-		return fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
-	}
-
-	*c = Config{
-		ChainSelector:                           chainSelector,
-		FeeQuoterAddress:                        feeQuoterAddress,
-		PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()), //nolint:gosec // this type is uint32 onchain
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetConfig getter instead.
 func (c *Config) GetterMethodName() string {
 	return configGetter
 }
@@ -291,53 +233,17 @@ type SourceChainConfig struct {
 	OnRamp                    ccipcommon.CrossChainAddress `tlb:"."`
 }
 
+// Deprecated: Use GetSourceChainConfig getter instead.
 func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	routerAddressSlice, err := result.Slice(0)
+	res, err := GetSourceChainConfig.Decoder.Decode(result)
 	if err != nil {
-		return fmt.Errorf("failed to get router address slice: %w", err)
+		return err
 	}
-	routerAddress, err := routerAddressSlice.LoadAddr()
-	if err != nil {
-		return fmt.Errorf("failed to load router address: %w", err)
-	}
-
-	isEnabledInt, err := result.Int(1)
-	if err != nil {
-		return fmt.Errorf("failed to get isEnabled: %w", err)
-	}
-	isEnabled := isEnabledInt.Cmp(big.NewInt(0)) != 0
-
-	minSeqNrInt, err := result.Int(2)
-	if err != nil {
-		return fmt.Errorf("failed to get minSeqNr: %w", err)
-	}
-	minSeqNr := minSeqNrInt.Uint64()
-
-	isRMNDisabledInt, err := result.Int(3)
-	if err != nil {
-		return fmt.Errorf("failed to get isRMNVerificationDisabled: %w", err)
-	}
-	isRMNVerificationDisabled := isRMNDisabledInt.Cmp(big.NewInt(0)) != 0
-
-	onRampSlice, err := result.Slice(4)
-	if err != nil {
-		return fmt.Errorf("failed to get onRamp slice: %w", err)
-	}
-	onRamp, err := ccipcommon.LoadCrossChainAddressWithoutPrefix(onRampSlice)
-	if err != nil {
-		return fmt.Errorf("failed to parse onRamp: %w", err)
-	}
-
-	*c = SourceChainConfig{
-		Router:                    routerAddress,
-		IsEnabled:                 isEnabled,
-		MinSeqNr:                  minSeqNr,
-		IsRMNVerificationDisabled: isRMNVerificationDisabled,
-		OnRamp:                    onRamp,
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetSourceChainConfig getter instead.
 func (c *SourceChainConfig) GetterMethodName() string {
 	return srcChainConfigGetter
 }
@@ -399,9 +305,12 @@ func (s *SourceChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWr
 
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			var cfg SourceChainConfig
-			opts := []interface{}{dest}
-			if err = tvm.FetchResult(egCtx, client, block, offRampAddr, &cfg, opts); err != nil {
+			res, err := client.RunGetMethod(egCtx, block, offRampAddr, srcChainConfigGetter, dest)
+			if err != nil {
+				return err
+			}
+			cfg, err := GetSourceChainConfig.Decoder.Decode(res)
+			if err != nil {
 				return err
 			}
 

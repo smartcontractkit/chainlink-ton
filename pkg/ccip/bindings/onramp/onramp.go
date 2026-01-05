@@ -194,33 +194,17 @@ type DestChainConfig struct {
 	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
 }
 
+// Deprecated: Use GetDestChainConfig getter instead.
 func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	routerAddressSlice, err := result.Slice(0)
+	res, err := GetDestChainConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	routerAddress, err := routerAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	seqNum, err := result.Int(1)
-	if err != nil {
-		return err
-	}
-	allowlistEnabledInt, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(-1)) == 0
-	*c = DestChainConfig{
-		Router:           routerAddress,
-		SequenceNumber:   seqNum.Uint64(),
-		AllowListEnabled: allowlistEnabled,
-		// skip parsing allowedSenders
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetDestChainConfig getter instead.
 func (c *DestChainConfig) GetterMethodName() string {
 	return destChainConfigGetter
 }
@@ -233,46 +217,17 @@ type DynamicConfig struct {
 	Reserve        tlb.Coins        `tlb:"."`
 }
 
+// Deprecated: Use GetDynamicConfig getter instead.
 func (c *DynamicConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	feeQuoterAddressSlice, err := result.Slice(0)
+	res, err := GetDynamicConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	feeAggregatorAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-	feeAggregatorAddress, err := feeAggregatorAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	allowlistAdminAddressSlice, err := result.Slice(2)
-	if err != nil {
-		return err
-	}
-	allowlistAdminAddress, err := allowlistAdminAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	reserveValue, err := result.Int(3)
-	if err != nil {
-		return err
-	}
-	reserve := tlb.FromNanoTON(reserveValue)
-
-	*c = DynamicConfig{
-		FeeQuoter:      feeQuoterAddress,
-		FeeAggregator:  feeAggregatorAddress,
-		AllowListAdmin: allowlistAdminAddress,
-		Reserve:        reserve,
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetDynamicConfig getter instead.
 func (c *DynamicConfig) GetterMethodName() string {
 	return dynamicConfigGetter
 }
@@ -281,17 +236,17 @@ type StaticConfig struct {
 	ChainSelector uint64 `tlb:"## 64"`
 }
 
+// Deprecated: Use GetStaticConfig getter instead.
 func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	chainSelector, err := result.Int(0)
+	res, err := GetStaticConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	*c = StaticConfig{
-		ChainSelector: chainSelector.Uint64(),
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetStaticConfig getter instead.
 func (c *StaticConfig) GetterMethodName() string {
 	return staticConfigGetter
 }
@@ -315,9 +270,12 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			var cfg DestChainConfig
-			opts := []interface{}{dest}
-			if err = tvm.FetchResult(egCtx, client, block, onRampAddr, &cfg, opts); err != nil {
+			res, err := client.RunGetMethod(egCtx, block, onRampAddr, destChainConfigGetter, dest)
+			if err != nil {
+				return err
+			}
+			cfg, err := GetDestChainConfig.Decoder.Decode(res)
+			if err != nil {
 				return err
 			}
 
