@@ -19,7 +19,7 @@ jobs:
       id: set-version
       run: |
         # Default to the pinned version for PRs
-        CHAINLINK_VERSION="80e09da8e48b1d52534530a7882dffffae0858db" # Dec 30, 2025
+        CHAINLINK_VERSION="develop"
 
         # If this is a scheduled (nightly) run, switch to develop
         if [[ "${{ github.event_name }}" == "schedule" ]]; then
