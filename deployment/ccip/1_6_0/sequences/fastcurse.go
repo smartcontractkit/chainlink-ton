@@ -20,45 +20,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 )
 
-// Helper functions
-
-// validateSubjectFormat validates that the subject uses big-endian encoding
-// For TON, chain selectors are encoded in the last 8 bytes (big-endian)
-// The first 8 bytes should be zeros, except for GlobalCurseSubject
-func validateSubjectFormat(subject api.Subject) error {
-	// Global curse subject has a special pattern, allow it
-	if subject == api.GlobalCurseSubject() {
-		return nil
-	}
-
-	// For regular chain selectors, first 8 bytes should be 0, TODO double check this
-	for i := 0; i < 8; i++ {
-		if subject[i] != 0 {
-			return fmt.Errorf("invalid subject format for TON: expected big-endian encoding with zeros in first 8 bytes, got subject=%v", subject)
-		}
-	}
-
-	return nil
-}
-
-// subjectToBigInt converts a [16]byte Subject to *big.Int for RPC calls
-func subjectToBigInt(subject api.Subject) *big.Int {
-	return new(big.Int).SetBytes(subject[:])
-}
-
-// buildCCIPDeps builds the CCIPDeps structure needed for operations
-func buildCCIPDeps(tonChain cldf_ton.Chain, selector uint64, routerAddr address.Address) (config.CCIPDeps, error) {
-	return config.CCIPDeps{
-		TonChain: tonChain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			selector: {
-				// fast curse operations should only need the router address
-				Router: routerAddr,
-			},
-		},
-	}, nil
-}
-
 // CurseAdapter interface implementation
 
 // Initialize is called once to set up the adapter. It loads necessary on-chain state (deployed onramp and router address).
@@ -224,7 +185,7 @@ func (a *TonAdapter) SubjectToSelector(subject api.Subject) (uint64, error) {
 		return 0, nil
 	}
 
-	// Use generic helper to extract selector from big-endian encoding (bytes 8-15)
+	// Use generic helper to extract selector from big-endian encoding (bytes 8-15) TODO: double check if TON is using big endian
 	selector, _ := api.GenericSubjectToSelector(subject)
 	return selector, nil
 }
@@ -349,4 +310,43 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			return sequences.OnChainOutput{}, nil
 		},
 	)
+}
+
+// Helper functions
+
+// validateSubjectFormat validates that the subject uses big-endian encoding
+// For TON, chain selectors are encoded in the last 8 bytes (big-endian)
+// The first 8 bytes should be zeros, except for GlobalCurseSubject
+func validateSubjectFormat(subject api.Subject) error {
+	// Global curse subject has a special pattern, allow it
+	if subject == api.GlobalCurseSubject() {
+		return nil
+	}
+
+	// For regular chain selectors, first 8 bytes should be 0, TODO double check this
+	for i := 0; i < 8; i++ {
+		if subject[i] != 0 {
+			return fmt.Errorf("invalid subject format for TON: expected big-endian encoding with zeros in first 8 bytes, got subject=%v", subject)
+		}
+	}
+
+	return nil
+}
+
+// subjectToBigInt converts a [16]byte Subject to *big.Int for RPC calls
+func subjectToBigInt(subject api.Subject) *big.Int {
+	return new(big.Int).SetBytes(subject[:])
+}
+
+// buildCCIPDeps builds the CCIPDeps structure needed for operations
+func buildCCIPDeps(tonChain cldf_ton.Chain, selector uint64, routerAddr address.Address) (config.CCIPDeps, error) {
+	return config.CCIPDeps{
+		TonChain: tonChain,
+		CCIPOnChainState: map[uint64]state.CCIPChainState{
+			selector: {
+				// fast curse operations should only need the router address
+				Router: routerAddr,
+			},
+		},
+	}, nil
 }
