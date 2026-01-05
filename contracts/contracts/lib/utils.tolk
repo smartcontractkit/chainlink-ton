@@ -13,7 +13,9 @@ fun getFacilityId(crc32Key: int): uint16 {
 
 /// Returns an error code composed from facility and local code (max 2^16-1).
 fun getErrorCode(crc32Key: int, local: uint16): uint16 {
-    return getFacilityId(crc32Key) * 100 + local;
+    val code = getFacilityId(crc32Key) * 100 + local;
+    assert(code <= 65535, 4); // exit code 4: Integer overflow
+    return code
 }
 
 // Generic unimplemented error code
