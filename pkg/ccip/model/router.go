@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
@@ -218,13 +219,13 @@ func (s *RouterStorage) FromBinding(raw *router.Storage) error {
 func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	st := router.Storage{
 		ID: s.ID,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},
 		WrappedNative: s.WrappedNative,
 		RMNRemote: router.RMNRemote{
-			Admin: common.Ownable2Step{
+			Admin: ownable2step.Storage{
 				Owner:        s.RMNRemote.Admin.Owner,
 				PendingOwner: s.RMNRemote.Admin.PendingOwner,
 			},

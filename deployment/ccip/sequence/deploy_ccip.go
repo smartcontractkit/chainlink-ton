@@ -19,10 +19,10 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 
@@ -94,13 +94,13 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if routerAddress.IsAddrNone() {
 		routerStorage := router.Storage{
 			ID: in.CCIPConfig.RouterParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
 			WrappedNative: tvm.TonTokenAddr,
 			RMNRemote: router.RMNRemote{
-				Admin: common.Ownable2Step{
+				Admin: ownable2step.Storage{
 					Owner:        deps.TonChain.WalletAddress,
 					PendingOwner: address.NewAddressNone(),
 				},
@@ -128,7 +128,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if feeQuoterAddress.IsAddrNone() {
 		feeQuoterStorage := feequoter.Storage{
 			ID: in.CCIPConfig.FeeQuoterParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -159,7 +159,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if onRampAddr.IsAddrNone() {
 		onRampStorage := onramp.Storage{
 			ID: in.CCIPConfig.OnRampParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -192,7 +192,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if offRampAddr.IsAddrNone() {
 		offRampStorage := offramp.Storage{
 			ID: in.CCIPConfig.OffRampParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -223,7 +223,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if receiverAddress.IsAddrNone() {
 		receiverStorage := receiver.Storage{
 			ID: in.CCIPConfig.ReceiverParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},

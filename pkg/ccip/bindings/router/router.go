@@ -15,6 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -22,9 +23,9 @@ import (
 
 const (
 	OpcodeApplyRampUpdates   = 0x7db6745d
-	OpcodeCCIPSend           = 0x38a69e3b
+	OpcodeCCIPSend           = 0x31768d95
 	OpcodeRouteMessage       = 0xfc69c50b
-	OpcodeCCIPReceiveConfirm = 0xaf0cccef
+	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
 	OpcodeMessageSent        = 0x6513f8e1
 	OpcodeMessageRejected    = 0x8ae25114
 )
@@ -66,18 +67,18 @@ const (
 )
 
 type Storage struct {
-	ID            uint32              `tlb:"## 32"`
-	Ownable       common.Ownable2Step `tlb:"."`
-	WrappedNative *address.Address    `tlb:"addr"`
-	OnRamps       *cell.Dictionary    `tlb:"dict 64"`
-	OffRamps      *cell.Dictionary    `tlb:"dict 64"`
-	RMNRemote     RMNRemote           `tlb:"^"`
+	ID            uint32               `tlb:"## 32"`
+	Ownable       ownable2step.Storage `tlb:"."`
+	WrappedNative *address.Address     `tlb:"addr"`
+	OnRamps       *cell.Dictionary     `tlb:"dict 64"`
+	OffRamps      *cell.Dictionary     `tlb:"dict 64"`
+	RMNRemote     RMNRemote            `tlb:"^"`
 }
 
 type RMNRemote struct {
-	Admin          common.Ownable2Step `tlb:"."`
-	CursedSubjects *cell.Dictionary    `tlb:"dict 128"`
-	ForwardUpdates *cell.Dictionary    `tlb:"dict 267"`
+	Admin          ownable2step.Storage `tlb:"."`
+	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
+	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakeData encoding.
@@ -111,7 +112,7 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
+	_                 tlb.Magic                    `tlb:"#31768d95"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                       `tlb:"## 64"`
 	DestChainSelector uint64                       `tlb:"## 64"`
 	Receiver          common.CrossChainAddress     `tlb:"."`
@@ -130,7 +131,7 @@ type RouteMessage struct {
 }
 
 type CCIPReceiveConfirm struct {
-	_      tlb.Magic `tlb:"#af0cccef"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
 	ExecID big.Int   `tlb:"## 192"`
 }
 
@@ -220,4 +221,9 @@ func (o *OnRampAddressMap) Fetch(ctx context.Context, client ton.APIClientWrappe
 
 	*o = onRampAddrMap
 	return nil
+}
+
+type RMNOwnableMessage[T ownable2step.InMessage] struct {
+	_       tlb.Magic `tlb:"#af7a9ac6"` //nolint:revive // Ignore opcode tag
+	Content T         `tlb:"."`
 }

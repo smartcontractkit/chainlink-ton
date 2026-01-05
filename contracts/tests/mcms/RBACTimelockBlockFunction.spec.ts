@@ -9,16 +9,13 @@ import * as counter from '../../wrappers/examples/Counter'
 
 describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('block_function')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-cancel')
+    await baseTest.beforeEach()
   })
 
   it('should fail if not admin tries to block function selector', async () => {
@@ -446,6 +443,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       expect(await baseTest.bind.timelock.isOperation(operationID)).toBe(true)
+    }
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
     }
   })
 })

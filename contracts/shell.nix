@@ -3,6 +3,7 @@
   pkgs,
   lib,
   jetton-contracts,
+  oplint,
 }:
 pkgs.mkShell {
   buildInputs = with pkgs; [
@@ -20,6 +21,7 @@ pkgs.mkShell {
     # Extra tools
     git
     jq
+    oplint
   ];
 
   PATH_CONTRACTS_JETTON = "${jetton-contracts}/lib/node_modules/jetton/build/";
