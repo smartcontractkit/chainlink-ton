@@ -465,6 +465,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 
 			rawBytes, err := json.Marshal(norm)
 			require.NoError(t, err, "failed to marshal decoded message to JSON")
+
 			var gotMap map[string]any
 			err = json.Unmarshal(rawBytes, &gotMap)
 			require.NoError(t, err, "failed to unmarshal decoded message JSON to map")

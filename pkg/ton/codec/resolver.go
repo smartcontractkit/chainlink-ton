@@ -41,7 +41,7 @@ func NewTypedResolver[IN any, OUT any](resolver Resolver[IN, OUT]) TypedResolver
 		key = resolverWithKey.Key()
 	} else {
 		// Use type name as key by default
-		key = reflect.TypeOf(resolver).Name()
+		key = reflect.TypeOf(resolver).String()
 	}
 
 	return NewTypedResolverWith(resolver, key)

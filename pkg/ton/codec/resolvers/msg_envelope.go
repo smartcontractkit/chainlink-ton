@@ -1,0 +1,58 @@
+package resolvers
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+)
+
+var (
+	_ codec.Resolver[map[string]any, codec.MessageEnvelope[any]] = (*msgEnvelopeResolver)(nil)
+	_ codec.ResolverKeyProvider                                  = (*msgEnvelopeResolver)(nil)
+)
+
+// msgEnvelopeResolver resolves a message envelope map data to codec.MessageEnvelope[any] struct
+type msgEnvelopeResolver struct {
+	registry tvm.MessageRegistry
+}
+
+func NewMsgEnvelopeResolver(registry tvm.MessageRegistry) codec.Resolver[map[string]any, codec.MessageEnvelope[any]] {
+	return &msgEnvelopeResolver{registry: registry}
+}
+
+func (r *msgEnvelopeResolver) Key() string {
+	return "codec.resolvers.msg-envelope"
+}
+
+// Decode map data to struct using loaded TLB registry
+func (r *msgEnvelopeResolver) Resolve(input map[string]any) (codec.MessageEnvelope[any], error) {
+	resolver, ok := input["resolver"]
+	if !ok || resolver != r.Key() {
+		return codec.MessageEnvelope[any]{}, fmt.Errorf("invalid resolver key: %v", resolver)
+	}
+
+	data, ok := input["data"]
+	if !ok {
+		return codec.MessageEnvelope[any]{}, fmt.Errorf("missing 'data' field in input: %v", input)
+	}
+
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return codec.MessageEnvelope[any]{}, fmt.Errorf("failed to marshal 'data' field: %w", err)
+	}
+
+	var e codec.MessageEnvelope[any]
+	err = json.Unmarshal(dataBytes, &e)
+	if err != nil {
+		return codec.MessageEnvelope[any]{}, fmt.Errorf("failed to unmarshal 'data' field to MessageEnvelope: %w", err)
+	}
+
+	err = e.LoadDecoded(r.registry)
+	if err != nil {
+		return codec.MessageEnvelope[any]{}, fmt.Errorf("failed to load decoded data: %w", err)
+	}
+
+	return e, nil
+}
