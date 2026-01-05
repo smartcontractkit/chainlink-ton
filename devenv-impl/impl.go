@@ -229,22 +229,20 @@ func setupLogPoller(
 	}
 
 	// Create logpoller with in-memory stores for testing
-	service, err := tonlogpoller.NewService(lggr, chainID, clientProvider, &tonlogpoller.ServiceOptions{
-		Config:      tonlogpoller.DefaultConfigSet,
-		FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
-		TxLoader:    tonlploader.New(lggr, clientProvider),
-		LogStore:    tonlpstore.NewLogStore(chainID, lggr),
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	_, err = service.RegisterFilter(ctx, tonlptypes.Filter{
-		Name:     fmt.Sprintf("%s-%s", contract.String(), eventName),
-		Address:  contract,
-		EventSig: hash.CRC32(eventName),
-		MsgType:  tlb.MsgTypeExternalOut,
-	})
+	service, err := tonlogpoller.NewServiceWith(ctx, lggr, chainID, clientProvider,
+		&tonlogpoller.ServiceOptions{
+			Config:      tonlogpoller.DefaultConfigSet,
+			FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
+			TxLoader:    tonlploader.New(lggr, clientProvider),
+			LogStore:    tonlpstore.NewLogStore(chainID, lggr),
+		},
+		[]tonlptypes.Filter{{
+			Name:     fmt.Sprintf("%s-%s", contract.String(), eventName),
+			Address:  contract,
+			EventSig: hash.CRC32(eventName),
+			MsgType:  tlb.MsgTypeExternalOut,
+		}},
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -458,15 +456,11 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 }
 
 func (m *CCIP16TON) GetEOAReceiverAddress(ctx context.Context, chainSelector uint64) ([]byte, error) {
-	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Getting EOA receiver address")
-	return nil, nil
+	panic("GetEOAReceiverAddress not implemented for TON")
 }
 
 func (m *CCIP16TON) GetTokenBalance(ctx context.Context, chainSelector uint64, address, tokenAddress []byte) (*big.Int, error) {
-	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Getting token balance")
-	return big.NewInt(0), nil
+	panic("GetTokenBalance not implemented for TON")
 }
 
 func (m *CCIP16TON) ExposeMetrics(

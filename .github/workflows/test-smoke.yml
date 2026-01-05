@@ -19,7 +19,7 @@ jobs:
       id: set-version
       run: |
         # Default to the pinned version for PRs
-        CHAINLINK_VERSION="develop"
+        CHAINLINK_VERSION=$(cat ./scripts/.core_version | tr -d '[:space:]')
 
         # If this is a scheduled (nightly) run, switch to develop
         if [[ "${{ github.event_name }}" == "schedule" ]]; then
