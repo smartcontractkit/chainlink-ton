@@ -41,8 +41,15 @@
       # Resolve root module
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       chainlink-ton-extras = pkgs.callPackage ./cmd/chainlink-ton-extras commonArgs;
+      # Resolve tools
+      dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
+      oplint = pkgs.callPackage ./scripts/oplint commonArgs;
       # Resolve sub-modules
-      contracts = pkgs.callPackage ./contracts commonArgs;
+      contracts = pkgs.callPackage ./contracts {
+        inherit pkgs;
+        inherit rev;
+        inherit oplint;
+      };
       integration-tests = pkgs.callPackage ./integration-tests {
         inherit pkgs;
         inherit rev;
@@ -50,8 +57,6 @@
         # TODO: why the pkg rename here?
         jetton-contracts = contracts.packages.contracts-jetton-func;
       };
-      # Resolve tools
-      dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
 
       # Nix devex
       lock-nix-tidy = pkgs.writeShellApplication {
@@ -87,6 +92,8 @@
           default = chainlink-ton;
           # Dependency analyzer
           dependency-analyzer = dependency-analyzer.packages.default;
+          # Validate struct opcodes
+          inherit oplint;
 
           inherit lock-nix-tidy;
         }

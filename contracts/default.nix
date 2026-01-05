@@ -1,6 +1,7 @@
 {
   pkgs,
   rev,
+  oplint,
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
 
@@ -73,6 +74,7 @@ in {
     contracts = pkgs.callPackage ./shell.nix {
       inherit pkgs;
       jetton-contracts = packages.contracts-jetton-func;
+      inherit oplint;
     };
   };
 

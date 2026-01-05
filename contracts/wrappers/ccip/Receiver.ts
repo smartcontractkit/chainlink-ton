@@ -43,7 +43,7 @@ export abstract class Params {}
 export abstract class Opcodes {
   static ccipReceive = 0xb3126df1
   static updateAuthorizedCaller = 0xaf9950c5
-  static updateBehavior = 0x14d52e7b
+  static updateBehavior = 0x14d3fadb
 }
 
 export type CCIPReceive = {
