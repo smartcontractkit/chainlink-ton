@@ -55,7 +55,7 @@ func TestAddLanes(t *testing.T) {
 	toolingAPIVersion := semver.MustParse("1.6.0")
 
 	// <deploy-evm>
-	mcmsRegistry := cs_core.NewMCMSReaderRegistry()
+	mcmsRegistry := cs_core.GetRegistry()
 	dReg := deployops.GetRegistry()
 
 	out, err := deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
