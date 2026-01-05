@@ -1314,22 +1314,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         const validAptosAddress = Buffer.alloc(32)
         validAptosAddress[31] = APTOS_PRECOMPILE_SPACE + 1
 
-        // We need to add Aptos chain config first
-        await setup.bind.feeQuoter.sendUpdateDestChainConfigs(setup.acc.owner.getSender(), {
-          value: toNano('1'),
-          updates: [
-            {
-              destChainSelector: 77777n,
-              config: {
-                ...FeeQuoterSetup.destChainConfig,
-                chainFamilySelector: 0xac77ffec, // CHAIN_FAMILY_SELECTOR_APTOS
-              },
-            },
-          ],
-        })
-
         const message: rt.CCIPSend = {
-          destChainSelector: 77777n,
+          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
           receiver: validAptosAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
@@ -1351,21 +1337,8 @@ describe('FeeQuoter GetValidatedFee', () => {
         const precompileAddress = Buffer.alloc(32)
         precompileAddress[31] = APTOS_PRECOMPILE_SPACE - 1
 
-        await setup.bind.feeQuoter.sendUpdateDestChainConfigs(setup.acc.owner.getSender(), {
-          value: toNano('1'),
-          updates: [
-            {
-              destChainSelector: 77777n,
-              config: {
-                ...FeeQuoterSetup.destChainConfig,
-                chainFamilySelector: 0xac77ffec, // CHAIN_FAMILY_SELECTOR_APTOS
-              },
-            },
-          ],
-        })
-
         const message: rt.CCIPSend = {
-          destChainSelector: 77777n,
+          destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
           receiver: precompileAddress,
           data: beginCell().endCell(),
           tokenAmounts: [],
