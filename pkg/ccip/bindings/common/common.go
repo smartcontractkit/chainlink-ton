@@ -14,9 +14,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// MaxArrayLength defines the maximum length for arrays packed with reference chaining to prevent excessive resource consumption.
-const MaxArrayLength = 1000
-
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
@@ -42,6 +39,10 @@ const (
 // registers during smart contract execution. Cell chains exceeding this depth can be created
 // locally but will fail when used in contract state or validated during blockchain processing.
 const (
+	// CrossChainAddressMaxLength defines the maximum length for cross-chain addresses.
+	CrossChainAddressMaxLength = 64 // in bytes
+	// MaxArrayLength defines the maximum length for arrays packed with reference chaining to prevent excessive resource consumption.
+	MaxArrayLength = 1000
 	// MaxCellChainDepth is the maximum depth for c4/c5 registers in TON (512 cells).
 	// General execution depth limit is <1024, but c4/c5 specifically limited to 512.
 	MaxCellChainDepth = 512
@@ -133,8 +134,8 @@ type CrossChainAddress []byte
 func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 	addrLength := len(c)
 	// max length is 64 bytes, plus 1 byte for the length prefix
-	if addrLength > 64 {
-		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of 64 bytes", len(c))
+	if addrLength > CrossChainAddressMaxLength {
+		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", len(c), CrossChainAddressMaxLength)
 	}
 
 	if addrLength == 0 {
@@ -164,7 +165,7 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	}
 
 	addrLength := int(length[0]) // first byte is the length
-	if addrLength < 1 || addrLength > 64 {
+	if addrLength == 0 || addrLength > CrossChainAddressMaxLength {
 		return fmt.Errorf("invalid crosschain address length %d", addrLength)
 	}
 
@@ -188,11 +189,11 @@ func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error
 
 	// Check that the byte length falls within the protocol-defined 1-64 byte range
 	byteLength := bitsLeft / 8
-	if byteLength < 1 {
+	if byteLength == 0 {
 		return nil, errors.New("crosschain address is empty")
 	}
-	if byteLength > 64 {
-		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of 64 bytes", byteLength)
+	if byteLength > CrossChainAddressMaxLength {
+		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", byteLength, CrossChainAddressMaxLength)
 	}
 
 	data, err := s.LoadSlice(bitsLeft)
@@ -206,6 +207,9 @@ func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
 // and uses the last reference for chaining.
 func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
+	if len(array) > MaxArrayLength {
+		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
+	}
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
 
@@ -262,11 +266,6 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 			return result, fmt.Errorf("length %d overflows int", length)
 		}
 
-		// same defensive sanity check for length, in real scenarios this should never happen
-		if length > MaxArrayLength {
-			return nil, fmt.Errorf("array length %d exceeds maximum of %d", length, MaxArrayLength)
-		}
-
 		for i := 0; i < int(length); i++ {
 			ref, err := curr.PeekRef(i)
 			if err != nil {
@@ -281,6 +280,11 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
+
+			// Validate total array length doesn't exceed maximum
+			if len(result) > MaxArrayLength {
+				return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(result), MaxArrayLength)
+			}
 		}
 		if length < 4 {
 			break
@@ -294,7 +298,10 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // Cells are linked via references for arrays that span multiple cells.
 // note: T cannot be primitive types not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.); a wrapper type is needed, such as ChainSelector in router binding
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
-	cells := []*cell.Builder{}
+	if len(array) > MaxArrayLength {
+		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
+	}
+	var cells []*cell.Builder
 	builder := cell.BeginCell()
 
 	for i, v := range array {
@@ -349,6 +356,11 @@ func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
+
+			// Validate total array length doesn't exceed maximum
+			if len(result) > MaxArrayLength {
+				return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(result), MaxArrayLength)
+			}
 		}
 		if curr.RefsNum() > 0 {
 			ref, err := curr.PeekRef(0)
@@ -369,6 +381,11 @@ func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 		// Return an empty cell instead of nil for empty arrays
 		return cell.BeginCell().EndCell(), nil
 	}
+
+	if len(data) > MaxCellChainBytes {
+		return nil, fmt.Errorf("data length %d exceeds maximum of %d bytes", len(data), MaxCellChainBytes)
+	}
+
 	cells := []*cell.Builder{cell.BeginCell()}
 	curr := cells[0]
 

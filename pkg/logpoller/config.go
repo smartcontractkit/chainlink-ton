@@ -11,7 +11,7 @@ import (
 // Reasonable operational bounds: between 100ms and 1 hour
 const (
 	minPollPeriod = 100 * time.Millisecond
-	maxPollPeriod = 1 * time.Hour
+	maxPollPeriod = 10 * time.Minute
 )
 
 // Config holds the configuration for the log poller.
