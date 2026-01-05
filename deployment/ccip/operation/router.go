@@ -196,7 +196,6 @@ func curse(
 
 	// Create curse message
 	curseMsg := router.RMNRemoteCurse{
-		QueryID:  0,
 		Subjects: subjects,
 	}
 
@@ -252,7 +251,6 @@ func uncurse(
 
 	// Create uncurse message
 	uncurseMsg := router.RMNRemoteUncurse{
-		QueryID:  0,
 		Subjects: subjects,
 	}
 
