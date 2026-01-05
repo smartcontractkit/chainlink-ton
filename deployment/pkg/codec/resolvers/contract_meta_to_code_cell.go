@@ -12,23 +12,28 @@ import (
 )
 
 var (
-	_ codec.Resolver[map[string]any, *cell.Cell] = (*contractToCellResolver)(nil)
-	_ codec.ResolverKeyProvider                  = (*contractToCellResolver)(nil)
+	_ codec.Resolver[map[string]any, *cell.Cell] = (*contractToCodeCellResolver)(nil)
+	_ codec.ResolverKeyProvider                  = (*contractToCodeCellResolver)(nil)
 )
 
-type contractToCellResolver struct {
+type contractToCodeCellResolver struct {
 	provider ton.ContractProvider
 }
 
 func NewContractToCellResolver(provider ton.ContractProvider) codec.Resolver[map[string]any, *cell.Cell] {
-	return &contractToCellResolver{provider: provider}
+	return &contractToCodeCellResolver{provider}
 }
 
-func (r contractToCellResolver) Key() string {
-	return "codec.resolvers.contract-meta-to-cell"
+func (r contractToCodeCellResolver) Key() string {
+	return "codec.resolvers.contract-meta-to-code-cell"
 }
 
-func (r contractToCellResolver) Resolve(input map[string]any) (*cell.Cell, error) {
+func (r contractToCodeCellResolver) Resolve(input map[string]any) (*cell.Cell, error) {
+	resolver, ok := input["resolver"]
+	if !ok || resolver != r.Key() {
+		return nil, fmt.Errorf("invalid resolver key: %v", resolver)
+	}
+
 	data, ok := input["data"]
 	if !ok {
 		return nil, fmt.Errorf("missing 'data' field in input: %v", input)

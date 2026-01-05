@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -107,19 +108,19 @@ type MessageEnvelope[T any] struct {
 	Metadata MessageMeta     `json:"metadata"`
 	Payload  json.RawMessage `json:"payload"`
 	Cell     *cell.Cell      `json:"-"`
-	Value    *T              `json:"-"`
+	Value    T               `json:"-"`
 }
 
 // WrapMessage prepares a type-safe envelope for the provided TL-B message.
-func WrapMessage[T any](contract string, op T) (MessageEnvelope[T], error) {
-	meta, err := NewMessageMetaFromValue(contract, op)
+func WrapMessage[T any](contract string, val T) (MessageEnvelope[T], error) {
+	meta, err := NewMessageMetaFromValue(contract, val)
 	if err != nil {
 		return MessageEnvelope[T]{}, err
 	}
 
 	return MessageEnvelope[T]{
 		Metadata: meta,
-		Value:    &op,
+		Value:    val,
 	}, nil
 }
 
@@ -128,7 +129,7 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	payload := e.Payload
 	if payload == nil {
 		var zero T
-		if e.Value == nil || reflect.DeepEqual(e.Value, zero) {
+		if reflect.DeepEqual(e.Value, zero) {
 			payload = json.RawMessage("null")
 		} else {
 			data, err := json.Marshal(e.Value)
@@ -151,6 +152,19 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON populates the envelope metadata and rebuilds the typed value.
 func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as raw cell first
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) >= 2 && trimmed[0] == '"' && trimmed[len(trimmed)-1] == '"' {
+		cellVal := new(cell.Cell)
+		if err := cellVal.UnmarshalJSON(trimmed); err == nil {
+			e.Cell = cellVal
+			e.Payload = nil
+			e.Metadata = MessageMeta{}
+			return nil
+		}
+	}
+
+	// Fallback to full JSON envelope
 	var raw messageJSON
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("failed to unmarshal message envelope: %w", err)
@@ -175,6 +189,7 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 		Opcode:   opcode,
 	}
 	e.Payload = payload
+	e.Cell = nil
 
 	return nil
 }
@@ -184,11 +199,7 @@ func (e MessageEnvelope[T]) ToCell() (*cell.Cell, error) {
 		return e.Cell, nil
 	}
 
-	if e.Value == nil {
-		return nil, errors.New("cannot convert to cell: no value present")
-	}
-
-	return tlb.ToCell(*(e.Value))
+	return tlb.ToCell(e.Value)
 }
 
 func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
@@ -203,94 +214,24 @@ func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
 
 // LoadFromRegistry attempts to populate the Value T field from the Payload or Cell using the provided registry.
 func (e *MessageEnvelope[T]) LoadDecoded(r tvm.MessageRegistry) error {
-	val, err := e.Decode(r)
+	val, err := e.decode(r)
 	if err != nil {
 		return fmt.Errorf("failed to load message from registry: %w", err)
 	}
 
-	e.Value = &val
-	return nil
-}
-
-type envelopeLoader interface {
-	LoadDecoded(tvm.MessageRegistry) error
-}
-
-var envelopeLoaderType = reflect.TypeOf((*envelopeLoader)(nil)).Elem()
-
-// Decode attempts to decode the message recursively using either the Payload or Cell and the provided registry.
-func (e MessageEnvelope[T]) Decode(r tvm.MessageRegistry) (T, error) {
-	decoded, err := e.decode(r)
+	e.Value = val
+	e.Metadata.GoType = reflect.TypeOf(val)
+	e.Cell, err = tlb.ToCell(val)
 	if err != nil {
-		var zero T
-		return zero, fmt.Errorf("failed to decode message: %w", err)
+		return fmt.Errorf("failed to convert loaded message to cell: %w", err)
 	}
 
-	value := reflect.ValueOf(decoded)
-	if !value.IsValid() {
-		return decoded, nil
-	}
-
-	var structVal reflect.Value
-	switch value.Kind() {
-	case reflect.Pointer:
-		if value.IsNil() {
-			return decoded, nil
-		}
-		if value.Elem().Kind() != reflect.Struct {
-			return decoded, nil
-		}
-		structVal = value.Elem()
-	case reflect.Struct:
-		structVal = value
-	default:
-		return decoded, nil
-	}
-
-	for i := 0; i < structVal.NumField(); i++ {
-		fieldVal := structVal.Field(i)
-		fieldType := structVal.Type().Field(i)
-
-		var loader envelopeLoader
-		// Handle pointer fields
-		if fieldVal.Kind() == reflect.Pointer {
-			if fieldVal.IsNil() {
-				continue
-			}
-			if fieldVal.Type().Implements(envelopeLoaderType) && fieldVal.CanInterface() {
-				loader = fieldVal.Interface().(envelopeLoader)
-			}
-		}
-
-		// Handle non-pointer fields
-		if loader == nil && fieldVal.CanAddr() {
-			addr := fieldVal.Addr()
-			if addr.Type().Implements(envelopeLoaderType) && addr.CanInterface() {
-				loader = addr.Interface().(envelopeLoader)
-			}
-		}
-
-		if loader == nil {
-			continue
-		}
-
-		if err := loader.LoadDecoded(r); err != nil {
-			return decoded, fmt.Errorf("failed to decode nested envelope field %s: %w", fieldType.Name, err)
-		}
-	}
-
-	return decoded, nil
+	return nil
 }
 
 // decode attempts to decode the message using either the Payload or Cell and the provided registry.
 func (e MessageEnvelope[T]) decode(r tvm.MessageRegistry) (T, error) {
-	// Check if already loaded
-	if e.Value != nil {
-		return *e.Value, nil
-	}
-
 	var zero T
-
 	// TODO: map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry
 	if e.Payload != nil {
