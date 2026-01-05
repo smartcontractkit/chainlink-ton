@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -114,7 +115,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 		chainID := big.NewInt(chainIDInt)
 		initStorage := mcms.Data{
 			ID: in.ContractsParams.MCMS.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},

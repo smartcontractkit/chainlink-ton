@@ -394,7 +394,7 @@ fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: SnakedCell
             config = entry.loadValue();
             config.router = update.router;
             config.allowlistEnabled = update.allowlistEnabled;
-            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, config);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, config);
         } else {
             config = OnRamp_DestChainConfig {
                 router: update.router,

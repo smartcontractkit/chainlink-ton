@@ -1,6 +1,5 @@
-import '@ton/test-utils'
-
 import { toNano } from '@ton/core'
+import '@ton/test-utils'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
@@ -9,17 +8,16 @@ import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSig
 
 describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   let baseTest: MCMSBaseTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseTestSetup.compileContracts()
+    baseTest = await MCMSBaseTestSetup.beforeAll('set_config')
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-set-config')
+    await baseTest.beforeEach()
   })
+
+  const cloneTestSigners = (): TestSigner[] => baseTest.testSigners.map((signer) => ({ ...signer }))
 
   it('should fail if non-owner tries to set config', async () => {
     // Try to call setConfig from non-owner address (should fail)
@@ -82,8 +80,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   it('should fail on invalid configuration - duplicate signers', async () => {
     // Create duplicate signers (signers must be strictly increasing)
 
-    const duplicateSigners = [...baseTest.testSigners]
-    duplicateSigners[1] = duplicateSigners[0] // Make addresses duplicate
+    const duplicateSigners = cloneTestSigners()
+    duplicateSigners[1] = { ...duplicateSigners[1], address: duplicateSigners[0].address }
     const signerAddresses = duplicateSigners.map((s) => BigInt(s.address))
     const signerGroups = duplicateSigners.map((s) => s.group)
 
@@ -114,7 +112,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - out of bounds group', async () => {
     // Set a signer to an invalid group (MAX_NUM_GROUPS + 1)
-    const invalidGroupSigners = [...baseTest.testSigners]
+    const invalidGroupSigners = cloneTestSigners()
     invalidGroupSigners[0].group = mcms.NUM_GROUPS + 1
 
     const signerAddresses = invalidGroupSigners.map((s) => BigInt(s.address))
@@ -255,7 +253,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - signer in disabled group', async () => {
     // Put a signer in a disabled group (group with quorum 0)
-    const disabledGroupSigners = [...baseTest.testSigners]
+    const disabledGroupSigners = cloneTestSigners()
     disabledGroupSigners[1].group = mcms.NUM_GROUPS - 1 // Last group should be disabled
 
     const setConfigBody = mcms.builder.message.in.setConfig
@@ -477,5 +475,11 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     expect(config.signers.size).toBe(2)
     expect(config.groupQuorums.size).toBe(2)
     expect(config.groupParents.size).toBe(2)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

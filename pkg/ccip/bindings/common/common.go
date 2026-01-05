@@ -101,12 +101,6 @@ func (t *TypeAndVersion) GetterMethodName() string {
 	return versionGetter
 }
 
-// Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
-type Ownable2Step struct {
-	Owner        *address.Address `tlb:"addr"`
-	PendingOwner *address.Address `tlb:"addr"` // PendingOwner is optional
-}
-
 // Signature is a type that represents a cryptographic signature used in MerkleProofs
 type Signature struct {
 	Sig []byte `tlb:"bits 256"`

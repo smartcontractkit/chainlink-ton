@@ -11,6 +11,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 )
 
 func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
@@ -70,20 +71,20 @@ func TestOwnable2Step(t *testing.T) {
 	require.NoError(t, err)
 
 	// case 1 with no pending owner
-	orig := common.Ownable2Step{
+	orig := ownable2step.Storage{
 		Owner:        addr,
 		PendingOwner: address.NewAddressNone(),
 	}
 	cell, err := tlb.ToCell(orig)
 	require.NoError(t, err)
-	var decoded common.Ownable2Step
+	var decoded ownable2step.Storage
 	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, orig.Owner, decoded.Owner)
 	require.Equal(t, orig.PendingOwner, decoded.PendingOwner)
 
 	// case 2 with pending owner
-	orig2 := common.Ownable2Step{
+	orig2 := ownable2step.Storage{
 		Owner:        addr,
 		PendingOwner: addr,
 	}
@@ -176,7 +177,7 @@ func TestStorage(t *testing.T) {
 
 	s := Storage{
 		ID: 43,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner: dummyAddr,
 		},
 		ChainSelector: 42,

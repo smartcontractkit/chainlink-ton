@@ -2,7 +2,7 @@ import '@ton/test-utils'
 import { toNano, beginCell, Cell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { sha256 } from '@ton/crypto'
-import { crc32 } from 'zlib'
+import * as coverage from '../coverage/coverage'
 
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
@@ -10,6 +10,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
 import { computeAddress, SigningKey } from 'ethers'
 import { randomBytes } from 'crypto'
+import { generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   let blockchain: Blockchain
@@ -31,12 +32,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
   beforeAll(async () => {
     code = await MCMSBaseTestSetup.compileContracts()
+    blockchain = await Blockchain.create()
+    blockchain.now = 1
+    if (process.env['COVERAGE'] === 'true') {
+      blockchain.enableCoverage()
+      blockchain.verbosity.print = false
+      blockchain.verbosity.vmLogs = 'vm_logs_verbose'
+    }
   })
 
   beforeEach(async () => {
-    blockchain = await Blockchain.create()
-    blockchain.now = 1
-
     // Set up accounts
     acc = {
       deployer: await blockchain.treasury('deployer'),
@@ -68,10 +73,12 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       }
     }
 
-    const testId = crc32('mcms.manyChainMultiSigSubgroupTest')
     const mcmsBind = blockchain.openContract(
       mcms.ContractClient.newFrom(
-        mcms.builder.data.contractDataEmpty(testId, acc.multisigOwner.address),
+        mcms.builder.data.contractDataEmpty(
+          Number(generateRandomContractId()),
+          acc.multisigOwner.address,
+        ),
         code.mcms,
       ),
     )
@@ -81,7 +88,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       counter: blockchain.openContract(
         counter.ContractClient.newFrom(
           {
-            id: testId,
+            id: generateRandomContractId(),
             value: 0,
             ownable: {
               owner: mcmsBind.address,
@@ -486,5 +493,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     expect(config.groupParents.get(0)).toEqual(0)
     expect(config.groupParents.get(1)).toEqual(0)
     expect(config.groupParents.get(MCMS_NUM_GROUPS - 1)).toEqual(MCMS_NUM_GROUPS - 2)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await coverage.generateCoverageArtifacts(blockchain, 'mcms_subgroups', [
+        {
+          code: code.mcms,
+          name: 'mcms',
+        },
+      ])
+    }
   })
 })

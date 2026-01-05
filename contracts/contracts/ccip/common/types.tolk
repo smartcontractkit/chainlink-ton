@@ -30,11 +30,13 @@ struct RampMessageHeader { // 512
 
 const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
 
+// nolint:opcode : hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2"))
 struct (0x181dcf10) GenericExtraArgsV2 {
     gasLimit: uint256?;
     allowOutOfOrderExecution: bool;
 }
 
+// nolint:opcode : hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1"))
 struct (0x1f3b3aba) SVMExtraArgsV1 {
 	computeUnits: uint32;
 	accountIsWritableBitmap: uint64;
@@ -43,6 +45,7 @@ struct (0x1f3b3aba) SVMExtraArgsV1 {
 	accounts: SnakedCell<uint256>; // vec<slice>
 }
 
+// nolint:opcode : hex encoded bytes4(keccak256("CCIP SuiExtraArgsV1"))
 struct (0x21ea4ca9) SuiExtraArgsV1 {
     gasLimit: uint256;
 	allowOutOfOrderExecution: bool;

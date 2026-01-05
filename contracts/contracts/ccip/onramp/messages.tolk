@@ -106,9 +106,27 @@ fun OnRamp_Costs.GetValidatedFee(): int {
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(
-            OnRamp_Costs.ExecutorFinishedSuccessfully(),
-            OnRamp_Costs.ExecutorFinishedWithError()
+            OnRamp_Costs.FeeQuoter_MessageValidated(),
+            OnRamp_Costs.FeeQuoter_MessageValidationFailed()
         )
+        ;
+}
+
+// Minimum value for calling FeeQuoter_MessageValidated on OnRamp
+@inline
+fun OnRamp_Costs.FeeQuoter_MessageValidated(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MessageValidated fwdFee
+        ;
+}
+
+// Minimum value for calling FeeQuoter_MessageValidationFailed on OnRamp
+@inline
+fun OnRamp_Costs.FeeQuoter_MessageValidationFailed(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MessageValidationFailed fwdFee
         ;
 }
 
@@ -127,6 +145,8 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
+        + ton("0.002") // computeFee
+        + ton("0.019") // emit CCIPMessageSent event
         + ton("0.019") // MessageSent fwdFee
         + Router_Costs.MessageSent() 
         ;
@@ -136,6 +156,7 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
+        + ton("0.002") // computeFee
         + ton("0.019") // MessageRejected fwdFee
         + Router_Costs.MessageRejected()
         ;

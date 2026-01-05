@@ -2486,6 +2486,55 @@ describe('OffRamp - Unit Tests', () => {
     expect(expectedSourceChainConfigs.sort()).toEqual(result.sort())
   })
 
+  it('price updates are not sent to feequoter if they are empty', async () => {
+    await setupOCRConfig()
+    const priceUpdates: PriceUpdates = {
+      tokenPriceUpdates: [],
+      gasPriceUpdates: [],
+    }
+    const result = await commitReport([], toNano('0.5'), 0x01, priceUpdates)
+    expect(result.transactions).not.toHaveTransaction({
+      from: offRamp.address,
+      to: feeQuoter.address,
+    })
+
+    //should send update if only one of the updates is non-empty
+    const priceUpdates2: PriceUpdates = {
+      tokenPriceUpdates: [
+        {
+          sourceToken: generateMockTonAddress(),
+          usdPerToken: 12345678n,
+        },
+      ],
+      gasPriceUpdates: [],
+    }
+
+    const result2 = await commitReport([], toNano('0.5'), 0x02, priceUpdates2)
+    expect(result2.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: feeQuoter.address,
+    })
+
+    //test with other combination
+    const priceUpdates3: PriceUpdates = {
+      tokenPriceUpdates: [],
+      gasPriceUpdates: [
+        {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        },
+      ],
+    }
+
+    const result3 = await commitReport([], toNano('0.5'), 0x03, priceUpdates3)
+    expect(result3.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'offramp_suite'

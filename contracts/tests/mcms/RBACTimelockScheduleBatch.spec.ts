@@ -13,18 +13,14 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
-
   let calls: Cell
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('schedule_batch')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-schedule-batch')
+    await baseTest.beforeEach()
 
     calls = asSnakeData<rbactl.Call>(
       [
@@ -213,20 +209,23 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     expect(await baseTest.bind.timelock.isOperationReady(batchedOperationID)).toBe(false)
     expect(await baseTest.bind.timelock.isOperationDone(batchedOperationID)).toBe(false)
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })
 
 describe('MCMS - RBACTimelockScheduleTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('schedule')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-schedule')
+    await baseTest.beforeEach()
   })
 
   it('should fail if non-proposer tries to schedule', async () => {
@@ -435,4 +434,10 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
 
     expect(await baseTest.bind.timelock.isOperation(operationID)).toBe(true)
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })
