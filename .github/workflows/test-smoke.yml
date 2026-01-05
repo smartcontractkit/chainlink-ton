@@ -76,4 +76,4 @@ jobs:
         RUN_ID=$new_run_id
 
         # Watch the run until complete
-        gh run watch --repo "${TARGET_REPO}" $RUN_ID
+        gh run watch --repo "${TARGET_REPO}" $RUN_ID --exit-status
