@@ -12,6 +12,7 @@ flowchart LR
 	chainlink-common --> chainlink-common/pkg/chipingress
 	chainlink-common --> chainlink-protos/billing/go
 	chainlink-common --> chainlink-protos/cre/go
+	chainlink-common --> chainlink-protos/linking-service/go
 	chainlink-common --> chainlink-protos/storage-service
 	chainlink-common --> chainlink-protos/workflows/go
 	chainlink-common --> freeport
@@ -20,12 +21,19 @@ flowchart LR
 	click chainlink-common href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/chipingress
 	click chainlink-common/pkg/chipingress href "https://github.com/smartcontractkit/chainlink-common"
+	chainlink-common/pkg/monitoring --> chainlink-common
+	chainlink-common/pkg/monitoring --> chainlink-common/pkg/values
+	click chainlink-common/pkg/monitoring href "https://github.com/smartcontractkit/chainlink-common"
+	chainlink-common/pkg/values
+	click chainlink-common/pkg/values href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-framework/metrics --> chainlink-common
 	click chainlink-framework/metrics href "https://github.com/smartcontractkit/chainlink-framework"
 	chainlink-protos/billing/go
 	click chainlink-protos/billing/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/cre/go
 	click chainlink-protos/cre/go href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-protos/linking-service/go
+	click chainlink-protos/linking-service/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/rmn/v1.6/go
 	click chainlink-protos/rmn/v1.6/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/storage-service
@@ -33,6 +41,7 @@ flowchart LR
 	chainlink-protos/workflows/go
 	click chainlink-protos/workflows/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-ton --> chainlink-ccip
+	chainlink-ton --> chainlink-common/pkg/monitoring
 	chainlink-ton --> chainlink-framework/metrics
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
 	freeport
@@ -45,12 +54,15 @@ flowchart LR
 	subgraph chainlink-common-repo[chainlink-common]
 		 chainlink-common
 		 chainlink-common/pkg/chipingress
+		 chainlink-common/pkg/monitoring
+		 chainlink-common/pkg/values
 	end
 	click chainlink-common-repo href "https://github.com/smartcontractkit/chainlink-common"
 
 	subgraph chainlink-protos-repo[chainlink-protos]
 		 chainlink-protos/billing/go
 		 chainlink-protos/cre/go
+		 chainlink-protos/linking-service/go
 		 chainlink-protos/rmn/v1.6/go
 		 chainlink-protos/storage-service
 		 chainlink-protos/workflows/go
@@ -106,6 +118,9 @@ flowchart LR
 	click chainlink-common/keystore href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/chipingress
 	click chainlink-common/pkg/chipingress href "https://github.com/smartcontractkit/chainlink-common"
+	chainlink-common/pkg/monitoring --> chainlink-common
+	chainlink-common/pkg/monitoring --> chainlink-common/pkg/values
+	click chainlink-common/pkg/monitoring href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/values
 	click chainlink-common/pkg/values href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-data-streams
@@ -181,6 +196,7 @@ flowchart LR
 	chainlink-testing-framework/wasp
 	click chainlink-testing-framework/wasp href "https://github.com/smartcontractkit/chainlink-testing-framework"
 	chainlink-ton --> chainlink-ccip
+	chainlink-ton --> chainlink-common/pkg/monitoring
 	chainlink-ton --> chainlink-framework/metrics
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/deployment --> chainlink-ccip/deployment
@@ -270,6 +286,7 @@ flowchart LR
 		 chainlink-common
 		 chainlink-common/keystore
 		 chainlink-common/pkg/chipingress
+		 chainlink-common/pkg/monitoring
 		 chainlink-common/pkg/values
 	end
 	click chainlink-common-repo href "https://github.com/smartcontractkit/chainlink-common"
