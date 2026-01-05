@@ -10,6 +10,7 @@ import (
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	ccipapi "github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -20,10 +21,24 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	ccipapi.GetLaneAdapterRegistry().RegisterLaneAdapter(chainSelectors.FamilyTon, v, &TonAdapter{})
+	adapter := &TonAdapter{}
+
+	// Register Lanes adapter
+	ccipapi.GetLaneAdapterRegistry().RegisterLaneAdapter(chainSelectors.FamilyTon, v, adapter)
+	fastcurse.GetCurseRegistry().RegisterNewCurse(
+		fastcurse.CurseRegistryInput{
+			CursingFamily:       chainSelectors.FamilyTon,
+			CursingVersion:      v,
+			CurseAdapter:        adapter,
+			CurseSubjectAdapter: adapter,
+		},
+	)
 }
 
-type TonAdapter struct{}
+type TonAdapter struct {
+	routerAddressCache map[uint64]address.Address // fast cursing cache
+	onRampAddressCache map[uint64]address.Address
+}
 
 func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	tonChain, err := tonstate.LoadOnchainStateUsingDataStore(ds, chainSelector)

@@ -11,11 +11,11 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/smartcontractkit/chain-selectors v1.0.83
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251027185542-babb09e5363e
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251027185542-babb09e5363e
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251230141955-8ae35f2d2b63
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251023193345-8f2c4380a62c
 	github.com/smartcontractkit/chainlink-deployments-framework v0.67.1-0.20251120111322-7760d1301f77
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20250904183752-4ea5c19ee886
-	github.com/smartcontractkit/mcms v0.30.2
+	github.com/smartcontractkit/mcms v0.30.3-0.20251107201522-ab5062fb9a32
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/sync v0.19.0
 )
