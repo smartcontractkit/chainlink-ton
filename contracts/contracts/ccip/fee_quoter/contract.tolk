@@ -134,7 +134,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
             }
 
-            st.destChainConfigs.replaceAndGetPrevious(destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(destChainSelector, destChainConfig);
         }
         entry = msg.updates.iterateNext(entry);
     }
@@ -197,7 +197,7 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
                 dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
                 timestamp
             }.toCell();
-            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, destChainConfig);
 
             emit(USD_PER_UNIT_GAS_UPDATED, UsdPerUnitGasUpdated {
                 destChainSelector: update.destChainSelector,
