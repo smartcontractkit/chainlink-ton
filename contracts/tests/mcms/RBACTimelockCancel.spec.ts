@@ -10,16 +10,13 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockCancelTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('cancel')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-cancel')
+    await baseTest.beforeEach()
   })
 
   it('should fail if non-canceller tries to cancel', async () => {
@@ -231,4 +228,10 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     // Verify operation no longer exists
     expect(await baseTest.bind.timelock.isOperation(operationId)).toBe(false)
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })

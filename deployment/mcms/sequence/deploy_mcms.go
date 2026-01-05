@@ -7,11 +7,17 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
+<<<<<<< HEAD
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+=======
+>>>>>>> 8192ef29bb18301695d97510405dee7cad407812
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
@@ -22,6 +28,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -114,7 +121,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 		chainID := big.NewInt(chainIDInt)
 		initStorage := mcms.Data{
 			ID: in.ContractsParams.MCMS.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},

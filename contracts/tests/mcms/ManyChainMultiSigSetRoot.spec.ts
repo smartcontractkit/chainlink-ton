@@ -4,24 +4,19 @@ import { toNano, beginCell, Cell } from '@ton/core'
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 
-import {
-  MCMSBaseSetRootAndExecuteTestSetup,
-  MCMSTestCode,
-  TestSigner,
-} from './ManyChainMultiSigBaseTest'
+import { MCMSBaseSetRootAndExecuteTestSetup, TestSigner } from './ManyChainMultiSigBaseTest'
 
 describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll('set_root', {
+      setInitialRoot: false,
+    })
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    baseTest.code = code
-    await baseTest.setupForSetRootAndExecute('test-set-root')
+    await baseTest.beforeEach()
   })
 
   describe('SetRootSanityChecks', () => {
@@ -280,14 +275,11 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
     it('should revert when no config is set', async () => {
       // Create a fresh MCMS instance without setting config
-      baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
       {
-        baseTest.code = code
-        await baseTest.initializeBlockchain()
         await baseTest.setupTestConfiguration()
-        await baseTest.setupMCMSContract('test-no-config')
+        await baseTest.setupMCMSContract()
         await baseTest.deployMCMSContract()
-        await baseTest.setupCounterContract('test-no-config')
+        await baseTest.setupCounterContract()
         await baseTest.deployCounterContract()
         // Don't call setInitialConfiguration()
 
@@ -942,5 +934,11 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         op: mcms.opcodes.out.ExpiredRootsCleaned,
       })
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

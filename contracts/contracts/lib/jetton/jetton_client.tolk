@@ -1,6 +1,5 @@
 import "./utils.tolk"
 import "messages"
-import "../../lib/jetton/messages.tolk"
 
 struct JettonClient {
     masterAddress: address
@@ -41,7 +40,7 @@ fun JettonClient.sendSimple(
             queryId: queryId,
             jettonAmount: amount,
             transferRecipient: destination,
-            sendExcessesTo: contract.getAddress(),
+            sendExcessesTo: responseDestination,
             customPayload: null,
             forwardTonAmount: 0,
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
@@ -130,6 +129,9 @@ fun loadForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
         forwardPayload.assertEnd();
         return forwardPayloadCell;
     }
+    if (forwardPayload.isEmpty()) {
+        return null;
+    }
     return beginCell().storeSlice(forwardPayload).endCell();
 }
 
@@ -139,6 +141,9 @@ fun loadForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
     if (forwardPayloadCell != null) {
         forwardPayload.assertEnd();
         return forwardPayloadCell!.beginParse();
+    }
+    if (forwardPayload.isEmpty()) {
+        return null;
     }
     return forwardPayload;
 }

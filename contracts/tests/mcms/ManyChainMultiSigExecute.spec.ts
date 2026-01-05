@@ -8,17 +8,13 @@ import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMul
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll('execute')
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    baseTest.code = code
-    await baseTest.setupForSetRootAndExecute('test-execute')
-    await baseTest.setInitialRoot()
+    await baseTest.beforeEach()
   })
 
   it('should revert when post-op count reached', async () => {
@@ -462,5 +458,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(targetBalanceAfter).toBeGreaterThanOrEqual(
       targetBalanceBefore + expectedTransfer - toNano('0.01'),
     ) // Allow for small gas fees
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

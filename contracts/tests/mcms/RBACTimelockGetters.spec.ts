@@ -9,16 +9,13 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockGetters', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('getter')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-getters')
+    await baseTest.beforeEach()
   })
 
   describe('isOperation', () => {
@@ -544,5 +541,11 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
       expect(operationTimestamp).toBe(rbactl.DONE_TIMESTAMP)
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

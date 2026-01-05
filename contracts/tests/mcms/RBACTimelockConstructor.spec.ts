@@ -7,18 +7,13 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockConstructorTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('constructor')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.initializeBlockchain()
-    await baseTest.setupTimelockContract('test-constructor')
-    await baseTest.deployTimelockContract()
+    await baseTest.beforeEach()
   })
 
   it('should not init twice', async () => {
@@ -259,5 +254,11 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
   it('should have no blocked functions initially', async () => {
     const numBlockedFns = await baseTest.bind.timelock.getBlockedFunctionSelectorCount()
     expect(numBlockedFns).toBe(0)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })
