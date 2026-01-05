@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tl"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
@@ -79,11 +80,10 @@ func (lp *service) getLastProcessedBlock(ctx context.Context, currentBlock *ton.
 
 	lookbackSeqNo := computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
-	blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
 	lp.lggr.Debugw("Starting from lookback window",
 		"fromSeqNo", lookbackSeqNo,
 		"toSeqNo", currentBlock.SeqNo,
-		"blocksToProcess", blocksToProcess,
+		"blocksToProcess", currentBlock.SeqNo-lookbackSeqNo,
 	)
 	return lookbackSeqNo, nil
 }
@@ -149,6 +149,7 @@ func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.B
 	}
 
 	blockRange.Prev = prevBlock
+
 	lp.lggr.Infow("block range overridden for replay",
 		"originalFrom", blockRange.FromSeqNo(),
 		"replayFrom", requestedBlock,
@@ -180,4 +181,66 @@ func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*to
 	}
 
 	return prevBlock, nil
+}
+
+// resolveMCBlockSeqNo returns the masterchain block sequence number that finalized the given shard block.
+// Results are cached to optimize batch processing where multiple transactions share the same shard block.
+func (lp *service) resolveMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockIDExt) (uint32, error) {
+	if shardBlock == nil {
+		return 0, fmt.Errorf("shardBlock is nil")
+	}
+
+	// transaction blocks should always be shard blocks, not masterchain blocks
+	if shardBlock.Workchain == address.MasterchainID {
+		return 0, fmt.Errorf("unexpected masterchain block: transaction blocks should be shard blocks")
+	}
+
+	key := shardBlockKey(shardBlock)
+
+	if seqno, ok := lp.mcBlockCache.Get(key); ok {
+		return seqno, nil
+	}
+
+	mcSeqNo, err := lp.fetchMCBlockSeqNo(ctx, shardBlock)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch masterchain block seqno for %s: %w", key, err)
+	}
+
+	lp.mcBlockCache.Add(key, mcSeqNo)
+
+	return mcSeqNo, nil
+}
+
+// fetchMCBlockSeqNo queries liteserver for the masterchain block that finalized the given shard block.
+// Uses GetShardBlockProof which directly returns the masterchain block ID.
+func (lp *service) fetchMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockIDExt) (uint32, error) {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get client: %w", err)
+	}
+
+	var resp tl.Serializable
+	err = client.Client().QueryLiteserver(ctx, ton.GetShardBlockProof{
+		ID: shardBlock,
+	}, &resp)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query shard block proof: %w", err)
+	}
+
+	switch t := resp.(type) {
+	case ton.ShardBlockProof:
+		if t.MasterchainID == nil {
+			return 0, fmt.Errorf("MasterchainID is nil in shard block proof")
+		}
+		return t.MasterchainID.SeqNo, nil
+	case ton.LSError:
+		return 0, fmt.Errorf("liteserver error: code=%d, msg=%s", t.Code, t.Text)
+	default:
+		return 0, fmt.Errorf("unexpected response type: %T", resp)
+	}
+}
+
+// shardBlockKey generates a unique cache key for a shard block
+func shardBlockKey(block *ton.BlockIDExt) string {
+	return fmt.Sprintf("%d:%d:%d", block.Workchain, block.Shard, block.SeqNo)
 }
