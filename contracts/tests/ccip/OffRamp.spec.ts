@@ -939,7 +939,7 @@ describe('OffRamp - Unit Tests', () => {
     )
   })
 
-  it('Test commit with more than 128 messages fails', async () => {
+  it('Test commit with more than 64 messages fails', async () => {
     await setupOCRConfig()
     await setupSourceChainConfig()
 
@@ -947,8 +947,8 @@ describe('OffRamp - Unit Tests', () => {
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
 
-    // Commit with a 128 message gap should fail
-    const root = createMerkleRoot(1n, 129n, rootBytes)
+    // Commit with more than 64 messages should fail
+    const root = createMerkleRoot(1n, 65n, rootBytes)
 
     await commitReport(
       [root],
@@ -959,8 +959,8 @@ describe('OffRamp - Unit Tests', () => {
       of.OffRampError.TooManyMessagesInReport,
     )
 
-    // Commit with a 127 message gap should succeed
-    const root2 = createMerkleRoot(1n, 128n, rootBytes)
+    // Commit with exactly 64 messages should succeed
+    const root2 = createMerkleRoot(1n, 64n, rootBytes)
     await commitReport([root2], toNano('0.5'), 0x02, undefined)
   })
 

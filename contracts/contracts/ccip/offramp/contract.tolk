@@ -393,8 +393,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
-        // hard cap of 128 messages per report
-        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
+        // hard cap of 64 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 64, Error.TooManyMessagesInReport);
 
         assert(
             (sourceChainConfig.minSeqNr == root.minSeqNr) && // No seqNr skipped
