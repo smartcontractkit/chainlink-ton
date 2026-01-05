@@ -317,7 +317,9 @@ export const builder = (() => {
     in: (() => {
       const addPriceUpdater: CellCodec<AddPriceUpdater> = {
         encode: (data: AddPriceUpdater): Builder => {
-          return beginCell().storeUint(Opcodes.addPriceUpdater, 32).storeAddress(data.priceUpdater)
+          return beginCell()
+            .storeUint(opcodes.in.addPriceUpdater, 32)
+            .storeAddress(data.priceUpdater)
         },
         load: (src: Slice): AddPriceUpdater => {
           throw new Error('Not implemented') // TODO implement if needed
@@ -326,7 +328,7 @@ export const builder = (() => {
       const removePriceUpdater: CellCodec<RemovePriceUpdater> = {
         encode: (data: RemovePriceUpdater): Builder => {
           return beginCell()
-            .storeUint(Opcodes.removePriceUpdater, 32)
+            .storeUint(opcodes.in.removePriceUpdater, 32)
             .storeAddress(data.priceUpdater)
         },
         load: (src: Slice): RemovePriceUpdater => {
@@ -339,7 +341,7 @@ export const builder = (() => {
           const gasPrices = asSnakeData(data.updates.gasPricesUpdates, encodeGasPriceUpdate)
 
           return beginCell()
-            .storeUint(Opcodes.updatePrices, 32)
+            .storeUint(opcodes.in.updatePrices, 32)
             .storeRef(tokenPrices)
             .storeRef(gasPrices)
             .storeAddress(data.sendExcessesTo)
@@ -356,7 +358,10 @@ export const builder = (() => {
           }
           const remove = asSnakeData(data.remove, (addr) => new TonBuilder().storeAddress(addr))
 
-          return beginCell().storeUint(Opcodes.updateFeeTokens, 32).storeDict(add).storeRef(remove)
+          return beginCell()
+            .storeUint(opcodes.in.updateFeeTokens, 32)
+            .storeDict(add)
+            .storeRef(remove)
         },
         load: (src: Slice) => {
           throw new Error('Function not implemented.') // TODO implement if needed
@@ -372,7 +377,9 @@ export const builder = (() => {
             updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
           }
 
-          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeDict(updatesDict)
+          return beginCell()
+            .storeUint(opcodes.in.updateTransferFeeConfigs, 32)
+            .storeDict(updatesDict)
         },
         load(src: Slice): UpdateTokenTransferFeeConfigs {
           throw new Error('Function not implemented.') // TODO implement if needed
@@ -381,7 +388,7 @@ export const builder = (() => {
       const updateDestChainConfigs: CellCodec<UpdateDestChainConfigs> = {
         encode: (updates: UpdateDestChainConfigs): Builder => {
           return beginCell()
-            .storeUint(Opcodes.updateDestChainConfig, 32)
+            .storeUint(opcodes.in.updateDestChainConfig, 32)
             .storeRef(
               asSnakeData(updates, (update) =>
                 new TonBuilder()
@@ -398,7 +405,7 @@ export const builder = (() => {
       const getValidatedFee: CellCodec<GetValidatedFee> = {
         encode: function (data: GetValidatedFee): Builder {
           return beginCell()
-            .storeUint(Opcodes.getValidatedFee, 32)
+            .storeUint(opcodes.in.getValidatedFee, 32)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
         },
@@ -425,7 +432,7 @@ export const builder = (() => {
       const messageValidated: CellCodec<MessageValidated> = {
         encode: (data: MessageValidated): TonBuilder => {
           return beginCell()
-            .storeUint(OutOpcodes.messageValidated, 32)
+            .storeUint(opcodes.out.messageValidated, 32)
             .storeBuilder(dataBuilder.fee.encode(data.fee))
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
@@ -443,7 +450,7 @@ export const builder = (() => {
       const messageValidationFailed: CellCodec<MessageValidationFailed> = {
         encode: (data: MessageValidationFailed): TonBuilder => {
           return beginCell()
-            .storeUint(OutOpcodes.messageValidationFailed, 32)
+            .storeUint(opcodes.out.messageValidationFailed, 32)
             .storeUint(data.error, 256)
             .storeRef(rt.builder.message.in.ccipSend.encode(data.msg))
             .storeSlice(data.context)
@@ -500,19 +507,20 @@ export const stackBuilder = {
 
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static updatePrices = 0xde852b1b
-  static updateFeeTokens = 0xd0984986
-  static updateTransferFeeConfigs = 0xb2826316
-  static updateDestChainConfig = 0x2d2410f6
-  static getValidatedFee = 0x7496ff56
-  static addPriceUpdater = crc32('FeeQuoter_AddPriceUpdater')
-  static removePriceUpdater = crc32('FeeQuoter_RemovePriceUpdater')
-}
-
-export abstract class OutOpcodes {
-  static messageValidated = 0x1fa60374
-  static messageValidationFailed = 0xbcf0ab0f
+export const opcodes = {
+  in: {
+    updatePrices: 0xde852b1b,
+    updateFeeTokens: 0xd0984986,
+    updateTransferFeeConfigs: 0xb2826316,
+    updateDestChainConfig: 0x2d2410f6,
+    getValidatedFee: 0x7496ff56,
+    addPriceUpdater: crc32('FeeQuoter_AddPriceUpdater'),
+    removePriceUpdater: crc32('FeeQuoter_RemovePriceUpdater'),
+  },
+  out: {
+    messageValidated: 0x1fa60374,
+    messageValidationFailed: 0xbcf0ab0f,
+  },
 }
 
 export type TokenPriceUpdate = {
