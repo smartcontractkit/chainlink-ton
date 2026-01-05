@@ -43,7 +43,11 @@
       chainlink-ton-extras = pkgs.callPackage ./cmd/chainlink-ton-extras commonArgs;
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
-      oplint = pkgs.callPackage ./scripts/oplint commonArgs;
+      oplint =
+        (pkgs.callPackage ./scripts/oplint commonArgs).overrideAttrs (_old: {
+          GOFLAGS = [ "-mod=mod" "-trimpath" ];
+        });
+
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts {
         inherit pkgs;
