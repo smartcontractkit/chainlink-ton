@@ -46,7 +46,7 @@ jobs:
         CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
         # relative to chainlink-ccip/devenv. Assumes chainlink-ton is checked out to top level
         CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
-        CONTRACT_VERSION: 99dca5448b92 #todo: allow to use local
+        CONTRACT_VERSION: local
       run: |
         fetch_id() {
           gh run list \
