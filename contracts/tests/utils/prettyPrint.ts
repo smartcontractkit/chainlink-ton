@@ -101,7 +101,7 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
  *     receiver: Buffer.alloc(64),
  *     data: Cell.EMPTY,
  *     tokenAmounts: [],
- *     feeToken: ZERO_ADDRESS,
+ *     feeToken: null,
  *     extraArgs: Cell.EMPTY,
  *   },
  * })

@@ -30,7 +30,6 @@ import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import {
-  asSnakeData,
   bigIntToBuffer,
   bigIntToUint8Array,
   generateEd25519KeyPair,
@@ -38,7 +37,6 @@ import {
   generateRandomContractId,
   generateRandomTonAddress,
   uint8ArrayToBigInt,
-  ZERO_ADDRESS,
   WRAPPED_NATIVE,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
@@ -160,7 +158,7 @@ async function deployOffRampContract(
       merkleRootCode: beginCell().endCell(),
       receiveExecutorCode: beginCell().endCell(),
     },
-    feeQuoter: ZERO_ADDRESS,
+    feeQuoter: owner.address, // placeholder
     router: owner.address, // used to determine who can send RMN updates
     chainSelector: CHAINSEL_TON,
     permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,

@@ -41,7 +41,7 @@ func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 				OpPendingInfo: OpPendingInfo{
 					ValidAfter:             0,
 					OpFinalizationTimeout:  0,
-					OpPendingReceiver:      tvm.ZeroAddress,
+					OpPendingReceiver:      address.NewAddressNone(),
 					OpPendingBodyTruncated: tlbe.NewUint256(big.NewInt(0)),
 				},
 			},

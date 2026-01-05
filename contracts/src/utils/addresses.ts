@@ -1,6 +1,6 @@
 import { Address } from '@ton/core'
 
-export const ZERO_ADDRESS: Address = Address.parse(
+export const DUMMY_ADDRESS: Address = Address.parse(
   '0:0000000000000000000000000000000000000000000000000000000000000000',
 )
 

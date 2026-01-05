@@ -3,7 +3,6 @@ import {
   generateRandomContractId,
   LINK_TOKEN,
   WRAPPED_NATIVE,
-  ZERO_ADDRESS,
 } from '../../../src/utils'
 import {
   createTimestampedPriceValue,
@@ -93,7 +92,7 @@ export const setupTestFeeQuoter = async (
   result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
     value: toNano('1'),
     msg: {
-      add: new Map([[ZERO_ADDRESS, { premiumMultiplierWeiPerEth: 1n }]]),
+      add: new Map([[WRAPPED_NATIVE, { premiumMultiplierWeiPerEth: 1n }]]),
       remove: [],
     },
   })

@@ -140,7 +140,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 					OpPendingInfo: mcms.OpPendingInfo{
 						ValidAfter:             0,
 						OpFinalizationTimeout:  0,
-						OpPendingReceiver:      tvm.ZeroAddress,
+						OpPendingReceiver:      address.NewAddressNone(),
 						OpPendingBodyTruncated: tlbe.NewUint256(big.NewInt(0)),
 					},
 				},

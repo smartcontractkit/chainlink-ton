@@ -7,7 +7,7 @@ import { sign } from '@ton/crypto'
 import { crc32 } from 'zlib'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { ZERO_ADDRESS } from '../../src/utils'
+import { DUMMY_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
@@ -229,7 +229,7 @@ export class MCMSBaseTestSetup {
         owner: this.acc.multisigOwner.address,
         pendingOwner: null,
       },
-      oracle: ZERO_ADDRESS,
+      oracle: DUMMY_ADDRESS,
       signers: new Map<bigint, Buffer>(),
       config: {
         signers: new Map<number, Buffer>(),
@@ -245,7 +245,7 @@ export class MCMSBaseTestSetup {
           opPendingInfo: {
             validAfter: 0n,
             opFinalizationTimeout: MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
-            opPendingReceiver: ZERO_ADDRESS,
+            opPendingReceiver: null,
             opPendingBodyTruncated: 0n,
           },
         },
