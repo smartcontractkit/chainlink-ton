@@ -1132,6 +1132,7 @@ describe('FeeQuoter GetValidatedFee', () => {
   describe('Cross-Chain Address Validation', () => {
     const EVM_PRECOMPILE_SPACE = 1024
     const APTOS_PRECOMPILE_SPACE = 0x0b
+    const SUI_PRECOMPILE_SPACE = 0xdee9
 
     describe('EVM Address Validation', () => {
       it('should accept valid EVM address', async () => {
@@ -1388,7 +1389,10 @@ describe('FeeQuoter GetValidatedFee', () => {
     describe('SUI Address Validation', () => {
       it('should accept valid SUI address with non-zero gas limit', async () => {
         const validSuiAddress = Buffer.alloc(32)
-        validSuiAddress[31] = APTOS_PRECOMPILE_SPACE + 1
+        validSuiAddress[28] = 0xd
+        validSuiAddress[29] = 0xe
+        validSuiAddress[30] = 0xe
+        validSuiAddress[31] = 9 + 1
 
         const message: rt.CCIPSend = {
           destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,
@@ -1437,7 +1441,6 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       it('should reject SUI address below precompile space with non-zero gas limit', async () => {
         const precompileAddress = Buffer.alloc(32)
-        precompileAddress[31] = APTOS_PRECOMPILE_SPACE - 1
 
         const message: rt.CCIPSend = {
           destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI,

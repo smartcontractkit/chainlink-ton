@@ -487,7 +487,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
         return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
