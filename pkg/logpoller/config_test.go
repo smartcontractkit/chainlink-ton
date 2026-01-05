@@ -216,13 +216,13 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
-			PollPeriod:      config.MustNewDuration(2 * time.Hour),
+			PollPeriod:      config.MustNewDuration(20 * time.Minute),
 		}
 		err := cfg.ValidateConfig()
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "poll_period")
 		require.Contains(t, err.Error(), "too large")
-		require.Contains(t, err.Error(), "1h")
+		require.Contains(t, err.Error(), "10m")
 	})
 
 	t.Run("succeeds with PollPeriod at minimum boundary", func(t *testing.T) {
@@ -243,7 +243,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			BatchInsertSize: 3000,
 			MinBatchSize:    500,
 			SaveThreshold:   8000,
-			PollPeriod:      config.MustNewDuration(1 * time.Hour),
+			PollPeriod:      config.MustNewDuration(10 * time.Minute),
 		}
 		err := cfg.ValidateConfig()
 		require.NoError(t, err)
