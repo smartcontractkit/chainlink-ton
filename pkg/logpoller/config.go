@@ -8,7 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 )
 
-// Reasonable operational bounds: between 100ms and 1 hour
+// Reasonable operational bounds: between 100ms and 10 minutes
 const (
 	minPollPeriod = 100 * time.Millisecond
 	maxPollPeriod = 10 * time.Minute

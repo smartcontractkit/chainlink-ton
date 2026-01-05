@@ -170,11 +170,13 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	}
 
 	// Check if the remaining bits are enough for the address
-	if s.BitsLeft() < uint(addrLength)*8 {
+	// Safe to convert: addrLength is validated to be in range [1, 64]
+	addrLengthUint := uint(addrLength) // #nosec G115
+	if s.BitsLeft() < addrLengthUint*8 {
 		return errors.New("crosschain address is too short")
 	}
 
-	addr, err := s.LoadSlice(uint(addrLength) * 8)
+	addr, err := s.LoadSlice(addrLengthUint * 8)
 	if err != nil {
 		return fmt.Errorf("failed to load cross-chain address: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -661,7 +662,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 		_, err := packArrayWithRefChaining(largeArray)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "exceeds maximum of")
-		require.Contains(t, err.Error(), fmt.Sprintf("%d", MaxArrayLength))
+		require.Contains(t, err.Error(), strconv.Itoa(MaxArrayLength))
 	})
 
 	t.Run("packArrayWithRefChaining at max length succeeds", func(t *testing.T) {
@@ -717,7 +718,7 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 		_, err := packArrayWithStaticType(largeArray)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "exceeds maximum of")
-		require.Contains(t, err.Error(), fmt.Sprintf("%d", MaxArrayLength))
+		require.Contains(t, err.Error(), strconv.Itoa(MaxArrayLength))
 	})
 
 	t.Run("packArrayWithStaticType at max length succeeds", func(t *testing.T) {
