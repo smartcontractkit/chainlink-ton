@@ -222,11 +222,12 @@ func checkForDuplicateOpcodes(structs []structWithOpcode) []string {
 	// Check for duplicates
 	for opcode, structList := range opcodeMap {
 		if len(structList) > 1 {
-			errorMsg := fmt.Sprintf("❌ Duplicate opcode 0x%08x found in %d structs:", opcode, len(structList))
+			var b strings.Builder
+			fmt.Fprintf(&b, "❌ Duplicate opcode 0x%08x found in %d structs:", opcode, len(structList))
 			for _, s := range structList {
-				errorMsg += fmt.Sprintf("\n  - %s | %s", s.name, fmtLocation(s.loc))
+				fmt.Fprintf(&b, "\n  - %s | %s", s.name, fmtLocation(s.loc))
 			}
-			errors = append(errors, errorMsg)
+			errors = append(errors, b.String())
 		}
 	}
 
