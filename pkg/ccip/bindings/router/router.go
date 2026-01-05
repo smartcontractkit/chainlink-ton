@@ -23,9 +23,9 @@ import (
 
 const (
 	OpcodeApplyRampUpdates   = 0x7db6745d
-	OpcodeCCIPSend           = 0x38a69e3b
+	OpcodeCCIPSend           = 0x31768d95
 	OpcodeRouteMessage       = 0xfc69c50b
-	OpcodeCCIPReceiveConfirm = 0xaf0cccef
+	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
 	OpcodeMessageSent        = 0x6513f8e1
 	OpcodeMessageRejected    = 0x8ae25114
 )
@@ -112,7 +112,7 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
+	_                 tlb.Magic                    `tlb:"#31768d95"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                       `tlb:"## 64"`
 	DestChainSelector uint64                       `tlb:"## 64"`
 	Receiver          common.CrossChainAddress     `tlb:"."`
@@ -131,7 +131,7 @@ type RouteMessage struct {
 }
 
 type CCIPReceiveConfirm struct {
-	_      tlb.Magic `tlb:"#af0cccef"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
 	ExecID big.Int   `tlb:"## 192"`
 }
 

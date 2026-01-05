@@ -501,10 +501,10 @@ export const stackBuilder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static updatePrices = 0x20000001
+  static updatePrices = 0xde852b1b
   static updateFeeTokens = 0xd0984986
   static updateTransferFeeConfigs = 0xb2826316
-  static updateDestChainConfig = 0x29950baa
+  static updateDestChainConfig = 0x2d2410f6
   static getValidatedFee = 0x7496ff56
   static addPriceUpdater = crc32('FeeQuoter_AddPriceUpdater')
   static removePriceUpdater = crc32('FeeQuoter_RemovePriceUpdater')
