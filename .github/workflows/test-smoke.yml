@@ -15,11 +15,13 @@ jobs:
     permissions:
       id-token: write
     steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v5
     - name: Set Chainlink version
       id: set-version
       run: |
         # Default to the pinned version for PRs
-        CHAINLINK_VERSION=$(cat ../../scripts/.core_version | tr -d '[:space:]')
+        CHAINLINK_VERSION=$(cat ./scripts/.core_version | tr -d '[:space:]')
 
         # If this is a scheduled (nightly) run, switch to develop
         if [[ "${{ github.event_name }}" == "schedule" ]]; then
