@@ -279,4 +279,105 @@ func TestPgLogStore(t *testing.T) {
 		assert.NotEqual(t, firstLogs[0].ID, logs2[0].ID)
 		assert.Less(t, firstLogs[0].TxLT, logs2[0].TxLT)
 	})
+
+	t.Run("GetLatestBlock via service interface", func(t *testing.T) {
+		// create service to test via public interface
+		lp, err := logpoller.NewService(logger.Test(t), "test-chain", nil, &logpoller.ServiceOptions{
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: filterStore,
+			TxLoader:    nil, // not needed for GetLatestBlock
+			LogStore:    logStore,
+		})
+		require.NoError(t, err)
+
+		latestSeqno, err := lp.GetLatestBlock(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, uint32(202), latestSeqno)
+	})
+}
+
+func TestGetLatestBlock(t *testing.T) {
+	ctx := t.Context()
+	ds := pgtest.SetupTestDB(t)
+
+	err := pgtest.ExecuteSQL(ctx, ds, testdata.CreateLogPollerTables)
+	require.NoError(t, err)
+
+	lggr := logger.Test(t)
+	orm := postgres.NewORM("test-chain", ds, lggr)
+	filterStore := postgres.NewFilterStore("test-chain", orm, lggr)
+	logStore := postgres.NewLogStore("test-chain", orm, lggr)
+
+	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	filterID, err := filterStore.RegisterFilter(ctx, models.Filter{
+		Name:     "test-filter",
+		Address:  testAddr,
+		MsgType:  tlb.MsgTypeExternalOut,
+		EventSig: counter.TopicCountIncreased,
+	})
+	require.NoError(t, err)
+
+	// helper to create log with specific mc block seqno
+	makeLog := func(idx int, mcSeqno uint32) models.Log {
+		return models.Log{
+			ChainID:          "test-chain",
+			FilterID:         filterID,
+			Address:          testAddr,
+			EventSig:         counter.TopicCountIncreased,
+			Data:             cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(),
+			TxHash:           models.TxHash{byte(idx), 0, 0},
+			TxLT:             uint64(1000 + idx),
+			MsgLT:            uint64(1000 + idx),
+			TxTimestamp:      time.Now(),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + idx)},
+			MasterBlockSeqno: mcSeqno,
+			MsgIndex:         int64(idx),
+		}
+	}
+
+	// create service to test via public interface
+	lp, err := logpoller.NewService(lggr, "test-chain", nil, &logpoller.ServiceOptions{
+		Config:      logpoller.DefaultConfigSet,
+		FilterStore: filterStore,
+		TxLoader:    nil,
+		LogStore:    logStore,
+	})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		logs     []models.Log
+		expected uint32
+	}{
+		{
+			name:     "empty database returns 0",
+			logs:     nil,
+			expected: 0,
+		},
+		{
+			name:     "single log",
+			logs:     []models.Log{makeLog(1, 5000)},
+			expected: 5000,
+		},
+		{
+			name:     "multiple logs returns highest",
+			logs:     []models.Log{makeLog(2, 5500), makeLog(3, 6000)},
+			expected: 6000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if len(tt.logs) > 0 {
+				_, err := logStore.SaveLogs(ctx, tt.logs, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
+				require.NoError(t, err)
+			}
+
+			latestBlock, err := lp.GetLatestBlock(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, latestBlock)
+		})
+	}
 }

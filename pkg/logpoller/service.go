@@ -392,6 +392,11 @@ func (lp *service) ReplayStatus() models.ReplayStatus {
 	return lp.replay.status
 }
 
+// GetLatestBlock returns the highest masterchain block seqno from stored logs.
+func (lp *service) GetLatestBlock(ctx context.Context) (uint32, error) {
+	return lp.logStore.GetLatestMasterBlockSeqno(ctx)
+}
+
 // checkForReplayRequest checks whether there have been any new replay requests since it was last called,
 // and if so sets the pending flag to true and returns the block number
 func (lp *service) checkForReplayRequest() (bool, uint32) {
