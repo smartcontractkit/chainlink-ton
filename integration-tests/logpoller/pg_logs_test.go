@@ -326,12 +326,12 @@ func TestGetLatestBlock(t *testing.T) {
 			FilterID:         filterID,
 			Address:          testAddr,
 			EventSig:         counter.TopicCountIncreased,
-			Data:             cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(),
+			Data:             cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(), //nolint:gosec // test code
 			TxHash:           models.TxHash{byte(idx), 0, 0},
-			TxLT:             uint64(1000 + idx),
-			MsgLT:            uint64(1000 + idx),
+			TxLT:             uint64(1000 + idx), //nolint:gosec // test code
+			MsgLT:            uint64(1000 + idx), //nolint:gosec // test code
 			TxTimestamp:      time.Now(),
-			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + idx)},
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + idx)}, //nolint:gosec // test code
 			MasterBlockSeqno: mcSeqno,
 			MsgIndex:         int64(idx),
 		}

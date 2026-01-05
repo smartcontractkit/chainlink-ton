@@ -187,12 +187,12 @@ func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*to
 // Results are cached to optimize batch processing where multiple transactions share the same shard block.
 func (lp *service) resolveMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockIDExt) (uint32, error) {
 	if shardBlock == nil {
-		return 0, fmt.Errorf("shardBlock is nil")
+		return 0, errors.New("shardBlock is nil")
 	}
 
 	// transaction blocks should always be shard blocks, not masterchain blocks
 	if shardBlock.Workchain == address.MasterchainID {
-		return 0, fmt.Errorf("unexpected masterchain block: transaction blocks should be shard blocks")
+		return 0, errors.New("unexpected masterchain block: transaction blocks should be shard blocks")
 	}
 
 	key := shardBlockKey(shardBlock)
@@ -230,7 +230,7 @@ func (lp *service) fetchMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockI
 	switch t := resp.(type) {
 	case ton.ShardBlockProof:
 		if t.MasterchainID == nil {
-			return 0, fmt.Errorf("MasterchainID is nil in shard block proof")
+			return 0, errors.New("MasterchainID is nil in shard block proof")
 		}
 		return t.MasterchainID.SeqNo, nil
 	case ton.LSError:

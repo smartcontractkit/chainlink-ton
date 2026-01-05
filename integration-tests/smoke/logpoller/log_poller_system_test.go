@@ -90,7 +90,7 @@ func Test_LogPoller_System(t *testing.T) {
 
 		latestBlockBefore, err := lp.GetLatestBlock(t.Context())
 		require.NoError(t, err)
-		require.Greater(t, latestBlockBefore, uint32(0), "mc block seqno should be stored")
+		require.Positive(t, latestBlockBefore, "mc block seqno should be stored")
 		t.Logf("latest block before restart: %d", latestBlockBefore)
 
 		// restart
