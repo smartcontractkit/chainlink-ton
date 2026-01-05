@@ -166,12 +166,12 @@ describe('Router - Ownable Tests', () => {
 describe('Router - Opcodes', () => {
   it('should match in opcodes', () => {
     expect(rt.opcodes.in.applyRampUpdates).toBe(crc32('Router_ApplyRampUpdates'))
-    expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CcipSend'))
-    expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CcipReceiveConfirm'))
+    expect(rt.opcodes.in.ccipSend).toBe(crc32('Router_CCIPSend'))
+    expect(rt.opcodes.in.ccipReceiveConfirm).toBe(crc32('Router_CCIPReceiveConfirm'))
     expect(rt.opcodes.in.routeMessage).toBe(crc32('Router_RouteMessage'))
-    expect(rt.opcodes.in.rmnRemoteCurse).toBe(crc32('Router_Curse'))
-    expect(rt.opcodes.in.rmnRemoteUncurse).toBe(crc32('Router_Uncurse'))
-    expect(rt.opcodes.in.verifyNotCursed).toBe(crc32('Router_VerifyNotCursed'))
+    expect(rt.opcodes.in.rmnRemoteCurse).toBe(crc32('Router_RMNRemoteCurse'))
+    expect(rt.opcodes.in.rmnRemoteUncurse).toBe(crc32('Router_RMNRemoteUncurse'))
+    expect(rt.opcodes.in.verifyNotCursed).toBe(crc32('Router_RMNRemoteVerifyNotCursed'))
     expect(rt.opcodes.in.messageSent).toBe(crc32('Router_MessageSent'))
     expect(rt.opcodes.in.messageRejected).toBe(crc32('Router_MessageRejected'))
     expect(rt.opcodes.in.getValidatedFee).toBe(crc32('Router_GetValidatedFee'))

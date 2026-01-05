@@ -10,21 +10,17 @@ import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMul
 
 describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
-  let code: MCMSTestCode
 
   let acc: {
     oracle: SandboxContract<TreasuryContract>
   }
 
   beforeAll(async () => {
-    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+    baseTest = await MCMSBaseSetRootAndExecuteTestSetup.beforeAll('execute_error_oracle')
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    baseTest.code = code
-    await baseTest.setupForSetRootAndExecute('test-execute')
-    await baseTest.setInitialRoot()
+    await baseTest.beforeEach()
     acc = { oracle: await baseTest.blockchain.treasury('oracle') }
   })
 
@@ -300,5 +296,11 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       success: false,
       exitCode: mcms.Error.ProofCannotBeVerified,
     })
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

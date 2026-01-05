@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 )
 
 // ---------- OffRamp Model Struct Definitions ----------
@@ -487,7 +488,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 
 	st := offramp.Storage{
 		ID: s.ID,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},

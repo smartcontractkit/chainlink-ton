@@ -207,15 +207,17 @@ func (t *Txm) broadcastLoop() {
 			if tx.ID != nil {
 				txID = *tx.ID
 			}
+			bodyBOC := "none"
+			if tx.Body != nil {
+				bodyBOC = hex.EncodeToString(tx.Body.ToBOC())
+			}
 			t.logger.Debugw("attempting to broadcast transaction",
 				"txID", txID,
 				"from", tx.From.String(),
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String(),
 				"mode", tx.Mode,
-				"hasBody", tx.Body != nil,
-				"body", tx.Body,
-				"bodyBOC", hex.EncodeToString(tx.Body.ToBOC()),
+				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
 			err := t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
@@ -299,6 +301,14 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"to", tx.To.String())
 		return err
 	}
+
+	// Record broadcast timestamp and latency
+	tx.BroadcastAt = time.Now()
+	broadcastLatency := tx.BroadcastAt.Sub(tx.CreatedAt)
+	t.metrics.RecordBroadcastLatency(ctx, broadcastLatency)
+	t.logger.Debugw("transaction broadcast latency recorded",
+		"txID", txID,
+		"latency", broadcastLatency.String())
 
 	// Save receivedMessage into tx
 	tx.ReceivedMessage = *receivedMessage
@@ -388,6 +398,14 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
 			}
+
+			// Track finalization latency
+			tx.FinalizedAt = time.Now()
+			finalizationLatency := tx.FinalizedAt.Sub(tx.BroadcastAt)
+			t.metrics.RecordFinalizationLatency(ctx, finalizationLatency)
+			t.logger.Debugw("transaction finalization latency recorded",
+				"LT", unconfirmedTx.LT,
+				"latency", finalizationLatency.String())
 
 			exitCode := receivedMessage.OutcomeExitCode()
 			traceSucceeded := receivedMessage.TraceSucceeded()

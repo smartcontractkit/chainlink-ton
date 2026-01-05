@@ -9,16 +9,13 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockHashingTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('hashing')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-cancel')
+    await baseTest.beforeEach()
   })
 
   it('should hash batch operation correctly', async () => {
@@ -59,5 +56,11 @@ describe('MCMS - RBACTimelockHashingTest', () => {
     const expectedHash = BigInt('0x' + offchainId.toString('hex'))
 
     expect(hashedOperation).toEqual(expectedHash)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

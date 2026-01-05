@@ -19,6 +19,8 @@ type Tx struct {
 	StateInit       *cell.Cell                    // optional, for deploying new contracts
 	Bounceable      bool                          // whether the destination is bounceable
 	CreatedAt       time.Time                     // when the tx was first enqueued
+	BroadcastAt     time.Time                     // when the tx was successfully broadcasted
+	FinalizedAt     time.Time                     // when the message status is finalized
 	Expiration      time.Time                     // expiration timestamp based on TTL
 	ReceivedMessage tracetracking.ReceivedMessage // received message
 	ID              *string                       // optional: unique ID for transaction tracking

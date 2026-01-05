@@ -432,7 +432,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         )
         const initialBalance = (await suiteSetup.blockchain.getContract(contract.address)).balance
 
-        testDrain(initialBalance, undefined, 5n, suiteSetup, contract)
+        await testDrain(initialBalance, undefined, 5n, suiteSetup, contract)
       })
 
       /**
@@ -447,7 +447,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const initialBalance = (await suiteSetup.blockchain.getContract(contract.address)).balance
         const customReserve = customReserveAboveDefault(initialBalance)
 
-        testDrain(initialBalance, customReserve, 15n, suiteSetup, contract)
+        await testDrain(initialBalance, customReserve, 15n, suiteSetup, contract)
       })
 
       /**
@@ -462,7 +462,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         const initialBalance = (await suiteSetup.blockchain.getContract(contract.address)).balance
         const customReserve = customReserveBelowDefault()
 
-        testDrain(initialBalance, customReserve, 16n, suiteSetup, contract)
+        await testDrain(initialBalance, customReserve, 16n, suiteSetup, contract)
       })
 
       /**

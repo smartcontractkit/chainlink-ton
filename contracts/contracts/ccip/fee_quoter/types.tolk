@@ -66,9 +66,13 @@ const VAL_1E14: uint256 = 100000000000000;
 const VAL_1E16: uint256 = 10000000000000000;
 const VAL_1E18: uint256 = 1000000000000000000;
 
-// TODO:
-const TON_2_EVM_MESSAGE_FIXED_BYTES = 1;
-const TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN = 1;
+  /// @dev Any2EVMRampMessage struct has 10 fields, including 3 variable unnested arrays, sender, data and tokenAmounts.
+  /// Each variable array takes 1 more slot to store its length.
+  /// When abi encoded, excluding array contents, Any2EVMMessage takes up a fixed number of 13 slots, 32 bytes each.
+  /// Assume 1 slot for sender
+  /// For structs that contain arrays, 1 more slot is added to the front, reaching a total of 15.
+  /// The fixed bytes does not cover struct data (this is represented by MESSAGE_FIXED_BYTES_PER_TOKEN)
+const TON_2_EVM_MESSAGE_FIXED_BYTES = 15 * 32;
 
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
 
