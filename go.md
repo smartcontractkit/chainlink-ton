@@ -118,12 +118,8 @@ flowchart LR
 	click chainlink-common/keystore href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/chipingress
 	click chainlink-common/pkg/chipingress href "https://github.com/smartcontractkit/chainlink-common"
-<<<<<<< HEAD
-	chainlink-common/pkg/monitoring
-=======
 	chainlink-common/pkg/monitoring --> chainlink-common
 	chainlink-common/pkg/monitoring --> chainlink-common/pkg/values
->>>>>>> 8192ef29bb18301695d97510405dee7cad407812
 	click chainlink-common/pkg/monitoring href "https://github.com/smartcontractkit/chainlink-common"
 	chainlink-common/pkg/values
 	click chainlink-common/pkg/values href "https://github.com/smartcontractkit/chainlink-common"
