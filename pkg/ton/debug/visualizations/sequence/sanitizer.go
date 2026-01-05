@@ -6,18 +6,21 @@ import (
 )
 
 func sanitizeString(s string) string {
-	description := ""
+	var b strings.Builder
 	for i, line := range strings.Split(s, "\n") {
 		if i > 0 {
-			description += "<br/>"
+			b.WriteString("<br/>")
 		}
 		withoutPadding := strings.TrimLeft(line, " ")
 		paddingLen := len(line) - len(withoutPadding)
-		newPadding := strings.Repeat("_", paddingLen)
-		description += newPadding + withoutPadding
+
+		if paddingLen > 0 {
+			b.WriteString(strings.Repeat("_", paddingLen))
+		}
+		b.WriteString(withoutPadding)
 	}
-	var wrapWidth = 80
-	description = wrap(description, wrapWidth)
+	const wrapWidth = 80
+	description := wrap(b.String(), wrapWidth)
 	description = strings.ReplaceAll(description, "\"", "'")
 	return description
 }
