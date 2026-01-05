@@ -7,6 +7,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -186,9 +187,6 @@ var GetStaticConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[StaticConfig]{
 var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	Name: DestChainsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
-		// This is a special case - returns a tuple of chain selectors
-		// The caller should use parser.ParseLispTuple(result.AsTuple()) to get the slice
-		// For now, return empty slice and let the caller handle the parsing
-		return nil, nil
+		return parser.ParseLispTuple(r.AsTuple()), nil
 	}),
 })
