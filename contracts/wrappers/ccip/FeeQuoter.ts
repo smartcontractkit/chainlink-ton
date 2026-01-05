@@ -919,7 +919,10 @@ export class FeeQuoter
     return selectors
   }
 
-  async getTokenPrices(provider: ContractProvider, tokens: Address[]): Promise<TimestampedPrice[]> {
+  async getTokenPrices(
+    provider: ContractProvider,
+    tokens: Address[],
+  ): Promise<(TimestampedPrice | undefined)[]> {
     const tupleItems: TupleItem[] = []
     for (const token of tokens) {
       tupleItems.push({
@@ -930,9 +933,13 @@ export class FeeQuoter
     const tuple = { type: 'tuple', items: tupleItems } as Tuple
     const result = await provider.get('tokenPrices', [tuple])
     const resultTuple = result.stack.readTuple()
-    const prices: TimestampedPrice[] = []
+    const prices: (TimestampedPrice | undefined)[] = []
     while (resultTuple.remaining > 0) {
-      const priceCell = resultTuple.readCell()
+      const priceCell = resultTuple.readCellOpt()
+      if (!priceCell) {
+        prices.push(undefined)
+        continue
+      }
       const priceSlice = priceCell.beginParse()
       prices.push({
         value: priceSlice.loadUintBig(224),

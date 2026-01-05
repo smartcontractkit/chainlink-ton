@@ -562,6 +562,8 @@ get fun tokenPrices(tokens: tuple): tuple {
         // NOTE: Need to skip missing items as nil entries rather than fail the query
         if (entry.isFound) {
             list.push(entry.loadValue().toCell());
+        } else {
+            list.push(null);
         }
     }
     return list;
