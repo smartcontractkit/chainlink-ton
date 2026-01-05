@@ -720,6 +720,68 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	testExecutedMessagesHelper(t, lp, opts.LogStore, 1)
 }
 
+// Test validation for MsgsBetweenSeqNums sequence number range
+func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
+	lggr := logger.Test(t)
+
+	// Note: we don't test the API client interaction here, so we return empty client
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return nil, nil
+	}
+
+	opts := &logpoller.ServiceOptions{
+		Config:      logpoller.DefaultConfigSet,
+		FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+		LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
+	}
+
+	lp, err := logpoller.NewService(
+		lggr,
+		"test-chain",
+		clientProvider,
+		opts,
+	)
+	require.NoError(t, err)
+
+	addrCodec := codec.NewAddressCodec()
+	accessor, aerr := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
+	require.NoError(t, aerr)
+
+	t.Run("invalid range where Start > End", func(t *testing.T) {
+		// Test with invalid range where Start > End
+		invalidRange := ccipocr3.NewSeqNumRange(100, 50)
+		msgs, err := accessor.MsgsBetweenSeqNums(context.Background(), 1, invalidRange)
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid sequence range")
+		require.Contains(t, err.Error(), "Start")
+		require.Contains(t, err.Error(), "End")
+		require.Nil(t, msgs)
+	})
+
+	t.Run("valid range where Start <= End returns binding error", func(t *testing.T) {
+		// Test with valid range where Start <= End
+		validRange := ccipocr3.NewSeqNumRange(50, 100)
+		_, err := accessor.MsgsBetweenSeqNums(context.Background(), 1, validRange)
+
+		// Should get past range validation and hit binding error instead
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "OnRamp not bound")
+		require.NotContains(t, err.Error(), "invalid sequence range")
+	})
+
+	t.Run("valid range where Start == End returns binding error", func(t *testing.T) {
+		// Test with range where Start == End
+		validRange := ccipocr3.NewSeqNumRange(100, 100)
+		_, err := accessor.MsgsBetweenSeqNums(context.Background(), 1, validRange)
+
+		// Should get past range validation and hit binding error instead
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "OnRamp not bound")
+		require.NotContains(t, err.Error(), "invalid sequence range")
+	})
+}
+
 func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
 	// Skip if no database available
 	if testing.Short() {
