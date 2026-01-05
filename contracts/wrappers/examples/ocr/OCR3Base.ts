@@ -18,6 +18,7 @@ import {
   SignatureEd25519,
 } from '../../libraries/ocr/MultiOCR3Base'
 import { asSnakeData } from '../../../src/utils'
+import { loadContractCode } from '../../codeLoader'
 
 export function ocr3BaseExampleStorage(): Cell {
   //using dummy chainId 1 and a radom id for unique addresses
@@ -36,6 +37,10 @@ export class OCR3BaseExample extends OCR3Base {
     const data = ocr3BaseExampleStorage()
     const init = { code, data }
     return new OCR3BaseExample(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('examples.OCR3Base')
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

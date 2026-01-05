@@ -10,16 +10,13 @@ import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 describe('MCMS - RBACTimelockUpdateDelayTest', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('update_delay')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-update-delay')
+    await baseTest.beforeEach()
   })
 
   const newDelay = 3 * 24 * 60 * 60 // 3 days in seconds
@@ -86,4 +83,10 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
     )
     return result
   }
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
+  })
 })

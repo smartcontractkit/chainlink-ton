@@ -14,6 +14,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// MaxArrayLength defines the maximum length for arrays packed with reference chaining to prevent excessive resource consumption.
+const MaxArrayLength = 1000
+
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
@@ -96,12 +99,6 @@ func (t *TypeAndVersion) UnmarshalResult(result *ton.ExecutionResult) error {
 
 func (t *TypeAndVersion) GetterMethodName() string {
 	return versionGetter
-}
-
-// Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
-type Ownable2Step struct {
-	Owner        *address.Address `tlb:"addr"`
-	PendingOwner *address.Address `tlb:"addr"` // PendingOwner is optional
 }
 
 // Signature is a type that represents a cryptographic signature used in MerkleProofs
@@ -219,10 +216,16 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	for curr != nil {
 		length := curr.RefsNum()
 
-		// sanity check for length
+		// defensive sanity check for length, in real scenarios this should never happen since cell refs are limited to 4
 		if length > uint(math.MaxInt) {
 			return result, fmt.Errorf("length %d overflows int", length)
 		}
+
+		// same defensive sanity check for length, in real scenarios this should never happen
+		if length > MaxArrayLength {
+			return nil, fmt.Errorf("array length %d exceeds maximum of %d", length, MaxArrayLength)
+		}
+
 		for i := 0; i < int(length); i++ {
 			ref, err := curr.PeekRef(i)
 			if err != nil {

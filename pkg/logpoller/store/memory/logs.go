@@ -41,6 +41,8 @@ type inMemoryLogs struct {
 	logKeys map[logKey]bool // set of existing log keys for deduplication
 	lggr    logger.Logger
 	chainID string
+
+	maxMasterBlockSeqno uint32 // cached max for O(1) lookup
 }
 
 func NewLogStore(chainID string, lggr logger.Logger) logpoller.LogStore {
@@ -74,6 +76,11 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 		}
 		s.logs = append(s.logs, log)
 		s.logKeys[key] = true
+
+		// update cached max
+		if log.MasterBlockSeqno > s.maxMasterBlockSeqno {
+			s.maxMasterBlockSeqno = log.MasterBlockSeqno
+		}
 	}
 	return int64(len(logs)), nil
 }
@@ -452,11 +459,5 @@ func (s *inMemoryLogs) GetLatestMasterBlockSeqno(_ context.Context) (uint32, err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var maxSeqno uint32
-	for _, log := range s.logs {
-		if log.MasterBlockSeqno > maxSeqno {
-			maxSeqno = log.MasterBlockSeqno
-		}
-	}
-	return maxSeqno, nil
+	return s.maxMasterBlockSeqno, nil
 }

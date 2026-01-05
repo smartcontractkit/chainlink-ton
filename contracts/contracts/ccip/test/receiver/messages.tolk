@@ -6,7 +6,7 @@ type Receiver_InMessage =
     | Receiver_UpdateBehavior
     | Receiver_UpdateAuthorizedCaller;
 
-struct (0x14d52e7b) Receiver_UpdateBehavior {
+struct (0x14d3fadb) Receiver_UpdateBehavior {
     behavior: ReceiverBehavior
 }
 

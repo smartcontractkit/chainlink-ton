@@ -85,4 +85,3 @@ func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
 		assert.Equal(t, uint32(200), latestSeqno)
 	})
 }
-
