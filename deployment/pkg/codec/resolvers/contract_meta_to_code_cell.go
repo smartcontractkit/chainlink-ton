@@ -29,11 +29,6 @@ func (r contractToCodeCellResolver) Key() string {
 }
 
 func (r contractToCodeCellResolver) Resolve(input map[string]any) (*cell.Cell, error) {
-	resolver, ok := input["resolver"]
-	if !ok || resolver != r.Key() {
-		return nil, fmt.Errorf("invalid resolver key: %v", resolver)
-	}
-
 	data, ok := input["data"]
 	if !ok {
 		return nil, fmt.Errorf("missing 'data' field in input: %v", input)
