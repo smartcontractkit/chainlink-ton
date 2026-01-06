@@ -182,7 +182,7 @@ func curse(
 ) ([][]byte, error) {
 	// Validate input
 	if len(in.Subjects) == 0 {
-		return nil, nil // No subjects to curse
+		return [][]byte{}, nil // No subjects to curse
 	}
 
 	// Get router address from chain state
@@ -196,7 +196,6 @@ func curse(
 
 	// Create curse message
 	curseMsg := router.RMNRemoteCurse{
-		QueryID:  0,
 		Subjects: subjects,
 	}
 
@@ -238,7 +237,7 @@ func uncurse(
 ) ([][]byte, error) {
 	// Validate input
 	if len(in.Subjects) == 0 {
-		return nil, nil // No subjects to uncurse
+		return [][]byte{}, nil // No subjects to uncurse
 	}
 
 	// Get router address from chain state
@@ -252,7 +251,6 @@ func uncurse(
 
 	// Create uncurse message
 	uncurseMsg := router.RMNRemoteUncurse{
-		QueryID:  0,
 		Subjects: subjects,
 	}
 
