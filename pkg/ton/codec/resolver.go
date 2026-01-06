@@ -50,25 +50,60 @@ func NewTypedResolver[IN any, OUT any](resolver Resolver[IN, OUT]) TypedResolver
 // NewTypedResolverWith creates a TypedResolver from a generic Resolver with a specified key
 func NewTypedResolverWith[IN any, OUT any](resolver Resolver[IN, OUT], key string) TypedResolver {
 	if resolverWithCheck, ok := resolver.(ResolverChecker[IN]); ok {
+		// Custom CanResolve implementation
 		return &typedResolver[IN, OUT]{
 			key:      key,
 			resolver: resolver,
-			// Add custom CanResolve implementation
 			canResolve: func(in any) bool {
 				if in == nil {
 					return false
 				}
+
 				_, ok := in.(IN)
 				if !ok {
 					return false
 				}
+
 				return resolverWithCheck.CanResolve(in.(IN))
 			},
 		}
 	}
+
+	if resolverWithKey, ok := resolver.(ResolverKeyProvider); ok {
+		// Standard CanResolve implementation which validates the key
+		return &typedResolver[IN, OUT]{
+			key:      resolverWithKey.Key(),
+			resolver: resolver,
+			canResolve: func(in any) bool {
+				if in == nil {
+					return false
+				}
+
+				// Handle resolver instruction maps (explicit "resolver" key)
+				m, ok := in.(map[string]any)
+				if !ok {
+					return false
+				}
+
+				resolverType, ok := m["resolver"].(string)
+				if !ok {
+					return false
+				}
+
+				// Check if the resolver type matches
+				return resolverType == resolverWithKey.Key()
+			},
+		}
+	}
+
+	// Default implementation: check type assertion
 	return &typedResolver[IN, OUT]{
 		key:      key,
 		resolver: resolver,
+		canResolve: func(in any) bool {
+			_, ok := in.(IN)
+			return ok
+		},
 	}
 }
 
@@ -83,13 +118,7 @@ func (r *typedResolver[IN, OUT]) Key() string {
 }
 
 func (r *typedResolver[IN, OUT]) CanResolve(input any) bool {
-	if r.canResolve != nil {
-		return r.canResolve(input)
-	}
-
-	// Default implementation: check type assertion
-	_, ok := input.(IN)
-	return ok
+	return r.canResolve(input)
 }
 
 func (r *typedResolver[IN, OUT]) Resolve(input any) (any, error) {
@@ -188,41 +217,21 @@ func (r *ResolverRegistry) resolveCollections(value any, depth int) (any, error)
 
 // resolveOnce attempts to resolve a value once using any matching resolver
 func (r *ResolverRegistry) resolveOnce(value any) (resolved any, changed bool, err error) {
-	// Handle resolver instruction maps (explicit "resolver" key)
-	if m, ok := value.(map[string]any); ok {
-		if resolverType, hasResolver := m["resolver"].(string); hasResolver {
-			resolved, err := r.resolveWithType(m, resolverType)
-			return resolved, true, err
-		}
-	}
-
 	// Try each resolver to see if it can handle this value
 	for _, resolver := range r.resolvers {
 		if resolver.CanResolve(value) {
 			resolved, err := resolver.Resolve(value)
 			if err != nil {
+				// TODO: add didResolve bool return to distinguish errors from non-matches
+				fmt.Println("Resolving ERROR: ", err)
 				continue // try next resolver
 			}
-			return resolved, true, nil
+			return resolved, true, err
 		}
 	}
 
 	// No resolver matched
 	return value, false, nil
-}
-
-// resolveWithType resolves a value using a specific resolver type
-func (r *ResolverRegistry) resolveWithType(input map[string]any, resolverType string) (any, error) {
-	resolver, ok := r.resolvers[resolverType]
-	if ok {
-		resolved, err := resolver.Resolve(input)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve with resolver %s: %w", resolverType, err)
-		}
-		return resolved, nil
-	}
-
-	return nil, fmt.Errorf("no resolver found for type %s", resolverType)
 }
 
 // Resolve is a convenience method that handles any input type

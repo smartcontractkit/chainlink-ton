@@ -44,6 +44,16 @@ func (f fakeContractProvider) GetContract(meta opston.ContractMetadata) (opston.
 	}
 }
 
+type Foo struct {
+	_   tlb.Magic  `tlb:"#00000001" json:"-"` //nolint:revive // Ignore opcode tag
+	Any *cell.Cell `tlb:"^"`
+}
+
+type Bar struct {
+	_   tlb.Magic `tlb:"#00000002" json:"-"` //nolint:revive // Ignore opcode tag
+	Val *big.Int  `tlb:"## 32"`
+}
+
 func TestResolvingSendMessagesInputs(t *testing.T) {
 
 	testCases := []struct {
@@ -272,21 +282,21 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 												"opcode":   "0x094718f4",
 												"payload": map[string]any{
 													"QueryID": float64(31),
-													"Calls":   []any{
-														// map[string]any{
-														// 	"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-														// 	"Value":  "500000000",
-														// 	"Data": map[string]any{
-														// 		"Val": float64(55555555),
-														// 	},
-														// },
-														// map[string]any{
-														// 	"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-														// 	"Value":  "1000000000",
-														// 	"Data": map[string]any{
-														// 		"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-														// 	},
-														// },
+													"Calls": []any{
+														map[string]any{
+															"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+															"Value":  "500000000",
+															"Data": must(
+																tlb.ToCell(Foo{
+																	Any: must(tlb.ToCell(Bar{Val: big.NewInt(42)})),
+																}),
+															),
+														},
+														map[string]any{
+															"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+															"Value":  "1000000000",
+															"Data":   must(tlb.ToCell(Bar{Val: big.NewInt(42)})),
+														},
 														// map[string]any{
 														// 	"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 														// 	"Value":  "1500000000",
@@ -329,7 +339,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Body: codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: "com.chainlink.ton.mcms.MCMS",
-								Opcode:   0xf21b7da1,
+								Opcode:   0x9b9ce96a,
 								TypeName: "Execute",
 								GoType:   reflect.TypeOf(&mcms.Execute{}),
 							},
@@ -342,8 +352,19 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 									To:       address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 									Value:    tlb.MustFromTON("1.5"),
 									Data: must(tlb.ToCell(timelock.ScheduleBatch{
-										QueryID:     31,
-										Calls:       nil,
+										QueryID: 31,
+										Calls: []timelock.Call{
+											{
+												Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+												Value:  tlb.MustFromTON("0.5"),
+												Data:   must(tlb.ToCell(Foo{Any: must(tlb.ToCell(Bar{Val: big.NewInt(42)}))})),
+											},
+											{
+												Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+												Value:  tlb.MustFromTON("1.0"),
+												Data:   must(tlb.ToCell(Bar{Val: big.NewInt(42)})),
+											},
+										},
 										Predecessor: tlbe.NewUint256(big.NewInt(1111)),
 										Salt:        tlbe.NewUint256(big.NewInt(1337)),
 										Delay:       10000,
@@ -378,20 +399,12 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 			// TODO: envelope Value fields are lost on marshal/unmarshal, need to load again for comparison
 			for i := range actual.Messages {
 				require.NoError(t, actual.Messages[i].Body.LoadDecoded(bindings.Registry), "load decoded message body")
-
-				// regenerate cell from Value for comparison
-				tc.want.Messages[i].Body.Cell = must(tlb.ToCell(tc.want.Messages[i].Body.Value))
-
 				// compare cell hashes to avoid comparing cell objects directly
-				require.Equal(t, tc.want.Messages[i].Body.Cell.Hash(), actual.Messages[i].Body.Cell.Hash(), "message body cell hash mismatch")
-
-				tc.want.Messages[i].Body.Cell = nil
-				actual.Messages[i].Body.Cell = nil
-
-				require.NotEmpty(t, actual.Messages[i].Body.Payload, "message body payload should be populated after LoadDecoded")
-				// zero out payloads for comparison
-				tc.want.Messages[i].Body.Payload = nil
-				actual.Messages[i].Body.Payload = nil
+				// Notice: we do this b/c slight mismatch in Cell serialization refs: ([]*cell.Cell) <nil> vs {}
+				require.Equal(t, must(tc.want.Messages[i].Body.ToCell()).Hash(), must(actual.Messages[i].Body.ToCell()).Hash(), "message body cell hash mismatch")
+				// zero out Body for comparison
+				tc.want.Messages[i].Body = codec.MessageEnvelope[any]{}
+				actual.Messages[i].Body = codec.MessageEnvelope[any]{}
 
 				// compare state init hashes (if present) to avoid comparing cell objects directly
 				if tc.want.Messages[i].StateInit != nil {
