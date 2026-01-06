@@ -124,7 +124,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
-			Oracle:  tvm.ZeroAddress,
+			Oracle:  deps.TonChain.WalletAddress,
 			Signers: cell.NewDict(256),
 			Config: mcms.Config{
 				Signers:      cell.NewDict(8),
