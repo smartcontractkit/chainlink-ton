@@ -9,6 +9,7 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/xssnick/tonutils-go/address"
 
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
@@ -138,8 +139,14 @@ func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector 
 }
 
 // IsCurseEnabledForChain returns true if the chain supports cursing subjects.
-// For TON, we assume all chains support cursing. TODO double check this
-func (a *TonAdapter) IsCurseEnabledForChain(e cldf.Environment, selector uint64) (bool, error) {
+// For TON, rmnRemote exists on router contract, so this function will verify if router contract is deployed.
+func (a *TonAdapter) IsCurseEnabledForChain(_ cldf.Environment, selector uint64) (bool, error) {
+	// Initialize() should have cached the router address
+	_, exist := a.routerAddressCache[selector]
+	if !exist {
+		return false, nil
+	}
+
 	return true, nil
 }
 
@@ -248,12 +255,16 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 			}
 
 			// Execute CurseOp operation
-			_, err = cldf_ops.ExecuteOperation(b, operation.CurseOp, deps, opInput)
+			report, err := cldf_ops.ExecuteOperation(b, operation.CurseOp, deps, opInput)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute curse operation: %w", err)
 			}
 
-			//
+			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output.Serialized)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
+			}
+
 			return sequences.OnChainOutput{}, nil
 		},
 	)
@@ -302,9 +313,14 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			}
 
 			// Execute UncurseOp operation
-			_, err = cldf_ops.ExecuteOperation(b, operation.UncurseOp, deps, opInput)
+			report, err := cldf_ops.ExecuteOperation(b, operation.UncurseOp, deps, opInput)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute uncurse operation: %w", err)
+			}
+
+			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output.Serialized)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
 			}
 
 			return sequences.OnChainOutput{}, nil

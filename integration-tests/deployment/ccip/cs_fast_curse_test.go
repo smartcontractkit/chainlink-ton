@@ -25,15 +25,10 @@ import (
 	cs_core "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	tonsequences "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
-
-	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 )
 
 func TestFastCurseTON(t *testing.T) {
@@ -82,9 +77,9 @@ func TestFastCurseTON(t *testing.T) {
 
 	// <deploy-ton>
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
-	contractID, err := tonops.RandomUint32()
+	contractID, err := ops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
+	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
@@ -96,7 +91,7 @@ func TestFastCurseTON(t *testing.T) {
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainCanonicalConfig,
+		FeeQuoterDestChainConfig: ops.TonFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,
 		AllowListEnabled:         false,
 	}
@@ -107,7 +102,7 @@ func TestFastCurseTON(t *testing.T) {
 		TokenPrices: map[string]*big.Int{
 			"0x779877A7B0D9E8603169DdbD7836e478b4624789": big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: tonops.EvmFeeQuoterDestChainCanonicalConfig,
+		FeeQuoterDestChainConfig: ops.EvmFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,
 		AllowListEnabled:         false,
 	}
@@ -134,7 +129,7 @@ func TestFastCurseTON(t *testing.T) {
 
 	t.Run("FastCurseAPI", func(t *testing.T) {
 		// Create and initialize the TonAdapter for fast curse
-		adapter := &tonsequences.TonAdapter{}
+		adapter := &sequences.TonAdapter{}
 
 		// Initialize the adapter for TON chain
 		err := adapter.Initialize(env, tonChainSelector)
@@ -194,48 +189,27 @@ func TestFastCurseTON(t *testing.T) {
 			require.False(t, isCursed, "EVM subject should not be cursed initially")
 		})
 
-		// Helper to build CCIPDeps for curse operations
-		buildDeps := func() (config.CCIPDeps, error) {
-			return config.CCIPDeps{
-				TonChain: tonChain,
-				CCIPOnChainState: map[uint64]tonstate.CCIPChainState{
-					tonChainSelector: {
-						Router: routerAddr,
-					},
-				},
-			}, nil
-		}
-
-		// Helper to convert subject to *big.Int
-		subjectToBigInt := func(subject fastcurse.Subject) *big.Int {
-			return new(big.Int).SetBytes(subject[:])
-		}
-
-		// Test Curse operation
+		// Test Curse operation using adapter sequence
 		t.Run("CurseSubject", func(t *testing.T) {
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 
-			// Build CCIPDeps
-			deps, err := buildDeps()
-			require.NoError(t, err)
+			// Get the curse sequence from the adapter
+			curseSeq := adapter.Curse()
 
-			// Create operation input
-			opInput := operation.CurseInput{
-				Subjects: []*big.Int{subjectToBigInt(evmSubject)},
+			// Create API input
+			curseInput := fastcurse.CurseInput{
+				ChainSelector: tonChainSelector,
+				Subjects:      []fastcurse.Subject{evmSubject},
 			}
 
-			// Execute curse operation
-			report, err := cldf_ops.ExecuteOperation(
+			// Execute the curse sequence (which handles both operation and transaction execution)
+			_, err := cldf_ops.ExecuteSequence(
 				env.OperationsBundle,
-				operation.CurseOp,
-				deps,
-				opInput,
+				curseSeq,
+				env.BlockChains,
+				curseInput,
 			)
-			require.NoError(t, err, "Failed to execute curse operation")
-
-			// Execute the transactions
-			err = helpers.ExecuteTransactions(env.GetContext(), env.Logger, tonChain.Client, tonChain.Wallet, report.Output)
-			require.NoError(t, err, "Failed to execute curse transactions")
+			require.NoError(t, err, "Failed to execute curse sequence")
 
 			// Verify subject is cursed
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
@@ -245,31 +219,27 @@ func TestFastCurseTON(t *testing.T) {
 			t.Log("Successfully cursed EVM chain subject on TON chain")
 		})
 
-		// Test Uncurse operation
+		// Test Uncurse operation using adapter sequence
 		t.Run("UncurseSubject", func(t *testing.T) {
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 
-			// Build CCIPDeps
-			deps, err := buildDeps()
-			require.NoError(t, err)
+			// Get the uncurse sequence from the adapter
+			uncurseSeq := adapter.Uncurse()
 
-			// Create operation input
-			opInput := operation.UncurseInput{
-				Subjects: []*big.Int{subjectToBigInt(evmSubject)},
+			// Create API input
+			uncurseInput := fastcurse.CurseInput{
+				ChainSelector: tonChainSelector,
+				Subjects:      []fastcurse.Subject{evmSubject},
 			}
 
-			// Execute uncurse operation
-			report, err := cldf_ops.ExecuteOperation(
+			// Execute the uncurse sequence (which handles both operation and transaction execution)
+			_, err := cldf_ops.ExecuteSequence(
 				env.OperationsBundle,
-				operation.UncurseOp,
-				deps,
-				opInput,
+				uncurseSeq,
+				env.BlockChains,
+				uncurseInput,
 			)
-			require.NoError(t, err, "Failed to execute uncurse operation")
-
-			// Execute the transactions
-			err = helpers.ExecuteTransactions(env.GetContext(), env.Logger, tonChain.Client, tonChain.Wallet, report.Output)
-			require.NoError(t, err, "Failed to execute uncurse transactions")
+			require.NoError(t, err, "Failed to execute uncurse sequence")
 
 			// Verify subject is no longer cursed
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
@@ -279,34 +249,31 @@ func TestFastCurseTON(t *testing.T) {
 			t.Log("Successfully uncursed EVM chain subject on TON chain")
 		})
 
-		// Test cursing multiple subjects
+		// Test cursing multiple subjects using adapter sequence
 		t.Run("CurseMultipleSubjects", func(t *testing.T) {
 			// Create subjects for EVM and global curse
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 			globalSubject := fastcurse.GlobalCurseSubject()
 
-			// Build CCIPDeps
-			deps, err := buildDeps()
-			require.NoError(t, err)
+			// Get the curse sequence from the adapter
+			curseSeq := adapter.Curse()
 
 			// Curse both subjects
-			curseInput := operation.CurseInput{
-				Subjects: []*big.Int{
-					subjectToBigInt(evmSubject),
-					subjectToBigInt(globalSubject),
+			curseInput := fastcurse.CurseInput{
+				ChainSelector: tonChainSelector,
+				Subjects: []fastcurse.Subject{
+					evmSubject,
+					globalSubject,
 				},
 			}
 
-			report, err := cldf_ops.ExecuteOperation(
+			_, err := cldf_ops.ExecuteSequence(
 				env.OperationsBundle,
-				operation.CurseOp,
-				deps,
+				curseSeq,
+				env.BlockChains,
 				curseInput,
 			)
-			require.NoError(t, err, "Failed to execute curse operation")
-
-			err = helpers.ExecuteTransactions(env.GetContext(), env.Logger, tonChain.Client, tonChain.Wallet, report.Output)
-			require.NoError(t, err, "Failed to execute curse transactions")
+			require.NoError(t, err, "Failed to execute curse sequence")
 
 			// Verify both subjects are cursed
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
@@ -319,24 +286,25 @@ func TestFastCurseTON(t *testing.T) {
 
 			t.Log("Successfully cursed multiple subjects")
 
+			// Get the uncurse sequence from the adapter
+			uncurseSeq := adapter.Uncurse()
+
 			// Uncurse both subjects
-			uncurseInput := operation.UncurseInput{
-				Subjects: []*big.Int{
-					subjectToBigInt(evmSubject),
-					subjectToBigInt(globalSubject),
+			uncurseInput := fastcurse.CurseInput{
+				ChainSelector: tonChainSelector,
+				Subjects: []fastcurse.Subject{
+					evmSubject,
+					globalSubject,
 				},
 			}
 
-			uncurseReport, err := cldf_ops.ExecuteOperation(
+			_, err = cldf_ops.ExecuteSequence(
 				env.OperationsBundle,
-				operation.UncurseOp,
-				deps,
+				uncurseSeq,
+				env.BlockChains,
 				uncurseInput,
 			)
-			require.NoError(t, err, "Failed to execute uncurse operation")
-
-			err = helpers.ExecuteTransactions(env.GetContext(), env.Logger, tonChain.Client, tonChain.Wallet, uncurseReport.Output)
-			require.NoError(t, err, "Failed to execute uncurse transactions")
+			require.NoError(t, err, "Failed to execute uncurse sequence")
 
 			// Verify both subjects are uncursed
 			isCursed, err = adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
