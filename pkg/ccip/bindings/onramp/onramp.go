@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -78,12 +79,12 @@ type SVMExtraArgsV1 struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
-	ID               uint32              `tlb:"## 32"`
-	Ownable          common.Ownable2Step `tlb:"."`
-	ChainSelector    uint64              `tlb:"## 64"`
-	Config           DynamicConfig       `tlb:"^"`
-	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
-	Executor         ExecutorDeployment  `tlb:"."`
+	ID               uint32               `tlb:"## 32"`
+	Ownable          ownable2step.Storage `tlb:"."`
+	ChainSelector    uint64               `tlb:"## 64"`
+	Config           DynamicConfig        `tlb:"^"`
+	DestChainConfigs *cell.Dictionary     `tlb:"dict 64"`
+	Executor         ExecutorDeployment   `tlb:"."`
 }
 
 type ExecutorDeployment struct {

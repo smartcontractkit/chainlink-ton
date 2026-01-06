@@ -10,6 +10,7 @@ import (
 
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -266,7 +267,7 @@ type Data struct {
 	ID uint32 `tlb:"## 32"`
 
 	// Ownable trait data
-	Ownable common.Ownable2Step `tlb:"."`
+	Ownable ownable2step.Storage `tlb:"."`
 
 	// Address of the error oracle account, which can submit error reports.
 	Oracle *address.Address `tlb:"addr"`

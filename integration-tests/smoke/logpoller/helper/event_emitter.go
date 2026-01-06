@@ -23,7 +23,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -128,7 +128,7 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 	data, err := tlb.ToCell(counter.ContractData{
 		ID:    id, // random id
 		Value: 0,  // initial value as zero
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        wallet.WalletAddress(),
 			PendingOwner: address.NewAddressNone(),
 		},

@@ -12,7 +12,7 @@ import {
   Slice,
 } from '@ton/core'
 import * as upgradeable from '../../libraries/versioning/Upgradeable'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../../codeLoader'
 import * as typeAndVersion from '../../libraries/versioning/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
@@ -56,7 +56,7 @@ export class ContractClient implements /*typeAndVersion.TypeAndVersion,*/ upgrad
   }
 
   static code(): Promise<Cell> {
-    return compile('examples.versioning.upgrades.WrongVersion')
+    return loadContractCode('examples.versioning.upgrades.WrongVersion')
   }
 
   static createFromConfig(config: Storage, code: Cell, workchain = 0) {

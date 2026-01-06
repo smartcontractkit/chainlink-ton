@@ -16,7 +16,7 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -67,7 +67,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	data := counter.ContractData{
 		ID:    1337,
 		Value: 0,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        tonChain.Wallet.WalletAddress(),
 			PendingOwner: address.NewAddressNone(),
 		},

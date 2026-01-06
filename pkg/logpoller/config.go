@@ -8,6 +8,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 )
 
+// Reasonable operational bounds: between 100ms and 10 minutes
+const (
+	minPollPeriod = 100 * time.Millisecond
+	maxPollPeriod = 10 * time.Minute
+)
+
 // Config holds the configuration for the log poller.
 // NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
 // Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
@@ -29,18 +35,13 @@ var DefaultConfigSet = Config{
 	LogPollerStartingLookback: config.MustNewDuration(24 * time.Hour),          // Look back 24 hours on startup
 	BlockTime:                 config.MustNewDuration(2500 * time.Millisecond), // TON block time is approximately 2.5 seconds
 
-	// fixed-sized fields in models.Log: ~342 bytes + Data field(BOC cell)
-	// ccip message conservative e.g. 1500 bytes -> ~1842 bytes per log
-	// SaveThreshold:   8000, // ~14.7MB
-
-	// fixed-sized fields in postgres models.Log: ~474 bytes + Data field(BOC cell)
-	// ccip message conservative e.g. 1500 bytes -> ~1974 bytes per log
-	// BatchInsertSize: 4000, // ~7.9MB
-
-	// database configuration,
-	BatchInsertSize: 4000, // PostgreSQL batch insert size
+	// memory estimation per log:
+	// - in-memory models.Log: ~342 bytes + Data field (BOC cell) ≈ 1842 bytes
+	// - postgres models.Log:  ~474 bytes + Data field (BOC cell) ≈ 1974 bytes
+	// SaveThreshold 7000 ≈ 12.9MB, BatchInsertSize 3500 ≈ 6.9MB
+	BatchInsertSize: 3500, // postgresql batch insert size
 	MinBatchSize:    500,  // Minimum batch size for timeout retry
-	SaveThreshold:   8000, // Memory buffer size before batch saving
+	SaveThreshold:   7000, // Memory buffer size before batch saving
 }
 
 func (c *Config) ApplyDefaults() {
@@ -74,6 +75,10 @@ func (c *Config) ValidateConfig() (err error) {
 	if c.BatchInsertSize == 0 {
 		return errors.New("batch_insert_size must be greater than 0")
 	}
+	// postgresql wire protocol limit: 65,535 params / 17 params per row ≈ 3,855 max rows
+	if c.BatchInsertSize > 3800 {
+		return fmt.Errorf("batch_insert_size (%d) exceeds postgresql parameter limit (max 3800 rows)", c.BatchInsertSize)
+	}
 	if c.MinBatchSize == 0 {
 		return errors.New("min_batch_size must be greater than 0")
 	}
@@ -84,5 +89,21 @@ func (c *Config) ValidateConfig() (err error) {
 	if c.SaveThreshold == 0 {
 		return errors.New("save_threshold must be greater than 0")
 	}
+
+	// Validate PollPeriod to prevent startup panics and operational issues
+	if c.PollPeriod == nil {
+		return errors.New("poll_period must be set")
+	}
+	pollDuration := c.PollPeriod.Duration()
+	if pollDuration <= 0 {
+		return fmt.Errorf("poll_period must be positive, got %v", pollDuration)
+	}
+	if pollDuration < minPollPeriod {
+		return fmt.Errorf("poll_period %v is too small (minimum: %v)", pollDuration, minPollPeriod)
+	}
+	if pollDuration > maxPollPeriod {
+		return fmt.Errorf("poll_period %v is too large (maximum: %v)", pollDuration, maxPollPeriod)
+	}
+
 	return nil
 }

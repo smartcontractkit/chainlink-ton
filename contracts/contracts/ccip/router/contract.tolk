@@ -207,20 +207,6 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
 }
 
 fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
-    if (offRampAdds != null) {
-        val offRampAdd = offRampAdds.offRamp!;
-        var iter = offRampAdds.sourceChainSelectors.iter();
-        while (!iter.empty()) {
-            val selector = iter.next();
-            st.offRamps.set(selector, offRampAdd);
-        }
-
-        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
-            sourceChainSelectors: offRampAdds.sourceChainSelectors,
-            offRampAdded: offRampAdd,
-        });
-    }
-
     if (offRampRemoves != null) {
         val offRampRemove = offRampRemoves.offRamp!;
         var iter = offRampRemoves.sourceChainSelectors.iter();
@@ -234,6 +220,20 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
         emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
             sourceChainSelectors: offRampRemoves.sourceChainSelectors,
             offRampRemoved: offRampRemove,
+        });
+    }
+
+    if (offRampAdds != null) {
+        val offRampAdd = offRampAdds.offRamp!;
+        var iter = offRampAdds.sourceChainSelectors.iter();
+        while (!iter.empty()) {
+            val selector = iter.next();
+            st.offRamps.set(selector, offRampAdd);
+        }
+
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
+            sourceChainSelectors: offRampAdds.sourceChainSelectors,
+            offRampAdded: offRampAdd,
         });
     }
 

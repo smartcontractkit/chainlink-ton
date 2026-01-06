@@ -5,7 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -21,7 +21,7 @@ func must[E any](out E, err error) E {
 func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 	return Data{
 		ID: id,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        owner,
 			PendingOwner: nil,
 		},

@@ -3,6 +3,7 @@ import "storage"
 
 type ForwardPayloadRemainder = RemainingBitsAndRefs
 
+// nolint:opcode
 struct (0x0f8a7ea5) AskToTransfer {
     queryId: uint64
     jettonAmount: coins
@@ -13,6 +14,7 @@ struct (0x0f8a7ea5) AskToTransfer {
     forwardPayload: ForwardPayloadRemainder
 }
 
+// nolint:opcode
 struct (0x7362d09c) TransferNotificationForRecipient {
     queryId: uint64
     jettonAmount: coins
@@ -20,6 +22,7 @@ struct (0x7362d09c) TransferNotificationForRecipient {
     forwardPayload: ForwardPayloadRemainder
 }
 
+// nolint:opcode
 struct (0x178d4519) InternalTransferStep {
     queryId: uint64
     jettonAmount: coins
@@ -29,10 +32,12 @@ struct (0x178d4519) InternalTransferStep {
     forwardPayload: ForwardPayloadRemainder
 }
 
+// nolint:opcode
 struct (0xd53276db) ReturnExcessesBack {
     queryId: uint64
 }
 
+// nolint:opcode
 struct (0x595f07bc) AskToBurn {
     queryId: uint64
     jettonAmount: coins
@@ -40,6 +45,7 @@ struct (0x595f07bc) AskToBurn {
     customPayload: cell?
 }
 
+// nolint:opcode
 struct (0x7bdd97de) BurnNotificationForMinter {
     queryId: uint64
     jettonAmount: coins
@@ -47,18 +53,21 @@ struct (0x7bdd97de) BurnNotificationForMinter {
     sendExcessesTo: address
 }
 
+// nolint:opcode
 struct (0x2c76b973) RequestWalletAddress {
     queryId: uint64
     ownerAddress: address
     includeOwnerAddress: bool
 }
 
+// nolint:opcode
 struct (0xd1735400) ResponseWalletAddress {
     queryId: uint64
     jettonWalletAddress: address
     ownerAddress: Cell<address>?
 }
 
+// nolint:opcode
 struct (0x00000015) MintNewJettons {
     queryId: uint64
     mintRecipient: address
@@ -66,30 +75,36 @@ struct (0x00000015) MintNewJettons {
     internalTransferMsg: Cell<InternalTransferStep>
 }
 
+// nolint:opcode
 struct (0x6501f354) ChangeMinterAdmin {
     queryId: uint64
     newAdminAddress: address
 }
 
+// nolint:opcode
 struct (0xfb88e119) ClaimMinterAdmin {
     queryId: uint64
 }
 
+// nolint:opcode
 struct (0x7431f221) DropMinterAdmin {
     queryId: uint64
 }
 
+// nolint:opcode
 struct (0x2508d66a) UpgradeMinterCode {
     queryId: uint64
     newData: cell
     newCode: cell
 }
 
+// nolint:opcode
 struct (0xcb862902) ChangeMinterMetadataUri {
     queryId: uint64
     newMetadataUri: SnakeString
 }
 
+// nolint:opcode
 struct (0xd372158c) TopUpTons {}
 
 // "forward payload" is TL/B `(Either Cell ^Cell)`;
