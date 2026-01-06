@@ -12,50 +12,57 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-// getMasterchainBlockRange calculates the range of blocks that need to be processed.
-// Returns nil if there are no new blocks to process.
-func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockRange, error) {
+// getCurrentBlock retrieves the current masterchain block information.
+// This is separated from getMasterchainBlockRange to allow replay override to use
+// the current block even when no new blocks need processing.
+func (lp *service) getCurrentBlock(ctx context.Context) (*ton.BlockIDExt, error) {
 	client, err := lp.clientProvider(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
 
-	toBlock, err := client.CurrentMasterchainInfo(ctx)
+	currentBlock, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
 
-	// validate that the returned block belongs to the masterchain.
-	// a compromised or faulty liteserver could return valid blocks from the wrong workchain,
-	// which would cause the logpoller to track incorrect chain data.
-	if toBlock.Workchain != address.MasterchainID {
-		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, toBlock.Workchain)
+	// validate that the returned block belongs to the masterchain
+	if currentBlock.Workchain != address.MasterchainID {
+		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, currentBlock.Workchain)
 	}
 
-	lastProcessedBlock, err := lp.getLastProcessedBlock(toBlock)
+	return currentBlock, nil
+}
+
+// getBlockRange calculates the range of blocks that need to be processed.
+// Returns nil if there are no new blocks to process (chain is idle).
+// The currentBlock parameter should be obtained from getCurrentMasterchainBlock().
+func (lp *service) getBlockRange(ctx context.Context, currentBlock *ton.BlockIDExt) (*models.BlockRange, error) {
+	lastProcessedBlock, err := lp.getLastProcessedBlockSeqNo(currentBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last processed block: %w", err)
 	}
 
-	// if we've already processed this block, wait for the next one
-	if toBlock.SeqNo <= lastProcessedBlock {
+	// if we've already processed this block, wait for the next one (chain is idle)
+	if currentBlock.SeqNo <= lastProcessedBlock {
 		return nil, nil
 	}
 
-	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, toBlock)
+	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, currentBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
 
-	return &models.BlockRange{Prev: prevBlock, To: toBlock}, nil
+	return &models.BlockRange{Prev: prevBlock, To: currentBlock}, nil
 }
 
-// getLastProcessedBlock retrieves the last processed masterchain sequence number.
+// getLastProcessedBlockSeqNo retrieves the last processed masterchain sequence number.
 // If no previous block has been processed, it uses the lookback window to determine
 // an appropriate starting point to avoid missing recent events.
-func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, error) {
+func (lp *service) getLastProcessedBlockSeqNo(currentBlock *ton.BlockIDExt) (uint32, error) {
 	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
+		lp.lggr.Debugw("Resuming from last processed block", "seqNo", lastProcessed)
 		return lastProcessed, nil
 	}
 
@@ -63,6 +70,7 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 	// TODO: need to implement a separate routine to fetch and cache the masterchain seqno from shard block in each message
 
 	if currentBlock.SeqNo == 0 {
+		// localnet genesis
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
@@ -78,10 +86,6 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 		return lookbackSeqNo, nil
 	}
 
-	// Only log when actually resuming from previous work (lastProcessed > 0)
-	if lastProcessed > 0 {
-		lp.lggr.Debugw("Resuming from last processed", "seqNo", lastProcessed)
-	}
 	return lastProcessed, nil
 }
 
@@ -122,59 +126,4 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 	}
 
 	return lookbackSeqNo
-}
-
-// applyReplayOverride checks for replay requests and modifies the block range if needed
-func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.BlockRange) error {
-	hasReplay, requestedBlock := lp.checkForReplayRequest()
-	if !hasReplay {
-		return nil
-	}
-
-	// Validate replay range
-	if requestedBlock >= blockRange.ToSeqNo() {
-		lp.lggr.Debugw("replay fromBlock is beyond current range, skipping override",
-			"fromBlock", requestedBlock,
-			"toBlock", blockRange.ToSeqNo())
-		return nil
-	}
-
-	// Lookup the block for replay starting point
-	prevBlock, err := lp.getBlockForReplay(ctx, requestedBlock)
-	if err != nil {
-		return fmt.Errorf("failed to get block for replay fromBlock=%d: %w", requestedBlock, err)
-	}
-
-	blockRange.Prev = prevBlock
-	lp.lggr.Infow("block range overridden for replay",
-		"originalFrom", blockRange.FromSeqNo(),
-		"replayFrom", requestedBlock,
-		"to", blockRange.ToSeqNo(),
-	)
-
-	return nil
-}
-
-// getBlockForReplay retrieves the block information for the given sequence number
-func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*ton.BlockIDExt, error) {
-	if fromBlock == 0 {
-		return nil, nil
-	}
-
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get client: %w", err)
-	}
-
-	toBlock, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
-	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
-	if err != nil {
-		return nil, fmt.Errorf("LookupBlock for seqno %d: %w", fromBlock, err)
-	}
-
-	return prevBlock, nil
 }

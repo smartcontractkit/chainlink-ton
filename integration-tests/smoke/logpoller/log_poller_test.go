@@ -829,6 +829,36 @@ func Test_LogPoller(t *testing.T) {
 		})
 	})
 
+	t.Run("Log Poller Replay validation", func(t *testing.T) {
+		t.Parallel()
+
+		lggr := logger.Test(t)
+		opts := &logpoller.ServiceOptions{
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+			TxLoader:    txloader.New(lggr, clientProvider),
+			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
+		}
+		lp, err := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+		require.NoError(t, err)
+
+		require.NoError(t, lp.Start(t.Context()))
+		defer func() { require.NoError(t, lp.Close()) }()
+
+		t.Run("rejects replay with block beyond current block", func(t *testing.T) {
+			currentBlock, cerr := tonChain.Client.CurrentMasterchainInfo(t.Context())
+			require.NoError(t, cerr)
+
+			// request replay for a block beyond current
+			futureBlock := currentBlock.SeqNo + 100
+			err := lp.Replay(t.Context(), futureBlock)
+			require.Error(t, err)
+		})
+
+		// Note: "unavailable block in liteserver" case is covered by unit tests.
+		// Integration test cannot reliably test pruned blocks since localnet retains all blocks.
+	})
+
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
 		t.Parallel()
 
@@ -841,6 +871,10 @@ func Test_LogPoller(t *testing.T) {
 		require.NoError(t, ferr)
 
 		emitter, err := helper.NewTestEventSource(t.Context(), tonChain.Client, sender, "replayEmitter", rand.Uint32(), logger.Test(t))
+		require.NoError(t, err)
+
+		// capture block number before emitting events for replay
+		blockBeforeEvents, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
 		require.NoError(t, err)
 
 		// 2. Emit events before logpoller starts
@@ -894,12 +928,8 @@ func Test_LogPoller(t *testing.T) {
 			Execute(t.Context())
 		require.Empty(t, logs, "should have no logs before replay")
 
-		// 6. Request replay
-		currentBlock, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
-		require.NoError(t, err)
-		fromBlock := currentBlock.SeqNo - 100 // sufficiently old block
-
-		err = lp.Replay(t.Context(), fromBlock)
+		// 6. Request replay from block before events were emitted
+		err = lp.Replay(t.Context(), blockBeforeEvents.SeqNo)
 		require.NoError(t, err)
 
 		// 7. Verify replay status

@@ -43,9 +43,6 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 			consts.EventNameExecutionStateChanged,
 		}
 	default:
-		a.lggr.Warnw("No event filters registered for unknown contract type",
-			"contractName", contractName,
-			"address", address.String())
 		return nil // No events to bind for unknown contract types
 	}
 
