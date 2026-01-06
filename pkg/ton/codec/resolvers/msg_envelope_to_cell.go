@@ -19,7 +19,7 @@ type msgEnvelopeToCellResolver struct {
 	msgEnvelopeResolver codec.Resolver[map[string]any, codec.MessageEnvelope[any]]
 }
 
-func NewMsgEnvelopeToCellResolver(registry tvm.MessageRegistry) codec.Resolver[map[string]any, *cell.Cell] {
+func NewMsgEnvelopeToCellResolver(registry tvm.ContractTLBRegistry) codec.Resolver[map[string]any, *cell.Cell] {
 	return &msgEnvelopeToCellResolver{NewMsgEnvelopeResolver(registry)}
 }
 

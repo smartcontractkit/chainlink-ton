@@ -36,7 +36,7 @@ const (
 )
 
 // Map of TLBs keyed by contract type
-var Registry = tvm.MessageRegistry{
+var Registry = tvm.ContractTLBRegistry{
 	// Jetton contract types
 	PkgJetton + ".contracts.jetton-wallet": wallet.TLBs,
 	PkgJetton + ".contracts.jetton-minter": minter.TLBs,
