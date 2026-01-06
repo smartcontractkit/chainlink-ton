@@ -88,4 +88,4 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	DropAdminMessage{},
 	ChangeContentMessage{},
 	UpgradeMessage{},
-})
+}).MustWithStorageType(InitData{})

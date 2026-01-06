@@ -172,7 +172,7 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakeData[Subject] `tlb:"^"`
 }
 
-var TLBs = tvm.MustNewTLBMap([]interface{}{
+var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
 	RouteMessage{},
@@ -183,7 +183,7 @@ var TLBs = tvm.MustNewTLBMap([]interface{}{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
-})
+}).MustWithStorageType(Storage{})
 
 type RMNOwnableMessage[T ownable2step.InMessage] struct {
 	_       tlb.Magic `tlb:"#af7a9ac6"` //nolint:revive // Ignore opcode tag

@@ -213,7 +213,7 @@ func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
 }
 
 // LoadFromRegistry attempts to populate the Value T field from the Payload or Cell using the provided registry.
-func (e *MessageEnvelope[T]) LoadDecoded(r tvm.MessageRegistry) error {
+func (e *MessageEnvelope[T]) LoadDecoded(r tvm.ContractTLBRegistry) error {
 	val, err := e.decode(r)
 	if err != nil {
 		return fmt.Errorf("failed to load message from registry: %w", err)
@@ -230,7 +230,7 @@ func (e *MessageEnvelope[T]) LoadDecoded(r tvm.MessageRegistry) error {
 }
 
 // decode attempts to decode the message using either the Payload or Cell and the provided registry.
-func (e MessageEnvelope[T]) decode(r tvm.MessageRegistry) (T, error) {
+func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 	var zero T
 	// TODO: map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry

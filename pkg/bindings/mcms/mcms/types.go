@@ -256,7 +256,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	OpExecuted{},
 	ErrorReportSubmitted{},
 	OracleRoleTransferred{},
-})
+}).MustWithStorageType(Data{})
 
 // --- Data (storage & structures) ---
 

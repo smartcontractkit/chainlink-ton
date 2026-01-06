@@ -175,7 +175,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateDestChainConfigsMessage{},
 	UpdateAllowlistsMessage{},
 	UpdateSendExecutorMessage{},
-})
+}).MustWithStorageType(Storage{})
 
 // binding types that supports FetchResult interface with rpc client
 

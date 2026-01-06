@@ -57,8 +57,8 @@ type StateInit struct {
 	Data *cell.Cell `json:"data,omitempty"`
 }
 
-// ContractProvider provides compiled contract code based on metadata.
-type ContractProvider interface {
+// ContractCodeProvider provides compiled contract code based on metadata.
+type ContractCodeProvider interface {
 	GetContract(meta ContractMetadata) (CompiledContract, error)
 }
 

@@ -173,7 +173,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	Execute{},
 	SetDynamicConfig{},
 	UpdateDeployables{},
-})
+}).MustWithStorageType(Storage{})
 
 // Config types that implements getter fetching interface with rpc client
 
