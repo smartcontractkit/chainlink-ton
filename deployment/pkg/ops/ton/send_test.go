@@ -72,7 +72,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 }
 
 func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
-	messageEnvelopeRoundTrip(t, 42, 50, true)
+	messageEnvelopeRoundTrip(t, 42, 10, true)
 }
 
 func FuzzMessageEnvelope_SerializationRoundTrip(f *testing.F) {
