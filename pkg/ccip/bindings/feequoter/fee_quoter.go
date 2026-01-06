@@ -363,7 +363,7 @@ type UpdateDestChainConfigs struct {
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
-var TLBs = tvm.MustNewTLBMap([]interface{}{
+var TLBs = tvm.MustNewTLBMap([]any{
 	GetValidatedFee{},
 	MessageValidated{},
 	MessageValidationFailed{},
@@ -373,7 +373,7 @@ var TLBs = tvm.MustNewTLBMap([]interface{}{
 	UpdateFeeTokens{},
 	UpdateTokenTransferFeeConfigs{},
 	UpdateDestChainConfigs{},
-})
+}).MustWithStorageType(Storage{})
 
 // binding types that supports FetchResult interface with rpc client
 

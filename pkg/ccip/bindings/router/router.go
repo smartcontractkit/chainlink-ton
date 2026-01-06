@@ -184,7 +184,7 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakeData[Subject] `tlb:"^"`
 }
 
-var TLBs = tvm.MustNewTLBMap([]interface{}{
+var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
 	RouteMessage{},
@@ -195,7 +195,7 @@ var TLBs = tvm.MustNewTLBMap([]interface{}{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
-})
+}).MustWithStorageType(Storage{})
 
 // OnRampAddressMap represents a map of destination chain selectors to their on-ramp addresses.
 // This type aligns with the on-chain data structure for on-ramp address mappings.

@@ -74,7 +74,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	AskToTransfer{},
 	InternalTransferMessage{},
 	TransferNotification{},
-})
+}).MustWithStorageType(InitData{})
 
 var WalletContractPath = path.Join(jetton.PathToContracts, "JettonWallet.compiled.json")
 

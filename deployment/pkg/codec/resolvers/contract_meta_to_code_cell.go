@@ -17,10 +17,10 @@ var (
 )
 
 type contractToCodeCellResolver struct {
-	provider ton.ContractProvider
+	provider ton.ContractCodeProvider
 }
 
-func NewContractToCellResolver(provider ton.ContractProvider) codec.Resolver[map[string]any, *cell.Cell] {
+func NewContractToCellResolver(provider ton.ContractCodeProvider) codec.Resolver[map[string]any, *cell.Cell] {
 	return &contractToCodeCellResolver{provider}
 }
 
