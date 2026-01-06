@@ -194,8 +194,7 @@ func (a *TonAdapter) SubjectToSelector(subject api.Subject) (uint64, error) {
 	}
 
 	// Use generic helper to extract selector from big-endian encoding (bytes 8-15) TODO: double check if TON is using big endian
-	selector, _ := api.GenericSubjectToSelector(subject)
-	return selector, nil
+	return api.GenericSubjectToSelector(subject)
 }
 
 // SelectorToSubject converts a chain selector to a Subject.
