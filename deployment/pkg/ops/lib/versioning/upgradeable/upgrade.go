@@ -50,7 +50,7 @@ func (o UpgradeOutput) GetTransaction() *ton.TransactionInfo {
 }
 
 type UpgradeDeps struct {
-	ContractProvider ton.ContractProvider
+	ContractProvider ton.ContractCodeProvider
 	Wallet           *wallet.Wallet
 }
 

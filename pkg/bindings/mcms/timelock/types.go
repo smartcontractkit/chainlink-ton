@@ -335,7 +335,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	FunctionSelectorBlocked{},
 	FunctionSelectorUnblocked{},
 	ExecutorRoleCheckUpdated{},
-})
+}).MustWithStorageType(Data{})
 
 // --- Data (storage & structures) ---
 
