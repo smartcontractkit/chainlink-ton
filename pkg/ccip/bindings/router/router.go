@@ -160,14 +160,14 @@ type CCIPSendNACK struct {
 
 // RMNRemoteCurse message type for cursing subjects on the router.
 type RMNRemoteCurse struct {
-	_        tlb.Magic                 `tlb:"#f3388046"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic                 `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                    `tlb:"## 64"`
 	Subjects common.SnakeData[Subject] `tlb:"^"`
 }
 
 // RMNRemoteUncurse message type for uncursing subjects on the router.
 type RMNRemoteUncurse struct {
-	_        tlb.Magic                 `tlb:"#3f153a31"` //nolint:revive // Ignore opcode tag
+	_        tlb.Magic                 `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                    `tlb:"## 64"`
 	Subjects common.SnakeData[Subject] `tlb:"^"`
 }
