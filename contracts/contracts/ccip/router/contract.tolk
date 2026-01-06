@@ -65,7 +65,9 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
-            assert (in.valueCoins >= ROUTER_RECEIVE_CONFIRM_FEE) throw Router_Error.InsufficientFee;
+            // Check that the amount sent by the receiver is enough to cover confirmation trace costs. 
+            // Approx 0.02 TON.
+            assert (in.valueCoins >= Router_Costs.receiveConfirm()) throw Router_Error.InsufficientFee;
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must RMN remote admin
@@ -279,14 +281,14 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 
     val confirmMsg = createMessage({
         bounce: true,
-        value: OffRamp_Costs.receiveConfirmOrDeny(), 
+        value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
             execId: msg.execId,
             receiver: sender,
         },
     });
-    confirmMsg.send(SEND_MODE_REGULAR);
+    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sends a CCIP receive confirmation to the OffRamp contract corresponding to

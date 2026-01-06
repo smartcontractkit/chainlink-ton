@@ -326,7 +326,7 @@ describe('OffRamp - Unit Tests', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: data,
       receiver: receiverAddress,
-      gasLimit: toNano('0.02'), // 200_000_000 nanotons
+      gasLimit: toNano('0.03'), // 200_000_000 nanotons
     }
   }
 
