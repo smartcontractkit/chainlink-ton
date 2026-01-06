@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/samber/lo"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -128,8 +129,7 @@ func WrapMessage[T any](contract string, val T) (MessageEnvelope[T], error) {
 func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	payload := e.Payload
 	if payload == nil {
-		var zero T
-		if reflect.DeepEqual(e.Value, zero) {
+		if lo.IsNil(e.Value) {
 			payload = json.RawMessage("null")
 		} else {
 			data, err := json.Marshal(e.Value)

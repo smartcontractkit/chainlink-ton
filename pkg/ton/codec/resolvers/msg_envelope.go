@@ -28,11 +28,6 @@ func (r *msgEnvelopeResolver) Key() string {
 
 // Decode map data to struct using loaded TLB registry
 func (r *msgEnvelopeResolver) Resolve(input map[string]any) (codec.MessageEnvelope[any], error) {
-	resolver, ok := input["resolver"]
-	if !ok || resolver != r.Key() {
-		return codec.MessageEnvelope[any]{}, fmt.Errorf("invalid resolver key: %v", resolver)
-	}
-
 	data, ok := input["data"]
 	if !ok {
 		return codec.MessageEnvelope[any]{}, fmt.Errorf("missing 'data' field in input: %v", input)
