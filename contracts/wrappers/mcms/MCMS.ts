@@ -988,7 +988,7 @@ export class ContractClient implements Contract {
       return {
         validAfter: r.stack.readBigNumber(),
         opFinalizationTimeout: r.stack.readNumber(),
-        opPendingReceiver: r.stack.readAddressOpt() || DUMMY_ADDRESS,
+        opPendingReceiver: r.stack.readAddressOpt(),
         opPendingBodyTruncated: r.stack.readBigNumber(),
       }
     })
