@@ -31,7 +31,10 @@ func (m *mockAPIClient) LookupBlock(_ context.Context, _ int32, _ int64, _ uint3
 }
 
 func TestGetCurrentBlock_WorkchainValidation(t *testing.T) {
+	t.Parallel()
+
 	t.Run("rejects non-masterchain workchain", func(t *testing.T) {
+		t.Parallel()
 		mock := &mockAPIClient{
 			masterchainInfo: &ton.BlockIDExt{Workchain: 0, SeqNo: 100}, // workchain 0 is base chain, not masterchain
 		}
@@ -49,6 +52,7 @@ func TestGetCurrentBlock_WorkchainValidation(t *testing.T) {
 	})
 
 	t.Run("accepts masterchain workchain", func(t *testing.T) {
+		t.Parallel()
 		mock := &mockAPIClient{
 			masterchainInfo: &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100},
 		}
@@ -68,7 +72,10 @@ func TestGetCurrentBlock_WorkchainValidation(t *testing.T) {
 }
 
 func TestGetBlockRange(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns nil when no new blocks", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100}
 
 		lp := &service{
@@ -86,7 +93,10 @@ func TestGetBlockRange(t *testing.T) {
 }
 
 func TestComputeLookbackWindow(t *testing.T) {
+	t.Parallel()
+
 	t.Run("basic lookback calculation", func(t *testing.T) {
+		t.Parallel()
 		currentSeqNo := uint32(1000)
 		lookbackDuration := 50 * time.Second // Go back 50 seconds
 		blockTime := 2500 * time.Millisecond // 2.5 second block time
@@ -99,6 +109,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 	})
 
 	t.Run("lookback with ceiling division", func(t *testing.T) {
+		t.Parallel()
 		currentSeqNo := uint32(1000)
 		lookbackDuration := 51 * time.Second // Go back 51 seconds (not evenly divisible)
 		blockTime := 2500 * time.Millisecond // 2.5 second block time
@@ -111,6 +122,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 	})
 
 	t.Run("lookback exceeds chain history", func(t *testing.T) {
+		t.Parallel()
 		currentSeqNo := uint32(5)
 		lookbackDuration := 100 * time.Second // Go back 100 seconds
 		blockTime := 2500 * time.Millisecond  // 2.5 second block time
@@ -123,6 +135,7 @@ func TestComputeLookbackWindow(t *testing.T) {
 	})
 
 	t.Run("with default config", func(t *testing.T) {
+		t.Parallel()
 		currentSeqNo := uint32(50000)
 		lookbackDuration := DefaultConfigSet.LogPollerStartingLookback.Duration() // 24 hours
 		blockTime := DefaultConfigSet.BlockTime.Duration()                        // 2.5 seconds

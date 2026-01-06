@@ -16,7 +16,10 @@ import (
 )
 
 func TestApplyReplayOverride(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no replay request returns original blockRange", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100}
 		originalRange := &models.BlockRange{
 			Prev: &ton.BlockIDExt{SeqNo: 90},
@@ -36,6 +39,7 @@ func TestApplyReplayOverride(t *testing.T) {
 	})
 
 	t.Run("idle chain with replay constructs new blockRange", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
@@ -57,6 +61,7 @@ func TestApplyReplayOverride(t *testing.T) {
 	})
 
 	t.Run("replay overrides existing blockRange", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		originalRange := &models.BlockRange{
 			Prev: &ton.BlockIDExt{SeqNo: 90},
@@ -80,6 +85,7 @@ func TestApplyReplayOverride(t *testing.T) {
 	})
 
 	t.Run("replay rejected and status reset when block beyond current", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 150, Shard: 1}
 
@@ -100,6 +106,7 @@ func TestApplyReplayOverride(t *testing.T) {
 	})
 
 	t.Run("replay rejected and status reset when block pruned", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
@@ -121,7 +128,10 @@ func TestApplyReplayOverride(t *testing.T) {
 }
 
 func TestReplay(t *testing.T) {
+	t.Parallel()
+
 	t.Run("accepts valid replay request", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
@@ -145,6 +155,7 @@ func TestReplay(t *testing.T) {
 	})
 
 	t.Run("rejects fromBlock at or beyond current block", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
 		mock := &mockAPIClient{
@@ -168,6 +179,7 @@ func TestReplay(t *testing.T) {
 	})
 
 	t.Run("rejects unavailable block in liteserver", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
 		mock := &mockAPIClient{
@@ -188,6 +200,7 @@ func TestReplay(t *testing.T) {
 	})
 
 	t.Run("uses lookback window when fromBlock is 0", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 1000, Shard: 1}
 		// lookback = ceil(50s / 2.5s) = 20 blocks, so 1000 - 20 = 980
 		lookbackBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 980, Shard: 1}
@@ -214,6 +227,7 @@ func TestReplay(t *testing.T) {
 	})
 
 	t.Run("ignores redundant request with higher block", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 40, Shard: 1}
@@ -241,6 +255,7 @@ func TestReplay(t *testing.T) {
 	})
 
 	t.Run("accepts lower block request", func(t *testing.T) {
+		t.Parallel()
 		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 30, Shard: 1}
 		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
@@ -267,4 +282,3 @@ func TestReplay(t *testing.T) {
 		require.Equal(t, uint32(30), lp.replay.requestBlock.SeqNo)
 	})
 }
-
