@@ -113,7 +113,7 @@ describe('Router', () => {
           queryID: 1n,
           onRamps: {
             destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
-            onRamp: ZERO_ADDRESS,
+            onRamp: undefined,
           },
         },
       })

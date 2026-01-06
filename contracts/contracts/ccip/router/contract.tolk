@@ -196,7 +196,11 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
         var selectors = onRampUpdates.destChainSelectors.iter();
         while (!selectors.empty()) {
             val selector = selectors.next();
-            st.onRamps.set(selector, onRampUpdates.onRamp);
+            if (onRampUpdates.onRamp != null) {
+                st.onRamps.set(selector, onRampUpdates.onRamp);
+            } else {
+                st.onRamps.delete(selector);
+            }
         }
 
         emit(ON_RAMP_SET_TOPIC, OnRampSet {

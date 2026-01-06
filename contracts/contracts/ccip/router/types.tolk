@@ -4,7 +4,7 @@ import "../../lib/utils"
 
 struct OnRamps {
     destChainSelectors: SnakedCell<uint64>;
-    onRamp: address;
+    onRamp: address?;
 }
 
 struct OffRamps {
