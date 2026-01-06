@@ -23,7 +23,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	cs_core "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
@@ -193,23 +192,24 @@ func TestFastCurseTON(t *testing.T) {
 		t.Run("CurseSubject", func(t *testing.T) {
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 
-			// Get the curse sequence from the adapter
-			curseSeq := adapter.Curse()
-
-			// Create API input
-			curseInput := fastcurse.CurseInput{
-				ChainSelector: tonChainSelector,
-				Subjects:      []fastcurse.Subject{evmSubject},
+			// Create curse configuration
+			curseCfg := fastcurse.RMNCurseConfig{
+				CurseActions: []fastcurse.CurseActionInput{
+					{
+						IsGlobalCurse:        false,
+						ChainSelector:        tonChainSelector,
+						SubjectChainSelector: evmSelector,
+						Version:              toolingAPIVersion,
+					},
+				},
+				Force: false,
+				MCMS:  mcms.Input{},
 			}
 
-			// Execute the curse sequence (which handles both operation and transaction execution)
-			_, err := cldf_ops.ExecuteSequence(
-				env.OperationsBundle,
-				curseSeq,
-				env.BlockChains,
-				curseInput,
-			)
-			require.NoError(t, err, "Failed to execute curse sequence")
+			// Apply the curse changeset
+			reg := fastcurse.GetCurseRegistry()
+			_, err := fastcurse.CurseChangeset(reg, mcmsRegistry).Apply(env, curseCfg)
+			require.NoError(t, err, "Failed to apply curse changeset")
 
 			// Verify subject is cursed
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
@@ -223,23 +223,24 @@ func TestFastCurseTON(t *testing.T) {
 		t.Run("UncurseSubject", func(t *testing.T) {
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 
-			// Get the uncurse sequence from the adapter
-			uncurseSeq := adapter.Uncurse()
-
-			// Create API input
-			uncurseInput := fastcurse.CurseInput{
-				ChainSelector: tonChainSelector,
-				Subjects:      []fastcurse.Subject{evmSubject},
+			// Create uncurse configuration
+			uncurseCfg := fastcurse.RMNCurseConfig{
+				CurseActions: []fastcurse.CurseActionInput{
+					{
+						IsGlobalCurse:        false,
+						ChainSelector:        tonChainSelector,
+						SubjectChainSelector: evmSelector,
+						Version:              toolingAPIVersion,
+					},
+				},
+				Force: false,
+				MCMS:  mcms.Input{},
 			}
 
-			// Execute the uncurse sequence (which handles both operation and transaction execution)
-			_, err := cldf_ops.ExecuteSequence(
-				env.OperationsBundle,
-				uncurseSeq,
-				env.BlockChains,
-				uncurseInput,
-			)
-			require.NoError(t, err, "Failed to execute uncurse sequence")
+			// Apply the uncurse changeset
+			reg := fastcurse.GetCurseRegistry()
+			_, err := fastcurse.UncurseChangeset(reg, mcmsRegistry).Apply(env, uncurseCfg)
+			require.NoError(t, err, "Failed to apply uncurse changeset")
 
 			// Verify subject is no longer cursed
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
@@ -255,25 +256,30 @@ func TestFastCurseTON(t *testing.T) {
 			evmSubject := adapter.SelectorToSubject(evmSelector)
 			globalSubject := fastcurse.GlobalCurseSubject()
 
-			// Get the curse sequence from the adapter
-			curseSeq := adapter.Curse()
-
-			// Curse both subjects
-			curseInput := fastcurse.CurseInput{
-				ChainSelector: tonChainSelector,
-				Subjects: []fastcurse.Subject{
-					evmSubject,
-					globalSubject,
+			// Create curse configuration for multiple subjects
+			curseCfg := fastcurse.RMNCurseConfig{
+				CurseActions: []fastcurse.CurseActionInput{
+					{
+						IsGlobalCurse:        false,
+						ChainSelector:        tonChainSelector,
+						SubjectChainSelector: evmSelector,
+						Version:              toolingAPIVersion,
+					},
+					{
+						IsGlobalCurse:        true,
+						ChainSelector:        tonChainSelector,
+						SubjectChainSelector: 0, // Global curse uses selector 0
+						Version:              toolingAPIVersion,
+					},
 				},
+				Force: false,
+				MCMS:  mcms.Input{},
 			}
 
-			_, err := cldf_ops.ExecuteSequence(
-				env.OperationsBundle,
-				curseSeq,
-				env.BlockChains,
-				curseInput,
-			)
-			require.NoError(t, err, "Failed to execute curse sequence")
+			// Apply the curse changeset
+			reg := fastcurse.GetCurseRegistry()
+			_, err := fastcurse.CurseChangeset(reg, mcmsRegistry).Apply(env, curseCfg)
+			require.NoError(t, err, "Failed to apply curse changeset")
 
 			// Verify both subjects are cursed
 			isCursed, err := adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
@@ -286,25 +292,29 @@ func TestFastCurseTON(t *testing.T) {
 
 			t.Log("Successfully cursed multiple subjects")
 
-			// Get the uncurse sequence from the adapter
-			uncurseSeq := adapter.Uncurse()
-
-			// Uncurse both subjects
-			uncurseInput := fastcurse.CurseInput{
-				ChainSelector: tonChainSelector,
-				Subjects: []fastcurse.Subject{
-					evmSubject,
-					globalSubject,
+			// Create uncurse configuration for multiple subjects
+			uncurseCfg := fastcurse.RMNCurseConfig{
+				CurseActions: []fastcurse.CurseActionInput{
+					{
+						IsGlobalCurse:        false,
+						ChainSelector:        tonChainSelector,
+						SubjectChainSelector: evmSelector,
+						Version:              toolingAPIVersion,
+					},
+					{
+						IsGlobalCurse:        true,
+						ChainSelector:        tonChainSelector,
+						SubjectChainSelector: 0, // Global curse uses selector 0
+						Version:              toolingAPIVersion,
+					},
 				},
+				Force: false,
+				MCMS:  mcms.Input{},
 			}
 
-			_, err = cldf_ops.ExecuteSequence(
-				env.OperationsBundle,
-				uncurseSeq,
-				env.BlockChains,
-				uncurseInput,
-			)
-			require.NoError(t, err, "Failed to execute uncurse sequence")
+			// Apply the uncurse changeset
+			_, err = fastcurse.UncurseChangeset(reg, mcmsRegistry).Apply(env, uncurseCfg)
+			require.NoError(t, err, "Failed to apply uncurse changeset")
 
 			// Verify both subjects are uncursed
 			isCursed, err = adapter.IsSubjectCursedOnChain(env, tonChainSelector, evmSubject)
