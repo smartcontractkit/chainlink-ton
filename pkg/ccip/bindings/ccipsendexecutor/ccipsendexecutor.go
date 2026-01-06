@@ -70,7 +70,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageValidationFailed{},
 	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
 	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
-})
+}).MustWithStorageType(InitialData{})
 
 // Metadata structure
 type Metadata struct {

@@ -129,7 +129,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	RoleGranted{},
 	RoleRevoked{},
 	RoleAdminChanged{},
-})
+}).MustWithStorageType(Data{})
 
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {

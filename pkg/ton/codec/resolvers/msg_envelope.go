@@ -15,10 +15,10 @@ var (
 
 // msgEnvelopeResolver resolves a message envelope map data to codec.MessageEnvelope[any] struct
 type msgEnvelopeResolver struct {
-	registry tvm.MessageRegistry
+	registry tvm.ContractTLBRegistry
 }
 
-func NewMsgEnvelopeResolver(registry tvm.MessageRegistry) codec.Resolver[map[string]any, codec.MessageEnvelope[any]] {
+func NewMsgEnvelopeResolver(registry tvm.ContractTLBRegistry) codec.Resolver[map[string]any, codec.MessageEnvelope[any]] {
 	return &msgEnvelopeResolver{registry: registry}
 }
 

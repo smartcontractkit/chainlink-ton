@@ -26,7 +26,7 @@ type opsAnySequence struct {
 	rregistry codec.ResolverRegistry
 }
 
-func NewOpsAnySequence(registry tvm.MessageRegistry, provider ton.ContractProvider) cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] {
+func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider ton.ContractCodeProvider) cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] {
 	return opsAnySequence{
 		rregistry: *codec.NewResolverRegistry(
 			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
