@@ -108,10 +108,6 @@ type USDPerUnitGas struct {
 	Timestamp                uint64   `tlb:"## 64"`
 }
 
-func (u *USDPerUnitGas) LoadFromCell(s *cell.Slice) error {
-	return tlb.LoadFromCell(u, s)
-}
-
 // Deprecated: Use GetDestinationChainGasPrice getter instead.
 func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
 	res, err := GetDestinationChainGasPrice.Decoder.Decode(result)
