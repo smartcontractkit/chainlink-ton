@@ -1,9 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  generateRandomContractId,
-  LINK_TOKEN,
-  WRAPPED_NATIVE,
-} from '../../../src/utils'
+import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import {
   createTimestampedPriceValue,
   FeeQuoter,

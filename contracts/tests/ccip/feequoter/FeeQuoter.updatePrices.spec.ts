@@ -169,9 +169,7 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // Verify the token price was updated
-    const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(
-       FeeQuoterSetup.NATIVE_TON.token
-    )
+    const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(FeeQuoterSetup.NATIVE_TON.token)
     expect(tokenPrice.value).toEqual(tokenPriceUpdate.price)
   })
 
@@ -266,9 +264,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should revert when caller is not authorized', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [
-        { token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n },
-      ],
+      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
       gasPricesUpdates: [],
     }
 
@@ -290,9 +286,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should only allow owner to update prices', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [
-        { token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n },
-      ],
+      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
       gasPricesUpdates: [],
     }
 
