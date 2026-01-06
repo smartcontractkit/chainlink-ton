@@ -150,12 +150,67 @@ func TestBuildLogQuery_WithSorting(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Check exact SQL with ORDER BY
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_lt DESC`
+	// Check exact SQL with ORDER BY - includes msg_index tiebreaker (tx_lt already primary sort)
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_lt DESC, msg_index DESC`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	params := args.(map[string]any)
 	require.Equal(t, "test-chain", params["chain_id"])
+}
+
+func TestBuildLogQuery_WithTimestampSorting(t *testing.T) {
+	// Test timestamp sorting with ASC direction
+	t.Run("timestamp ascending", func(t *testing.T) {
+		limitAndSort := commonquery.NewLimitAndSort(
+			commonquery.Limit{},
+			query.NewTimestampSort(commonquery.Asc),
+		)
+
+		addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+		sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
+			FieldFilters: []*query.FieldFilter{
+				{Field: "address", Operator: primitives.Eq, Value: addr},
+				{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
+			},
+			LimitAndSort: limitAndSort,
+		})
+
+		require.NoError(t, err)
+
+		// Timestamp sort includes tx_lt and msg_index tiebreakers for deterministic ordering
+		// This matches the comparison function in query.NewTimestampSort()
+		expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_timestamp ASC, tx_lt ASC, msg_index ASC`
+		require.True(t, sqlMatches(t, expectedSQL, sql))
+
+		params := args.(map[string]any)
+		require.Equal(t, "test-chain", params["chain_id"])
+	})
+
+	// Test timestamp sorting with DESC direction
+	t.Run("timestamp descending", func(t *testing.T) {
+		limitAndSort := commonquery.NewLimitAndSort(
+			commonquery.Limit{},
+			query.NewTimestampSort(commonquery.Desc),
+		)
+
+		addr, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+		sql, args, err := newQueryParser("test-chain").Parse(&query.LogQuery{
+			FieldFilters: []*query.FieldFilter{
+				{Field: "address", Operator: primitives.Eq, Value: addr},
+				{Field: "event_sig", Operator: primitives.Eq, Value: uint32(123)},
+			},
+			LimitAndSort: limitAndSort,
+		})
+
+		require.NoError(t, err)
+
+		// Timestamp sort includes tx_lt and msg_index tiebreakers with same direction
+		expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_timestamp DESC, tx_lt DESC, msg_index DESC`
+		require.True(t, sqlMatches(t, expectedSQL, sql))
+
+		params := args.(map[string]any)
+		require.Equal(t, "test-chain", params["chain_id"])
+	})
 }
 
 func TestBuildLogQuery_WithCursor(t *testing.T) {
