@@ -2,6 +2,7 @@ package operation
 
 import (
 	"fmt"
+	"math/big"
 	"sort"
 
 	"github.com/Masterminds/semver/v3"
@@ -159,4 +160,114 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 	}
 
 	return helpers.Serialize(msgs)
+}
+
+// CurseInput defines the input for the curse operation.
+type CurseInput struct {
+	Subjects []*big.Int // 128-bit subject IDs to curse (typically chain selectors)
+}
+
+// CurseOp is the operation for cursing subjects on the router via RMN Remote.
+var CurseOp = operations.NewOperation(
+	"router-curse",
+	semver.MustParse("0.1.0"),
+	"Curse subjects on the router via RMN Remote",
+	curse,
+)
+
+func curse(
+	b operations.Bundle,
+	deps config.CCIPDeps,
+	in CurseInput,
+) ([][]byte, error) {
+	// Validate input
+	if len(in.Subjects) == 0 {
+		return [][]byte{}, nil // No subjects to curse
+	}
+
+	// Get router address from chain state
+	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+
+	// Convert *big.Int subjects to Subject wrappers
+	subjects := make([]router.Subject, len(in.Subjects))
+	for i, subj := range in.Subjects {
+		subjects[i] = router.Subject{Value: new(big.Int).Set(subj)}
+	}
+
+	// Create curse message
+	curseMsg := router.RMNRemoteCurse{
+		Subjects: subjects,
+	}
+
+	// Serialize to cell
+	payload, err := tlb.ToCell(curseMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize curse message: %w", err)
+	}
+
+	// Create internal message
+	msg := tlb.InternalMessage{
+		Bounce:  true,
+		Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+		DstAddr: &routerAddr,
+		Body:    payload,
+	}
+
+	// Serialize and return
+	return helpers.Serialize([]*tlb.InternalMessage{&msg})
+}
+
+// UncurseInput defines the input for the uncurse operation.
+type UncurseInput struct {
+	Subjects []*big.Int // 128-bit subject IDs to uncurse (typically chain selectors)
+}
+
+// UncurseOp is the operation for uncursing subjects on the router via RMN Remote.
+var UncurseOp = operations.NewOperation(
+	"router-uncurse",
+	semver.MustParse("0.1.0"),
+	"Uncurse subjects on the router via RMN Remote",
+	uncurse,
+)
+
+func uncurse(
+	b operations.Bundle,
+	deps config.CCIPDeps,
+	in UncurseInput,
+) ([][]byte, error) {
+	// Validate input
+	if len(in.Subjects) == 0 {
+		return [][]byte{}, nil // No subjects to uncurse
+	}
+
+	// Get router address from chain state
+	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+
+	// Convert *big.Int subjects to Subject wrappers
+	subjects := make([]router.Subject, len(in.Subjects))
+	for i, subj := range in.Subjects {
+		subjects[i] = router.Subject{Value: new(big.Int).Set(subj)}
+	}
+
+	// Create uncurse message
+	uncurseMsg := router.RMNRemoteUncurse{
+		Subjects: subjects,
+	}
+
+	// Serialize to cell
+	payload, err := tlb.ToCell(uncurseMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize uncurse message: %w", err)
+	}
+
+	// Create internal message
+	msg := tlb.InternalMessage{
+		Bounce:  true,
+		Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+		DstAddr: &routerAddr,
+		Body:    payload,
+	}
+
+	// Serialize and return
+	return helpers.Serialize([]*tlb.InternalMessage{&msg})
 }
