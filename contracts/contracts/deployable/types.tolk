@@ -1,3 +1,9 @@
+import "../lib/utils"
+
+const Deployable_FACILITY_NAME = "com.chainlink.ton.ccip.Deployable";
+// getFacilityId(stringCrc32("Deployable"))
+const Deployable_FACILITY_ID = 374;
+
 struct Deployable<T> {
     owner: address;
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
@@ -31,6 +37,6 @@ struct Deployable_Message {
     body: cell;
 }
 
-// facilityId(crc32('Deployable_ErrorNotOwner')) * 100
-const ERROR_NOT_OWNER: int = 37400;
-
+enum Deployable_Error {
+    NotOwner = Deployable_FACILITY_ID * 100
+}

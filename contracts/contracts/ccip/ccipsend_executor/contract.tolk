@@ -11,7 +11,6 @@ import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 
 const CONTRACT_VERSION = "1.6.0";
-const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -153,11 +152,11 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.CCIPSendExecutor", CONTRACT_VERSION);
+    return (CCIPSendExecutor_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"));
+    return CCIPSendExecutor_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

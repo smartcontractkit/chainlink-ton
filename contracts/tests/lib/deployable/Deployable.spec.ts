@@ -7,6 +7,7 @@ import { generateRandomContractId } from '../../../src/utils'
 
 import * as counter from '../../../wrappers/examples/Counter'
 import * as dep from '../../../wrappers/libraries/Deployable'
+import { errorCode, facilityId } from '../../../wrappers/utils'
 
 describe('Deployable - Opcodes', () => {
   it('should match opcodes', () => {
@@ -45,6 +46,39 @@ describe('Deployable - Unit Tests', () => {
     }
 
     deployable = blockchain.openContract(dep.ContractClient.createFromConfig(data, deployableCode))
+  })
+
+  it('should match facility name and ID', async () => {
+    const result = await deployable.sendInternal(deployer.getSender(), {
+      value: toNano('1'),
+      bounce: false,
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: deployable.address,
+      deploy: true,
+    })
+    const facilityIdVal = await deployable.getFacilityId()
+    expect(facilityIdVal).toBe(BigInt(dep.FACILITY_ID))
+
+    const { type } = await deployable.getTypeAndVersion()
+    expect(type).toBe(dep.FACILITY_NAME)
+
+    expect(dep.FACILITY_ID).toEqual(facilityId(crc32(dep.FACILITY_NAME)))
+  })
+
+  it('should match error code', async () => {
+    const result = await deployable.sendInternal(deployer.getSender(), {
+      value: toNano('1'),
+      bounce: false,
+    })
+    expect(result.transactions).toHaveTransaction({
+      to: deployable.address,
+      deploy: true,
+    })
+    const errorCodeVal = await deployable.getErrorCode(0n)
+    expect(errorCodeVal).toBe(BigInt(dep.ERROR_CODE))
+
+    expect(dep.ERROR_CODE).toEqual(errorCode(crc32(dep.FACILITY_NAME), 0))
   })
 
   it('should initialize and replace code and data', async () => {

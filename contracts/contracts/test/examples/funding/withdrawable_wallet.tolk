@@ -2,7 +2,7 @@ import "../../../lib/utils";
 import "../../../lib/access/ownable_2step";
 import "../../../lib/funding/withdrawable";
 
-const FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
+const WithdrawableWallet_FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
 const CONTRACT_VERSION = "1.0.1";
 
 struct Storage {
@@ -59,7 +59,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (FACILITY_NAME, CONTRACT_VERSION);
+    return ("com.chainlink.ton.examples.funding.WithdrawableWallet", CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

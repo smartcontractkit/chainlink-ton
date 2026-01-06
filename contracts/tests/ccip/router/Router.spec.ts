@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { crc32 } from 'zlib'
 import * as coverage from '../../coverage/coverage'
-import { facilityId } from '../../../wrappers/utils'
+import { errorCode, facilityId } from '../../../wrappers/utils'
 
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
@@ -142,14 +142,21 @@ describe('Router - Ownable Tests', () => {
     })
   })
 
-  it('should match facility ID', async () => {
-    const facilityId = await router.getFacilityId()
-    expect(facilityId).toBe(BigInt(rt.ROUTER_FACILITY_ID))
+  it('should match facility name and ID', async () => {
+    const facilityIdVal = await router.getFacilityId()
+    expect(facilityIdVal).toBe(BigInt(rt.FACILITY_ID))
+
+    const { type } = await router.getTypeAndVersion()
+    expect(type).toBe(rt.FACILITY_NAME)
+
+    expect(rt.FACILITY_ID).toEqual(facilityId(crc32(rt.FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
-    const errorCode = await router.getErrorCode(0n)
-    expect(errorCode).toBe(BigInt(rt.ROUTER_ERROR_CODE))
+    const errorCodeVal = await router.getErrorCode(0n)
+    expect(errorCodeVal).toBe(BigInt(rt.ERROR_CODE))
+
+    expect(rt.ERROR_CODE).toEqual(errorCode(crc32(rt.FACILITY_NAME), 0))
   })
 
   afterAll(async () => {
@@ -182,11 +189,5 @@ describe('Router - Opcodes', () => {
     expect(rt.opcodes.out.messageValidationFailed).toBe(crc32('Router_MessageValidationFailed'))
     expect(rt.opcodes.out.ccipSendACK).toBe(crc32('Router_CCIPSendACK'))
     expect(rt.opcodes.out.ccipSendNACK).toBe(crc32('Router_CCIPSendNACK'))
-  })
-})
-
-describe('Router - Facility ID', () => {
-  it('Test facilityId matches facility name', () => {
-    expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
   })
 })

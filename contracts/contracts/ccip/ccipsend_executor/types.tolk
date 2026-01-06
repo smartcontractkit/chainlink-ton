@@ -1,6 +1,8 @@
 import "../onramp/messages.tolk";
-import "../../deployable/types"
-import "../../lib/deployable/namespace"
+
+const CCIPSendExecutor_FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
+// getFacilityId(stringCrc32(CCIPSendExecutor_FACILITY_NAME));
+const CCIPSendExecutor_FACILITY_ID = 436;
 
 type CCIPSendExecutor_ID = uint224
 

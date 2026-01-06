@@ -23,14 +23,14 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { loadContractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
 
-export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
-export const ONRAMP_FACILITY_ID = 181
-export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
+export const FACILITY_ID = 181
+export const ERROR_CODE = FACILITY_ID * 100
 
-export const ONRAMP_CONTRACT_VERSION = '1.6.0'
+export const CONTRACT_VERSION = '1.6.0'
 
 export enum OnRampError {
-  UnknownDestChainSelector = ONRAMP_ERROR_CODE,
+  UnknownDestChainSelector = ERROR_CODE,
   Unauthorized,
   SenderNotAllowed,
 }
@@ -770,9 +770,11 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
+
   getCode(provider: ContractProvider): Promise<Cell> {
     return typeAndVersion.getCode(provider)
   }
+
   getCodeHash(provider: ContractProvider): Promise<bigint> {
     return typeAndVersion.getCodeHash(provider)
   }
@@ -790,11 +792,11 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
   }
 
   static version() {
-    return ONRAMP_CONTRACT_VERSION
+    return CONTRACT_VERSION
   }
 
   static type() {
-    return ONRAMP_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {

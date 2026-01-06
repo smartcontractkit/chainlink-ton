@@ -16,7 +16,6 @@ import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 
 const CONTRACT_VERSION = "1.6.0";
-const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
@@ -640,11 +639,11 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.FeeQuoter", CONTRACT_VERSION);
+    return (FeeQuoter_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"));
+    return FeeQuoter_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

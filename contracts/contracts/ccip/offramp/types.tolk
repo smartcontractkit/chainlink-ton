@@ -2,7 +2,10 @@ import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
 import "../../deployable/types"
-import "../../lib/deployable/namespace"
+
+const OffRamp_FACILITY_NAME = "com.chainlink.ton.ccip.OffRamp";
+// getFacilityId(stringCrc32(OffRamp_FACILITY_NAME));
+const OffRamp_FACILITY_ID = 84;
 
 struct ExecutionReport {
     sourceChainSelector: uint64;

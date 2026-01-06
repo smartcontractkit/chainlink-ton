@@ -1,7 +1,7 @@
-import "../../lib/utils"
+import "types"
 
 enum Error {
-    UnknownDestChainSelector = 18100 // Facility ID * 100
+    UnknownDestChainSelector = OnRamp_FACILITY_ID * 100
     Unauthorized
     SenderNotAllowed
     InvalidConfig

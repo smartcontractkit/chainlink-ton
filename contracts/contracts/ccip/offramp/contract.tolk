@@ -863,11 +863,11 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
+    return (OffRamp_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OffRamp"));
+    return OffRamp_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

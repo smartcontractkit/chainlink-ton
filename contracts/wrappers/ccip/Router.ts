@@ -26,12 +26,12 @@ import * as of from './OffRamp'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
-export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
-export const ROUTER_FACILITY_ID = 496
-export const ROUTER_ERROR_CODE = 49600 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
+export const FACILITY_ID = 496
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum RouterError {
-  DestChainNotEnabled = ROUTER_ERROR_CODE,
+  DestChainNotEnabled = ERROR_CODE,
   SourceChainNotEnabled,
   SenderIsNotOffRamp,
   OffRampNotSetForSelector,
@@ -245,6 +245,7 @@ export class Router
   getCode(provider: ContractProvider): Promise<Cell> {
     return typeAndVersion.getCode(provider)
   }
+
   getCodeHash(provider: ContractProvider): Promise<bigint> {
     return typeAndVersion.getCodeHash(provider)
   }
@@ -254,7 +255,7 @@ export class Router
   }
 
   static type() {
-    return ROUTER_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {

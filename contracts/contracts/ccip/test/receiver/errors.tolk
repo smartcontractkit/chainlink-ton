@@ -1,4 +1,6 @@
+import "types"
+
 enum Error {
-    Unauthorized = 34600 // Facility ID * 100
+    Unauthorized = TestReceiver_FACILITY_ID * 100
     Rejected
 }
