@@ -28,37 +28,21 @@ func (r *replayInfo) hasRequest() bool {
 // On the next LogPoller loop tick, all filters will be backfilled starting from fromSeqNo.
 // Returns an error immediately if the requested block is invalid or not available in liteserver.
 func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
-	// get current block for validation
 	currentBlock, err := lp.getCurrentBlock(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain block: %w", err)
 	}
 
-	// Use safe lookback window if fromSeqNo is 0 (avoid replaying entire chain)
+	// Use safe lookback window if fromBlock is 0 (avoid replaying entire chain)
 	if fromBlock == 0 {
 		fromBlock = computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
 		lp.lggr.Infow("Replay with no starting block specified, using lookback window",
 			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
 	}
 
-	// validate fromSeqNo is not beyond current block
-	if fromBlock >= currentBlock.SeqNo {
-		return fmt.Errorf("replay fromSeqNo %d is at or beyond current block %d", fromBlock, currentBlock.SeqNo)
-	}
-
-	// lookup and validate block is available in liteserver
-	client, err := lp.clientProvider(ctx)
+	replayBlock, err := lp.lookupReplayBlock(ctx, fromBlock, currentBlock)
 	if err != nil {
-		return fmt.Errorf("failed to get client: %w", err)
-	}
-	replayBlock, err := client.LookupBlock(ctx, currentBlock.Workchain, currentBlock.Shard, fromBlock)
-	if err != nil {
-		if errors.Is(err, ton.ErrBlockNotFound) {
-			// block not found typically means the block has been pruned from liteserver state
-			// (check ARCHIVE_TTL configuration if this is unexpected)
-			return fmt.Errorf("replay rejected: block %d is not available in liteserver state (likely pruned): %w", fromBlock, err)
-		}
-		return fmt.Errorf("failed to lookup replay block %d: %w", fromBlock, err)
+		return fmt.Errorf("replay rejected: %w", err)
 	}
 
 	lp.replay.mut.Lock()
@@ -88,21 +72,40 @@ func (lp *service) ReplayStatus() models.ReplayStatus {
 	return lp.replay.status
 }
 
+// lookupReplayBlock validates and retrieves a replay block.
+// Returns error if block is beyond current block or not available in liteserver.
+func (lp *service) lookupReplayBlock(ctx context.Context, replaySeqNo uint32, currentBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
+	if replaySeqNo >= currentBlock.SeqNo {
+		return nil, fmt.Errorf("block %d is at or beyond current block %d", replaySeqNo, currentBlock.SeqNo)
+	}
+
+	block, err := lp.lookupBlock(ctx, replaySeqNo, currentBlock)
+	if err != nil {
+		if errors.Is(err, ton.ErrBlockNotFound) {
+			return nil, fmt.Errorf("block %d is not available in liteserver state (likely pruned): %w", replaySeqNo, err)
+		}
+		return nil, fmt.Errorf("failed to lookup block %d: %w", replaySeqNo, err)
+	}
+
+	return block, nil
+}
+
 // applyReplayOverride checks for replay requests and modifies the block range if needed.
 // It handles two cases:
 // 1. Normal case: blockRange is not nil, override the starting block
 // 2. Idle chain case: blockRange is nil but replay is pending, construct a new range
 // Returns the modified blockRange (may be newly constructed for idle chain case).
-func (lp *service) applyReplayOverride(blockRange *models.BlockRange, currentBlock *ton.BlockIDExt) *models.BlockRange {
+func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.BlockRange, currentBlock *ton.BlockIDExt) *models.BlockRange {
 	replayBlock := lp.checkForReplayRequest()
 	if replayBlock == nil {
 		return blockRange
 	}
 
-	// Validate replay range - requested block must be less than current block
-	if replayBlock.SeqNo >= currentBlock.SeqNo {
-		lp.lggr.Warnw("replay fromBlock is beyond current block, skipping override",
-			"fromBlock", replayBlock.SeqNo, "currentBlock", currentBlock.SeqNo)
+	// re-validate replay block (defensive: block may have been pruned since request)
+	_, err := lp.lookupReplayBlock(ctx, replayBlock.SeqNo, currentBlock)
+	if err != nil {
+		lp.lggr.Warnw("replay rejected", "error", err, "fromBlock", replayBlock.SeqNo)
+		lp.replayComplete(replayBlock.SeqNo, currentBlock.SeqNo) // reset replay status
 		return blockRange
 	}
 

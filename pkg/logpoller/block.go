@@ -89,6 +89,15 @@ func (lp *service) getLastProcessedBlockSeqNo(currentBlock *ton.BlockIDExt) (uin
 	return lastProcessed, nil
 }
 
+// lookupBlock retrieves a block by sequence number using the current block's workchain and shard.
+func (lp *service) lookupBlock(ctx context.Context, seqNo uint32, currentBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+	return client.LookupBlock(ctx, currentBlock.Workchain, currentBlock.Shard, seqNo)
+}
+
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
 func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	if lastProcessedBlockSeqNo == 0 {
@@ -97,14 +106,9 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 		return nil, nil
 	}
 
-	client, err := lp.clientProvider(ctx)
+	prevBlock, err := lp.lookupBlock(ctx, lastProcessedBlockSeqNo, toBlock)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get client: %w", err)
-	}
-	// get the prevBlock based on the last processed sequence number
-	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
-	if err != nil {
-		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlockSeqNo, err)
+		return nil, fmt.Errorf("failed to lookup previous block %d: %w", lastProcessedBlockSeqNo, err)
 	}
 	return prevBlock, nil
 }
