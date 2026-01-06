@@ -53,7 +53,7 @@ func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpd
 func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([][]byte, error) {
 	msgs := make([]*tlb.InternalMessage, 0)
 	for onRampAddrStr, selectors := range onRampUpdates {
-		var rampAddr *address.Address = nil
+		var rampAddr *address.Address
 		if onRampAddrStr != "" {
 			rampAddr = address.MustParseAddr(onRampAddrStr)
 		}
