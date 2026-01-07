@@ -282,7 +282,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 // TODO: add TokenAmounts support for TON token transfers
 // temp with 0x38a69e3b
 type CCIPSendWithOldOpCode struct {
-	_                 tlb.Magic                           `tlb:"#0x38a69e3b"` //nolint:revive // Ignore opcode tag
+	_                 tlb.Magic                           `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                              `tlb:"## 64"`
 	DestChainSelector uint64                              `tlb:"## 64"`
 	Receiver          common.CrossChainAddress            `tlb:"."`
