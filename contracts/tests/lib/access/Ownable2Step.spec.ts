@@ -5,6 +5,14 @@ import { compile } from '@ton/blueprint'
 
 import * as ownable2Step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as counter from '../../../wrappers/examples/Counter'
+import { facilityId } from '../../../wrappers/utils'
+import { crc32 } from 'zlib'
+
+describe('Ownable2Step Unit Tests', () => {
+  it('should match facility ID', async () => {
+    expect(ownable2Step.FACILITY_ID).toBe(facilityId(crc32(ownable2Step.FACILITY_NAME)))
+  })
+})
 
 describe('Ownable2Step Counter', () => {
   let blockchain: Blockchain
