@@ -1,5 +1,5 @@
 [[blockchains]]
-  container_name = "blockchain-src"
+  container_name = "ethereum-chain"
   chain_id = "1337"
   docker_cmd_params = ["-b", "1", "--mixed-mining", "--slots-in-an-epoch", "1"]
   image = "ghcr.io/foundry-rs/foundry:latest"

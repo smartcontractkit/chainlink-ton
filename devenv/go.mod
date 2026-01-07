@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/chainlink-ton/devenv-impl
+module github.com/smartcontractkit/chainlink-ton/devenv
 
 go 1.25.4
 

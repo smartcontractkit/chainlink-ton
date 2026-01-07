@@ -64,12 +64,12 @@ func FundWalletsWithCtx(ctx context.Context, client ton.APIClientWrapped, recipi
 		}
 		messages[i] = transfer
 	}
-	_, _, txerr := funder.SendManyWaitTransaction(context.Background(), messages)
+	_, _, txerr := funder.SendManyWaitTransaction(ctx, messages)
 	if txerr != nil {
 		return fmt.Errorf("airdrop transaction failed: %w", txerr)
 	}
 
-	err = waitForAirdropCompletion(context.Background(), client, recipients, amounts, 120*time.Second)
+	err = waitForAirdropCompletion(ctx, client, recipients, amounts, 120*time.Second)
 	if err != nil {
 		return fmt.Errorf("airdrop completion verification failed: %w", err)
 	}

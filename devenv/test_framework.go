@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"math/rand/v2"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,24 +14,14 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/google/uuid"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	ccipocr3common "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-testing-framework/framework/clclient"
-	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
-	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 	tonseqs "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -60,33 +49,6 @@ type AnyMsgSentEvent struct {
 	//  EVM:   *onramp.OnRampCCIPMessageSent
 	//  Aptos: module_onramp.CCIPMessageSent
 	RawEvent any
-}
-
-type CCIP16TON struct {
-	e                   *deployment.Environment
-	ExpectedSeqNumRange map[SourceDestPair]ccipocr3common.SeqNumRange
-	ExpectedSeqNumExec  map[SourceDestPair][]uint64
-	MsgSentEvents       []*AnyMsgSentEvent
-}
-
-func NewEmptyCCIP16TON() *CCIP16TON {
-	return &CCIP16TON{
-		ExpectedSeqNumRange: make(map[SourceDestPair]ccipocr3common.SeqNumRange),
-		ExpectedSeqNumExec:  make(map[SourceDestPair][]uint64),
-		MsgSentEvents:       make([]*AnyMsgSentEvent, 0),
-	}
-}
-
-// NewCCIP16TON creates new smart-contracts wrappers with utility functions for CCIP16TON implementation.
-func NewCCIP16TON(ctx context.Context, e *deployment.Environment) (*CCIP16TON, error) {
-	_ = zerolog.Ctx(ctx)
-	out := NewEmptyCCIP16TON()
-	out.e = e
-	return out, nil
-}
-
-func (m *CCIP16TON) SetCLDF(e *deployment.Environment) {
-	m.e = e
 }
 
 func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields any, opts any) error {
@@ -222,7 +184,7 @@ func setupLogPoller(
 	tonChain cldf_ton.Chain,
 	contract *address.Address,
 	eventName string,
-) tonlogpoller.Service {
+) (tonlogpoller.Service, error) {
 	chainID := strconv.FormatUint(tonChain.Selector, 10)
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return tonChain.Client.WithRetry(clientRetries), nil
@@ -244,13 +206,13 @@ func setupLogPoller(
 		}},
 	)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create logpoller service: %w", err)
 	}
 	if err := service.Start(ctx); err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to start logpoller service: %w", err)
 	}
 
-	return service
+	return service, nil
 }
 
 // waitForTONEvent sets up a logpoller and waits for events matching the given criteria.
@@ -269,7 +231,10 @@ func waitForTONEvent[T any](
 		return fmt.Errorf("failed to create logger: %w", err)
 	}
 
-	service := setupLogPoller(ctx, lggr, tonChain, offRamp, eventName)
+	service, err := setupLogPoller(ctx, lggr, tonChain, offRamp, eventName)
+	if err != nil {
+		return err
+	}
 	defer service.Close()
 
 	eventSig := hash.CRC32(eventName)
@@ -456,128 +421,9 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 }
 
 func (m *CCIP16TON) GetEOAReceiverAddress(ctx context.Context, chainSelector uint64) ([]byte, error) {
-	panic("GetEOAReceiverAddress not implemented for TON")
+	return nil, fmt.Errorf("GetEOAReceiverAddress not implemented for TON")
 }
 
 func (m *CCIP16TON) GetTokenBalance(ctx context.Context, chainSelector uint64, address, tokenAddress []byte) (*big.Int, error) {
-	panic("GetTokenBalance not implemented for TON")
-}
-
-func (m *CCIP16TON) ExposeMetrics(
-	ctx context.Context,
-	source, dest uint64,
-	chainIDs []string,
-	wsURLs []string,
-) ([]string, *prometheus.Registry, error) {
-	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Exposing on-chain metrics")
-	return []string{}, nil, nil
-}
-
-func (m *CCIP16TON) DeployLocalNetwork(ctx context.Context, bc *blockchain.Input) (*blockchain.Output, error) {
-	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Deploying TON networks")
-	out, err := blockchain.NewBlockchainNetwork(bc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blockchain network: %w", err)
-	}
-	return out, nil
-}
-
-func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (string, error) {
-	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Configuring CL nodes for TON")
-	name := fmt.Sprintf("node-ton-%s", uuid.New().String()[0:5])
-	return fmt.Sprintf(`
-	[[TON]]
-	ChainID = '%s'
-	Enabled = true
-	NetworkName = 'ton-localnet'
-
-	[[TON.Nodes]]
-	Name = '%s'
-	URL = '%s'`,
-		bc.ChainID,
-		name,
-		strings.ReplaceAll(bc.Out.Nodes[0].InternalHTTPUrl, "@/", "@"),
-	), nil
-}
-
-func (m *CCIP16TON) PreDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
-	return nil
-}
-
-func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
-	const TONtoUSD = 2                 // Example value
-	const TONtoNanoTON = 1e9           // Smallest denomination
-	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
-	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
-	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
-	tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
-	updateConfig := operation.UpdateFeeQuoterPricesInput{
-		TokenPrices: map[string]*big.Int{
-			tvm.TonTokenAddr.String(): tonTokenPrice,
-		},
-	}
-	bundle := operations.NewBundle(
-		func() context.Context { return context.Background() },
-		env.Logger,
-		operations.NewMemoryReporter(),
-	)
-	env.OperationsBundle = bundle
-	bundle.Logger.Infow("Updating prices on FeeQuoter", "input", updateConfig)
-	a := &tonseqs.TonAdapter{}
-	tonChain := env.BlockChains.TonChains()[selector]
-	fqAddr, err := a.GetFQAddress(env.DataStore, selector)
-	if err != nil {
-		return fmt.Errorf("failed to get router address: %w", err)
-	}
-	addrCodec := codec.NewAddressCodec()
-	rawFq, err := addrCodec.AddressBytesToString(fqAddr)
-	if err != nil {
-		return fmt.Errorf("failed to convert TON address to bytes: %w", err)
-	}
-	fqContractAddress, err := address.ParseAddr(rawFq)
-	if err != nil {
-		return fmt.Errorf("failed to parse router address: %w", err)
-	}
-	deps := config.CCIPDeps{
-		TonChain: tonChain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			tonChain.Selector: {
-				FeeQuoter: *fqContractAddress,
-			},
-		},
-	}
-	updatePricesReport, err := operations.ExecuteOperation(bundle, operation.UpdateFeeQuoterPricesOp, deps, updateConfig)
-	if err != nil {
-		return fmt.Errorf("failed to update feequoter prices: %w", err)
-	}
-	txs := updatePricesReport.Output
-	// Execute the txs || MCMS proposals
-	err = helpers.ExecuteTransactions(bundle.GetContext(), bundle.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
-	if err != nil {
-		return fmt.Errorf("failed to execute update feequoter prices txs: %w", err)
-	}
-	return nil
-}
-
-func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input, nodeKeyBundles map[string]clclient.NodeKeysBundle, bc *blockchain.Input, linkAmount, nativeAmount *big.Int) error {
-	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Funding CL nodes with native and LINK")
-	var keys []*address.Address
-	var amounts []tlb.Coins
-	for _, nk := range nodeKeyBundles {
-		addr, err := GetNodeAddressFromBundle(&nk)
-		if err != nil {
-			return err
-		}
-		keys = append(keys, address.MustParseAddr(addr))
-		amounts = append(amounts, tlb.MustFromTON("1000"))
-	}
-	client, err := testutils.CreateClient(ctx, bc.Out.Nodes[0].ExternalHTTPUrl)
-	if err != nil {
-		return fmt.Errorf("failed to create TON client: %w", err)
-	}
-	return testutils.FundWalletsNoT(client, keys, amounts)
+	return nil, fmt.Errorf("GetTokenBalance not implemented for TON")
 }
