@@ -860,9 +860,112 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
-  it('Test commit with empty report', async () => {
+  it('Test commit report fails with completely empty report (no merkle roots and no price updates)', async () => {
     await setupOCRConfig()
-    await commitReport([])
+
+    // Create a commit report with empty merkleRoots and undefined priceUpdates
+    const report: of.CommitReport = { merkleRoots: [] }
+    const reportContext: ocr.ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
+    const signatures = createSignatures(
+      [signers[0], signers[1]],
+      ocr.hashReport(of.builder.data.commitReport.encode(report).endCell(), reportContext),
+    )
+
+    const result = await offRamp.sendCommit(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext,
+      report,
+      signatures,
+    })
+
+    expectFailedTransaction(
+      result,
+      transmitters[0].address,
+      offRamp.address,
+      of.OffRampError.EmptyCommitReport,
+    )
+  })
+
+  it('Test commit fails when source chain is cursed', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // Curse source chain
+    const curseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [CHAINSEL_EVM_TEST_90000001],
+    })
+    expect(curseResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // Attempt to commit - should fail with SubjectCursed
+    await commitReport([root], toNano('0.5'), 0x01, undefined, false, of.OffRampError.SubjectCursed)
+
+    // Uncurse source chain
+    const uncurseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [],
+    })
+    expect(uncurseResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // Now commit should succeed
+    await commitReport([root], toNano('0.5'), 0x02, undefined)
+  })
+
+  it('Test commit fails with onRamp address mismatch', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+
+    // Create root with wrong onRamp address
+    const wrongOnRampAddress = 0x222222c891c5d4e6ad68064ae45d43146d4f9f3an
+    const root = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      onRampAddress: bigIntToBuffer(wrongOnRampAddress),
+      minSeqNr: 1n,
+      maxSeqNr: 1n,
+      merkleRoot: rootBytes,
+    }
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    await commitReport(
+      [root],
+      toNano('0.5'),
+      0x01,
+      undefined,
+      false,
+      of.OffRampError.OnRampAddressMismatch,
+    )
+  })
+
+  it('Test commit fails with zero merkle root', async () => {
+    const root = createMerkleRoot(1n, 1n, 0n) // merkleRoot is 0
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    await commitReport(
+      [root],
+      toNano('0.5'),
+      0x01,
+      undefined,
+      false,
+      of.OffRampError.MerkleRootCannotBeZero,
+    )
   })
 
   it('Test commit with one merkle root for one empty message', async () => {
@@ -2541,7 +2644,6 @@ describe('OffRamp - Unit Tests', () => {
     const expectedSourceChainConfigs = createDefaultUpdateSourceChainConfigs()
     expect(expectedSourceChainConfigs.sort()).toEqual(result.sort())
   })
-
   it('price updates are not sent to feequoter if they are empty', async () => {
     await setupOCRConfig()
     const priceUpdates: of.PriceUpdates = {
