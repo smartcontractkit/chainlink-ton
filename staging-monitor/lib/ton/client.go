@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -32,7 +31,6 @@ import (
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonhash "github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
