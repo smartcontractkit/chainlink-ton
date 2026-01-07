@@ -24,9 +24,11 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
@@ -278,6 +280,19 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 // TODO Consider move chainlink core AnyMsgSentEvent and CCIPSendReqConfig to CLDF?
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
 // TODO: add TokenAmounts support for TON token transfers
+// temp with 0x38a69e3b
+type CCIPSendWithOldOpCode struct {
+	_                 tlb.Magic                           `tlb:"#0x38a69e3b"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                              `tlb:"## 64"`
+	DestChainSelector uint64                              `tlb:"## 64"`
+	Receiver          common.CrossChainAddress            `tlb:"."`
+	Data              common.SnakeBytes                   `tlb:"^"`
+	TokenAmounts      common.SnakeRef[router.TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address                    `tlb:"addr"`
+	ExtraArgs         *cell.Cell                          `tlb:"^"`
+}
+
+// TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
 func SendCCIPMessage(
 	e cldf.Environment,
 	state state.CCIPChainState,
@@ -290,7 +305,16 @@ func SendCCIPMessage(
 
 	routerAddr := state.Router
 
-	ccipSend := msg
+	// temp with 0x38a69e3b
+	ccipSend := CCIPSendWithOldOpCode{
+		QueryID:           msg.QueryID,
+		DestChainSelector: msg.DestChainSelector,
+		Receiver:          msg.Receiver,
+		Data:              msg.Data,
+		TokenAmounts:      msg.TokenAmounts,
+		FeeToken:          msg.FeeToken,
+		ExtraArgs:         msg.ExtraArgs,
+	}
 
 	ccipSendCell, err := tlb.ToCell(ccipSend)
 	if err != nil {
