@@ -23,6 +23,6 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 			return false, fmt.Errorf("failed to parse verifyNotCursed result: %w", err)
 		}
 
-		return notCursed.Cmp(big.NewInt(1)) == 0, nil
+		return notCursed.Cmp(big.NewInt(0)) != 0, nil
 	}),
 }
