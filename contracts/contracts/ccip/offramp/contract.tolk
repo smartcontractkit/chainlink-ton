@@ -296,7 +296,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     }
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + Router_Costs.routeMessage(),
+        value: gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -547,7 +547,11 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
     // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
-    assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
+    if(gasOverride != null && (gasOverride >= message.gasLimit)) {
+        assert(value >= (OffRamp_Costs.execute() + gasOverride), Error.InsufficientFee);
+    } else {
+        assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
+    }
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);

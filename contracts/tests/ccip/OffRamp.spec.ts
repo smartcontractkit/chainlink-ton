@@ -465,7 +465,7 @@ describe('OffRamp - Unit Tests', () => {
     expectSuccess = true,
   ) => {
     const result = await offRamp.sendExecute(transmitters[0].getSender(), {
-      value: toNano('0.15'),
+      value: toNano('0.2'),
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
     })
@@ -1902,7 +1902,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     //try manual exec
-    const gasOverride = toNano('1')
+    const gasOverride = toNano('0.05')
     const result4 = await manualExecuteReport(report, gasOverride, true)
 
     expect(result4.transactions).toHaveTransaction({
