@@ -1,7 +1,6 @@
 import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
-const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
@@ -15,9 +14,6 @@ fun getFacilityId(crc32Key: int): uint16 {
 fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     return getFacilityId(crc32Key) * 100 + local;
 }
-
-// Generic unimplemented error code
-const ERROR_UNIMPLEMENTED = 0xBBBB; // == 48059
 
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
