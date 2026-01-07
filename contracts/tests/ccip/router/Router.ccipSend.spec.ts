@@ -13,7 +13,7 @@ import {
 } from './Router.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
 
-describe('Router', () => {
+describe('Router.ccipSend', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
@@ -48,7 +48,7 @@ describe('Router', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: WRAPPED_NATIVE,
+    feeToken: null, // defaults to WRAPPED_NATIVE
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',

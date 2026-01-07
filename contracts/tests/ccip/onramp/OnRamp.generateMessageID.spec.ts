@@ -158,7 +158,7 @@ describe('OnRamp - generate message id', () => {
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
         tokenAmounts: asSnakeData(ccipSend.tokenAmounts, rt.builder.data.tokenAmount.encode),
-        feeToken: ccipSend.feeToken,
+        feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       },
       feeValueJuels: 0n,

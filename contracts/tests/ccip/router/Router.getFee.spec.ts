@@ -86,7 +86,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(WRAPPED_NATIVE)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -153,7 +153,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(WRAPPED_NATIVE)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -207,7 +207,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(WRAPPED_NATIVE)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })

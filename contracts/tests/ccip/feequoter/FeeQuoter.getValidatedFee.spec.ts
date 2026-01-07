@@ -38,7 +38,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       const messageValidated = await setup.getValidatedFee(message)
 
       const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-        message.feeToken,
+        message.feeToken!,
       )
 
       const gasUsed = BigInt(FeeQuoterSetup.GAS_LIMIT) + BigInt(FeeQuoterSetup.DEST_GAS_OVERHEAD)
@@ -92,7 +92,7 @@ describe('FeeQuoter GetValidatedFee', () => {
       feeToken: FeeQuoterSetup.NATIVE_TON.token,
     })
     const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-      message.feeToken,
+      message.feeToken!,
     )
 
     const feeResult = await setup.getValidatedFee(message)
@@ -135,7 +135,7 @@ describe('FeeQuoter GetValidatedFee', () => {
 
       // Verify fee calculation with high gas and large data
       const premiumMultiplierWeiPerEth = await setup.bind.feeQuoter.getPremiumMultiplierWeiPerEth(
-        message.feeToken,
+        message.feeToken!,
       )
 
       const calldataLen = BigInt(customDataSize)
