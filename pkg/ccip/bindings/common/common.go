@@ -14,9 +14,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// MaxArrayLength defines the maximum length for arrays packed with reference chaining to prevent excessive resource consumption.
-const MaxArrayLength = 1000
-
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode
 
@@ -34,6 +31,30 @@ const (
 	versionGetter = "typeAndVersion"
 )
 
+// TVM limits for cell chains, enforced at different stages:
+// - Per-cell limits (MaxCellDataBytes): Enforced by Builder during cell creation
+// - Chain depth limits (MaxCellChainDepth): Enforced during TVM execution (not during creation)
+//
+// The 512-depth limit specifically applies to c4 (persistent storage) and c5 (output actions)
+// registers during smart contract execution. Cell chains exceeding this depth can be created
+// locally but will fail when used in contract state or validated during blockchain processing.
+const (
+	// CrossChainAddressMaxLength defines the maximum length for cross-chain addresses.
+	CrossChainAddressMaxLength = 64 // in bytes
+	// MaxArrayLength defines the maximum length for arrays packed with reference chaining to prevent excessive resource consumption.
+	MaxArrayLength = 1000
+	// MaxCellChainDepth is the maximum depth for c4/c5 registers in TON (512 cells).
+	// General execution depth limit is <1024, but c4/c5 specifically limited to 512.
+	MaxCellChainDepth = 512
+	// MaxCellDataBytes is the maximum data per cell in TON (127 bytes, ~1023 bits).
+	// This limit is enforced during cell creation by Builder operations (StoreSlice, etc).
+	MaxCellDataBytes = 127
+	// MaxCellChainBytes is the maximum total bytes in a cell chain (MaxCellChainDepth * MaxCellDataBytes = ~65KB).
+	// Represents the practical limit for c4/c5 register data.
+	MaxCellChainBytes = MaxCellChainDepth * MaxCellDataBytes // 65,024 bytes
+)
+
+// Common error codes constants
 const (
 	ErrorUnknownDestChainSelector ExitCode = iota + 256
 	ErrorDestChainNotEnabled
@@ -113,8 +134,8 @@ type CrossChainAddress []byte
 func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 	addrLength := len(c)
 	// max length is 64 bytes, plus 1 byte for the length prefix
-	if addrLength > 64 {
-		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of 64 bytes", len(c))
+	if addrLength > CrossChainAddressMaxLength {
+		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", len(c), CrossChainAddressMaxLength)
 	}
 
 	if addrLength == 0 {
@@ -144,16 +165,18 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	}
 
 	addrLength := int(length[0]) // first byte is the length
-	if addrLength < 1 || addrLength > 64 {
+	if addrLength == 0 || addrLength > CrossChainAddressMaxLength {
 		return fmt.Errorf("invalid crosschain address length %d", addrLength)
 	}
 
 	// Check if the remaining bits are enough for the address
-	if s.BitsLeft() < uint(addrLength)*8 {
+	// Safe to convert: addrLength is validated to be in range [1, 64]
+	addrLengthUint := uint(addrLength) // #nosec G115
+	if s.BitsLeft() < addrLengthUint*8 {
 		return errors.New("crosschain address is too short")
 	}
 
-	addr, err := s.LoadSlice(uint(addrLength) * 8)
+	addr, err := s.LoadSlice(addrLengthUint * 8)
 	if err != nil {
 		return fmt.Errorf("failed to load cross-chain address: %w", err)
 	}
@@ -164,17 +187,31 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 
 // LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data if lacks a length prefix as the first byte.
 func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
-	data, err := s.LoadSlice(s.BitsLeft())
+	bitsLeft := s.BitsLeft()
+
+	// Check that the byte length falls within the protocol-defined 1-64 byte range
+	byteLength := bitsLeft / 8
+	if byteLength == 0 {
+		return nil, errors.New("crosschain address is empty")
+	}
+	if byteLength > CrossChainAddressMaxLength {
+		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", byteLength, CrossChainAddressMaxLength)
+	}
+
+	data, err := s.LoadSlice(bitsLeft)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load data for cross chain address: %w", err)
 	}
-	return CrossChainAddress(data), nil
+	return data, nil
 }
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
 // and uses the last reference for chaining.
 func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
+	if len(array) > MaxArrayLength {
+		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
+	}
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
 
@@ -210,20 +247,25 @@ func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 // unpackArrayWithRefChaining unpacks a linked cell structure created by packArrayWithRefChaining
 // into a slice of type T. Each element is stored as a cell reference. If a cell has 4 references,
 // the last reference is used for chaining to the next cell and is not decoded as an element.
+// Validates against TVM limits to document assumptions and prevent potential issues
+// if this code is extended to handle untrusted data sources.
 func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
+	cellCount := 0
+
 	for curr != nil {
+		// Validate cell chain depth against TVM maximum
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
 		length := curr.RefsNum()
 
 		// defensive sanity check for length, in real scenarios this should never happen since cell refs are limited to 4
 		if length > uint(math.MaxInt) {
 			return result, fmt.Errorf("length %d overflows int", length)
-		}
-
-		// same defensive sanity check for length, in real scenarios this should never happen
-		if length > MaxArrayLength {
-			return nil, fmt.Errorf("array length %d exceeds maximum of %d", length, MaxArrayLength)
 		}
 
 		for i := 0; i < int(length); i++ {
@@ -240,6 +282,11 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
+
+			// Validate total array length doesn't exceed maximum
+			if len(result) > MaxArrayLength {
+				return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(result), MaxArrayLength)
+			}
 		}
 		if length < 4 {
 			break
@@ -253,7 +300,10 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // Cells are linked via references for arrays that span multiple cells.
 // note: T cannot be primitive types not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.); a wrapper type is needed, such as ChainSelector in router binding
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
-	cells := []*cell.Builder{}
+	if len(array) > MaxArrayLength {
+		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
+	}
+	var cells []*cell.Builder
 	builder := cell.BeginCell()
 
 	for i, v := range array {
@@ -287,10 +337,20 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 // unpackArrayWithStaticType unpacks a linked cell structure created by packArrayWithStaticType
 // into a slice of type T. Elements are read from the cell's bits, and the function follows references
 // to subsequent cells as needed.
+// Validates against TVM limits to document assumptions and prevent potential issues
+// if this code is extended to handle untrusted data sources.
 func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
+	cellCount := 0
+
 	for curr != nil {
+		// Validate cell chain depth against TVM maximum
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
 		s := curr.BeginParse()
 		for s.BitsLeft() > 0 {
 			var v T
@@ -298,6 +358,11 @@ func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 				return nil, fmt.Errorf("failed to decode element: %w", err)
 			}
 			result = append(result, v)
+
+			// Validate total array length doesn't exceed maximum
+			if len(result) > MaxArrayLength {
+				return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(result), MaxArrayLength)
+			}
 		}
 		if curr.RefsNum() > 0 {
 			ref, err := curr.PeekRef(0)
@@ -318,6 +383,11 @@ func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 		// Return an empty cell instead of nil for empty arrays
 		return cell.BeginCell().EndCell(), nil
 	}
+
+	if len(data) > MaxCellChainBytes {
+		return nil, fmt.Errorf("data length %d exceeds maximum of %d bytes", len(data), MaxCellChainBytes)
+	}
+
 	cells := []*cell.Builder{cell.BeginCell()}
 	curr := cells[0]
 
@@ -362,19 +432,39 @@ func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 }
 
 // unloadCellToByteArray unpacks a linked cell structure into a byte array, supporting empty arrays.
+// Validates chain depth and total byte limits during unpacking. While individual cell data limits
+// (127 bytes) are enforced by Builder during creation, chain depth limits (512 for c4/c5) are only
+// enforced during TVM execution. This validation ensures data compatibility with TON blockchain
+// execution constraints before use in contract state or output actions.
 func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	if c == nil {
 		return []byte{}, nil
 	}
 	result := make([]byte, 0)
 	curr := c
+	cellCount := 0
+	totalBytes := 0
+
 	for curr != nil {
+		// Validate cell chain depth against TVM maximum
+		cellCount++
+		if cellCount > MaxCellChainDepth {
+			return nil, fmt.Errorf("cell chain depth %d exceeds maximum of %d cells", cellCount, MaxCellChainDepth)
+		}
+
 		s := curr.BeginParse()
 		for s.BitsLeft() > 0 {
 			part, err := s.LoadSlice(s.BitsLeft())
 			if err != nil {
 				return nil, fmt.Errorf("failed to load bytes: %w", err)
 			}
+
+			// Validate total byte size against TVM maximum
+			totalBytes += len(part)
+			if totalBytes > MaxCellChainBytes {
+				return nil, fmt.Errorf("total bytes %d exceeds maximum of %d bytes", totalBytes, MaxCellChainBytes)
+			}
+
 			result = append(result, part...)
 		}
 		if curr.RefsNum() > 0 {

@@ -338,6 +338,7 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 	if lp.replay.status != models.ReplayStatusPending {
 		lp.replay.status = models.ReplayStatusRequested
 	}
+	lp.lggr.Infow("Replay requested", "fromBlock", fromBlock)
 	return nil
 }
 

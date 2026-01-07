@@ -213,6 +213,11 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
+	// Validate sequence number range to fail fast with clear error message
+	if seqNumRange.Start() > seqNumRange.End() {
+		return nil, fmt.Errorf("invalid sequence range: Start (%d) > End (%d)", seqNumRange.Start(), seqNumRange.End())
+	}
+
 	lggr := logutil.WithContextValues(ctx, a.lggr)
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {

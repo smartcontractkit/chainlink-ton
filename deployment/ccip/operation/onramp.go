@@ -33,13 +33,13 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 	updateOnRampDestChainConfigs,
 )
 
-func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
+func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) (*helpers.Transactions, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping onramp.updateOnRampDestChainConfigs, no updates")
 		// Nothing to update
-		return nil, nil
+		return helpers.NewEmptyTransactions(), nil
 	}
 
 	configs := make([]onramp.UpdateDestChainConfig, 0, len(in.Updates))
@@ -71,5 +71,5 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in 
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
