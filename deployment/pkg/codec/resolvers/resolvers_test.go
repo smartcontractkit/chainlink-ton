@@ -68,7 +68,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 				"messages": []any{
 					map[string]any{
 						"bounce":  false,
-						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
+						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001").String(),
 						"amount":  "0",
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
@@ -115,7 +115,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 				"messages": []any{
 					map[string]any{
 						"bounce":  false,
-						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
+						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001").String(),
 						"amount":  "0",
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",

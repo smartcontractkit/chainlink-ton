@@ -5,18 +5,22 @@ import (
 	"math"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+
+	"github.com/xssnick/tonutils-go/address"
+
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 )
 
 // defaultMCMSContractCoin is the default amount of TON coins to allocate for MCMS contract deployment.
@@ -114,9 +118,11 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 			Timelock: mcmsConfig.TimelockParams{
 				ID:              contractID,
 				Coin:            defaultMCMSContractCoin,
-				MinDelay:        minDelay,
-				Admin:           deployer,
 				ContractsSemver: timelockSemver,
+				InitMessage: timelock.Init{
+					MinDelay: minDelay,
+					Admin:    deployer,
+				},
 			},
 			MCMS: mcmsConfig.MCMSParams{
 				ID:              contractID,

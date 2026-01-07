@@ -53,10 +53,6 @@ func (r *structToMapResolver) CanResolve(input any) bool {
 	shouldResolve := false
 	// Check if it's a known TLB struct by comparing type names
 	rt := rv.Type()
-	// Dereference pointer if necessary
-	if rt.Kind() == reflect.Pointer {
-		rt = rt.Elem()
-	}
 
 	for _, tlbType := range r.TLBMap {
 		tlbType := reflect.TypeOf(tlbType)
