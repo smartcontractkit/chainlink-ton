@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/Masterminds/semver/v3"
+
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -17,7 +19,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 type DeployMCMSSeqInput struct {
@@ -27,7 +28,7 @@ type DeployMCMSSeqInput struct {
 }
 
 var DeployMCMSSequence = operations.NewSequence(
-	"ton-deploy-mcms-seq",
+	"ton/sequences/mcms/deploy-mcms-suite",
 	semver.MustParse("0.1.0"),
 	"Deploys contracts and sets initial MCMS configuration",
 	deployMCMSSequence,
@@ -56,19 +57,7 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 	a := deps.MCMSChainState[in.ChainSelector].Timelock
 	if a.IsAddrNone() { // Deploy Timelock only if not deployed yet
 		storage := timelock.EmptyDataFrom(in.ContractsParams.Timelock.ID)
-		storage.MinDelay = in.ContractsParams.Timelock.MinDelay
-
-		body := timelock.Init{
-			QueryID:                  0,
-			MinDelay:                 in.ContractsParams.Timelock.MinDelay,
-			Admin:                    in.ContractsParams.Timelock.Admin,
-			Proposers:                common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Proposers)),
-			Executors:                common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Executors)),
-			Cancellers:               common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Cancellers)),
-			Bypassers:                common.SnakeData[common.AddressWrap](common.WrapAddresses(in.ContractsParams.Timelock.Bypassers)),
-			ExecutorRoleCheckEnabled: true,
-			OpFinalizationTimeout:    0,
-		}
+		body := in.ContractsParams.Timelock.InitMessage
 
 		outputAddr, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.ContractsParams.Timelock.Coin, in.ContractsParams.Timelock.ContractsSemver)
 		if err != nil {
