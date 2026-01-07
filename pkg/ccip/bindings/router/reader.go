@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/xssnick/tonutils-go/ton"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-	"github.com/xssnick/tonutils-go/ton"
 )
 
 var GetRMNOwner = ownable2step.MakeGetOwner("rmn")

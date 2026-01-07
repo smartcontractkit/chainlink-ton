@@ -9,9 +9,10 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
