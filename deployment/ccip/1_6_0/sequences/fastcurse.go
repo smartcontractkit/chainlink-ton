@@ -85,9 +85,14 @@ func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64,
 	// Convert subject to *big.Int for RPC call
 	subjectBigInt := subjectToBigInt(subject)
 
-	// Call verifyNotCursed on router contract
-	// Returns true if NOT cursed, so we need to negate
-	return tvm.CallGetter(e.GetContext(), chain.Client, block, &routerAddr, router.GetVerifyNotCursed, subjectBigInt)
+	// Call verifyNotCursed on router contract, verifyNotCursed returns 0 (false) if cursed, -1 (true) if not cursed
+	// tvm.CallGetter returns true if NOT cursed, we want to return true if cursed so we need to negate
+	notCursed, err := tvm.CallGetter(e.GetContext(), chain.Client, block, &routerAddr, router.GetVerifyNotCursed, subjectBigInt)
+	if err != nil {
+		return false, fmt.Errorf("failed to call verifyNotCursed: %w", err)
+	}
+
+	return !notCursed, nil
 }
 
 // IsChainConnectedToTargetChain returns true if the chain with selector can communicate with targetSel.

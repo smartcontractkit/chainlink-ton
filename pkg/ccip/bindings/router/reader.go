@@ -13,6 +13,7 @@ import (
 var GetRMNOwner = ownable2step.MakeGetOwner("rmn")
 var GetRMNPendingOwner = ownable2step.MakeGetPendingOwner("rmn")
 
+// GetVerifyNotCursed checks if the input subject is not cursed.
 var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 	Name: "verifyNotCursed",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (bool, error) {
@@ -22,8 +23,6 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 			return false, fmt.Errorf("failed to parse verifyNotCursed result: %w", err)
 		}
 
-		// verifyNotCursed returns 0 (false) if cursed, -1 (true) if not cursed
-		// We want to return true if cursed
-		return notCursed.Cmp(big.NewInt(0)) == 0, nil
+		return notCursed.Cmp(big.NewInt(1)) == 0, nil
 	}),
 }
