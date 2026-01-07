@@ -20,16 +20,17 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var unsupported = []uint64{
-	0xD0984986, // feequoter.UpdateFeeTokens, requires dictionary surrogate
+	0xD0984986,           // feequoter.UpdateFeeTokens, requires dictionary surrogate
+	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }
 
 func TestIsSerializable_AllMessages(t *testing.T) {
@@ -56,6 +57,11 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
+			if slices.Contains(unsupported, opcode) {
+				t.Logf("skip serializability check for unsupported %s opcode=0x%08x (%T)", contract, opcode, proto)
+				continue
+			}
+
 			sample, err := gen.Generate(proto)
 			if errors.Is(err, utils.ErrUnsupportedSample) {
 				t.Logf("skip envelope serializable for %s opcode=0x%08x (%T): %v", contract, opcode, proto, err)

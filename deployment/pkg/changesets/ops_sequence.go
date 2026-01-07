@@ -43,17 +43,17 @@ func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ opsmcms.Timel
 
 func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySequenceInput) (cldf.ChangesetOutput, error) {
 	// Address resolution: load existing MCMS and Timelock addresses if not provided
-	mcmsStates, err := state.LoadMCMSOnchainState(env)
+	mcmsStates, err := state.LoadMCMSOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
-	state, ok := mcmsStates[uint64(in.ChainSelector)]
+	mcmsState, ok := mcmsStates[uint64(in.ChainSelector)]
 	if ok {
 		if in.MCMSAddr == nil {
-			in.MCMSAddr = &state.MCMS
+			in.MCMSAddr = &mcmsState.MCMS
 		}
 		if in.TimelockAddr == nil {
-			in.TimelockAddr = &state.Timelock
+			in.TimelockAddr = &mcmsState.Timelock
 		}
 	}
 

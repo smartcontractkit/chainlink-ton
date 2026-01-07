@@ -7,7 +7,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -32,7 +31,7 @@ func (a *TonAdapter) ConfigureLaneLegAsDest() *operations.Sequence[lanes.UpdateL
 	return ConfigureLaneLegAsDest
 }
 
-// ConfigureLaneLegAsSource configures lane leg as source on CCIP 1.6.0
+// TODO: this product level API is designed to always plan and return output.BatchOps
 var ConfigureLaneLegAsSource = operations.NewSequence(
 	"ConfigureLaneLegAsSource",
 	semver.MustParse("1.6.0"),
@@ -41,7 +40,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		chainSelector := input.Source.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDeps(tonChain, input.Source)
+		deps, err := extractTonDepsFrom(tonChain, input.Source.OnRamp, input.Source.OffRamp, input.Source.Router, input.Source.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -145,7 +144,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDeps(tonChain, input.Dest)
+		deps, err := extractTonDepsFrom(tonChain, input.Dest.OnRamp, input.Dest.OffRamp, input.Dest.Router, input.Dest.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -210,40 +209,6 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		return sequences.OnChainOutput{}, nil
 	},
 )
-
-func extractTonDeps(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (config.CCIPDeps, error) {
-	onRampAddr, err := codec.AddressBytesToTONAddress(chainDefinition.OnRamp)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert onramp address: %w", err)
-	}
-	offRampAddr, err := codec.AddressBytesToTONAddress(chainDefinition.OffRamp)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert offramp address: %w", err)
-	}
-	routerAddr, err := codec.AddressBytesToTONAddress(chainDefinition.Router)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert router address: %w", err)
-	}
-	feeQuoterAddr, err := codec.AddressBytesToTONAddress(chainDefinition.FeeQuoter)
-	if err != nil {
-		return config.CCIPDeps{}, fmt.Errorf("failed to convert feequoter address: %w", err)
-	}
-
-	// Only fill in the fields that are relevant to the operations used
-
-	deps := config.CCIPDeps{
-		TonChain: chain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			chain.Selector: {
-				OnRamp:    *onRampAddr,
-				OffRamp:   *offRampAddr,
-				Router:    *routerAddr,
-				FeeQuoter: *feeQuoterAddr,
-			},
-		},
-	}
-	return deps, nil
-}
 
 ///////////////
 /// Builders ///
