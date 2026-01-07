@@ -25,15 +25,17 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		ecMin = int32(ErrorInvalidProofLeavesCannotBeEmpty)
-		ecMax = int32(ErrorInvalidProofTotalHashesExceededMax)
+		ecMin = int32(ErrorAlreadyExecuted)
+		ecMax = int32(ErrorSeqNumOutOfBounds)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	ErrorInvalidProofLeavesCannotBeEmpty ExitCode = iota + 20400
-	ErrorInvalidProofLeavesTooLarge
-	ErrorInvalidProofProofsTooLarge
-	ErrorInvalidProofTotalHashesExceededMax
+	ErrorAlreadyExecuted ExitCode = iota + 47900
+	ErrorNotOwner
+	ErrorManualExecutionNotYetEnabled
+	ErrorSkippedAlreadyExecutedMessage
+	ErrorInvalidState
+	ErrorSeqNumOutOfBounds
 )

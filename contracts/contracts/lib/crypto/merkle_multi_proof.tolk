@@ -30,8 +30,8 @@ fun merkleRoot<I>(
     val proofsLen = proofs.size(32);
 
     assert (leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
-    assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge as int + 1);
-    assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge as int + 1);
+    assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
+    assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
 
     var totalHashes: int = leavesLen + proofsLen - 1;
     assert (totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
