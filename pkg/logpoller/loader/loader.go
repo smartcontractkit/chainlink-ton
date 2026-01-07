@@ -230,13 +230,15 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 		TxHash: txHash,
 	}, &resp)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to query liteserver for transactions (addr=%s, lt=%d, limit=%d): %w",
+			addr.String(), lt, limit, err)
 	}
 
 	switch t := resp.(type) {
 	case ton.TransactionList:
 		if len(t.Transactions) == 0 {
-			return nil, nil, ton.ErrNoTransactionsWereFound
+			return nil, nil, fmt.Errorf("no transactions found for address %s (lt=%d, limit=%d): %w",
+				addr.String(), lt, limit, ton.ErrNoTransactionsWereFound)
 		}
 
 		txList, err := cell.FromBOCMultiRoot(t.Transactions)
@@ -286,9 +288,11 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 		return resTxs, resBlocks, nil
 	case ton.LSError:
 		if t.Code == 0 {
-			return nil, nil, ton.ErrNoTransactionsWereFound
+			return nil, nil, fmt.Errorf("liteserver returned empty transaction list for address %s (lt=%d, limit=%d): %w",
+				addr.String(), lt, limit, ton.ErrNoTransactionsWereFound)
 		}
-		return nil, nil, t
+		return nil, nil, fmt.Errorf("liteserver error for address %s (lt=%d, limit=%d, code=%d): %w",
+			addr.String(), lt, limit, t.Code, t)
 	}
 
 	return nil, nil, errors.New("unknown response type")
