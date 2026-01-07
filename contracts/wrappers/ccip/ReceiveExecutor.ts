@@ -29,9 +29,9 @@ export enum ReceiveExecutorError {
 
 export const opcodes = {
   in: {
-    confirm : 0x00e5dd97,
-    bounced : 0x05dee1bb,
-    freeze : 0x1571d8c6,
+    confirm: 0x00e5dd97,
+    bounced: 0x05dee1bb,
+    freeze: 0x1571d8c6,
   },
 }
 
