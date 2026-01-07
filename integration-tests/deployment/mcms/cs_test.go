@@ -4,23 +4,25 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/stretchr/testify/require"
+
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/address"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/changesets"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
 
 func TestDeployMCMS(t *testing.T) {
@@ -52,12 +54,14 @@ func TestDeployMCMS(t *testing.T) {
 				ID:              contractID,
 				Coin:            "0.5",
 				ContractsSemver: timelockContractSemver,
-				MinDelay:        0,
-				Admin:           deployer.WalletAddress(),
-				Proposers:       []*address.Address{deployer.WalletAddress()},
-				Executors:       []*address.Address{deployer.WalletAddress()},
-				Cancellers:      []*address.Address{deployer.WalletAddress()},
-				Bypassers:       []*address.Address{deployer.WalletAddress()},
+				InitMessage: timelock.Init{
+					MinDelay:   0,
+					Admin:      deployer.WalletAddress(),
+					Proposers:  []common.AddressWrap{{Val: deployer.WalletAddress()}},
+					Executors:  []common.AddressWrap{{Val: deployer.WalletAddress()}},
+					Cancellers: []common.AddressWrap{{Val: deployer.WalletAddress()}},
+					Bypassers:  []common.AddressWrap{{Val: deployer.WalletAddress()}},
+				},
 			},
 			MCMS: mcmsConfig.MCMSParams{
 				ID:              contractID,
