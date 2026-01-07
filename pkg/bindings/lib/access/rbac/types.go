@@ -1,12 +1,12 @@
 package rbac
 
 import (
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // --- Messages - incoming ---
@@ -134,7 +134,7 @@ var TLBs = tvm.MustNewTLBMap([]any{
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {
 	// Roles mapping
-	Roles *cell.Dictionary `tlb:"dict 256"` // map<uint256, RoleData>
+	Roles *tlbe.Dict[*tlbe.Uint256, RoleData] `tlb:"."`
 }
 
 // Internal storage struct for role data
@@ -146,7 +146,7 @@ type RoleData struct {
 	// Number of members in the role
 	MembersLen uint64 `tlb:"## 64"`
 	// Members of the role, indexed by their address hash.
-	HasRole *cell.Dictionary `tlb:"dict 267"` // map<address, bool>
+	HasRole *tlbe.Dict[common.AddressWrap, bool] `tlb:"."`
 }
 
 // --- Constants ---

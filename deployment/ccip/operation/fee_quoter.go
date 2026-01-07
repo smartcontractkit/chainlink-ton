@@ -179,6 +179,7 @@ type RemovePriceUpdaterInput struct {
 	PriceUpdater *address.Address
 }
 
+// TODO (ops): remove for generic SendMessages op
 // UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
 var RemovePriceUpdaterOp = operations.NewOperation(
 	"remove-price-updater-op",

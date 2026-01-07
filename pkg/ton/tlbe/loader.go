@@ -12,6 +12,8 @@ import (
 // and falls back to tlb.ToCell for others.
 func ToCell(v any) (*cell.Cell, error) {
 	switch reflect.TypeOf(v).Kind() {
+	case reflect.Bool:
+		return cell.BeginCell().MustStoreBoolBit(v.(bool)).EndCell(), nil
 	case reflect.Uint8:
 		return cell.BeginCell().MustStoreUInt(uint64(v.(uint8)), 8).EndCell(), nil
 	case reflect.Uint16:
@@ -37,6 +39,13 @@ func ToCell(v any) (*cell.Cell, error) {
 // and falls back to tlb.LoadFromCell for others.
 func LoadFromCell(v any, loader *cell.Slice, skipMagic ...bool) error {
 	switch reflect.TypeOf(v).Elem().Kind() {
+	case reflect.Bool:
+		val, err := loader.LoadBoolBit()
+		if err != nil {
+			return fmt.Errorf("cannot load bool: %w", err)
+		}
+		reflect.ValueOf(v).Elem().SetBool(val)
+		return nil
 	case reflect.Uint8:
 		val, err := loader.LoadUInt(8)
 		if err != nil {
