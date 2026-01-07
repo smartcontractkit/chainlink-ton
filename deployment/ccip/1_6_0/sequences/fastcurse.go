@@ -9,6 +9,8 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
@@ -62,7 +64,7 @@ func (a *TonAdapter) Initialize(e cldf.Environment, selector uint64) error {
 // IsSubjectCursedOnChain checks if a subject is cursed on a specific chain.
 // Returns true if subject is cursed OR if the chain is globally cursed.
 func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64, subject api.Subject) (bool, error) {
-	router, exist := a.routerAddressCache[selector]
+	routerAddr, exist := a.routerAddressCache[selector]
 	if !exist {
 		return false, fmt.Errorf("router address not found in cache for selector %d", selector)
 	}
@@ -84,22 +86,7 @@ func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64,
 
 	// Call verifyNotCursed on router contract
 	// Returns true if NOT cursed, so we need to negate
-	result, err := chain.Client.RunGetMethod(e.GetContext(), block, &router, "verifyNotCursed", subjectBigInt)
-	if err != nil {
-		return false, fmt.Errorf("failed to call verifyNotCursed: %w", err)
-	}
-
-	// Parse result as bool
-	notCursed, err := result.Int(0)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse verifyNotCursed result: %w", err)
-	}
-
-	// verifyNotCursed returns 0 (false) if cursed, -1 (true) if not cursed
-	// We want to return true if cursed
-	isCursed := notCursed.Cmp(big.NewInt(0)) == 0
-
-	return isCursed, nil
+	return tvm.CallGetter(e.GetContext(), chain.Client, block, &routerAddr, router.GetVerifyNotCursed, subjectBigInt)
 }
 
 // IsChainConnectedToTargetChain returns true if the chain with selector can communicate with targetSel.
