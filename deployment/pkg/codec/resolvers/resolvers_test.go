@@ -219,7 +219,26 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 									"id":      "Foo",
 								},
 							},
-							"data": nil, // TODO: add "codec.resolvers.contract-data-to-cell",
+							"data": map[string]any{
+								"resolver": "codec.resolvers.contract-data-to-cell",
+								"contract": "com.chainlink.ton.mcms.Timelock",
+								"data": map[string]any{
+									"ID":                       42,
+									"MinDelay":                 0,
+									"Timestamps":               map[string]any{},
+									"BlockedFnSelectorsLen":    0,
+									"BlockedFnSelectors":       map[string]any{},
+									"ExecutorRoleCheckEnabled": true,
+									"OpPendingInfo": map[string]any{
+										"ValidAfter":            0,
+										"OpFinalizationTimeout": 0,
+										"OpPendingID":           0,
+									},
+									"RBAC": map[string]any{
+										"Roles": map[string]any{},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -245,7 +264,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						},
 						StateInit: &opston.StateInit{
 							Code: cell.BeginCell().MustStoreInt(1, 32).EndCell(),
-							Data: nil,
+							Data: must(tlb.ToCell(timelock.EmptyDataFrom(42))),
 						},
 					},
 				},
@@ -384,6 +403,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 			registry := codec.NewResolverRegistry(
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(bindings.Registry)),
+				codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolversd.NewContractToCellResolver(fakeContractProvider{})),
 			)
 
