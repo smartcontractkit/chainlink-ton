@@ -5,6 +5,29 @@ import { uint8ArrayToBigInt } from '../../../src/utils'
 import { crc32 } from 'zlib'
 import { asSnakeData, fromSnakeData } from '../../../src/utils'
 
+export const FACILITY_NAME = 'com.chainlink.ton.lib.ocr.MultiOCR3Base'
+export const FACILITY_ID = 31
+export const ERROR_CODE = FACILITY_ID * 100
+
+export enum Errors {
+  BigFMustBePositive = ERROR_CODE,
+  StaticConfigCannotBeChanged,
+  TooManySigners,
+  BigFTooHigh,
+  TooManyTransmitters,
+  NoTransmitters,
+  RepeatedSigners,
+  RepeatedTransmitters,
+  ConfigDigestMismatch,
+  UnauthorizedTransmitter,
+  WrongNumberOfSignatures,
+  UnauthorizedSigner,
+  NonUniqueSignatures,
+  InvalidSignature,
+  NonExistentOcrPluginType,
+  NoSigners,
+}
+
 export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
 export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
 

@@ -1,17 +1,9 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, Cell, toNano, Address } from '@ton/core'
+import { beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import {
-  OCR3_PLUGIN_TYPE_COMMIT,
-  OCR3_PLUGIN_TYPE_EXECUTE,
-  SignatureEd25519,
-  createSignature,
-  hashReport,
-} from '../../../wrappers/libraries/ocr/MultiOCR3Base'
-import * as ExitCodes from '../../../wrappers/libraries/ocr/ExitCodes'
-import { LogTypes as LogTypes } from '../../../wrappers/libraries/ocr/Logs'
-import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
+import { KeyPair } from '@ton/crypto'
+import { crc32 } from 'zlib'
 
 import {
   generateEd25519KeyPair,
@@ -20,9 +12,19 @@ import {
   generateRandomMockSigners,
   uint8ArrayToBigInt,
 } from '../../../src/utils'
-import { KeyPair } from '@ton/crypto'
 import { assertLog } from '../../Logs'
 import { expectEqualsConfig } from './Helpers'
+import { facilityId } from '../../../wrappers/utils'
+
+import * as multiOCR3Base from '../../../wrappers/libraries/ocr/MultiOCR3Base'
+import { LogTypes as LogTypes } from '../../../wrappers/libraries/ocr/Logs'
+import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
+
+describe('OCR3Base Unit Tests', () => {
+  it('should match facility ID', async () => {
+    expect(multiOCR3Base.FACILITY_ID).toBe(facilityId(crc32(multiOCR3Base.FACILITY_NAME)))
+  })
+})
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
@@ -38,7 +40,11 @@ describe('OCR3Base Tests', () => {
   const someReportData = beginCell().storeUint(0x12345678, 32).endCell()
   const report = beginCell().storeRef(someReportData).storeUint(0x12345678, 32).endCell()
   const sequenceBytes = 0x01
-  const hashedReport = hashReport(report, { configDigest, padding: 0n, sequenceBytes })
+  const hashedReport = multiOCR3Base.hashReport(report, {
+    configDigest,
+    padding: 0n,
+    sequenceBytes,
+  })
 
   beforeAll(async () => {
     code = await compile('examples.OCR3Base')
@@ -77,7 +83,7 @@ describe('OCR3Base Tests', () => {
   const createDefaultConfig = (overrides = {}) => ({
     value: toNano('100'),
     configDigest,
-    ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+    ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
     bigF: 1,
     isSignatureVerificationEnabled: true,
     signers: signersPublicKeys,
@@ -89,14 +95,17 @@ describe('OCR3Base Tests', () => {
     return await ocr3Base.sendSetOCR3Config(deployer.getSender(), createDefaultConfig(config))
   }
 
-  const createSignatures = (signerList: KeyPair[], hash = hashedReport): SignatureEd25519[] => {
-    return signerList.map((signer) => createSignature(signer, hash))
+  const createSignatures = (
+    signerList: KeyPair[],
+    hash = hashedReport,
+  ): multiOCR3Base.SignatureEd25519[] => {
+    return signerList.map((signer) => multiOCR3Base.createSignature(signer, hash))
   }
 
   const setupAndTransmit = async (
     transmitterIndex = 0,
     signerIndices = [0, 1],
-    pluginType = OCR3_PLUGIN_TYPE_COMMIT,
+    pluginType = multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
   ) => {
     await setOCR3Config({
       ocrPluginType: pluginType,
@@ -122,7 +131,7 @@ describe('OCR3Base Tests', () => {
       success: true,
     })
 
-    const config = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
+    const config = await ocr3Base.getOCR3Config(multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT)
     const expectedConfig = {
       configInfo: {
         configDigest,
@@ -137,7 +146,7 @@ describe('OCR3Base Tests', () => {
     expectEqualsConfig(config, expectedConfig)
 
     assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       signers: signersPublicKeys,
       transmitters: transmitters.map((t) => t.address),
@@ -171,7 +180,7 @@ describe('OCR3Base Tests', () => {
       success: true,
     })
 
-    const newConfig = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
+    const newConfig = await ocr3Base.getOCR3Config(multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT)
     const expectedConfig = {
       configInfo: {
         configDigest,
@@ -189,14 +198,14 @@ describe('OCR3Base Tests', () => {
   it('Can set Commit and Execute configs independently', async () => {
     const config1 = {
       configDigest,
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       signers: signersPublicKeys,
       transmitters: transmitters.map((t) => t.address),
     }
 
     const config2 = {
       configDigest: configDigest + 1n,
-      ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_EXECUTE,
       signers: [...signersPublicKeys].reverse(),
       transmitters: [...transmitters].reverse().map((t) => t.address),
     }
@@ -205,8 +214,8 @@ describe('OCR3Base Tests', () => {
     await setOCR3Config(config2)
 
     const [result1, result2] = await Promise.all([
-      ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT),
-      ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_EXECUTE),
+      ocr3Base.getOCR3Config(multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT),
+      ocr3Base.getOCR3Config(multiOCR3Base.OCR3_PLUGIN_TYPE_EXECUTE),
     ])
 
     expectEqualsConfig(result1, {
@@ -240,7 +249,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
+      exitCode: multiOCR3Base.Errors.NonExistentOcrPluginType,
     })
   })
 
@@ -253,7 +262,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_BIG_F_MUST_BE_POSITIVE,
+      exitCode: multiOCR3Base.Errors.BigFMustBePositive,
     })
   })
 
@@ -265,7 +274,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_TOO_MANY_TRANSMITTERS,
+      exitCode: multiOCR3Base.Errors.TooManyTransmitters,
     })
   }, 20000)
 
@@ -275,7 +284,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_NO_TRANSMITTERS,
+      exitCode: multiOCR3Base.Errors.NoTransmitters,
     })
   })
 
@@ -288,7 +297,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_TOO_MANY_SIGNERS,
+      exitCode: multiOCR3Base.Errors.TooManySigners,
     })
   }, 20000)
 
@@ -301,7 +310,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_NO_SIGNERS,
+      exitCode: multiOCR3Base.Errors.NoSigners,
     })
   })
 
@@ -314,7 +323,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_BIG_F_TOO_HIGH,
+      exitCode: multiOCR3Base.Errors.BigFTooHigh,
     })
   })
 
@@ -325,7 +334,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_TOO_MANY_TRANSMITTERS,
+      exitCode: multiOCR3Base.Errors.TooManyTransmitters,
     })
   })
 
@@ -343,7 +352,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_REPEATED_SIGNERS,
+      exitCode: multiOCR3Base.Errors.RepeatedSigners,
     })
   })
 
@@ -355,7 +364,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_REPEATED_TRANSMITTERS,
+      exitCode: multiOCR3Base.Errors.RepeatedTransmitters,
     })
   })
 
@@ -367,7 +376,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_STATIC_CONFIG_CANNOT_BE_CHANGED,
+      exitCode: multiOCR3Base.Errors.StaticConfigCannotBeChanged,
     })
   })
 
@@ -380,7 +389,7 @@ describe('OCR3Base Tests', () => {
     })
 
     assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       sequenceNumber: sequenceBytes,
     })
@@ -394,7 +403,7 @@ describe('OCR3Base Tests', () => {
     const signatures = createSignatures([signers[0], signers[1]])
     const result = await ocr3Base.sendTransmit(transmitters[2].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures,
@@ -403,7 +412,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: transmitters[2].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_UNAUTHORIZED_TRANSMITTER,
+      exitCode: multiOCR3Base.Errors.UnauthorizedTransmitter,
     })
   })
 
@@ -411,12 +420,12 @@ describe('OCR3Base Tests', () => {
     await setOCR3Config({ transmitters: [transmitters[0].address] })
 
     const unauthorizedSigner = await generateEd25519KeyPair()
-    const unauthorizedSignature = createSignature(unauthorizedSigner, hashedReport)
-    const validSignature = createSignature(signers[0], hashedReport)
+    const unauthorizedSignature = multiOCR3Base.createSignature(unauthorizedSigner, hashedReport)
+    const validSignature = multiOCR3Base.createSignature(signers[0], hashedReport)
 
     const result = await ocr3Base.sendTransmit(transmitters[0].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [validSignature, unauthorizedSignature],
@@ -425,17 +434,17 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: transmitters[0].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
+      exitCode: multiOCR3Base.Errors.UnauthorizedSigner,
     })
   })
 
   it('Transmit fails with repeated signatures', async () => {
     await setOCR3Config({ transmitters: [transmitters[0].address] })
 
-    const sig = createSignature(signers[0], hashedReport)
+    const sig = multiOCR3Base.createSignature(signers[0], hashedReport)
     const result = await ocr3Base.sendTransmit(transmitters[0].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [sig, sig], // Repeated
@@ -444,7 +453,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: transmitters[0].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_NON_UNIQUE_SIGNATURES,
+      exitCode: multiOCR3Base.Errors.NonUniqueSignatures,
     })
   })
 
@@ -461,13 +470,13 @@ describe('OCR3Base Tests', () => {
       .hash()
 
     const signatures = [
-      createSignature(signers[0], wrongHashedReport),
-      createSignature(signers[1], wrongHashedReport),
+      multiOCR3Base.createSignature(signers[0], wrongHashedReport),
+      multiOCR3Base.createSignature(signers[1], wrongHashedReport),
     ]
 
     const result = await ocr3Base.sendTransmit(transmitters[0].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest: wrongDigest, padding: 0n, sequenceBytes },
       report,
       signatures,
@@ -476,7 +485,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: transmitters[0].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_CONFIG_DIGEST_MISMATCH,
+      exitCode: multiOCR3Base.Errors.ConfigDigestMismatch,
     })
   })
 
@@ -495,17 +504,17 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: transmitters[0].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
+      exitCode: multiOCR3Base.Errors.NonExistentOcrPluginType,
     })
   })
 
   it('Transmit fails when signatures.length is not bigF + 1', async () => {
     await setOCR3Config({ transmitters: [transmitters[0].address] })
 
-    const onlyOneSig = createSignature(signers[0], hashedReport)
+    const onlyOneSig = multiOCR3Base.createSignature(signers[0], hashedReport)
     const result = await ocr3Base.sendTransmit(transmitters[0].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [onlyOneSig], // Needs 2 (bigF+1)
@@ -514,7 +523,7 @@ describe('OCR3Base Tests', () => {
     expect(result.transactions).toHaveTransaction({
       from: transmitters[0].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_WRONG_NUMBER_OF_SIGNATURES,
+      exitCode: multiOCR3Base.Errors.WrongNumberOfSignatures,
     })
   })
 
@@ -541,7 +550,7 @@ describe('OCR3Base Tests', () => {
     const oldSignatures = createSignatures([signers[0], signers[1]])
     const resultWithOldSigners = await ocr3Base.sendTransmit(transmitters[0].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: oldSignatures,
@@ -550,17 +559,17 @@ describe('OCR3Base Tests', () => {
     expect(resultWithOldSigners.transactions).toHaveTransaction({
       from: transmitters[0].address,
       to: ocr3Base.address,
-      exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
+      exitCode: multiOCR3Base.Errors.UnauthorizedSigner,
     })
 
     // New signers should be able to sign
     const newSignatures = [
-      createSignature(newSigners[0], hashedReport),
-      createSignature(newSigners[1], hashedReport),
+      multiOCR3Base.createSignature(newSigners[0], hashedReport),
+      multiOCR3Base.createSignature(newSigners[1], hashedReport),
     ]
     const resultWithNewSigners = await ocr3Base.sendTransmit(transmitters[0].getSender(), {
       value: toNano('0.05'),
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: newSignatures,
@@ -573,7 +582,7 @@ describe('OCR3Base Tests', () => {
     })
 
     assertLog(resultWithNewSigners.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      ocrPluginType: multiOCR3Base.OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       sequenceNumber: sequenceBytes,
     })
