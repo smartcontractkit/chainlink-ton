@@ -43,11 +43,11 @@ jobs:
         # Deployment configuration
         WORKFLOW_FILE: .github/workflows/test_smoke.yml
         TARGET_REPO: smartcontractkit/chainlink-ccip
-        TARGET_BRANCH: main
+        TARGET_BRANCH: tt/tonfinal
         TON_REF: ${{ github.head_ref || github.sha }}
         CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
         # relative to chainlink-ccip/devenv. Assumes chainlink-ton is checked out to top level
-        CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv-impl/ton.toml
+        CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv/ton.toml
         CONTRACT_VERSION: local
       run: |
         fetch_id() {
