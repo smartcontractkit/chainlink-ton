@@ -35,7 +35,7 @@ var ApplyRampUpdatesOp = operations.NewOperation(
 	applyRampUpdates,
 )
 
-func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) ([][]byte, error) {
+func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) (*helpers.Transactions, error) {
 	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)
@@ -48,10 +48,11 @@ func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpd
 		return nil, err
 	}
 
-	return append(onramps, offramps...), nil
+	onramps.Append(offramps)
+	return onramps, nil
 }
 
-func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([][]byte, error) {
+func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) (*helpers.Transactions, error) {
 	msgs := make([]*tlb.InternalMessage, 0)
 	for onRampAddrStr, selectors := range onRampUpdates {
 		rampAddr := address.MustParseAddr(onRampAddrStr)
@@ -76,10 +77,10 @@ func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]
 		msgs = append(msgs, &msg)
 	}
 
-	return helpers.Serialize(msgs)
+	return helpers.NewTransactions(msgs)
 }
 
-func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([][]byte, error) {
+func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) (*helpers.Transactions, error) {
 	type change struct {
 		addr *address.Address
 		sels []router.ChainSelector
@@ -159,7 +160,7 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 		msgs = append(msgs, &msg)
 	}
 
-	return helpers.Serialize(msgs)
+	return helpers.NewTransactions(msgs)
 }
 
 // CurseInput defines the input for the curse operation.

@@ -27,9 +27,14 @@ import (
 // Initialize is called once to set up the adapter. It loads necessary on-chain state (deployed onramp and router address).
 func (a *TonAdapter) Initialize(e cldf.Environment, selector uint64) error {
 	// Load chain state for selector
-	chainState, err := state.LoadOnchainStateUsingDataStore(e.DataStore, selector)
+	chainState, err := state.LoadOnchainState(e)
 	if err != nil {
 		return fmt.Errorf("failed to load chain state for selector %d: %w", selector, err)
+	}
+
+	tonState, exist := chainState[selector]
+	if !exist {
+		return fmt.Errorf("no on-chain state found for selector %d", selector)
 	}
 
 	// Cache router address for fast cursing
@@ -42,15 +47,15 @@ func (a *TonAdapter) Initialize(e cldf.Environment, selector uint64) error {
 		a.onRampAddressCache = make(map[uint64]address.Address)
 	}
 
-	if chainState.Router.IsAddrNone() {
+	if tonState.Router.IsAddrNone() {
 		return fmt.Errorf("router address is not set for chain selector %d", selector)
 	}
-	a.routerAddressCache[selector] = chainState.Router
+	a.routerAddressCache[selector] = tonState.Router
 
-	if chainState.OnRamp.IsAddrNone() {
+	if tonState.OnRamp.IsAddrNone() {
 		return fmt.Errorf("onRamp address is not set for chain selector %d", selector)
 	}
-	a.onRampAddressCache[selector] = chainState.OnRamp
+	a.onRampAddressCache[selector] = tonState.OnRamp
 	return nil
 }
 
@@ -260,7 +265,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute curse operation: %w", err)
 			}
 
-			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output.Serialized)
+			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
 			}
@@ -318,7 +323,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute uncurse operation: %w", err)
 			}
 
-			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output.Serialized)
+			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
 			}
