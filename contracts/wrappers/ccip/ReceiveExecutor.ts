@@ -27,10 +27,12 @@ export enum ReceiveExecutorError {
   Unauthorized,
 }
 
-export abstract class Opcodes {
-  static confirm = 0x00e5dd97
-  static bounced = 0x05dee1bb
-  static freeze = 0x1571d8c6
+export const opcodes = {
+  in: {
+    confirm : 0x00e5dd97,
+    bounced : 0x05dee1bb,
+    freeze : 0x1571d8c6,
+  },
 }
 
 export enum MessageState {
@@ -85,7 +87,7 @@ export class ReceiveExecutor implements typeAndVersion.Interface, Contract {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(Opcodes.freeze, 32).endCell(),
+      body: beginCell().storeUint(opcodes.in.freeze, 32).endCell(),
     })
   }
 
