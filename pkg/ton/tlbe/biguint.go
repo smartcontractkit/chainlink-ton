@@ -88,7 +88,7 @@ func NewUint160(v *big.Int) *Uint160 {
 	return (*Uint160)(AsUnsigned(v, 160))
 }
 
-func (Uint160) BitsLen() uint {
+func (*Uint160) BitsLen() uint {
 	return 160
 }
 
@@ -148,7 +148,7 @@ func NewUint256(v *big.Int) *Uint256 {
 	return (*Uint256)(AsUnsigned(v, 256))
 }
 
-func (Uint256) BitsLen() uint {
+func (*Uint256) BitsLen() uint {
 	return 256
 }
 

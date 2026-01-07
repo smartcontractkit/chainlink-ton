@@ -47,13 +47,13 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
-	state, ok := mcmsStates[uint64(in.ChainSelector)]
+	mcmsState, ok := mcmsStates[uint64(in.ChainSelector)]
 	if ok {
 		if in.MCMSAddr == nil {
-			in.MCMSAddr = &state.MCMS
+			in.MCMSAddr = &mcmsState.MCMS
 		}
 		if in.TimelockAddr == nil {
-			in.TimelockAddr = &state.Timelock
+			in.TimelockAddr = &mcmsState.Timelock
 		}
 	}
 
