@@ -154,7 +154,7 @@ func (d *Dict[K, V]) UnmarshalJSON(data []byte) error {
 		return errors.New("invalid nil receiver")
 	}
 
-	if len(data) == 0 {
+	if len(data) == 0 || string(data) == "{}" {
 		d.entries = make(map[K]V)
 		return nil
 	}

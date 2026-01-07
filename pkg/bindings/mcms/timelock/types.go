@@ -347,13 +347,13 @@ type Data struct {
 	// Minimum delay for operations in seconds
 	MinDelay uint32 `tlb:"## 32"`
 	// Map of operation id to timestamp
-	Timestamps *cell.Dictionary `tlb:"dict 256"` // map<uint256, uint64>
+	Timestamps *tlbe.Dict[*tlbe.Uint256, uint64] `tlb:"."`
 
 	// Number of fn selectors blocked by the contract.
 	BlockedFnSelectorsLen uint32 `tlb:"## 32"`
 
 	// Map of blocked function selectors.
-	BlockedFnSelectors *cell.Dictionary `tlb:"dict 32"` // map<uint32, bool>
+	BlockedFnSelectors *tlbe.Dict[uint32, bool] `tlb:"."`
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
