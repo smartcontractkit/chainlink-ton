@@ -345,15 +345,10 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender:
         return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context);
     }
 
-    val onRamp = onRampResult.loadValue();
-    if (onRamp.isZero()) {
-        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context);
-    };
-
     val feeQuoterMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: onRamp,
+        dest: onRampResult.loadValue(),
         body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
             ccipSend: msg.ccipSend,
             context: Router_GetValidatedFeeContext {
@@ -446,7 +441,7 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     }
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
-    if (!onRampResult.isFound || onRampResult.loadValue().isZero()) {
+    if (!onRampResult.isFound) {
         return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
     }
     val sendMsg = createMessage({

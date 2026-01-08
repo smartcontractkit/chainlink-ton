@@ -79,7 +79,7 @@ describe('Router', () => {
     })
   })
 
-  it('should reject message for disabled dest chain (missing OnRamp)', async () => {
+  it('should reject message for disabled dest chain (never added)', async () => {
     const badMsg = { ...msg, destChainSelector: msg.destChainSelector + 1n }
     const result = await router.sendCcipSend(sender.getSender(), {
       value: toNano('1'),
@@ -104,7 +104,7 @@ describe('Router', () => {
     })
   })
 
-  it('should reject message for disabled dest chain (zero address)', async () => {
+  it('should reject message for disabled dest chain (removed)', async () => {
     // Disable the onRamp for the chain
     {
       const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
