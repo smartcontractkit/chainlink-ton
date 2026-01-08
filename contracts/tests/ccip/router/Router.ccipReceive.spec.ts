@@ -77,7 +77,7 @@ describe('Router', () => {
       to: receiver.address,
       success: true,
       value: toNano('0.5'),
-      op: rec.Opcodes.ccipReceive,
+      op: rec.opcodes.in.ccipReceive,
     })
   })
 

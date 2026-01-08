@@ -120,7 +120,6 @@ fun Ownable2Step.acceptOwnership(mutate self, sender: address) {
     assert(self.pendingOwner != null, Ownable2Step_Error.MustBeProposedOwner);
     assert(sender == self.pendingOwner, Ownable2Step_Error.MustBeProposedOwner);
 
-    var previousOwner = self.owner;
     self.owner = sender;
     self.pendingOwner = null;
 }

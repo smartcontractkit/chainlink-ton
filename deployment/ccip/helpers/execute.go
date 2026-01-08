@@ -15,18 +15,19 @@ import (
 )
 
 // TODO Remove in favor of ExecuteTransactions.
-func ExecuteProposals(env cldf.Environment, client ton.APIClientWrapped, sender *wallet.Wallet, txs [][]byte) error {
+func ExecuteProposals(env cldf.Environment, client ton.APIClientWrapped, sender *wallet.Wallet, txs *Transactions) error {
 	return ExecuteTransactions(env.GetContext(), env.Logger, client, sender, txs)
 }
 
-func ExecuteTransactions(context context.Context, logger logger.Logger, client ton.APIClientWrapped, sender *wallet.Wallet, txs [][]byte) error {
-	internalMsgs, err := Deserialize(txs)
-	if err != nil {
-		return fmt.Errorf("failed to deserialize lane updates: %w", err)
-	}
-	if len(internalMsgs) == 0 {
+func ExecuteTransactions(context context.Context, logger logger.Logger, client ton.APIClientWrapped, sender *wallet.Wallet, txs *Transactions) error {
+	if txs == nil || txs.IsEmpty() {
 		// nothing to execute
 		return nil
+	}
+
+	internalMsgs, err := txs.ToMessages()
+	if err != nil {
+		return fmt.Errorf("failed to deserialize transactions: %w", err)
 	}
 	msgs := make([]*wallet.Message, len(internalMsgs))
 	for i, msg := range internalMsgs {

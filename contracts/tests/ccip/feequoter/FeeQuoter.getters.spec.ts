@@ -80,8 +80,12 @@ describe('FeeQuoter Getters', () => {
 
       // Each price should be a valid TimestampedPrice
       for (let i = 0; i < prices.length; i++) {
-        expect(prices[i].value).toBeGreaterThan(0n)
-        expect(prices[i].timestamp).toBeGreaterThan(0n)
+        const price = prices[i]
+        if (price === undefined) {
+          throw new Error(`Price for token ${tokens[i].toString()} is undefined`)
+        }
+        expect(price.value).toBeGreaterThan(0n)
+        expect(price.timestamp).toBeGreaterThan(0n)
       }
     })
 
@@ -95,9 +99,23 @@ describe('FeeQuoter Getters', () => {
       const prices = await setup.bind.feeQuoter.getTokenPrices(tokens)
 
       expect(prices.length).toBe(tokens.length)
-      expect(prices[0].value).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
-      expect(prices[1].value).toBe(FeeQuoterSetup.CUSTOM_TOKEN.price)
-      expect(prices[2].value).toBe(FeeQuoterSetup.CUSTOM_TOKEN_2.price)
+      expect(prices[0]!.value).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
+      expect(prices[1]!.value).toBe(FeeQuoterSetup.CUSTOM_TOKEN.price)
+      expect(prices[2]!.value).toBe(FeeQuoterSetup.CUSTOM_TOKEN_2.price)
+    })
+
+    it('should return undefined for non-existent tokens', async () => {
+      const randomToken = Address.parse(
+        `0:${Buffer.from('NONEXISTENT').toString('hex').padStart(64, '0')}`,
+      )
+
+      const tokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN.token, randomToken]
+
+      const prices = await setup.bind.feeQuoter.getTokenPrices(tokens)
+
+      expect(prices.length).toBe(tokens.length)
+      expect(prices[0]!.value).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
+      expect(prices[1]).toBeUndefined()
     })
   })
 

@@ -17,7 +17,7 @@ type FeeQuoter_InMessage =
     | Upgradeable_Upgrade;
     ;
 
-struct (0x20000001) FeeQuoter_UpdatePrices {
+struct (0xde852b1b) FeeQuoter_UpdatePrices {
     updates: PriceUpdates
     sendExcessesTo: address?;
 }
@@ -54,7 +54,7 @@ struct (0xB2826316) FeeQuoter_UpdateTokenTransferFeeConfigs {
     updates: map<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
 }
 
-struct (0x29950BAA) FeeQuoter_UpdateDestChainConfigs {
+struct (0x2d2410f6) FeeQuoter_UpdateDestChainConfigs {
     updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>;
 }
 

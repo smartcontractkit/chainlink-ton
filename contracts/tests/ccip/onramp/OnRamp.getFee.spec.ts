@@ -86,7 +86,7 @@ describe('OnRamp - Get Fee', () => {
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       to: mockFeeQuoter.address,
-      op: fq.Opcodes.getValidatedFee,
+      op: fq.opcodes.in.getValidatedFee,
     })
 
     const tx = result.transactions.find(
@@ -107,7 +107,7 @@ describe('OnRamp - Get Fee', () => {
     if (outMsg.info.type !== 'internal') {
       throw new Error('Unexpected message type')
     }
-    expect(outMsg.body.beginParse().loadUint(32)).toBe(fq.Opcodes.getValidatedFee)
+    expect(outMsg.body.beginParse().loadUint(32)).toBe(fq.opcodes.in.getValidatedFee)
     const decoded = fq.builder.message.in.getValidatedFee.load(outMsg.body.beginParse())
     expect(decoded.msg).toEqual(ccipSend)
   })

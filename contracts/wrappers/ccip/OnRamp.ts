@@ -646,10 +646,10 @@ export const opcodes = {
     onrampSend: 0xdcf993c2,
     getValidatedFee: 0x9c2ccc7e,
     get messageValidated() {
-      return fq.OutOpcodes.messageValidated
+      return fq.opcodes.out.messageValidated
     },
     get messageValidationFailed() {
-      return fq.OutOpcodes.messageValidationFailed
+      return fq.opcodes.out.messageValidationFailed
     },
     executorFinishedSuccessfully: 0xcfa6b336,
     executorFinishedWithError: 0xc4068e21,

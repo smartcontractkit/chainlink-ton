@@ -302,6 +302,14 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return err
 	}
 
+	// Record broadcast timestamp and latency
+	tx.BroadcastAt = time.Now()
+	broadcastLatency := tx.BroadcastAt.Sub(tx.CreatedAt)
+	t.metrics.RecordBroadcastLatency(ctx, broadcastLatency)
+	t.logger.Debugw("transaction broadcast latency recorded",
+		"txID", txID,
+		"latency", broadcastLatency.String())
+
 	// Save receivedMessage into tx
 	tx.ReceivedMessage = *receivedMessage
 
@@ -390,6 +398,14 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
 			}
+
+			// Track finalization latency
+			tx.FinalizedAt = time.Now()
+			finalizationLatency := tx.FinalizedAt.Sub(tx.BroadcastAt)
+			t.metrics.RecordFinalizationLatency(ctx, finalizationLatency)
+			t.logger.Debugw("transaction finalization latency recorded",
+				"LT", unconfirmedTx.LT,
+				"latency", finalizationLatency.String())
 
 			exitCode := receivedMessage.OutcomeExitCode()
 			traceSucceeded := receivedMessage.TraceSucceeded()

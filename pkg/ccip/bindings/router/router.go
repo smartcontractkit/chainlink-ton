@@ -23,11 +23,13 @@ import (
 
 const (
 	OpcodeApplyRampUpdates   = 0x7db6745d
-	OpcodeCCIPSend           = 0x38a69e3b
+	OpcodeCCIPSend           = 0x31768d95
 	OpcodeRouteMessage       = 0xfc69c50b
-	OpcodeCCIPReceiveConfirm = 0xaf0cccef
+	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
 	OpcodeMessageSent        = 0x6513f8e1
 	OpcodeMessageRejected    = 0x8ae25114
+	OpcodeRMNRemoteCurse     = 0xf3388046
+	OpcodeRMNRemoteUncurse   = 0x3f153a31
 )
 
 const (
@@ -86,6 +88,12 @@ type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
+// Subject is a wrapper for uint128 to support SnakeData encoding.
+// Stored as *big.Int since Go doesn't have native uint128.
+type Subject struct {
+	Value *big.Int `tlb:"## 128"`
+}
+
 // crc32("ApplyRampUpdates")
 type ApplyRampUpdates struct {
 	_              tlb.Magic `tlb:"#7db6745d"` //nolint:revive // Ignore opcode tag
@@ -112,7 +120,7 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
+	_                 tlb.Magic                    `tlb:"#31768d95"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                       `tlb:"## 64"`
 	DestChainSelector uint64                       `tlb:"## 64"`
 	Receiver          common.CrossChainAddress     `tlb:"."`
@@ -131,7 +139,7 @@ type RouteMessage struct {
 }
 
 type CCIPReceiveConfirm struct {
-	_      tlb.Magic `tlb:"#af0cccef"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#1e55bbf6"` //nolint:revive // Ignore opcode tag
 	ExecID big.Int   `tlb:"## 192"`
 }
 
@@ -163,6 +171,20 @@ type CCIPSendNACK struct {
 	Error   big.Int   `tlb:"## 256"`
 }
 
+// RMNRemoteCurse message type for cursing subjects on the router.
+type RMNRemoteCurse struct {
+	_        tlb.Magic                 `tlb:"#f3388046"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                    `tlb:"## 64"`
+	Subjects common.SnakeData[Subject] `tlb:"^"`
+}
+
+// RMNRemoteUncurse message type for uncursing subjects on the router.
+type RMNRemoteUncurse struct {
+	_        tlb.Magic                 `tlb:"#3f153a31"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                    `tlb:"## 64"`
+	Subjects common.SnakeData[Subject] `tlb:"^"`
+}
+
 var TLBs = lib.MustNewTLBMap([]interface{}{
 	ApplyRampUpdates{},
 	CCIPSend{},
@@ -172,6 +194,8 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	CCIPSendNACK{},
 	MessageSent{},
 	MessageRejected{},
+	RMNRemoteCurse{},
+	RMNRemoteUncurse{},
 })
 
 // OnRampAddressMap represents a map of destination chain selectors to their on-ramp addresses.

@@ -113,7 +113,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
     // Deploy OnRamp
     const code = await compile('OnRamp')
     const onRampData: or.OnRampStorage = {
-      id: 0,
+      id: 0n,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
@@ -123,6 +123,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
         allowlistAdmin: deployer.address,
+        reserve: toNano('1'),
       },
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       executor: {

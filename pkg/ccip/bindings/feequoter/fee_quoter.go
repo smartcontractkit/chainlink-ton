@@ -21,10 +21,10 @@ import (
 
 // Fee Quoter opcodes
 const (
-	OpcodeUpdatePrices                  = 0x20000001
+	OpcodeUpdatePrices                  = 0xde852b1b
 	OpcodeUpdateFeeTokens               = 0xD0984986
 	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
-	OpcodeUpdateDestChainConfigs        = 0x29950BAA
+	OpcodeUpdateDestChainConfigs        = 0x2d2410f6
 	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
 	OpcodeFeeQuoterAddPriceUpdater      = 0x71DF848A
 	OpcodeFeeQuoterRemovePriceUpdater   = 0x5DFBB1BC
@@ -333,7 +333,7 @@ type RemovePriceUpdater struct {
 }
 
 type UpdatePrices struct {
-	_              tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	_              tlb.Magic                          `tlb:"#de852b1b"` //nolint:revive // Ignore opcode tag
 	TokenPrices    common.SnakeData[TokenPriceUpdate] `tlb:"^"`
 	GasPrices      common.SnakeData[GasPriceUpdate]   `tlb:"^"`
 	SendExcessesTo *address.Address                   `tlb:"addr"`
@@ -360,7 +360,7 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                               `tlb:"#2d2410f6"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 

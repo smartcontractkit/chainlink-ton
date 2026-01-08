@@ -159,7 +159,7 @@ describe('SendExecutor - Unit tests', () => {
       from: sendExecutor.address,
       to: feeQuoterMock.address,
       success: true,
-      op: fq.Opcodes.getValidatedFee,
+      op: fq.opcodes.in.getValidatedFee,
     })
   })
 

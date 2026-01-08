@@ -39,15 +39,17 @@ export function parseJettonWalletData(data: Cell) {
   }
 }
 
-export const Opcodes = {
-  TRANSFER: JettonOpcodes.TRANSFER,
-  TRANSFER_NOTIFICATION: JettonOpcodes.TRANSFER_NOTIFICATION,
-  INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
-  EXCESSES: JettonOpcodes.EXCESSES,
-  BURN: JettonOpcodes.BURN,
-  BURN_NOTIFICATION: JettonOpcodes.BURN_NOTIFICATION,
-  WITHDRAW_TONS: JettonOpcodes.WITHDRAW_TONS,
-  WITHDRAW_JETTONS: JettonOpcodes.WITHDRAW_JETTONS,
+export const opcodes = {
+  in: {
+    TRANSFER: JettonOpcodes.TRANSFER,
+    TRANSFER_NOTIFICATION: JettonOpcodes.TRANSFER_NOTIFICATION,
+    INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
+    EXCESSES: JettonOpcodes.EXCESSES,
+    BURN: JettonOpcodes.BURN,
+    BURN_NOTIFICATION: JettonOpcodes.BURN_NOTIFICATION,
+    WITHDRAW_TONS: JettonOpcodes.WITHDRAW_TONS,
+    WITHDRAW_JETTONS: JettonOpcodes.WITHDRAW_JETTONS,
+  },
 }
 
 export type AskToTransfer = {
@@ -141,7 +143,7 @@ export class JettonWallet implements Contract {
     },
   ) {
     const body = beginCell()
-      .storeUint(Opcodes.BURN, 32)
+      .storeUint(opcodes.in.BURN, 32)
       .storeUint(opts.message.queryId, 64)
       .storeCoins(opts.message.jettonAmount)
       .storeAddress(opts.message.responseDestination)
@@ -164,7 +166,7 @@ export class JettonWallet implements Contract {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.WITHDRAW_TONS, 32)
+        .storeUint(opcodes.in.WITHDRAW_TONS, 32)
         .storeUint(0, 64) // query_id
         .endCell(),
     })
@@ -197,7 +199,7 @@ export const builder = {
       const askToTransfer: CellCodec<AskToTransfer> = {
         encode: function (data: AskToTransfer): Builder {
           const body = beginCell()
-            .storeUint(Opcodes.TRANSFER, 32)
+            .storeUint(opcodes.in.TRANSFER, 32)
             .storeUint(data.queryId, 64)
             .storeCoins(data.jettonAmount)
             .storeAddress(data.destination)
@@ -217,8 +219,8 @@ export const builder = {
         },
         load: function (src: Slice): AskToTransfer {
           let op = src.loadUint(32)
-          if (op !== Opcodes.TRANSFER) {
-            throw new Error(`Invalid opcode, expected ${Opcodes.TRANSFER}, got ${op}`)
+          if (op !== opcodes.in.TRANSFER) {
+            throw new Error(`Invalid opcode, expected ${opcodes.in.TRANSFER}, got ${op}`)
           }
           const askToTransfer = {
             queryId: src.loadUint(64),
@@ -279,7 +281,7 @@ export const builder = {
       const transferNotificationForRecipient: CellCodec<TransferNotificationForRecipient> = {
         encode: function (data: TransferNotificationForRecipient): Builder {
           return beginCell()
-            .storeUint(Opcodes.TRANSFER_NOTIFICATION, 32)
+            .storeUint(opcodes.in.TRANSFER_NOTIFICATION, 32)
             .storeUint(data.queryId, 64)
             .storeCoins(data.jettonAmount)
             .storeAddress(data.senderAddress)
