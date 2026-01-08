@@ -17,14 +17,14 @@ import { loadContractCode } from '../codeLoader'
 import * as or from './OnRamp'
 import * as fq from './FeeQuoter'
 
-export const CCIP_SEND_EXECUTOR_CONTRACT_VERSION = '1.6.0'
+export const CONTRACT_VERSION = '1.6.0'
 
-export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
-export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436
-export const CCIP_SEND_EXECUTOR_ERROR_CODE = 43600 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
+export const FACILITY_ID = 436
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum error {
-  StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
+  StateNotExpected = ERROR_CODE,
   Unauthorized,
   InsufficientFunds,
   InsufficientFee,
@@ -285,11 +285,11 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
   }
 
   static version() {
-    return CCIP_SEND_EXECUTOR_CONTRACT_VERSION
+    return CONTRACT_VERSION
   }
 
   static type() {
-    return CCIP_SEND_EXECUTOR_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {

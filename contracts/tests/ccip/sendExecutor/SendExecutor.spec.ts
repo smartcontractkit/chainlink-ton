@@ -1,10 +1,10 @@
 import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
-import { Address, beginCell, toNano } from '@ton/core'
+import { beginCell, toNano } from '@ton/core'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
-import { facilityId } from '../../../wrappers/utils'
+import { errorCode, facilityId } from '../../../wrappers/utils'
 import { CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
 import { ZERO_ADDRESS } from '../../../src/utils'
 
@@ -41,14 +41,6 @@ describe('SendExecutor - TypeAndVersion Tests', () => {
 describe('SendExecutor - Opcodes', () => {
   it('should match in opcodes', () => {
     expect(sx.opcodes.in.execute).toBe(crc32('CCIPSendExecutor_Execute'))
-  })
-})
-
-describe('SendExecutor - Facility ID', () => {
-  it('Test facilityId matches facility name', () => {
-    expect(sx.CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
-      facilityId(crc32(sx.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
-    )
   })
 })
 
@@ -108,16 +100,24 @@ describe('SendExecutor - Unit tests', () => {
     return await sendDeployOnBlockchain(blockchain, deployer, deployable, selfMessage, onRampMock)
   }
 
-  it('should match facility ID', async () => {
+  it('should match facility name and ID', async () => {
     const { sendExecutor } = await sendDeploy()
-    const facilityId = await sendExecutor.getFacilityId()
-    expect(facilityId).toBe(BigInt(sx.CCIP_SEND_EXECUTOR_FACILITY_ID))
+    const facilityIdVal = await sendExecutor.getFacilityId()
+    expect(facilityIdVal).toBe(BigInt(sx.FACILITY_ID))
+
+    const { type } = await sendExecutor.getTypeAndVersion()
+    expect(type).toBe(sx.FACILITY_NAME)
+
+    expect(sx.FACILITY_ID).toEqual(facilityId(crc32(sx.FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
     const { sendExecutor } = await sendDeploy()
-    const errorCode = await sendExecutor.getErrorCode(0n)
-    expect(errorCode).toBe(BigInt(sx.CCIP_SEND_EXECUTOR_ERROR_CODE))
+
+    const errorCodeVal = await sendExecutor.getErrorCode(0n)
+    expect(errorCodeVal).toBe(BigInt(sx.ERROR_CODE))
+
+    expect(sx.ERROR_CODE).toEqual(errorCode(crc32(sx.FACILITY_NAME), 0))
   })
 
   async function afterExecute(feeQuoterBouncer?: SandboxContract<bouncer.ContractClient>): Promise<{

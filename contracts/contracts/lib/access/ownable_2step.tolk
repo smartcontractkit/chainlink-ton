@@ -1,16 +1,15 @@
 import "./../utils.tolk";
 
+// getFacilityId(stringCrc32(com.chainlink.ton.lib.access.Ownable2Step))
+const Ownable2Step_FACILITY_ID = 204;
+const Ownable2Step_ERROR_CODE = Ownable2Step_FACILITY_ID * 100;
+
 // Exit codes
-
-// TODO: follow namespaced exitcodes structure
-/// Matches the exit code for `TactExitCodeAccessDenied` from `@stdlib`.
-const ERROR_ONLY_CALLABLE_BY_OWNER = 132;
-
-/// Custom exit code indicating that the new owner is the same as the current one.
-const ERROR_CANNOT_TRANSFER_TO_SELF = 1001;
-
-/// Custom exit code indicating that only the proposed (pending) owner may accept ownership.
-const ERROR_MUST_BE_PROPOSED_OWNER = 1002;
+enum Ownable2Step_Error {
+    OnlyCallableByOwner = Ownable2Step_ERROR_CODE; // only the current owner may call this function.
+    CannotTransferToSelf, // the new owner is the same as the current one.
+    MustBeProposedOwner, // only the proposed (pending) owner may accept ownership.
+}
 
 /// Ownable2Step trait provides ownership two-step transfer functionality.
 struct Ownable2Step {
@@ -98,7 +97,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
 /// #### Exit codes
 /// * 132: ERROR_ONLY_CALLABLE_BY_OWNER
 fun Ownable2Step.requireOwner(self, sender: address) {
-    assert(sender == self.owner, ERROR_ONLY_CALLABLE_BY_OWNER);
+    assert(sender == self.owner, Ownable2Step_Error.OnlyCallableByOwner);
 }
 
 /// Initiates ownership transfer to a new address.
@@ -108,7 +107,7 @@ fun Ownable2Step.requireOwner(self, sender: address) {
 /// * 1001: ERROR_CANNOT_TRANSFER_TO_SELF
 fun Ownable2Step.transferOwnership(mutate self, sender: address, to: address) {
     self.requireOwner(sender);
-    assert(to != self.owner, ERROR_CANNOT_TRANSFER_TO_SELF);
+    assert(to != self.owner, Ownable2Step_Error.CannotTransferToSelf);
 
     self.pendingOwner = to;
 }
@@ -118,8 +117,8 @@ fun Ownable2Step.transferOwnership(mutate self, sender: address, to: address) {
 /// #### Exit codes
 /// * 1002: ERROR_MUST_BE_PROPOSED_OWNER
 fun Ownable2Step.acceptOwnership(mutate self, sender: address) {
-    assert(self.pendingOwner != null, ERROR_MUST_BE_PROPOSED_OWNER);
-    assert(sender == self.pendingOwner, ERROR_MUST_BE_PROPOSED_OWNER);
+    assert(self.pendingOwner != null, Ownable2Step_Error.MustBeProposedOwner);
+    assert(sender == self.pendingOwner, Ownable2Step_Error.MustBeProposedOwner);
 
     self.owner = sender;
     self.pendingOwner = null;

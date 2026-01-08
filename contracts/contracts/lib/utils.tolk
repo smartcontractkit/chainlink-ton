@@ -1,9 +1,14 @@
 import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
-const ERROR_WRONG_OP = 0xffff;
-const ERROR_INVALID_DATA = 0x77;
-const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
+const Utils_FACILITY_NAME = "com.chainlink.ton.lib.Utils";
+// getFacilityId(stringCrc32(Utils_FACILITY_NAME));
+const Utils_FACILITY_ID = 489;
+
+enum Utils_Error {
+    InvalidData = Utils_FACILITY_ID * 100
+    BitmapOutOfBounds
+}
 
 /// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("com.chainlink.ton.mcms.Timelock")).
 /// Returns a value in range 10..649 (640 values).
@@ -17,9 +22,6 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     assert(code <= 65535, 4); // exit code 4: Integer overflow
     return code
 }
-
-// Generic unimplemented error code
-const ERROR_UNIMPLEMENTED = 0xBBBB; // == 48059
 
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
@@ -125,7 +127,7 @@ fun Iterator<T>.next(mutate self): T {
     var (bits, refs) = self.data.remainingBitsAndRefsCount();
     if (bits == 0) {
         // for snakeData to be well formed, there should only be one reference
-        assert(refs == 1, ERROR_INVALID_DATA);
+        assert(refs == 1, Utils_Error.InvalidData);
         self.data = self.data.loadRef().beginParse();
     }
     return self.data.loadAny<T>();
@@ -137,7 +139,7 @@ fun Iterator<T>.next(mutate self): T {
 fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
     val (cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
-    assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
+    assert(dataBitsSize % 8 == 0, Utils_Error.InvalidData);
     return dataBitsSize / 8;
 }
 
@@ -147,7 +149,7 @@ fun Iterator<T>.countBytes(self): int {
 // ExitCodes:
 // - 0: no error
 // - 8 (cell overflow): exceeded maxCells
-// - ERROR_INVALID_DATA: data is invalid (not byte-aligned)
+// - Utils_Error.InvalidData: data is invalid (not byte-aligned)
 @inline
 fun Iterator<T>.countBytesSafe(self): (int, int) {
     try {
@@ -207,13 +209,13 @@ fun Bitmap256.new(): Bitmap256 {
 
 @inline
 fun Bitmap256.set(mutate self, index: int): void {
-    assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
+    assert(index >= 0 && index < 256, Utils_Error.BitmapOutOfBounds);
     self.bits = self.bits | (1 << index);
 }
 
 @inline
 fun Bitmap256.has(self, index: int): bool {
-    assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
+    assert(index >= 0 && index < 256, Utils_Error.BitmapOutOfBounds);
     return (self.bits & (1 << index)) != 0;
 }
 
@@ -222,7 +224,7 @@ fun Bitmap256.has(self, index: int): bool {
 fun countAddresses(data: cell): int {
     val maxCells = 128;
     val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
-    assert(dataBitsSize % ADDR_KEY_LEN == 0, ERROR_INVALID_DATA);
+    assert(dataBitsSize % ADDR_KEY_LEN == 0, Utils_Error.InvalidData);
     return dataBitsSize / ADDR_KEY_LEN;
 }
 

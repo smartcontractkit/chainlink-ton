@@ -1,6 +1,6 @@
-import "./types.tolk";
-import "./exit_codes.tolk";
 import "./../utils.tolk";
+import "types.tolk";
+import "errors";
 
 
 const OCR3BASE_CONFIG_SET_TOPIC: int = stringCrc32("OCR3Base_ConfigSet");
@@ -67,12 +67,12 @@ fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
 		}
 		return self.execute!.load();
 	} else {
-		throw ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE;
+		throw MultiOCR3Base_Error.NonExistentOcrPluginType;
 	}
 }
 
 fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
-	assert(msg.bigF > 0, ERROR_BIG_F_MUST_BE_POSITIVE);
+	assert(msg.bigF > 0, MultiOCR3Base_Error.BigFMustBePositive);
 
 	var ocrConfig = self.getConfig(msg.ocrPluginType);
 	if (ocrConfig == null) {
@@ -86,21 +86,21 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	} else {
 		assert(
 			ocrConfig.configInfo.isSignatureVerificationEnabled == msg.isSignatureVerificationEnabled,
-			ERROR_STATIC_CONFIG_CANNOT_BE_CHANGED
+			MultiOCR3Base_Error.StaticConfigCannotBeChanged
 		);
 	}
 	val transmitters_length = countAddresses(msg.transmitters);
 	// val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
 
-	assert(transmitters_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
-	assert(transmitters_length > 0, ERROR_NO_TRANSMITTERS);
+	assert(transmitters_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManyTransmitters);
+	assert(transmitters_length > 0, MultiOCR3Base_Error.NoTransmitters);
 	
 	if (msg.isSignatureVerificationEnabled) {
 		val signers_length = msg.signers.iter().countBytes() / 32;
-		assert(signers_length > 0, ERROR_NO_SIGNERS);
-		assert(signers_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_SIGNERS);
-		assert(signers_length > 3 * msg.bigF, ERROR_BIG_F_TOO_HIGH);
-		assert(signers_length >= transmitters_length, ERROR_TOO_MANY_TRANSMITTERS);
+		assert(signers_length > 0, MultiOCR3Base_Error.NoSigners);
+		assert(signers_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManySigners);
+		assert(signers_length > 3 * msg.bigF, MultiOCR3Base_Error.BigFTooHigh);
+		assert(signers_length >= transmitters_length, MultiOCR3Base_Error.TooManyTransmitters);
 		ocrConfig.configInfo.n = signers_length;
 		ocrConfig.assignSignerOracles(msg.signers);
 	}
@@ -133,24 +133,24 @@ fun OCR3Base.transmit(
     signatures: SnakedCell<SignatureEd25519>,
 ) {
     var ocrConfig = self.getConfig(ocrPluginType);
-    assert(ocrConfig != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    assert(ocrConfig != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     ocrConfig = ocrConfig!;
     var configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
     
-    assert(reportContext.configDigest == configInfo.configDigest, ERROR_CONFIG_DIGEST_MISMATCH);
+    assert(reportContext.configDigest == configInfo.configDigest, MultiOCR3Base_Error.ConfigDigestMismatch);
     
     // EVM checks assert_chain_not_forked, this is not necessary in TON
     
     val pluginTransmitters = ocrConfig.transmitters;
 
-    assert(pluginTransmitters.get(transmitter).isFound, ERROR_UNAUTHORIZED_TRANSMITTER);
+    assert(pluginTransmitters.get(transmitter).isFound, MultiOCR3Base_Error.UnauthorizedTransmitter);
 
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
 		val signatures_length = signatures.iter().countBytes() / 96; //expensive
-    	assert(signatures_length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
+    	assert(signatures_length == expectedSignatures, MultiOCR3Base_Error.WrongNumberOfSignatures);
     	var hashedReport = self.hashReport(report, reportContext);
     	var pluginSigners = ocrConfig.signers;
 
@@ -188,11 +188,11 @@ fun OCR3Base.verifySignature(
 
 		val entry = signers.get(signer);
 		val authorized= entry.isFound;
-		assert(authorized, ERROR_UNAUTHORIZED_SIGNER);
+		assert(authorized, MultiOCR3Base_Error.UnauthorizedSigner);
 		val signerIndex = entry.loadValue();
-		assert(isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer), ERROR_INVALID_SIGNATURE);
+		assert(isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer), MultiOCR3Base_Error.InvalidSignature);
 
-		assert(!seen.has(signerIndex!), ERROR_NON_UNIQUE_SIGNATURES);
+		assert(!seen.has(signerIndex!), MultiOCR3Base_Error.NonUniqueSignatures);
 		seen.set(signerIndex!);
 	}
 }

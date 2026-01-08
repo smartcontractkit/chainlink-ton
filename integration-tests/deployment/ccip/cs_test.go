@@ -28,6 +28,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -280,13 +281,13 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
-		expectedErrStr := "failed to apply changeset at index 0: transaction failed with exit code: 1000"
+		expectedErrStr := fmt.Sprintf("failed to apply changeset at index 0: transaction failed with exit code: %d", ocr.ErrorBigFMustBePositive)
 		_, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 			commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
 				RemoteChainSels: []uint64{tonChain.Selector},
 				Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
 					operation.PluginTypeCCIPCommit: {
-						F: 0, // invalid F, F must be positive or will revert on chain with ERROR_BIG_F_MUST_BE_POSITIVE (1000)
+						F: 0, // invalid F, F must be positive or will revert on chain with ocr.ErrorBigFMustBePositive
 					},
 				},
 			}),

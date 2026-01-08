@@ -41,16 +41,12 @@ export const opcodes = {
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 
-export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
-export const OFFRAMP_FACILITY_ID = 84
-export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
-
-export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
-export const RECEIVE_EXECUTOR_FACILITY_ID = 338
-export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
+export const FACILITY_ID = 84
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum OffRampError {
-  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
+  MessageNotFromOwnedContract = ERROR_CODE,
   SourceChainNotEnabled,
   EmptyExecutionReport,
   InvalidMessageDestChainSelector,
@@ -65,13 +61,6 @@ export enum OffRampError {
   SignatureVerificationNotAllowedInExecutionPlugin,
   InvalidInterval,
   BatchingNotSupported,
-}
-
-export enum ReceiveExecutorError {
-  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
-  UpdatingStateOfNonExecutedMessage,
-  NotificationFromInvalidReceiver,
-  Unauthorized,
 }
 
 export type OffRampStorage = {
@@ -671,6 +660,18 @@ export class OffRamp
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
@@ -686,7 +687,7 @@ export class OffRamp
   }
 
   static type() {
-    return OFFRAMP_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {

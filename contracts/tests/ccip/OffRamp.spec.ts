@@ -1,36 +1,12 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import {
-  Any2TVMRampMessage,
-  CommitReport,
-  builder,
-  ExecutionReport,
-  OFFRAMP_FACILITY_ID,
-  OFFRAMP_FACILITY_NAME,
-  OffRampStorage,
-  PriceUpdates,
-  RampMessageHeader,
-  RECEIVE_EXECUTOR_FACILITY_ID,
-  RECEIVE_EXECUTOR_FACILITY_NAME,
-  SourceChainConfig,
-  OffRamp,
-  OffRampError,
-  opcodes,
-  UpdateSourceChainConfig,
-  MerkleRoot,
-} from '../../wrappers/ccip/OffRamp'
-import {
-  MerkleRootError,
-  MERKLE_ROOT_FACILITY_ID,
-  MERKLE_ROOT_FACILITY_NAME,
-  MerkleRoot as MerkleRootContract,
-} from '../../wrappers/ccip/MerkleRoot'
-import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
-import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
+import { KeyPair, sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
+import { crc32 } from 'zlib'
+
+import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import {
-  asSnakeData,
   bigIntToBuffer,
   bigIntToUint8Array,
   generateEd25519KeyPair,
@@ -40,34 +16,28 @@ import {
   uint8ArrayToBigInt,
   ZERO_ADDRESS,
 } from '../../src/utils'
-import { KeyPair, sha256_sync } from '@ton/crypto'
-import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
-import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import { setupTestFeeQuoter } from './helpers/SetUp'
+import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as coverage from '../coverage/coverage'
+import { errorCode, facilityId } from '../../wrappers/utils'
 
-import {
-  createSignature,
-  hashReport,
-  OCR3_PLUGIN_TYPE_COMMIT,
-  OCR3_PLUGIN_TYPE_EXECUTE,
-  ReportContext,
-  SignatureEd25519,
-} from '../../wrappers/libraries/ocr/MultiOCR3Base'
-
+import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
+import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
-import { setupTestFeeQuoter } from './helpers/SetUp'
-import { Receiver, ReceiverBehavior } from '../../wrappers/ccip/Receiver'
-import { crc32 } from 'zlib'
-import { facilityId } from '../../wrappers/utils'
-import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
-import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+import * as of from '../../wrappers/ccip/OffRamp'
+import * as rx from '../../wrappers/ccip/ReceiveExecutor'
+import * as mr from '../../wrappers/ccip/MerkleRoot'
+import * as fq from '../../wrappers/ccip/FeeQuoter'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as ocr from '../../wrappers/libraries/ocr/MultiOCR3Base'
+import * as rec from '../../wrappers/ccip/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
-import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as deployable from '../../wrappers/libraries/Deployable'
-
-import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
+import { EVM_ADDRESS } from './router/Router.Setup'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -85,8 +55,8 @@ const EXECUTION_STATE_FAILURE = 3n
 const createSignatures = (
   signerList: KeyPair[],
   hash: Buffer<ArrayBufferLike>,
-): SignatureEd25519[] => {
-  return signerList.map((signer) => createSignature(signer, hash))
+): ocr.SignatureEd25519[] => {
+  return signerList.map((signer) => ocr.createSignature(signer, hash))
 }
 
 const getMerkleRootID = (root: bigint) => {
@@ -113,7 +83,7 @@ const getMetadataHash = (sourceChainSelector: bigint) => {
   return hash
 }
 
-export function generateMessageId(message: Any2TVMRampMessage, metadataHash: bigint) {
+export function generateMessageId(message: of.Any2TVMRampMessage, metadataHash: bigint) {
   return (
     beginCell()
       .storeSlice(LEAF_DOMAIN_SEPARATOR)
@@ -147,8 +117,8 @@ async function deployOffRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
 ) {
-  const code = await OffRamp.code()
-  let data: OffRampStorage = {
+  const code = await of.OffRamp.code()
+  let data: of.OffRampStorage = {
     id: generateRandomContractId(),
     ownable: {
       owner: owner.address,
@@ -166,7 +136,7 @@ async function deployOffRampContract(
     latestPriceSequenceNumber: 0n,
   }
 
-  const contract = blockchain.openContract(OffRamp.createFromConfig(data, code))
+  const contract = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
   await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
   return contract
@@ -174,8 +144,8 @@ async function deployOffRampContract(
 
 describe('OffRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
-    type: OffRamp.type(),
-    version: OffRamp.version(),
+    type: of.OffRamp.type(),
+    version: of.OffRamp.version(),
     deployContract: deployOffRampContract,
   })
   currentVersionSpec.run([
@@ -189,7 +159,7 @@ describe('OffRamp - TypeAndVersion Tests', () => {
 describe('OffRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => compile('OffRamp'),
-    ContractConstructor: OffRamp,
+    ContractConstructor: of.OffRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
   })
@@ -231,10 +201,10 @@ describe('OffRamp - Withdrawable Tests', () => {
 
 describe('OffRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: OffRamp.type(),
-    currentVersion: OffRamp.version(),
-    getCurrentCode: () => OffRamp.code(),
-    CurrentVersionConstructor: OffRamp,
+    contractType: of.OffRamp.type(),
+    currentVersion: of.OffRamp.version(),
+    getCurrentCode: () => of.OffRamp.code(),
+    CurrentVersionConstructor: of.OffRamp,
     deployCurrentContract: deployOffRampContract,
   })
   currentVersionSpec.run('offramp')
@@ -243,10 +213,10 @@ describe('OffRamp - Current Version Tests', () => {
 describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
-  let offRamp: SandboxContract<OffRamp>
+  let offRamp: SandboxContract<of.OffRamp>
   let router: SandboxContract<rt.Router>
-  let feeQuoter: SandboxContract<FeeQuoter>
-  let receiver: SandboxContract<Receiver>
+  let feeQuoter: SandboxContract<fq.FeeQuoter>
+  let receiver: SandboxContract<rec.Receiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let receiveExecutorCodeRaw: Cell
@@ -267,7 +237,7 @@ describe('OffRamp - Unit Tests', () => {
   const createDefaultOCRConfig = (overrides = {}) => ({
     value: toNano('100'),
     configDigest,
-    ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+    ocrPluginType: ocr.OCR3_PLUGIN_TYPE_COMMIT,
     bigF: 1,
     isSignatureVerificationEnabled: true,
     signers: signersPublicKeys,
@@ -275,7 +245,7 @@ describe('OffRamp - Unit Tests', () => {
     ...overrides,
   })
 
-  const createDefaultUpdateSourceChainConfigs = (overrides = {}): UpdateSourceChainConfig[] => [
+  const createDefaultUpdateSourceChainConfigs = (overrides = {}): of.UpdateSourceChainConfig[] => [
     {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       config: {
@@ -300,13 +270,50 @@ describe('OffRamp - Unit Tests', () => {
     },
   ]
 
+  const setupTestReceiveExecutor = async (): Promise<SandboxContract<rx.ReceiveExecutor>> => {
+    const receiveExecutor = blockchain.openContract(
+      rx.ReceiveExecutor.createFromConfig(
+        {
+          owner: deployer.address,
+          message: {
+            header: {
+              messageId: generateRandomContractId(),
+              sourceChainSelector: 0n,
+              destChainSelector: 0n,
+              sequenceNumber: 0n,
+              nonce: 0n,
+            },
+            sender: EVM_ADDRESS,
+            data: new Cell(),
+            receiver: deployer.address,
+            gasLimit: 0n,
+            tokenAmounts: undefined,
+          },
+          root: deployer.address,
+          execId: 0n,
+          state: rx.MessageState.Untouched,
+          lastExecutionTimestamp: 0n,
+        },
+        receiveExecutorCodeRaw,
+      ),
+    )
+    const result = await receiveExecutor.sendDeploy(deployer.getSender(), toNano('0.05'))
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiveExecutor.address,
+      deploy: true,
+      success: true,
+    })
+    return receiveExecutor
+  }
+
   const createTestMessage = (
     sequenceNumber = 1n,
     messageId = 1n,
     receiverAddress = generateMockTonAddress(),
     data: Cell = Cell.EMPTY,
-  ): Any2TVMRampMessage => {
-    const header: RampMessageHeader = {
+  ): of.Any2TVMRampMessage => {
+    const header: of.RampMessageHeader = {
       messageId,
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       destChainSelector: CHAINSEL_TON,
@@ -332,7 +339,7 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   const generateMerkleRootBytes = (
-    messages: Any2TVMRampMessage[],
+    messages: of.Any2TVMRampMessage[],
     metadataHash: bigint,
   ): bigint => {
     let hashedMessages = messages.map((msg) => {
@@ -345,15 +352,18 @@ describe('OffRamp - Unit Tests', () => {
   }
 
   const setupOCRConfigs = async () => {
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
       isSignatureVerificationEnabled: false,
     })
     await setupSourceChainConfig()
   }
 
-  const setupOCRConfig = async (ocrPluginType = OCR3_PLUGIN_TYPE_COMMIT, overrides: any = {}) => {
+  const setupOCRConfig = async (
+    ocrPluginType = ocr.OCR3_PLUGIN_TYPE_COMMIT,
+    overrides: any = {},
+  ) => {
     const result = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
       createDefaultOCRConfig({ ocrPluginType, ...overrides }),
@@ -402,18 +412,18 @@ describe('OffRamp - Unit Tests', () => {
 
   // Helper function to test commit report flow
   const commitReport = async (
-    merkleRoots: MerkleRoot[],
+    merkleRoots: of.MerkleRoot[],
     value: bigint = toNano('0.5'),
     sequenceBytes = 0x01,
-    priceUpdates: PriceUpdates | undefined = undefined,
+    priceUpdates: of.PriceUpdates | undefined = undefined,
     expectSuccess = true,
     exitCode = 0,
   ) => {
-    const report: CommitReport = { merkleRoots, priceUpdates }
-    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes }
+    const report: of.CommitReport = { merkleRoots, priceUpdates }
+    const reportContext: ocr.ReportContext = { configDigest, padding: 0n, sequenceBytes }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(builder.data.commitReport.encode(report).endCell(), reportContext),
+      ocr.hashReport(of.builder.data.commitReport.encode(report).endCell(), reportContext),
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {
@@ -438,7 +448,7 @@ describe('OffRamp - Unit Tests', () => {
 
   //TODO: When we test for token transfers this will take more parameters
   const createExecuteReport = (
-    messages: Any2TVMRampMessage[],
+    messages: of.Any2TVMRampMessage[],
     sourceChainSelector = CHAINSEL_EVM_TEST_90000001,
   ) => ({
     sourceChainSelector,
@@ -450,7 +460,7 @@ describe('OffRamp - Unit Tests', () => {
 
   // Helper function to test execute report flow
   const executeReport = async (
-    report: ExecutionReport,
+    report: of.ExecutionReport,
     sequenceBytes = 0x02,
     expectSuccess = true,
   ) => {
@@ -468,7 +478,7 @@ describe('OffRamp - Unit Tests', () => {
   }
 
   const manualExecuteReport = async (
-    report: ExecutionReport,
+    report: of.ExecutionReport,
     gasOverride: bigint | undefined = undefined,
     expectSuccess = true,
   ) => {
@@ -486,7 +496,7 @@ describe('OffRamp - Unit Tests', () => {
   }
 
   const executeReportExpectingFailure = async (
-    report: ExecutionReport,
+    report: of.ExecutionReport,
     expectedErrorCode: number,
     sequenceBytes = 0x02,
   ) => {
@@ -495,7 +505,7 @@ describe('OffRamp - Unit Tests', () => {
     return result
   }
 
-  const setupAndCommitMessage = async (message: Any2TVMRampMessage) => {
+  const setupAndCommitMessage = async (message: of.Any2TVMRampMessage) => {
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
@@ -506,7 +516,7 @@ describe('OffRamp - Unit Tests', () => {
     return { root, metadataHash, rootBytes }
   }
 
-  const merkleRootAddress = (root: MerkleRoot) => {
+  const merkleRootAddress = (root: of.MerkleRoot) => {
     const data = deployable.builder.data.contractData
       .encode({
         owner: offRamp.address,
@@ -596,7 +606,7 @@ describe('OffRamp - Unit Tests', () => {
         refs: receiveExecutorLibPrep.refs,
       })
 
-      let data: OffRampStorage = {
+      let data: of.OffRampStorage = {
         id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
@@ -614,7 +624,7 @@ describe('OffRamp - Unit Tests', () => {
         latestPriceSequenceNumber: 0n,
       }
 
-      offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
+      offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
 
       let result = await offRamp.sendDeploy(deployer.getSender(), toNano('0.05'))
       expect(result.transactions).toHaveTransaction({
@@ -687,12 +697,12 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig(
+        rec.Receiver.createFromConfig(
           {
             id: generateRandomContractId(),
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
-            behavior: ReceiverBehavior.Accept,
+            behavior: rec.ReceiverBehavior.Accept,
           },
           code,
         ),
@@ -718,8 +728,8 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   it('should handle two OCR3 configs', async () => {
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
       isSignatureVerificationEnabled: false,
     })
@@ -730,7 +740,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await offRamp.sendSetOCR3Config(
         deployer.getSender(),
         createDefaultOCRConfig({
-          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          ocrPluginType: ocr.OCR3_PLUGIN_TYPE_COMMIT,
           isSignatureVerificationEnabled: false, // Invalid for commit
         }),
       )
@@ -739,7 +749,7 @@ describe('OffRamp - Unit Tests', () => {
         result,
         deployer.address,
         offRamp.address,
-        OffRampError.SignatureVerificationRequiredInCommitPlugin,
+        of.OffRampError.SignatureVerificationRequiredInCommitPlugin,
       )
     })
 
@@ -747,7 +757,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await offRamp.sendSetOCR3Config(
         deployer.getSender(),
         createDefaultOCRConfig({
-          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+          ocrPluginType: ocr.OCR3_PLUGIN_TYPE_EXECUTE,
           isSignatureVerificationEnabled: true, // Invalid for execute
           signers: signersPublicKeys,
         }),
@@ -757,7 +767,7 @@ describe('OffRamp - Unit Tests', () => {
         result,
         deployer.address,
         offRamp.address,
-        OffRampError.SignatureVerificationNotAllowedInExecutionPlugin,
+        of.OffRampError.SignatureVerificationNotAllowedInExecutionPlugin,
       )
     })
 
@@ -765,7 +775,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await offRamp.sendSetOCR3Config(
         deployer.getSender(),
         createDefaultOCRConfig({
-          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          ocrPluginType: ocr.OCR3_PLUGIN_TYPE_COMMIT,
           isSignatureVerificationEnabled: true, // Valid
         }),
       )
@@ -777,7 +787,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await offRamp.sendSetOCR3Config(
         deployer.getSender(),
         createDefaultOCRConfig({
-          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+          ocrPluginType: ocr.OCR3_PLUGIN_TYPE_EXECUTE,
           isSignatureVerificationEnabled: false, // Valid
           signers: [],
         }),
@@ -788,10 +798,10 @@ describe('OffRamp - Unit Tests', () => {
 
     it('should reset latestPriceSequenceNumber when commit config changes', async () => {
       // First, set initial commit config and update price sequence number
-      await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+      await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_COMMIT)
 
       const sourceToken = generateMockTonAddress()
-      const priceUpdates: PriceUpdates = {
+      const priceUpdates: of.PriceUpdates = {
         tokenPriceUpdates: [{ sourceToken, usdPerToken: 100n }],
         gasPriceUpdates: [],
       }
@@ -806,7 +816,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await offRamp.sendSetOCR3Config(
         deployer.getSender(),
         createDefaultOCRConfig({
-          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          ocrPluginType: ocr.OCR3_PLUGIN_TYPE_COMMIT,
           configDigest: newConfigDigest,
         }),
       )
@@ -822,7 +832,7 @@ describe('OffRamp - Unit Tests', () => {
       await setupOCRConfigs()
 
       const sourceToken = generateMockTonAddress()
-      const priceUpdates: PriceUpdates = {
+      const priceUpdates: of.PriceUpdates = {
         tokenPriceUpdates: [{ sourceToken, usdPerToken: 100n }],
         gasPriceUpdates: [],
       }
@@ -836,7 +846,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await offRamp.sendSetOCR3Config(
         deployer.getSender(),
         createDefaultOCRConfig({
-          ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+          ocrPluginType: ocr.OCR3_PLUGIN_TYPE_EXECUTE,
           configDigest: newConfigDigest,
           isSignatureVerificationEnabled: false,
           signers: [],
@@ -890,7 +900,7 @@ describe('OffRamp - Unit Tests', () => {
       0x01,
       undefined,
       false,
-      OffRampError.BatchingNotSupported,
+      of.OffRampError.BatchingNotSupported,
     )
   })
 
@@ -903,11 +913,15 @@ describe('OffRamp - Unit Tests', () => {
     await setupOCRConfig()
     await setupSourceChainConfig({ isEnabled: false }) // disabled source chain
 
-    const report: CommitReport = { merkleRoots: [root] }
-    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
+    const report: of.CommitReport = { merkleRoots: [root] }
+    const reportContext: ocr.ReportContext = {
+      configDigest,
+      padding: 0n,
+      sequenceBytes: 0x01,
+    }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(builder.data.commitReport.encode(report).endCell(), reportContext),
+      ocr.hashReport(of.builder.data.commitReport.encode(report).endCell(), reportContext),
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {
@@ -921,7 +935,7 @@ describe('OffRamp - Unit Tests', () => {
       result,
       transmitters[0].address,
       offRamp.address,
-      OffRampError.SourceChainNotEnabled,
+      of.OffRampError.SourceChainNotEnabled,
     )
   })
 
@@ -942,7 +956,7 @@ describe('OffRamp - Unit Tests', () => {
       0x01,
       undefined,
       false,
-      OffRampError.TooManyMessagesInReport,
+      of.OffRampError.TooManyMessagesInReport,
     )
 
     // Commit with a 127 message gap should succeed
@@ -984,7 +998,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('Test generateMessageId hash compatibility with Go', () => {
     // Create the exact same message as in Go test for cross-language compatibility
-    const rampMessageHeader: RampMessageHeader = {
+    const rampMessageHeader: of.RampMessageHeader = {
       messageId: 1n,
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       destChainSelector: CHAINSEL_TON,
@@ -992,7 +1006,7 @@ describe('OffRamp - Unit Tests', () => {
       nonce: 0n,
     }
 
-    const message: Any2TVMRampMessage = {
+    const message: of.Any2TVMRampMessage = {
       header: rampMessageHeader,
       sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
       data: beginCell().endCell(),
@@ -1024,15 +1038,15 @@ describe('OffRamp - Unit Tests', () => {
     const message = createTestMessage(1n, 1n, receiver.address)
 
     // Setup configurations but don't commit any report
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
       isSignatureVerificationEnabled: false,
     })
     await setupSourceChainConfig()
 
     // Try to execute without committing
-    const executeReport: ExecutionReport = {
+    const executeReport: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message],
       offchainTokenData: [],
@@ -1074,8 +1088,8 @@ describe('OffRamp - Unit Tests', () => {
     const differentRoot = createMerkleRoot(1n, 1n, differentRootBytes)
 
     // Setup configurations
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
       isSignatureVerificationEnabled: false,
     })
@@ -1085,7 +1099,7 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([differentRoot])
 
     // Try to execute with the original message (not the one in the committed root)
-    const executeReport: ExecutionReport = {
+    const executeReport: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message],
       offchainTokenData: [],
@@ -1124,8 +1138,8 @@ describe('OffRamp - Unit Tests', () => {
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     // Setup configurations
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
-    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(ocr.OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
       isSignatureVerificationEnabled: false,
     })
@@ -1135,7 +1149,7 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([root])
 
     // Create the execute report
-    const executeReport: ExecutionReport = {
+    const executeReport: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message],
       offchainTokenData: [],
@@ -1173,7 +1187,7 @@ describe('OffRamp - Unit Tests', () => {
     // There should be a failed transaction with the specific error code from offRamp to MerkleRoot
     expect(secondExecuteResult.transactions).toHaveTransaction({
       from: offRamp.address,
-      exitCode: MerkleRootError.SkippedAlreadyExecutedMessage,
+      exitCode: mr.MerkleRootError.SkippedAlreadyExecutedMessage,
       success: false,
     })
   })
@@ -1181,7 +1195,7 @@ describe('OffRamp - Unit Tests', () => {
   it('Test execute fails with empty report', async () => {
     await setupOCRConfigs()
     const report = createExecuteReport([])
-    await executeReportExpectingFailure(report, OffRampError.EmptyExecutionReport)
+    await executeReportExpectingFailure(report, of.OffRampError.EmptyExecutionReport)
   })
 
   it('Test execute fails when message destChainSelector is wrong', async () => {
@@ -1190,7 +1204,7 @@ describe('OffRamp - Unit Tests', () => {
 
     await setupAndCommitMessage(wrongDestMessage)
     const report = createExecuteReport([wrongDestMessage])
-    await executeReportExpectingFailure(report, OffRampError.InvalidMessageDestChainSelector)
+    await executeReportExpectingFailure(report, of.OffRampError.InvalidMessageDestChainSelector)
   })
 
   it('Test execute fails when message sourceChainSelector mismatches report', async () => {
@@ -1199,7 +1213,7 @@ describe('OffRamp - Unit Tests', () => {
 
     await setupAndCommitMessage(wrongSourceMessage)
     const report = createExecuteReport([wrongSourceMessage], CHAINSEL_EVM_TEST_90000001) // Different from message
-    await executeReportExpectingFailure(report, OffRampError.SourceChainSelectorMismatch)
+    await executeReportExpectingFailure(report, of.OffRampError.SourceChainSelectorMismatch)
   })
 
   it('Test execute fails when source chain is disabled', async () => {
@@ -1216,7 +1230,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupSourceChainConfig({ isEnabled: false, minSeqNr: 2n }, false)
 
     const report = createExecuteReport([message])
-    await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)
+    await executeReportExpectingFailure(report, of.OffRampError.SourceChainNotEnabled)
   })
 
   it('Test execute fails when source chain is cursed', async () => {
@@ -1241,7 +1255,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const report = createExecuteReport([message])
-    await executeReportExpectingFailure(report, OffRampError.SubjectCursed)
+    await executeReportExpectingFailure(report, of.OffRampError.SubjectCursed)
 
     // Uncurse source chain
     result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
@@ -1262,7 +1276,7 @@ describe('OffRamp - Unit Tests', () => {
 
     await setupOCRConfigs()
     const report = createExecuteReport([message], unknownChainSelector)
-    await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)
+    await executeReportExpectingFailure(report, of.OffRampError.SourceChainNotEnabled)
   })
 
   it('Test execute succeeds with valid message and proof', async () => {
@@ -1313,14 +1327,14 @@ describe('OffRamp - Unit Tests', () => {
       from: deployer.address,
       to: offRamp.address,
       success: false,
-      exitCode: OffRampError.MessageNotFromOwnedContract,
+      exitCode: of.OffRampError.MessageNotFromOwnedContract,
     })
   })
 
   it('Can commit with no roots and only price updates', async () => {
     await setupOCRConfig()
     const sourceToken = generateMockTonAddress()
-    const priceUpdates: PriceUpdates = {
+    const priceUpdates: of.PriceUpdates = {
       tokenPriceUpdates: [
         {
           sourceToken,
@@ -1360,7 +1374,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Create price updates
     const sourceToken = generateMockTonAddress()
-    const priceUpdates: PriceUpdates = {
+    const priceUpdates: of.PriceUpdates = {
       tokenPriceUpdates: [
         {
           sourceToken,
@@ -1383,7 +1397,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupOCRConfig()
 
     const sourceToken = generateMockTonAddress()
-    const priceUpdates: PriceUpdates = {
+    const priceUpdates: of.PriceUpdates = {
       tokenPriceUpdates: [
         {
           sourceToken,
@@ -1413,7 +1427,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupOCRConfig()
 
     const sourceToken = generateMockTonAddress()
-    const priceUpdates: PriceUpdates = {
+    const priceUpdates: of.PriceUpdates = {
       tokenPriceUpdates: [
         {
           sourceToken,
@@ -1589,12 +1603,12 @@ describe('OffRamp - Unit Tests', () => {
     let code = await compile('ccip.test.receiver')
     const wrongRouterAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-      Receiver.createFromConfig(
+      rec.Receiver.createFromConfig(
         {
           id: generateRandomContractId(),
           ownable: { owner: deployer.address, pendingOwner: null },
           authorizedCaller: wrongRouterAddress,
-          behavior: ReceiverBehavior.Accept,
+          behavior: rec.ReceiverBehavior.Accept,
         },
         code,
       ),
@@ -1684,7 +1698,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(manualExecFirstAttempt.transactions).toHaveTransaction({
       from: offRamp.address,
       success: false,
-      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
+      exitCode: mr.MerkleRootError.ManualExecutionNotYetEnabled,
     })
 
     // Almost there, still needs to fail
@@ -1694,7 +1708,7 @@ describe('OffRamp - Unit Tests', () => {
     expect(manualExecSecondAttempt.transactions).toHaveTransaction({
       from: offRamp.address,
       success: false,
-      exitCode: MerkleRootError.ManualExecutionNotYetEnabled,
+      exitCode: mr.MerkleRootError.ManualExecutionNotYetEnabled,
     })
 
     // One more sec and we are ready to go
@@ -1753,7 +1767,7 @@ describe('OffRamp - Unit Tests', () => {
     const report = createExecuteReport([message])
 
     const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: ReceiverBehavior.RejectAll,
+      behavior: rec.ReceiverBehavior.RejectAll,
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1776,7 +1790,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: ReceiverBehavior.Accept,
+      behavior: rec.ReceiverBehavior.Accept,
     })
     expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1829,7 +1843,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
     const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: ReceiverBehavior.RejectAll,
+      behavior: rec.ReceiverBehavior.RejectAll,
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1852,7 +1866,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: ReceiverBehavior.Accept,
+      behavior: rec.ReceiverBehavior.Accept,
     })
     expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1900,12 +1914,40 @@ describe('OffRamp - Unit Tests', () => {
     )
   })
 
-  it('Test facilityId matches facility name', () => {
-    expect(MERKLE_ROOT_FACILITY_ID).toEqual(facilityId(crc32(MERKLE_ROOT_FACILITY_NAME)))
+  it('OffRamp should match facility name and ID', async () => {
+    const facilityIdVal = await offRamp.getFacilityId()
+    expect(facilityIdVal).toBe(BigInt(of.FACILITY_ID))
 
-    expect(OFFRAMP_FACILITY_ID).toEqual(facilityId(crc32(OFFRAMP_FACILITY_NAME)))
+    const { type } = await offRamp.getTypeAndVersion()
+    expect(type).toBe(of.FACILITY_NAME)
 
-    expect(RECEIVE_EXECUTOR_FACILITY_ID).toEqual(facilityId(crc32(RECEIVE_EXECUTOR_FACILITY_NAME)))
+    expect(of.FACILITY_ID).toEqual(facilityId(crc32(of.FACILITY_NAME)))
+  })
+
+  it('OffRamp should match error code', async () => {
+    const errorCodeVal = await offRamp.getErrorCode(0n)
+    expect(errorCodeVal).toBe(BigInt(of.ERROR_CODE))
+
+    expect(of.ERROR_CODE).toEqual(errorCode(crc32(of.FACILITY_NAME), 0))
+  })
+
+  it('ReceiveExecutor should match facility name and ID', async () => {
+    const receiveExecutor = await setupTestReceiveExecutor()
+    const facilityIdVal = await receiveExecutor.getFacilityId()
+    expect(facilityIdVal).toBe(BigInt(rx.FACILITY_ID))
+
+    const { type } = await receiveExecutor.getTypeAndVersion()
+    expect(type).toBe(rx.FACILITY_NAME)
+
+    expect(rx.FACILITY_ID).toEqual(facilityId(crc32(rx.FACILITY_NAME)))
+  })
+
+  it('ReceiveExecutor should match error code', async () => {
+    const receiveExecutor = await setupTestReceiveExecutor()
+    const errorCodeVal = await receiveExecutor.getErrorCode(0n)
+    expect(errorCodeVal).toBe(BigInt(rx.ERROR_CODE))
+
+    expect(rx.ERROR_CODE).toEqual(errorCode(crc32(rx.FACILITY_NAME), 0))
   })
 
   it('Test commit two messages in one root and execute first message with proof', async () => {
@@ -1939,7 +1981,7 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // Execute first message with proof
-    const report: ExecutionReport = {
+    const report: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message1],
       offchainTokenData: [],
@@ -1995,7 +2037,7 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // Execute second message with proof
-    const report: ExecutionReport = {
+    const report: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message2],
       offchainTokenData: [],
@@ -2049,7 +2091,7 @@ describe('OffRamp - Unit Tests', () => {
         }
       }
 
-      const report: ExecutionReport = {
+      const report: of.ExecutionReport = {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         messages: [message1],
         offchainTokenData: [],
@@ -2083,7 +2125,7 @@ describe('OffRamp - Unit Tests', () => {
         }
       }
 
-      const report: ExecutionReport = {
+      const report: of.ExecutionReport = {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         messages: [message2],
         offchainTokenData: [],
@@ -2137,7 +2179,7 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // Try to execute first message with wrong proof (proof for message2)
-    const report: ExecutionReport = {
+    const report: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message1],
       offchainTokenData: [],
@@ -2204,7 +2246,7 @@ describe('OffRamp - Unit Tests', () => {
     }
 
     // Execute middle message with proof
-    const report: ExecutionReport = {
+    const report: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message2],
       offchainTokenData: [],
@@ -2269,7 +2311,7 @@ describe('OffRamp - Unit Tests', () => {
         }
       }
 
-      const report: ExecutionReport = {
+      const report: of.ExecutionReport = {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         messages: [message],
         offchainTokenData: [],
@@ -2337,7 +2379,7 @@ describe('OffRamp - Unit Tests', () => {
         }
       }
 
-      const report: ExecutionReport = {
+      const report: of.ExecutionReport = {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         messages: [message],
         offchainTokenData: [],
@@ -2384,7 +2426,14 @@ describe('OffRamp - Unit Tests', () => {
     const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
     const root2 = createMerkleRoot(5n, 15n, root2Bytes) // minSeqNr=5 < 11
 
-    await commitReport([root2], toNano('0.5'), 0x02, undefined, false, OffRampError.InvalidInterval)
+    await commitReport(
+      [root2],
+      toNano('0.5'),
+      0x02,
+      undefined,
+      false,
+      of.OffRampError.InvalidInterval,
+    )
   })
 
   it('cannot commit with minSeqNr higher than maxSeqNr', async () => {
@@ -2398,7 +2447,14 @@ describe('OffRamp - Unit Tests', () => {
     // Create root with minSeqNr > maxSeqNr
     const root = createMerkleRoot(10n, 5n, rootBytes) // minSeqNr=10 > maxSeqNr=5
 
-    await commitReport([root], toNano('0.5'), 0x01, undefined, false, OffRampError.InvalidInterval)
+    await commitReport(
+      [root],
+      toNano('0.5'),
+      0x01,
+      undefined,
+      false,
+      of.OffRampError.InvalidInterval,
+    )
   })
 
   it('test SetDynamicConfig', async () => {
@@ -2488,7 +2544,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('price updates are not sent to feequoter if they are empty', async () => {
     await setupOCRConfig()
-    const priceUpdates: PriceUpdates = {
+    const priceUpdates: of.PriceUpdates = {
       tokenPriceUpdates: [],
       gasPriceUpdates: [],
     }
@@ -2499,7 +2555,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     //should send update if only one of the updates is non-empty
-    const priceUpdates2: PriceUpdates = {
+    const priceUpdates2: of.PriceUpdates = {
       tokenPriceUpdates: [
         {
           sourceToken: generateMockTonAddress(),
@@ -2516,7 +2572,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     //test with other combination
-    const priceUpdates3: PriceUpdates = {
+    const priceUpdates3: of.PriceUpdates = {
       tokenPriceUpdates: [],
       gasPriceUpdates: [
         {

@@ -19,7 +19,7 @@ import {
   ExecutionReport,
   MerkleRoot,
   OffRampStorage,
-  OFFRAMP_FACILITY_ID,
+  FACILITY_ID,
   OffRamp,
 } from '../../../../wrappers/ccip/OffRamp'
 import '@ton/test-utils'
@@ -227,7 +227,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
       let data: OffRampStorage = {
-        id: BigInt(OFFRAMP_FACILITY_ID),
+        id: BigInt(FACILITY_ID),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,

@@ -4,6 +4,8 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type Storage struct {
@@ -15,3 +17,25 @@ type Storage struct {
 	MessageStates         *big.Int         `tlb:"## 128"`
 	DeliveredMessageCount uint16           `tlb:"## 16"`
 }
+
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = int32(ErrorAlreadyExecuted)
+		ecMax = int32(ErrorSeqNumOutOfBounds)
+	)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+}
+
+const (
+	ErrorAlreadyExecuted ExitCode = iota + 47900
+	ErrorNotOwner
+	ErrorManualExecutionNotYetEnabled
+	ErrorSkippedAlreadyExecutedMessage
+	ErrorInvalidState
+	ErrorSeqNumOutOfBounds
+)

@@ -14,16 +14,15 @@ import {
 import { CellCodec } from '../utils'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { loadContractCode } from '../codeLoader'
-import * as or from './OffRamp'
 
-export const MERKLE_ROOT_CONTRACT_VERSION = '1.6.0'
+export const CONTRACT_VERSION = '1.6.0'
 
-export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
-export const MERKLE_ROOT_FACILITY_ID = 479
-export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
+export const FACILITY_ID = 479
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum MerkleRootError {
-  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
+  AlreadyExecuted = ERROR_CODE, // Facility ID * 100
   NotOwner,
   ManualExecutionNotYetEnabled,
   SkippedAlreadyExecutedMessage,
@@ -137,6 +136,18 @@ export class MerkleRoot implements typeAndVersion.Interface, Contract {
     })
   }
 
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
@@ -148,11 +159,11 @@ export class MerkleRoot implements typeAndVersion.Interface, Contract {
   }
 
   static version() {
-    return MERKLE_ROOT_CONTRACT_VERSION
+    return CONTRACT_VERSION
   }
 
   static type() {
-    return MERKLE_ROOT_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {

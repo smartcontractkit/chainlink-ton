@@ -9,19 +9,21 @@ import {
   Sender,
   SendMode,
   Slice,
-  TupleBuilder,
 } from '@ton/core'
 
-import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import { Any2TVMMessage, builder as OffRampBuilder } from './OffRamp'
 import { loadContractCode } from '../codeLoader'
 
-export const RECEIVER_FACILITY_ID = 346
-export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
+import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import * as of from './OffRamp'
+
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
+export const FACILITY_ID = 346
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum ReceiverError {
-  Unauthorized = RECEIVER_ERROR_CODE,
+  Unauthorized = ERROR_CODE,
   ReceiverIsConfigureToFailGracefully,
 }
 
@@ -50,7 +52,7 @@ export const opcodes = {
 
 export type CCIPReceive = {
   rootId: bigint
-  message: Any2TVMMessage
+  message: of.Any2TVMMessage
 }
 
 export type UpdateAuthorizedCaller = {
@@ -138,17 +140,27 @@ export class Receiver implements Contract {
     return stack.readNumber()
   }
 
-  async getFacilityId(provider: ContractProvider): Promise<number> {
-    const { stack } = await provider.get('facilityId', [])
-    return stack.readNumber()
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
   }
 
-  async getErrorCode(provider: ContractProvider, local: number): Promise<number> {
-    const args = new TupleBuilder()
-    args.writeNumber(local) // Push your number argument onto the stack
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
 
-    const { stack } = await provider.get('errorCode', args.build())
-    return stack.readNumber()
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
   }
 }
 
@@ -189,7 +201,7 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.ccipReceive, 32)
             .storeUint(opts.rootId, 192)
-            .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
+            .storeBuilder(of.builder.data.any2TVMMessage.encode(opts.message))
         },
         load: function (src: Slice): CCIPReceive {
           // TODO We can check that the opcode matches
@@ -197,7 +209,7 @@ export const builder = {
 
           return {
             rootId: src.loadUintBig(192),
-            message: OffRampBuilder.data.any2TVMMessage.load(src),
+            message: of.builder.data.any2TVMMessage.load(src),
           }
         },
       }
