@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -31,12 +30,12 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	updateFeeQuoterDestChainConfigs,
 )
 
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) (*helpers.Transactions, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	// Skip if there's no updates
 	if len(in) == 0 {
-		return nil, nil
+		return helpers.NewEmptyTransactions(), nil
 	}
 
 	input := feequoter.UpdateDestChainConfigs{
@@ -56,7 +55,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
 
 type FeeTokenConfig struct {
@@ -65,7 +64,6 @@ type FeeTokenConfig struct {
 
 // UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens
 type UpdateFeeQuoterFeeTokensInput struct {
-	Lggr      logger.Logger
 	FeeTokens map[string]FeeTokenConfig // token address (string) -> { premium multiplier }
 }
 
@@ -77,7 +75,7 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	updateFeeQuoterFeeTokens,
 )
 
-func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([][]byte, error) {
+func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) (*helpers.Transactions, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	configs := cell.NewDict(267)
@@ -98,11 +96,11 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 		}
 	}
 
-	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
+	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
 
 	// skip if there's no updates
 	if len(in.FeeTokens) == 0 {
-		return nil, nil
+		return helpers.NewEmptyTransactions(), nil
 	}
 
 	input := feequoter.UpdateFeeTokens{
@@ -122,7 +120,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
 
 type GasPrice struct {
@@ -157,7 +155,7 @@ var AddPriceUpdaterOp = operations.NewOperation(
 	addPriceUpdater,
 )
 
-func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([][]byte, error) {
+func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) (*helpers.Transactions, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
@@ -174,7 +172,7 @@ func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdat
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
 
 type RemovePriceUpdaterInput struct {
@@ -189,7 +187,7 @@ var RemovePriceUpdaterOp = operations.NewOperation(
 	removePriceUpdater,
 )
 
-func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([][]byte, error) {
+func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) (*helpers.Transactions, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
@@ -206,7 +204,7 @@ func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePric
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
 
 // UpdateFeeQuoterPricesInput contains configuration for updating FeeQuoter price configs
@@ -223,12 +221,12 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 	updateFeeQuoterPrices,
 )
 
-func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
+func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) (*helpers.Transactions, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {
 		// Nothing to update
-		return nil, nil
+		return helpers.NewEmptyTransactions(), nil
 	}
 
 	tokenPrices := make([]feequoter.TokenPriceUpdate, 0, len(in.TokenPrices))
@@ -270,5 +268,5 @@ func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateF
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }

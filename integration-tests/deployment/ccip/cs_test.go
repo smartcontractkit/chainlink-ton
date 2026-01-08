@@ -161,7 +161,7 @@ func TestDeployCCIP(t *testing.T) {
 					Transmitters:                   transmitters,
 				},
 				operation.PluginTypeCCIPExec: {
-					ConfigDigest:                   [32]byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					ConfigDigest:                   configDigest,
 					PluginType:                     operation.PluginTypeCCIPExec, // maybe map is redundant? make it an array
 					F:                              1,
 					IsSignatureVerificationEnabled: false,

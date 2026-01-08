@@ -7,11 +7,11 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
@@ -33,12 +33,6 @@ type DeployMCMSSeqInput struct {
 	ChainSelector       uint64
 }
 
-type DeployMCMSSeqOutput struct {
-	TimelockAddress *utils.TONContractAddress
-	MCMSAddress     *utils.TONContractAddress
-	Transactions    [][]byte
-}
-
 var DeployMCMSSequence = operations.NewSequence(
 	"ton-deploy-mcms-seq",
 	semver.MustParse("0.1.0"),
@@ -46,9 +40,8 @@ var DeployMCMSSequence = operations.NewSequence(
 	deployMCMSSequence,
 )
 
-func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in DeployMCMSSeqInput) (DeployMCMSSeqOutput, error) {
-	// Initialize the output
-	output := DeployMCMSSeqOutput{}
+func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in DeployMCMSSeqInput) (sequences.OnChainOutput, error) {
+	addresses := make([]ds.AddressRef, 0)
 
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
 		ContractsVersionSha: in.ContractsVersionSha,
@@ -60,15 +53,15 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 
 	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, sequence.RetrieveContractsSequence, config.TonDeps{TonChain: deps.TonChain}, retrieveContractsInput)
 	if err != nil {
-		return output, err
+		return sequences.OnChainOutput{}, err
 	}
 
 	tonCompiledContracts := tonCompiledContractsSeqOutput.Output.CompiledContracts
-	var tonContractAddress *utils.TONContractAddress
+	var outputAddr *ds.AddressRef
 
 	// Invoke deploy Timelock changeset operation
 	a := deps.MCMSChainState[in.ChainSelector].Timelock
-	if a.IsAddrNone() && (output.TimelockAddress == nil || output.TimelockAddress.TONAddress.IsAddrNone()) { // Deploy Timelock only if not deployed yet
+	if a.IsAddrNone() { // Deploy Timelock only if not deployed yet
 		storage := timelock.Data{
 			ID:                       in.ContractsParams.Timelock.ID,
 			MinDelay:                 in.ContractsParams.Timelock.MinDelay,
@@ -98,26 +91,26 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 			OpFinalizationTimeout:    0,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.ContractsParams.Timelock.Coin, in.ContractsParams.Timelock.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.ContractsParams.Timelock.Coin, in.ContractsParams.Timelock.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
-		output.TimelockAddress = tonContractAddress
+		addresses = append(addresses, *outputAddr)
 	}
 
 	// Invoke deploy MCMS changeset operation
 	a = deps.MCMSChainState[in.ChainSelector].MCMS
-	if a.IsAddrNone() && (output.MCMSAddress == nil || output.MCMSAddress.TONAddress.IsAddrNone()) { // Deploy MCMS only if not deployed yet
+	if a.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		var chainIDStr string
 		chainSelector := deps.TonChain.ChainSelector()
 		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
 		if err != nil {
-			return output, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
 		}
 
 		chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
 		if err != nil {
-			return output, fmt.Errorf("invalid ChainID: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
 		}
 		chainID := big.NewInt(chainIDInt)
 		initStorage := mcms.Data{
@@ -155,12 +148,14 @@ func deployMCMSSequence(b operations.Bundle, deps mcmsConfig.MCMSDeps, in Deploy
 				},
 			},
 		}
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, config.TonDeps{TonChain: deps.TonChain}, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
-		output.MCMSAddress = tonContractAddress
+		addresses = append(addresses, *outputAddr)
 	}
 
-	return output, nil
+	return sequences.OnChainOutput{
+		Addresses: addresses,
+	}, nil
 }
