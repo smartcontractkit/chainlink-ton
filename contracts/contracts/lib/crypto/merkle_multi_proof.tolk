@@ -11,6 +11,7 @@ enum MerkleMultiProof_Error {
     InvalidProofLeavesTooLarge,
     InvalidProofProofsTooLarge,
     InvalidProofTotalHashesExceededMax,
+    InvalidProofDataSizeMismatch,
 }
 
 /// @notice internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
@@ -55,11 +56,13 @@ fun merkleRoot<I>(
             if (! leaves.empty()) {
                 a = leaves.next();
             } else {
+                assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
                 a = hashes.get(hashPos);
                 hashPos += 1;
             }
         } else {
             // Use the next supplied proof.
+            assert(! proofs.empty(), MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             a = proofs.next();
         }
 
@@ -68,6 +71,7 @@ fun merkleRoot<I>(
         if (! leaves.empty()) {
             b = leaves.next();
         } else {
+            assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             b = hashes.get(hashPos);
             hashPos += 1;
         }
