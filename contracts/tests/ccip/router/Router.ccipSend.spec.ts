@@ -11,7 +11,6 @@ import {
   EVM_ADDRESS,
   contractsCoverageConfig,
 } from './Router.Setup'
-import { WRAPPED_NATIVE } from '../../../src/utils'
 
 describe('Router.ccipSend', () => {
   let blockchain: Blockchain
