@@ -76,7 +76,7 @@ describe('Router', () => {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
 
-      await verifyNotCursed(router, deployer, true)
+      await verifyNotCursed(router, deployer, false)
     }
 
     // Fail router.ccipSend
@@ -112,7 +112,7 @@ describe('Router', () => {
         subject: CHAINSEL_EVM_TEST_90000001,
       })
 
-      await verifyNotCursed(router, deployer, false)
+      await verifyNotCursed(router, deployer, true)
     }
 
     // Succeed router.ccipSend

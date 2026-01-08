@@ -72,7 +72,7 @@ func TestDeployMCMS(t *testing.T) {
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
-	mcmsState, err := tonstate.LoadMCMSOnchainState(env)
+	mcmsState, err := tonstate.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
 
 	ctx := t.Context()
