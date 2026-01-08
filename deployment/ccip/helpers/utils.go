@@ -11,6 +11,57 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// Transactions encapsulates serialized TON internal messages with type safety.
+type Transactions struct {
+	Serialized [][]byte `json:"serialized"`
+}
+
+// NewTransactions creates a new Transactions from internal messages.
+func NewTransactions(msgs []*tlb.InternalMessage) (*Transactions, error) {
+	serialized, err := Serialize(msgs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize transactions: %w", err)
+	}
+	return &Transactions{Serialized: serialized}, nil
+}
+
+// NewEmptyTransactions creates an empty Transactions.
+func NewEmptyTransactions() *Transactions {
+	return &Transactions{Serialized: [][]byte{}}
+}
+
+// Append adds more transactions from another Transactions.
+func (t *Transactions) Append(other *Transactions) {
+	if other != nil && len(other.Serialized) > 0 {
+		t.Serialized = append(t.Serialized, other.Serialized...)
+	}
+}
+
+// AppendRaw adds raw serialized transactions (for backward compatibility during migration).
+func (t *Transactions) AppendRaw(raw [][]byte) {
+	t.Serialized = append(t.Serialized, raw...)
+}
+
+// ToMessages deserializes back to internal messages.
+func (t *Transactions) ToMessages() ([]*tlb.InternalMessage, error) {
+	return Deserialize(t.Serialized)
+}
+
+// Raw returns the underlying [][]byte for functions that still need it.
+func (t *Transactions) Raw() [][]byte {
+	return t.Serialized
+}
+
+// IsEmpty returns true if there are no transactions.
+func (t *Transactions) IsEmpty() bool {
+	return len(t.Serialized) == 0
+}
+
+// Len returns the number of transactions.
+func (t *Transactions) Len() int {
+	return len(t.Serialized)
+}
+
 func Serialize(msgs []*tlb.InternalMessage) ([][]byte, error) {
 	raw := make([][]byte, len(msgs))
 	for i, msg := range msgs {

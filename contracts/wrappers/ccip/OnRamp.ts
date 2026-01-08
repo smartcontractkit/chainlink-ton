@@ -20,7 +20,7 @@ import { CellCodec } from '../utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
 
 export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
@@ -646,10 +646,10 @@ export const opcodes = {
     onrampSend: 0xdcf993c2,
     getValidatedFee: 0x9c2ccc7e,
     get messageValidated() {
-      return fq.OutOpcodes.messageValidated
+      return fq.opcodes.out.messageValidated
     },
     get messageValidationFailed() {
-      return fq.OutOpcodes.messageValidationFailed
+      return fq.opcodes.out.messageValidationFailed
     },
     executorFinishedSuccessfully: 0xcfa6b336,
     executorFinishedWithError: 0xc4068e21,
@@ -797,8 +797,8 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
     return ONRAMP_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('OnRamp')
+  static code(): Promise<Cell> {
+    return loadContractCode('OnRamp')
   }
 
   async sendSetDynamicConfig(

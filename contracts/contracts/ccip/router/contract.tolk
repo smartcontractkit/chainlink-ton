@@ -211,20 +211,6 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
 }
 
 fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
-    if (offRampAdds != null) {
-        val offRampAdd = offRampAdds.offRamp!;
-        var iter = offRampAdds.sourceChainSelectors.iter();
-        while (!iter.empty()) {
-            val selector = iter.next();
-            st.offRamps.set(selector, offRampAdd);
-        }
-
-        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
-            sourceChainSelectors: offRampAdds.sourceChainSelectors,
-            offRampAdded: offRampAdd,
-        });
-    }
-
     if (offRampRemoves != null) {
         val offRampRemove = offRampRemoves.offRamp!;
         var iter = offRampRemoves.sourceChainSelectors.iter();
@@ -238,6 +224,20 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
         emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
             sourceChainSelectors: offRampRemoves.sourceChainSelectors,
             offRampRemoved: offRampRemove,
+        });
+    }
+
+    if (offRampAdds != null) {
+        val offRampAdd = offRampAdds.offRamp!;
+        var iter = offRampAdds.sourceChainSelectors.iter();
+        while (!iter.empty()) {
+            val selector = iter.next();
+            st.offRamps.set(selector, offRampAdd);
+        }
+
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
+            sourceChainSelectors: offRampAdds.sourceChainSelectors,
+            offRampAdded: offRampAdd,
         });
     }
 
@@ -339,10 +339,14 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 //     Router    ->> SenderAcc: Router_MessageValidated
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy Storage.load();
-    val ccipSend = lazy msg.ccipSend.load();
+    var ccipSend = lazy msg.ccipSend.load();
     val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
     if (!onRampResult.isFound) {
         return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context);
+    }
+
+    if (ccipSend.feeToken == null) {
+        ccipSend.feeToken = st.wrappedNative
     }
 
     val feeQuoterMsg = createMessage({
@@ -350,7 +354,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender:
         value: 0,
         dest: onRampResult.loadValue(),
         body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
-            ccipSend: msg.ccipSend,
+            ccipSend: ccipSend.toCell(),
             context: Router_GetValidatedFeeContext {
                 routerContext: sender,
                 userContext: msg.context,
@@ -602,7 +606,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    return rmn.cursedSubjects.isCursed(subject);
+    return !rmn.cursedSubjects.isCursed(subject);
 }
 
 /// Gets the current owner of the contract.

@@ -13,7 +13,7 @@ import {
 
 import { CellCodec } from '../utils'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../codeLoader'
 import * as or from './OnRamp'
 import * as fq from './FeeQuoter'
 
@@ -189,8 +189,8 @@ export abstract class Params {}
 export const opcodes = {
   in: {
     execute: 0xaf3c62b3,
-    messageValidated: fq.OutOpcodes.messageValidated,
-    messageValidationFailed: fq.OutOpcodes.messageValidationFailed,
+    messageValidated: fq.opcodes.out.messageValidated,
+    messageValidationFailed: fq.opcodes.out.messageValidationFailed,
   },
 }
 
@@ -292,7 +292,7 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
     return CCIP_SEND_EXECUTOR_FACILITY_NAME
   }
 
-  static async code() {
-    return await compile('CCIPSendExecutor')
+  static code(): Promise<Cell> {
+    return loadContractCode('CCIPSendExecutor')
   }
 }

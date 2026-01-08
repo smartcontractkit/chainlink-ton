@@ -94,7 +94,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     st.state = ReceiveExecutor_MessageState.ExecuteFailed;
 
     val messageHeader = ccipMessage.header;
-    val notifySuccess = createMessage({
+    val notifyFailure = createMessage({
         bounce: true,
         value: 0,
         dest: st.owner,
@@ -104,7 +104,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
             root: st.root,
         },
     });
-    notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    notifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun typeAndVersion(): (slice, slice) {

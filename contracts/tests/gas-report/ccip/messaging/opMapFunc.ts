@@ -10,10 +10,10 @@ import * as mr from '../../../../wrappers/ccip/MerkleRoot'
 
 export function opMapFunc(): OpMapFunc {
   const opcodeMap = new Map<number, string>()
-  Object.entries(fq.Opcodes).forEach(([name, code]) => {
+  Object.entries(fq.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `FeeQuoter::In::${name}`)
   })
-  Object.entries(fq.OutOpcodes).forEach(([name, code]) => {
+  Object.entries(fq.opcodes.out).forEach(([name, code]) => {
     opcodeMap.set(code, `FeeQuoter::Out::${name}`)
   })
   Object.entries(onRamp.opcodes.in).forEach(([name, code]) => {
@@ -31,16 +31,16 @@ export function opMapFunc(): OpMapFunc {
   Object.entries(sx.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `SendExecutor::In::${name}`)
   })
-  Object.entries(deployable.Opcodes).forEach(([name, code]) => {
+  Object.entries(deployable.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `Deployable::${name}`)
   })
-  Object.entries(offRamp.Opcodes).forEach(([name, code]) => {
+  Object.entries(offRamp.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `OffRamp::In::${name}`)
   })
-  Object.entries(rx.Opcodes).forEach(([name, code]) => {
+  Object.entries(rx.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `ReceiveExecutor::In::${name}`)
   })
-  Object.entries(mr.Opcodes).forEach(([name, code]) => {
+  Object.entries(mr.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `MerkleRoot::${name}`)
   })
   const mapFunc: OpMapFunc = (op: number) => {

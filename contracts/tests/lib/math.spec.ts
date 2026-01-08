@@ -2,8 +2,8 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { math } from '../../wrappers/test/lib'
+import { loadContractCode } from '../../wrappers/codeLoader'
 
 describe('math', () => {
   let blockchain: Blockchain
@@ -14,7 +14,7 @@ describe('math', () => {
 
   beforeAll(async () => {
     code = {
-      math: await compile('tests.lib.math'),
+      math: await loadContractCode('tests.lib.math'),
     }
   }, 10_000)
 

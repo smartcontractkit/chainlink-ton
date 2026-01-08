@@ -4,6 +4,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -22,8 +23,8 @@ var SetOCR3OfframpSequence = operations.NewSequence(
 	setOCR3OfframpSequence,
 )
 
-func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in SetOCR3OfframpSeqInput) ([][]byte, error) {
-	var txs [][]byte
+func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in SetOCR3OfframpSeqInput) (*helpers.Transactions, error) {
+	txs := helpers.NewEmptyTransactions()
 
 	// TODO: this just needs to loop over configs
 
@@ -38,7 +39,7 @@ func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Se
 		if err != nil {
 			return nil, err
 		}
-		txs = append(txs, commitReport.Output...)
+		txs.Append(commitReport.Output)
 	}
 
 	// Set exec OCR3 Config
@@ -52,7 +53,7 @@ func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Se
 		if err != nil {
 			return nil, err
 		}
-		txs = append(txs, execReport.Output...)
+		txs.Append(execReport.Output)
 	}
 
 	return txs, nil

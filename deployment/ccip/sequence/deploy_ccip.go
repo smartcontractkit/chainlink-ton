@@ -1,9 +1,9 @@
 package sequence
 
 import (
-	"errors"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -12,17 +12,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 
@@ -37,15 +37,6 @@ type DeployCCIPSeqInput struct {
 	ChainSelector       uint64
 }
 
-type DeployCCIPSeqOutput struct {
-	RouterAddress    *utils.TONContractAddress
-	FeeQuoterAddress *utils.TONContractAddress
-	OnRampAddress    *utils.TONContractAddress
-	OffRampAddress   *utils.TONContractAddress
-	ReceiverAddress  *utils.TONContractAddress
-	Transactions     [][]byte
-}
-
 var DeployCCIPSequence = operations.NewSequence(
 	"ton-deploy-ccip-seq",
 	semver.MustParse("0.1.0"),
@@ -53,15 +44,12 @@ var DeployCCIPSequence = operations.NewSequence(
 	deployCCIPSequence,
 )
 
-func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in DeployCCIPSeqInput) (DeployCCIPSeqOutput, error) {
+func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in DeployCCIPSeqInput) (sequences.OnChainOutput, error) {
 	// TODO: don't directly execute deployments, instead return them as txs
-
-	// Initialize the output
-	output := DeployCCIPSeqOutput{}
-
+	addresses := make([]datastore.AddressRef, 0)
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
 		ContractsVersionSha: in.ContractsVersionSha,
-		Contracts: []ds.ContractType{
+		Contracts: []datastore.ContractType{
 			state.Router,
 			state.FeeQuoter,
 			state.OffRamp,
@@ -78,7 +66,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 
 	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, sequence.RetrieveContractsSequence, config.TonDeps{TonChain: deps.TonChain}, retrieveContractsInput)
 	if err != nil {
-		return output, err
+		return sequences.OnChainOutput{}, err
 	}
 
 	tonCompiledContracts := tonCompiledContractsSeqOutput.Output.CompiledContracts
@@ -87,20 +75,20 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 		TonChain: deps.TonChain,
 	}
 
-	var tonContractAddress *utils.TONContractAddress
+	var outputAddr *datastore.AddressRef
 	// Router
 
 	routerAddress := deps.CCIPOnChainState[in.ChainSelector].Router
 	if routerAddress.IsAddrNone() {
 		routerStorage := router.Storage{
 			ID: in.CCIPConfig.RouterParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
 			WrappedNative: tvm.TonTokenAddr,
 			RMNRemote: router.RMNRemote{
-				Admin: common.Ownable2Step{
+				Admin: ownable2step.Storage{
 					Owner:        deps.TonChain.WalletAddress,
 					PendingOwner: address.NewAddressNone(),
 				},
@@ -110,25 +98,34 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 			OnRamps: nil, // set afterward
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil, in.CCIPConfig.RouterParams.Coin, in.CCIPConfig.RouterParams.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil, in.CCIPConfig.RouterParams.Coin, in.CCIPConfig.RouterParams.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
-		routerAddress = tonContractAddress.TONAddress
-		output.RouterAddress = tonContractAddress
+
+		addresses = append(addresses, *outputAddr)
+		routerAddress = *address.MustParseAddr(outputAddr.Address)
 	}
 
 	// FeeQuoter
 	linkTokenAddress := deps.CCIPOnChainState[in.ChainSelector].LinkTokenAddress
 	if linkTokenAddress.IsAddrNone() {
-		return output, errors.New("LINK address cannot be zero")
+		// TODO: create a constant in tvm package for the default LINK token address (NONEVM-1651)
+		linkTokenAddress = *address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
+		addresses = append(addresses, datastore.AddressRef{
+			Address:       linkTokenAddress.String(),
+			ChainSelector: in.ChainSelector,
+			Labels:        datastore.LabelSet{},
+			Type:          state.LinkToken,
+			Version:       &state.Version1_6_0,
+		})
 	}
 
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter
 	if feeQuoterAddress.IsAddrNone() {
 		feeQuoterStorage := feequoter.Storage{
 			ID: in.CCIPConfig.FeeQuoterParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -141,17 +138,17 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 		}
 
 		// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
-		feeQuoterAddress = tonContractAddress.TONAddress
-		output.FeeQuoterAddress = tonContractAddress
+		addresses = append(addresses, *outputAddr)
+		feeQuoterAddress = *address.MustParseAddr(outputAddr.Address)
 	}
 
 	reserve, err := tlb.FromTON(in.CCIPConfig.OnRampParams.Reserve)
 	if err != nil {
-		return output, err
+		return sequences.OnChainOutput{}, err
 	}
 
 	// OnRamp (has to be deployed after FeeQuoter to have feeQuoter address ready)
@@ -159,7 +156,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if onRampAddr.IsAddrNone() {
 		onRampStorage := onramp.Storage{
 			ID: in.CCIPConfig.OnRampParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -178,13 +175,13 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 			},
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin, in.CCIPConfig.OnRampParams.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin, in.CCIPConfig.OnRampParams.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
 
-		onRampAddr = tonContractAddress.TONAddress
-		output.OnRampAddress = tonContractAddress
+		addresses = append(addresses, *outputAddr)
+		onRampAddr = *address.MustParseAddr(outputAddr.Address)
 	}
 
 	// OffRamp (has to be deployed after FeeQuoter and Router to have their addresses ready)
@@ -192,7 +189,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if offRampAddr.IsAddrNone() {
 		offRampStorage := offramp.Storage{
 			ID: in.CCIPConfig.OffRampParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -210,12 +207,12 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 			LatestPriceSequenceNumber: 0,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin, in.CCIPConfig.OffRampParams.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin, in.CCIPConfig.OffRampParams.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
-		offRampAddr = tonContractAddress.TONAddress
-		output.OffRampAddress = tonContractAddress
+		addresses = append(addresses, *outputAddr)
+		offRampAddr = *address.MustParseAddr(outputAddr.Address)
 	}
 
 	// Receiver (has to be deployed after Router to have its address ready)
@@ -223,7 +220,7 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 	if receiverAddress.IsAddrNone() {
 		receiverStorage := receiver.Storage{
 			ID: in.CCIPConfig.ReceiverParams.ID,
-			Ownable: common.Ownable2Step{
+			Ownable: ownable2step.Storage{
 				Owner:        deps.TonChain.WalletAddress,
 				PendingOwner: address.NewAddressNone(),
 			},
@@ -231,13 +228,14 @@ func deployCCIPSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Deploy
 			Behavior:         receiver.Accept,
 		}
 
-		tonContractAddress, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, tonDeps, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)
 		if err != nil {
-			return output, err
+			return sequences.OnChainOutput{}, err
 		}
-		receiverAddress = tonContractAddress.TONAddress
-		output.ReceiverAddress = tonContractAddress
+		addresses = append(addresses, *outputAddr)
 	}
 
-	return output, nil
+	return sequences.OnChainOutput{
+		Addresses: addresses,
+	}, nil
 }
