@@ -34,9 +34,11 @@ export type TokenBalance = {
   failed: boolean
 }
 
-export abstract class Opcodes {
-  static validate = 0x038ede91
-  static markState = 0x019f4cd2
+export const opcodes = {
+  in: {
+    validate: 0x038ede91,
+    markState: 0x019f4cd2,
+  },
 }
 
 export type MerkleRootStorage = {

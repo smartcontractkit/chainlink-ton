@@ -180,10 +180,10 @@ func curse(
 	b operations.Bundle,
 	deps config.CCIPDeps,
 	in CurseInput,
-) ([][]byte, error) {
+) (*helpers.Transactions, error) {
 	// Validate input
 	if len(in.Subjects) == 0 {
-		return [][]byte{}, nil // No subjects to curse
+		return helpers.NewEmptyTransactions(), nil // No subjects to curse
 	}
 
 	// Get router address from chain state
@@ -207,15 +207,17 @@ func curse(
 	}
 
 	// Create internal message
-	msg := tlb.InternalMessage{
-		Bounce:  true,
-		Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
-		DstAddr: &routerAddr,
-		Body:    payload,
+	msg := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+			DstAddr: &routerAddr,
+			Body:    payload,
+		},
 	}
 
 	// Serialize and return
-	return helpers.Serialize([]*tlb.InternalMessage{&msg})
+	return helpers.NewTransactions(msg)
 }
 
 // UncurseInput defines the input for the uncurse operation.
@@ -235,10 +237,10 @@ func uncurse(
 	b operations.Bundle,
 	deps config.CCIPDeps,
 	in UncurseInput,
-) ([][]byte, error) {
+) (*helpers.Transactions, error) {
 	// Validate input
 	if len(in.Subjects) == 0 {
-		return [][]byte{}, nil // No subjects to uncurse
+		return helpers.NewEmptyTransactions(), nil // No subjects to uncurse
 	}
 
 	// Get router address from chain state
@@ -262,13 +264,15 @@ func uncurse(
 	}
 
 	// Create internal message
-	msg := tlb.InternalMessage{
-		Bounce:  true,
-		Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
-		DstAddr: &routerAddr,
-		Body:    payload,
+	msg := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+			DstAddr: &routerAddr,
+			Body:    payload,
+		},
 	}
 
 	// Serialize and return
-	return helpers.Serialize([]*tlb.InternalMessage{&msg})
+	return helpers.NewTransactions(msg)
 }

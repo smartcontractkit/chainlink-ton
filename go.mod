@@ -13,7 +13,7 @@ require (
 	github.com/prometheus/client_golang v1.23.0
 	github.com/smartcontractkit/chain-selectors v1.0.85
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20251024142759-093ed1b4017f
-	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251215152504-b1e41f508340
+	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260105084500-c86aff1c5182
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
 	github.com/smartcontractkit/chainlink-framework/metrics v0.0.0-20251206233640-139a324649d9
 	github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d
