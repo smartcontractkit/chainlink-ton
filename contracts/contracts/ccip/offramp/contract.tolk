@@ -25,9 +25,6 @@ import "../../lib/deployable/namespace"
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
 
-// NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
-// (or init contract state with that router addr? probably what solana does)
-
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     
@@ -627,6 +624,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
             // committed and no messages should have been executed.
             config = existingConfigEntry.loadValue();
             assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw Error.InvalidOnRampUpdate;
+            config.router = configUpdate.config.router;
             config.isEnabled = configUpdate.config.isEnabled;
             config.onRamp = configUpdate.config.onRamp;
         }
