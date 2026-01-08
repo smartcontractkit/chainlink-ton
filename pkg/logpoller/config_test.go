@@ -57,7 +57,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 			BatchInsertSize:           2000,
 			MinBatchSize:              250,
 			SaveThreshold:             4000,
-			MCBlockCacheSize:      2000,
+			MCBlockCacheSize:          2000,
 		}
 
 		original := customConfig

@@ -92,7 +92,7 @@ func TestLogModel_Conversion(t *testing.T) {
 			SeqNo:     100,
 		},
 		MCBlockSeqno: 200,
-		MsgIndex:         0,
+		MsgIndex:     0,
 	}
 
 	// Convert to database model and back
@@ -394,8 +394,8 @@ func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
 					FileHash:  make([]byte, 32),
 				},
 				MCBlockSeqno: 200,
-				MsgLT:            1000,
-				MsgIndex:         0,
+				MsgLT:        1000,
+				MsgIndex:     0,
 			}
 
 			dbModel, err := (&logModel{}).FromLog(originalLog)

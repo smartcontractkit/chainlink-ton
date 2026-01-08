@@ -131,18 +131,18 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, ch
 			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
 		}
 		logs[i] = models.Log{
-			ChainID:          chainID,
-			FilterID:         filterID,
-			EventSig:         eventSig,
-			Address:          msg.Msg.SenderAddr(),
-			Data:             body,
-			TxHash:           models.TxHash(tx.Transaction.Hash),
-			TxLT:             tx.Transaction.LT,
-			TxTimestamp:      time.Unix(int64(tx.Transaction.Now), 0).UTC(),
-			Block:            tx.Block,
+			ChainID:      chainID,
+			FilterID:     filterID,
+			EventSig:     eventSig,
+			Address:      msg.Msg.SenderAddr(),
+			Data:         body,
+			TxHash:       models.TxHash(tx.Transaction.Hash),
+			TxLT:         tx.Transaction.LT,
+			TxTimestamp:  time.Unix(int64(tx.Transaction.Now), 0).UTC(),
+			Block:        tx.Block,
 			MCBlockSeqno: tx.MCBlockSeqno,
-			MsgLT:            msgLT,
-			MsgIndex:         int64(msgIndex),
+			MsgLT:        msgLT,
+			MsgIndex:     int64(msgIndex),
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)
 			// scope: event extraction errors (BOC decode failures, unsupported message types)

@@ -22,7 +22,7 @@ type Config struct {
 	PageSize                  uint32
 	LogPollerStartingLookback *config.Duration
 	BlockTime                 *config.Duration
-	MCBlockCacheSize      int // LRU cache maps shard block keys to masterchain seqno
+	MCBlockCacheSize          int // LRU cache maps shard block keys to masterchain seqno
 
 	// Database configuration - simple values with defaults
 	BatchInsertSize uint32

@@ -279,7 +279,6 @@ func TestPgLogStore(t *testing.T) {
 		assert.NotEqual(t, firstLogs[0].ID, logs2[0].ID)
 		assert.Less(t, firstLogs[0].TxLT, logs2[0].TxLT)
 	})
-
 }
 
 func TestGetLatestBlock(t *testing.T) {
