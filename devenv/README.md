@@ -5,7 +5,7 @@ Download [chainlink-ccip](https://github.com/smartcontractkit/chainlink-ccip) re
 ```bash
 cd devenv
 just cli
-ccip up env.toml,../../chainlink-ton/devenv-impl/ton.toml # static CL node version
-ccip up env.toml,env-cl-rebuild.toml,../../chainlink-ton/devenv-impl/ton.toml # rebuild CL node
+ccip up env.toml,../../chainlink-ton/devenv/ton.toml # static CL node version
+ccip up env.toml,env-cl-rebuild.toml,../../chainlink-ton/devenv/ton.toml # rebuild CL node
 ccip test smoke
 ```
