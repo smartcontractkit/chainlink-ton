@@ -36,7 +36,7 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 		},
 	}
 	bundle := operations.NewBundle(
-		//nolint:gocritic: //replace the lambda with context.Background()
+		//nolint:gocritic //replace the lambda with context.Background()
 		func() context.Context { return context.Background() },
 		env.Logger,
 		operations.NewMemoryReporter(),
