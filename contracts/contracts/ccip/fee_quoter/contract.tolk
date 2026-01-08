@@ -251,7 +251,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
         8 => {
             throw FeeQuoter_Error.MsgDataTooLarge;
         }
-        ERROR_INVALID_DATA => {
+        Utils_Error.InvalidData as int => {
             throw FeeQuoter_Error.InvalidMsgData;
         }
         else => {
