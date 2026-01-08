@@ -8,6 +8,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
 
@@ -24,7 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	cs_core "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
-	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	ccipops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -76,9 +78,9 @@ func TestFastCurseTON(t *testing.T) {
 
 	// <deploy-ton>
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
-	contractID, err := ops.RandomUint32()
+	contractID, err := ccipops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
+	cs := commonchangeset.Configure(ccipops.DeployCCIPContracts{}, ccipops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
@@ -90,7 +92,7 @@ func TestFastCurseTON(t *testing.T) {
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: ops.TonFeeQuoterDestChainCanonicalConfig,
+		FeeQuoterDestChainConfig: ccipops.TonFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,
 		AllowListEnabled:         false,
 	}
@@ -101,10 +103,18 @@ func TestFastCurseTON(t *testing.T) {
 		TokenPrices: map[string]*big.Int{
 			"0x779877A7B0D9E8603169DdbD7836e478b4624789": big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: ops.EvmFeeQuoterDestChainCanonicalConfig,
+		FeeQuoterDestChainConfig: ccipops.EvmFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,
 		AllowListEnabled:         false,
 	}
+
+	// Set up operations bundle with TON operation registry
+	bundleOpts := []operations.BundleOption{
+		operations.WithOperationRegistry(ops.Registry),
+	}
+	rptr := operations.NewMemoryReporter()
+	bundle := operations.NewBundle(t.Context, lggr, rptr, bundleOpts...)
+	env.OperationsBundle = bundle
 
 	// TON <> EVM lanes
 	lanesRegistry := lanes.GetLaneAdapterRegistry()

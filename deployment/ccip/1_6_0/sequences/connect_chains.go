@@ -8,6 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -19,7 +20,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	toncodec "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/mcms/types"
 )
 
 func (a *TonAdapter) ConfigureLaneLegAsSource() *operations.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
@@ -44,11 +46,15 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
 
-		messages := make([]opston.InternalMessage[any], 0, 4)
+		ctx := b.GetContext()
+		walletAddr := tonChain.Wallet.Address()
 
 		feeQuoterAddr := deps.CCIPOnChainState[chainSelector].FeeQuoter
 		onRampAddr := deps.CCIPOnChainState[chainSelector].OnRamp
 		routerAddr := deps.CCIPOnChainState[chainSelector].Router
+
+		opDeps := opston.SendMessagesDeps{Wallet: tonChain.Wallet}
+		out := sequences.OnChainOutput{}
 
 		// 1. Update FeeQuoter dest chain configs
 		feeQuoterDestUpdate := buildFeeQuoterDestChainConfig(input)
@@ -57,12 +63,33 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap fee quoter dest config: %w", err)
 		}
-		messages = append(messages, opston.InternalMessage[any]{
-			Body:    feeQuoterDestEnvelope,
-			DstAddr: &feeQuoterAddr,
-			Amount:  tlb.MustFromTON("0.1"),
-			Bounce:  true,
+
+		feeQuoterPlan, err := opston.ShouldPlanOperation(ctx, tonChain.Client, &feeQuoterAddr, walletAddr)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed for fee quoter: %w", err)
+		}
+
+		feeQuoterDestConfigResult, err := operations.ExecuteOperation(b, opston.SendMessages, opDeps, opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &feeQuoterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    feeQuoterDestEnvelope,
+				},
+			},
+			Plan: feeQuoterPlan,
 		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter dest configs: %w", err)
+		}
+
+		out, err = withOperationOutput(out, feeQuoterDestConfigResult.Output, types.ChainSelector(chainSelector), []types.OperationMetadata{
+			{ContractType: bindings.PkgCCIP + ".FeeQuoter", Tags: []string{"UpdateDestChainConfigs"}},
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to process fee quoter dest config output: %w", err)
+		}
 
 		// 2. Update OnRamp dest chain configs
 		onRampDestUpdate := buildOnRampDestChainConfig(input, deps, chainSelector)
@@ -71,26 +98,63 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap onramp config: %w", err)
 		}
-		messages = append(messages, opston.InternalMessage[any]{
-			Body:    onRampEnvelope,
-			DstAddr: &onRampAddr,
-			Amount:  tlb.MustFromTON("0.1"),
-			Bounce:  true,
-		})
 
-		// 3. Update FeeQuoter prices
+		onRampPlan, err := opston.ShouldPlanOperation(ctx, tonChain.Client, &onRampAddr, walletAddr)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed for onramp: %w", err)
+		}
+
+		onRampDestConfigResult, err := operations.ExecuteOperation(b, opston.SendMessages, opDeps, opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &onRampAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    onRampEnvelope,
+				},
+			},
+			Plan: onRampPlan,
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update onramp dest configs: %w", err)
+		}
+
+		out, err = withOperationOutput(out, onRampDestConfigResult.Output, types.ChainSelector(chainSelector), []types.OperationMetadata{
+			{ContractType: bindings.PkgCCIP + ".OnRamp", Tags: []string{"UpdateDestChainConfigs"}},
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to process onramp dest config output: %w", err)
+		}
+
+		// 3. Update FeeQuoter prices (reuse feeQuoterPlan from step 1)
 		feeQuoterPrices := buildFeeQuoterPrices(input)
 		b.Logger.Infow("Updating prices on FeeQuoter", "update", feeQuoterPrices)
 		pricesEnvelope, err := toncodec.WrapMessage[any](bindings.PkgCCIP+".FeeQuoter", &feeQuoterPrices)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap fee quoter prices: %w", err)
 		}
-		messages = append(messages, opston.InternalMessage[any]{
-			Body:    pricesEnvelope,
-			DstAddr: &feeQuoterAddr,
-			Amount:  tlb.MustFromTON("0.1"),
-			Bounce:  true,
+
+		feeQuoterPricesResult, err := operations.ExecuteOperation(b, opston.SendMessages, opDeps, opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &feeQuoterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    pricesEnvelope,
+				},
+			},
+			Plan: feeQuoterPlan,
 		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter prices: %w", err)
+		}
+
+		out, err = withOperationOutput(out, feeQuoterPricesResult.Output, types.ChainSelector(chainSelector), []types.OperationMetadata{
+			{ContractType: bindings.PkgCCIP + ".FeeQuoter", Tags: []string{"UpdatePrices"}},
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to process fee quoter prices output: %w", err)
+		}
 
 		// 4. Update Router with onramps
 		routerUpdate, err := buildRouterOnRampUpdate(input)
@@ -102,34 +166,35 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap router update: %w", err)
 		}
-		messages = append(messages, opston.InternalMessage[any]{
-			Body:    routerEnvelope,
-			DstAddr: &routerAddr,
-			Amount:  tlb.MustFromTON("0.1"),
-			Bounce:  true,
-		})
 
-		seqDeps := opston.AnySequenceDeps{}
-		seqDeps[opston.SendMessages.Def().ID] = opston.SendMessagesDeps{Wallet: tonChain.Wallet}
+		routerPlan, err := opston.ShouldPlanOperation(ctx, tonChain.Client, &routerAddr, walletAddr)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed for router: %w", err)
+		}
 
-		anySeqInput := opston.AnySequenceInput{
-			Defs: []operations.Definition{
-				opston.SendMessages.Def(),
-			},
-			Inputs: []any{
-				opston.SendMessagesInput{
-					Messages: messages,
-					Plan:     false,
+		routerResult, err := operations.ExecuteOperation(b, opston.SendMessages, opDeps, opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &routerAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    routerEnvelope,
 				},
 			},
-		}
-
-		_, err = operations.ExecuteSequence(b, opston.AnySequence, seqDeps, anySeqInput)
+			Plan: routerPlan,
+		})
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to execute sequence: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router onramps: %w", err)
 		}
 
-		return sequences.OnChainOutput{}, nil
+		out, err = withOperationOutput(out, routerResult.Output, types.ChainSelector(chainSelector), []types.OperationMetadata{
+			{ContractType: bindings.PkgCCIP + ".Router", Tags: []string{"ApplyRampUpdates"}},
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to process router output: %w", err)
+		}
+
+		return out, nil
 	},
 )
 
@@ -147,10 +212,14 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
 
-		messages := make([]opston.InternalMessage[any], 0, 2)
+		ctx := b.GetContext()
+		walletAddr := tonChain.Wallet.Address()
 
 		offRampAddr := deps.CCIPOnChainState[chainSelector].OffRamp
 		routerAddr := deps.CCIPOnChainState[chainSelector].Router
+
+		opDeps := opston.SendMessagesDeps{Wallet: tonChain.Wallet}
+		out := sequences.OnChainOutput{}
 
 		// 1. Update OffRamp source chain configs
 		offRampUpdate := buildOffRampSourceConfig(input, &routerAddr)
@@ -159,12 +228,33 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap offramp config: %w", err)
 		}
-		messages = append(messages, opston.InternalMessage[any]{
-			Body:    offRampEnvelope,
-			DstAddr: &offRampAddr,
-			Amount:  tlb.MustFromTON("0.1"),
-			Bounce:  true,
+
+		offRampPlan, err := opston.ShouldPlanOperation(ctx, tonChain.Client, &offRampAddr, walletAddr)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed for offramp: %w", err)
+		}
+
+		offRampResult, err := operations.ExecuteOperation(b, opston.SendMessages, opDeps, opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &offRampAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    offRampEnvelope,
+				},
+			},
+			Plan: offRampPlan,
 		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp source configs: %w", err)
+		}
+
+		out, err = withOperationOutput(out, offRampResult.Output, types.ChainSelector(chainSelector), []types.OperationMetadata{
+			{ContractType: bindings.PkgCCIP + ".OffRamp", Tags: []string{"UpdateSourceChainConfigs"}},
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to process offramp output: %w", err)
+		}
 
 		// 2. Update Router with offramps
 		routerUpdate, err := buildRouterOffRampUpdate(input)
@@ -176,35 +266,35 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap router update: %w", err)
 		}
-		messages = append(messages, opston.InternalMessage[any]{
-			Body:    routerEnvelope,
-			DstAddr: &routerAddr,
-			Amount:  tlb.MustFromTON("0.1"),
-			Bounce:  true,
-		})
 
-		// Execute all messages in a SINGLE transaction via AnySequence
-		seqDeps := opston.AnySequenceDeps{}
-		seqDeps[opston.SendMessages.Def().ID] = opston.SendMessagesDeps{Wallet: tonChain.Wallet}
+		routerPlan, err := opston.ShouldPlanOperation(ctx, tonChain.Client, &routerAddr, walletAddr)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed for router: %w", err)
+		}
 
-		anySeqInput := opston.AnySequenceInput{
-			Defs: []operations.Definition{
-				opston.SendMessages.Def(),
-			},
-			Inputs: []any{
-				opston.SendMessagesInput{
-					Messages: messages,
-					Plan:     false,
+		routerResult, err := operations.ExecuteOperation(b, opston.SendMessages, opDeps, opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &routerAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    routerEnvelope,
 				},
 			},
-		}
-
-		_, err = operations.ExecuteSequence(b, opston.AnySequence, seqDeps, anySeqInput)
+			Plan: routerPlan,
+		})
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to execute sequence: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router offramps: %w", err)
 		}
 
-		return sequences.OnChainOutput{}, nil
+		out, err = withOperationOutput(out, routerResult.Output, types.ChainSelector(chainSelector), []types.OperationMetadata{
+			{ContractType: bindings.PkgCCIP + ".Router", Tags: []string{"ApplyRampUpdates"}},
+		})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to process router output: %w", err)
+		}
+
+		return out, nil
 	},
 )
 

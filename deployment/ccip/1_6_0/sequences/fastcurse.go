@@ -263,17 +263,10 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 
 			// Get router address from chain state
 			routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
-
-			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
-			ctx := b.GetContext()
-			sender := chain.Wallet.Address()
-
-			owner, err := tvm.CallGetterLatest(ctx, chain.Client, &routerAddr, ownable2step.GetOwner)
+			plan, err := ton.ShouldPlanOperation(b.GetContext(), chain.Client, &routerAddr, chain.WalletAddress)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed: %w", err)
 			}
-
-			plan := sender.Equals(owner) != true // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
