@@ -177,7 +177,7 @@ func Test_LogPoller(t *testing.T) {
 		senderB, sberr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, sberr)
 
-		ferr := test_utils.FundWallets(t.Context(), tonChain.Client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
+		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
 		require.NoError(t, ferr)
 
 		emitterA, err := helper.NewTestEventSource(t.Context(), tonChain.Client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
@@ -836,7 +836,7 @@ func Test_LogPoller(t *testing.T) {
 		sender, serr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 		require.NoError(t, serr)
 
-		ferr := test_utils.FundWallets(t.Context(), tonChain.Client, []*address.Address{sender.Address()},
+		ferr := test_utils.FundWallets(t, tonChain.Client, []*address.Address{sender.Address()},
 			[]tlb.Coins{tlb.MustFromTON("1000")})
 		require.NoError(t, ferr)
 

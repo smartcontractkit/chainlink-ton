@@ -108,7 +108,7 @@ func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input,
 	if err != nil {
 		return fmt.Errorf("failed to create TON client: %w", err)
 	}
-	return testutils.FundWallets(ctx, client, keys, amounts)
+	return testutils.FundWalletsNoT(client, keys, amounts)
 }
 
 func GetNodeAddressFromBundle(bundle *clclient.NodeKeysBundle) (string, error) {

@@ -41,7 +41,7 @@ func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccou
 		accounts[i] = tracetracking.NewSignedAPIClient(tonChain.Client, *w)
 	}
 
-	ferr := testutils.FundWallets(t.Context(), tonChain.Client, recipients, amounts)
+	ferr := testutils.FundWallets(t, tonChain.Client, recipients, amounts)
 	require.NoError(t, ferr)
 
 	return accounts
