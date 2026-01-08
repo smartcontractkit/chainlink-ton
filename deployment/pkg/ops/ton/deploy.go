@@ -1,7 +1,6 @@
 package ton // alias: opston
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -12,7 +11,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 )
 
@@ -72,13 +70,12 @@ var Deploy = operations.NewOperation(
 
 			// prepare message with loaded code and data as StateInit
 			m := u.Message
-			val := m.Body.Value
-			valAny := any(val)
+			valAny := any(m.Body.Value)
 
 			var data *cell.Cell
 			if u.Data != nil {
 				// Convert Data to cell based on its type
-				data, err = encodeDataCellFor(u.ContractMeta, u.Data)
+				data, err = encodeDataCellFor(u.Data)
 				if err != nil {
 					return DeployOutput{}, fmt.Errorf("failed to encode data cell: %w", err)
 				}
@@ -123,58 +120,16 @@ var Deploy = operations.NewOperation(
 	},
 )
 
-// TODO: registry of contract metadata to (storage/data) struct type mappings
-func getDataStructType(meta ContractMetadata) (reflect.Type, error) {
-	// For simplicity, we can have a hardcoded mapping here.
-	// In a real implementation, this could query a registry or use metadata.
-	switch meta.ID {
-	case "mcms.MCMS":
-		return reflect.TypeOf(mcms.Data{}), nil
-	// Add more contract metadata to struct type mappings as needed.
-	default:
-		return nil, fmt.Errorf("unknown contract for data struct type: %s", meta.ID)
-	}
-}
-
 // encodeDataCellFor encodes the provided data into a TON cell based on its type.
 //
 // The function handles the following cases:
 //   - If data is already a *cell.Cell, it is returned as is.
-//   - If data is a map[string]any, it is unmarshaled into the appropriate struct type
-//     based on the contract metadata and struct registry, then converted to a cell.
 //   - If data is a struct (or pointer to struct), it is directly converted to a cell.
 //   - Or else, an error is returned.
-func encodeDataCellFor(meta ContractMetadata, data any) (*cell.Cell, error) {
+func encodeDataCellFor(data any) (*cell.Cell, error) {
 	switch d := data.(type) {
 	case *cell.Cell:
-		return d, nil // already a cell pointer
-	case map[string]any:
-		// Need to find the struct type and unmarshal map to it
-		// Get the target struct type from contract metadata or registry
-		targetType, err := getDataStructType(meta)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get data struct type: %w", err)
-		}
-
-		// Create new instance of the struct
-		structVal := reflect.New(targetType).Interface()
-
-		// Unmarshal map to struct (via JSON roundtrip or mapstructure)
-		jsonBytes, err := json.Marshal(d)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal map: %w", err)
-		}
-		if err := json.Unmarshal(jsonBytes, structVal); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal to struct: %w", err)
-		}
-
-		// Convert struct to cell
-		datac, err := tlb.ToCell(structVal)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert data to cell: %w", err)
-		}
-
-		return datac, nil
+		return d, nil // already a cell, supports resolver: "codec.resolvers.contract-data-to-cell"
 	default:
 		// Check if it's a struct (or pointer to struct)
 		rv := reflect.ValueOf(data)
