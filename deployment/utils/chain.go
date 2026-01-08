@@ -43,7 +43,7 @@ func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*addres
 }
 
 func FundWalletsNoT(client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
-    return FundWalletsWithCtx(context.Background(), client, recipients, amounts)
+	return FundWalletsWithCtx(context.Background(), client, recipients, amounts)
 }
 
 func FundWalletsWithCtx(ctx context.Context, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
