@@ -16,11 +16,12 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/clclient"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
-	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+
+	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 )
 
 type CCIP16TON struct {
