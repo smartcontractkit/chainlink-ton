@@ -16,7 +16,7 @@ import {
   SourceChainConfig,
   OffRamp,
   OffRampError,
-  Opcodes,
+  opcodes,
   UpdateSourceChainConfig,
   MerkleRoot,
 } from '../../wrappers/ccip/OffRamp'

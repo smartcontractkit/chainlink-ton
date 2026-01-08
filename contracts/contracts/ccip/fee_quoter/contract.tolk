@@ -134,7 +134,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
             }
 
-            st.destChainConfigs.replaceAndGetPrevious(destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(destChainSelector, destChainConfig);
         }
         entry = msg.updates.iterateNext(entry);
     }
@@ -197,7 +197,7 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
                 dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
                 timestamp
             }.toCell();
-            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, destChainConfig);
 
             emit(USD_PER_UNIT_GAS_UPDATED, UsdPerUnitGasUpdated {
                 destChainSelector: update.destChainSelector,
@@ -558,9 +558,13 @@ get fun tokenPrices(tokens: tuple): tuple {
 
     while(!iter.empty()) {
         val token = iter.next();
-        // NOTE: Need to skip missing items as nil entries rather than fail the query
         val entry = st.usdPerToken.get(token);
-        list.push(entry.loadValue().toCell());
+        // NOTE: Need to skip missing items as nil entries rather than fail the query
+        if (entry.isFound) {
+            list.push(entry.loadValue().toCell());
+        } else {
+            list.push(null);
+        }
     }
     return list;
 }

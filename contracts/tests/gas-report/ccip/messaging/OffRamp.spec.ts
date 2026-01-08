@@ -54,7 +54,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { opMapFunc } from './opMapFunc'
 import { ContractClient as DeployableContract } from '../../../../wrappers/libraries/Deployable'
-import { MerkleRoot } from '../../../../wrappers/ccip/MerkleRoot'
+import * as mr from '../../../../wrappers/ccip/MerkleRoot'
 import { ContractClient as CCIPSendExecutorContract } from '../../../../wrappers/ccip/CCIPSendExecutor'
 
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
@@ -119,7 +119,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Compile contracts
     deployerCode = await DeployableContract.code()
-    merkleRootCodeRaw = await MerkleRoot.code()
+    merkleRootCodeRaw = await mr.MerkleRoot.code()
 
     // Setup blockchain libs for MerkleRoot
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
@@ -157,7 +157,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     {
       let code = await or.OnRamp.code()
       let data: or.OnRampStorage = {
-        id: 0,
+        id: 0n,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -167,6 +167,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           feeQuoter: feeQuoter.address,
           feeAggregator: deployer.address,
           allowlistAdmin: deployer.address,
+          reserve: toNano('1'),
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
         executor: {
@@ -311,7 +312,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       receiver = blockchain.openContract(
         Receiver.createFromConfig(
           {
-            id: 0,
+            id: 0n,
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
             behavior: ReceiverBehavior.Accept,
@@ -356,9 +357,9 @@ describe('CCIP OffRamp Gas Estimation', () => {
     merkleRoots.push({
       sourceChainSelector: CHAINSEL_EVM_TEST,
       onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-      minSeqNr: BigInt(1),
-      maxSeqNr: BigInt(10),
-      merkleRoot: rootBytes + BigInt(0),
+      minSeqNr: 1n,
+      maxSeqNr: 10n,
+      merkleRoot: rootBytes + 0n,
     })
 
     const commitReport: CommitReport = {

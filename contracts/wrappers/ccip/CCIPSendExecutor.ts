@@ -189,8 +189,8 @@ export abstract class Params {}
 export const opcodes = {
   in: {
     execute: 0xaf3c62b3,
-    messageValidated: fq.OutOpcodes.messageValidated,
-    messageValidationFailed: fq.OutOpcodes.messageValidationFailed,
+    messageValidated: fq.opcodes.out.messageValidated,
+    messageValidationFailed: fq.opcodes.out.messageValidationFailed,
   },
 }
 

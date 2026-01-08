@@ -72,7 +72,7 @@ export const builder = {
         return {
           encode: (data: Initialize): Builder => {
             return beginCell()
-              .storeUint(Opcodes.initialize, 32)
+              .storeUint(opcodes.in.initialize, 32)
               .storeRef(data.stateInit.code)
               .storeRef(data.stateInit.data)
           },
@@ -88,7 +88,7 @@ export const builder = {
         return {
           encode: (data: InitializeAndSend): Builder => {
             return beginCell()
-              .storeUint(Opcodes.initializeAndSend, 32)
+              .storeUint(opcodes.in.initializeAndSend, 32)
               .storeRef(data.stateInit.code)
               .storeRef(data.stateInit.data)
               .storeCoins(data.selfMessage.value)
@@ -113,9 +113,11 @@ export const builder = {
   },
 }
 
-export abstract class Opcodes {
-  static initialize = 0xba466447
-  static initializeAndSend = 0xb0ec5157
+export const opcodes = {
+  in: {
+    initialize: 0xba466447,
+    initializeAndSend: 0xb0ec5157,
+  },
 }
 
 export enum Errors {
