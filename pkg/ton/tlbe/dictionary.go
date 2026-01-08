@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
+	"strings"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -145,22 +147,50 @@ func (d *Dict[K, V]) AsMap() map[K]V {
 	return d.entries
 }
 
-func (d Dict[K, V]) MarshalJSON() ([]byte, error) {
-	return json.Marshal(d.entries)
+// pair represents a key-value pair (entry) in the dictionary,
+// and is used for JSON marshalling/unmarshalling - supports keys that are not
+// directly representable in JSON object keys.
+type pair[K comparable, V any] struct {
+	Key   K `json:"key"`
+	Value V `json:"value"`
 }
 
+// MarshalJSON implements the [encoding/json.Marshaler] interface,
+// serializing the dictionary as an array of key-value pairs.
+func (d Dict[K, V]) MarshalJSON() ([]byte, error) {
+	pairs := make([]pair[K, V], 0, len(d.entries))
+	for k, v := range d.entries {
+		pairs = append(pairs, pair[K, V]{Key: k, Value: v})
+	}
+
+	// Sort output pairs by key string representation (Dictionary is an ordered map)
+	slices.SortFunc(pairs, func(a, b pair[K, V]) int {
+		return strings.Compare(fmt.Sprint(a.Key), fmt.Sprint(b.Key))
+	})
+
+	return json.Marshal(pairs)
+}
+
+// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface,
+// deserializing the dictionary from an array of key-value pairs.
 func (d *Dict[K, V]) UnmarshalJSON(data []byte) error {
 	if d == nil {
 		return errors.New("invalid nil receiver")
 	}
 
-	if len(data) == 0 || string(data) == "{}" {
+	if len(data) == 0 || string(data) == "[]" {
 		d.entries = make(map[K]V)
 		return nil
 	}
 
-	if err := json.Unmarshal(data, &d.entries); err != nil {
+	var pairs []pair[K, V]
+	if err := json.Unmarshal(data, &pairs); err != nil {
 		return fmt.Errorf("cannot unmarshal Dict: %w", err)
+	}
+
+	d.entries = make(map[K]V, len(pairs))
+	for _, p := range pairs {
+		d.entries[p.Key] = p.Value
 	}
 
 	return nil
