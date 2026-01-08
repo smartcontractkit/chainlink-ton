@@ -91,7 +91,7 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 	observedLogStore := NewObservedLogStore(opts.LogStore, metrics, lggr)
 
 	// init masterchain block cache
-	mcBlockCache, err := lru.New[string, uint32](opts.Config.MasterBlockCacheSize)
+	mcBlockCache, err := lru.New[string, uint32](opts.Config.MCBlockCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create masterchain block cache: %w", err)
 	}
@@ -300,7 +300,7 @@ func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models
 			errsOut <- fmt.Errorf("failed to resolve masterchain block seqno: %w", err)
 			continue
 		}
-		tx.MasterBlockSeqno = mcSeqno
+		tx.MCBlockSeqno = mcSeqno
 
 		select {
 		case txsOut <- tx:
@@ -391,11 +391,6 @@ func (lp *service) ReplayStatus() models.ReplayStatus {
 	lp.replay.mut.RLock()
 	defer lp.replay.mut.RUnlock()
 	return lp.replay.status
-}
-
-// GetLatestBlock returns the highest masterchain block seqno from stored logs.
-func (lp *service) GetLatestBlock(ctx context.Context) (uint32, error) {
-	return lp.logStore.GetLatestMasterBlockSeqno(ctx)
 }
 
 // checkForReplayRequest checks whether there have been any new replay requests since it was last called,

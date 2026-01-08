@@ -16,7 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
+func TestInMemoryLogs_GetLatestMCBlockSeqno(t *testing.T) {
 	ctx := context.Background()
 	lggr := logger.Test(t)
 	store := NewLogStore("test-chain", lggr)
@@ -24,14 +24,15 @@ func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	t.Run("empty store returns 0", func(t *testing.T) {
-		latestSeqno, err := store.GetLatestMasterBlockSeqno(ctx)
+	t.Run("empty store returns 0 and exists=false", func(t *testing.T) {
+		latestSeqno, exists, err := store.GetLatestMCBlockSeqno(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, uint32(0), latestSeqno)
+		assert.False(t, exists, "exists should be false for empty store")
 	})
 
-	t.Run("returns highest master block seqno", func(t *testing.T) {
-		// Create test logs with different MasterBlockSeqno values
+	t.Run("returns highest master block seqno with exists=true", func(t *testing.T) {
+		// Create test logs with different MCBlockSeqno values
 		logs := []models.Log{
 			{
 				ChainID:          "test-chain",
@@ -44,7 +45,7 @@ func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
 				MsgLT:            1000,
 				TxTimestamp:      time.Now(),
 				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
-				MasterBlockSeqno: 150,
+				MCBlockSeqno: 150,
 				MsgIndex:         0,
 			},
 			{
@@ -58,7 +59,7 @@ func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
 				MsgLT:            1001,
 				TxTimestamp:      time.Now(),
 				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
-				MasterBlockSeqno: 200, // highest
+				MCBlockSeqno: 200, // highest
 				MsgIndex:         0,
 			},
 			{
@@ -72,7 +73,7 @@ func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
 				MsgLT:            1002,
 				TxTimestamp:      time.Now(),
 				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
-				MasterBlockSeqno: 175,
+				MCBlockSeqno: 175,
 				MsgIndex:         0,
 			},
 		}
@@ -80,8 +81,9 @@ func TestInMemoryLogs_GetLatestMasterBlockSeqno(t *testing.T) {
 		_, err := store.SaveLogs(ctx, logs, 100, 10)
 		require.NoError(t, err)
 
-		latestSeqno, err := store.GetLatestMasterBlockSeqno(ctx)
+		latestSeqno, exists, err := store.GetLatestMCBlockSeqno(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, uint32(200), latestSeqno)
+		assert.True(t, exists, "exists should be true after saving logs")
 	})
 }

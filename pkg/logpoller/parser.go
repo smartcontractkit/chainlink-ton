@@ -140,7 +140,7 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, ch
 			TxLT:             tx.Transaction.LT,
 			TxTimestamp:      time.Unix(int64(tx.Transaction.Now), 0).UTC(),
 			Block:            tx.Block,
-			MasterBlockSeqno: tx.MasterBlockSeqno,
+			MCBlockSeqno: tx.MCBlockSeqno,
 			MsgLT:            msgLT,
 			MsgIndex:         int64(msgIndex),
 			// TODO: populate Error field for failed message processing

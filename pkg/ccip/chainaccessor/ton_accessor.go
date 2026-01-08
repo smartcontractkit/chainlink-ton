@@ -530,7 +530,7 @@ func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.T
 				PriceUpdates:         priceUpdates,
 			},
 			Timestamp: log.TxTimestamp,
-			BlockNum:  uint64(log.MasterBlockSeqno),
+			BlockNum:  uint64(log.MCBlockSeqno),
 		})
 	}
 	lggr.Debugw("decoded commit reports", "reports", reports)

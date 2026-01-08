@@ -21,9 +21,6 @@ type Service interface {
 	Replay(ctx context.Context, fromBlock uint32) error
 	ReplayStatus() models.ReplayStatus
 	NewQuery() query.Builder
-	// GetLatestBlock returns the highest masterchain block seqno from stored logs.
-	// Returns 0 if no logs exist. Useful for monitoring and testing resumption behavior.
-	GetLatestBlock(ctx context.Context) (uint32, error)
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.
@@ -74,10 +71,11 @@ type LogStore interface {
 	// The LogStore is responsible for translating parameters to its optimal execution strategy.
 	// Uses chainlink-common's LimitAndSort for standardized pagination and sorting.
 	QueryLogs(ctx context.Context, query *query.LogQuery) (logs []models.Log, hasMore bool, nextCursor string, err error)
-	// GetLatestMasterBlockSeqno retrieves the highest masterchain block sequence number
-	// from stored logs. Returns 0 if no logs exist. This is used for resuming processing
-	// from the last known state after a service restart.
-	GetLatestMasterBlockSeqno(ctx context.Context) (uint32, error)
+	// GetLatestMCBlockSeqno retrieves the highest masterchain block sequence number
+	// from stored logs. Returns (seqno, exists, err) where exists indicates whether any
+	// logs are stored. This is used for resuming processing from the last known state
+	// after a service restart.
+	GetLatestMCBlockSeqno(ctx context.Context) (seqno uint32, exists bool, err error)
 }
 
 // RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)

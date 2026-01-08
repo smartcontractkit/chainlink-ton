@@ -485,7 +485,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxLT:             1000,
 			TxTimestamp:      baseTimestamp.Add(1 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
-			MasterBlockSeqno: 200,
+			MCBlockSeqno: 200,
 			MsgIndex:         0,
 		},
 		// 2. PriceUpdates-only log (should be filtered OUT)
@@ -499,7 +499,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxLT:             1001,
 			TxTimestamp:      baseTimestamp.Add(2 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
-			MasterBlockSeqno: 201,
+			MCBlockSeqno: 201,
 			MsgIndex:         1,
 		},
 		// 3. Both MerkleRoot AND PriceUpdates (should be included)
@@ -513,7 +513,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxLT:             1002,
 			TxTimestamp:      baseTimestamp.Add(3 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
-			MasterBlockSeqno: 202,
+			MCBlockSeqno: 202,
 			MsgIndex:         2,
 		},
 		// 4. Another PriceUpdates-only log (should be filtered OUT)
@@ -527,7 +527,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxLT:             1003,
 			TxTimestamp:      baseTimestamp.Add(4 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 103},
-			MasterBlockSeqno: 203,
+			MCBlockSeqno: 203,
 			MsgIndex:         3,
 		},
 		// 5. Another MerkleRoot-only log (should be included)
@@ -541,7 +541,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxLT:             1004,
 			TxTimestamp:      baseTimestamp.Add(5 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 104},
-			MasterBlockSeqno: 204,
+			MCBlockSeqno: 204,
 			MsgIndex:         4,
 		},
 	}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
@@ -610,7 +610,7 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 		TxLT:             1000,
 		TxTimestamp:      logTimestamp,
 		Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
-		MasterBlockSeqno: 200,
+		MCBlockSeqno: 200,
 		MsgIndex:         0,
 	}}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, saveErr, "failed to save logs")
@@ -871,7 +871,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxLT:             1000,
 			TxTimestamp:      baseTimestamp.Add(1 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
-			MasterBlockSeqno: 200,
+			MCBlockSeqno: 200,
 			MsgLT:            1000,
 			MsgIndex:         0,
 		},
@@ -885,7 +885,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxLT:             1001,
 			TxTimestamp:      baseTimestamp.Add(2 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
-			MasterBlockSeqno: 201,
+			MCBlockSeqno: 201,
 			MsgLT:            1001,
 			MsgIndex:         1,
 		},
@@ -899,7 +899,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxLT:             1002,
 			TxTimestamp:      baseTimestamp.Add(3 * time.Second),
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
-			MasterBlockSeqno: 202,
+			MCBlockSeqno: 202,
 			MsgLT:            1002,
 			MsgIndex:         2,
 		},

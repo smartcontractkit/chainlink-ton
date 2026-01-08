@@ -59,8 +59,8 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 				Shard:     -1,
 				SeqNo:     uint32(100 + i), //nolint:gosec // test code with small values
 			},
-			MasterBlockSeqno: uint32(200 + i), //nolint:gosec // test code with small values
-			MsgIndex:         int64(i),
+			MCBlockSeqno: uint32(200 + i), //nolint:gosec // test code with small values
+			MsgIndex:     int64(i),
 		}
 	}
 	return logs
@@ -280,20 +280,6 @@ func TestPgLogStore(t *testing.T) {
 		assert.Less(t, firstLogs[0].TxLT, logs2[0].TxLT)
 	})
 
-	t.Run("GetLatestBlock via service interface", func(t *testing.T) {
-		// create service to test via public interface
-		lp, err := logpoller.NewService(logger.Test(t), "test-chain", nil, &logpoller.ServiceOptions{
-			Config:      logpoller.DefaultConfigSet,
-			FilterStore: filterStore,
-			TxLoader:    nil, // not needed for GetLatestBlock
-			LogStore:    logStore,
-		})
-		require.NoError(t, err)
-
-		latestSeqno, err := lp.GetLatestBlock(ctx)
-		require.NoError(t, err)
-		assert.Equal(t, uint32(202), latestSeqno)
-	})
 }
 
 func TestGetLatestBlock(t *testing.T) {
@@ -323,29 +309,20 @@ func TestGetLatestBlock(t *testing.T) {
 	// helper to create log with specific mc block seqno
 	makeLog := func(idx int, mcSeqno uint32) models.Log {
 		return models.Log{
-			ChainID:          "test-chain",
-			FilterID:         filterID,
-			Address:          testAddr,
-			EventSig:         counter.TopicCountIncreased,
-			Data:             cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(), //nolint:gosec // test code
-			TxHash:           models.TxHash{byte(idx), 0, 0},
-			TxLT:             uint64(1000 + idx), //nolint:gosec // test code
-			MsgLT:            uint64(1000 + idx), //nolint:gosec // test code
-			TxTimestamp:      time.Now(),
-			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + idx)}, //nolint:gosec // test code
-			MasterBlockSeqno: mcSeqno,
-			MsgIndex:         int64(idx),
+			ChainID:      "test-chain",
+			FilterID:     filterID,
+			Address:      testAddr,
+			EventSig:     counter.TopicCountIncreased,
+			Data:         cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(), //nolint:gosec // test code
+			TxHash:       models.TxHash{byte(idx), 0, 0},
+			TxLT:         uint64(1000 + idx), //nolint:gosec // test code
+			MsgLT:        uint64(1000 + idx), //nolint:gosec // test code
+			TxTimestamp:  time.Now(),
+			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + idx)}, //nolint:gosec // test code
+			MCBlockSeqno: mcSeqno,
+			MsgIndex:     int64(idx),
 		}
 	}
-
-	// create service to test via public interface
-	lp, err := logpoller.NewService(lggr, "test-chain", nil, &logpoller.ServiceOptions{
-		Config:      logpoller.DefaultConfigSet,
-		FilterStore: filterStore,
-		TxLoader:    nil,
-		LogStore:    logStore,
-	})
-	require.NoError(t, err)
 
 	tests := []struct {
 		name     string
@@ -376,7 +353,7 @@ func TestGetLatestBlock(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			latestBlock, err := lp.GetLatestBlock(ctx)
+			latestBlock, _, err := logStore.GetLatestMCBlockSeqno(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, latestBlock)
 		})

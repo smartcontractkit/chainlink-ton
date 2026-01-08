@@ -83,7 +83,7 @@ type logModel struct {
 	BlockSeqno       int64     `db:"block_seqno"`
 	BlockRootHash    []byte    `db:"block_root_hash"`
 	BlockFileHash    []byte    `db:"block_file_hash"`
-	MasterBlockSeqno int64     `db:"master_block_seqno"`
+	MCBlockSeqno int64     `db:"master_block_seqno"`
 	CreatedAt        time.Time `db:"created_at"`
 }
 
@@ -121,7 +121,7 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 		BlockSeqno:       int64(log.Block.SeqNo),
 		BlockRootHash:    log.Block.RootHash,
 		BlockFileHash:    log.Block.FileHash,
-		MasterBlockSeqno: int64(log.MasterBlockSeqno),
+		MCBlockSeqno: int64(log.MCBlockSeqno),
 		MsgLT:            strconv.FormatUint(log.MsgLT, 10),
 		MsgIndex:         log.MsgIndex,
 	}, nil
@@ -187,7 +187,7 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		TxLT:             txLT,
 		TxTimestamp:      l.TxTimestamp,
 		Block:            block,
-		MasterBlockSeqno: uint32(l.MasterBlockSeqno), //nolint:gosec // MasterBlockSeqno values are safe to convert to uint32
+		MCBlockSeqno: uint32(l.MCBlockSeqno), //nolint:gosec // MCBlockSeqno values are safe to convert to uint32
 		MsgLT:            msgLT,
 		MsgIndex:         l.MsgIndex,
 	}, nil

@@ -50,11 +50,12 @@ func Test_LogPoller_System(t *testing.T) {
 
 		chainID := "mc-block-test-chain"
 		lggr := logger.Test(t)
+		logStore := inmemorystore.NewLogStore(chainID, lggr)
 		lp, err := logpoller.NewService(lggr, chainID, clientProvider, &logpoller.ServiceOptions{
 			Config:      logpoller.DefaultConfigSet,
 			FilterStore: inmemorystore.NewFilterStore(chainID, lggr),
 			TxLoader:    txloader.New(lggr, clientProvider),
-			LogStore:    inmemorystore.NewLogStore(chainID, lggr),
+			LogStore:    logStore,
 		})
 		require.NoError(t, err)
 
@@ -90,7 +91,7 @@ func Test_LogPoller_System(t *testing.T) {
 		}, 60*time.Second, 2*time.Second, "events should be indexed")
 
 		// verify mc block resolution worked
-		latestBlock, err := lp.GetLatestBlock(t.Context())
+		latestBlock, _, err := logStore.GetLatestMCBlockSeqno(t.Context())
 		require.NoError(t, err)
 		require.Positive(t, latestBlock, "mc block seqno should be resolved and stored")
 		t.Logf("latest mc block seqno: %d", latestBlock)

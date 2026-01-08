@@ -33,17 +33,17 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockR
 		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, toBlock.Workchain)
 	}
 
-	lastProcessedBlock, err := lp.getLastProcessedBlock(ctx, toBlock)
+	checkpointSeqNo, err := lp.getOrComputeCheckpointSeqNo(ctx, toBlock)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last processed block: %w", err)
+		return nil, fmt.Errorf("failed to get checkpoint seqno: %w", err)
 	}
 
 	// if we've already processed this block, wait for the next one
-	if toBlock.SeqNo <= lastProcessedBlock {
+	if toBlock.SeqNo <= checkpointSeqNo {
 		return nil, nil
 	}
 
-	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, toBlock)
+	prevBlock, err := lp.resolvePreviousBlock(ctx, checkpointSeqNo, toBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
@@ -51,12 +51,12 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockR
 	return &models.BlockRange{Prev: prevBlock, To: toBlock}, nil
 }
 
-// getLastProcessedBlock retrieves the last processed masterchain sequence number.
+// getOrComputeCheckpointSeqNo returns the masterchain sequence number to resume processing from.
 // Priority order:
 // 1. In-memory lastProcessedBlock (from previous poll iterations)
 // 2. Database (highest master_block_seqno from stored logs - for service restart resumption)
 // 3. Lookback window calculation (for fresh start)
-func (lp *service) getLastProcessedBlock(ctx context.Context, currentBlock *ton.BlockIDExt) (uint32, error) {
+func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentBlock *ton.BlockIDExt) (uint32, error) {
 	// Check in-memory state first (fastest)
 	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
@@ -64,11 +64,14 @@ func (lp *service) getLastProcessedBlock(ctx context.Context, currentBlock *ton.
 	}
 
 	// try to resume from database on service restart
-	dbSeqno, err := lp.logStore.GetLatestMasterBlockSeqno(ctx)
+	dbSeqno, exists, err := lp.logStore.GetLatestMCBlockSeqno(ctx)
 	if err != nil {
 		lp.lggr.Warnw("Failed to query latest master block seqno from database, falling back to lookback window",
 			"err", err)
-	} else if dbSeqno > 0 {
+	} else if exists {
+		if dbSeqno == 0 {
+			return 0, errors.New("database contains logs with master_block_seqno=0, which indicates data corruption")
+		}
 		lp.lggr.Infow("Resuming from database state", "masterBlockSeqno", dbSeqno, "currentSeqNo", currentBlock.SeqNo)
 		return dbSeqno, nil
 	}
