@@ -1,10 +1,14 @@
 package ton // alias: opston
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -132,3 +136,14 @@ var SendMessages = operations.NewOperation(
 		}, nil
 	},
 )
+
+// ShouldPlanOperation determines if an operation should be planned based on ownership.
+// Returns true if the sender is not the owner of the contract.
+func ShouldPlanOperation(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, senderAddr *address.Address) (bool, error) {
+	owner, err := tvm.CallGetterLatest(ctx, client, contractAddr, ownable2step.GetOwner)
+	if err != nil {
+		return false, fmt.Errorf("failed to get contract owner: %w", err)
+	}
+
+	return !owner.Equals(senderAddr), nil
+}

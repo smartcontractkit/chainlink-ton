@@ -12,7 +12,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -110,7 +109,6 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			Bounce:  true,
 		})
 
-		// Execute all messages in a SINGLE transaction via AnySequence
 		seqDeps := opston.AnySequenceDeps{}
 		seqDeps[opston.SendMessages.Def().ID] = opston.SendMessagesDeps{Wallet: tonChain.Wallet}
 
