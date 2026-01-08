@@ -84,7 +84,7 @@ fun merkleRoot<I>(
     return hashes.get(hashPos);
 }
 
-fun hashPair(a: int, b: int): int {
+fun hashPair(a: uint256, b: uint256): uint256 {
     if (a < b) {
         return hashInternalNode(a, b);
     } else {
@@ -92,7 +92,7 @@ fun hashPair(a: int, b: int): int {
     }
 }
 
-fun hashInternalNode(a: int, b: int): int {
+fun hashInternalNode(a: uint256, b: uint256): uint256 {
     var data = beginCell()
         .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
         .storeUint(a, 256)
