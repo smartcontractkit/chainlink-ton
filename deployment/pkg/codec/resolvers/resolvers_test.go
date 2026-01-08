@@ -225,9 +225,9 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 								"data": map[string]any{
 									"ID":                       42,
 									"MinDelay":                 0,
-									"Timestamps":               map[string]any{},
+									"Timestamps":               []any{},
 									"BlockedFnSelectorsLen":    0,
-									"BlockedFnSelectors":       map[string]any{},
+									"BlockedFnSelectors":       []any{},
 									"ExecutorRoleCheckEnabled": true,
 									"OpPendingInfo": map[string]any{
 										"ValidAfter":            0,
@@ -235,7 +235,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 										"OpPendingID":           0,
 									},
 									"RBAC": map[string]any{
-										"Roles": map[string]any{},
+										"Roles": []any{},
 									},
 								},
 							},
