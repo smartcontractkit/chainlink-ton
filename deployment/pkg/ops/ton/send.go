@@ -7,9 +7,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
@@ -45,6 +47,7 @@ func (o SendMessagesOutput) GetTransaction() *TransactionInfo {
 
 type SendMessagesDeps struct {
 	Wallet *wallet.Wallet
+	Client ton.APIClientWrapped
 }
 
 type ProviderDeps struct {
@@ -118,6 +121,11 @@ var SendMessages = operations.NewOperation(
 		tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
+		}
+
+		err = tracetracking.WaitForTrace(ctx, deps.Client, tx)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
 		}
 
 		return SendMessagesOutput{

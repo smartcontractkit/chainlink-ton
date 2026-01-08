@@ -52,6 +52,7 @@ func (o UpgradeOutput) GetTransaction() *ton.TransactionInfo {
 type UpgradeDeps struct {
 	ContractProvider ton.ContractCodeProvider
 	Wallet           *wallet.Wallet
+	Client           ton.APIClientWrapped
 }
 
 var Upgrade = operations.NewOperation(
@@ -94,6 +95,7 @@ var Upgrade = operations.NewOperation(
 		// TOOD: improve deps passing
 		opdeps := ton.SendMessagesDeps{
 			Wallet: deps.Wallet,
+			Client: deps.Client,
 		}
 
 		r, err := operations.ExecuteOperation(b, ton.SendMessages, opdeps, _in)

@@ -23,6 +23,7 @@ type UpdateFeeQuoterDestChainConfigsInput []feequoter.UpdateDestChainConfig
 type UpdateFeeQuoterDestChainConfigsOutput struct {
 }
 
+// TODO: refactor out next
 var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	"update-fee-quoter-dest-chain-configs",
 	semver.MustParse("0.1.0"),
