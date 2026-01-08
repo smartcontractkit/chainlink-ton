@@ -77,8 +77,8 @@ func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64,
 	}
 
 	// Get TON chain from environment
-	chain, exists := e.BlockChains.TonChains()[selector]
-	if !exists {
+	chain, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
 		return false, fmt.Errorf("TON chain with selector %d not found in environment", selector)
 	}
 
@@ -105,8 +105,8 @@ func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector 
 	}
 
 	// Get TON chain from environment
-	chain, exists := e.BlockChains.TonChains()[selector]
-	if !exists {
+	chain, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
 		return false, fmt.Errorf("TON chain with selector %d not found in environment", selector)
 	}
 
@@ -116,6 +116,7 @@ func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector 
 		return false, fmt.Errorf("failed to get current block: %w", err)
 	}
 
+	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call isChainSupported(targetSel) to check if connection exists
 	// If it returns a valid address, the chains are connected
 	// TODO check if we should call onramp isChainSupported() or router onRamp()
@@ -157,8 +158,8 @@ func (a *TonAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([
 	}
 
 	// Get TON chain from environment
-	chain, exists := e.BlockChains.TonChains()[selector]
-	if !exists {
+	chain, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
 		return nil, fmt.Errorf("TON chain with selector %d not found in environment", selector)
 	}
 
@@ -168,6 +169,7 @@ func (a *TonAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
+	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call destChainSelectors() to get all destination chains
 	result, err := chain.Client.RunGetMethod(e.GetContext(), block, &router, "destChainSelectors")
 	if err != nil {
@@ -213,7 +215,7 @@ func (a *TonAdapter) DeriveCurseAdapterVersion(e cldf.Environment, selector uint
 // Curse returns the sequence to curse subjects on a chain.
 func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton-curse",
+		"ton/sequences/ccip/curse",
 		semver.MustParse("1.6.0"),
 		"Curse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
@@ -229,13 +231,13 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 			}
 
 			// Get TON chain
-			chain, exists := chains.TonChains()[in.ChainSelector]
-			if !exists {
+			chain, ok := chains.TonChains()[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found", in.ChainSelector)
 			}
 
-			_routerAddr, exist := a.routerAddressCache[in.ChainSelector]
-			if !exist {
+			_routerAddr, ok := a.routerAddressCache[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("router address not found in cache for selector %d", in.ChainSelector)
 			}
 
@@ -271,7 +273,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender != owner // plan if sender is not owner
+			plan := sender.Equals(owner) != true // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
@@ -308,7 +310,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 // Uncurse returns the sequence to lift the curse on subjects on a chain.
 func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton-uncurse",
+		"ton/sequences/ccip/uncurse",
 		semver.MustParse("1.6.0"),
 		"Uncurse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
@@ -324,13 +326,13 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			}
 
 			// Get TON chain
-			chain, exists := chains.TonChains()[in.ChainSelector]
-			if !exists {
+			chain, ok := chains.TonChains()[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found", in.ChainSelector)
 			}
 
-			_routerAddr, exist := a.routerAddressCache[in.ChainSelector]
-			if !exist {
+			_routerAddr, ok := a.routerAddressCache[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("router address not found in cache for selector %d", in.ChainSelector)
 			}
 
@@ -366,7 +368,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender != owner // plan if sender is not owner
+			plan := sender.Equals(owner) != true // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
