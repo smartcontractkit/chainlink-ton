@@ -108,7 +108,7 @@ fun mustProd(a: int, b: int, errCode: int): int {
     return res;
 }
 
-fun mustCastToCoin(value: coins, errCode: int): coins {
+fun mustCastToCoin(value: int, errCode: int): coins {
     if (value < 0 || value > COIN_MAX) {
         throw errCode;
     }

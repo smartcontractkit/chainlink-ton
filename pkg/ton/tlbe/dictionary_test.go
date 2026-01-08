@@ -52,7 +52,7 @@ func TestDictJSONRoundTrip(t *testing.T) {
 
 	payload, err := json.Marshal(dict)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"1": {"sum":100},"2": {"sum":200}}`, string(payload))
+	require.JSONEq(t, `[{"key":1,"value":{"sum":100}}, {"key":2,"value":{"sum":200}}]`, string(payload))
 
 	var decoded Dict[uint16, testValue]
 	require.NoError(t, json.Unmarshal(payload, &decoded))
@@ -76,16 +76,6 @@ func TestDictCellRoundTrip(t *testing.T) {
 	tonDict, err := slice.LoadDict(16)
 	require.NoError(t, err)
 
-	// expected := cell.NewDict(16)
-	// for key, value := range dict.entries {
-	// 	keyCell, err := tlb.ToCell(key)
-	// 	require.NoError(t, err)
-	// 	valueCell, err := tlb.ToCell(value)
-	// 	require.NoError(t, err)
-	// 	require.NoError(t, expected.Set(keyCell, valueCell))
-	// }
-
-	// expectedCell := expected.AsCell()
 	ddict, err := dict.AsDictionary()
 	require.NoError(t, err)
 	expectedCell := ddict.AsCell()

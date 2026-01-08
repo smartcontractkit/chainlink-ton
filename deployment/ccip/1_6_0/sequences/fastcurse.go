@@ -29,7 +29,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/mcms/types"
-	mcms_types "github.com/smartcontractkit/mcms/types"
 )
 
 // CurseAdapter interface implementation
@@ -262,10 +261,17 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 
 			// Get router address from chain state
 			routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
-			plan, err := ton.ShouldPlanOperation(b.GetContext(), chain.Client, &routerAddr, chain.WalletAddress)
+
+			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
+			ctx := b.GetContext()
+			sender := chain.Wallet.Address()
+
+			owner, err := tvm.CallGetterLatest(ctx, chain.Client, &routerAddr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to determine if planning is needed: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
+
+			plan := sender != owner // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
@@ -289,10 +295,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			out := sequences.OnChainOutput{
-				BatchOps: []mcms_types.BatchOperation{},
-			}
-
+			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
 				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
 			}
@@ -388,7 +391,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			}
 
 			out := sequences.OnChainOutput{
-				BatchOps: []mcms_types.BatchOperation{},
+				BatchOps: []types.BatchOperation{},
 			}
 
 			meta := []types.OperationMetadata{

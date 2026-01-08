@@ -121,7 +121,7 @@ describe('OnRamp - Send', () => {
     }
 
     expect(deployTX.inMessage?.body.beginParse().loadUint(32)).toBe(
-      deployable.Opcodes.initializeAndSend,
+      deployable.opcodes.in.initializeAndSend,
     )
     const msg = deployable.builder.messages.in.initializeAndSend.load(
       deployTX.inMessage?.body.beginParse(),
@@ -222,7 +222,7 @@ describe('OnRamp - Send', () => {
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       success: true,
-      op: deployable.Opcodes.initializeAndSend,
+      op: deployable.opcodes.in.initializeAndSend,
     })
   })
 

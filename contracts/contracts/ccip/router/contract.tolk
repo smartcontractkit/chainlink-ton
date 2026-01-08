@@ -335,15 +335,19 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 //     Router    ->> SenderAcc: Router_MessageValidated
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy Storage.load();
-    val ccipSend = lazy msg.ccipSend.load();
+    var ccipSend = lazy msg.ccipSend.load();
     val onRamp = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+
+    if (ccipSend.feeToken == null) {
+        ccipSend.feeToken = st.wrappedNative
+    }
 
     val feeQuoterMsg = createMessage({
         bounce: true,
         value: 0,
         dest: onRamp,
         body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
-            ccipSend: msg.ccipSend,
+            ccipSend: ccipSend.toCell(),
             context: Router_GetValidatedFeeContext {
                 routerContext: sender,
                 userContext: msg.context,

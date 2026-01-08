@@ -40,10 +40,12 @@ export type ReceiverStorage = {
 
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static ccipReceive = 0xb3126df1
-  static updateAuthorizedCaller = 0xaf9950c5
-  static updateBehavior = 0x14d3fadb
+export const opcodes = {
+  in: {
+    ccipReceive: 0xb3126df1,
+    updateAuthorizedCaller: 0xaf9950c5,
+    updateBehavior: 0x14d3fadb,
+  },
 }
 
 export type CCIPReceive = {
@@ -185,7 +187,7 @@ export const builder = {
       const ccipReceive: CellCodec<CCIPReceive> = {
         encode: (opts: CCIPReceive): Builder => {
           return beginCell()
-            .storeUint(Opcodes.ccipReceive, 32)
+            .storeUint(opcodes.in.ccipReceive, 32)
             .storeUint(opts.rootId, 192)
             .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
         },
@@ -203,7 +205,7 @@ export const builder = {
       const updateAuthorizedCaller: CellCodec<UpdateAuthorizedCaller> = {
         encode: (opts: UpdateAuthorizedCaller): Builder => {
           return beginCell()
-            .storeUint(Opcodes.updateAuthorizedCaller, 32)
+            .storeUint(opcodes.in.updateAuthorizedCaller, 32)
             .storeAddress(opts.authorizedCaller)
         },
         load: function (src: Slice): UpdateAuthorizedCaller {
@@ -218,7 +220,7 @@ export const builder = {
 
       const updateBehavior: CellCodec<UpdateBehavior> = {
         encode: (opts: UpdateBehavior): Builder => {
-          return beginCell().storeUint(Opcodes.updateBehavior, 32).storeUint(opts.behavior, 8)
+          return beginCell().storeUint(opcodes.in.updateBehavior, 32).storeUint(opts.behavior, 8)
         },
         load: function (src: Slice): UpdateBehavior {
           // TODO We can check that the opcode matches
