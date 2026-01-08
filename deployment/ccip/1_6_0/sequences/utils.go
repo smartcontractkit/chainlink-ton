@@ -7,14 +7,14 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
-	"github.com/smartcontractkit/mcms/types"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+
+	"github.com/smartcontractkit/mcms/types"
 )
 
 // withOperationOutput is a helper to extract plans from operation output and map them to batch operations.
@@ -31,6 +31,10 @@ func withOperationOutput(out sequences.OnChainOutput, _out any, selector types.C
 		batchOp, err := mcms.RawPlansToBatch(selector, plans, meta)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
+		}
+
+		if out.BatchOps == nil {
+			out.BatchOps = make([]types.BatchOperation, 0)
 		}
 
 		out.BatchOps = append(out.BatchOps, batchOp)
