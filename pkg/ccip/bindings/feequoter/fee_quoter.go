@@ -12,17 +12,19 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
-	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Fee Quoter opcodes
 const (
-	OpcodeUpdatePrices                  = 0x20000001
+	OpcodeUpdatePrices                  = 0xde852b1b
 	OpcodeUpdateFeeTokens               = 0xD0984986
 	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
-	OpcodeUpdateDestChainConfigs        = 0x29950BAA
+	OpcodeUpdateDestChainConfigs        = 0x2d2410f6
 	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
 	OpcodeFeeQuoterAddPriceUpdater      = 0x71DF848A
 	OpcodeFeeQuoterRemovePriceUpdater   = 0x5DFBB1BC
@@ -47,7 +49,10 @@ const (
 	ExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData
 	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidEVMReceiverAddress
+	ErrorInvalid32ByteReceiverAddress
 	ErrorInvalidSuiReceiverAddress
+	ErrorInvalidSVMReceiverAddress
 	ErrorInvalidTokenReceiver
 	ErrorTooManySuiExtraArgsReceiverObjectIDs
 	ErrorMsgDataTooLarge
@@ -80,15 +85,15 @@ const (
 )
 
 type Storage struct {
-	ID                           uint32                  `tlb:"## 32"`
-	Ownable                      ccipcommon.Ownable2Step `tlb:"."`
-	AllowedPriceUpdaters         *cell.Dictionary        `tlb:"dict 267"`
-	MaxFeeJuelsPerMsg            *big.Int                `tlb:"## 96"`
-	LinkToken                    *address.Address        `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64                  `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary        `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary        `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary        `tlb:"dict 64"`
+	ID                           uint32               `tlb:"## 32"`
+	Ownable                      ownable2step.Storage `tlb:"."`
+	AllowedPriceUpdaters         *cell.Dictionary     `tlb:"dict 267"`
+	MaxFeeJuelsPerMsg            *big.Int             `tlb:"## 96"`
+	LinkToken                    *address.Address     `tlb:"addr"`
+	TokenPriceStalenessThreshold uint64               `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary     `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary     `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary     `tlb:"dict 64"`
 }
 
 type DestChainConfigs struct {
@@ -328,16 +333,16 @@ type RemovePriceUpdater struct {
 }
 
 type UpdatePrices struct {
-	_              tlb.Magic                              `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
-	TokenPrices    ccipcommon.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices      ccipcommon.SnakeData[GasPriceUpdate]   `tlb:"^"`
-	SendExcessesTo *address.Address                       `tlb:"addr"`
+	_              tlb.Magic                          `tlb:"#de852b1b"` //nolint:revive // Ignore opcode tag
+	TokenPrices    common.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices      common.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	SendExcessesTo *address.Address                   `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                              `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                       `tlb:"dict 267"`
-	Remove ccipcommon.SnakeData[*address.Address] `tlb:"^"`
+	_      tlb.Magic                            `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	Add    *cell.Dictionary                     `tlb:"dict 267"`
+	Remove common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
@@ -355,9 +360,21 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                                   `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
-	Updates ccipcommon.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	_       tlb.Magic                               `tlb:"#2d2410f6"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	GetValidatedFee{},
+	MessageValidated{},
+	MessageValidationFailed{},
+	AddPriceUpdater{},
+	RemovePriceUpdater{},
+	UpdatePrices{},
+	UpdateFeeTokens{},
+	UpdateTokenTransferFeeConfigs{},
+	UpdateDestChainConfigs{},
+})
 
 // binding types that supports FetchResult interface with rpc client
 

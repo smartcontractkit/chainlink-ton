@@ -11,6 +11,9 @@ import (
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -54,16 +57,16 @@ type DynamicConfigSet struct {
 
 // Storage represents the offRamp contract storage state
 type Storage struct {
-	ID                                      uint32                  `tlb:"## 32"`
-	Ownable                                 ccipcommon.Ownable2Step `tlb:"."`
-	Deployables                             Deployables             `tlb:"^"`
-	FeeQuoter                               *address.Address        `tlb:"addr"`
-	OCR3Base                                OCR3Base                `tlb:"^"`
-	CursedSubjects                          *cell.Dictionary        `tlb:"dict 128"`
-	ChainSelector                           uint64                  `tlb:"## 64"`
-	PermissionlessExecutionThresholdSeconds uint32                  `tlb:"## 32"`
-	SourceChainConfigs                      *cell.Dictionary        `tlb:"dict 64"`
-	LatestPriceSequenceNumber               uint64                  `tlb:"## 64"`
+	ID                                      uint32               `tlb:"## 32"`
+	Ownable                                 ownable2step.Storage `tlb:"."`
+	Deployables                             Deployables          `tlb:"^"`
+	FeeQuoter                               *address.Address     `tlb:"addr"`
+	OCR3Base                                OCR3Base             `tlb:"^"`
+	CursedSubjects                          *cell.Dictionary     `tlb:"dict 128"`
+	ChainSelector                           uint64               `tlb:"## 64"`
+	PermissionlessExecutionThresholdSeconds uint32               `tlb:"## 32"`
+	SourceChainConfigs                      *cell.Dictionary     `tlb:"dict 64"`
+	LatestPriceSequenceNumber               uint64               `tlb:"## 64"`
 }
 
 // Deployables holds the deployable code cells for the offRamp contract
@@ -107,21 +110,16 @@ type Signer struct {
 	Pubkey []byte `tlb:"bits 256"`
 }
 
-// Transmitter represents a transmitter entry in the OCR3 config
-type Transmitter struct { // NOTE: using common.SnakeData[(*)address.Address] directly doesn't work
-	Address *address.Address `tlb:"addr"`
-}
-
 // SetOCR3Config represents the setOCR3Config method call on the offRamp contract
 type SetOCR3Config struct {
-	_                              tlb.Magic                         `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
-	QueryID                        uint64                            `tlb:"## 64"`
-	ConfigDigest                   []byte                            `tlb:"bits 256"`
-	PluginType                     uint16                            `tlb:"## 16"`
-	F                              uint8                             `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool                              `tlb:"bool"`
-	Signers                        ccipcommon.SnakeData[Signer]      `tlb:"^"`
-	Transmitters                   ccipcommon.SnakeData[Transmitter] `tlb:"^"`
+	_                              tlb.Magic                                    `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                                       `tlb:"## 64"`
+	ConfigDigest                   []byte                                       `tlb:"bits 256"`
+	PluginType                     uint16                                       `tlb:"## 16"`
+	F                              uint8                                        `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                                         `tlb:"bool"`
+	Signers                        ccipcommon.SnakeData[Signer]                 `tlb:"^"`
+	Transmitters                   ccipcommon.SnakeData[ccipcommon.AddressWrap] `tlb:"^"`
 }
 
 // UpdateSourceChainConfig represents the updateSourceChainConfig structure
@@ -167,6 +165,16 @@ type UpdateDeployables struct {
 	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
 	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
 }
+
+var TLBs = lib.MustNewTLBMap([]any{
+	CCIPReceive{},
+	SetOCR3Config{},
+	UpdateSourceChainConfigs{},
+	Commit{},
+	Execute{},
+	SetDynamicConfig{},
+	UpdateDeployables{},
+})
 
 // Config types that implements getter fetching interface with rpc client
 
@@ -338,7 +346,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorZeroAddressNotAllowed)
+		ecMax = int32(ErrorBatchingNotSupported)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -356,6 +364,8 @@ const (
 	ErrorZeroAddressNotAllowed
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
+	ErrorInvalidInterval
+	ErrorBatchingNotSupported
 )
 
 // Getter method names for binding fetchers

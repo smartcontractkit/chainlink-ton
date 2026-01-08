@@ -5,16 +5,13 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockReceivable', () => {
   let baseTest: BaseTestSetup
-  let code: TestCode
 
   beforeAll(async () => {
-    code = await BaseTestSetup.compileContracts()
+    baseTest = await BaseTestSetup.beforeAll('receivable')
   })
 
   beforeEach(async () => {
-    baseTest = new BaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-receivable')
+    await baseTest.beforeEach()
   })
 
   it('should be able to receive TON', async () => {
@@ -44,5 +41,11 @@ describe('MCMS - RBACTimelockReceivable', () => {
     expect(balanceAfter.coins).toEqual(
       balanceBefore.coins + transferAmount - transferTransaction.totalFees.coins,
     )
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

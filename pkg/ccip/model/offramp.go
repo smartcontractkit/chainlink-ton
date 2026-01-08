@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 )
 
 // ---------- OffRamp Model Struct Definitions ----------
@@ -322,12 +323,12 @@ func ocr3ConfigToModel(raw *offramp.OCR3Config) (*OCR3Config, error) {
 
 		var transmitters []*address.Address
 		for _, transmitterEntry := range transmittersMap {
-			var transmitter common.WrappedAddress
+			var transmitter common.AddressWrap
 			if err2 := tlb.LoadFromCell(&transmitter, transmitterEntry.Key); err2 != nil {
 				return nil, fmt.Errorf("error while decoding transmitter value: %w", err2)
 			}
 
-			transmitters = append(transmitters, transmitter.WrappedAddress)
+			transmitters = append(transmitters, transmitter.Val)
 		}
 
 		wrappedSigners, err := bigIntArrayToHexArray(signers, 32) // 256 bits = 32 bytes
@@ -487,7 +488,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 
 	st := offramp.Storage{
 		ID: s.ID,
-		Ownable: common.Ownable2Step{
+		Ownable: ownable2step.Storage{
 			Owner:        s.Ownable.Owner,
 			PendingOwner: s.Ownable.PendingOwner,
 		},

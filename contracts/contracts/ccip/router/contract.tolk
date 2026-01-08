@@ -59,7 +59,7 @@ fun onInternalMessage(in: InMessage) {
         Router_RouteMessage => {
             val st = lazy Storage.load();
             val message: Any2TVMMessage = msg.message.load();
-            val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.DestChainNotEnabled as int);
+            val expectedOffRamp = st.offRamps.mustGet(message.sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
             assert(in.senderAddress == expectedOffRamp, Router_Error.SenderIsNotOffRamp);
             onRouteMessage(msg, message);
         }
@@ -207,20 +207,6 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
 }
 
 fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: OffRamps?) {
-    if (offRampAdds != null) {
-        val offRampAdd = offRampAdds.offRamp!;
-        var iter = offRampAdds.sourceChainSelectors.iter();
-        while (!iter.empty()) {
-            val selector = iter.next();
-            st.offRamps.set(selector, offRampAdd);
-        }
-
-        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
-            sourceChainSelectors: offRampAdds.sourceChainSelectors,
-            offRampAdded: offRampAdd,
-        });
-    }
-
     if (offRampRemoves != null) {
         val offRampRemove = offRampRemoves.offRamp!;
         var iter = offRampRemoves.sourceChainSelectors.iter();
@@ -234,6 +220,20 @@ fun updateOffRamps(mutate st: Storage, offRampAdds: OffRamps?, offRampRemoves: O
         emit(OFF_RAMP_REMOVED_TOPIC, OffRampRemoved {
             sourceChainSelectors: offRampRemoves.sourceChainSelectors,
             offRampRemoved: offRampRemove,
+        });
+    }
+
+    if (offRampAdds != null) {
+        val offRampAdd = offRampAdds.offRamp!;
+        var iter = offRampAdds.sourceChainSelectors.iter();
+        while (!iter.empty()) {
+            val selector = iter.next();
+            st.offRamps.set(selector, offRampAdd);
+        }
+
+        emit(OFF_RAMP_ADDED_TOPIC, OffRampAdded {
+            sourceChainSelectors: offRampAdds.sourceChainSelectors,
+            offRampAdded: offRampAdd,
         });
     }
 
@@ -335,15 +335,19 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 //     Router    ->> SenderAcc: Router_MessageValidated
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy Storage.load();
-    val ccipSend = lazy msg.ccipSend.load();
+    var ccipSend = lazy msg.ccipSend.load();
     val onRamp = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+
+    if (ccipSend.feeToken == null) {
+        ccipSend.feeToken = st.wrappedNative
+    }
 
     val feeQuoterMsg = createMessage({
         bounce: true,
         value: 0,
         dest: onRamp,
         body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
-            ccipSend: msg.ccipSend,
+            ccipSend: ccipSend.toCell(),
             context: Router_GetValidatedFeeContext {
                 routerContext: sender,
                 userContext: msg.context,
@@ -584,7 +588,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    return rmn.cursedSubjects.isCursed(subject);
+    return !rmn.cursedSubjects.isCursed(subject);
 }
 
 /// Gets the current owner of the contract.
@@ -597,6 +601,18 @@ get fun owner(): address {
 get fun pendingOwner(): address? {
     val st = lazy Storage.load();
     return st.ownable.get_pendingOwner();
+}
+
+/// Gets the current owner of the contract.
+get fun rmn_owner(): address {
+    val st: Storage = lazy Storage.load();
+    return st.rmnRemote.load().admin.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get fun rmn_pendingOwner(): address? {
+    val st = lazy Storage.load();
+    return st.rmnRemote.load().admin.get_pendingOwner();
 }
 
 get fun typeAndVersion(): (slice, slice) {

@@ -13,7 +13,9 @@ fun getFacilityId(crc32Key: int): uint16 {
 
 /// Returns an error code composed from facility and local code (max 2^16-1).
 fun getErrorCode(crc32Key: int, local: uint16): uint16 {
-    return getFacilityId(crc32Key) * 100 + local;
+    val code = getFacilityId(crc32Key) * 100 + local;
+    assert(code <= 65535, 4); // exit code 4: Integer overflow
+    return code
 }
 
 // Generic unimplemented error code
@@ -78,12 +80,6 @@ fun calculateGasFeeFor(size: int): coins {
         return calculateGasFeeDefault() * 2;
     }
     return calculateGasFeeDefault();
-}
-
-@inline
-fun sendCarryAllRemainingMessageValueSafe(msg: OutMessage) {
-    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
-    msg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 /// Computes the Keccak-256 hash of the given data.
@@ -252,7 +248,7 @@ type RemainingBitsOrRef<T> = T;
 fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
     val serialized = (self as T).toCell();
     val nBits = serialized.remainingBitsCount();
-    if (b.remainingSpace() < nBits - 1) {
+    if (b.remainingSpace() < nBits + 1) {
         // not enough space, create a new cell
         b.storeBit(1);
         b.storeRef(serialized);

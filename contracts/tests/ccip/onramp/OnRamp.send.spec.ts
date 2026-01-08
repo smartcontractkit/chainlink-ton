@@ -57,20 +57,19 @@ describe('OnRamp - Send', () => {
   })
 
   beforeEach(async () => {
-    ;({ deployer } = await setup(blockchain))
     deployableCode = await compile('Deployable')
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
     executorCode = Cell.EMPTY
-    onramp = await deployOnRampContract(blockchain, deployer, {
+    ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
       },
       executor: {
         executorCode,
       },
-    })
+    }))
 
     const resultUpdateDestChainConfigs = await onramp.sendUpdateDestChainConfigs(
       deployer.getSender(),
@@ -105,7 +104,7 @@ describe('OnRamp - Send', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
 
     const deployTX = result.transactions.find(
@@ -122,14 +121,14 @@ describe('OnRamp - Send', () => {
     }
 
     expect(deployTX.inMessage?.body.beginParse().loadUint(32)).toBe(
-      deployable.Opcodes.initializeAndSend,
+      deployable.opcodes.in.initializeAndSend,
     )
     const msg = deployable.builder.messages.in.initializeAndSend.load(
       deployTX.inMessage?.body.beginParse(),
     )
 
     expect(msg.stateInit.code.equals(executorCode)).toBe(true)
-    expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.Opcodes.execute)
+    expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.opcodes.in.execute)
     const selfMsg = sx.builder.message.in.execute.load(msg.selfMessage.body.beginParse())
     expect(selfMsg.config.feeQuoter.equals(mockFeeQuoter.address)).toBe(true)
     expect(selfMsg.onrampSend.metadata.sender.equals(senderAddress)).toBe(true)
@@ -161,7 +160,7 @@ describe('OnRamp - Send', () => {
       to: onramp.address,
       success: false,
       exitCode: or.Errors.Unauthorized,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
   })
 
@@ -218,12 +217,12 @@ describe('OnRamp - Send', () => {
       from: mockRouter.address,
       to: onramp.address,
       success: true,
-      op: or.Opcodes.onrampSend,
+      op: or.opcodes.in.onrampSend,
     })
     expect(result.transactions).toHaveTransaction({
       from: onramp.address,
       success: true,
-      op: deployable.Opcodes.initializeAndSend,
+      op: deployable.opcodes.in.initializeAndSend,
     })
   })
 
@@ -259,16 +258,60 @@ describe('OnRamp - Send', () => {
     expect(result.transactions).toHaveTransaction({
       from: mockRouter.address,
       to: onramp.address,
-      success: false,
-      exitCode: or.Errors.SenderNotAllowed,
-      op: or.Opcodes.onrampSend,
+      success: true,
+      op: or.opcodes.in.onrampSend,
     })
-    // TODO should return messageValidationFailed in stead of throwing an error
-    // expect(result.transactions).toHaveTransaction({
-    //   from: onramp.address,
-    //   success: true,
-    //   op: or.OutOpcodes.messageValidationFailed,
-    // })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      success: true,
+      op: rt.opcodes.in.messageRejected,
+      body: (body) => {
+        if (!body) return false
+        const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
+        return (
+          msg.destChainSelector === ccipSend.destChainSelector &&
+          msg.sender.equals(senderAddress) &&
+          msg.error === BigInt(or.Errors.SenderNotAllowed)
+        )
+      },
+    })
+  })
+
+  it('should reject message if dest chain selector is unknown', async () => {
+    const unknownChainCCIPSend = {
+      ...ccipSend,
+      destChainSelector: 0xdeadbeefn,
+    }
+
+    const result = await onramp.sendSend(mockRouter.getSender(), toNano('1'), {
+      msg: unknownChainCCIPSend,
+      metadata: {
+        sender: senderAddress,
+        value: toNano('42'),
+      },
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: mockRouter.address,
+      to: onramp.address,
+      success: true,
+      op: or.opcodes.in.onrampSend,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: onramp.address,
+      to: mockRouter.address,
+      success: true,
+      op: rt.opcodes.in.messageRejected,
+      body: (body) => {
+        if (!body) return false
+        const msg = rt.builder.message.in.messageRejected.load(body.beginParse())
+        return (
+          msg.destChainSelector === unknownChainCCIPSend.destChainSelector &&
+          msg.sender.equals(senderAddress) &&
+          msg.error === BigInt(or.Errors.UnknownDestChainSelector)
+        )
+      },
+    })
   })
 
   afterAll(async () => {

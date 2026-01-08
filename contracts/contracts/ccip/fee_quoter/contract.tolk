@@ -134,7 +134,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
             }
 
-            st.destChainConfigs.replaceAndGetPrevious(destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(destChainSelector, destChainConfig);
         }
         entry = msg.updates.iterateNext(entry);
     }
@@ -197,7 +197,7 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
                 dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
                 timestamp
             }.toCell();
-            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, destChainConfig);
 
             emit(USD_PER_UNIT_GAS_UPDATED, UsdPerUnitGasUpdated {
                 destChainSelector: update.destChainSelector,
@@ -370,7 +370,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
@@ -401,7 +401,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
@@ -415,11 +415,11 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
             // When message receiver is zero, CCIP receiver is not invoked on SVM.
             // There should not be additional accounts specified for the receiver.
-            assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSuiReceiverAddress;
+            assert (accountsLength == 0) throw FeeQuoter_Error.InvalidSVMReceiverAddress;
         } else {
-            // The messaging accounts needed for CCIP receiver on SUI are:
-            // message receiver,
-            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            // The messaging accounts needed for CCIP receiver on SVM are:
+            // message receiver, offRamp PDA signer,
+            // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
             svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
         }
          
@@ -479,15 +479,15 @@ fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
     if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        return receiver.validateEVMAddress();
+        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress as int);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
         // is non-zero, the address must not be 0x0.
-        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
-        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE);
+        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
@@ -558,9 +558,13 @@ get fun tokenPrices(tokens: tuple): tuple {
 
     while(!iter.empty()) {
         val token = iter.next();
-        // NOTE: Need to skip missing items as nil entries rather than fail the query
         val entry = st.usdPerToken.get(token);
-        list.push(entry.loadValue().toCell());
+        // NOTE: Need to skip missing items as nil entries rather than fail the query
+        if (entry.isFound) {
+            list.push(entry.loadValue().toCell());
+        } else {
+            list.push(null);
+        }
     }
     return list;
 }

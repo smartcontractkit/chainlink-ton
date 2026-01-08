@@ -12,7 +12,7 @@ import {
   toNano,
 } from '@ton/core'
 import { CellCodec } from '../../utils'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../../codeLoader'
 import {
   Blockchain,
   BlockchainContractProvider,
@@ -107,8 +107,8 @@ export class ContractClient {
     })
   }
 
-  static async code(): Promise<Cell> {
-    return await compile('tests.mock.Relay')
+  static code(): Promise<Cell> {
+    return loadContractCode('tests.mock.Relay')
   }
 
   // Get a sender that routes messages via Relay contract

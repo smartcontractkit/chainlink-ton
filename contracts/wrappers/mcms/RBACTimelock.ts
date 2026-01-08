@@ -13,6 +13,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../utils'
+import { loadContractCode } from '../codeLoader'
 import { keccak256 } from '@ethersproject/keccak256'
 import { asSnakeData, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
@@ -797,13 +798,17 @@ export class ContractClient implements Contract {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static newAt(address: Address): ContractClient {
+  static createFromAddress(address: Address): ContractClient {
     return new ContractClient(address)
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
     const init = { code, data: builder.data.contractData.encode(data).asCell() }
     return new ContractClient(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('mcms.RBACTimelock')
   }
 
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {

@@ -49,3 +49,4 @@ _vendor/
 # Binary
 cmd/chainlink-ton/chainlink-ton
 
+.env

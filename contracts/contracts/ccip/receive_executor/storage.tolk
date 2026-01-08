@@ -11,10 +11,10 @@ struct ReceiveExecutor_Storage {
     lastExecutionTimestamp: uint64 = 0;
 }
 
-fun CCIPReceiveExecutor_Storage.load(): CCIPReceiveExecutor_Storage {
-    return CCIPReceiveExecutor_Storage.fromCell(contract.getData());
+fun ReceiveExecutor_Storage.load(): ReceiveExecutor_Storage {
+    return ReceiveExecutor_Storage.fromCell(contract.getData());
 }
 
-fun CCIPReceiveExecutor_Storage.store(self) {
+fun ReceiveExecutor_Storage.store(self) {
     return contract.setData(self.toCell());
 }

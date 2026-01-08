@@ -1,6 +1,5 @@
-import '@ton/test-utils'
-
 import { toNano } from '@ton/core'
+import '@ton/test-utils'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
@@ -9,17 +8,16 @@ import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSig
 
 describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   let baseTest: MCMSBaseTestSetup
-  let code: MCMSTestCode
 
   beforeAll(async () => {
-    code = await MCMSBaseTestSetup.compileContracts()
+    baseTest = await MCMSBaseTestSetup.beforeAll('set_config')
   })
 
   beforeEach(async () => {
-    baseTest = new MCMSBaseTestSetup()
-    baseTest.code = code
-    await baseTest.setupAll('test-set-config')
+    await baseTest.beforeEach()
   })
+
+  const cloneTestSigners = (): TestSigner[] => baseTest.testSigners.map((signer) => ({ ...signer }))
 
   it('should fail if non-owner tries to set config', async () => {
     // Try to call setConfig from non-owner address (should fail)
@@ -82,8 +80,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   it('should fail on invalid configuration - duplicate signers', async () => {
     // Create duplicate signers (signers must be strictly increasing)
 
-    const duplicateSigners = [...baseTest.testSigners]
-    duplicateSigners[1] = duplicateSigners[0] // Make addresses duplicate
+    const duplicateSigners = cloneTestSigners()
+    duplicateSigners[1] = { ...duplicateSigners[1], address: duplicateSigners[0].address }
     const signerAddresses = duplicateSigners.map((s) => BigInt(s.address))
     const signerGroups = duplicateSigners.map((s) => s.group)
 
@@ -114,7 +112,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - out of bounds group', async () => {
     // Set a signer to an invalid group (MAX_NUM_GROUPS + 1)
-    const invalidGroupSigners = [...baseTest.testSigners]
+    const invalidGroupSigners = cloneTestSigners()
     invalidGroupSigners[0].group = mcms.NUM_GROUPS + 1
 
     const signerAddresses = invalidGroupSigners.map((s) => BigInt(s.address))
@@ -255,7 +253,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - signer in disabled group', async () => {
     // Put a signer in a disabled group (group with quorum 0)
-    const disabledGroupSigners = [...baseTest.testSigners]
+    const disabledGroupSigners = cloneTestSigners()
     disabledGroupSigners[1].group = mcms.NUM_GROUPS - 1 // Last group should be disabled
 
     const setConfigBody = mcms.builder.message.in.setConfig
@@ -429,5 +427,59 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const info = await baseTest.bind.mcms.getOpPendingInfo()
     expect(info).not.toBeNull()
     expect(info.opFinalizationTimeout).toBe(10)
+  })
+
+  it('should successfully set config - MCMS e2e tests config example', async () => {
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerAddresses: baseTest.testSigners.slice(0, 2).map((s) => BigInt(s.address)),
+        signerGroups: [0, 1],
+        groupQuorums: new Map([
+          [0, 1],
+          [1, 1],
+        ]),
+        groupParents: new Map([
+          [0, 0],
+          [1, 0],
+        ]),
+        clearRoot: true, // Clear the root
+      })
+      .asCell()
+
+    const result = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.multisigOwner.getSender(),
+      toNano('1'),
+      setConfigBody,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.acc.multisigOwner.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+
+    // Verify a ConfigSet confirmation was replied
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.bind.mcms.address,
+      op: mcms.opcodes.out.ConfigSet,
+    })
+
+    // Verify the root was cleared
+    const [root, validUntil] = await baseTest.bind.mcms.getRoot()
+    expect(root).toBe(0n)
+    expect(validUntil).toBe(0n)
+
+    // Verify the configuration was set correctly
+    const config = await baseTest.bind.mcms.getConfig()
+    expect(config.signers.size).toBe(2)
+    expect(config.groupQuorums.size).toBe(2)
+    expect(config.groupParents.size).toBe(2)
+  })
+
+  afterAll(async () => {
+    if (process.env['COVERAGE'] === 'true') {
+      await baseTest.generateCoverageArtifacts()
+    }
   })
 })

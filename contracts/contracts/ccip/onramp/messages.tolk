@@ -21,7 +21,7 @@ type OnRamp_InMessage =
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateSendExecutor
     | OnRamp_UpdateAllowlists
-    | Withdrawable_Withdraw
+    | OnRamp_WithdrawFeeTokens
     | Upgradeable_Upgrade
     ;
 
@@ -29,7 +29,7 @@ type OnRamp_NotificationInMessage =
     | OnRamp_Send
     ;
 
-struct (0x10000002) OnRamp_Send {
+struct (0xdcf993c2) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<Router_CCIPSend>;
     metadata: Metadata
@@ -45,7 +45,7 @@ struct OnRamp_GetValidatedFeeContext {
     userContext: RemainingBitsOrRef<RemainingBitsAndRefs>,
 }
 
-struct (0x10000003) OnRamp_SetDynamicConfig {
+struct (0xa178c62e) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
 
@@ -63,7 +63,7 @@ struct (0xC4068E21) OnRamp_ExecutorFinishedWithError {
     metadata: Metadata,
 }
 
-struct (0x10000004) OnRamp_UpdateDestChainConfigs {
+struct (0x1a246b6c) OnRamp_UpdateDestChainConfigs {
     updates: SnakedCell<OnRampUpdateDestChainConfig>;
 }
 
@@ -91,6 +91,10 @@ struct (0xac1dd12e) OnRamp_MessageValidationFailed<T> {
     context: T
 }
 
+struct (0x7052dc75) OnRamp_WithdrawFeeTokens {
+    feeTokens: SnakedCell<address>;
+}
+
 // Costs associated with OnRamp operations
 struct OnRamp_Costs {}
 
@@ -102,9 +106,27 @@ fun OnRamp_Costs.GetValidatedFee(): int {
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()
         + max(
-            OnRamp_Costs.ExecutorFinishedSuccessfully(),
-            OnRamp_Costs.ExecutorFinishedWithError()
+            OnRamp_Costs.FeeQuoter_MessageValidated(),
+            OnRamp_Costs.FeeQuoter_MessageValidationFailed()
         )
+        ;
+}
+
+// Minimum value for calling FeeQuoter_MessageValidated on OnRamp
+@inline
+fun OnRamp_Costs.FeeQuoter_MessageValidated(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MessageValidated fwdFee
+        ;
+}
+
+// Minimum value for calling FeeQuoter_MessageValidationFailed on OnRamp
+@inline
+fun OnRamp_Costs.FeeQuoter_MessageValidationFailed(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MessageValidationFailed fwdFee
         ;
 }
 
@@ -123,6 +145,8 @@ fun OnRamp_Costs.Send(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
     return
+        + ton("0.002") // computeFee
+        + ton("0.019") // emit CCIPMessageSent event
         + ton("0.019") // MessageSent fwdFee
         + Router_Costs.MessageSent() 
         ;
@@ -132,7 +156,18 @@ fun OnRamp_Costs.ExecutorFinishedSuccessfully(): int {
 @inline
 fun OnRamp_Costs.ExecutorFinishedWithError(): int {
     return
+        + ton("0.002") // computeFee
         + ton("0.019") // MessageRejected fwdFee
         + Router_Costs.MessageRejected()
+        ;
+}
+
+// Minimum value for calling OnRamp_WithdrawFeeTokens
+@inline
+fun OnRamp_Costs.WithdrawFeeTokens(): int {
+    return
+        + ton("0.02") // computeFee
+        + ton("0.019") // feeTokens fwdFee
+        + ton("0.05") // feeCollector computeFee
         ;
 }

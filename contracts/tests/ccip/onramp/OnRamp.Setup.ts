@@ -3,6 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
 import * as or from '../../../wrappers/ccip/OnRamp'
+import { randomAddress } from '@ton/test-utils'
 
 type OnRampOverrides = Partial<Omit<or.OnRampStorage, 'config' | 'executor' | 'ownable'>> & {
   config?: Partial<or.OnRampStorage['config']>
@@ -28,9 +29,10 @@ export async function deployOnRampContract(
     },
     chainSelector: CHAINSEL_TON,
     config: {
-      feeQuoter: ZERO_ADDRESS,
-      feeAggregator: ZERO_ADDRESS,
+      feeQuoter: randomAddress(),
+      feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
       allowlistAdmin: ZERO_ADDRESS,
+      reserve: toNano('0.05'),
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
     executor: {
@@ -39,6 +41,12 @@ export async function deployOnRampContract(
       currentID: 0n,
     },
   }
+
+  const config = {
+    ...defaults.config,
+    ...(overrides.config ?? {}),
+  }
+
   const data: or.OnRampStorage = {
     ...defaults,
     ...overrides,
@@ -46,25 +54,22 @@ export async function deployOnRampContract(
       ...defaults.ownable,
       ...(overrides.ownable ?? {}),
     },
-    config: {
-      ...defaults.config,
-      ...(overrides.config ?? {}),
-    },
+    config,
     executor: {
       ...defaults.executor,
       ...(overrides.executor ?? {}),
     },
   }
-  const contract = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
+  const onramp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
-  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-  return contract
+  await onramp.sendDeploy(deployer.getSender(), toNano('0.1'))
+  return { onramp, config }
 }
 
-export async function setup(blockchain: Blockchain) {
+export async function setup(blockchain: Blockchain, overrides: OnRampOverrides = {}) {
   const deployer = await blockchain.treasury('deployer')
-  const onramp = await deployOnRampContract(blockchain, deployer)
-  return { deployer, onramp }
+  const { onramp, config } = await deployOnRampContract(blockchain, deployer, overrides)
+  return { deployer, onramp, config }
 }
 
 export function assertAddressesMatch(expected: Address[], actual: Address[]) {

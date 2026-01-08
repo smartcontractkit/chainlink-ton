@@ -116,13 +116,43 @@ func TestCommitPluginCodecV1(t *testing.T) {
 			},
 			expErr: true,
 		},
+		{
+			name: "empty price updates - no token prices or gas prices",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.PriceUpdates.TokenPriceUpdates = nil
+				report.PriceUpdates.GasPriceUpdates = nil
+				return report
+			},
+		},
+		{
+			name: "empty price updates - empty slices",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.PriceUpdates.TokenPriceUpdates = []cciptypes.TokenPrice{}
+				report.PriceUpdates.GasPriceUpdates = []cciptypes.GasPriceChain{}
+				return report
+			},
+		},
+		{
+			name: "only token price updates, no gas price updates",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.PriceUpdates.GasPriceUpdates = nil
+				return report
+			},
+		},
+		{
+			name: "only gas price updates, no token price updates",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.PriceUpdates.TokenPriceUpdates = nil
+				return report
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			report := tc.report(RandomCommitReport())
+			reportToEncode := tc.report(RandomCommitReport())
 			commitCodec := NewCommitPluginCodecV1()
-			encodedReport, err := commitCodec.Encode(t.Context(), report)
+			encodedReport, err := commitCodec.Encode(t.Context(), reportToEncode)
 			if tc.expErr {
 				assert.Error(t, err)
 				return
@@ -130,7 +160,23 @@ func TestCommitPluginCodecV1(t *testing.T) {
 			require.NoError(t, err)
 			decodedReport, err := commitCodec.Decode(t.Context(), encodedReport)
 			require.NoError(t, err)
-			require.Equal(t, report, decodedReport)
+
+			// For cases where both price update slices are empty, they will be normalized to nil
+			// after encode/decode to save gas onchain, so we need to handle this case specifically.
+			if len(reportToEncode.PriceUpdates.TokenPriceUpdates) == 0 &&
+				len(reportToEncode.PriceUpdates.GasPriceUpdates) == 0 {
+				// Assert that both price slices are empty in the decoded report
+				assert.Empty(t, decodedReport.PriceUpdates.TokenPriceUpdates)
+				assert.Empty(t, decodedReport.PriceUpdates.GasPriceUpdates)
+
+				// Rest of report should match
+				assert.Equal(t, reportToEncode.BlessedMerkleRoots, decodedReport.BlessedMerkleRoots)
+				assert.Equal(t, reportToEncode.UnblessedMerkleRoots, decodedReport.UnblessedMerkleRoots)
+				assert.Equal(t, reportToEncode.RMNSignatures, decodedReport.RMNSignatures)
+			} else {
+				// Else compare the entire report
+				require.Equal(t, reportToEncode, decodedReport)
+			}
 		})
 	}
 }
@@ -177,4 +223,70 @@ func BenchmarkCommitPluginCodecV1_Encode_Decode(b *testing.B) {
 		require.NoError(b, err)
 		require.Equal(b, rep, decodedReport)
 	}
+}
+
+func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
+	t.Run("encode sets PriceUpdates to nil when both slices are empty", func(t *testing.T) {
+		report := cciptypes.CommitPluginReport{
+			UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
+				{
+					OnRampAddress: make(cciptypes.UnknownAddress, 64),
+					ChainSel:      cciptypes.ChainSelector(12345),
+					SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(1), cciptypes.SeqNum(10)),
+					MerkleRoot:    randomBytes32(),
+				},
+			},
+			PriceUpdates: cciptypes.PriceUpdates{
+				TokenPriceUpdates: nil,
+				GasPriceUpdates:   nil,
+			},
+		}
+
+		commitCodec := NewCommitPluginCodecV1()
+		encodedReport, err := commitCodec.Encode(context.Background(), report)
+		require.NoError(t, err)
+		require.NotNil(t, encodedReport)
+
+		// Decode and verify the round-trip works
+		decodedReport, err := commitCodec.Decode(context.Background(), encodedReport)
+		require.NoError(t, err)
+
+		// Verify that empty slices are preserved as nil or empty
+		assert.Empty(t, decodedReport.PriceUpdates.TokenPriceUpdates)
+		assert.Empty(t, decodedReport.PriceUpdates.GasPriceUpdates)
+		assert.Len(t, decodedReport.UnblessedMerkleRoots, len(report.UnblessedMerkleRoots))
+	})
+
+	t.Run("decode handles nil PriceUpdates without panic", func(t *testing.T) {
+		// Create a report with empty price updates
+		report := cciptypes.CommitPluginReport{
+			UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
+				{
+					OnRampAddress: make(cciptypes.UnknownAddress, 64),
+					ChainSel:      cciptypes.ChainSelector(67890),
+					SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(5), cciptypes.SeqNum(15)),
+					MerkleRoot:    randomBytes32(),
+				},
+			},
+			PriceUpdates: cciptypes.PriceUpdates{
+				TokenPriceUpdates: []cciptypes.TokenPrice{},
+				GasPriceUpdates:   []cciptypes.GasPriceChain{},
+			},
+		}
+
+		commitCodec := NewCommitPluginCodecV1()
+
+		// Encode the report
+		encodedReport, err := commitCodec.Encode(context.Background(), report)
+		require.NoError(t, err)
+
+		// Decode should not panic even if PriceUpdates is nil in the encoded data
+		decodedReport, err := commitCodec.Decode(context.Background(), encodedReport)
+		require.NoError(t, err)
+		assert.NotNil(t, decodedReport)
+
+		// Verify slices are empty (nil or zero-length)
+		assert.Empty(t, decodedReport.PriceUpdates.TokenPriceUpdates)
+		assert.Empty(t, decodedReport.PriceUpdates.GasPriceUpdates)
+	})
 }

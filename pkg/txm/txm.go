@@ -207,15 +207,17 @@ func (t *Txm) broadcastLoop() {
 			if tx.ID != nil {
 				txID = *tx.ID
 			}
+			bodyBOC := "none"
+			if tx.Body != nil {
+				bodyBOC = hex.EncodeToString(tx.Body.ToBOC())
+			}
 			t.logger.Debugw("attempting to broadcast transaction",
 				"txID", txID,
 				"from", tx.From.String(),
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String(),
 				"mode", tx.Mode,
-				"hasBody", tx.Body != nil,
-				"body", tx.Body,
-				"bodyBOC", hex.EncodeToString(tx.Body.ToBOC()),
+				"bodyBOC", bodyBOC,
 				"bounceable", tx.Bounceable)
 			err := t.broadcastWithRetry(ctx, tx, msg, txID)
 			if err != nil {
@@ -233,7 +235,8 @@ func (t *Txm) broadcastLoop() {
 	}
 }
 
-// Attempts to broadcast a transaction with retries on failure.
+// broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
+// failure to send the transaction, not if the transaction was broadcast but failed to execute (non-zero exit code).
 func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message, txID string) error {
 	var receivedMessage *tracetracking.ReceivedMessage
 	var err error
@@ -244,7 +247,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return fmt.Errorf("failed to get client: %w", cerr)
 	}
 
-	// try to send transaction
+	// try to broadcast transaction
 	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
 		t.logger.Debugw("sending transaction to TON",
 			"txID", txID,
@@ -254,16 +257,18 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"bounce", msg.InternalMessage.Bounce,
 			"hasBody", msg.InternalMessage.Body != nil)
 		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
-
-		if receivedMessage.ExitCode != 0 {
-			t.logger.Errorw("transaction failed", "exitcode", receivedMessage.ExitCode, "description", receivedMessage.ExitCode.Describe())
-		}
-
 		if err == nil {
 			t.logger.Infow("transaction broadcasted",
 				"txID", txID,
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
+
+			// Transaction was broadcast successfully, but ultimately failed to execute due to ExitCode.
+			if receivedMessage.ExitCode != 0 {
+				t.logger.Errorw("transaction failed", "exitcode", receivedMessage.ExitCode, "description", receivedMessage.ExitCode.Describe())
+			}
+
+			// Wait for and gather full trace regardless of exit code for debugging purposes
 			err = receivedMessage.WaitForTrace(ctx, client.Client)
 			if err != nil {
 				t.logger.Errorw("failed to wait for trace", "error", err)
@@ -273,6 +278,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			break
 		}
 
+		// Transaction failed to broadcast. Log error as a warning for now and fall through to retry delay below.
 		t.logger.Warnw("failed to broadcast tx, will retry",
 			"txID", txID,
 			"attempt", attempt,
@@ -295,6 +301,14 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"to", tx.To.String())
 		return err
 	}
+
+	// Record broadcast timestamp and latency
+	tx.BroadcastAt = time.Now()
+	broadcastLatency := tx.BroadcastAt.Sub(tx.CreatedAt)
+	t.metrics.RecordBroadcastLatency(ctx, broadcastLatency)
+	t.logger.Debugw("transaction broadcast latency recorded",
+		"txID", txID,
+		"latency", broadcastLatency.String())
 
 	// Save receivedMessage into tx
 	tx.ReceivedMessage = *receivedMessage
@@ -384,6 +398,14 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
 			}
+
+			// Track finalization latency
+			tx.FinalizedAt = time.Now()
+			finalizationLatency := tx.FinalizedAt.Sub(tx.BroadcastAt)
+			t.metrics.RecordFinalizationLatency(ctx, finalizationLatency)
+			t.logger.Debugw("transaction finalization latency recorded",
+				"LT", unconfirmedTx.LT,
+				"latency", finalizationLatency.String())
 
 			exitCode := receivedMessage.OutcomeExitCode()
 			traceSucceeded := receivedMessage.TraceSucceeded()

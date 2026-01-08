@@ -15,6 +15,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// TLBMap is a map of opcodes to their corresponding TL-B types.
+type TLBMap map[uint64]any
+
 type TxInfo struct {
 	Msg      MessageInfo
 	ExitCode string
@@ -69,7 +72,7 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 }
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs map[uint64]interface{}, tlbsCtx map[uint64]interface{}) (MessageInfo, error) {
+func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs TLBMap, tlbsCtx TLBMap) (MessageInfo, error) {
 	typeName, norm, err := DecodeTLBValToJSON(msg, tlbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)
@@ -86,11 +89,11 @@ func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs map[uint64]interface{
 	}
 
 	name := fmt.Sprintf("%s:%s", t, typeName)
-	// Marshal the final normalized map[string]interface{} as JSON string
+	// Marshal the final normalized map[string]any as JSON string
 	return NewMessageInfo(name, norm)
 }
 
-func DecodeTLBCellToAny(c *cell.Cell, tlbs map[uint64]interface{}) (any, error) {
+func DecodeTLBCellToAny(c *cell.Cell, tlbs TLBMap) (any, error) {
 	if c == nil {
 		return nil, errors.New("can't decode nil as cell")
 	}
@@ -122,7 +125,7 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs map[uint64]interface{}) (any, error) 
 	return inst, nil
 }
 
-func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
+func DecodeTLBStructToJSON(v any, tlbs TLBMap) (string, map[string]any, error) {
 	// Checks if a value is nil or if it's a reference type with a nil underlying value.
 	if IsNil(v) {
 		return "", nil, errors.New("can't decode nil as struct")
@@ -151,7 +154,7 @@ func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, 
 			return "", nil, fmt.Errorf("unable to decode as JSON map - not a structure: type=%T; val=%v", t, rv)
 		}
 
-		out := make(map[string]interface{}, rv.NumField())
+		out := make(map[string]any, rv.NumField())
 		rt := rv.Type()
 		for i := 0; i < rv.NumField(); i++ {
 			sf := rt.Field(i)
@@ -178,7 +181,7 @@ func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, 
 	}
 }
 
-func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, interface{}, error) {
+func DecodeTLBValToJSON(v any, tlbs TLBMap) (string, any, error) {
 	// Checks if a value is nil or if it's a reference type with a nil underlying value.
 	if IsNil(v) {
 		return "<nil>", v, nil
@@ -206,7 +209,7 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 				return rv.Type().Name(), t, nil
 			}
 
-			out := make([]interface{}, rv.Len())
+			out := make([]any, rv.Len())
 			for i := 0; i < rv.Len(); i++ {
 				_, decoded, err := DecodeTLBValToJSON(rv.Index(i).Interface(), tlbs)
 				if err != nil {
@@ -216,7 +219,7 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 			}
 			return rv.Type().String(), out, nil
 		case reflect.Map:
-			out := map[string]interface{}{}
+			out := map[string]any{}
 			for _, k := range rv.MapKeys() {
 				keyStr := fmt.Sprint(k.Interface())
 				_, decoded, err := DecodeTLBValToJSON(rv.MapIndex(k).Interface(), tlbs)
@@ -251,7 +254,7 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 }
 
 // Returns ordered keys based TL-B annotated struct type
-func DecodeTLBStructKeys(v interface{}, tlbs map[uint64]interface{}) ([]string, error) {
+func DecodeTLBStructKeys(v any, tlbs TLBMap) ([]string, error) {
 	// Checks if a value is nil or if it's a reference type with a nil underlying value.
 	if IsNil(v) {
 		return nil, errors.New("can't decode nil as struct")
@@ -321,7 +324,7 @@ func IsNil(x any) bool {
 	}
 }
 
-func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
+func MustNewTLBMap(types []any) TLBMap {
 	tlbs, err := NewTLBMap(types)
 	if err != nil {
 		panic(fmt.Errorf("failed to create TLB map: %w", err))
@@ -331,8 +334,8 @@ func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
 
 // NewTLBMap creates a map of TL-B magic numbers (opcodes) to their corresponding types
 // from a set of TL-B annotated struct instances.
-func NewTLBMap(types []interface{}) (map[uint64]interface{}, error) {
-	tlbs := make(map[uint64]interface{})
+func NewTLBMap(types []any) (TLBMap, error) {
+	tlbs := make(TLBMap)
 	for _, typ := range types {
 		// reflect to get the magic number from the struct
 		rt := reflect.TypeOf(typ)

@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Address, beginCell, Cell, Dictionary, Message, toNano } from '@ton/core'
 import { SandboxContract, TreasuryContract, Blockchain } from '@ton/sandbox'
-import { compile } from '@ton/blueprint'
 import { JettonMinter, JettonWallet, JettonSender, OnrampMock } from '../wrappers/examples/jetton'
 import { sha256 } from '@ton/crypto'
 import { resolve } from 'path'
@@ -60,7 +59,7 @@ describe('Send and Receive Jettons', () => {
     })
 
     // deploy jetton sender contract
-    const jettonSenderCode = await compile('examples.jetton.JettonSender')
+    const jettonSenderCode = await JettonSender.code()
     jettonSenderContract = blockchain.openContract(
       JettonSender.createFromConfig(
         {
@@ -292,7 +291,7 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     })
 
     // deploy jetton sender contract
-    const jettonSenderCode = await compile('examples.jetton.JettonSender')
+    const jettonSenderCode = await JettonSender.code()
     jettonSenderContract = blockchain.openContract(
       JettonSender.createFromConfig(
         {
@@ -318,7 +317,7 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     })
 
     // deploy onramp mock contract
-    const onrampMockCode = await compile('examples.jetton.OnrampMock')
+    const onrampMockCode = await OnrampMock.code()
     onrampMock = blockchain.openContract(
       OnrampMock.createFromConfig(
         {

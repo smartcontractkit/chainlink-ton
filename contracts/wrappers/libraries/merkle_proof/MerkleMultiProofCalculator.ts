@@ -18,8 +18,10 @@ export function MerkleRootCalculatorToCell(config: MerkleMultiProofCalculatorSto
   return beginCell().storeUint(config.id, 64).storeUint(config.root, 256).endCell()
 }
 
-export const Opcodes = {
-  OP_MERKLE_ROOT: 0x00000001,
+export const opcodes = {
+  in: {
+    OP_MERKLE_ROOT: 0x00000001,
+  },
 }
 
 export class MerkleMultiProofCalculator implements Contract {
@@ -50,7 +52,7 @@ export class MerkleMultiProofCalculator implements Contract {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.OP_MERKLE_ROOT, 32)
+        .storeUint(opcodes.in.OP_MERKLE_ROOT, 32)
         .storeUint(0, 64)
         .storeRef(leaves)
         .storeRef(proofs)

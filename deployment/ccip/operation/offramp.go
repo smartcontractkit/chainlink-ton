@@ -37,13 +37,13 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([][]byte, error) {
+func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) (*helpers.Transactions, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping offramp.updateOffRampSourceChainConfigs, no updates")
 		// Nothing to update
-		return nil, nil
+		return helpers.NewEmptyTransactions(), nil
 	}
 
 	configs := make([]offramp.UpdateSourceChainConfig, 0, len(in.Updates))
@@ -80,7 +80,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
 
 // PluginType represents the type of CCIP plugin.
@@ -108,7 +108,7 @@ var SetOCR3ConfigOp = operations.NewOperation(
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([][]byte, error) {
+func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) (*helpers.Transactions, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))
@@ -119,14 +119,14 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		signers = append(signers, offramp.Signer{Pubkey: signer})
 	}
 
-	transmitters := make([]offramp.Transmitter, 0, len(in.Transmitters))
+	transmitters := make([]common.AddressWrap, 0, len(in.Transmitters))
 	for _, transmitter := range in.Transmitters {
 		if len(transmitter) != 36 {
 			return nil, fmt.Errorf("invalid transmitter address, expected 36 bytes, got %d", len(transmitter))
 		}
 		workchain := int32(binary.BigEndian.Uint32(transmitter[0:4])) //nolint:gosec // G115
 		addr := address.NewAddress(0, byte(workchain), transmitter[4:])
-		transmitters = append(transmitters, offramp.Transmitter{Address: addr})
+		transmitters = append(transmitters, common.AddressWrap{Val: addr})
 	}
 
 	input := offramp.SetOCR3Config{
@@ -136,7 +136,7 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		F:                              in.F,
 		IsSignatureVerificationEnabled: in.IsSignatureVerificationEnabled,
 		Signers:                        common.SnakeData[offramp.Signer](signers),
-		Transmitters:                   common.SnakeData[offramp.Transmitter](transmitters),
+		Transmitters:                   common.SnakeData[common.AddressWrap](transmitters),
 	}
 
 	payload, err := tlb.ToCell(input)
@@ -152,5 +152,5 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }

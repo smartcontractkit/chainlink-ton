@@ -8,7 +8,7 @@ import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
 import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
-import { compile } from '@ton/blueprint'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 import { asSnakeDataUint } from '../../../src/utils'
 import { TestVector, testVectors } from './TestVectors'
 import { keccak256 } from '@ethersproject/keccak256'
@@ -23,7 +23,7 @@ describe('MerkleMultiProofTests', () => {
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
-    let code = await compile('examples.MerkleProof')
+    let code = await loadContractCode('examples.MerkleProof')
     let data: MerkleMultiProofCalculatorStorage = {
       id: 1,
       root: 0n, // Initial root, will be updated on deploy

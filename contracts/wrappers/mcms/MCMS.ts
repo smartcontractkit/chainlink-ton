@@ -13,6 +13,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256 } from '../utils'
+import { loadContractCode } from '../codeLoader'
 import { asSnakeData, fromSnakeData, ZERO_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { loadDict, loadMap } from '../../src/utils/dict'
@@ -905,13 +906,17 @@ export class ContractClient implements Contract {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static newAt(address: Address): ContractClient {
+  static createFromAddress(address: Address): ContractClient {
     return new ContractClient(address)
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
     const init = { code, data: builder.data.contractData.encode(data).endCell() }
     return new ContractClient(contractAddress(workchain, init), init)
+  }
+
+  static code(): Promise<Cell> {
+    return loadContractCode('mcms.MCMS')
   }
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {

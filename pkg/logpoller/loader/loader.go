@@ -230,18 +230,24 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 		TxHash: txHash,
 	}, &resp)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to query liteserver for transactions (addr=%s, lt=%d, limit=%d): %w",
+			addr.String(), lt, limit, err)
 	}
 
 	switch t := resp.(type) {
 	case ton.TransactionList:
 		if len(t.Transactions) == 0 {
-			return nil, nil, ton.ErrNoTransactionsWereFound
+			return nil, nil, fmt.Errorf("no transactions found for address %s (lt=%d, limit=%d): %w",
+				addr.String(), lt, limit, ton.ErrNoTransactionsWereFound)
 		}
 
 		txList, err := cell.FromBOCMultiRoot(t.Transactions)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse cell from transaction bytes: %w", err)
+		}
+
+		if err = validateTransactionListResponse(len(txList), len(t.IDs), limit); err != nil {
+			return nil, nil, err
 		}
 
 		resTxs := make([]*tlb.Transaction, len(txList))
@@ -282,10 +288,24 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 		return resTxs, resBlocks, nil
 	case ton.LSError:
 		if t.Code == 0 {
-			return nil, nil, ton.ErrNoTransactionsWereFound
+			return nil, nil, fmt.Errorf("liteserver returned empty transaction list for address %s (lt=%d, limit=%d): %w",
+				addr.String(), lt, limit, ton.ErrNoTransactionsWereFound)
 		}
-		return nil, nil, t
+		return nil, nil, fmt.Errorf("liteserver error for address %s (lt=%d, limit=%d, code=%d): %w",
+			addr.String(), lt, limit, t.Code, t)
 	}
 
 	return nil, nil, errors.New("unknown response type")
+}
+
+// validateTransactionListResponse validates liteserver response to prevent DoS attacks.
+// checks that response doesn't exceed requested limit and that block IDs array matches transaction count (runtime panic prevention).
+func validateTransactionListResponse(txCount, idsCount int, limit uint32) error {
+	if txCount > int(limit) {
+		return fmt.Errorf("liteserver returned %d transactions, exceeding requested limit %d", txCount, limit)
+	}
+	if idsCount != txCount {
+		return fmt.Errorf("block IDs count (%d) does not match transaction count (%d)", idsCount, txCount)
+	}
+	return nil
 }

@@ -225,7 +225,7 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 
 	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
+		return nil, nil, fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
 	err = receivedMessage.WaitForTrace(ctx, client.Client)
 	if err != nil {

@@ -10,8 +10,8 @@ import * as dep from '../../../wrappers/libraries/Deployable'
 
 describe('Deployable - Opcodes', () => {
   it('should match opcodes', () => {
-    expect(dep.Opcodes.initialize).toBe(crc32('Deployable_Initialize'))
-    expect(dep.Opcodes.initializeAndSend).toBe(crc32('Deployable_InitializeAndSend'))
+    expect(dep.opcodes.in.initialize).toBe(crc32('Deployable_Initialize'))
+    expect(dep.opcodes.in.initializeAndSend).toBe(crc32('Deployable_InitializeAndSend'))
   })
 })
 
@@ -71,7 +71,7 @@ describe('Deployable - Unit Tests', () => {
     })
 
     const counterContract = blockchain.openContract(
-      counter.ContractClient.newAt(deployable.address),
+      counter.ContractClient.createFromAddress(deployable.address),
     )
     expect(await counterContract.getValue()).toBe(0)
 
@@ -129,7 +129,7 @@ describe('Deployable - Unit Tests', () => {
     })
 
     const counterContract = blockchain.openContract(
-      counter.ContractClient.newAt(deployable.address),
+      counter.ContractClient.createFromAddress(deployable.address),
     )
     expect(await counterContract.getValue()).toBe(42)
   })

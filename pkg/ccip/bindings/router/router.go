@@ -9,16 +9,21 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const (
-	OpcodeApplyRampUpdates   = 0xf6b0a5ca
+	OpcodeApplyRampUpdates   = 0x7db6745d
 	OpcodeCCIPSend           = 0x31768d95
 	OpcodeRouteMessage       = 0xfc69c50b
 	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
 	OpcodeMessageSent        = 0x6513f8e1
 	OpcodeMessageRejected    = 0x8ae25114
+	OpcodeRMNRemoteCurse     = 0xf3388046
+	OpcodeRMNRemoteUncurse   = 0x3f153a31
 )
 
 const (
@@ -53,18 +58,18 @@ const (
 )
 
 type Storage struct {
-	ID            uint32              `tlb:"## 32"`
-	Ownable       common.Ownable2Step `tlb:"."`
-	WrappedNative *address.Address    `tlb:"addr"`
-	OnRamps       *cell.Dictionary    `tlb:"dict 64"`
-	OffRamps      *cell.Dictionary    `tlb:"dict 64"`
-	RMNRemote     RMNRemote           `tlb:"^"`
+	ID            uint32               `tlb:"## 32"`
+	Ownable       ownable2step.Storage `tlb:"."`
+	WrappedNative *address.Address     `tlb:"addr"`
+	OnRamps       *cell.Dictionary     `tlb:"dict 64"`
+	OffRamps      *cell.Dictionary     `tlb:"dict 64"`
+	RMNRemote     RMNRemote            `tlb:"^"`
 }
 
 type RMNRemote struct {
-	Admin          common.Ownable2Step `tlb:"."`
-	CursedSubjects *cell.Dictionary    `tlb:"dict 128"`
-	ForwardUpdates *cell.Dictionary    `tlb:"dict 267"`
+	Admin          ownable2step.Storage `tlb:"."`
+	CursedSubjects *cell.Dictionary     `tlb:"dict 128"`
+	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
 }
 
 // ChainSelector is a wrapper uint64 to support SnakeData encoding.
@@ -72,9 +77,15 @@ type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
+// Subject is a wrapper for uint128 to support SnakeData encoding.
+// Stored as *big.Int since Go doesn't have native uint128.
+type Subject struct {
+	Value *big.Int `tlb:"## 128"`
+}
+
 // crc32("ApplyRampUpdates")
 type ApplyRampUpdates struct {
-	_              tlb.Magic `tlb:"#f6b0a5ca"` //nolint:revive // Ignore opcode tag
+	_              tlb.Magic `tlb:"#7db6745d"` //nolint:revive // Ignore opcode tag
 	QueryID        uint64    `tlb:"## 64"`
 	OnRampUpdates  *OnRamps  `tlb:"maybe ."`
 	OffRampAdds    *OffRamps `tlb:"maybe ."`
@@ -147,4 +158,85 @@ type CCIPSendNACK struct {
 	_       tlb.Magic `tlb:"#5a45d434"` //nolint:revive // Ignore opcode tag
 	QueryID uint64    `tlb:"## 64"`
 	Error   big.Int   `tlb:"## 256"`
+}
+
+// RMNRemoteCurse message type for cursing subjects on the router.
+type RMNRemoteCurse struct {
+	_        tlb.Magic                 `tlb:"#f3388046"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                    `tlb:"## 64"`
+	Subjects common.SnakeData[Subject] `tlb:"^"`
+}
+
+// RMNRemoteUncurse message type for uncursing subjects on the router.
+type RMNRemoteUncurse struct {
+	_        tlb.Magic                 `tlb:"#3f153a31"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                    `tlb:"## 64"`
+	Subjects common.SnakeData[Subject] `tlb:"^"`
+}
+
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	ApplyRampUpdates{},
+	CCIPSend{},
+	RouteMessage{},
+	CCIPReceiveConfirm{},
+	CCIPSendACK{},
+	CCIPSendNACK{},
+	MessageSent{},
+	MessageRejected{},
+	RMNRemoteCurse{},
+	RMNRemoteUncurse{},
+})
+
+// OnRampAddressMap represents a map of destination chain selectors to their on-ramp addresses.
+// This type aligns with the on-chain data structure for on-ramp address mappings.
+type OnRampAddressMap map[uint64]*address.Address
+
+// Fetch retrieves all on-ramp addresses for destination chains from the router contract.
+func (o *OnRampAddressMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) error {
+	result, err := client.RunGetMethod(ctx, block, routerAddr, DestChainsGetter)
+	if err != nil {
+		return err
+	}
+
+	selectorSlice := parser.ParseLispTuple(result.AsTuple())
+
+	var lock sync.Mutex
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.SetLimit(runtime.NumCPU())
+	onRampAddrMap := make(map[uint64]*address.Address)
+	for _, dest := range selectorSlice {
+		eg.Go(func() error {
+			res, e := client.RunGetMethod(egCtx, block, routerAddr, OnRampGetter, dest)
+			if e != nil {
+				return fmt.Errorf("error getting onrampAddr: %w", e)
+			}
+
+			onRampSlice, e := res.Slice(0)
+			if e != nil {
+				return e
+			}
+
+			onRampAddr, e := onRampSlice.LoadAddr()
+			if e != nil {
+				return fmt.Errorf("failed to load onramp address: %w", e)
+			}
+
+			lock.Lock()
+			onRampAddrMap[dest] = onRampAddr
+			lock.Unlock()
+			return nil
+		})
+	}
+
+	if err = eg.Wait(); err != nil {
+		return err
+	}
+
+	*o = onRampAddrMap
+	return nil
+}
+
+type RMNOwnableMessage[T ownable2step.InMessage] struct {
+	_       tlb.Magic `tlb:"#af7a9ac6"` //nolint:revive // Ignore opcode tag
+	Content T         `tlb:"."`
 }

@@ -84,12 +84,18 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		}
 	}
 
-	cellReport := ocr.CommitReport{
-		PriceUpdates: &ocr.PriceUpdates{
+	// Set PriceUpdates to nil if both tpuSlice and gpuSlice are empty/nil
+	var priceUpdates *ocr.PriceUpdates
+	if len(tpuSlice) > 0 || len(gpuSlice) > 0 {
+		priceUpdates = &ocr.PriceUpdates{
 			TokenPriceUpdates: tpuSlice,
 			GasPriceUpdates:   gpuSlice,
-		},
-		MerkleRoots: append(mkSlice, unblessedMkSlice...),
+		}
+	}
+
+	cellReport := ocr.CommitReport{
+		PriceUpdates: priceUpdates,
+		MerkleRoots:  append(mkSlice, unblessedMkSlice...),
 	}
 
 	c, err := tlb.ToCell(cellReport)
@@ -114,7 +120,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 
 	priceUpdate := report.PriceUpdates
 	var tpuSlice []cciptypes.TokenPrice
-	if len(priceUpdate.TokenPriceUpdates) > 0 {
+	if priceUpdate != nil && len(priceUpdate.TokenPriceUpdates) > 0 {
 		tpuSlice = make([]cciptypes.TokenPrice, len(priceUpdate.TokenPriceUpdates))
 		for i, update := range priceUpdate.TokenPriceUpdates {
 			var tokenPrice *big.Int
@@ -131,7 +137,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	}
 
 	var gpuSlice []cciptypes.GasPriceChain
-	if len(priceUpdate.GasPriceUpdates) > 0 {
+	if priceUpdate != nil && len(priceUpdate.GasPriceUpdates) > 0 {
 		gpuSlice = make([]cciptypes.GasPriceChain, len(priceUpdate.GasPriceUpdates))
 		for i, update := range priceUpdate.GasPriceUpdates {
 			// Pack the two 112-bit fields back into a single 224-bit value
