@@ -21,6 +21,9 @@ type Service interface {
 	Replay(ctx context.Context, fromBlock uint32) error
 	ReplayStatus() models.ReplayStatus
 	NewQuery() query.Builder
+	// GetLatestBlock returns the highest masterchain block seqno from stored logs.
+	// Returns 0 if no logs exist. Useful for monitoring and testing resumption behavior.
+	GetLatestBlock(ctx context.Context) (uint32, error)
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.

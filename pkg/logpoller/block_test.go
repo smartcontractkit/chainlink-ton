@@ -61,6 +61,38 @@ func TestGetMasterchainBlockRange_WorkchainValidation(t *testing.T) {
 	})
 }
 
+func TestShardBlockKey(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		block    *ton.BlockIDExt
+		expected string
+	}{
+		{
+			name:     "basechain block",
+			block:    &ton.BlockIDExt{Workchain: 0, Shard: -9223372036854775808, SeqNo: 12345},
+			expected: "0:-9223372036854775808:12345",
+		},
+		{
+			name:     "masterchain block",
+			block:    &ton.BlockIDExt{Workchain: -1, Shard: -9223372036854775808, SeqNo: 99999},
+			expected: "-1:-9223372036854775808:99999",
+		},
+		{
+			name:     "zero seqno",
+			block:    &ton.BlockIDExt{Workchain: 0, Shard: 0, SeqNo: 0},
+			expected: "0:0:0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shardBlockKey(tt.block)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestComputeLookbackWindow(t *testing.T) {
 	t.Run("Basic lookback calculation", func(t *testing.T) {
 		currentSeqNo := uint32(1000)

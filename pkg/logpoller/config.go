@@ -22,6 +22,7 @@ type Config struct {
 	PageSize                  uint32
 	LogPollerStartingLookback *config.Duration
 	BlockTime                 *config.Duration
+	MasterBlockCacheSize      int // LRU cache maps shard block keys to masterchain seqno
 
 	// Database configuration - simple values with defaults
 	BatchInsertSize uint32
@@ -42,6 +43,8 @@ var DefaultConfigSet = Config{
 	BatchInsertSize: 3500, // postgresql batch insert size
 	MinBatchSize:    500,  // Minimum batch size for timeout retry
 	SaveThreshold:   7000, // Memory buffer size before batch saving
+
+	MasterBlockCacheSize: 1000, // ~100 bytes per entry, 1000 entries ≈ 100KB
 }
 
 func (c *Config) ApplyDefaults() {
@@ -65,6 +68,9 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.SaveThreshold == 0 {
 		c.SaveThreshold = DefaultConfigSet.SaveThreshold
+	}
+	if c.MasterBlockCacheSize <= 0 {
+		c.MasterBlockCacheSize = DefaultConfigSet.MasterBlockCacheSize
 	}
 }
 
