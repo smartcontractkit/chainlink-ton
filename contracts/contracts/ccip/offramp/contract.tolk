@@ -284,12 +284,8 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
     var gasLimit: coins = message.gasLimit;
-    if (msg.gasOverride != null) {
-        if (gasLimit > msg.gasOverride!) {
-            gasLimit = message.gasLimit;
-        } else {
-            gasLimit = msg.gasOverride;
-        }
+    if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
+        gasLimit = msg.gasOverride;
     }
     val routeMessage = createMessage({
         bounce: true,
