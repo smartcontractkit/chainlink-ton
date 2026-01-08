@@ -584,7 +584,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    return rmn.cursedSubjects.isCursed(subject);
+    return !rmn.cursedSubjects.isCursed(subject);
 }
 
 /// Gets the current owner of the contract.
