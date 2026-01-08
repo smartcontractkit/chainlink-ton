@@ -29,7 +29,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/mcms/types"
-	mcms_types "github.com/smartcontractkit/mcms/types"
 )
 
 // CurseAdapter interface implementation
@@ -296,10 +295,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			out := sequences.OnChainOutput{
-				BatchOps: []mcms_types.BatchOperation{},
-			}
-
+			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
 				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
 			}
@@ -394,10 +390,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			out := sequences.OnChainOutput{
-				BatchOps: []mcms_types.BatchOperation{},
-			}
-
+			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
 				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
 			}
