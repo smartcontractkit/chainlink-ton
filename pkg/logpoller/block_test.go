@@ -30,7 +30,7 @@ func (m *mockAPIClient) LookupBlock(_ context.Context, _ int32, _ int64, _ uint3
 	return m.lookupBlockResult, m.lookupBlockErr
 }
 
-func TestGetCurrentBlock_WorkchainValidation(t *testing.T) {
+func TestGetMasterchainCurrentBlock_WorkchainValidation(t *testing.T) {
 	t.Parallel()
 
 	t.Run("rejects non-masterchain workchain", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestGetCurrentBlock_WorkchainValidation(t *testing.T) {
 			},
 		}
 
-		_, err := lp.getCurrentBlock(context.Background())
+		_, err := lp.getMasterchainCurrentBlock(context.Background())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "expected masterchain block")
 	})
@@ -64,7 +64,7 @@ func TestGetCurrentBlock_WorkchainValidation(t *testing.T) {
 			},
 		}
 
-		block, err := lp.getCurrentBlock(context.Background())
+		block, err := lp.getMasterchainCurrentBlock(context.Background())
 		require.NoError(t, err)
 		require.NotNil(t, block)
 		require.Equal(t, uint32(100), block.SeqNo)
@@ -76,19 +76,19 @@ func TestGetBlockRange(t *testing.T) {
 
 	t.Run("returns nil when no new blocks", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100}
 
 		lp := &service{
 			lggr: logger.Sugared(logger.Nop()),
 			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
 				return &mockAPIClient{}, nil
 			},
-			lastProcessedBlock: 100, // same as SeqNo, so no new blocks
+			lastProcessedBlockSeqNo: 100, // same as SeqNo, so no new blocks
 		}
 
-		blockRange, err := lp.getBlockRange(context.Background(), currentBlock)
+		blockRange, err := lp.getBlockRange(context.Background(), currentMasterchainBlock)
 		require.NoError(t, err)
-		require.Nil(t, blockRange, "no new blocks when seqno matches lastProcessedBlock")
+		require.Nil(t, blockRange, "no new blocks when seqno matches lastProcessedBlockSeqNo")
 	})
 }
 

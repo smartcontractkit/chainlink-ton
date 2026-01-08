@@ -20,10 +20,10 @@ func TestApplyReplayOverride(t *testing.T) {
 
 	t.Run("no replay request returns original blockRange", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100}
 		originalRange := &models.BlockRange{
 			Prev: &ton.BlockIDExt{SeqNo: 90},
-			To:   currentBlock,
+			To:   currentMasterchainBlock,
 		}
 
 		lp := &service{
@@ -34,13 +34,13 @@ func TestApplyReplayOverride(t *testing.T) {
 		}
 		lp.replay.status = models.ReplayStatusNoRequest
 
-		result := lp.applyReplayOverride(context.Background(), originalRange, currentBlock)
+		result := lp.applyReplayOverride(context.Background(), originalRange, currentMasterchainBlock)
 		require.Same(t, originalRange, result)
 	})
 
 	t.Run("idle chain with replay constructs new blockRange", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
 		lp := &service{
@@ -53,7 +53,7 @@ func TestApplyReplayOverride(t *testing.T) {
 		lp.replay.requestBlock = replayBlock
 
 		// blockRange is nil (chain is idle)
-		result := lp.applyReplayOverride(context.Background(), nil, currentBlock)
+		result := lp.applyReplayOverride(context.Background(), nil, currentMasterchainBlock)
 		require.NotNil(t, result, "should construct block range for idle chain replay")
 		require.Equal(t, uint32(50), result.FromSeqNo())
 		require.Equal(t, uint32(100), result.ToSeqNo())
@@ -62,10 +62,10 @@ func TestApplyReplayOverride(t *testing.T) {
 
 	t.Run("replay overrides existing blockRange", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		originalRange := &models.BlockRange{
 			Prev: &ton.BlockIDExt{SeqNo: 90},
-			To:   currentBlock,
+			To:   currentMasterchainBlock,
 		}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
@@ -78,7 +78,7 @@ func TestApplyReplayOverride(t *testing.T) {
 		lp.replay.status = models.ReplayStatusRequested
 		lp.replay.requestBlock = replayBlock
 
-		result := lp.applyReplayOverride(context.Background(), originalRange, currentBlock)
+		result := lp.applyReplayOverride(context.Background(), originalRange, currentMasterchainBlock)
 		require.Same(t, originalRange, result)
 		require.Equal(t, uint32(50), result.FromSeqNo(), "should override starting block")
 		require.Equal(t, uint32(100), result.ToSeqNo())
@@ -86,7 +86,7 @@ func TestApplyReplayOverride(t *testing.T) {
 
 	t.Run("replay rejected and status reset when block beyond current", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 150, Shard: 1}
 
 		lp := &service{
@@ -98,7 +98,7 @@ func TestApplyReplayOverride(t *testing.T) {
 		lp.replay.status = models.ReplayStatusRequested
 		lp.replay.requestBlock = replayBlock // beyond current block
 
-		result := lp.applyReplayOverride(context.Background(), nil, currentBlock)
+		result := lp.applyReplayOverride(context.Background(), nil, currentMasterchainBlock)
 		require.Nil(t, result)
 		// Status should be Complete after replayComplete() is called
 		require.Equal(t, models.ReplayStatusComplete, lp.replay.status)
@@ -107,7 +107,7 @@ func TestApplyReplayOverride(t *testing.T) {
 
 	t.Run("replay rejected and status reset when block pruned", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
 		lp := &service{
@@ -119,7 +119,7 @@ func TestApplyReplayOverride(t *testing.T) {
 		lp.replay.status = models.ReplayStatusRequested
 		lp.replay.requestBlock = replayBlock
 
-		result := lp.applyReplayOverride(context.Background(), nil, currentBlock)
+		result := lp.applyReplayOverride(context.Background(), nil, currentMasterchainBlock)
 		require.Nil(t, result)
 		// Status should be Complete after replayComplete() is called
 		require.Equal(t, models.ReplayStatusComplete, lp.replay.status)
@@ -132,11 +132,11 @@ func TestReplay(t *testing.T) {
 
 	t.Run("accepts valid replay request", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
 		mock := &mockAPIClient{
-			masterchainInfo:   currentBlock,
+			masterchainInfo:   currentMasterchainBlock,
 			lookupBlockResult: replayBlock,
 		}
 
@@ -156,10 +156,10 @@ func TestReplay(t *testing.T) {
 
 	t.Run("rejects fromBlock at or beyond current block", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
 		mock := &mockAPIClient{
-			masterchainInfo: currentBlock,
+			masterchainInfo: currentMasterchainBlock,
 		}
 
 		lp := &service{
@@ -180,10 +180,10 @@ func TestReplay(t *testing.T) {
 
 	t.Run("rejects unavailable block in liteserver", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 
 		mock := &mockAPIClient{
-			masterchainInfo: currentBlock,
+			masterchainInfo: currentMasterchainBlock,
 			lookupBlockErr:  ton.ErrBlockNotFound,
 		}
 
@@ -201,12 +201,12 @@ func TestReplay(t *testing.T) {
 
 	t.Run("uses lookback window when fromBlock is 0", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 1000, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 1000, Shard: 1}
 		// lookback = ceil(50s / 2.5s) = 20 blocks, so 1000 - 20 = 980
 		lookbackBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 980, Shard: 1}
 
 		mock := &mockAPIClient{
-			masterchainInfo:   currentBlock,
+			masterchainInfo:   currentMasterchainBlock,
 			lookupBlockResult: lookbackBlock,
 		}
 
@@ -228,12 +228,12 @@ func TestReplay(t *testing.T) {
 
 	t.Run("ignores redundant request with higher block", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 40, Shard: 1}
 
 		mock := &mockAPIClient{
-			masterchainInfo:   currentBlock,
+			masterchainInfo:   currentMasterchainBlock,
 			lookupBlockResult: replayBlock,
 		}
 
@@ -256,12 +256,12 @@ func TestReplay(t *testing.T) {
 
 	t.Run("accepts lower block request", func(t *testing.T) {
 		t.Parallel()
-		currentBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 30, Shard: 1}
 		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
 		mock := &mockAPIClient{
-			masterchainInfo:   currentBlock,
+			masterchainInfo:   currentMasterchainBlock,
 			lookupBlockResult: replayBlock,
 		}
 

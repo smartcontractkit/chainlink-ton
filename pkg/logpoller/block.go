@@ -12,10 +12,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-// getCurrentBlock retrieves the current masterchain block information.
-// This is separated from getMasterchainBlockRange to allow replay override to use
-// the current block even when no new blocks need processing.
-func (lp *service) getCurrentBlock(ctx context.Context) (*ton.BlockIDExt, error) {
+// getMasterchainCurrentBlock retrieves the current masterchain block information.
+// This is separated from getBlockRange to allow replay override to use
+// the current masterchain block even when no new blocks need processing.
+func (lp *service) getMasterchainCurrentBlock(ctx context.Context) (*ton.BlockIDExt, error) {
 	client, err := lp.clientProvider(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
@@ -36,31 +36,31 @@ func (lp *service) getCurrentBlock(ctx context.Context) (*ton.BlockIDExt, error)
 
 // getBlockRange calculates the range of blocks that need to be processed.
 // Returns nil if there are no new blocks to process (chain is idle).
-// The currentBlock parameter should be obtained from getCurrentMasterchainBlock().
-func (lp *service) getBlockRange(ctx context.Context, currentBlock *ton.BlockIDExt) (*models.BlockRange, error) {
-	lastProcessedBlock, err := lp.getLastProcessedBlockSeqNo(currentBlock)
+// The currentMasterchainBlock parameter should be obtained from getMasterchainCurrentBlock().
+func (lp *service) getBlockRange(ctx context.Context, currentMasterchainBlock *ton.BlockIDExt) (*models.BlockRange, error) {
+	lastProcessedBlockSeqNo, err := lp.getLastProcessedBlockSeqNo(currentMasterchainBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last processed block: %w", err)
 	}
 
 	// if we've already processed this block, wait for the next one (chain is idle)
-	if currentBlock.SeqNo <= lastProcessedBlock {
+	if currentMasterchainBlock.SeqNo <= lastProcessedBlockSeqNo {
 		return nil, nil
 	}
 
-	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, currentBlock)
+	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlockSeqNo, currentMasterchainBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
 
-	return &models.BlockRange{Prev: prevBlock, To: currentBlock}, nil
+	return &models.BlockRange{Prev: prevBlock, To: currentMasterchainBlock}, nil
 }
 
 // getLastProcessedBlockSeqNo retrieves the last processed masterchain sequence number.
 // If no previous block has been processed, it uses the lookback window to determine
 // an appropriate starting point to avoid missing recent events.
-func (lp *service) getLastProcessedBlockSeqNo(currentBlock *ton.BlockIDExt) (uint32, error) {
-	lastProcessed := lp.lastProcessedBlock
+func (lp *service) getLastProcessedBlockSeqNo(currentMasterchainBlock *ton.BlockIDExt) (uint32, error) {
+	lastProcessed := lp.lastProcessedBlockSeqNo
 	if lastProcessed > 0 {
 		lp.lggr.Debugw("Resuming from last processed block", "seqNo", lastProcessed)
 		return lastProcessed, nil
@@ -69,18 +69,18 @@ func (lp *service) getLastProcessedBlockSeqNo(currentBlock *ton.BlockIDExt) (uin
 	// TODO: get the latest processed seqno from log table when persistent storage is implemented
 	// TODO: need to implement a separate routine to fetch and cache the masterchain seqno from shard block in each message
 
-	if currentBlock.SeqNo == 0 {
+	if currentMasterchainBlock.SeqNo == 0 {
 		// localnet genesis
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
-	lookbackSeqNo := computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
+	lookbackSeqNo := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
 	if lookbackSeqNo > lastProcessed {
-		blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
+		blocksToProcess := currentMasterchainBlock.SeqNo - lookbackSeqNo
 		lp.lggr.Debugw("Starting from lookback window",
 			"fromSeqNo", lookbackSeqNo,
-			"toSeqNo", currentBlock.SeqNo,
+			"toSeqNo", currentMasterchainBlock.SeqNo,
 			"blocksToProcess", blocksToProcess,
 		)
 		return lookbackSeqNo, nil
@@ -89,13 +89,13 @@ func (lp *service) getLastProcessedBlockSeqNo(currentBlock *ton.BlockIDExt) (uin
 	return lastProcessed, nil
 }
 
-// lookupBlock retrieves a block by sequence number using the current block's workchain and shard.
-func (lp *service) lookupBlock(ctx context.Context, seqNo uint32, currentBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
+// lookupBlock retrieves a block by sequence number using the current masterchain block's workchain and shard.
+func (lp *service) lookupBlock(ctx context.Context, seqNo uint32, currentMasterchainBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	client, err := lp.clientProvider(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
-	return client.LookupBlock(ctx, currentBlock.Workchain, currentBlock.Shard, seqNo)
+	return client.LookupBlock(ctx, currentMasterchainBlock.Workchain, currentMasterchainBlock.Shard, seqNo)
 }
 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number

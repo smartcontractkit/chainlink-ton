@@ -40,10 +40,10 @@ type service struct {
 	metrics *logPollerMetrics // metrics for observability
 
 	// configuration for service operation
-	pollPeriod         time.Duration // How often to poll for new blocks
-	lastProcessedBlock uint32        // Last processed masterchain sequence number
-	startingLookback   time.Duration // How far back to look when starting up
-	blockTime          time.Duration // Expected block time for calculations(approximately 2.5 seconds)
+	pollPeriod              time.Duration // How often to poll for new blocks
+	lastProcessedBlockSeqNo uint32        // Last processed masterchain sequence number
+	startingLookback        time.Duration // How far back to look when starting up
+	blockTime               time.Duration // Expected block time for calculations(approximately 2.5 seconds)
 
 	// configuration for transaction loading and log storage
 	pageSize        uint32 // Number of transactions to fetch per API call
@@ -150,18 +150,18 @@ func (lp *service) run(ctx context.Context) (err error) {
 	}()
 
 	// Get current masterchain block first (needed for both normal and replay paths)
-	currentBlock, err := lp.getCurrentBlock(ctx)
+	currentMasterchainBlock, err := lp.getMasterchainCurrentBlock(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain block: %w", err)
 	}
 
-	blockRange, err := lp.getBlockRange(ctx, currentBlock)
+	blockRange, err := lp.getBlockRange(ctx, currentMasterchainBlock)
 	if err != nil {
 		return fmt.Errorf("failed to get masterchain block range: %w", err)
 	}
 
 	// apply replay override, must be called before checking blockRange == nil to support replay on idle state
-	blockRange = lp.applyReplayOverride(ctx, blockRange, currentBlock)
+	blockRange = lp.applyReplayOverride(ctx, blockRange, currentMasterchainBlock)
 
 	if blockRange == nil {
 		// no new blocks to process and no replay pending
@@ -193,8 +193,8 @@ func (lp *service) run(ctx context.Context) (err error) {
 		lp.replayComplete(blockRange.FromSeqNo(), blockRange.ToSeqNo())
 	}
 
-	lp.lastProcessedBlock = blockRange.ToSeqNo()
-	lp.metrics.SetLastProcessedBlock(ctx, lp.lastProcessedBlock)
+	lp.lastProcessedBlockSeqNo = blockRange.ToSeqNo()
+	lp.metrics.SetLastProcessedBlock(ctx, lp.lastProcessedBlockSeqNo)
 	lp.metrics.AddBlocksProcessed(ctx, int64(blockRange.ToSeqNo()-blockRange.FromSeqNo()))
 
 	return nil

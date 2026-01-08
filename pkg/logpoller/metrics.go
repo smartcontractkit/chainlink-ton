@@ -80,14 +80,14 @@ type logPollerMetrics struct {
 	chainID string
 
 	// core service metrics (OTel)
-	pollDuration       metric.Float64Gauge
-	pollErrors         metric.Int64Counter
-	blocksBehind       metric.Int64Gauge
-	lastProcessedBlock metric.Int64Gauge
-	blocksProcessed    metric.Int64Counter
-	logsInserted       metric.Int64Counter
-	loaderErrors       metric.Int64Counter
-	parseErrors        metric.Int64Counter
+	pollDuration            metric.Float64Gauge
+	pollErrors              metric.Int64Counter
+	blocksBehind            metric.Int64Gauge
+	lastProcessedBlockSeqNo metric.Int64Gauge
+	blocksProcessed         metric.Int64Counter
+	logsInserted            metric.Int64Counter
+	loaderErrors            metric.Int64Counter
+	parseErrors             metric.Int64Counter
 
 	// query metrics for observed stores (OTel)
 	queryDuration      metric.Float64Gauge
@@ -114,7 +114,7 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		return nil, fmt.Errorf("failed to register blocks behind: %w", err)
 	}
 
-	lastProcessedBlock, err := m.Int64Gauge("ton_logpoller_last_processed_block")
+	lastProcessedBlockSeqNo, err := m.Int64Gauge("ton_logpoller_last_processed_block")
 	if err != nil {
 		return nil, fmt.Errorf("failed to register last processed block: %w", err)
 	}
@@ -158,17 +158,17 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
 
-		pollDuration:       pollDuration,
-		pollErrors:         pollErrors,
-		blocksBehind:       blocksBehind,
-		lastProcessedBlock: lastProcessedBlock,
-		blocksProcessed:    blocksProcessed,
-		logsInserted:       logsInserted,
-		loaderErrors:       loaderErrors,
-		parseErrors:        parseErrors,
-		queryDuration:      queryDuration,
-		addressesMonitored: addressesMonitored,
-		queryResultSize:    queryResultSize,
+		pollDuration:            pollDuration,
+		pollErrors:              pollErrors,
+		blocksBehind:            blocksBehind,
+		lastProcessedBlockSeqNo: lastProcessedBlockSeqNo,
+		blocksProcessed:         blocksProcessed,
+		logsInserted:            logsInserted,
+		loaderErrors:            loaderErrors,
+		parseErrors:             parseErrors,
+		queryDuration:           queryDuration,
+		addressesMonitored:      addressesMonitored,
+		queryResultSize:         queryResultSize,
 	}, nil
 }
 
@@ -191,8 +191,8 @@ func (m *logPollerMetrics) IncrementPollErrors(ctx context.Context) {
 }
 
 // SetBlocksBehind sets the number of blocks behind chain head
-func (m *logPollerMetrics) SetBlocksBehind(ctx context.Context, latestBlock, lastProcessedBlock uint32) {
-	behind := int64(latestBlock) - int64(lastProcessedBlock)
+func (m *logPollerMetrics) SetBlocksBehind(ctx context.Context, latestBlock, lastProcessedBlockSeqNo uint32) {
+	behind := int64(latestBlock) - int64(lastProcessedBlockSeqNo)
 	promTonLpBlocksBehind.WithLabelValues(m.chainID).Set(float64(behind))
 	m.blocksBehind.Record(ctx, behind, metric.WithAttributes(m.getOtelAttributes()...))
 }
@@ -200,7 +200,7 @@ func (m *logPollerMetrics) SetBlocksBehind(ctx context.Context, latestBlock, las
 // SetLastProcessedBlock sets the last processed block sequence number
 func (m *logPollerMetrics) SetLastProcessedBlock(ctx context.Context, seqNo uint32) {
 	promTonLpLastProcessedBlock.WithLabelValues(m.chainID).Set(float64(seqNo))
-	m.lastProcessedBlock.Record(ctx, int64(seqNo), metric.WithAttributes(m.getOtelAttributes()...))
+	m.lastProcessedBlockSeqNo.Record(ctx, int64(seqNo), metric.WithAttributes(m.getOtelAttributes()...))
 }
 
 // AddBlocksProcessed increments the blocks processed counter
