@@ -1,4 +1,4 @@
-package ccip_ton
+package ccipton
 
 import (
 	"context"

@@ -35,7 +35,7 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	require.NoError(t, err)
 	require.NotNil(t, sender)
 
-	ferr := test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	ferr := test_utils.FundWallets(t.Context(), client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	require.NoError(t, ferr)
 	// deploy event emitter counter contract
 	emitter, err := NewTestEventSource(t.Context(), client, sender, "emitter", rand.Uint32(), logger.Test(t))

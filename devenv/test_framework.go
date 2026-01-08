@@ -1,4 +1,4 @@
-package ccip_ton
+package ccipton
 
 import (
 	"context"
@@ -34,6 +34,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
@@ -354,13 +355,6 @@ func (m *CCIP16TON) WaitOneSentEventBySeqNo(ctx context.Context, from, to, seq u
 	return nil, err
 }
 
-const (
-	EXECUTION_STATE_UNTOUCHED  = 0
-	EXECUTION_STATE_INPROGRESS = 1
-	EXECUTION_STATE_SUCCESS    = 2
-	EXECUTION_STATE_FAILURE    = 3
-)
-
 // WaitOneExecEventBySeqNo wait and fetch strictly one ExecutionStateChanged event by sequence number and selector.
 func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq uint64, timeout time.Duration) (any, error) {
 	l := zerolog.Ctx(ctx)
@@ -394,15 +388,15 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 			eventsProcessed++
 
 			switch exec.State {
-			case EXECUTION_STATE_INPROGRESS:
+			case utils.EXECUTION_STATE_INPROGRESS:
 				return false, nil
 
-			case EXECUTION_STATE_FAILURE:
+			case utils.EXECUTION_STATE_FAILURE:
 				fmt.Printf("Execution failed for sequence number %d, message ID: %x\n", exec.SequenceNumber, exec.MessageID)
 				return false, fmt.Errorf("execution failed for seq %d on chain %d, message ID: %x",
 					exec.SequenceNumber, exec.SourceChainSelector, exec.MessageID)
 
-			case EXECUTION_STATE_SUCCESS:
+			case utils.EXECUTION_STATE_SUCCESS:
 				fmt.Printf("Execution successful for sequence number %d, message ID: %x\n", exec.SequenceNumber, exec.MessageID)
 				return true, nil
 
@@ -421,9 +415,9 @@ func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq u
 }
 
 func (m *CCIP16TON) GetEOAReceiverAddress(ctx context.Context, chainSelector uint64) ([]byte, error) {
-	return nil, fmt.Errorf("GetEOAReceiverAddress not implemented for TON")
+	return nil, errors.New("GetEOAReceiverAddress not implemented for TON")
 }
 
 func (m *CCIP16TON) GetTokenBalance(ctx context.Context, chainSelector uint64, address, tokenAddress []byte) (*big.Int, error) {
-	return nil, fmt.Errorf("GetTokenBalance not implemented for TON")
+	return nil, errors.New("GetTokenBalance not implemented for TON")
 }

@@ -114,7 +114,7 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 	// Only fund wallets when using my-local-ton.
 	if b.Type == CTF || b.Type == LOCAL {
 		for _, chain := range env.BlockChains.TonChains() {
-			ferr := testutils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
+			ferr := testutils.FundWallets(t.Context(), chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
 			require.NoError(t, ferr)
 			time.Sleep(5 * time.Second)
 		}

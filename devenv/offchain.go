@@ -1,4 +1,4 @@
-package ccip_ton
+package ccipton
 
 import (
 	"context"
@@ -74,7 +74,7 @@ func (m *CCIP16TON) DeployLocalNetwork(ctx context.Context, bc *blockchain.Input
 func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (string, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Configuring CL nodes for TON")
-	name := fmt.Sprintf("node-ton-%s", uuid.New().String()[0:5])
+	name := "node-ton-" + uuid.New().String()[0:5]
 	return fmt.Sprintf(`
 	[[TON]]
 	ChainID = '%s'
@@ -93,8 +93,8 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input, nodeKeyBundles map[string]clclient.NodeKeysBundle, bc *blockchain.Input, linkAmount, nativeAmount *big.Int) error {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Funding CL nodes with native and LINK")
-	var keys []*address.Address
-	var amounts []tlb.Coins
+	keys := make([]*address.Address, 0)
+	amounts := make([]tlb.Coins, 0)
 	for _, nk := range nodeKeyBundles {
 		addr, err := GetNodeAddressFromBundle(&nk)
 		if err != nil {
@@ -107,7 +107,7 @@ func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input,
 	if err != nil {
 		return fmt.Errorf("failed to create TON client: %w", err)
 	}
-	return testutils.FundWalletsNoT(client, keys, amounts)
+	return testutils.FundWallets(ctx, client, keys, amounts)
 }
 
 func GetNodeAddressFromBundle(bundle *clclient.NodeKeysBundle) (string, error) {
