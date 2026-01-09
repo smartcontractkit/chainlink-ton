@@ -47,13 +47,13 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		}
 
 		ctx := b.GetContext()
-		walletAddr := tonChain.Wallet.Address()
+		walletAddr := tonChain.WalletAddress
 
 		feeQuoterAddr := deps.CCIPOnChainState[chainSelector].FeeQuoter
 		onRampAddr := deps.CCIPOnChainState[chainSelector].OnRamp
 		routerAddr := deps.CCIPOnChainState[chainSelector].Router
 
-		opDeps := opston.SendMessagesDeps{Wallet: tonChain.Wallet}
+		opDeps := opston.SendMessagesDeps{Wallet: tonChain.Wallet, Client: tonChain.Client}
 		out := sequences.OnChainOutput{}
 
 		// 1. Update FeeQuoter dest chain configs
@@ -213,12 +213,12 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		}
 
 		ctx := b.GetContext()
-		walletAddr := tonChain.Wallet.Address()
+		walletAddr := tonChain.WalletAddress
 
 		offRampAddr := deps.CCIPOnChainState[chainSelector].OffRamp
 		routerAddr := deps.CCIPOnChainState[chainSelector].Router
 
-		opDeps := opston.SendMessagesDeps{Wallet: tonChain.Wallet}
+		opDeps := opston.SendMessagesDeps{Wallet: tonChain.Wallet, Client: tonChain.Client}
 		out := sequences.OnChainOutput{}
 
 		// 1. Update OffRamp source chain configs
