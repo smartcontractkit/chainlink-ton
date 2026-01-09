@@ -26,13 +26,22 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/changeset"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 )
 
@@ -442,4 +451,293 @@ func RandomUint32() (uint32, error) {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint32(b[:]), nil
+}
+
+// AddLanesAsSourceInput contains the input parameters for building a lane where TON is the source chain.
+type AddLanesAsSourceInput struct {
+	ChainSelector     uint64
+	DestChainSelector uint64
+	FeeQuoterAddr     *address.Address
+	OnRampAddr        *address.Address
+	RouterAddr        *address.Address
+	Client            ton.APIClientWrapped
+	WalletAddr        *address.Address
+	MCMSAddr          *address.Address // Optional: nil for direct execution
+	TimelockAddr      *address.Address // Optional: nil for direct execution
+	Plan              bool             // Whether to plan (MCMS) or execute directly
+
+	// Configuration
+	FeeQuoterDestConfig feequoter.UpdateDestChainConfigs
+	TokenPrices         []feequoter.TokenPriceUpdate
+	GasPrices           []feequoter.GasPriceUpdate
+	AllowListEnabled    bool
+	Description         string
+}
+
+// AddLanesAsDestInput contains the input parameters for building a lane where TON is the destination chain.
+type AddLanesAsDestInput struct {
+	ChainSelector       uint64
+	SourceChainSelector uint64
+	OffRampAddr         *address.Address
+	RouterAddr          *address.Address
+	OnRampBytes         []byte // OnRamp address from source chain as bytes
+	Client              ton.APIClientWrapped
+	WalletAddr          *address.Address
+	MCMSAddr            *address.Address
+	TimelockAddr        *address.Address
+	Plan                bool // Whether to plan (MCMS) or execute directly
+
+	// Configuration
+	IsRMNVerificationDisabled bool
+	Description               string
+}
+
+// BuildAddLanesInputAsSource builds TimelockAnySequenceInput for adding a lane where TON is the source chain.
+//
+// This function shows the complete pattern:
+// 1. Build binding types for each operation
+// 2. Wrap them with helper functions
+// 3. Construct SendMessagesInput for each operation
+// 4. Build the final TimelockAnySequenceInput
+func BuildAddLanesInputAsSource(input AddLanesAsSourceInput) (opsmcms.TimelockAnySequenceInput, error) {
+	// Step 1: Build binding types for each operation
+
+	// 1a. OnRamp destination chain configuration
+	onRampDestConfig := onramp.UpdateDestChainConfigsMessage{
+		Updates: []onramp.UpdateDestChainConfig{
+			{
+				DestinationChainSelector: input.DestChainSelector,
+				Router:                   input.RouterAddr,
+				AllowListEnabled:         input.AllowListEnabled,
+			},
+		},
+	}
+
+	// 1b. FeeQuoter price updates (gas and token prices)
+	feeQuoterPrices := feequoter.UpdatePrices{
+		TokenPrices:    input.TokenPrices,
+		GasPrices:      input.GasPrices,
+		SendExcessesTo: nil,
+	}
+
+	// 1c. Router ramp updates (register onramp)
+	routerUpdate := router.ApplyRampUpdates{
+		QueryID: 0,
+		OnRampUpdates: &router.OnRamps{
+			DestChainSelectors: []router.ChainSelector{
+				{Value: input.DestChainSelector},
+			},
+			OnRamps: input.OnRampAddr,
+		},
+	}
+
+	// Step 2: Wrap each with helper functions
+	fqDestEnvelope, err := changeset.WrapFeeQuoterDestConfigMessage(input.FeeQuoterDestConfig)
+	if err != nil {
+		return opsmcms.TimelockAnySequenceInput{}, err
+	}
+
+	orEnvelope, err := changeset.WrapOnRampDestConfigMessage(onRampDestConfig)
+	if err != nil {
+		return opsmcms.TimelockAnySequenceInput{}, err
+	}
+
+	fqPricesEnvelope, err := changeset.WrapFeeQuoterPricesMessage(feeQuoterPrices)
+	if err != nil {
+		return opsmcms.TimelockAnySequenceInput{}, err
+	}
+
+	routerEnvelope, err := changeset.WrapRouterRampUpdatesMessage(routerUpdate)
+	if err != nil {
+		return opsmcms.TimelockAnySequenceInput{}, err
+	}
+
+	// Step 3: Build SendMessagesInput for each operation
+	inputs := []any{
+		// Update FeeQuoter destination chain configs
+		opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: input.FeeQuoterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    fqDestEnvelope,
+				},
+			},
+			Plan: input.Plan,
+		},
+		// Update OnRamp destination chain configs
+		opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: input.OnRampAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    orEnvelope,
+				},
+			},
+			Plan: input.Plan,
+		},
+		// Update FeeQuoter prices
+		opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: input.FeeQuoterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    fqPricesEnvelope,
+				},
+			},
+			Plan: input.Plan,
+		},
+		// Update Router with onramp
+		opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: input.RouterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    routerEnvelope,
+				},
+			},
+			Plan: input.Plan,
+		},
+	}
+
+	// Step 4: Build operation definitions (one SendMessages.Def() per input)
+	defs := make([]operations.Definition, len(inputs))
+	for i := range inputs {
+		defs[i] = opston.SendMessages.Def()
+	}
+
+	// Step 5: Build operation metadata for MCMS
+	metadata := []types.OperationMetadata{
+		{ContractType: bindings.PkgCCIP + ".FeeQuoter", Tags: []string{"UpdateDestChainConfigs"}},
+		{ContractType: bindings.PkgCCIP + ".OnRamp", Tags: []string{"UpdateDestChainConfigs"}},
+		{ContractType: bindings.PkgCCIP + ".FeeQuoter", Tags: []string{"UpdatePrices"}},
+		{ContractType: bindings.PkgCCIP + ".Router", Tags: []string{"ApplyRampUpdates"}},
+	}
+
+	description := input.Description
+	if description == "" {
+		description = "Add lane with TON as source"
+	}
+
+	// Step 6: Return TimelockAnySequenceInput
+	return opsmcms.TimelockAnySequenceInput{
+		AnySequenceIn: opston.AnySequenceInput{
+			Defs:   defs,
+			Inputs: inputs,
+		},
+		ChainSelector: types.ChainSelector(input.ChainSelector),
+		MCMSAddr:      input.MCMSAddr,
+		TimelockAddr:  input.TimelockAddr,
+		OpsMetadata:   metadata,
+		Description:   description,
+		Action:        types.TimelockActionSchedule,
+		Value:         tlb.FromNanoTON(big.NewInt(0)),
+	}, nil
+}
+
+// BuildAddLanesInputAsDest builds TimelockAnySequenceInput for adding a lane where TON is the destination chain.
+func BuildAddLanesInputAsDest(input AddLanesAsDestInput) (opsmcms.TimelockAnySequenceInput, error) {
+	// Step 1: Build binding types for each operation
+
+	// 1a. OffRamp source chain configuration
+	offRampSourceConfig := offramp.UpdateSourceChainConfigs{
+		Configs: []offramp.UpdateSourceChainConfig{
+			{
+				SourceChainSelector: input.SourceChainSelector,
+				Config: offramp.SourceChainConfig{
+					Router:                    input.RouterAddr,
+					IsEnabled:                 true,
+					IsRMNVerificationDisabled: input.IsRMNVerificationDisabled,
+					OnRamp:                    input.OnRampBytes,
+				},
+			},
+		},
+	}
+
+	// 1b. Router ramp updates (register offramp)
+	routerUpdate := router.ApplyRampUpdates{
+		QueryID: 0,
+		OffRampAdds: &router.OffRamps{
+			SourceChainSelectors: []router.ChainSelector{
+				{Value: input.SourceChainSelector},
+			},
+			OffRamp: input.OffRampAddr,
+		},
+		OffRampRemoves: nil,
+	}
+
+	// Step 2: Wrap each with helper functions
+	orEnvelope, err := changeset.WrapOffRampSourceConfigMessage(offRampSourceConfig)
+	if err != nil {
+		return opsmcms.TimelockAnySequenceInput{}, err
+	}
+
+	routerEnvelope, err := changeset.WrapRouterRampUpdatesMessage(routerUpdate)
+	if err != nil {
+		return opsmcms.TimelockAnySequenceInput{}, err
+	}
+
+	// Step 3: Build SendMessagesInput for each operation
+	inputs := []any{
+		// Update OffRamp source chain configs
+		opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: input.OffRampAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    orEnvelope,
+				},
+			},
+			Plan: input.Plan,
+		},
+		// Update Router with offramp
+		opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: input.RouterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    routerEnvelope,
+				},
+			},
+			Plan: input.Plan,
+		},
+	}
+
+	// Step 4: Build operation definitions (one SendMessages.Def() per input)
+	defs := make([]operations.Definition, len(inputs))
+	for i := range inputs {
+		defs[i] = opston.SendMessages.Def()
+	}
+
+	// Step 5: Build operation metadata for MCMS
+	metadata := []types.OperationMetadata{
+		{ContractType: bindings.PkgCCIP + ".OffRamp", Tags: []string{"UpdateSourceChainConfigs"}},
+		{ContractType: bindings.PkgCCIP + ".Router", Tags: []string{"ApplyRampUpdates"}},
+	}
+
+	description := input.Description
+	if description == "" {
+		description = "Add lane with TON as destination"
+	}
+
+	// Step 6: Return TimelockAnySequenceInput
+	return opsmcms.TimelockAnySequenceInput{
+		AnySequenceIn: opston.AnySequenceInput{
+			Defs:   defs,
+			Inputs: inputs,
+		},
+		ChainSelector: types.ChainSelector(input.ChainSelector),
+		MCMSAddr:      input.MCMSAddr,
+		TimelockAddr:  input.TimelockAddr,
+		OpsMetadata:   metadata,
+		Description:   description,
+		Action:        types.TimelockActionSchedule,
+		Value:         tlb.FromNanoTON(big.NewInt(0)),
+	}, nil
 }

@@ -1,6 +1,7 @@
 package ccip
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,8 +13,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/stretchr/testify/require"
 
@@ -120,12 +120,9 @@ func TestAddLanes(t *testing.T) {
 	}
 
 	// Set up operations bundle with TON operation registry
-	bundleOpts := []operations.BundleOption{
-		operations.WithOperationRegistry(ops.Registry),
-	}
-	rptr := operations.NewMemoryReporter()
-	bundle := operations.NewBundle(t.Context, lggr, rptr, bundleOpts...)
-	env.OperationsBundle = bundle
+	utils.RegisterTONCodecInEnv(func() context.Context {
+		return t.Context()
+	}, lggr, &env)
 
 	// TON <> EVM lanes
 	lanesRegistry := lanes.GetLaneAdapterRegistry()
