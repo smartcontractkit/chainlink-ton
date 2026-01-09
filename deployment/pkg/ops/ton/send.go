@@ -74,6 +74,7 @@ var SendMessages = operations.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
 			}
 
+			// TODO: replace with encoded *tlb.InternalMessage as *cell.Cell
 			plan := MessagePlanRaw{
 				Body:    body,
 				DstAddr: m.DstAddr,

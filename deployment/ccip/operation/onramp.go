@@ -5,12 +5,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 type OnRampDestinationUpdate struct {
@@ -33,13 +33,12 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 	updateOnRampDestChainConfigs,
 )
 
-func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) (*helpers.Transactions, error) {
+func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping onramp.updateOnRampDestChainConfigs, no updates")
-		// Nothing to update
-		return helpers.NewEmptyTransactions(), nil
+		return nil, nil // Nothing to update
 	}
 
 	configs := make([]onramp.UpdateDestChainConfig, 0, len(in.Updates))
@@ -63,13 +62,12 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in 
 		return nil, err
 	}
 
-	messages := []*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }

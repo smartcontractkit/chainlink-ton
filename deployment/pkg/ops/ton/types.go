@@ -52,6 +52,40 @@ type InternalMessage[T any] struct {
 	StateInit *StateInit               `json:"stateInit,omitempty"`
 }
 
+func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
+	msg := &tlb.InternalMessage{
+		Bounce:  im.Bounce,
+		DstAddr: im.DstAddr,
+		Amount:  im.Amount,
+	}
+
+	if im.StateInit != nil {
+		msg.StateInit = &tlb.StateInit{}
+		if im.StateInit.Code != nil {
+			msg.StateInit.Code = im.StateInit.Code
+		}
+		if im.StateInit.Data != nil {
+			msg.StateInit.Data = im.StateInit.Data
+		}
+	}
+
+	bodyCell, err := im.Body.ToCell()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert message body to cell: %w", err)
+	}
+	msg.Body = bodyCell
+
+	return msg, nil
+}
+
+func (im *InternalMessage[T]) ToCell() (*cell.Cell, error) {
+	msg, err := im.ToMessage()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert InternalMessage to tlb.InternalMessage: %w", err)
+	}
+	return tlb.ToCell(msg)
+}
+
 type StateInit struct {
 	Code *cell.Cell `json:"code,omitempty"`
 	Data *cell.Cell `json:"data,omitempty"`

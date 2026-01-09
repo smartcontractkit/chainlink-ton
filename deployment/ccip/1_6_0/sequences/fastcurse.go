@@ -258,7 +258,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 			// Create uncurse message
 			body, err := codec.WrapMessage[any](contractType, router.RMNRemoteCurse{Subjects: subjects})
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap uncurse message: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap message: %w", err)
 			}
 
 			// Get router address from chain state
@@ -347,7 +347,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			// Create uncurse message
 			body, err := codec.WrapMessage[any](contractType, router.RMNRemoteUncurse{Subjects: subjects})
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap uncurse message: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap message: %w", err)
 			}
 
 			// Get router address from chain state

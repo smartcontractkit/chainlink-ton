@@ -8,8 +8,10 @@ import (
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
@@ -25,7 +27,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
-		txs := helpers.NewEmptyTransactions()
+		msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
 		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
 		tonChain := chains.TonChains()[chainSelector]
@@ -41,11 +43,11 @@ var SetOCR3Config = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		txs.Append(setOCR3SeqReport.Output)
+		msgs = append(msgs, setOCR3SeqReport.Output...)
 
 		//  TODO: 1. When executing directly (with injected DEP/wallet) execution is processed outside a cldf.Sequence
 		//        2. When executing indirectly - via MCMS (plan/proposal returned) - not currently supported
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, msgs)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}

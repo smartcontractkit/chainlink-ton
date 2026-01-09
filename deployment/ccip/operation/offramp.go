@@ -10,12 +10,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 type OffRampSourceUpdate struct {
@@ -37,13 +37,13 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) (*helpers.Transactions, error) {
+func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping offramp.updateOffRampSourceChainConfigs, no updates")
 		// Nothing to update
-		return helpers.NewEmptyTransactions(), nil
+		return nil, nil
 	}
 
 	configs := make([]offramp.UpdateSourceChainConfig, 0, len(in.Updates))
@@ -72,15 +72,14 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 		return nil, err
 	}
 
-	messages := []*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
 
 // PluginType represents the type of CCIP plugin.
@@ -108,7 +107,7 @@ var SetOCR3ConfigOp = operations.NewOperation(
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) (*helpers.Transactions, error) {
+func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))
@@ -144,13 +143,12 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		return nil, err
 	}
 
-	messages := []*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
