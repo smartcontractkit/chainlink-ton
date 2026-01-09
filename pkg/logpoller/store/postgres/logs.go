@@ -199,10 +199,10 @@ func (s *pgLogStore) QueryLogs(
 	return logs, hasMore, nextCursor, nil
 }
 
-// GetLatestMCBlockSeqno retrieves the highest masterchain block sequence number
+// GetHighestMCBlockSeqno retrieves the highest masterchain block sequence number
 // from stored logs for this chain. Returns (seqno, exists, err) where exists indicates
 // whether any logs are stored.
-func (s *pgLogStore) GetLatestMCBlockSeqno(ctx context.Context) (uint32, bool, error) {
+func (s *pgLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, error) {
 	var result *int64
 
 	sql := `SELECT MAX(master_block_seqno) FROM ton.log_poller_logs WHERE chain_id = :chain_id`

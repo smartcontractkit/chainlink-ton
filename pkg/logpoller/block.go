@@ -64,7 +64,7 @@ func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentBlock
 	}
 
 	// try to resume from database on service restart
-	dbSeqno, exists, err := lp.logStore.GetLatestMCBlockSeqno(ctx)
+	dbSeqno, exists, err := lp.logStore.GetHighestMCBlockSeqno(ctx)
 	if err != nil {
 		lp.lggr.Warnw("Failed to query latest master block seqno from database, falling back to lookback window",
 			"err", err)

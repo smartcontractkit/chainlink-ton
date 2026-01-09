@@ -16,7 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-func TestInMemoryLogs_GetLatestMCBlockSeqno(t *testing.T) {
+func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 	ctx := context.Background()
 	lggr := logger.Test(t)
 	store := NewLogStore("test-chain", lggr)
@@ -25,7 +25,7 @@ func TestInMemoryLogs_GetLatestMCBlockSeqno(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("empty store returns 0 and exists=false", func(t *testing.T) {
-		latestSeqno, exists, err := store.GetLatestMCBlockSeqno(ctx)
+		latestSeqno, exists, err := store.GetHighestMCBlockSeqno(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, uint32(0), latestSeqno)
 		assert.False(t, exists, "exists should be false for empty store")
@@ -81,7 +81,7 @@ func TestInMemoryLogs_GetLatestMCBlockSeqno(t *testing.T) {
 		_, err := store.SaveLogs(ctx, logs, 100, 10)
 		require.NoError(t, err)
 
-		latestSeqno, exists, err := store.GetLatestMCBlockSeqno(ctx)
+		latestSeqno, exists, err := store.GetHighestMCBlockSeqno(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, uint32(200), latestSeqno)
 		assert.True(t, exists, "exists should be true after saving logs")

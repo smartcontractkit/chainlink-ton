@@ -456,10 +456,10 @@ func (s *inMemoryLogs) compareLogToCursor(log models.Log, cursorAddr *address.Ad
 	return 0
 }
 
-// GetLatestMCBlockSeqno returns the highest masterchain block sequence number
+// GetHighestMCBlockSeqno returns the highest masterchain block sequence number
 // from stored logs. Returns (seqno, exists, err) where exists indicates whether any
 // logs are stored.
-func (s *inMemoryLogs) GetLatestMCBlockSeqno(_ context.Context) (uint32, bool, error) {
+func (s *inMemoryLogs) GetHighestMCBlockSeqno(_ context.Context) (uint32, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -91,7 +91,7 @@ func Test_LogPoller_System(t *testing.T) {
 		}, 60*time.Second, 2*time.Second, "events should be indexed")
 
 		// verify mc block resolution worked
-		latestBlock, _, err := logStore.GetLatestMCBlockSeqno(t.Context())
+		latestBlock, _, err := logStore.GetHighestMCBlockSeqno(t.Context())
 		require.NoError(t, err)
 		require.Positive(t, latestBlock, "mc block seqno should be resolved and stored")
 		t.Logf("latest mc block seqno: %d", latestBlock)

@@ -55,12 +55,12 @@ func (o *ObservedLogStore) QueryLogs(ctx context.Context, logQuery *query.LogQue
 	return logs, hasMore, nextCursor, err
 }
 
-// GetLatestMCBlockSeqno wraps the underlying GetLatestMCBlockSeqno with metrics
-func (o *ObservedLogStore) GetLatestMCBlockSeqno(ctx context.Context) (uint32, bool, error) {
+// GetHighestMCBlockSeqno wraps the underlying GetHighestMCBlockSeqno with metrics
+func (o *ObservedLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, error) {
 	start := time.Now()
-	seqno, exists, err := o.LogStore.GetLatestMCBlockSeqno(ctx)
+	seqno, exists, err := o.LogStore.GetHighestMCBlockSeqno(ctx)
 
-	o.metrics.RecordQueryDuration(ctx, "GetLatestMCBlockSeqno", frameworkmetrics.Read, time.Since(start))
+	o.metrics.RecordQueryDuration(ctx, "GetHighestMCBlockSeqno", frameworkmetrics.Read, time.Since(start))
 
 	return seqno, exists, err
 }

@@ -388,7 +388,7 @@ func TestGetLatestBlock(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			latestBlock, _, err := logStore.GetLatestMCBlockSeqno(ctx)
+			latestBlock, _, err := logStore.GetHighestMCBlockSeqno(ctx)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, latestBlock)
 		})
