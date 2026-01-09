@@ -4,7 +4,8 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
