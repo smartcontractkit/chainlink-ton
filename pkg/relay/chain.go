@@ -161,7 +161,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		return nil, fmt.Errorf("failed to get chain info for balance monitor: %w", err)
 	}
 
-	ch.bm, err = balancemonitor.NewBalanceMonitor(balancemonitor.BalanceMonitorOpts{
+	ch.bm, err = balancemonitor.NewMonitor(balancemonitor.MonitorOpts{
 		ChainInfo: balance.ChainInfo{
 			ChainFamilyName: chainInfo.FamilyName,
 			ChainID:         chainInfo.ChainID,
