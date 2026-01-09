@@ -11,6 +11,7 @@ import "../../../lib/receiver/types";
 import "../../../lib/utils";
 import "../../router/messages"
 import "../../../lib/access/ownable_2step"
+import "types"
 
 const CONTRACT_VERSION = "1.6.0";
 
@@ -113,11 +114,11 @@ get fun getBehavior(): int {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.test.Receiver", CONTRACT_VERSION);
+    return (TestReceiver_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.test.Receiver"));
+    return TestReceiver_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

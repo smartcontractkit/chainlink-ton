@@ -37,13 +37,13 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([][]byte, error) {
+func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) (*helpers.Transactions, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping offramp.updateOffRampSourceChainConfigs, no updates")
 		// Nothing to update
-		return nil, nil
+		return helpers.NewEmptyTransactions(), nil
 	}
 
 	configs := make([]offramp.UpdateSourceChainConfig, 0, len(in.Updates))
@@ -80,7 +80,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }
 
 // PluginType represents the type of CCIP plugin.
@@ -108,7 +108,7 @@ var SetOCR3ConfigOp = operations.NewOperation(
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([][]byte, error) {
+func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) (*helpers.Transactions, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))
@@ -152,5 +152,5 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 			Body:    payload,
 		},
 	}
-	return helpers.Serialize(messages)
+	return helpers.NewTransactions(messages)
 }

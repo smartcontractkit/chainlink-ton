@@ -12,6 +12,7 @@ import {
   TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from './Router.Setup'
+import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -78,7 +79,7 @@ describe('Router', () => {
     })
   })
 
-  it('should reject message for disabled dest chain', async () => {
+  it('should reject message for disabled dest chain (never added)', async () => {
     const badMsg = { ...msg, destChainSelector: msg.destChainSelector + 1n }
     const result = await router.sendCcipSend(sender.getSender(), {
       value: toNano('1'),
@@ -88,8 +89,61 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
       to: router.address,
-      success: false,
-      exitCode: rt.RouterError.DestChainNotEnabled,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.ccipSendNACK,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.builder.message.out.ccipSendNACK.load(x.beginParse())
+        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+      },
+    })
+  })
+
+  it('should reject message for disabled dest chain (removed)', async () => {
+    // Disable the onRamp for the chain
+    {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: 1n,
+          onRamps: {
+            destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            onRamp: undefined,
+          },
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    const result = await router.sendCcipSend(sender.getSender(), {
+      value: toNano('1'),
+      body: msg,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.ccipSendNACK,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.builder.message.out.ccipSendNACK.load(x.beginParse())
+        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+      },
     })
   })
 

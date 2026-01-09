@@ -1,5 +1,7 @@
+import "types"
+
 enum Error {
-    MessageNotFromOwnedContract = 8400
+    MessageNotFromOwnedContract = OffRamp_FACILITY_ID * 100
     SourceChainNotEnabled
     EmptyExecutionReport
     InvalidMessageDestChainSelector

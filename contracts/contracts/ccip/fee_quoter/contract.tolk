@@ -16,7 +16,6 @@ import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
 
 const CONTRACT_VERSION = "1.6.0";
-const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
@@ -252,7 +251,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
         8 => {
             throw FeeQuoter_Error.MsgDataTooLarge;
         }
-        ERROR_INVALID_DATA => {
+        Utils_Error.InvalidData as int => {
             throw FeeQuoter_Error.InvalidMsgData;
         }
         else => {
@@ -370,7 +369,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val suiExtraArgs = parseSuiExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = suiExtraArgs.gasLimit;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
@@ -401,7 +400,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
-        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit);
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.maxPerMsgGasLimit);
         val gasLimit = svmExtraArgs.computeUnits;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
@@ -487,7 +486,7 @@ fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainA
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
         return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
@@ -558,9 +557,13 @@ get fun tokenPrices(tokens: tuple): tuple {
 
     while(!iter.empty()) {
         val token = iter.next();
-        // NOTE: Need to skip missing items as nil entries rather than fail the query
         val entry = st.usdPerToken.get(token);
-        list.push(entry.loadValue().toCell());
+        // NOTE: Need to skip missing items as nil entries rather than fail the query
+        if (entry.isFound) {
+            list.push(entry.loadValue().toCell());
+        } else {
+            list.push(null);
+        }
     }
     return list;
 }
@@ -640,11 +643,11 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.FeeQuoter", CONTRACT_VERSION);
+    return (FeeQuoter_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"));
+    return FeeQuoter_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

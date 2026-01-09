@@ -158,34 +158,70 @@ func TestPgLogStore(t *testing.T) {
 	})
 
 	t.Run("QueryLogs - With Sorting", func(t *testing.T) {
-		limitAndSort := commonquery.LimitAndSort{
-			SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
-		}
-
+		// Test TxLT sorting (DESC)
 		logs, _, _, err := logStore.QueryLogs(ctx, &query.LogQuery{
 			FieldFilters: []*query.FieldFilter{
-				{
-					Field:    "address",
-					Operator: primitives.Eq,
-					Value:    testAddr,
-				},
-				{
-					Field:    "event_sig",
-					Operator: primitives.Eq,
-					Value:    counter.TopicCountIncreased,
-				},
+				{Field: "address", Operator: primitives.Eq, Value: testAddr},
+				{Field: "event_sig", Operator: primitives.Eq, Value: counter.TopicCountIncreased},
 			},
-			LimitAndSort: limitAndSort,
+			LimitAndSort: commonquery.LimitAndSort{
+				SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
+			},
 		})
 		require.NoError(t, err)
-
-		// Check raw query result directly
 		assert.Len(t, logs, 3)
 
 		// Verify descending order by TxLT
 		for i := 1; i < len(logs); i++ {
 			assert.GreaterOrEqual(t, logs[i-1].TxLT, logs[i].TxLT)
 		}
+
+		// Test timestamp sorting with tiebreakers (same timestamp, different tx_lt)
+		sameTimestamp := time.Now().Truncate(time.Second)
+		collisionLogs := make([]models.Log, 3)
+		for i := 0; i < 3; i++ {
+			eventCell := cell.BeginCell().
+				MustStoreUInt(uint64(1), 32).
+				MustStoreUInt(uint64((i+1)*1000), 32). //nolint:gosec // test code with small values
+				MustStoreAddr(testAddr).
+				EndCell()
+
+			collisionLogs[i] = models.Log{
+				FilterID:         filterID,
+				ChainID:          "test-chain",
+				Address:          testAddr,
+				EventSig:         counter.TopicCountIncreased,
+				Data:             eventCell,
+				TxHash:           models.TxHash{byte(i + 10), 2, 3, 4, 5},
+				TxLT:             uint64(5000 - i), //nolint:gosec // test code with small values
+				MsgLT:            uint64(5000 - i), //nolint:gosec // test code with small values
+				TxTimestamp:      sameTimestamp,
+				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(500 + i)}, //nolint:gosec // test code
+				MasterBlockSeqno: uint32(600 + i),                                                  //nolint:gosec // test code
+				MsgIndex:         int64(i),
+			}
+		}
+		_, err = logStore.SaveLogs(ctx, collisionLogs, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
+		require.NoError(t, err)
+
+		// Query with timestamp sort ASC - tx_lt used as tiebreaker
+		tsLogs, _, _, err := logStore.QueryLogs(ctx, &query.LogQuery{
+			FieldFilters: []*query.FieldFilter{
+				{Field: "address", Operator: primitives.Eq, Value: testAddr},
+				{Field: "event_sig", Operator: primitives.Eq, Value: counter.TopicCountIncreased},
+				{Field: "tx_timestamp", Operator: primitives.Eq, Value: sameTimestamp},
+			},
+			LimitAndSort: commonquery.LimitAndSort{
+				SortBy: []commonquery.SortBy{query.NewTimestampSort(commonquery.Asc)},
+			},
+		})
+		require.NoError(t, err)
+		require.Len(t, tsLogs, 3)
+
+		// Verify deterministic order by tx_lt ASC when timestamps equal
+		assert.Equal(t, uint64(4998), tsLogs[0].TxLT)
+		assert.Equal(t, uint64(4999), tsLogs[1].TxLT)
+		assert.Equal(t, uint64(5000), tsLogs[2].TxLT)
 	})
 
 	t.Run("QueryLogs - With Byte Filters", func(t *testing.T) {

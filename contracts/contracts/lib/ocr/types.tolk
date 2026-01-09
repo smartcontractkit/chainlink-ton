@@ -1,5 +1,5 @@
 import "./../utils.tolk";
-import "./exit_codes.tolk";
+import "errors";
 
 // Maximum number of oracles the offchain reporting protocol is designed for
 const MAX_NUM_ORACLES: int = 255;
@@ -33,7 +33,7 @@ fun OCRConfig.assignSignerOracles(
 	var i = 0;
 	while (!signersIt.empty()) {
 		val signer = signersIt.next();
-		assert(!signersMap.get(signer).isFound, ERROR_REPEATED_SIGNERS);
+		assert(!signersMap.get(signer).isFound, MultiOCR3Base_Error.RepeatedSigners);
 		i = i + 1;
 		signersMap.set(
 			signer,
@@ -52,7 +52,7 @@ fun OCRConfig.assignTransmitterOracles(
 	var i = 0;
 	while (!transmittersIt.empty()) {
 		val transmitter = transmittersIt.next();
-		assert(!transmittersMap.get(transmitter).isFound, ERROR_REPEATED_TRANSMITTERS);
+		assert(!transmittersMap.get(transmitter).isFound, MultiOCR3Base_Error.RepeatedTransmitters);
 		i = i + 1;
 		transmittersMap.set(
 			transmitter,

@@ -33,7 +33,7 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 	env.Logger.Infof("deploying contracts for MCMS contracts: %v", cfg.ChainSelector)
 	selector := cfg.ChainSelector
 
-	mcmsStates, err := state.LoadMCMSOnchainState(env)
+	mcmsStates, err := state.LoadMCMSOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
@@ -67,15 +67,26 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
 	}
 
-	seqReports = append(seqReports, mcmsSeqReport.ExecutionReports...)
-	if mcmsSeqReport.Output.TimelockAddress != nil {
-		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.TimelockAddress.CLDFAddressRef)
-		m.Timelock = mcmsSeqReport.Output.TimelockAddress.TONAddress
-	}
+	// Only add new deployed addresses from DeployCCIPSequence to the output data store
+	if len(mcmsSeqReport.Output.Addresses) > 0 {
+		for _, addr := range mcmsSeqReport.Output.Addresses {
+			err = dataStore.Addresses().Add(addr)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to add deployed address to data store: %w", err)
+			}
+		}
 
-	if mcmsSeqReport.Output.MCMSAddress != nil {
-		_ = dataStore.Addresses().Add(mcmsSeqReport.Output.MCMSAddress.CLDFAddressRef)
-		m.MCMS = mcmsSeqReport.Output.MCMSAddress.TONAddress
+		err = dataStore.Merge(env.DataStore)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to merge deployed addresses to env data store: %w", err)
+		}
+		env.DataStore = dataStore.Seal()
+
+		// Reload the state from the updated data store to include newly deployed addresses
+		m, err = state.LoadMCMSOnChainStateUsingDataStore(env.DataStore, selector)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to reload state from data store: %w", err)
+		}
 	}
 
 	mcmsDeps.MCMSChainState[selector] = m

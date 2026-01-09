@@ -95,7 +95,9 @@ func (p *queryParser) Parse(q *query.LogQuery) (sql string, params any, err erro
 		return "", nil, fmt.Errorf("failed to add cursor filter: %w", err)
 	}
 
-	p.addOrderBy(q.LimitAndSort)
+	if err := p.addOrderBy(q.LimitAndSort); err != nil {
+		return "", nil, fmt.Errorf("failed to add order by: %w", err)
+	}
 	p.addLimit(q.LimitAndSort)
 
 	// build returns the final SQL query and parameters
@@ -205,26 +207,57 @@ func (p *queryParser) addCursorFilter(limitAndSort commonquery.LimitAndSort) err
 	return nil
 }
 
-// addOrderBy constructs the ORDER BY clause, including default sorting and tie-breakers
-func (p *queryParser) addOrderBy(limitAndSort commonquery.LimitAndSort) {
-	var orderParts []string
+// defaultOrderBy is used when no explicit sort is provided.
+// Uses address + msg_lt for consistent pagination cursor behavior.
+const defaultOrderBy = " ORDER BY address ASC, msg_lt ASC"
+
+// tiebreakers ensures deterministic ordering across PostgreSQL instances.
+// tx_lt (transaction logical time) is globally unique and monotonically increasing on TON.
+// msg_index distinguishes multiple events within the same transaction.
+var tiebreakers = []string{"tx_lt", "msg_index"}
+
+// addOrderBy constructs the ORDER BY clause with deterministic tiebreakers.
+// When an explicit sort is provided (e.g., timestamp), tiebreakers are appended
+// in the same direction to ensure consistent ordering when primary sort values are equal.
+func (p *queryParser) addOrderBy(limitAndSort commonquery.LimitAndSort) error {
+	if len(limitAndSort.SortBy) == 0 {
+		p.query.WriteString(defaultOrderBy)
+		return nil
+	}
+
+	orderParts := make([]string, 0, len(limitAndSort.SortBy)+len(tiebreakers))
+	usedFields := make(map[string]struct{}, len(limitAndSort.SortBy))
+	lastDirection := commonquery.Asc
 
 	for _, sort := range limitAndSort.SortBy {
-		if fieldSort, ok := sort.(*query.FieldSort); ok {
-			direction := "ASC"
-			if fieldSort.GetDirection() == commonquery.Desc {
-				direction = "DESC"
-			}
-			orderParts = append(orderParts, fmt.Sprintf("%s %s", fieldSort.GetField(), direction))
+		fieldSort, ok := sort.(*query.FieldSort)
+		if !ok {
+			return fmt.Errorf("unsupported sort type: %T, only support field sorting", sort)
+		}
+		field := fieldSort.GetField()
+		dir := fieldSort.GetDirection()
+		lastDirection = dir
+		orderParts = append(orderParts, field+" "+sortDirectionSQL(dir))
+		usedFields[field] = struct{}{} // zero mem
+	}
+
+	// append tiebreakers in the same direction as the last explicit sort
+	dirSQL := sortDirectionSQL(lastDirection)
+	for _, tb := range tiebreakers {
+		if _, exists := usedFields[tb]; !exists {
+			orderParts = append(orderParts, tb+" "+dirSQL)
 		}
 	}
 
-	if len(orderParts) == 0 {
-		orderParts = append(orderParts, "address ASC", "msg_lt ASC")
-	}
+	p.query.WriteString(" ORDER BY " + strings.Join(orderParts, ", "))
+	return nil
+}
 
-	p.query.WriteString(" ORDER BY ")
-	p.query.WriteString(strings.Join(orderParts, ", "))
+func sortDirectionSQL(dir commonquery.SortDirection) string {
+	if dir == commonquery.Desc {
+		return "DESC"
+	}
+	return "ASC"
 }
 
 // addLimit constructs the LIMIT clause
