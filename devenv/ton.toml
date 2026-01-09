@@ -1,0 +1,15 @@
+[[blockchains]]
+  container_name = "ethereum-chain"
+  chain_id = "1337"
+  docker_cmd_params = ["-b", "1", "--mixed-mining", "--slots-in-an-epoch", "1"]
+  image = "ghcr.io/foundry-rs/foundry:latest"
+  port = "8545"
+  type = "anvil"
+
+[[blockchains]]
+  container_name = "ton-chain"
+  chain_id = "-217"
+  type = "ton"
+  image = "ghcr.io/neodix42/mylocalton-docker:v3.97"
+  port = "8575"
+  custom_env = {VERSION_CAPABILITIES = "12", NEXT_BLOCK_GENERATION_DELAY = "0.5"}

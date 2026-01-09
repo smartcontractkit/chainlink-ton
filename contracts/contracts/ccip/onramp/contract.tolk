@@ -543,11 +543,11 @@ get fun sendExecutorCodeHash(): uint256 {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
+    return (OnRamp_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OnRamp"));
+    return OnRamp_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

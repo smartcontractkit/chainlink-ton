@@ -3,7 +3,7 @@ import "../../lib/utils"
 const ON_RAMP_SET_TOPIC: int = stringCrc32("OnRampSet");
 struct OnRampSet {
     destChainSelectors: SnakedCell<uint64>;
-    onRamp: address;
+    onRamp: address?;
 }
 
 const OFF_RAMP_ADDED_TOPIC: int = stringCrc32("OffRampAdded");

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -23,6 +22,7 @@ import (
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -31,7 +31,6 @@ import (
 	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonhash "github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -56,7 +55,7 @@ type Client struct {
 // NewClient creates a new TON client
 func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) (lib.Client, error) {
 	// support both liteserver:// and config URL format
-	client, err := connectClient(ctx, endpoint)
+	client, err := utils.CreateClient(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get TON client: %w", err)
 	}
@@ -87,27 +86,6 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 	}
 
 	return c, nil
-}
-
-func connectClient(ctx context.Context, endpoint string) (*ton.APIClient, error) {
-	if strings.HasPrefix(endpoint, "liteserver://") {
-		pool, err := tonchain.CreateLiteserverConnectionPool(ctx, endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
-		}
-		return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
-	}
-	// connect via config URL
-	cfg, err := liteclient.GetConfigFromUrl(ctx, endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get TON config: %w", err)
-	}
-	pool := liteclient.NewConnectionPool()
-	err = pool.AddConnectionsFromConfig(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to TON: %w", err)
-	}
-	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
 }
 
 func (c *Client) ChainSelector() uint64 {

@@ -1,5 +1,7 @@
+import "types"
+
 enum FeeQuoter_Error {
-    UnsupportedChainFamilySelector = 24800 // Facility ID * 100
+    UnsupportedChainFamilySelector = FeeQuoter_FACILITY_ID * 100
     GasLimitTooHigh
     ExtraArgOutOfOrderExecutionMustBeTrue
     InvalidExtraArgsData

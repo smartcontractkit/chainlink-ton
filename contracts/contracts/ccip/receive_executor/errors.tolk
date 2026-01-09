@@ -1,5 +1,7 @@
+import "types"
+
 enum Error {
-    StateIsNotUntouched = 33800 // Facility ID * 100
+    StateIsNotUntouched = ReceiveExecutor_FACILITY_ID * 100
     UpdatingStateOfNonExecutedMessage
     NotificationFromInvalidReceiver
     Unauthorized

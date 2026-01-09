@@ -3,7 +3,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
 import * as coverage from '../../coverage/coverage'
-import { facilityId } from '../../../wrappers/utils'
+import { errorCode, facilityId } from '../../../wrappers/utils'
 
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
@@ -115,12 +115,6 @@ describe('OnRamp - Opcodes', () => {
   })
 })
 
-describe('OnRamp - Facility ID', () => {
-  it('Test facilityId matches facility name', () => {
-    expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
-  })
-})
-
 describe('OnRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -141,14 +135,21 @@ describe('OnRamp - Unit Tests', () => {
     ;({ deployer, onramp } = await setup(blockchain))
   })
 
-  it('should match facility ID', async () => {
-    const facilityId = await onramp.getFacilityId()
-    expect(facilityId).toBe(BigInt(or.ONRAMP_FACILITY_ID))
+  it('should match facility name and ID', async () => {
+    const facilityIdVal = await onramp.getFacilityId()
+    expect(facilityIdVal).toBe(BigInt(or.FACILITY_ID))
+
+    const { type } = await onramp.getTypeAndVersion()
+    expect(type).toBe(or.FACILITY_NAME)
+
+    expect(or.FACILITY_ID).toEqual(facilityId(crc32(or.FACILITY_NAME)))
   })
 
   it('should match error code', async () => {
-    const errorCode = await onramp.getErrorCode(0n)
-    expect(errorCode).toBe(BigInt(or.ONRAMP_ERROR_CODE))
+    const errorCodeVal = await onramp.getErrorCode(0n)
+    expect(errorCodeVal).toBe(BigInt(or.ERROR_CODE))
+
+    expect(or.ERROR_CODE).toEqual(errorCode(crc32(or.FACILITY_NAME), 0))
   })
 
   it('getStaticConfig should return chain selector', async () => {

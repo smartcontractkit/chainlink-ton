@@ -1,8 +1,7 @@
-import "@stdlib/lisp-lists";
 import "./../../lib/ocr/multi_ocr3_base.tolk";
 import "./../../lib/ocr/types.tolk";
-import "./../../lib/ocr/exit_codes.tolk";
 import "./../../lib/utils.tolk";
+import "../../lib/ocr/errors";
 
 struct OCR3BaseExampleContract {
     contractId: uint64;
@@ -60,14 +59,14 @@ fun onInternalMessage(in: InMessage) {
 get fun ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
-    assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     return config!.configInfo;
 }
 
 get fun ocr3Signers(ocrPluginType: uint16): tuple? {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
-    assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     var d = config!.signers;
 
     return keysLispList(d);
@@ -76,7 +75,7 @@ get fun ocr3Signers(ocrPluginType: uint16): tuple? {
 get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
-    assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     var d  = config!.transmitters;
 
     return keysLispList(d);

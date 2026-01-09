@@ -1,12 +1,17 @@
 import "../utils.tolk"
 
+// getFacilityId(stringCrc32(com.chainlink.ton.lib.crypto.MerkleMultiProof))
+const MerkleMultiProof_FACILITY_ID= 462;
+const MerkleMultiProof_ERROR_CODE= MerkleMultiProof_FACILITY_ID * 100;
+
 // --- Errror Codes ---
 
-const ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY: int = 1001;
-const ERROR_INVALID_PROOF_LEAVES_TOO_LARGE: int = 1002;
-const ERROR_INVALID_PROOF_PROOFS_TOO_LARGE: int = 1003;
-const ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX: int = 1004;
-const ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH: int = 1005;
+enum MerkleMultiProof_Error {
+    InvalidProofLeavesCannotBeEmpty = MerkleMultiProof_ERROR_CODE,
+    InvalidProofLeavesTooLarge,
+    InvalidProofProofsTooLarge,
+    InvalidProofTotalHashesExceededMax,
+}
 
 /// @notice internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
 const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
@@ -24,12 +29,12 @@ fun merkleRoot<I>(
     val leavesLen = leaves.size(32);
     val proofsLen = proofs.size(32);
 
-    assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
-    assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);
-    assert (proofsLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_PROOFS_TOO_LARGE + 1);
+    assert (leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
+    assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
+    assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
 
     var totalHashes: int = leavesLen + proofsLen - 1;
-    assert (totalHashes <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX);
+    assert (totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
 
     if (totalHashes == 0) {
         return leaves.next();
