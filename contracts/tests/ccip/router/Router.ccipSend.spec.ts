@@ -11,7 +11,6 @@ import {
   EVM_ADDRESS,
   contractsCoverageConfig,
 } from './Router.Setup'
-import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('Router.ccipSend', () => {
   let blockchain: Blockchain

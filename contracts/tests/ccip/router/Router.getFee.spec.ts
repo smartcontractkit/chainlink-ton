@@ -12,7 +12,6 @@ import {
   EVM_ADDRESS,
   contractsCoverageConfig,
 } from './Router.Setup'
-import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -161,7 +160,7 @@ describe('Router', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: rt.builder.data.extraArgs
         .encode({
           kind: 'generic-v2',
