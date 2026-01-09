@@ -126,7 +126,7 @@ func TestBalanceMonitor_Polling(t *testing.T) {
 	keystore.AddKey(tonChain.Wallet.PrivateKey())
 	require.NotNil(t, keystore)
 
-	opts := monitor.BalanceMonitorOpts{
+	opts := monitor.MonitorOpts{
 		ChainInfo: balance.ChainInfo{
 			ChainFamilyName: "ton",
 			ChainID:         string(chainsel.TON_LOCALNET.ChainID),
@@ -144,7 +144,7 @@ func TestBalanceMonitor_Polling(t *testing.T) {
 	}
 
 	// Create and start balance monitor
-	balanceMonitor, err := monitor.NewBalanceMonitor(opts)
+	balanceMonitor, err := monitor.NewMonitor(opts)
 	require.NoError(t, err)
 	require.NotNil(t, balanceMonitor)
 	err = balanceMonitor.Start(t.Context())
