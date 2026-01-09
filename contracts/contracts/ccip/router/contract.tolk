@@ -196,7 +196,11 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
         var selectors = onRampUpdates.destChainSelectors.iter();
         while (!selectors.empty()) {
             val selector = selectors.next();
-            st.onRamps.set(selector, onRampUpdates.onRamp);
+            if (onRampUpdates.onRamp != null) {
+                st.onRamps.set(selector, onRampUpdates.onRamp);
+            } else {
+                st.onRamps.delete(selector);
+            }
         }
 
         emit(ON_RAMP_SET_TOPIC, OnRampSet {
@@ -336,7 +340,10 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy Storage.load();
     var ccipSend = lazy msg.ccipSend.load();
-    val onRamp = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
+    if (!onRampResult.isFound) {
+        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context);
+    }
 
     if (ccipSend.feeToken == null) {
         ccipSend.feeToken = st.wrappedNative
@@ -345,7 +352,7 @@ fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender:
     val feeQuoterMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: onRamp,
+        dest: onRampResult.loadValue(),
         body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
             ccipSend: ccipSend.toCell(),
             context: Router_GetValidatedFeeContext {
@@ -405,14 +412,18 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidate
 //     Router    ->> SenderAcc: Router_MessageValidationFailed
 fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>) {
     val userAddress = msg.context.routerContext;
+    sendMessageValidationFailed(userAddress, msg.error, msg.msg, msg.context.userContext);
+}
+
+fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: RemainingBitsOrRef<RemainingBitsAndRefs>) {
     val replyMsg = createMessage({
         bounce: true,
         value: 0,
         dest: userAddress,
         body: Router_MessageValidationFailed {
-            error: msg.error,
-            msg: msg.msg,
-            context: msg.context.userContext,
+            error: error,
+            msg: msg,
+            context: userContext,
         }
     });
     replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -433,11 +444,14 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         msg.feeToken = st.wrappedNative
     }
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    val onRampResult = st.onRamps.get(msg.destChainSelector);
+    if (!onRampResult.isFound) {
+        return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
+    }
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: onRamp,
+        dest: onRampResult.loadValue(),
         body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value } },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -550,13 +564,17 @@ fun onSendACK(msg: Router_MessageSent) {
 //     OnRamp           ->> Router:    Router_MessageRejected
 //     Router           ->> SenderAcc: Router_CCIPSendNACK
 fun onSendNACK(msg: Router_MessageRejected) {
+    sendMessageRejected(msg.sender, msg.queryID, msg.error);
+}
+
+fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
     val nackMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: msg.sender,
+        dest: sender,
         body: Router_CCIPSendNACK {
-            queryID: msg.queryID,
-            error: msg.error,
+            queryID: queryID,
+            error: error,
         }
     });
 

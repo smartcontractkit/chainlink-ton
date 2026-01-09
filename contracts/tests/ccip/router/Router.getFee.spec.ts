@@ -12,6 +12,7 @@ import {
   TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from './Router.Setup'
+import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -92,7 +93,7 @@ describe('Router', () => {
     })
   })
 
-  it('should reject getValidatedFee for disabled dest chain', async () => {
+  it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
     const badMsg = {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
@@ -118,8 +119,79 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
       to: router.address,
-      success: false,
-      exitCode: rt.RouterError.DestChainNotEnabled,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.messageValidationFailed,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
+        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+      },
+    })
+  })
+
+  it('should reject getValidatedFee for disabled dest chain (zero address)', async () => {
+    // Disable the onRamp for the chain
+    {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: 1n,
+          onRamps: {
+            destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            onRamp: undefined,
+          },
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    const badMsg = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+    const result = await router.sendGetValidatedFee(
+      sender.getSender(),
+      toNano('0.5'),
+      badMsg,
+      beginCell().asSlice(),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.messageValidationFailed,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
+        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+      },
     })
   })
 

@@ -6,7 +6,7 @@ const Router_FACILITY_ID = 496;
 
 struct OnRamps {
     destChainSelectors: SnakedCell<uint64>;
-    onRamp: address;
+    onRamp: address?;
 }
 
 struct OffRamps {
