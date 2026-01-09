@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,8 +101,8 @@ func TestApplyReplayOverride(t *testing.T) {
 
 		result := lp.applyReplayOverride(context.Background(), nil, currentMasterchainBlock)
 		require.Nil(t, result)
-		// Status should be Complete after replayComplete() is called
-		require.Equal(t, models.ReplayStatusComplete, lp.replay.status)
+		// Status should be NoRequest after clearReplayRequest() is called (rejection resets to initial state)
+		require.Equal(t, models.ReplayStatusNoRequest, lp.replay.status)
 		require.Nil(t, lp.replay.requestBlock)
 	})
 
@@ -121,8 +122,8 @@ func TestApplyReplayOverride(t *testing.T) {
 
 		result := lp.applyReplayOverride(context.Background(), nil, currentMasterchainBlock)
 		require.Nil(t, result)
-		// Status should be Complete after replayComplete() is called
-		require.Equal(t, models.ReplayStatusComplete, lp.replay.status)
+		// Status should be NoRequest after clearReplayRequest() is called (rejection resets to initial state)
+		require.Equal(t, models.ReplayStatusNoRequest, lp.replay.status)
 		require.Nil(t, lp.replay.requestBlock)
 	})
 }
@@ -280,5 +281,163 @@ func TestReplay(t *testing.T) {
 		require.NoError(t, err)
 		// Should update to the lower block
 		require.Equal(t, uint32(30), lp.replay.requestBlock.SeqNo)
+	})
+
+	t.Run("handles concurrent replay requests", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+
+		// Mock returns a block matching the requested SeqNo
+		mock := &mockAPIClient{
+			masterchainInfo: currentMasterchainBlock,
+			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+			},
+		}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+		lp.replay.status = models.ReplayStatusNoRequest
+
+		var wg sync.WaitGroup
+		var err1, err2 error
+
+		// Use a barrier to maximize concurrent execution
+		ready := make(chan struct{})
+
+		// Issue two concurrent replay requests
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-ready // wait for signal
+			err1 = lp.Replay(context.Background(), 50)
+		}()
+		go func() {
+			defer wg.Done()
+			<-ready // wait for signal
+			err2 = lp.Replay(context.Background(), 30)
+		}()
+
+		// Release both goroutines simultaneously
+		close(ready)
+		wg.Wait()
+
+		// Both should succeed (no errors)
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+
+		// The lower block (30) should always win regardless of execution order
+		require.Equal(t, models.ReplayStatusRequested, lp.replay.status)
+		require.Equal(t, uint32(30), lp.replay.requestBlock.SeqNo)
+	})
+
+	t.Run("accepts lower block request during pending replay", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
+		newReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 30, Shard: 1}
+
+		mock := &mockAPIClient{
+			masterchainInfo:   currentMasterchainBlock,
+			lookupBlockResult: newReplayBlock,
+		}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+		// Simulate a replay that has already started processing
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = existingReplayBlock
+
+		// Request a lower block while replay is in progress
+		err := lp.Replay(context.Background(), 30)
+		require.NoError(t, err)
+
+		// Should update to the lower block but keep Pending status
+		require.Equal(t, models.ReplayStatusPending, lp.replay.status, "status should remain Pending")
+		require.Equal(t, uint32(30), lp.replay.requestBlock.SeqNo, "should update to lower block")
+	})
+
+	t.Run("ignores higher block request during pending replay", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 30, Shard: 1}
+		newReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
+
+		mock := &mockAPIClient{
+			masterchainInfo:   currentMasterchainBlock,
+			lookupBlockResult: newReplayBlock,
+		}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+		// Simulate a replay that has already started processing
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = existingReplayBlock
+
+		// Request a higher block while replay is in progress
+		err := lp.Replay(context.Background(), 50)
+		require.NoError(t, err)
+
+		// Should keep the lower block and Pending status
+		require.Equal(t, models.ReplayStatusPending, lp.replay.status)
+		require.Equal(t, uint32(30), lp.replay.requestBlock.SeqNo, "should keep existing lower block")
+	})
+
+	t.Run("concurrent requests during pending replay", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		existingReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 40, Shard: 1}
+
+		mock := &mockAPIClient{
+			masterchainInfo: currentMasterchainBlock,
+			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+			},
+		}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+		// Simulate a replay already in progress
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = existingReplayBlock
+
+		var wg sync.WaitGroup
+		ready := make(chan struct{})
+
+		// Issue concurrent requests: one lower (20), one higher (60) than existing (40)
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-ready
+			_ = lp.Replay(context.Background(), 60) // higher than 40, should be ignored
+		}()
+		go func() {
+			defer wg.Done()
+			<-ready
+			_ = lp.Replay(context.Background(), 20) // lower than 40, should win
+		}()
+
+		close(ready)
+		wg.Wait()
+
+		// The lowest block (20) should win, status remains Pending
+		require.Equal(t, models.ReplayStatusPending, lp.replay.status)
+		require.Equal(t, uint32(20), lp.replay.requestBlock.SeqNo)
 	})
 }

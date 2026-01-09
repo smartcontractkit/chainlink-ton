@@ -20,13 +20,17 @@ type mockAPIClient struct {
 	masterchainErr       error
 	lookupBlockResult    *ton.BlockIDExt
 	lookupBlockErr       error
+	lookupBlockFunc      func(seqNo uint32) *ton.BlockIDExt // optional: dynamic block lookup
 }
 
 func (m *mockAPIClient) CurrentMasterchainInfo(_ context.Context) (*ton.BlockIDExt, error) {
 	return m.masterchainInfo, m.masterchainErr
 }
 
-func (m *mockAPIClient) LookupBlock(_ context.Context, _ int32, _ int64, _ uint32) (*ton.BlockIDExt, error) {
+func (m *mockAPIClient) LookupBlock(_ context.Context, _ int32, _ int64, seqNo uint32) (*ton.BlockIDExt, error) {
+	if m.lookupBlockFunc != nil {
+		return m.lookupBlockFunc(seqNo), m.lookupBlockErr
+	}
 	return m.lookupBlockResult, m.lookupBlockErr
 }
 

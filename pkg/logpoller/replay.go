@@ -62,10 +62,10 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 }
 
 // ReplayStatus returns the current replay status of LogPoller:
-// - NoRequest: there have not been any replay requests yet since service startup
+// - NoRequest: no replay request is pending
 // - Requested: a replay has been requested, but has not started yet
 // - Pending: a replay is currently in progress
-// - Complete: there was at least one replay executed since startup, but all have since completed
+// - Complete: a replay was successfully executed
 func (lp *service) ReplayStatus() models.ReplayStatus {
 	lp.replay.mut.RLock()
 	defer lp.replay.mut.RUnlock()
@@ -105,7 +105,7 @@ func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.B
 	_, err := lp.lookupRequestedReplayBlock(ctx, replayBlock.SeqNo, currentMasterchainBlock)
 	if err != nil {
 		lp.lggr.Warnw("replay rejected", "error", err, "fromBlock", replayBlock.SeqNo)
-		lp.replayComplete(replayBlock.SeqNo, currentMasterchainBlock.SeqNo) // reset replay status
+		lp.clearReplayRequest()
 		return blockRange
 	}
 
@@ -147,12 +147,21 @@ func (lp *service) checkForReplayRequest() *ton.BlockIDExt {
 	return requestBlock
 }
 
-// replayComplete marks the replay as complete
+// replayComplete marks a successful replay completion
 func (lp *service) replayComplete(fromBlock, toBlock uint32) {
 	lp.replay.mut.Lock()
 	defer lp.replay.mut.Unlock()
 
 	lp.lggr.Infow("Replay complete", "from", fromBlock, "to", toBlock)
 	lp.replay.status = models.ReplayStatusComplete
+	lp.replay.requestBlock = nil
+}
+
+// clearReplayRequest resets the replay state after rejection (e.g., block pruned, validation failed)
+func (lp *service) clearReplayRequest() {
+	lp.replay.mut.Lock()
+	defer lp.replay.mut.Unlock()
+
+	lp.replay.status = models.ReplayStatusNoRequest
 	lp.replay.requestBlock = nil
 }
