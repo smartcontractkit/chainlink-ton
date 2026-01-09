@@ -1,4 +1,4 @@
-package monitor
+package balance
 
 import (
 	"crypto/ed25519"
