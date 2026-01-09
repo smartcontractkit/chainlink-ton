@@ -6,6 +6,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -53,6 +54,7 @@ func (o DeployOutput) GetTransaction() *TransactionInfo {
 type DeployDeps struct {
 	ContractProvider ContractCodeProvider
 	Wallet           *wallet.Wallet
+	Client           ton.APIClientWrapped
 }
 
 var Deploy = operations.NewOperation(
@@ -106,6 +108,7 @@ var Deploy = operations.NewOperation(
 		// TOOD: improve deps passing
 		opdeps := SendMessagesDeps{
 			Wallet: deps.Wallet,
+			Client: deps.Client,
 		}
 
 		r, err := operations.ExecuteOperation(b, SendMessages, opdeps, _in)

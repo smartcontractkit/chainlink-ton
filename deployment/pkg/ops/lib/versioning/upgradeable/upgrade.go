@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -11,13 +12,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
 var (
-	_ ton.PlannerOption               = UpgradeInput{}
-	_ ton.Planner[ton.MessagePlanRaw] = UpgradeOutput{}
-	_ ton.MessageSender               = UpgradeOutput{}
+	_ opston.PlannerOption                  = UpgradeInput{}
+	_ opston.Planner[opston.MessagePlanRaw] = UpgradeOutput{}
+	_ opston.MessageSender                  = UpgradeOutput{}
 )
 
 type UpgradeInput struct {
@@ -28,8 +29,8 @@ type UpgradeInput struct {
 }
 
 type UpgradeMessage struct {
-	Message      ton.InternalMessage[upgradeable.Upgrade] `json:"message"`
-	ContractMeta ton.ContractMetadata                     `json:"contract_meta"`
+	Message      opston.InternalMessage[upgradeable.Upgrade] `json:"message"`
+	ContractMeta opston.ContractMetadata                     `json:"contract_meta"`
 }
 
 func (in UpgradeInput) IsPlan() bool {
@@ -37,21 +38,22 @@ func (in UpgradeInput) IsPlan() bool {
 }
 
 type UpgradeOutput struct {
-	Plans       []ton.MessagePlanRaw `json:"plans"`
-	Transaction *ton.TransactionInfo `json:"transaction,omitempty"`
+	Plans       []opston.MessagePlanRaw `json:"plans"`
+	Transaction *opston.TransactionInfo `json:"transaction,omitempty"`
 }
 
-func (o UpgradeOutput) GetPlans() []ton.MessagePlanRaw {
+func (o UpgradeOutput) GetPlans() []opston.MessagePlanRaw {
 	return o.Plans
 }
 
-func (o UpgradeOutput) GetTransaction() *ton.TransactionInfo {
+func (o UpgradeOutput) GetTransaction() *opston.TransactionInfo {
 	return o.Transaction
 }
 
 type UpgradeDeps struct {
-	ContractProvider ton.ContractCodeProvider
+	ContractProvider opston.ContractCodeProvider
 	Wallet           *wallet.Wallet
+	Client           ton.APIClientWrapped
 }
 
 var Upgrade = operations.NewOperation(
@@ -59,8 +61,8 @@ var Upgrade = operations.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Upgrades upgradeable contracts to a new implementation",
 	func(b operations.Bundle, deps UpgradeDeps, in UpgradeInput) (UpgradeOutput, error) {
-		// Load contracts and prepare the underlying []ton.InternalMessage[any]
-		_messages := make([]ton.InternalMessage[any], len(in.Messages))
+		// Load contracts and prepare the underlying []opston.InternalMessage[any]
+		_messages := make([]opston.InternalMessage[any], len(in.Messages))
 		for i, u := range in.Messages {
 			c, err := deps.ContractProvider.GetContract(u.ContractMeta)
 			if err != nil {
@@ -73,7 +75,7 @@ var Upgrade = operations.NewOperation(
 			val.Code = c.Code
 			valAny := any(val)
 
-			_messages[i] = ton.InternalMessage[any]{
+			_messages[i] = opston.InternalMessage[any]{
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
@@ -86,17 +88,18 @@ var Upgrade = operations.NewOperation(
 			}
 		}
 
-		_in := ton.SendMessagesInput{
+		_in := opston.SendMessagesInput{
 			Messages: _messages,
 			Plan:     in.Plan,
 		}
 
 		// TOOD: improve deps passing
-		opdeps := ton.SendMessagesDeps{
+		opdeps := opston.SendMessagesDeps{
 			Wallet: deps.Wallet,
+			Client: deps.Client,
 		}
 
-		r, err := operations.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
+		r, err := operations.ExecuteOperation(b, opston.SendMessages, opdeps, _in)
 		if err != nil {
 			return UpgradeOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}

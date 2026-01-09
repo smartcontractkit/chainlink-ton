@@ -49,6 +49,7 @@ func (o SendMessagesOutput) GetTransaction() *TransactionInfo {
 
 type SendMessagesDeps struct {
 	Wallet *wallet.Wallet
+	Client ton.APIClientWrapped
 }
 
 type ProviderDeps struct {
@@ -122,6 +123,11 @@ var SendMessages = operations.NewOperation(
 		tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
+		}
+
+		err = tracetracking.WaitForTrace(ctx, deps.Client, tx)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
 		}
 
 		return SendMessagesOutput{

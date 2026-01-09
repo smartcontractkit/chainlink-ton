@@ -66,6 +66,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	deps["chain"] = chain
 	deps[opston.SendMessages.Def().ID] = opston.SendMessagesDeps{
 		Wallet: chain.Wallet,
+		Client: chain.Client,
 	}
 
 	// Resolve (operation) input values

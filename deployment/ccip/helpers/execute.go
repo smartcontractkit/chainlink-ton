@@ -9,8 +9,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -19,7 +17,7 @@ func ExecuteProposals(env cldf.Environment, client ton.APIClientWrapped, sender 
 	return ExecuteTransactions(env.GetContext(), env.Logger, client, sender, txs)
 }
 
-func ExecuteTransactions(context context.Context, logger logger.Logger, client ton.APIClientWrapped, sender *wallet.Wallet, txs *Transactions) error {
+func ExecuteTransactions(ctx context.Context, logger logger.Logger, client ton.APIClientWrapped, sender *wallet.Wallet, txs *Transactions) error {
 	if txs == nil || txs.IsEmpty() {
 		// nothing to execute
 		return nil
@@ -38,23 +36,11 @@ func ExecuteTransactions(context context.Context, logger logger.Logger, client t
 	}
 
 	logger.Infow("Sending msgs", "msgs", msgs)
-	tx, blockID, err := sender.SendManyWaitTransaction(context, msgs)
+	tx, blockID, err := sender.SendManyWaitTransaction(ctx, msgs)
 	logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
 	if err != nil {
 		return fmt.Errorf("failed to send lane updates: %w", err)
 	}
-	msg, err := tracetracking.MapToReceivedMessage(tx)
-	if err != nil {
-		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
-	}
-	err = msg.WaitForTrace(context, client)
-	if err != nil {
-		return fmt.Errorf("failed to wait for trace: %w", err)
-	}
 
-	if code := msg.OutcomeExitCode(); code != tvm.ExitCodeSuccess {
-		return fmt.Errorf("transaction failed with exit code: %d", code)
-	}
-
-	return nil
+	return tracetracking.WaitForTrace(ctx, client, tx)
 }

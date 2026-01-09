@@ -283,6 +283,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 			// TOOD: improve deps passing
 			opdeps := ton.SendMessagesDeps{
 				Wallet: chain.Wallet,
+				Client: chain.Client,
 			}
 
 			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
@@ -378,6 +379,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			// TOOD: improve deps passing
 			opdeps := ton.SendMessagesDeps{
 				Wallet: chain.Wallet,
+				Client: chain.Client,
 			}
 
 			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
@@ -385,10 +387,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			out := sequences.OnChainOutput{
-				BatchOps: []types.BatchOperation{},
-			}
-
+			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
 				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
 			}

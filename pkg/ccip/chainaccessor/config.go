@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -135,7 +136,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	}
 
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
-	var sourceConfigsGot offramp.SourceChainConfigMap
+	var sourceConfigsGot offrampview.SourceChainConfigMap
 	if err = sourceConfigsGot.Fetch(ctx, a.client, block, addr); err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
