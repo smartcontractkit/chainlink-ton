@@ -1,6 +1,7 @@
 import { toNano, Cell, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
+import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
@@ -9,10 +10,8 @@ import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
   EVM_ADDRESS,
-  TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from './Router.Setup'
-import { ZERO_ADDRESS } from '../../../src/utils'
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -49,7 +48,7 @@ describe('Router', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: WRAPPED_NATIVE,
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',
@@ -87,7 +86,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -100,7 +99,7 @@ describe('Router', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: rt.builder.data.extraArgs
         .encode({
           kind: 'generic-v2',
@@ -161,7 +160,7 @@ describe('Router', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: rt.builder.data.extraArgs
         .encode({
           kind: 'generic-v2',
@@ -225,7 +224,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -279,7 +278,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })

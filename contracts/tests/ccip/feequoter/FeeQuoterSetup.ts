@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Dictionary, Address, CommonMessageInfoInternal } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import { crc32 } from 'zlib'
 
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
@@ -101,7 +101,7 @@ export class FeeQuoterSetup {
 
   // Native TON
   static readonly NATIVE_TON: Token = {
-    token: ZERO_ADDRESS,
+    token: WRAPPED_NATIVE,
     price: decimals.TESTING_VALUES.tokenPrice.ton,
   }
   // Generate random address from "sLINK"

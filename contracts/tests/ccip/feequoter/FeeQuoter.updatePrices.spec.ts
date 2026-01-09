@@ -5,7 +5,6 @@ import { toNano } from '@ton/core'
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import { Blockchain } from '@ton/sandbox'
-import { compile } from '@ton/blueprint'
 import * as coverage from '../../coverage/coverage'
 
 describe('FeeQuoter UpdatePrices', () => {
@@ -149,7 +148,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should update only token price', async () => {
     const tokenPriceUpdate: feeQuoter.TokenPriceUpdate = {
-      token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, // ZERO_ADDRESS (native TON)
+      token: FeeQuoterSetup.NATIVE_TON.token,
       price: 4000000000000000000n, // 4e18 = $4
     }
 
@@ -170,9 +169,7 @@ describe('FeeQuoter UpdatePrices', () => {
     })
 
     // Verify the token price was updated
-    const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(
-      FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token,
-    )
+    const tokenPrice = await setup.bind.feeQuoter.getTokenPrice(FeeQuoterSetup.NATIVE_TON.token)
     expect(tokenPrice.value).toEqual(tokenPriceUpdate.price)
   })
 
@@ -209,9 +206,9 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should update multiple prices', async () => {
     const tokenPriceUpdates: feeQuoter.TokenPriceUpdate[] = [
-      { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n }, // $4 - ZERO_ADDRESS
-      { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[1].token, price: 1800000000000000000000n }, // $1800 - CUSTOM_TOKEN
-      { token: FeeQuoterSetup.CUSTOM_TOKEN.token, price: 1000000000000000000n }, // $1 - CUSTOM_TOKEN_1
+      { token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }, // $4 - NATIVE_TON
+      { token: FeeQuoterSetup.CUSTOM_TOKEN.token, price: 1800000000000000000000n }, // $1800 - CUSTOM_TOKEN
+      { token: FeeQuoterSetup.CUSTOM_TOKEN_2.token, price: 1000000000000000000n }, // $1 - CUSTOM_TOKEN_2
     ]
 
     const gasPriceUpdates: feeQuoter.GasPriceUpdate[] = [
@@ -267,9 +264,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should revert when caller is not authorized', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [
-        { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n },
-      ],
+      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
       gasPricesUpdates: [],
     }
 
@@ -291,9 +286,7 @@ describe('FeeQuoter UpdatePrices', () => {
 
   it('should only allow owner to update prices', async () => {
     const priceUpdates: feeQuoter.PriceUpdates = {
-      tokenPricesUpdates: [
-        { token: FeeQuoterSetup.SOURCE_FEE_TOKENS[0].token, price: 4000000000000000000n },
-      ],
+      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
       gasPricesUpdates: [],
     }
 

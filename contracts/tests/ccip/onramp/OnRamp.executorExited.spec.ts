@@ -2,7 +2,7 @@ import { Address, Cell, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
 
-import { generateRandomContractId } from '../../../src/utils'
+import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
@@ -14,9 +14,6 @@ const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
-const TEST_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
 
 describe('OnRamp - executor exit', () => {
   let blockchain: Blockchain
@@ -35,7 +32,7 @@ describe('OnRamp - executor exit', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: WRAPPED_NATIVE,
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',

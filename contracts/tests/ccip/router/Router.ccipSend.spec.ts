@@ -9,12 +9,10 @@ import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
   EVM_ADDRESS,
-  TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from './Router.Setup'
-import { ZERO_ADDRESS } from '../../../src/utils'
 
-describe('Router', () => {
+describe('Router.ccipSend', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
@@ -49,7 +47,7 @@ describe('Router', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: null, // defaults to WRAPPED_NATIVE
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',

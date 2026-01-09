@@ -42,6 +42,7 @@ describe('Send and Receive Jettons', () => {
       JettonMinter.createFromConfig(
         {
           admin: deployer.address,
+          transferAdmin: null,
           walletCode: jettonWalletCode,
           jettonContent: defaultContent,
           totalSupply: 0n,
@@ -274,6 +275,7 @@ describe('Receiving Jettons as an Onramp Mock', () => {
       JettonMinter.createFromConfig(
         {
           admin: deployer.address,
+          transferAdmin: null,
           walletCode: jettonWalletCode,
           jettonContent: defaultContent,
           totalSupply: 0n,

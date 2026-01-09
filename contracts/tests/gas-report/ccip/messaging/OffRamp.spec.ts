@@ -24,11 +24,11 @@ import {
 } from '../../../../wrappers/ccip/OffRamp'
 import '@ton/test-utils'
 import {
-  ZERO_ADDRESS,
   generateMockTonAddress,
   bigIntToBuffer,
   uint8ArrayToBigInt,
   generateEd25519KeyPair,
+  WRAPPED_NATIVE,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { Receiver, ReceiverBehavior } from '../../../../wrappers/ccip/Receiver'
@@ -136,7 +136,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
-        wrappedNative: ZERO_ADDRESS,
+        wrappedNative: WRAPPED_NATIVE,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }
