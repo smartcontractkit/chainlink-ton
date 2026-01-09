@@ -86,10 +86,7 @@ describe('Contract freezing and unfreezing', () => {
     })()
 
     // Change Status
-    const { lastBalance, currentState } = await (async (): Promise<{
-      lastBalance: bigint
-      currentState: CompleteStateInit
-    }> => {
+    const currentState = await (async (): Promise<CompleteStateInit> => {
       const result = await bind.freezer.sendSetValue(deployer.getSender(), {
         value: toNano('0.05'),
         body: {
@@ -108,10 +105,7 @@ describe('Contract freezing and unfreezing', () => {
       if (state.account.account!.storage.state.type !== 'active') {
         throw new Error('Contract is not active after state change!')
       }
-      return {
-        lastBalance: state.balance,
-        currentState: CompleteStateInit.fromStateInit(state.account.account!.storage.state.state),
-      }
+      return CompleteStateInit.fromStateInit(state.account.account!.storage.state.state)
     })()
 
     // Freeze
@@ -151,6 +145,7 @@ describe('Contract freezing and unfreezing', () => {
         if (!state.accountState) {
           throw new Error('Account state is undefined! It probably got deleted.')
         }
+        logAccountState(state)
         expect(state.account.account!.storageStats.duePayment).toBeDefined()
         const duePayments = state.account.account!.storageStats.duePayment!
         expect(duePayments).toBeGreaterThan(0n)
