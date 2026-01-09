@@ -442,7 +442,7 @@ export type ApplyRampUpdates = {
 
 export type OnRamps = {
   destChainSelectors: bigint[]
-  onRamp: Address
+  onRamp?: Address
 }
 
 export type OffRamps = {
