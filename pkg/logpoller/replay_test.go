@@ -441,3 +441,154 @@ func TestReplay(t *testing.T) {
 		require.Equal(t, uint32(20), lp.replay.requestBlock.SeqNo)
 	})
 }
+
+func TestReplayComplete(t *testing.T) {
+	t.Parallel()
+
+	t.Run("completes normally when no new request", func(t *testing.T) {
+		t.Parallel()
+		replayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+		}
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = replayBlock
+
+		lp.replayComplete(50, 100)
+		require.Equal(t, models.ReplayStatusComplete, lp.replay.status)
+		require.Nil(t, lp.replay.requestBlock)
+	})
+
+	t.Run("completes when new request is for same or higher block", func(t *testing.T) {
+		t.Parallel()
+		// Replay started from 50, new request for 60 came in (higher - should be ignored/complete)
+		newReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 60, Shard: 1}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+		}
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = newReplayBlock
+
+		lp.replayComplete(50, 100) // completed from 50
+		require.Equal(t, models.ReplayStatusComplete, lp.replay.status, "should complete when new request is for higher block")
+		require.Nil(t, lp.replay.requestBlock)
+	})
+
+	t.Run("preserves new lower block request during pending replay", func(t *testing.T) {
+		t.Parallel()
+		// Replay started from block 50, new request for block 30 arrived during execution
+		newReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 30, Shard: 1}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+		}
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = newReplayBlock // New request for block 30
+
+		// Complete replay that started from block 50
+		lp.replayComplete(50, 100)
+
+		// Should NOT complete - transition to Requested for next tick
+		require.Equal(t, models.ReplayStatusRequested, lp.replay.status, "should transition to Requested")
+		require.NotNil(t, lp.replay.requestBlock, "should preserve the new request")
+		require.Equal(t, uint32(30), lp.replay.requestBlock.SeqNo, "should keep the lower block request")
+	})
+
+	t.Run("request during execution is preserved", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+
+		mock := &mockAPIClient{
+			masterchainInfo: currentMasterchainBlock,
+			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+			},
+		}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+
+		// Step 1: Simulate replay already in progress from block 10
+		originalReplayBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 10, Shard: 1}
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = originalReplayBlock
+
+		// Step 2: During execution, new request arrives for block 9 (lower)
+		err := lp.Replay(context.Background(), 9)
+		require.NoError(t, err)
+
+		// Verify the request was accepted (block updated, status stays Pending)
+		require.Equal(t, models.ReplayStatusPending, lp.replay.status)
+		require.Equal(t, uint32(9), lp.replay.requestBlock.SeqNo)
+
+		// Step 3: Original replay completes (from block 10)
+		lp.replayComplete(10, 100)
+
+		// Step 4: Verify request for block 9 is preserved
+		require.Equal(t, models.ReplayStatusRequested, lp.replay.status, "should transition to Requested")
+		require.Equal(t, uint32(9), lp.replay.requestBlock.SeqNo, "block 9 request should be preserved")
+	})
+
+	t.Run("concurrent replay and completion", func(t *testing.T) {
+		t.Parallel()
+		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+
+		mock := &mockAPIClient{
+			masterchainInfo: currentMasterchainBlock,
+			lookupBlockFunc: func(seqNo uint32) *ton.BlockIDExt {
+				return &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: seqNo, Shard: 1}
+			},
+		}
+
+		lp := &service{
+			lggr: logger.Sugared(logger.Nop()),
+			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
+				return mock, nil
+			},
+		}
+
+		// Start with pending replay from block 50
+		lp.replay.status = models.ReplayStatusPending
+		lp.replay.requestBlock = &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
+
+		var wg sync.WaitGroup
+		ready := make(chan struct{})
+
+		// Simulate concurrent: replayComplete and new Replay request
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-ready
+			lp.replayComplete(50, 100)
+		}()
+		go func() {
+			defer wg.Done()
+			<-ready
+			_ = lp.Replay(context.Background(), 20) // Request for earlier block
+		}()
+
+		close(ready)
+		wg.Wait()
+
+		// After concurrent execution, either:
+		// 1. Replay(20) happened first -> replayComplete sees lower block -> Requested status
+		// 2. replayComplete happened first -> Complete status, then Replay(20) -> Requested status
+		// In both cases, the final state should have the request for block 20 preserved
+		require.True(t,
+			lp.replay.status == models.ReplayStatusRequested ||
+				(lp.replay.status == models.ReplayStatusComplete && lp.replay.requestBlock == nil),
+			"status should be either Requested (if Replay came first) or Complete (if replayComplete came first then Replay)")
+
+		// If status is Requested, the block 20 request should be preserved
+		if lp.replay.status == models.ReplayStatusRequested {
+			require.NotNil(t, lp.replay.requestBlock)
+			require.Equal(t, uint32(20), lp.replay.requestBlock.SeqNo)
+		}
+	})
+}

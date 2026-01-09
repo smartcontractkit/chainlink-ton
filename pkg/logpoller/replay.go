@@ -147,12 +147,24 @@ func (lp *service) checkForReplayRequest() *ton.BlockIDExt {
 	return requestBlock
 }
 
-// replayComplete marks a successful replay completion
+// replayComplete marks a successful replay completion.
+// If a new replay request arrived during execution for an earlier block,
+// it transitions to Requested status instead of Complete to process on the next tick.
 func (lp *service) replayComplete(fromBlock, toBlock uint32) {
 	lp.replay.mut.Lock()
 	defer lp.replay.mut.Unlock()
 
 	lp.lggr.Infow("Replay complete", "from", fromBlock, "to", toBlock)
+
+	// check if new replay request arrived during execution.
+	if lp.replay.requestBlock != nil && lp.replay.requestBlock.SeqNo < fromBlock {
+		// received a new request with lower block number while replaying, process next tick
+		lp.lggr.Infow("New replay request received during execution, will process next tick",
+			"pendingFromBlock", lp.replay.requestBlock.SeqNo, "completedFromBlock", fromBlock)
+		lp.replay.status = models.ReplayStatusRequested
+		return
+	}
+
 	lp.replay.status = models.ReplayStatusComplete
 	lp.replay.requestBlock = nil
 }
