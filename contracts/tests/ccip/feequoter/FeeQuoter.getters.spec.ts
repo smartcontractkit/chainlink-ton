@@ -80,8 +80,12 @@ describe('FeeQuoter Getters', () => {
 
       // Each price should be a valid TimestampedPrice
       for (let i = 0; i < prices.length; i++) {
-        expect(prices[i].value).toBeGreaterThan(0n)
-        expect(prices[i].timestamp).toBeGreaterThan(0n)
+        const price = prices[i]
+        if (price === undefined) {
+          throw new Error(`Price for token ${tokens[i].toString()} is undefined`)
+        }
+        expect(price.value).toBeGreaterThan(0n)
+        expect(price.timestamp).toBeGreaterThan(0n)
       }
     })
 
@@ -95,9 +99,23 @@ describe('FeeQuoter Getters', () => {
       const prices = await setup.bind.feeQuoter.getTokenPrices(tokens)
 
       expect(prices.length).toBe(tokens.length)
-      expect(prices[0].value).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
-      expect(prices[1].value).toBe(FeeQuoterSetup.CUSTOM_TOKEN.price)
-      expect(prices[2].value).toBe(FeeQuoterSetup.CUSTOM_TOKEN_2.price)
+      expect(prices[0]!.value).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
+      expect(prices[1]!.value).toBe(FeeQuoterSetup.CUSTOM_TOKEN.price)
+      expect(prices[2]!.value).toBe(FeeQuoterSetup.CUSTOM_TOKEN_2.price)
+    })
+
+    it('should return undefined for non-existent tokens', async () => {
+      const randomToken = Address.parse(
+        `0:${Buffer.from('NONEXISTENT').toString('hex').padStart(64, '0')}`,
+      )
+
+      const tokens = [FeeQuoterSetup.SOURCE_FEE_TOKEN.token, randomToken]
+
+      const prices = await setup.bind.feeQuoter.getTokenPrices(tokens)
+
+      expect(prices.length).toBe(tokens.length)
+      expect(prices[0]!.value).toBe(FeeQuoterSetup.SOURCE_FEE_TOKEN.price)
+      expect(prices[1]).toBeUndefined()
     })
   })
 
@@ -150,37 +168,6 @@ describe('FeeQuoter Getters', () => {
       expect(config.maxFeeJuelsPerMsg).toBe(FeeQuoterSetup.MAX_MSG_FEES_JUELS)
       expect(config.linkToken.toString()).toBe(FeeQuoterSetup.SOURCE_LINK.token.toString())
       expect(config.tokenPriceStalenessThreshold).toBe(BigInt(FeeQuoterSetup.TWELVE_HOURS))
-    })
-  })
-
-  describe('facilityId', () => {
-    it('should return correct facility ID', async () => {
-      const facilityId = await setup.bind.feeQuoter.getFacilityId()
-
-      // The facility ID is derived from the contract name hash
-      expect(facilityId).toBeGreaterThan(0)
-    })
-  })
-
-  describe('errorCode', () => {
-    it('should convert local error code to global error code', async () => {
-      const localErrorCode = 1
-
-      const globalErrorCode = await setup.bind.feeQuoter.getErrorCode(localErrorCode)
-
-      expect(globalErrorCode).toBeGreaterThan(localErrorCode)
-      // Global error code should be facilityId * 100 + localErrorCode
-      const facilityId = await setup.bind.feeQuoter.getFacilityId()
-      expect(globalErrorCode).toBe(facilityId * 100 + localErrorCode)
-    })
-
-    it('should handle zero error code', async () => {
-      const localErrorCode = 0
-
-      const globalErrorCode = await setup.bind.feeQuoter.getErrorCode(localErrorCode)
-
-      const facilityId = await setup.bind.feeQuoter.getFacilityId()
-      expect(globalErrorCode).toBe(facilityId * 100)
     })
   })
 

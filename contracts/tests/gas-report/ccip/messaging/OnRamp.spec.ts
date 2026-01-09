@@ -123,7 +123,7 @@ describe('CCIP OnRamp Gas Estimation', () => {
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
         allowlistAdmin: deployer.address,
-        reserve: toNano('0.1'),
+        reserve: toNano('1'),
       },
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       executor: {

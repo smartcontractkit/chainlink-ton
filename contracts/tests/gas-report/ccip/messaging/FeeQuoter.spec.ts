@@ -124,7 +124,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         feeQuoter: feeQuoter.address,
         feeAggregator: deployer.address,
         allowlistAdmin: deployer.address,
-        reserve: toNano('0.1'),
+        reserve: toNano('1'),
       },
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       executor: {
@@ -296,7 +296,7 @@ async function messureGetValidatedFee(
     from: feeQuoter.address,
     to: onRamp.address,
     success: true,
-    op: fq.OutOpcodes.messageValidated,
+    op: fq.opcodes.out.messageValidated,
   })
   return result
 }

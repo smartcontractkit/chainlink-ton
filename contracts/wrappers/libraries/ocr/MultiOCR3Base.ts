@@ -5,11 +5,36 @@ import { uint8ArrayToBigInt } from '../../../src/utils'
 import { crc32 } from 'zlib'
 import { asSnakeData, fromSnakeData } from '../../../src/utils'
 
+export const FACILITY_NAME = 'com.chainlink.ton.lib.ocr.MultiOCR3Base'
+export const FACILITY_ID = 31
+export const ERROR_CODE = FACILITY_ID * 100
+
+export enum Errors {
+  BigFMustBePositive = ERROR_CODE,
+  StaticConfigCannotBeChanged,
+  TooManySigners,
+  BigFTooHigh,
+  TooManyTransmitters,
+  NoTransmitters,
+  RepeatedSigners,
+  RepeatedTransmitters,
+  ConfigDigestMismatch,
+  UnauthorizedTransmitter,
+  WrongNumberOfSignatures,
+  UnauthorizedSigner,
+  NonUniqueSignatures,
+  InvalidSignature,
+  NonExistentOcrPluginType,
+  NoSigners,
+}
+
 export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
 export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
 
-export const Opcodes = {
-  OP_SET_OCR3_CONFIG: crc32('OCR3Base_SetOCR3Config'),
+export const opcodes = {
+  in: {
+    OP_SET_OCR3_CONFIG: crc32('OCR3Base_SetOCR3Config'),
+  },
 }
 
 export type ReportContext = {
@@ -123,7 +148,7 @@ export class OCR3Base {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.OP_SET_OCR3_CONFIG, 32)
+        .storeUint(opcodes.in.OP_SET_OCR3_CONFIG, 32)
         .storeUint(opts.queryId ?? 0, 64)
         .storeUint(opts.configDigest, 256)
         .storeUint(opts.ocrPluginType, 16)
