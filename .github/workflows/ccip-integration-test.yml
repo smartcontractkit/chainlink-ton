@@ -14,6 +14,8 @@ env:
   DOCKER_CACHE_KEY: ccip-e2e-images-v2
   DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
   DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
+  # TON contracts version - set to specific commit hash or "local" for locally built contracts
+  CCIP_CONTRACTS_TON_VERSION: "897a04fdf92f"
   # mylocalton docker image / CCIP E2E test database image
   DOCKER_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:v3.7

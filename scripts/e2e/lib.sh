@@ -166,6 +166,6 @@ setup_contracts() {
   log_info "Linking contracts to chainlink core (no copy, direct reference via symlink)..."
   ln -sfn "$ROOT_DIR/contracts" "$chainlink_core_dir/contracts"
   
-  export CCIP_CONTRACTS_TON_VERSION="local"
+  export CCIP_CONTRACTS_TON_VERSION="${CCIP_CONTRACTS_TON_VERSION:-local}"
   log_info "Contracts ready at $chainlink_core_dir/contracts -> $ROOT_DIR/contracts"
 }
