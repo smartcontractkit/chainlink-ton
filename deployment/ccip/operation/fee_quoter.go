@@ -10,12 +10,12 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 type UpdateFeeQuoterDestChainConfigsInput []feequoter.UpdateDestChainConfig
@@ -31,12 +31,12 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	updateFeeQuoterDestChainConfigs,
 )
 
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) (*helpers.Transactions, error) {
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	// Skip if there's no updates
 	if len(in) == 0 {
-		return helpers.NewEmptyTransactions(), nil
+		return nil, nil
 	}
 
 	input := feequoter.UpdateDestChainConfigs{
@@ -48,15 +48,14 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 		return nil, err
 	}
 
-	messages := []*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
 
 type FeeTokenConfig struct {
@@ -76,7 +75,7 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	updateFeeQuoterFeeTokens,
 )
 
-func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) (*helpers.Transactions, error) {
+func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	configs := cell.NewDict(267)
@@ -101,7 +100,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 
 	// skip if there's no updates
 	if len(in.FeeTokens) == 0 {
-		return helpers.NewEmptyTransactions(), nil
+		return nil, nil
 	}
 
 	input := feequoter.UpdateFeeTokens{
@@ -113,15 +112,15 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 	if err != nil {
 		return nil, err
 	}
-	messages := []*tlb.InternalMessage{
+
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
 
 type GasPrice struct {
@@ -148,6 +147,7 @@ type AddPriceUpdaterInput struct {
 	PriceUpdater *address.Address
 }
 
+// TODO: remove for generic SendMessages op
 // UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
 var AddPriceUpdaterOp = operations.NewOperation(
 	"add-price-updater-op",
@@ -156,7 +156,7 @@ var AddPriceUpdaterOp = operations.NewOperation(
 	addPriceUpdater,
 )
 
-func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) (*helpers.Transactions, error) {
+func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
@@ -165,15 +165,15 @@ func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdat
 	if err != nil {
 		return nil, err
 	}
-	messages := []*tlb.InternalMessage{
+
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
 
 type RemovePriceUpdaterInput struct {
@@ -189,7 +189,7 @@ var RemovePriceUpdaterOp = operations.NewOperation(
 	removePriceUpdater,
 )
 
-func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) (*helpers.Transactions, error) {
+func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
@@ -198,15 +198,15 @@ func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePric
 	if err != nil {
 		return nil, err
 	}
-	messages := []*tlb.InternalMessage{
+
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
 
 // UpdateFeeQuoterPricesInput contains configuration for updating FeeQuoter price configs
@@ -223,12 +223,12 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 	updateFeeQuoterPrices,
 )
 
-func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) (*helpers.Transactions, error) {
+func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {
 		// Nothing to update
-		return helpers.NewEmptyTransactions(), nil
+		return nil, nil
 	}
 
 	tokenPrices := make([]feequoter.TokenPriceUpdate, 0, len(in.TokenPrices))
@@ -262,13 +262,13 @@ func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateF
 	if err != nil {
 		return nil, err
 	}
-	messages := []*tlb.InternalMessage{
+
+	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
@@ -19,6 +20,7 @@ import (
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -60,7 +62,7 @@ var DeployChainContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
-		txs := helpers.NewEmptyTransactions()
+		msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
 		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 		// feequoter.addPriceUpdater(offramp)
 		addPriceUpdaterInput := operation.AddPriceUpdaterInput{
@@ -70,7 +72,7 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
 		}
-		txs.Append(addPriceUpdaterReport.Output)
+		msgs = append(msgs, addPriceUpdaterReport.Output...)
 
 		// feeQuoter.updateFeeTokens
 		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
@@ -85,9 +87,9 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 		}
-		txs.Append(updateFeeTokensReport.Output)
+		msgs = append(msgs, updateFeeTokensReport.Output...)
 
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, txs)
+		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, msgs)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
 		}
