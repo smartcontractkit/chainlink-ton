@@ -15,7 +15,10 @@ import (
 // Service defines the public interface for the TON log polling service.
 type Service interface {
 	services.Service
+	// RegisterFilter adds a new filter. Changes take effect on the next loop tick (up to pollPeriod delay).
 	RegisterFilter(ctx context.Context, flt models.Filter) (int64, error)
+	// UnregisterFilter removes a filter. Changes take effect on the next loop tick (up to pollPeriod delay).
+	// If called during an active tick, the old filter continues processing for that tick.
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) (bool, error)
 	Replay(ctx context.Context, fromBlock uint32) error
@@ -24,6 +27,8 @@ type Service interface {
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.
+// Note: Filter changes at the store level are immediate, but the LogPoller service
+// reads filters once per tick, so changes take effect on the next loop tick.
 type FilterStore interface {
 	// RegisterFilter adds a new filter or overwrites an existing one with the same name.
 	// Returns the ID of the created filter.
