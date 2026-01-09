@@ -187,18 +187,18 @@ func TestPgLogStore(t *testing.T) {
 				EndCell()
 
 			collisionLogs[i] = models.Log{
-				FilterID:         filterID,
-				ChainID:          "test-chain",
-				Address:          testAddr,
-				EventSig:         counter.TopicCountIncreased,
-				Data:             eventCell,
-				TxHash:           models.TxHash{byte(i + 10), 2, 3, 4, 5},
-				TxLT:             uint64(5000 - i), //nolint:gosec // test code with small values
-				MsgLT:            uint64(5000 - i), //nolint:gosec // test code with small values
-				TxTimestamp:      sameTimestamp,
-				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(500 + i)}, //nolint:gosec // test code
-				MasterBlockSeqno: uint32(600 + i),                                                  //nolint:gosec // test code
-				MsgIndex:         int64(i),
+				FilterID:     filterID,
+				ChainID:      "test-chain",
+				Address:      testAddr,
+				EventSig:     counter.TopicCountIncreased,
+				Data:         eventCell,
+				TxHash:       models.TxHash{byte(i + 10), 2, 3, 4, 5},
+				TxLT:         uint64(5000 - i), //nolint:gosec // test code with small values
+				MsgLT:        uint64(5000 - i), //nolint:gosec // test code with small values
+				TxTimestamp:  sameTimestamp,
+				Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(500 + i)}, //nolint:gosec // test code
+				MCBlockSeqno: uint32(600 + i),                                                  //nolint:gosec // test code
+				MsgIndex:     int64(i),
 			}
 		}
 		_, err = logStore.SaveLogs(ctx, collisionLogs, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
