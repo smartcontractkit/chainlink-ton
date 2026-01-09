@@ -7,6 +7,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/ton"
 
