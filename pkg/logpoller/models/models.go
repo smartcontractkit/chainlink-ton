@@ -127,6 +127,18 @@ func (l TypedLog[T]) String() string {
 	return sb.String()
 }
 
+// Validate checks if the log is valid for the given expected chainID.
+// Returns an error if any validation fails.
+func (l Log) Validate(expectedChainID string) error {
+	if l.ChainID != expectedChainID {
+		return fmt.Errorf("invalid chainID: got %v, want %v", l.ChainID, expectedChainID)
+	}
+	if l.MCBlockSeqno == 0 {
+		return fmt.Errorf("invalid MCBlockSeqno=0 for address %s - block 0 does not exist on TON networks", l.Address)
+	}
+	return nil
+}
+
 // FilterIndex maps filter key strings to matching filter IDs for efficient O(1) lookup
 type FilterIndex map[string][]int64
 

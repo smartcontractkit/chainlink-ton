@@ -36,6 +36,13 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 		return 0, nil
 	}
 
+	// Validate logs before expensive conversion to fail fast
+	for i, log := range logs {
+		if err := log.Validate(s.chainID); err != nil {
+			return 0, fmt.Errorf("invalid log at index %d: %w", i, err)
+		}
+	}
+
 	dbLogs := make([]logModel, len(logs))
 	for i, log := range logs {
 		logModel := &logModel{}
@@ -58,10 +65,6 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 
 // insertLogsWithBatching handles batched log insertion with transaction support
 func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
-	if err := s.validateLogs(logs); err != nil {
-		return 0, err
-	}
-
 	var totalInserted int64
 	err := s.orm.Transact(ctx, func(orm *DSORM) error {
 		inserted, err := s.insertLogsWithinTx(ctx, orm, logs, batchInsertSize, minBatchSize)
@@ -135,19 +138,6 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 		totalInserted += rowsInserted
 	}
 	return totalInserted, nil
-}
-
-// validateLogs ensures all logs have valid data
-func (s *pgLogStore) validateLogs(logs []logModel) error {
-	for _, log := range logs {
-		if s.chainID != log.ChainID {
-			return fmt.Errorf("invalid chainID in log: got %v, want %v", log.ChainID, s.chainID)
-		}
-		if log.MCBlockSeqno == 0 {
-			return fmt.Errorf("invalid master_block_seqno=0 in log for address %s - block 0 does not exist on TON networks", log.Address)
-		}
-	}
-	return nil
 }
 
 // QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,

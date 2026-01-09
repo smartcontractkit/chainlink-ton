@@ -59,15 +59,15 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Validate each log (same behavior as PostgreSQL store)
-	for _, log := range logs {
-		if log.ChainID != s.chainID {
-			return 0, fmt.Errorf("invalid chainID in log got %s want %s", log.ChainID, s.chainID)
+	// Validate all logs before processing
+	for i, log := range logs {
+		if err := log.Validate(s.chainID); err != nil {
+			return 0, fmt.Errorf("invalid log at index %d: %w", i, err)
 		}
-		if log.MCBlockSeqno == 0 {
-			return 0, fmt.Errorf("invalid master_block_seqno=0 in log for address %s - block 0 does not exist on TON networks", log.Address)
-		}
+	}
 
+	// Process logs (deduplication and storage)
+	for _, log := range logs {
 		key := logKey{
 			address:  log.Address.String(),
 			eventSig: log.EventSig,
