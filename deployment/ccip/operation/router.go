@@ -9,11 +9,11 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 type RampUpdates map[string][]router.ChainSelector
@@ -34,7 +34,7 @@ var ApplyRampUpdatesOp = operations.NewOperation(
 	applyRampUpdates,
 )
 
-func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) (*helpers.Transactions, error) {
+func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)
@@ -47,11 +47,11 @@ func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpd
 		return nil, err
 	}
 
-	onramps.Append(offramps)
-	return onramps, nil
+	msgs := append(onramps, offramps...)
+	return msgs, nil
 }
 
-func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) (*helpers.Transactions, error) {
+func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	msgs := make([]*tlb.InternalMessage, 0)
 	for onRampAddrStr, selectors := range onRampUpdates {
 		var rampAddr *address.Address
@@ -79,10 +79,10 @@ func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]
 		msgs = append(msgs, &msg)
 	}
 
-	return helpers.NewTransactions(msgs)
+	return tlbe.ManyCellsFrom(msgs)
 }
 
-func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) (*helpers.Transactions, error) {
+func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
 	type change struct {
 		addr *address.Address
 		sels []router.ChainSelector
@@ -162,5 +162,5 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 		msgs = append(msgs, &msg)
 	}
 
-	return helpers.NewTransactions(msgs)
+	return tlbe.ManyCellsFrom(msgs)
 }

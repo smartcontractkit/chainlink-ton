@@ -5,7 +5,12 @@ import (
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
@@ -19,6 +24,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+
+	"github.com/xssnick/tonutils-go/tlb"
 )
 
 type DeployCCIPContractsCfg struct {
@@ -124,17 +131,56 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	deps.CCIPOnChainState[selector] = s
 
 	// Execute post-deployment cfg
-	txs := helpers.NewEmptyTransactions()
+	msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+
+	// TOOD: improve deps passing
+	opdeps := ton.SendMessagesDeps{
+		Wallet: chain.Wallet,
+		Client: chain.Client,
+	}
 
 	// feequoter.addPriceUpdater(offramp)
-	addPriceUpdaterInput := operation.AddPriceUpdaterInput{
+	body, err := codec.WrapMessage[any](bindings.PkgCCIP+".FeeQuoter", feequoter.AddPriceUpdater{
 		PriceUpdater: &s.OffRamp,
-	}
-	addPriceUpdaterReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.AddPriceUpdaterOp, deps, addPriceUpdaterInput)
+	})
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to wrap message: %w", err)
 	}
-	txs.Append(addPriceUpdaterReport.Output)
+
+	feeQuoterAddr := s.FeeQuoter
+
+	_in := ton.SendMessagesInput{
+		Messages: []ton.InternalMessage[any]{
+			{
+				Bounce:  true,
+				DstAddr: &feeQuoterAddr,
+				Amount:  tlb.MustFromTON("0.1"),
+				Body:    body,
+			},
+		},
+		Plan: true, // TODO:
+	}
+
+	{
+		r, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessages, opdeps, _in)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
+		}
+
+		// TODO: simplify by having ton.SendMessages return tlbe.Cells directly
+		_msgs, err := tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+			{
+				Bounce:  true,
+				Amount:  r.Output.Plans[0].Amount,
+				DstAddr: r.Output.Plans[0].DstAddr,
+				Body:    r.Output.Plans[0].Body,
+			},
+		})
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create transactions from send messages output: %w", err)
+		}
+		msgs = append(msgs, _msgs...)
+	}
 
 	// feeQuoter.updateFeeTokens
 	feeTokens := make(map[string]operation.FeeTokenConfig, len(cfg.Params.FeeQuoterParams.FeeTokens))
@@ -148,9 +194,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 	}
-	txs.Append(updateFeeTokensReport.Output)
+	msgs = append(msgs, updateFeeTokensReport.Output...)
 
-	err = helpers.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
+	err = helpers.ExecuteProposals(env, chain.Client, chain.Wallet, msgs)
 
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
