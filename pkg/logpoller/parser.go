@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/xssnick/tonutils-go/tlb"
@@ -29,13 +29,12 @@ func (lp *service) parseTransactions(
 	errsOut := make(chan error)
 
 	var wg sync.WaitGroup
-	var txCount, logCount atomic.Int32
 
 	go func() {
 		for tx := range txsIn {
-			txCount.Add(1)
+			lp.metrics.IncrementTxsProcessed(ctx)
 			wg.Go(func() {
-				logs, err := lp.parseTx(tx.Transaction, tx.Block, chainID, filterIndex)
+				logs, err := lp.parseTx(ctx, tx.Transaction, tx.Block, chainID, filterIndex)
 				if err != nil {
 					errsOut <- fmt.Errorf("failed to process tx %x: %w", tx.Transaction.Hash, err)
 					return
@@ -44,7 +43,6 @@ func (lp *service) parseTransactions(
 				for _, log := range logs {
 					select {
 					case logsOut <- log:
-						logCount.Add(1)
 					case <-ctx.Done():
 						return
 					}
@@ -61,7 +59,7 @@ func (lp *service) parseTransactions(
 }
 
 // parseTx handles a single transaction
-func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) parseTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx == nil {
 		return nil, errors.New("transaction is nil")
 	}
@@ -84,7 +82,7 @@ func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID s
 	}
 
 	for msgIndex, msg := range msgs {
-		logs, err := lp.parseMessage(&msg, msgIndex, tx, block, chainID, filterIndex)
+		logs, err := lp.parseMessage(ctx, &msg, msgIndex, tx, block, chainID, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
 			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Hash, "msgIndex", msgIndex, "err", err)
@@ -96,7 +94,7 @@ func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID s
 }
 
 // parseMessage handles a single message within a transaction
-func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex int, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	// guard clauses for initial validation and early exit
 	if msg == nil || msg.Msg == nil {
 		return nil, errors.New("message or message content is nil")
@@ -107,6 +105,13 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transact
 	if err != nil {
 		return nil, fmt.Errorf("event extraction failed: %w", err)
 	}
+
+	// derive metric labels
+	addressLabel := msg.Msg.SenderAddr().String()
+	opcodeLabel := fmt.Sprintf("0x%08x", eventSig)
+
+	// record message processed metric
+	lp.metrics.IncrementMsgsProcessed(ctx, strings.ToLower(string(msg.MsgType)), addressLabel, opcodeLabel)
 
 	// skip messages that aren't valid, parseable events
 	if body == nil || eventSig == 0 {
@@ -124,6 +129,9 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transact
 	if len(filterIDs) == 0 {
 		return []models.Log{}, nil // no matching filters found
 	}
+
+	// record logs matched metric
+	lp.metrics.AddLogsMatched(ctx, addressLabel, opcodeLabel, int64(len(filterIDs)))
 
 	// create logs with the found filterIDs
 	logs := make([]models.Log, len(filterIDs))
