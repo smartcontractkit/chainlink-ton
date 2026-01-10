@@ -3,32 +3,29 @@ package sequence
 import (
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/config"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/Masterminds/semver/v3"
 
+	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
-	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type DeployCCIPSeqInput struct {
@@ -38,7 +35,7 @@ type DeployCCIPSeqInput struct {
 }
 
 var DeployCCIPSequence = operations.NewSequence(
-	"ton-deploy-ccip-seq",
+	"ton/sequences/ccip/deploy-ccip-suite",
 	semver.MustParse("0.1.0"),
 	"Deploys contracts and sets initial CCIP configuration",
 	deployCCIPSequence,

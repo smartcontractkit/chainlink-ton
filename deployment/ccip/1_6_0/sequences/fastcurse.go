@@ -273,7 +273,13 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			fmt.Println("DEBUG")
+			fmt.Println("DEBUG Sender:", sender.String())
+			fmt.Println("DEBUG Owner:", owner.String())
+
+			// TODO: currently fails with "failed to get timelock addresses: no MCMS reader registered for chain family 'ton'"
+			// plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := false
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
@@ -369,7 +375,13 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			fmt.Println("DEBUG")
+			fmt.Println("DEBUG Sender:", sender.String())
+			fmt.Println("DEBUG Owner:", owner.String())
+
+			// TODO: currently fails with "failed to get timelock addresses: no MCMS reader registered for chain family 'ton'"
+			// plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := false
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
