@@ -33,7 +33,7 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 	updateOnRampDestChainConfigs,
 )
 
-func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOnRampDestChainConfigsInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
 	if len(in.Updates) == 0 {
@@ -62,7 +62,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in 
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),

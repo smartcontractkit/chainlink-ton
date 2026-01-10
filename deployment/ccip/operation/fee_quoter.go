@@ -31,7 +31,7 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	updateFeeQuoterDestChainConfigs,
 )
 
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	// Skip if there's no updates
@@ -48,7 +48,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
@@ -75,7 +75,7 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	updateFeeQuoterFeeTokens,
 )
 
-func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	configs := cell.NewDict(267)
@@ -113,7 +113,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
@@ -156,7 +156,7 @@ var AddPriceUpdaterOp = operations.NewOperation(
 	addPriceUpdater,
 )
 
-func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
@@ -166,7 +166,7 @@ func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdat
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
@@ -189,7 +189,7 @@ var RemovePriceUpdaterOp = operations.NewOperation(
 	removePriceUpdater,
 )
 
-func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
@@ -199,7 +199,7 @@ func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePric
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
@@ -223,7 +223,7 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 	updateFeeQuoterPrices,
 )
 
-func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {
@@ -263,7 +263,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateF
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),

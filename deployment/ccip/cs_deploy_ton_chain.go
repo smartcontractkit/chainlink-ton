@@ -131,7 +131,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	deps.CCIPOnChainState[selector] = s
 
 	// Execute post-deployment cfg
-	msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 	// TOOD: improve deps passing
 	opdeps := ton.SendMessagesDeps{
@@ -140,45 +140,38 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 
 	// feequoter.addPriceUpdater(offramp)
-	body, err := codec.WrapMessage[any](bindings.PkgCCIP+".FeeQuoter", feequoter.AddPriceUpdater{
-		PriceUpdater: &s.OffRamp,
-	})
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to wrap message: %w", err)
-	}
-
-	feeQuoterAddr := s.FeeQuoter
-
-	_in := ton.SendMessagesInput{
-		Messages: []ton.InternalMessage[any]{
-			{
-				Bounce:  true,
-				DstAddr: &feeQuoterAddr,
-				Amount:  tlb.MustFromTON("0.1"),
-				Body:    body,
-			},
-		},
-		Plan: true, // TODO:
-	}
-
 	{
+		body, err := codec.WrapMessage[any](bindings.PkgCCIP+".FeeQuoter", feequoter.AddPriceUpdater{
+			PriceUpdater: &s.OffRamp,
+		})
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to wrap message: %w", err)
+		}
+
+		feeQuoterAddr := s.FeeQuoter
+
+		_in := ton.SendMessagesInput{
+			Messages: []ton.InternalMessage[any]{
+				{
+					Bounce:  true,
+					DstAddr: &feeQuoterAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Body:    body,
+				},
+			},
+			Plan: true, // plan, defer execution to later step
+		}
+
 		r, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessages, opdeps, _in)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
 
-		// TODO: simplify by having ton.SendMessages return tlbe.Cells directly
-		_msgs, err := tlbe.ManyCellsFrom([]*tlb.InternalMessage{
-			{
-				Bounce:  true,
-				Amount:  r.Output.Plans[0].Amount,
-				DstAddr: r.Output.Plans[0].DstAddr,
-				Body:    r.Output.Plans[0].Body,
-			},
-		})
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create transactions from send messages output: %w", err)
+		_msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
+		for _, plan := range r.Output.Plans {
+			_msgs = append(_msgs, plan.Cell)
 		}
+
 		msgs = append(msgs, _msgs...)
 	}
 

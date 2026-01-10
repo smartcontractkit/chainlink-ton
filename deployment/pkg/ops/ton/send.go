@@ -7,6 +7,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -71,18 +72,6 @@ var SendMessages = operations.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
 			}
 
-			// TODO: replace with encoded *tlb.InternalMessage as *cell.Cell
-			plan := MessagePlanRaw{
-				Body:    body,
-				DstAddr: m.DstAddr,
-				Amount:  m.Amount,
-			}
-
-			if in.Plan {
-				plans = append(plans, plan)
-				continue
-			}
-
 			// StateInit is optional, and will derive dstAddr if available
 			dstAddr := m.DstAddr
 
@@ -102,16 +91,32 @@ var SendMessages = operations.NewOperation(
 				dstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
 			}
 
+			_im := tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      m.Bounce, // TODO: default to true
+				DstAddr:     dstAddr,
+				Amount:      m.Amount,
+				Body:        body,
+				StateInit:   state,
+			}
+
+			_imc, err := tlbe.NewCellFrom(_im)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to cell: %w", err)
+			}
+
+			plan := MessagePlanRaw{
+				Opcode:  0, // TODO: extract opcode from body if possible
+				DstAddr: dstAddr,
+				Amount:  m.Amount,
+
+				Cell: _imc,
+			}
+			plans = append(plans, plan)
+
 			msgs = append(msgs, &wallet.Message{
-				Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-				InternalMessage: &tlb.InternalMessage{
-					IHRDisabled: true,
-					Bounce:      m.Bounce, // TODO: default to true
-					DstAddr:     dstAddr,
-					Amount:      m.Amount,
-					Body:        body,
-					StateInit:   state,
-				},
+				Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
+				InternalMessage: &_im,
 			})
 		}
 

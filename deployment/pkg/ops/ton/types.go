@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 // PlannerOption is an interface an op IN type providing
@@ -22,13 +23,18 @@ type Planner[T any] interface {
 	GetPlans() []T
 }
 
-// TODO: can be merged/replaced with InternamlMessage type?
+// MessagePlanRaw represents a raw message plan with high-level info and the raw cell.
 type MessagePlanRaw struct {
-	Body    *cell.Cell       `json:"body"`
+	// High level info about the message
+	Opcode  uint32           `json:"opcode"`
 	DstAddr *address.Address `json:"dstAddr"`
 	Amount  tlb.Coins        `json:"amount"`
-	// TODO: StateInit missing?
+
+	// Raw cell of the internal message
+	Cell *tlbe.Cell[tlb.InternalMessage] `json:"cell"`
 }
+
+// plan: *tlbe.Cell[tlb.InternalMessage]
 
 // MessageSender is an interface for op OUT types that can provide transaction info.
 type MessageSender interface {

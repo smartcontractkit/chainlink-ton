@@ -37,7 +37,7 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
@@ -72,7 +72,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
@@ -107,7 +107,7 @@ var SetOCR3ConfigOp = operations.NewOperation(
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))
@@ -143,7 +143,7 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		return nil, err
 	}
 
-	return tlbe.ManyCellsFrom([]*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),

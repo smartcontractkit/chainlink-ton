@@ -62,7 +62,7 @@ var DeployChainContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
-		msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 		// feequoter.addPriceUpdater(offramp)
 		addPriceUpdaterInput := operation.AddPriceUpdaterInput{

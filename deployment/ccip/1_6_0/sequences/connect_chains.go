@@ -33,7 +33,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as source on CCIP 1.6.0",
 	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
-		msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 		chainSelector := input.Source.Selector
 		tonChain := chains.TonChains()[chainSelector]
@@ -97,7 +97,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as dest on CCIP 1.6.0",
 	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
-		msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]

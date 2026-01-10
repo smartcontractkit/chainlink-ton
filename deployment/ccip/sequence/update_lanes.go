@@ -37,8 +37,8 @@ var UpdateTonLanesSequence = operations.NewSequence(
 	updateLanes,
 )
 
-func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
-	msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 	// update fee quoter with dest chain configs
 	b.Logger.Infow("Updating destination configs on FeeQuoter", "input", in.UpdateFeeQuoterDestChainConfigs)

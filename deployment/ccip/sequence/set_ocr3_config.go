@@ -24,8 +24,8 @@ var SetOCR3OfframpSequence = operations.NewSequence(
 	setOCR3OfframpSequence,
 )
 
-func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in SetOCR3OfframpSeqInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
-	msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in SetOCR3OfframpSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 	// TODO: this just needs to loop over configs
 

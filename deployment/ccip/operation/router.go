@@ -34,7 +34,7 @@ var ApplyRampUpdatesOp = operations.NewOperation(
 	applyRampUpdates,
 )
 
-func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)
@@ -51,8 +51,8 @@ func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpd
 	return msgs, nil
 }
 
-func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
-	msgs := make([]*tlb.InternalMessage, 0)
+func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	msgs := make([]tlb.InternalMessage, 0)
 	for onRampAddrStr, selectors := range onRampUpdates {
 		var rampAddr *address.Address
 		if onRampAddrStr != "" {
@@ -76,13 +76,13 @@ func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]
 			DstAddr: &routerAddr,
 			Body:    payload,
 		}
-		msgs = append(msgs, &msg)
+		msgs = append(msgs, msg)
 	}
 
 	return tlbe.ManyCellsFrom(msgs)
 }
 
-func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([]*tlbe.Cell[*tlb.InternalMessage], error) {
+func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	type change struct {
 		addr *address.Address
 		sels []router.ChainSelector
@@ -124,7 +124,7 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 		n = len(removes)
 	}
 
-	msgs := make([]*tlb.InternalMessage, 0, n)
+	msgs := make([]tlb.InternalMessage, 0, n)
 
 	for i := 0; i < n; i++ {
 		var input router.ApplyRampUpdates
@@ -159,7 +159,7 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 			DstAddr: &routerAddr,
 			Body:    payload,
 		}
-		msgs = append(msgs, &msg)
+		msgs = append(msgs, msg)
 	}
 
 	return tlbe.ManyCellsFrom(msgs)

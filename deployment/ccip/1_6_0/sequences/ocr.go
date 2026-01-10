@@ -27,7 +27,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
-		msgs := make([]*tlbe.Cell[*tlb.InternalMessage], 0)
+		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
 		tonChain := chains.TonChains()[chainSelector]

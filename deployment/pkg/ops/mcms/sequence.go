@@ -150,9 +150,18 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw, meta []types.OperationMetadata) (types.BatchOperation, error) {
 	mcmsTxs := make([]types.Transaction, len(plans))
 	for i, planRaw := range plans {
-		data := cell.BeginCell().EndCell() // empty body by default
-		if planRaw.Body != nil {
-			data = planRaw.Body
+		body := cell.BeginCell().EndCell() // empty body by default
+		if planRaw.Cell == nil {
+			return types.BatchOperation{}, fmt.Errorf("message plan %d is missing raw cell", i)
+		}
+
+		msg, err := planRaw.Cell.ToValue()
+		if err != nil {
+			return types.BatchOperation{}, fmt.Errorf("failed to decode internal message from cell for plan %d: %w", i, err)
+		}
+
+		if msg.Body != nil {
+			body = msg.Body
 		}
 
 		// Extract metadata for the transaction
@@ -164,10 +173,9 @@ func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw
 			m = meta[i]
 		}
 
-		var err error
 		mcmsTxs[i], err = mcmston.NewTransaction(
 			planRaw.DstAddr,
-			data.BeginParse(),
+			body.BeginParse(),
 			planRaw.Amount.Nano(),
 			m.ContractType,
 			m.Tags,
