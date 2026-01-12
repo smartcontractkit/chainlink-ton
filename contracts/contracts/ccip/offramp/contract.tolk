@@ -539,7 +539,6 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
     if(gasOverride != null && (gasOverride >= message.gasLimit)) {
         assert(value >= (OffRamp_Costs.execute() + gasOverride), Error.InsufficientFee);
     } else {
@@ -693,8 +692,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
-    // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
-    // means that is a manual exec flow
+    // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
         bounce: true,
         value: ReceiveExecutor_Costs.initExec(),
