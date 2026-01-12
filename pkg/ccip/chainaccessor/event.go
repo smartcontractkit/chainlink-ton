@@ -134,7 +134,7 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 			return nil, fmt.Errorf("invalid source token address: %s", tpus.SourceToken.String())
 		}
 		if tpus.UsdPerToken == nil || tpus.UsdPerToken.Cmp(big.NewInt(0)) <= 0 {
-			return nil, fmt.Errorf("nil or non-positive usd per token")
+			return nil, errors.New("nil or non-positive usd per token")
 		}
 	}
 
