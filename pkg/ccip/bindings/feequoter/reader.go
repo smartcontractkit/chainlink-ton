@@ -6,6 +6,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
@@ -137,6 +138,11 @@ var GetDestinationChainGasPrice = tvm.Getter[uint64, USDPerUnitGas]{
 // GetTokenPrice gets the token price for a given token address
 var GetTokenPrice = tvm.Getter[*address.Address, TimestampedPrice]{
 	Name: tokenPriceGetter,
+	Encoder: tvm.NewArgsEncoder(func(addr *address.Address) ([]any, error) {
+		// Encode address as a cell slice (as expected by the contract)
+		addrSlice := cell.BeginCell().MustStoreAddr(addr).EndCell().BeginParse()
+		return []any{addrSlice}, nil
+	}),
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (TimestampedPrice, error) {
 		var p TimestampedPrice
 		value, err := r.Int(0)

@@ -727,7 +727,8 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	for _, selector := range selectors {
 		gasPrice, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetDestinationChainGasPrice, uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) { //nolint:errorlint // we're guaranteed to get unwrapped error here
+		var execError ton.ContractExecError
+		if errors.As(err, &execError) && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) {
 			prices[selector] = ccipocr3.TimestampedUnixBig{
 				Timestamp: 0,
 				Value:     big.NewInt(0),
@@ -819,7 +820,8 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		tokenPrice, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetTokenPrice, addrParsed)
 		if err != nil {
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-			if execError, ok := err.(ton.ContractExecError); ok && execError.Code == int32(feequoter.ErrorTokenNotSupported) { //nolint:errorlint // we're guaranteed to get unwrapped error here
+			var execError ton.ContractExecError
+			if errors.As(err, &execError) && execError.Code == int32(feequoter.ErrorTokenNotSupported) {
 				prices[ccipocr3.UnknownEncodedAddress(strAddr)] = ccipocr3.TimestampedUnixBig{
 					Timestamp: 0,
 					Value:     big.NewInt(0),
