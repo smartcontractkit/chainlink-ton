@@ -35,9 +35,9 @@ const (
 
 // Registry method names
 const (
-	destChainConfigGetter = "destChainConfig"
-	dynamicConfigGetter   = "dynamicConfig"
-	staticConfigGetter    = "staticConfig"
+	destChainConfigGetter    = "destChainConfig"
+	dynamicConfigGetter      = "dynamicConfig"
+	staticConfigGetter       = "staticConfig"
 	destChainSelectorsGetter = "destChainSelectors"
 )
 

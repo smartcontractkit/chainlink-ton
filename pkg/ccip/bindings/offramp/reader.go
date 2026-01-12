@@ -29,7 +29,7 @@ var GetOCR3Config = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OCR3Base]{
 		if err != nil {
 			return c, fmt.Errorf("failed to get ChainID: %w", err)
 		}
-		c.ChainID = uint8(chainIDInt.Uint64()) //nolint:gosec // this type is uint8 onchain
+		c.ChainID = uint8(chainIDInt.Uint64())
 
 		// commit (index 1)
 		isNil, err := r.IsNil(1)
@@ -101,7 +101,7 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 		return Config{
 			ChainSelector:                           chainSelector,
 			FeeQuoterAddress:                        feeQuoterAddress,
-			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()), //nolint:gosec // this type is uint32 onchain
+			PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()),
 		}, nil
 	}),
 })

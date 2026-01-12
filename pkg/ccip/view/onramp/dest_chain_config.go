@@ -30,9 +30,9 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	output := make(DestChainConfigMap)
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			cfg, err := tvm.CallGetter(egCtx, client, block, onRampAddr, onramp.GetDestChainConfig, dest)
-			if err != nil {
-				return err
+			cfg, cErr := tvm.CallGetter(egCtx, client, block, onRampAddr, onramp.GetDestChainConfig, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()

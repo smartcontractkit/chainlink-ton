@@ -31,9 +31,9 @@ func (s *SourceChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWr
 
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			cfg, err := tvm.CallGetter(egCtx, client, block, offRampAddr, offramp.GetSourceChainConfig, dest)
-			if err != nil {
-				return err
+			cfg, cErr := tvm.CallGetter(egCtx, client, block, offRampAddr, offramp.GetSourceChainConfig, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()

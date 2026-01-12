@@ -277,8 +277,8 @@ const (
 
 // Getter method names for binding fetchers
 const (
-	srcChainConfigGetter	   = "sourceChainConfig"
-	ocr3BaseGetter		   = "ocr3Config"
-	configGetter		   = "config"
+	srcChainConfigGetter       = "sourceChainConfig"
+	ocr3BaseGetter             = "ocr3Config"
+	configGetter               = "config"
 	sourceChainSelectorsGetter = "sourceChainSelectors"
 )

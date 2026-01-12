@@ -328,13 +328,13 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			res, err := client.RunGetMethod(egCtx, block, feeQuoter, destChainConfigGetter, dest)
-			if err != nil {
-				return err
+			res, cErr := client.RunGetMethod(egCtx, block, feeQuoter, destChainConfigGetter, dest)
+			if cErr != nil {
+				return cErr
 			}
-			cfg, err := GetDestChainConfig.Decoder.Decode(res)
-			if err != nil {
-				return err
+			cfg, cErr := GetDestChainConfig.Decoder.Decode(res)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()

@@ -30,9 +30,9 @@ func (o *OnRampAddressMap) Fetch(ctx context.Context, client ton.APIClientWrappe
 	onRampAddrMap := make(OnRampAddressMap)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			onRampAddr, err := tvm.CallGetter(egCtx, client, block, routerAddr, router.GetOnRamp, dest)
-			if err != nil {
-				return err
+			onRampAddr, cErr := tvm.CallGetter(egCtx, client, block, routerAddr, router.GetOnRamp, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()
