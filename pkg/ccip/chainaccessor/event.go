@@ -11,15 +11,13 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-
-	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
@@ -76,11 +74,11 @@ func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *
 }
 
 // convertCCIPMessageSent converts a TON-specific CCIPMessageSent event to a generic
-// chainaccessor.SendRequestedEvent. This function is idempotent and performs a
+// ccipocr3.SendRequestedEvent. This function is idempotent and performs a
 // one-to-one mapping of event fields from the TON format to the standard CCIP format.
 func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
-) *chainaccessor.SendRequestedEvent {
+) *ccipocr3.SendRequestedEvent {
 	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
 	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
 
@@ -100,7 +98,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
 		// TokenAmounts:   tokenAmounts, // TODO: enable token transfer
 	}
-	genericEvent := &chainaccessor.SendRequestedEvent{
+	genericEvent := &ccipocr3.SendRequestedEvent{
 		DestChainSelector: msg.Header.DestChainSelector,
 		SequenceNumber:    msg.Header.SequenceNumber,
 		Message:           msg,
