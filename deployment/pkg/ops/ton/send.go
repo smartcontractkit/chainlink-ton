@@ -1,7 +1,6 @@
 package ton // alias: opston
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -34,15 +33,16 @@ func (in SendMessagesInput) IsPlan() bool {
 }
 
 type SendMessagesOutput struct {
-	Plans       []MessagePlanRaw `json:"plans"`
-	Transaction *TransactionInfo `json:"transaction,omitempty"`
+	Plans       []MessagePlanRaw            `json:"plans"`
+	Transaction *tlbe.Cell[tlb.Transaction] `json:"transaction,omitempty"`
+	BlockInfo   *ton.BlockIDExt             `json:"blockInfo,omitempty"`
 }
 
 func (o SendMessagesOutput) GetPlans() []MessagePlanRaw {
 	return o.Plans
 }
 
-func (o SendMessagesOutput) GetTransaction() *TransactionInfo {
+func (o SendMessagesOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 	return o.Transaction
 }
 
@@ -124,25 +124,25 @@ var SendMessages = operations.NewOperation(
 			return SendMessagesOutput{Plans: plans}, nil // return early on plan
 		}
 
-		tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
+		_tx, block, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
 		}
 
-		err = tracetracking.WaitForTrace(ctx, deps.Client, tx)
+		err = tracetracking.WaitForTrace(ctx, deps.Client, _tx)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
 		}
 
+		tx, err := tlbe.NewCellFrom(*_tx)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to convert transaction to cell: %w", err)
+		}
+
 		return SendMessagesOutput{
-			Plans: []MessagePlanRaw{}, // clear plans on send
-			Transaction: &TransactionInfo{
-				// TODO: AccountAddr
-				Hash:        hex.EncodeToString(tx.Hash),
-				OutMsgCount: tx.OutMsgCount,
-				EndStatus:   tx.EndStatus,
-				TotalFees:   tx.TotalFees.Coins,
-			},
+			Plans:       []MessagePlanRaw{}, // clear plans on send
+			Transaction: tx,
+			BlockInfo:   block,
 		}, nil
 	},
 )

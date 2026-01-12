@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 var (
@@ -38,16 +39,13 @@ func (in DeployInput) IsPlan() bool {
 	return in.Plan
 }
 
-type DeployOutput struct {
-	Plans       []MessagePlanRaw `json:"plans"`
-	Transaction *TransactionInfo `json:"transaction,omitempty"`
-}
+type DeployOutput SendMessagesOutput
 
 func (o DeployOutput) GetPlans() []MessagePlanRaw {
 	return o.Plans
 }
 
-func (o DeployOutput) GetTransaction() *TransactionInfo {
+func (o DeployOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 	return o.Transaction
 }
 
@@ -116,10 +114,7 @@ var Deploy = operations.NewOperation(
 			return DeployOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
 
-		return DeployOutput{
-			Plans:       r.Output.GetPlans(),
-			Transaction: r.Output.GetTransaction(),
-		}, nil
+		return DeployOutput(r.Output), nil
 	},
 )
 

@@ -38,15 +38,7 @@ type MessagePlanRaw struct {
 
 // MessageSender is an interface for op OUT types that can provide transaction info.
 type MessageSender interface {
-	GetTransaction() *TransactionInfo
-}
-
-type TransactionInfo struct {
-	AccountAddr *address.Address  `json:"accountAddr"`
-	Hash        string            `json:"hash"`
-	OutMsgCount uint16            `json:"outMsgCount"`
-	EndStatus   tlb.AccountStatus `json:"endStatus"`
-	TotalFees   tlb.Coins         `json:"totalFees"`
+	GetTransaction() *tlbe.Cell[tlb.Transaction]
 }
 
 // &tlb.InternalMessage representation

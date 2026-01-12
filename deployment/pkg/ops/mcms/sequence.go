@@ -20,6 +20,7 @@ import (
 
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 var (
@@ -55,7 +56,7 @@ type TimelockAnySequenceInput struct {
 
 type TimelockAnySequenceOutput struct {
 	Proposals    []mcms.TimelockProposal
-	Transactions []opston.TransactionInfo
+	Transactions []*tlbe.Cell[tlb.Transaction]
 }
 
 func (o TimelockAnySequenceOutput) GetPlans() []mcms.TimelockProposal {

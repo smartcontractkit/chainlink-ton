@@ -5,6 +5,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/xssnick/tonutils-go/tlb"
 )
 
 var (
@@ -22,7 +24,7 @@ type AnySequenceInput struct {
 // where an operation or a sequence may plan/produce multiple messages.
 type AnySequenceOutput struct {
 	Plans        []MessagePlanRaw
-	Transactions []TransactionInfo
+	Transactions []*tlbe.Cell[tlb.Transaction]
 	// TODO: add deployed contract addresses mapping
 }
 
@@ -49,7 +51,7 @@ func anySeqHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInpu
 	// Initialize the output
 	output := AnySequenceOutput{
 		Plans:        make([]MessagePlanRaw, 0),
-		Transactions: make([]TransactionInfo, 0),
+		Transactions: make([]*tlbe.Cell[tlb.Transaction], 0),
 	}
 
 	for i, def := range in.Defs {
@@ -89,7 +91,7 @@ func anySeqHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInpu
 				if ok && po.IsPlan() {
 					return output, fmt.Errorf("operation %s declared as a plan but returned a transaction", def.ID)
 				}
-				output.Transactions = append(output.Transactions, *tx)
+				output.Transactions = append(output.Transactions, tx)
 			}
 		}
 	}

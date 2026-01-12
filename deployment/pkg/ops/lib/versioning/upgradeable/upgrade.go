@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
@@ -37,16 +39,13 @@ func (in UpgradeInput) IsPlan() bool {
 	return in.Plan
 }
 
-type UpgradeOutput struct {
-	Plans       []opston.MessagePlanRaw `json:"plans"`
-	Transaction *opston.TransactionInfo `json:"transaction,omitempty"`
-}
+type UpgradeOutput opston.SendMessagesOutput
 
 func (o UpgradeOutput) GetPlans() []opston.MessagePlanRaw {
 	return o.Plans
 }
 
-func (o UpgradeOutput) GetTransaction() *opston.TransactionInfo {
+func (o UpgradeOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 	return o.Transaction
 }
 
@@ -104,9 +103,6 @@ var Upgrade = operations.NewOperation(
 			return UpgradeOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
 
-		return UpgradeOutput{
-			Plans:       r.Output.GetPlans(),
-			Transaction: r.Output.GetTransaction(),
-		}, nil
+		return UpgradeOutput(r.Output), nil
 	},
 )
