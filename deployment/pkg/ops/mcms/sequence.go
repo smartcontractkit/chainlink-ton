@@ -39,9 +39,11 @@ var TimelockAnySequence = operations.NewSequence(
 	timelockAnySeqHandler,
 )
 
+// TODO: extract logic so it can be used with raw messages
 type TimelockAnySequenceInput struct {
 	AnySequenceIn opston.AnySequenceInput
 
+	// TODO: extract as MCMSOpts type
 	ChainSelector types.ChainSelector
 	MCMSAddr      *address.Address
 	TimelockAddr  *address.Address

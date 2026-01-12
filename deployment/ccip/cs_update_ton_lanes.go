@@ -56,7 +56,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 	}
 
 	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(s, cfg)
-	fmt.Printf("%+v\n", updateInputsByTonChain)
+	env.Logger.Debug("%+v\n", updateInputsByTonChain)
 	for tonChainSel, sequenceInput := range updateInputsByTonChain {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[tonChainSel]
