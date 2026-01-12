@@ -1,4 +1,4 @@
-package common // nolint:revive // "common" is a standard name for shared bindings
+package common //nolint:revive // "common" is a standard name for shared bindings
 
 import (
 	"github.com/xssnick/tonutils-go/ton"
