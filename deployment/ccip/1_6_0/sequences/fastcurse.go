@@ -248,19 +248,21 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
 			}
 
+			// TODO (ops): improve deps passing
+			opdeps := ton.SendMessagesDeps{
+				Wallet: chain.Wallet,
+				Client: chain.Client,
+			}
+
 			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
 			subjects := make([]router.Subject, len(in.Subjects))
 			for i, subject := range in.Subjects {
 				subjects[i] = router.Subject{Value: new(big.Int).SetBytes(subject[:])}
 			}
 
-			contractType := bindings.PkgCCIP + ".Router"
-
 			// Create uncurse message
-			body, err := codec.WrapMessage[any](contractType, router.RMNRemoteCurse{Subjects: subjects})
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap message: %w", err)
-			}
+			contractType := bindings.PkgCCIP + ".Router"
+			body := router.RMNRemoteCurse{Subjects: subjects}
 
 			// Get router address from chain state
 			routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
@@ -282,16 +284,10 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 						Bounce:  true,
 						DstAddr: &routerAddr,
 						Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
-						Body:    body,
+						Body:    codec.MustWrapMessage[any](contractType, body),
 					},
 				},
 				Plan: plan,
-			}
-
-			// TODO (ops): improve deps passing
-			opdeps := ton.SendMessagesDeps{
-				Wallet: chain.Wallet,
-				Client: chain.Client,
 			}
 
 			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
@@ -344,20 +340,21 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
 			}
 
+			// TODO (ops): improve deps passing
+			opdeps := ton.SendMessagesDeps{
+				Wallet: chain.Wallet,
+				Client: chain.Client,
+			}
+
 			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
 			subjects := make([]router.Subject, len(in.Subjects))
 			for i, subject := range in.Subjects {
 				subjects[i] = router.Subject{Value: new(big.Int).SetBytes(subject[:])}
 			}
 
-			contractType := bindings.PkgCCIP + ".Router"
-
 			// Create uncurse message
-			body, err := codec.WrapMessage[any](contractType, router.RMNRemoteUncurse{Subjects: subjects})
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to wrap message: %w", err)
-			}
-
+			contractType := bindings.PkgCCIP + ".Router"
+			body := router.RMNRemoteUncurse{Subjects: subjects}
 			// Get router address from chain state
 			routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
@@ -378,16 +375,10 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 						Bounce:  true,
 						DstAddr: &routerAddr,
 						Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
-						Body:    body,
+						Body:    codec.MustWrapMessage[any](contractType, body),
 					},
 				},
 				Plan: plan,
-			}
-
-			// TODO (ops): improve deps passing
-			opdeps := ton.SendMessagesDeps{
-				Wallet: chain.Wallet,
-				Client: chain.Client,
 			}
 
 			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
