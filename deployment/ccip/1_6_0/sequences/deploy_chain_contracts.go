@@ -26,7 +26,7 @@ import (
 
 // defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.
 // This value is chosen to cover contract initialization and storage costs on TON blockchain.
-const defaultCCIPContractCoin = "0.05"
+const defaultCCIPContractCoin = "0.5"
 
 // defaultReserveAmount is the default reserve amount allocated to the OnRamp contract.
 // This reserve ensures the contract has sufficient balance for operational transactions.
@@ -187,7 +187,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				FeeTokens: map[ccipConfig.TokenSymbol]ccipConfig.FeeToken{
 					"TON": {
 						Address:                    tvm.TonTokenAddr,
-						PremiumMultiplierWeiPerEth: 1,
+						PremiumMultiplierWeiPerEth: 2e18,
 					},
 					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
 				},
