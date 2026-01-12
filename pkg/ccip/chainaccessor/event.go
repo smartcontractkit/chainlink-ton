@@ -140,7 +140,7 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 
 	for _, gpus := range ev.PriceUpdates.GasPriceUpdates {
 		if gpus.DataAvailabilityGasPrice == nil || gpus.DataAvailabilityGasPrice.Cmp(big.NewInt(0)) < 0 {
-			return nil, fmt.Errorf("nil or negative usd per unit gas: %s", gpus.DataAvailabilityGasPrice.String())
+			return nil, fmt.Errorf("nil or negative DataAvailabilityGasPrice: %v", gpus.DataAvailabilityGasPrice)
 		}
 	}
 
