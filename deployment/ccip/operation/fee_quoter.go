@@ -107,68 +107,6 @@ type AddPriceUpdaterInput struct {
 	PriceUpdater *address.Address
 }
 
-// TODO: remove for generic SendMessages op
-// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
-var AddPriceUpdaterOp = operations.NewOperation(
-	"add-price-updater-op",
-	semver.MustParse("0.1.0"),
-	"Adds a FeeQuoter allowed price updater",
-	addPriceUpdater,
-)
-
-func addPriceUpdater(b operations.Bundle, deps config.CCIPDeps, in AddPriceUpdaterInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
-
-	payload, err := tlb.ToCell(feequoter.AddPriceUpdater{
-		PriceUpdater: in.PriceUpdater,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
-		{
-			Bounce:  true,
-			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &feeQuoterAddress,
-			Body:    payload,
-		},
-	})
-}
-
-type RemovePriceUpdaterInput struct {
-	PriceUpdater *address.Address
-}
-
-// TODO (ops): remove for generic SendMessages op
-// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
-var RemovePriceUpdaterOp = operations.NewOperation(
-	"remove-price-updater-op",
-	semver.MustParse("0.1.0"),
-	"Removes a FeeQuoter allowed price updater",
-	removePriceUpdater,
-)
-
-func removePriceUpdater(b operations.Bundle, deps config.CCIPDeps, in RemovePriceUpdaterInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
-
-	payload, err := tlb.ToCell(feequoter.RemovePriceUpdater{
-		PriceUpdater: in.PriceUpdater,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
-		{
-			Bounce:  true,
-			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &feeQuoterAddress,
-			Body:    payload,
-		},
-	})
-}
-
 // UpdateFeeQuoterPricesInput contains configuration for updating FeeQuoter price configs
 type UpdateFeeQuoterPricesInput struct {
 	TokenPrices map[string]*big.Int // token address (string) -> price

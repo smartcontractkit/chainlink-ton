@@ -10,16 +10,21 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -61,18 +66,40 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
+		// TODO (ops): improve deps passing
+		opdeps := opston.SendMessagesDeps{
+			Wallet: tonChain.Wallet,
+			Client: tonChain.Client,
+		}
+
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
 		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+
 		// feequoter.addPriceUpdater(offramp)
-		addPriceUpdaterInput := operation.AddPriceUpdaterInput{
-			PriceUpdater: &offrampAddr,
+		{
+			addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+			body := feequoter.AddPriceUpdater{
+				PriceUpdater: &offrampAddr,
+			}
+
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: &addr,
+						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".FeeQuoter", body),
+					},
+				},
+				Plan: true,
+			})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
+			}
+
+			msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
 		}
-		addPriceUpdaterReport, err := operations.ExecuteOperation(b, operation.AddPriceUpdaterOp, deps, addPriceUpdaterInput)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
-		}
-		msgs = append(msgs, addPriceUpdaterReport.Output...)
 
 		// feeQuoter.updateFeeTokens
 		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
