@@ -54,7 +54,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		}
 		sender := tonChain.Wallet.Address()
 
-		_input := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
+		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
 		// update fee quoter with dest chain configs
 		{
@@ -88,7 +88,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 				}
 
 				plan := sender.Equals(owner) != true // plan if sender is not owner
-				_input.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: contractType,
 						Tags:         []string{},
@@ -147,7 +147,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 				}
 
 				plan := sender.Equals(owner) != true // plan if sender is not owner
-				_input.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: contractType,
 						Tags:         []string{},
@@ -158,9 +158,9 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 
 		// update fee quoter with gas prices
 		{
-			updateFeeQuoterPricesConfig := intoUpdateFeeQuoterPricesConfig(input)
-			b.Logger.Infow("Updating prices on FeeQuoter", "input", updateFeeQuoterPricesConfig)
-			r, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, updateFeeQuoterPricesConfig)
+			_input := intoUpdateFeeQuoterPricesConfig(input)
+			b.Logger.Infow("Updating prices on FeeQuoter", "input", _input)
+			r, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
 			}
@@ -174,7 +174,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			}
 
 			plan := sender.Equals(owner) != true // plan if sender is not owner
-			_input.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -184,12 +184,12 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 
 		// update router with onramps
 		{
-			applyRampUpdatesConfig, err := intoUpdateRouterOnrampsConfig(input)
+			_input, err := intoUpdateRouterOnrampsConfig(input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router onramps config: %w", err)
 			}
-			b.Logger.Infow("Updating Router Onramps", "input", applyRampUpdatesConfig)
-			r, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, applyRampUpdatesConfig)
+			b.Logger.Infow("Updating Router Onramps", "input", _input)
+			r, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}
@@ -203,7 +203,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			}
 
 			plan := sender.Equals(owner) != true // plan if sender is not owner
-			_input.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -211,7 +211,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			})
 		}
 
-		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _input)
+		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}
@@ -234,7 +234,8 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		}
 
 		sender := tonChain.Wallet.Address()
-		_input := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
+
+		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
 		// configure offramp sources
 		{
@@ -253,7 +254,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 			}
 
 			plan := sender.Equals(owner) != true // plan if sender is not owner
-			_input.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -280,7 +281,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 			}
 
 			plan := sender.Equals(owner) != true // plan if sender is not owner
-			_input.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -288,7 +289,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 			})
 		}
 
-		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _input)
+		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

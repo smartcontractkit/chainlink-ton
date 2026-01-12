@@ -28,7 +28,7 @@ type UpdateFeeQuoterFeeTokensInput struct {
 
 // UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
 var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
-	"update-fee-quoter-fee-tokens-op",
+	"ton/ops/ccip/fee-quoter/update-fee-tokens",
 	semver.MustParse("0.1.0"),
 	"Updates FeeQuoter fee tokens",
 	updateFeeQuoterFeeTokens,
@@ -114,7 +114,7 @@ type UpdateFeeQuoterPricesInput struct {
 
 // UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
 var UpdateFeeQuoterPricesOp = operations.NewOperation(
-	"update-fee-quoter-prices-op",
+	"ton/ops/ccip/fee-quoter/update-prices",
 	semver.MustParse("0.1.0"),
 	"Updates FeeQuoter token and gas prices",
 	updateFeeQuoterPrices,

@@ -32,7 +32,7 @@ func (a *TonAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConf
 }
 
 var DeployMCMSContracts = operations.NewSequence(
-	"deploy-mcms",
+	"ton/sequences/ccip/deploy-mcms-suite",
 	semver.MustParse("0.0.4"), // TODO mcms and timelock has different versions, can we pick mcms version here?
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -41,18 +41,18 @@ var DeployMCMSContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		seqInput, err := intoDeployMCMSSeqInput(input, deps.TonChain.WalletAddress)
+		_input, err := intoDeployMCMSSeqInput(input, deps.TonChain.WalletAddress)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		mcmsSeqReport, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, deps, seqInput)
+		r, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, deps, _input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
 		}
 
 		return sequences.OnChainOutput{
-			Addresses: mcmsSeqReport.Output.Addresses,
-			BatchOps:  mcmsSeqReport.Output.BatchOps,
+			Addresses: r.Output.Addresses,
+			BatchOps:  r.Output.BatchOps,
 		}, nil
 	},
 )

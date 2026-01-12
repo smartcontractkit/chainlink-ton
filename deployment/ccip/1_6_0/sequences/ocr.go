@@ -5,9 +5,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/xssnick/tonutils-go/tlb"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/mcms/types"
 
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -20,8 +19,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func (a *TonAdapter) SetOCR3Config() *cldf_ops.Sequence[deployops.SetOCR3ConfigInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
@@ -33,7 +33,6 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
-		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
 		tonChain := chains.TonChains()[chainSelector]
@@ -41,32 +40,37 @@ var SetOCR3Config = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		// TODO (ops): improve deps passing
-		opdeps := opston.SendMessagesDeps{
-			Wallet: tonChain.Wallet,
-			Client: tonChain.Client,
-		}
 
-		in := seq.SetOCR3OfframpSeqInput{
-			ChainSelector: input.ChainSelector,
-			Configs:       intoOCRConfigs(input.Configs),
-		}
-		setOCR3SeqReport, err := cldf_ops.ExecuteSequence(b, seq.SetOCR3OfframpSequence, deps, in)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
-		}
-		msgs = append(msgs, setOCR3SeqReport.Output...)
+		sender := tonChain.Wallet.Address()
+		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
-		//  TODO: 1. When executing directly (with injected DEP/wallet) execution is processed outside a cldf.Sequence
-		//        2. When executing indirectly - via MCMS (plan/proposal returned) - not currently supported
-		if len(msgs) != 0 {
-			_, err := operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
+		{
+			_input := seq.SetOCR3OfframpSeqInput{
+				ChainSelector: input.ChainSelector,
+				Configs:       intoOCRConfigs(input.Configs),
 			}
+			r, err := cldf_ops.ExecuteSequence(b, seq.SetOCR3OfframpSequence, deps, _input)
+			if err != nil {
+				return sequences.OnChainOutput{}, err
+			}
+
+			addr := deps.CCIPOnChainState[chainSelector].OffRamp
+			owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
+			}
+
+			plan := sender.Equals(owner) != true // plan if sender is not owner
+
+			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}
 
-		return sequences.OnChainOutput{}, nil
+		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
+		}
+
+		return r.Output, nil
 	},
 )
 

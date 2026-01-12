@@ -18,7 +18,7 @@ type SetOCR3OfframpSeqInput struct {
 }
 
 var SetOCR3OfframpSequence = operations.NewSequence(
-	"set-ton-ocr3-offramp-sequence",
+	"ton/sequences/ccip/offramp/set-ocr3-config",
 	semver.MustParse("0.1.0"),
 	"Set OCR3 configuration for Ton CCIP Offramp",
 	setOCR3OfframpSequence,
@@ -30,31 +30,21 @@ func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Se
 	// TODO: this just needs to loop over configs
 
 	// Set commit OCR3 Config
-	if configArgs, exists := in.Configs[operation.PluginTypeCCIPCommit]; exists {
-		commitReport, err := operations.ExecuteOperation(
-			b,
-			operation.SetOCR3ConfigOp,
-			deps,
-			configArgs,
-		)
+	if configCommit, exists := in.Configs[operation.PluginTypeCCIPCommit]; exists {
+		r, err := operations.ExecuteOperation(b, operation.SetOCR3ConfigOp, deps, configCommit)
 		if err != nil {
 			return nil, err
 		}
-		msgs = append(msgs, commitReport.Output...)
+		msgs = append(msgs, r.Output...)
 	}
 
 	// Set exec OCR3 Config
-	if configArgs, exists := in.Configs[operation.PluginTypeCCIPExec]; exists {
-		execReport, err := operations.ExecuteOperation(
-			b,
-			operation.SetOCR3ConfigOp,
-			deps,
-			configArgs,
-		)
+	if configExec, exists := in.Configs[operation.PluginTypeCCIPExec]; exists {
+		r, err := operations.ExecuteOperation(b, operation.SetOCR3ConfigOp, deps, configExec)
 		if err != nil {
 			return nil, err
 		}
-		msgs = append(msgs, execReport.Output...)
+		msgs = append(msgs, r.Output...)
 	}
 
 	return msgs, nil

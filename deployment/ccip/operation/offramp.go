@@ -31,7 +31,7 @@ type UpdateOffRampSourcesInput struct {
 }
 
 var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
-	"update-offramp-source-chain-configs",
+	"ton/ops/ccip/offramp/update-source-chain-configs",
 	semver.MustParse("0.1.0"),
 	"Updates offramp's source chain configs",
 	updateOffRampSourceChainConfigs,
@@ -101,7 +101,7 @@ type OCR3ConfigArgs struct {
 }
 
 var SetOCR3ConfigOp = operations.NewOperation(
-	"update-offramp-ocr3-config",
+	"ton/ops/ccip/offramp/set-ocr3-config",
 	semver.MustParse("0.1.0"),
 	"Updates offramp's OCR3 config",
 	setOCR3Config,

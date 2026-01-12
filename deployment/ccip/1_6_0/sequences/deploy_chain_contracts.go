@@ -52,6 +52,7 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
+
 		seqInput, err := intoDeployCCIPSeqInput(input, deps.TonChain.WalletAddress)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
@@ -59,6 +60,11 @@ var DeployChainContracts = operations.NewSequence(
 		ccipSeqReport, err := operations.ExecuteSequence(b, seq.DeployCCIPSequence, deps, seqInput)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
+		}
+
+		out := sequences.OnChainOutput{
+			Addresses: ccipSeqReport.Output.Addresses,
+			BatchOps:  ccipSeqReport.Output.BatchOps,
 		}
 
 		deps, err = updateTonDepsWithDeployedAddresses(deps, ccipSeqReport.Output.Addresses)
@@ -101,31 +107,29 @@ var DeployChainContracts = operations.NewSequence(
 		}
 
 		// feeQuoter.updateFeeTokens
-		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-			FeeTokens: map[string]operation.FeeTokenConfig{
-				tvm.TonTokenAddr.String(): {
-					PremiumMultiplierWeiPerEth: 1,
+		{
+			_input := operation.UpdateFeeQuoterFeeTokensInput{
+				FeeTokens: map[string]operation.FeeTokenConfig{
+					tvm.TonTokenAddr.String(): {
+						PremiumMultiplierWeiPerEth: 1,
+					},
+					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
 				},
-				// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
-			},
-		}
-		updateFeeTokensReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
-		}
-		msgs = append(msgs, updateFeeTokensReport.Output...)
-
-		if len(msgs) != 0 {
-			_, err := operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
 			}
+			r, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, _input)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
+			}
+
+			msgs = append(msgs, r.Output...)
 		}
 
-		return sequences.OnChainOutput{
-			Addresses: ccipSeqReport.Output.Addresses,
-			BatchOps:  ccipSeqReport.Output.BatchOps,
-		}, nil
+		_, err = operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
+		}
+
+		return out, nil
 	},
 )
 
