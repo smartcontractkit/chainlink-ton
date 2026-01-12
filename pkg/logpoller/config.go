@@ -8,6 +8,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 )
 
+// Reasonable operational bounds: between 100ms and 10 minutes
+const (
+	minPollPeriod = 100 * time.Millisecond
+	maxPollPeriod = 10 * time.Minute
+)
+
 // Config holds the configuration for the log poller.
 // NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
 // Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
@@ -83,5 +89,21 @@ func (c *Config) ValidateConfig() (err error) {
 	if c.SaveThreshold == 0 {
 		return errors.New("save_threshold must be greater than 0")
 	}
+
+	// Validate PollPeriod to prevent startup panics and operational issues
+	if c.PollPeriod == nil {
+		return errors.New("poll_period must be set")
+	}
+	pollDuration := c.PollPeriod.Duration()
+	if pollDuration <= 0 {
+		return fmt.Errorf("poll_period must be positive, got %v", pollDuration)
+	}
+	if pollDuration < minPollPeriod {
+		return fmt.Errorf("poll_period %v is too small (minimum: %v)", pollDuration, minPollPeriod)
+	}
+	if pollDuration > maxPollPeriod {
+		return fmt.Errorf("poll_period %v is too large (maximum: %v)", pollDuration, maxPollPeriod)
+	}
+
 	return nil
 }

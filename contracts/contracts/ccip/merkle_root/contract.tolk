@@ -8,6 +8,7 @@ import "../../deployable/types.tolk"
 import "../receive_executor/storage"
 import "../router/storage"
 import "../../lib/funding/withdrawable"
+import "types"
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
@@ -108,11 +109,11 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.MerkleRoot", CONTRACT_VERSION);
+    return (MerkleRoot_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.MerkleRoot"));
+    return MerkleRoot_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

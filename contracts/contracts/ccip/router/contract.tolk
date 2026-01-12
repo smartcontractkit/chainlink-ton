@@ -65,7 +65,9 @@ fun onInternalMessage(in: InMessage) {
         }
         // Permissionless (authorization is handle at the ReceiverExecutor)
         Router_CCIPReceiveConfirm => {
-            assert (in.valueCoins >= ROUTER_RECEIVE_CONFIRM_FEE) throw Router_Error.InsufficientFee;
+            // Check that the amount sent by the receiver is enough to cover confirmation trace costs. 
+            // Approx 0.02 TON.
+            assert (in.valueCoins >= Router_Costs.receiveConfirm()) throw Router_Error.InsufficientFee;
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must RMN remote admin
@@ -196,7 +198,11 @@ fun updateOnRamps(mutate st: Storage, onRampUpdates: OnRamps?) {
         var selectors = onRampUpdates.destChainSelectors.iter();
         while (!selectors.empty()) {
             val selector = selectors.next();
-            st.onRamps.set(selector, onRampUpdates.onRamp);
+            if (onRampUpdates.onRamp != null) {
+                st.onRamps.set(selector, onRampUpdates.onRamp);
+            } else {
+                st.onRamps.delete(selector);
+            }
         }
 
         emit(ON_RAMP_SET_TOPIC, OnRampSet {
@@ -275,14 +281,14 @@ fun onCCIPReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
 
     val confirmMsg = createMessage({
         bounce: true,
-        value: OffRamp_Costs.receiveConfirmOrDeny(), 
+        value: 0, 
         dest: offRamp,
         body: OffRamp_CCIPReceiveConfirm {
             execId: msg.execId,
             receiver: sender,
         },
     });
-    confirmMsg.send(SEND_MODE_REGULAR);
+    confirmMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sends a CCIP receive confirmation to the OffRamp contract corresponding to
@@ -335,15 +341,25 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
 //     Router    ->> SenderAcc: Router_MessageValidated
 fun onGetValidatedFee(msg: Router_GetValidatedFee<RemainingBitsAndRefs>, sender: address) {
     val st = lazy Storage.load();
-    val ccipSend = lazy msg.ccipSend.load();
-    val onRamp = st.onRamps.mustGet(ccipSend.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    var ccipSendCell = msg.ccipSend;
+    var ccipSend = lazy msg.ccipSend.load();
+    val onRampResult = st.onRamps.get(ccipSend.destChainSelector);
+    if (!onRampResult.isFound) {
+        return sendMessageValidationFailed(sender, Router_Error.DestChainNotEnabled as uint256, msg.ccipSend, msg.context);
+    }
+
+    if (ccipSend.feeToken == null) {
+        ccipSend.feeToken = st.wrappedNative;
+        // to save on gas, we only update ccipSendCell if necessary
+        ccipSendCell = ccipSend.toCell();
+    }
 
     val feeQuoterMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: onRamp,
+        dest: onRampResult.loadValue(),
         body: OnRamp_GetValidatedFee<Router_GetValidatedFeeContext> {
-            ccipSend: msg.ccipSend,
+            ccipSend: ccipSendCell,
             context: Router_GetValidatedFeeContext {
                 routerContext: sender,
                 userContext: msg.context,
@@ -401,14 +417,18 @@ fun onMessageValidatedFromOnRamp(msg: OnRamp_MessageValidated<Router_GetValidate
 //     Router    ->> SenderAcc: Router_MessageValidationFailed
 fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>) {
     val userAddress = msg.context.routerContext;
+    sendMessageValidationFailed(userAddress, msg.error, msg.msg, msg.context.userContext);
+}
+
+fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: RemainingBitsOrRef<RemainingBitsAndRefs>) {
     val replyMsg = createMessage({
         bounce: true,
         value: 0,
         dest: userAddress,
         body: Router_MessageValidationFailed {
-            error: msg.error,
-            msg: msg.msg,
-            context: msg.context.userContext,
+            error: error,
+            msg: msg,
+            context: userContext,
         }
     });
     replyMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -429,11 +449,14 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
         msg.feeToken = st.wrappedNative
     }
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+    val onRampResult = st.onRamps.get(msg.destChainSelector);
+    if (!onRampResult.isFound) {
+        return sendMessageRejected(sender, msg.queryID, Router_Error.DestChainNotEnabled as uint256);
+    }
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: onRamp,
+        dest: onRampResult.loadValue(),
         body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender, value } },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -546,13 +569,17 @@ fun onSendACK(msg: Router_MessageSent) {
 //     OnRamp           ->> Router:    Router_MessageRejected
 //     Router           ->> SenderAcc: Router_CCIPSendNACK
 fun onSendNACK(msg: Router_MessageRejected) {
+    sendMessageRejected(msg.sender, msg.queryID, msg.error);
+}
+
+fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
     val nackMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: msg.sender,
+        dest: sender,
         body: Router_CCIPSendNACK {
-            queryID: msg.queryID,
-            error: msg.error,
+            queryID: queryID,
+            error: error,
         }
     });
 
@@ -584,7 +611,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 get fun verifyNotCursed(subject: uint128): bool {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
-    return rmn.cursedSubjects.isCursed(subject);
+    return !rmn.cursedSubjects.isCursed(subject);
 }
 
 /// Gets the current owner of the contract.
@@ -612,11 +639,11 @@ get fun rmn_pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
+    return (Router_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.Router"));
+    return Router_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

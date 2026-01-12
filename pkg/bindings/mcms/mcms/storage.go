@@ -25,7 +25,7 @@ func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 			Owner:        owner,
 			PendingOwner: nil,
 		},
-		Oracle:  tvm.ZeroAddress,
+		Oracle:  owner,
 		Signers: must(tvm.MakeDict(map[*big.Int]Signer{}, 160)), // TODO: tvm.KeyUINT160
 		Config: Config{
 			Signers:      must(tvm.MakeDictFrom([]Signer{}, tvm.KeyUINT8)),
@@ -41,7 +41,7 @@ func EmptyDataFrom(id uint32, owner *address.Address, chainID int64) Data {
 				OpPendingInfo: OpPendingInfo{
 					ValidAfter:             0,
 					OpFinalizationTimeout:  0,
-					OpPendingReceiver:      tvm.ZeroAddress,
+					OpPendingReceiver:      address.NewAddressNone(),
 					OpPendingBodyTruncated: tlbe.NewUint256(big.NewInt(0)),
 				},
 			},

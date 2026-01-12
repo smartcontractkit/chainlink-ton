@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 import { Cell, toNano } from '@ton/core'
 
-import { ZERO_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
@@ -354,7 +353,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const opPendingInfo = await baseTest.bind.mcms.getOpPendingInfo()
     expect(opPendingInfo).toBeDefined()
     expect(opPendingInfo.validAfter).toBeGreaterThan(0)
-    expect(opPendingInfo.opPendingReceiver).toEqualAddress(ZERO_ADDRESS)
+    expect(opPendingInfo.opPendingReceiver).toEqual(null)
     expect(opPendingInfo.opPendingBodyTruncated).toEqual(0n)
   })
 

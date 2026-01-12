@@ -108,7 +108,7 @@ var GetStaticConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[StaticConfig]{
 
 // GetDestChainSelectors gets all destination chain selectors
 var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
-	Name: DestChainsGetter,
+	Name: destChainSelectorsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
 		return parser.ParseLispTuple(r.AsTuple()), nil
 	}),

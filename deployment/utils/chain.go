@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -17,6 +19,7 @@ import (
 	cldf_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/config"
+	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -36,6 +39,14 @@ func GetLocalnetFunderWallet(client ton.APIClientWrapped) (*wallet.Wallet, error
 }
 
 func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
+	return FundWalletsWithCtx(t.Context(), client, recipients, amounts)
+}
+
+func FundWalletsNoT(client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
+	return FundWalletsWithCtx(context.Background(), client, recipients, amounts)
+}
+
+func FundWalletsWithCtx(ctx context.Context, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) error {
 	funder, err := GetLocalnetFunderWallet(client)
 	if err != nil {
 		return fmt.Errorf("failed to get prefunded wallet: %w", err)
@@ -53,16 +64,16 @@ func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*addres
 		}
 		messages[i] = transfer
 	}
-	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
+	_, _, txerr := funder.SendManyWaitTransaction(ctx, messages)
 	if txerr != nil {
 		return fmt.Errorf("airdrop transaction failed: %w", txerr)
 	}
 
-	err = waitForAirdropCompletion(t.Context(), client, recipients, amounts, 120*time.Second)
+	err = waitForAirdropCompletion(ctx, client, recipients, amounts, 120*time.Second)
 	if err != nil {
 		return fmt.Errorf("airdrop completion verification failed: %w", err)
 	}
-	t.Logf("✓ %d funded successfully", len(recipients))
+	fmt.Printf("✓ %d funded successfully\n", len(recipients))
 	return nil
 }
 
@@ -162,4 +173,28 @@ func StartChain(t *testing.T, chainID uint64, once *sync.Once) (cldf_ton.Chain, 
 	t.Logf("TON chain started and funded wallet: %s", tonChain.WalletAddress.String())
 
 	return tonChain, nil
+}
+
+func CreateClient(ctx context.Context, url string) (*ton.APIClient, error) {
+	var client *ton.APIClient
+	if strings.HasPrefix(url, "liteserver://") {
+		pool, err := tonchainpkg.CreateLiteserverConnectionPool(ctx, url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
+		}
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
+	} else {
+		// connect via config URL
+		cfg, err := liteclient.GetConfigFromUrl(ctx, url)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get TON config: %w", err)
+		}
+		pool := liteclient.NewConnectionPool()
+		err = pool.AddConnectionsFromConfig(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to TON: %w", err)
+		}
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
+	}
+	return client, nil
 }

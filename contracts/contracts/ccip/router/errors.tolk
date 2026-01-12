@@ -1,5 +1,7 @@
+import "types"
+
 enum Router_Error {
-    DestChainNotEnabled = 49600
+    DestChainNotEnabled = Router_FACILITY_ID * 100
     SourceChainNotEnabled
     SenderIsNotOffRamp
     OffRampNotSetForSelector

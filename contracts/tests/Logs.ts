@@ -290,10 +290,10 @@ export const testLogRampSet = (message: Message, from: Address, match: CCIPLogs.
   return testLog(message, from, CCIPLogs.LogTypes.OnRampSet, (x) => {
     const cs = x.beginParse()
     const selectors = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(64))
-    const addr = cs.loadAddress()
+    const addr = cs.loadMaybeAddress()
     const msg = {
       destChainSelectors: selectors,
-      onRamp: addr,
+      onRamp: addr ?? undefined,
     }
     equalsObject(msg, match)
     return true

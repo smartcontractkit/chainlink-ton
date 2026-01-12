@@ -1,0 +1,81 @@
+name: Run TON Smoke Tests
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+  schedule:
+    - cron: '0 3 * * *'       # runs each night at 03:00 UTC
+
+jobs:
+  run-ton-smoke-tests:
+    name: Run TON Smoke Tests in Chainlink CCIP
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v5
+    - name: Set Chainlink version
+      id: set-version
+      run: |
+        # Default to the pinned version for PRs
+        CHAINLINK_VERSION=$(cat ./scripts/.core_version | tr -d '[:space:]')
+
+        # If this is a scheduled (nightly) run, switch to develop
+        if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            CHAINLINK_VERSION="develop"
+        fi
+
+        echo "chainlink_version=$CHAINLINK_VERSION" >> "$GITHUB_OUTPUT"
+    - name: Setup GitHub Token
+      id: setup-github-token
+      uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+      with:
+        aws-role-arn: ${{ secrets.AWS_ROLE_ARN_WORKFLOWS_CHAINLINKCCIP }}
+        aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHAINLINKCCIP }}
+        aws-region: ${{ vars.AWS_REGION }}
+        aws-role-duration-seconds: "1800"
+    - name: Trigger Chainlink CCIP TON Smoke Tests
+      env:
+        GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+        # Deployment configuration
+        WORKFLOW_FILE: .github/workflows/test_smoke.yml
+        TARGET_REPO: smartcontractkit/chainlink-ccip
+        TARGET_BRANCH: main
+        TON_REF: ${{ github.head_ref || github.sha }}
+        CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
+        # relative to chainlink-ccip/devenv. Assumes chainlink-ton is checked out to top level
+        CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv/ton.toml
+        CONTRACT_VERSION: local
+      run: |
+        fetch_id() {
+          gh run list \
+            --repo "${TARGET_REPO}" \
+            --workflow test_smoke.yml \
+            --branch "${TARGET_BRANCH}" \
+            --status in_progress \
+            --json databaseId \
+            --limit 1 \
+            --jq '.[0].databaseId'
+        }
+        current_run_id=$(fetch_id)
+        gh workflow run "${WORKFLOW_FILE}" \
+        --repo "${TARGET_REPO}" \
+        --ref "${TARGET_BRANCH}" \
+        --field "ton_ref=${TON_REF}" \
+        --field "chainlink_version=${CHAINLINK_VERSION}" \
+        --field "contract_version=${CONTRACT_VERSION}" \
+        --field "custom_config=${CUSTOM_CONFIG}"
+        
+        new_run_id=""
+        while [ -z "$new_run_id" ] || [ "$new_run_id" == "$current_run_id" ]; do
+          echo "Waiting for new workflow run to start..."
+          sleep 10
+          new_run_id=$(fetch_id)
+        done
+        RUN_ID=$new_run_id
+
+        # Watch the run until complete
+        gh run watch --repo "${TARGET_REPO}" $RUN_ID --exit-status

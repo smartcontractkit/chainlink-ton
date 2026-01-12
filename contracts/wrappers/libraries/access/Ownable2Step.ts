@@ -13,10 +13,14 @@ import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 
+export const FACILITY_NAME = 'com.chainlink.ton.lib.access.Ownable2Step'
+export const FACILITY_ID = 204
+export const ERROR_CODE = FACILITY_ID * 100
+
 export enum Errors {
-  OnlyCallableByOwner = 132,
-  CannotTransferToSelf = 1001,
-  MustBeProposedOwner = 1002,
+  OnlyCallableByOwner = ERROR_CODE,
+  CannotTransferToSelf,
+  MustBeProposedOwner,
 }
 
 // @dev Message sent by the owner to transfer ownership of a contract.

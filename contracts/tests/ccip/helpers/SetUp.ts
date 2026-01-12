@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -25,7 +25,7 @@ export const setupTestFeeQuoter = async (
     },
     allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
     maxFeeJuelsPerMsg: 1000000n,
-    linkToken: ZERO_ADDRESS,
+    linkToken: LINK_TOKEN,
     tokenPriceStalenessThreshold: 1000n,
     usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
     premiumMultiplierWeiPerEth: Dictionary.empty(
@@ -35,7 +35,7 @@ export const setupTestFeeQuoter = async (
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
   }
   // HACK: pre-insert token data
-  data.usdPerToken.set(ZERO_ADDRESS, {
+  data.usdPerToken.set(WRAPPED_NATIVE, {
     value: 123n,
     timestamp: BigInt(Math.floor(Date.now() / 1000)), // Convert milliseconds to seconds for uint32
   } as TimestampedPrice)
@@ -88,7 +88,7 @@ export const setupTestFeeQuoter = async (
   result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
     value: toNano('1'),
     msg: {
-      add: new Map([[ZERO_ADDRESS, { premiumMultiplierWeiPerEth: 1n }]]),
+      add: new Map([[WRAPPED_NATIVE, { premiumMultiplierWeiPerEth: 1n }]]),
       remove: [],
     },
   })

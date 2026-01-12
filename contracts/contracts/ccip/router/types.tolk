@@ -1,10 +1,12 @@
-import "../common/types"
-import "../fee_quoter/types"
 import "../../lib/utils"
+
+const Router_FACILITY_NAME = "com.chainlink.ton.ccip.Router";
+// getFacilityId(stringCrc32(Router_FACILITY_NAME));
+const Router_FACILITY_ID = 496;
 
 struct OnRamps {
     destChainSelectors: SnakedCell<uint64>;
-    onRamp: address;
+    onRamp: address?;
 }
 
 struct OffRamps {

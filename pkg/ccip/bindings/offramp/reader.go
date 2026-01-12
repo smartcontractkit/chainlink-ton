@@ -159,7 +159,7 @@ var GetSourceChainConfig = tvm.Getter[uint64, SourceChainConfig]{
 
 // GetSourceChainSelectors gets all source chain selectors
 var GetSourceChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
-	Name: SourceChainsGetter,
+	Name: sourceChainSelectorsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
 		return parser.ParseLispTuple(r.AsTuple()), nil
 	}),

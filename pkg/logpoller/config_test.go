@@ -78,6 +78,7 @@ func TestConfig_ValidateConfig(t *testing.T) {
 			BatchInsertSize: 3500,
 			MinBatchSize:    500,
 			SaveThreshold:   7000,
+			PollPeriod:      config.MustNewDuration(5 * time.Second),
 		}
 		err := cfg.ValidateConfig()
 		require.NoError(t, err)
@@ -164,6 +165,98 @@ func TestConfig_ValidateConfig(t *testing.T) {
 	t.Run("ApplyDefaults then ValidateConfig succeeds", func(t *testing.T) {
 		cfg := &Config{}
 		cfg.ApplyDefaults()
+		err := cfg.ValidateConfig()
+		require.NoError(t, err)
+	})
+
+	t.Run("fails when PollPeriod is nil", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      nil,
+		}
+		err := cfg.ValidateConfig()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "poll_period must be set")
+	})
+
+	t.Run("fails when PollPeriod is zero", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      config.MustNewDuration(0),
+		}
+		err := cfg.ValidateConfig()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "poll_period must be positive")
+	})
+
+	t.Run("fails when PollPeriod is too small", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      config.MustNewDuration(1 * time.Millisecond),
+		}
+		err := cfg.ValidateConfig()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "poll_period")
+		require.Contains(t, err.Error(), "too small")
+		require.Contains(t, err.Error(), "100ms")
+	})
+
+	t.Run("fails when PollPeriod is too large", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      config.MustNewDuration(20 * time.Minute),
+		}
+		err := cfg.ValidateConfig()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "poll_period")
+		require.Contains(t, err.Error(), "too large")
+		require.Contains(t, err.Error(), "10m")
+	})
+
+	t.Run("succeeds with PollPeriod at minimum boundary", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      config.MustNewDuration(100 * time.Millisecond),
+		}
+		err := cfg.ValidateConfig()
+		require.NoError(t, err)
+	})
+
+	t.Run("succeeds with PollPeriod at maximum boundary", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      config.MustNewDuration(10 * time.Minute),
+		}
+		err := cfg.ValidateConfig()
+		require.NoError(t, err)
+	})
+
+	t.Run("succeeds with valid PollPeriod", func(t *testing.T) {
+		cfg := &Config{
+			PageSize:        100,
+			BatchInsertSize: 3000,
+			MinBatchSize:    500,
+			SaveThreshold:   8000,
+			PollPeriod:      config.MustNewDuration(5 * time.Second),
+		}
 		err := cfg.ValidateConfig()
 		require.NoError(t, err)
 	})

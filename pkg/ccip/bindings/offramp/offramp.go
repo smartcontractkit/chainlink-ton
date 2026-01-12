@@ -1,21 +1,15 @@
 package offramp
 
 import (
-	"context"
-	"runtime"
-	"sync"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/sync/errgroup"
 
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -276,55 +270,15 @@ const (
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 	ErrorInvalidInterval
 	ErrorBatchingNotSupported
+	ErrorOnRampAddressMismatch
+	ErrorEmptyCommitReport
+	ErrorMerkleRootCannotBeZero
 )
 
 // Getter method names for binding fetchers
 const (
-	SourceChainsGetter   = "sourceChainSelectors"
-	srcChainConfigGetter = "sourceChainConfig"
-	ocr3BaseGetter       = "ocr3Config"
-	configGetter         = "config"
+	srcChainConfigGetter	   = "sourceChainConfig"
+	ocr3BaseGetter		   = "ocr3Config"
+	configGetter		   = "config"
+	sourceChainSelectorsGetter = "sourceChainSelectors"
 )
-
-// SourceChainConfigMap represents a map of source chain selectors to their configurations.
-// This type aligns with the on-chain data structure for source chain configs.
-type SourceChainConfigMap map[uint64]SourceChainConfig
-
-// Fetch retrieves all source chain configurations from the off-ramp contract.
-func (s *SourceChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) error {
-	result, err := client.RunGetMethod(ctx, block, offRampAddr, SourceChainsGetter)
-	if err != nil {
-		return err
-	}
-
-	eg, egCtx := errgroup.WithContext(ctx)
-	eg.SetLimit(runtime.NumCPU())
-	var lock sync.Mutex
-	output := make(map[uint64]SourceChainConfig)
-	chainSelectors := parser.ParseLispTuple(result.AsTuple())
-
-	for _, dest := range chainSelectors {
-		eg.Go(func() error {
-			res, err := client.RunGetMethod(egCtx, block, offRampAddr, srcChainConfigGetter, dest)
-			if err != nil {
-				return err
-			}
-			cfg, err := GetSourceChainConfig.Decoder.Decode(res)
-			if err != nil {
-				return err
-			}
-
-			lock.Lock()
-			output[dest] = cfg
-			lock.Unlock()
-			return nil
-		})
-	}
-
-	if err = eg.Wait(); err != nil {
-		return err
-	}
-
-	*s = output
-	return nil
-}
