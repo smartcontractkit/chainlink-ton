@@ -121,7 +121,7 @@ var SendMessages = operations.NewOperation(
 		}
 
 		if in.Plan {
-			return SendMessagesOutput{Plans: plans}, nil // return early
+			return SendMessagesOutput{Plans: plans}, nil // return early on plan
 		}
 
 		tx, _, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
@@ -135,7 +135,7 @@ var SendMessages = operations.NewOperation(
 		}
 
 		return SendMessagesOutput{
-			Plans: plans,
+			Plans: []MessagePlanRaw{}, // clear plans on send
 			Transaction: &TransactionInfo{
 				// TODO: AccountAddr
 				Hash:        hex.EncodeToString(tx.Hash),
