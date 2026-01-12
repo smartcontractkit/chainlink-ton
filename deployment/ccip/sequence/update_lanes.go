@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
@@ -30,13 +31,13 @@ import (
 type UpdateTonLanesSeqInput struct {
 	UpdateFeeQuoterDestChainConfigs []feequoter.UpdateDestChainConfig
 	UpdateFeeQuoterPricesConfig     operation.UpdateFeeQuoterPricesInput
-	UpdateOnRampDestChainConfigs    operation.UpdateOnRampDestChainConfigsInput
+	UpdateOnRampDestChainConfigs    []onramp.UpdateDestChainConfig
 	UpdateOffRampSourcesConfig      operation.UpdateOffRampSourcesInput
 	ApplyRampUpdatesConfig          operation.ApplyRampUpdatesInput
 }
 
 var UpdateTonLanesSequence = cldf_ops.NewSequence(
-	"ton-update-lanes-seq",
+	"ton/sequences/ccip/update-lanes",
 	semver.MustParse("0.1.0"),
 	"Configures a lane",
 	updateLanes,
@@ -83,12 +84,42 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 	}
 
 	// update onramp with dest chain configs
-	b.Logger.Infow("Updating destination configs on OnRamp", "input", in.UpdateOnRampDestChainConfigs)
-	onRampReport, err := cldf_ops.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, in.UpdateOnRampDestChainConfigs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update onramp destinations: %w", err)
+	{
+		updates := in.UpdateOnRampDestChainConfigs
+		b.Logger.Infow("Updating destination configs on OnRamp", "input", updates)
+
+		// Skip if there's no updates
+		if len(updates) != 0 {
+			// Set Router addr from state for all updates which don't have it set
+			for _, u := range updates {
+				// TODO: TestRouter support
+				if u.Router == nil {
+					router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+					u.Router = &router
+				}
+			}
+
+			addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
+			body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
+
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: &addr,
+						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".OnRamp", body),
+					},
+				},
+				Plan: true,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to exec send messages operation: %w", err)
+			}
+
+			msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+		}
 	}
-	msgs = append(msgs, onRampReport.Output...)
 
 	// configure offramp sources
 	b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
@@ -131,8 +162,7 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg cc
 			if _, exists := updateInputsByTonChain[source.Selector]; !exists {
 				updateInputsByTonChain[source.Selector] = UpdateTonLanesSeqInput{}
 			}
-			onrampAddress := tonChains[source.Selector].OnRamp
-			setTonSourceUpdates(lane, updateInputsByTonChain, cfg.TestRouter, &onrampAddress)
+			setTonSourceUpdates(lane, updateInputsByTonChain, cfg.TestRouter, tonChains[source.Selector])
 		}
 
 		// Process lanes with Ton as the destination chain
@@ -149,21 +179,22 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg cc
 	return updateInputsByTonChain
 }
 
-func setTonSourceUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, onrampAddress *address.Address) {
+func setTonSourceUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, state tonstate.CCIPChainState) {
 	source := lane.Source
 	dest := lane.Dest
-	isEnabled := !lane.IsDisabled
 
 	// Setting the destination on the on ramp
 	input := updateInputsByTonChain[source.Selector]
 
-	if input.UpdateOnRampDestChainConfigs.Updates == nil {
-		input.UpdateOnRampDestChainConfigs.Updates = make(map[uint64]operation.OnRampDestinationUpdate)
-	}
-	input.UpdateOnRampDestChainConfigs.Updates[dest.Selector] = operation.OnRampDestinationUpdate{
-		IsEnabled:        isEnabled,
-		TestRouter:       isTestRouter, // TODO: changesets use a flag rather than raw address?
-		AllowListEnabled: dest.AllowListEnabled,
+	// isEnabled := !lane.IsDisabled
+	// TODO (ops/ccip): !input.IsDisabled
+	// TODO (ops/ccip): input.TestRouter // TODO: changesets use a flag rather than raw address?
+	input.UpdateOnRampDestChainConfigs = []onramp.UpdateDestChainConfig{
+		{
+			DestinationChainSelector: dest.Selector,
+			Router:                   &state.Router,
+			AllowListEnabled:         dest.AllowListEnabled,
+		},
 	}
 
 	// Setting gas prices updates
@@ -195,7 +226,7 @@ func setTonSourceUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[
 		input.ApplyRampUpdatesConfig.OnRampUpdates = make(operation.RampUpdates)
 	}
 
-	rampAddress := onrampAddress.String()
+	rampAddress := state.OnRamp.String()
 	input.ApplyRampUpdatesConfig.OnRampUpdates[rampAddress] = append(
 		input.ApplyRampUpdatesConfig.OnRampUpdates[rampAddress],
 		router.ChainSelector{Value: dest.Selector},

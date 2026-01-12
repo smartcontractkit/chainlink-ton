@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
@@ -86,13 +87,51 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		}
 
 		// update onramp with dest chain configs
-		updateOnRampDestChainConfigs := intoUpdateOnRampDestChainConfigs(input)
-		b.Logger.Infow("Updating destination configs on OnRamp", "input", updateOnRampDestChainConfigs)
-		onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, updateOnRampDestChainConfigs)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to update onramp destinations: %w", err)
+		{
+			// TODO (ops/ccip): !input.IsDisabled
+			// TODO (ops/ccip): input.TestRouter
+			router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+			updates := []onramp.UpdateDestChainConfig{
+				{
+					DestinationChainSelector: input.Dest.Selector,
+					Router:                   &router,
+					AllowListEnabled:         input.Dest.AllowListEnabled,
+				},
+			}
+			b.Logger.Infow("Updating destination configs on OnRamp", "input", updates)
+
+			// Skip if there's no updates
+			if len(updates) != 0 {
+				// Set Router addr from state for all updates which don't have it set
+				for _, u := range updates {
+					// TODO: TestRouter support
+					if u.Router == nil {
+						router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+						u.Router = &router
+					}
+				}
+
+				addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
+				body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
+
+				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+					Messages: []opston.InternalMessage[any]{
+						{
+							Bounce:  true,
+							DstAddr: &addr,
+							Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+							Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".OnRamp", body),
+						},
+					},
+					Plan: true,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
+				}
+
+				msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+			}
 		}
-		msgs = append(msgs, onRampReport.Output...)
 
 		// update fee quoter with gas prices
 		updateFeeQuoterPricesConfig := intoUpdateFeeQuoterPricesConfig(input)
@@ -197,18 +236,6 @@ func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) []feequot
 				GasMultiplierWeiPerEth:            input.Dest.FeeQuoterDestChainConfig.GasMultiplierWeiPerEth,
 				GasPriceStalenessThreshold:        input.Dest.FeeQuoterDestChainConfig.GasPriceStalenessThreshold,
 				NetworkFeeUsdCents:                input.Dest.FeeQuoterDestChainConfig.NetworkFeeUSDCents,
-			},
-		},
-	}
-}
-
-func intoUpdateOnRampDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateOnRampDestChainConfigsInput {
-	return operation.UpdateOnRampDestChainConfigsInput{
-		Updates: map[uint64]operation.OnRampDestinationUpdate{
-			input.Dest.Selector: {
-				IsEnabled:        !input.IsDisabled,
-				TestRouter:       input.TestRouter,
-				AllowListEnabled: input.Dest.AllowListEnabled,
 			},
 		},
 	}

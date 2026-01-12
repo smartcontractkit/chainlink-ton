@@ -22,7 +22,7 @@ var (
 )
 
 type SendMessagesInput struct {
-	Messages []InternalMessage[any] `json:"messages"`
+	Messages []InternalMessage[any] `json:"messages"` // TODO: should we just use *tlbe.Cell[tlb.InternalMessage] here? and resolve []InternalMessage[any] input using a resolver
 	Plan     bool                   `json:"plan"`
 
 	// TODO: add WaitTrace option
