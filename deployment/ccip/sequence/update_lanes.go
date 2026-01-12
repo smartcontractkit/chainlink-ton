@@ -10,47 +10,81 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 type UpdateTonLanesSeqInput struct {
-	UpdateFeeQuoterDestChainConfigs operation.UpdateFeeQuoterDestChainConfigsInput
+	UpdateFeeQuoterDestChainConfigs []feequoter.UpdateDestChainConfig
 	UpdateFeeQuoterPricesConfig     operation.UpdateFeeQuoterPricesInput
 	UpdateOnRampDestChainConfigs    operation.UpdateOnRampDestChainConfigsInput
 	UpdateOffRampSourcesConfig      operation.UpdateOffRampSourcesInput
 	ApplyRampUpdatesConfig          operation.ApplyRampUpdatesInput
 }
 
-var UpdateTonLanesSequence = operations.NewSequence(
+var UpdateTonLanesSequence = cldf_ops.NewSequence(
 	"ton-update-lanes-seq",
 	semver.MustParse("0.1.0"),
 	"Configures a lane",
 	updateLanes,
 )
 
-func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
-	// update fee quoter with dest chain configs
-	b.Logger.Infow("Updating destination configs on FeeQuoter", "input", in.UpdateFeeQuoterDestChainConfigs)
-	feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, in.UpdateFeeQuoterDestChainConfigs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update feequoter destinations: %w", err)
+	// TODO (ops): improve deps passing
+	opdeps := opston.SendMessagesDeps{
+		Wallet: deps.TonChain.Wallet,
+		Client: deps.TonChain.Client,
 	}
-	msgs = append(msgs, feeQuoterReport.Output...)
+
+	// update fee quoter with dest chain configs
+	{
+		updates := in.UpdateFeeQuoterDestChainConfigs
+		b.Logger.Infow("Updating destination configs on FeeQuoter", "input", updates)
+
+		// Skip if there's no updates
+		if len(updates) != 0 {
+			addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+			body := feequoter.UpdateDestChainConfigs{
+				Updates: common.SnakeData[feequoter.UpdateDestChainConfig](updates),
+			}
+
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: &addr,
+						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".FeeQuoter", body),
+					},
+				},
+				Plan: true,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to exec send messages operation: %w", err)
+			}
+
+			msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+		}
+	}
 
 	// update onramp with dest chain configs
 	b.Logger.Infow("Updating destination configs on OnRamp", "input", in.UpdateOnRampDestChainConfigs)
-	onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, in.UpdateOnRampDestChainConfigs)
+	onRampReport, err := cldf_ops.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, in.UpdateOnRampDestChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update onramp destinations: %w", err)
 	}
@@ -58,7 +92,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 
 	// configure offramp sources
 	b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
-	offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
+	offRampReport, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update offramp sources: %w", err)
 	}
@@ -68,7 +102,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 
 	// update fee quoter with gas prices
 	b.Logger.Infow("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
-	updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
+	updatePricesReport, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update feequoter prices: %w", err)
 	}
@@ -76,7 +110,7 @@ func updateLanes(b operations.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLane
 
 	// router with onramps and offramps
 	b.Logger.Infow("Updating Router onramps & offramps", "input", in.ApplyRampUpdatesConfig)
-	routerApplyRampUpdatesReport, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, in.ApplyRampUpdatesConfig)
+	routerApplyRampUpdatesReport, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, in.ApplyRampUpdatesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update router onramps: %w", err)
 	}

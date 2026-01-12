@@ -71,7 +71,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 
 		// TODO: generate MCMS proposals
 
-		if err := helpers.ExecuteProposals(env, chain.Client, chain.Wallet, setOCR3SeqReport.Output); err != nil {
+		if err := helpers.ExecuteTransactions(env.GetContext(), env.Logger, chain.Client, chain.Wallet, setOCR3SeqReport.Output); err != nil {
 			return cldf.ChangesetOutput{}, err
 		}
 	}

@@ -151,13 +151,13 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 // RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.
 func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw, meta []types.OperationMetadata) (types.BatchOperation, error) {
 	mcmsTxs := make([]types.Transaction, len(plans))
-	for i, planRaw := range plans {
+	for i, p := range plans {
 		body := cell.BeginCell().EndCell() // empty body by default
-		if planRaw.Cell == nil {
+		if p.Cell == nil {
 			return types.BatchOperation{}, fmt.Errorf("message plan %d is missing raw cell", i)
 		}
 
-		msg, err := planRaw.Cell.ToValue()
+		msg, err := p.Cell.ToValue()
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to decode internal message from cell for plan %d: %w", i, err)
 		}
@@ -175,13 +175,8 @@ func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw
 			m = meta[i]
 		}
 
-		mcmsTxs[i], err = mcmston.NewTransaction(
-			planRaw.DstAddr,
-			body.BeginParse(),
-			planRaw.Amount.Nano(),
-			m.ContractType,
-			m.Tags,
-		)
+		value := p.Amount.Nano()
+		mcmsTxs[i], err = mcmston.NewTransaction(p.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
 		}

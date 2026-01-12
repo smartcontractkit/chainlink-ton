@@ -18,46 +18,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
-type UpdateFeeQuoterDestChainConfigsInput []feequoter.UpdateDestChainConfig
-
-type UpdateFeeQuoterDestChainConfigsOutput struct {
-}
-
-// TODO: refactor out next
-var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
-	"update-fee-quoter-dest-chain-configs",
-	semver.MustParse("0.1.0"),
-	"Updates fee quoter's destination chain configs",
-	updateFeeQuoterDestChainConfigs,
-)
-
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterDestChainConfigsInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
-
-	// Skip if there's no updates
-	if len(in) == 0 {
-		return nil, nil
-	}
-
-	input := feequoter.UpdateDestChainConfigs{
-		Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
-	}
-
-	payload, err := tlb.ToCell(input)
-	if err != nil {
-		return nil, err
-	}
-
-	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
-		{
-			Bounce:  true,
-			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &addr,
-			Body:    payload,
-		},
-	})
-}
-
 type FeeTokenConfig struct {
 	PremiumMultiplierWeiPerEth uint64
 }

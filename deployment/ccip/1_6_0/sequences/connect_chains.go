@@ -8,14 +8,19 @@ import (
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
@@ -43,14 +48,42 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
 
-		// update fee quoter with dest chain configs
-		updateFeeQuoterDestChainConfigs := intoUpdateFeeQuoterDestChainConfigs(input)
-		b.Logger.Infow("Updating destination configs on FeeQuoter", "input", updateFeeQuoterDestChainConfigs)
-		feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, updateFeeQuoterDestChainConfigs)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter destinations: %w", err)
+		// TODO (ops): improve deps passing
+		opdeps := opston.SendMessagesDeps{
+			Wallet: tonChain.Wallet,
+			Client: tonChain.Client,
 		}
-		msgs = append(msgs, feeQuoterReport.Output...)
+
+		// update fee quoter with dest chain configs
+		{
+			updates := intoUpdateFeeQuoterDestChainConfigs(input)
+			b.Logger.Infow("Updating destination configs on FeeQuoter", "input", updates)
+
+			// Skip if there's no updates
+			if len(updates) != 0 {
+				addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+				body := feequoter.UpdateDestChainConfigs{
+					Updates: common.SnakeData[feequoter.UpdateDestChainConfig](updates),
+				}
+
+				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+					Messages: []opston.InternalMessage[any]{
+						{
+							Bounce:  true,
+							DstAddr: &addr,
+							Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+							Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".FeeQuoter", body),
+						},
+					},
+					Plan: true,
+				})
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
+				}
+
+				msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+			}
+		}
 
 		// update onramp with dest chain configs
 		updateOnRampDestChainConfigs := intoUpdateOnRampDestChainConfigs(input)
@@ -141,7 +174,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 ///////////////
 
 // TODO change the operation input to lanes.UpdateLanesInput
-func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterDestChainConfigsInput {
+func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) []feequoter.UpdateDestChainConfig {
 	return []feequoter.UpdateDestChainConfig{
 		{
 			DestinationChainSelector: input.Dest.Selector,
@@ -207,7 +240,7 @@ func intoUpdateOffRampSourcesConfig(input lanes.UpdateLanesInput) operation.Upda
 }
 
 func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
-	addressCodec := codec.NewAddressCodec()
+	addressCodec := ccipcodec.NewAddressCodec()
 	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Source.OnRamp)
 	if err != nil {
 		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert onramp address to string: %w", err)
@@ -225,7 +258,7 @@ func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.Appl
 }
 
 func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
-	addressCodec := codec.NewAddressCodec()
+	addressCodec := ccipcodec.NewAddressCodec()
 	offRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OffRamp)
 	if err != nil {
 		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert offramp address to string: %w", err)

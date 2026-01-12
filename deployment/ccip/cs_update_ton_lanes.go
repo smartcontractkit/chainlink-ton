@@ -87,7 +87,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 		// }
 		// timeLockProposals = append(timeLockProposals, *proposal)
 
-		if err := helpers.ExecuteProposals(env, chain.Client, chain.Wallet, updateSeqReport.Output); err != nil {
+		if err := helpers.ExecuteTransactions(env.GetContext(), env.Logger, chain.Client, chain.Wallet, updateSeqReport.Output); err != nil {
 			return cldf.ChangesetOutput{}, err
 		}
 	}

@@ -34,7 +34,13 @@ type MessagePlanRaw struct {
 	Cell *tlbe.Cell[tlb.InternalMessage] `json:"cell"`
 }
 
-// plan: *tlbe.Cell[tlb.InternalMessage]
+func AsCells(plans []MessagePlanRaw) []*tlbe.Cell[tlb.InternalMessage] {
+	cells := make([]*tlbe.Cell[tlb.InternalMessage], len(plans))
+	for i, plan := range plans {
+		cells[i] = plan.Cell
+	}
+	return cells
+}
 
 // MessageSender is an interface for op OUT types that can provide transaction info.
 type MessageSender interface {

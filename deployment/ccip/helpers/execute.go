@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -13,11 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
-
-// TODO Remove in favor of ExecuteTransactions.
-func ExecuteProposals(env cldf.Environment, client ton.APIClientWrapped, sender *wallet.Wallet, msgs []*tlbe.Cell[tlb.InternalMessage]) error {
-	return ExecuteTransactions(env.GetContext(), env.Logger, client, sender, msgs)
-}
 
 func ExecuteTransactions(ctx context.Context, logger logger.Logger, client ton.APIClientWrapped, sender *wallet.Wallet, msgs []*tlbe.Cell[tlb.InternalMessage]) error {
 	if len(msgs) == 0 {

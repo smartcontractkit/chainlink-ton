@@ -125,6 +125,14 @@ func WrapMessage[T any](contract string, val T) (MessageEnvelope[T], error) {
 	}, nil
 }
 
+func MustWrapMessage[T any](contract string, val T) MessageEnvelope[T] {
+	env, err := WrapMessage(contract, val)
+	if err != nil {
+		panic(fmt.Sprintf("failed to wrap message: %v", err))
+	}
+	return env
+}
+
 // MarshalJSON ensures we persist the cached payload bytes when present.
 func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	payload := e.Payload

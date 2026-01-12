@@ -189,7 +189,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 	msgs = append(msgs, updateFeeTokensReport.Output...)
 
-	err = helpers.ExecuteProposals(env, chain.Client, chain.Wallet, msgs)
+	err = helpers.ExecuteTransactions(env.GetContext(), env.Logger, chain.Client, chain.Wallet, msgs)
 
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
