@@ -8,7 +8,6 @@ permissions:
 
 env:
   CONFIG_URL: https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
-  GOFLAGS: -mod=mod
 
 jobs:
   discover-modules:
