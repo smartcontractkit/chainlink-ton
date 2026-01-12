@@ -48,7 +48,10 @@ delivered by sending remaining balance back to the OffRamp owner.
 fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
     val previousState= st.getMessageState(msg.seqNum);
+
     assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
+    assert(msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure, MerkleRoot_Error.InvalidState);
+
     st.setMessageState(msg.seqNum, msg.state);
 
     if (msg.state == ExecutionState.Success) {

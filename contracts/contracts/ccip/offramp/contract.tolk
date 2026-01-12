@@ -25,9 +25,6 @@ import "../../lib/deployable/namespace"
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
 
-// NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
-// (or init contract state with that router addr? probably what solana does)
-
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     
@@ -287,12 +284,8 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
     var gasLimit: coins = message.gasLimit;
-    if (msg.gasOverride != null) {
-        if (gasLimit > msg.gasOverride!) {
-            gasLimit = message.gasLimit;
-        } else {
-            gasLimit = msg.gasOverride;
-        }
+    if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
+        gasLimit = msg.gasOverride;
     }
     val routeMessage = createMessage({
         bounce: true,
@@ -546,7 +539,6 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
     if(gasOverride != null && (gasOverride >= message.gasLimit)) {
         assert(value >= (OffRamp_Costs.execute() + gasOverride), Error.InsufficientFee);
     } else {
@@ -627,6 +619,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
             // committed and no messages should have been executed.
             config = existingConfigEntry.loadValue();
             assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw Error.InvalidOnRampUpdate;
+            config.router = configUpdate.config.router;
             config.isEnabled = configUpdate.config.isEnabled;
             config.onRamp = configUpdate.config.onRamp;
         }
@@ -699,8 +692,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
-    // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
-    // means that is a manual exec flow
+    // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
         bounce: true,
         value: ReceiveExecutor_Costs.initExec(),
