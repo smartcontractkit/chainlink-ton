@@ -15,7 +15,7 @@ import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/ccip/OnRamp'
 import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
-import { ZERO_ADDRESS } from '../../../../src/utils'
+import { WRAPPED_NATIVE } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { CHAINSEL_TON, CHAINSEL_EVM_TEST, CHAIN_FAMILY_SELECTOR_EVM } from '../../constants'
 import { createMaxPayload, createExtraArgs, MAX_DATA_PAYLOAD_SIZE, createPayload } from './config'
@@ -104,7 +104,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
         owner: deployer.address,
         pendingOwner: null,
       },
-      wrappedNative: ZERO_ADDRESS,
+      wrappedNative: WRAPPED_NATIVE,
       offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
@@ -267,7 +267,7 @@ async function messureGetValidatedFee(
       receiver: EVM_ADDRESS,
       data: payload,
       tokenAmounts: [],
-      feeToken: ZERO_ADDRESS,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: createExtraArgs(),
     },
     beginCell().asSlice(),

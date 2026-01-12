@@ -296,7 +296,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     }
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + Router_Costs.routeMessage(),
+        value: gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -371,36 +371,45 @@ fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
 //     OffRamp ->> MerkleRoot: Deployable_Initialize
 fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var st = lazy Storage.load();
-
     val report = msg.report;
-    val priceUpdatesOnlyReport = report.merkleRoots.empty();
+    val hasRoots = !report.merkleRoots.empty();
 
+    assert (report.priceUpdates != null || hasRoots, Error.EmptyCommitReport);
     var root: MerkleRoot? = null;
 
-    if (!priceUpdatesOnlyReport) {
-        // no batching of roots supported for now
+    if (hasRoots) {
+        // no batching of roots supported for now, check that there is exactly one root in the SnakedCell
         var iter = report.merkleRoots.iter();
         root = iter.next();
         assert(iter.empty(), Error.BatchingNotSupported);
     }
 
-    // check that the amount attached is enough to cover message execution and delivery off outgoing messages
+    // Non-empty Commit reports will always have price updates
+    val priceUpdatesOnlyReport = !hasRoots;
+
+    // check that the amount attached is enough to cover message execution and delivery of outgoing messages
+    // required amount is lower for reports with only price updates
     assert(value >= OffRamp_Costs.commit(priceUpdatesOnlyReport), Error.InsufficientFee);
 
     if (root != null) {
-        // validate lane not cursed
+        // validate lane is enabled and not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
+        assert(!st.cursedSubjects.isCursed(root.sourceChainSelector as uint128), Error.SubjectCursed);
 
-        // hard cap of 128 messages per report
-        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
+        // hard cap of 64 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 64, Error.TooManyMessagesInReport);
+
+        assert(sourceChainConfig.onRamp.bitsEqual(root.onRampAddress), Error.OnRampAddressMismatch);
 
         assert(
             (sourceChainConfig.minSeqNr == root.minSeqNr) && // No seqNr skipped
             (root.maxSeqNr >= root.minSeqNr), // valid root range
             Error.InvalidInterval
         );
+
+        assert(root.merkleRoot != 0, Error.MerkleRootCannotBeZero);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
@@ -459,6 +468,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             }
         }
     }
+
+
     // store updated state (latestPriceSequenceNumber and sourceChainConfigs)
     st.store();
 
@@ -536,7 +547,11 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
     // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
-    assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
+    if(gasOverride != null && (gasOverride >= message.gasLimit)) {
+        assert(value >= (OffRamp_Costs.execute() + gasOverride), Error.InsufficientFee);
+    } else {
+        assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
+    }
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);

@@ -61,6 +61,9 @@ export enum OffRampError {
   SignatureVerificationNotAllowedInExecutionPlugin,
   InvalidInterval,
   BatchingNotSupported,
+  OnRampAddressMismatch,
+  EmptyCommitReport,
+  MerkleRootCannotBeZero,
 }
 
 export type OffRampStorage = {

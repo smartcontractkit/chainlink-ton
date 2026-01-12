@@ -14,9 +14,10 @@ import {
 import { crc32 } from 'zlib'
 import { CellCodec, sha256 } from '../utils'
 import { loadContractCode } from '../codeLoader'
-import { asSnakeData, fromSnakeData, ZERO_ADDRESS } from '../../src/utils'
+import { asSnakeData, fromSnakeData, DUMMY_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { loadDict, loadMap } from '../../src/utils/dict'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 // @dev Sets a new expiring root.
 export type SetRoot = {
@@ -371,7 +372,7 @@ export type OpPendingInfo = {
   /// The timeout required to finalize the currently executing op
   opFinalizationTimeout: number // uint32
   /// The address that the (pending) operation was sent to (and could bounce from).
-  opPendingReceiver: Address
+  opPendingReceiver: Maybe<Address>
   /// The truncated body of the pending operation (256 bits from the original message),
   /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
   opPendingBodyTruncated: bigint // uint256
@@ -855,7 +856,7 @@ export const builder = {
           owner,
           pendingOwner: null, // no pending owner
         },
-        oracle: ZERO_ADDRESS,
+        oracle: DUMMY_ADDRESS,
         signers: new Map<bigint, Buffer>(),
         config: {
           signers: new Map<number, Buffer>(),
@@ -871,13 +872,13 @@ export const builder = {
             opPendingInfo: {
               validAfter: 0n, // no valid after
               opFinalizationTimeout: 0, // no op finalization timeout
-              opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
+              opPendingReceiver: null, // no op pending receiver
               opPendingBodyTruncated: 0n, // no op pending body
             },
           },
           rootMetadata: {
             chainId: 0n, // no chain ID
-            multiSig: ZERO_ADDRESS, // no multiSig
+            multiSig: DUMMY_ADDRESS, // no multiSig
             preOpCount: 0n, // no pre-op count
             postOpCount: 0n, // no post-op count
             overridePreviousRoot: false, // no override
@@ -987,7 +988,7 @@ export class ContractClient implements Contract {
       return {
         validAfter: r.stack.readBigNumber(),
         opFinalizationTimeout: r.stack.readNumber(),
-        opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
+        opPendingReceiver: r.stack.readAddressOpt(),
         opPendingBodyTruncated: r.stack.readBigNumber(),
       }
     })

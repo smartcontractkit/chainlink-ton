@@ -2,10 +2,6 @@ import { beginCell, Builder, Cell, Slice, Address } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sha256_sync } from '@ton/crypto'
 import crypto from 'crypto'
 
-export const ZERO_ADDRESS: Address = Address.parse(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
-
 export function bigIntToBuffer(value: bigint): Buffer {
   let hex = value.toString(16)
   if (hex.length % 2) hex = '0' + hex // ensure even length

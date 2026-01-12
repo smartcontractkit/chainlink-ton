@@ -365,6 +365,9 @@ const (
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 	ErrorInvalidInterval
 	ErrorBatchingNotSupported
+	ErrorOnRampAddressMismatch
+	ErrorEmptyCommitReport
+	ErrorMerkleRootCannotBeZero
 )
 
 // Getter method names for binding fetchers

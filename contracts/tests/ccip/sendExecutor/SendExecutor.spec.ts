@@ -6,7 +6,7 @@ import { crc32 } from 'zlib'
 import * as coverage from '../../coverage/coverage'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 import { CHAINSEL_EVM_TEST_90000001, EVM_ADDRESS } from '../router/Router.Setup'
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import { setup as ccipSendExecutor, sendDeployOnBlockchain, setup } from './SendExecutor.Setup'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
@@ -75,7 +75,7 @@ describe('SendExecutor - Unit tests', () => {
         receiver: EVM_ADDRESS,
         data: beginCell().endCell(),
         tokenAmounts: [],
-        feeToken: ZERO_ADDRESS,
+        feeToken: WRAPPED_NATIVE,
         extraArgs: beginCell().endCell(),
       },
       metadata: {

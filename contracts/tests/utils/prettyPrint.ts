@@ -52,7 +52,7 @@ const EXIT_CODE_DESCRIPTIONS: Record<number, string> = {
  *     receiver: Buffer.alloc(64),
  *     data: Cell.EMPTY,
  *     tokenAmounts: [],
- *     feeToken: ZERO_ADDRESS,
+ *     feeToken: WRAPPED_NATIVE,
  *     extraArgs: Cell.EMPTY,
  *   },
  * })
@@ -101,7 +101,7 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
  *     receiver: Buffer.alloc(64),
  *     data: Cell.EMPTY,
  *     tokenAmounts: [],
- *     feeToken: ZERO_ADDRESS,
+ *     feeToken: null,
  *     extraArgs: Cell.EMPTY,
  *   },
  * })
