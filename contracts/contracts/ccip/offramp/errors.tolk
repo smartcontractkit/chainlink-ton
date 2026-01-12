@@ -16,4 +16,7 @@ enum Error {
     SignatureVerificationNotAllowedInExecutionPlugin
     InvalidInterval
     BatchingNotSupported
+    OnRampAddressMismatch
+    EmptyCommitReport
+    MerkleRootCannotBeZero
 }

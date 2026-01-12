@@ -17,7 +17,7 @@ struct (0x05dee1bb) ReceiveExecutor_Bounced {
     receiver: address
 }
 
-const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = ton("0.007");
+const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = ton("0.005");
 const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = ton("0.004");
 
 struct ReceiveExecutor_Costs{}

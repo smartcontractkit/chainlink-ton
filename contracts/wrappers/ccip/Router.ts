@@ -23,6 +23,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as or from '../ccip/OnRamp'
 import * as of from './OffRamp'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
@@ -460,7 +461,7 @@ export type CCIPSend = {
   receiver: Buffer
   data: Cell
   tokenAmounts: TokenAmount[]
-  feeToken: Address
+  feeToken: Maybe<Address>
   extraArgs: Cell
 }
 

@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { assertLog } from '../../Logs'
 import { LogTypes } from '../../../wrappers/ccip/Logs'
-import { generateRandomContractId } from '../../../src/utils'
+import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
 
@@ -127,7 +127,7 @@ async function deployRouterInstance(
       owner: deployer.address,
       pendingOwner: null,
     },
-    wrappedNative: TEST_TOKEN_ADDR,
+    wrappedNative: WRAPPED_NATIVE,
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }
@@ -155,7 +155,7 @@ async function deployFeeQuoterInstance(
     },
     allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
     maxFeeJuelsPerMsg: 100000000n,
-    linkToken: TEST_LINK_TOKEN_ADDR,
+    linkToken: LINK_TOKEN,
     tokenPriceStalenessThreshold: 1000n,
     usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
     premiumMultiplierWeiPerEth: Dictionary.empty(
@@ -192,8 +192,8 @@ async function deployFeeQuoterInstance(
         updates: {
           gasPricesUpdates: [],
           tokenPricesUpdates: [
-            { token: TEST_TOKEN_ADDR, price: Decimals.TESTING_VALUES.tokenPrice.eth },
-            { token: TEST_LINK_TOKEN_ADDR, price: Decimals.TESTING_VALUES.tokenPrice.link },
+            { token: WRAPPED_NATIVE, price: Decimals.TESTING_VALUES.tokenPrice.eth },
+            { token: LINK_TOKEN, price: Decimals.TESTING_VALUES.tokenPrice.link },
           ],
         },
         sendExcessesTo: null,
@@ -244,7 +244,7 @@ async function deployFeeQuoterInstance(
     const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
       value: toNano('1'),
       msg: {
-        add: new Map([[TEST_TOKEN_ADDR, { premiumMultiplierWeiPerEth: 1n }]]),
+        add: new Map([[WRAPPED_NATIVE, { premiumMultiplierWeiPerEth: 1n }]]),
         remove: [],
       },
     })
@@ -444,7 +444,7 @@ export async function deployRouterContract(
       owner: owner.address,
       pendingOwner: null,
     },
-    wrappedNative: TEST_TOKEN_ADDR,
+    wrappedNative: WRAPPED_NATIVE,
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }
@@ -472,12 +472,6 @@ export function genExecID(opts: {
 }
 
 export const CHAINSEL_TON = 13879075125137744094n
-export const TEST_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000001',
-)
-export const TEST_LINK_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000002',
-)
 export const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',

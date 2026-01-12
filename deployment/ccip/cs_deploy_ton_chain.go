@@ -6,19 +6,19 @@ import (
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
+	"github.com/smartcontractkit/mcms"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/mcms"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-
-	tonaddress "github.com/xssnick/tonutils-go/address"
 )
 
 type DeployCCIPContractsCfg struct {
@@ -66,10 +66,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// TODO: deploy LINK
 	if s.LinkTokenAddress.IsAddrNone() {
-		linkTokenAddress := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
-		s.LinkTokenAddress = *linkTokenAddress
+		s.LinkTokenAddress = *tvm.LinkTokenAddr // using dummy LINK address until we deploy real one
 		_ = dataStore.Addresses().Upsert(ds.AddressRef{
-			Address:       linkTokenAddress.String(),
+			Address:       tvm.LinkTokenAddr.String(),
 			ChainSelector: selector,
 			Labels:        ds.LabelSet{},
 			Type:          state.LinkToken,

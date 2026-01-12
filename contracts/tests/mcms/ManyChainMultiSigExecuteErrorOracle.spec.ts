@@ -2,7 +2,7 @@ import '@ton/test-utils'
 import { toNano } from '@ton/core'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { ZERO_ADDRESS } from '../../src/utils'
+import { DUMMY_ADDRESS } from '../../src/utils'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
@@ -46,13 +46,13 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
   }
 
   it('should allow owner to transfer oracle role', async () => {
-    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(ZERO_ADDRESS)
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(DUMMY_ADDRESS)
 
     await _setupOracleRole()
   })
 
   it('should fail to transfer oracle role if not owner', async () => {
-    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(ZERO_ADDRESS)
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(DUMMY_ADDRESS)
 
     const r = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -72,7 +72,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       exitCode: ownable2step.Errors.OnlyCallableByOwner,
     })
 
-    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(ZERO_ADDRESS)
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(DUMMY_ADDRESS)
   })
 
   it('should allow oracle to submit an error report and expire root', async () => {

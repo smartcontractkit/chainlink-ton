@@ -8,6 +8,7 @@ import {
   verifyBodyIsRouterMessageSent,
   verifyBodyIsRouterCCIPSendACK,
 } from '../../utils/verifyMessageBody'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 import { getValidatedFee } from '../../../src/ccipSend/fee'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
@@ -18,7 +19,6 @@ import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
   EVM_ADDRESS,
-  TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from '../router/Router.Setup'
 
@@ -57,7 +57,7 @@ describe('Router', () => {
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: rt.builder.data.extraArgs
         .encode({
           kind: 'generic-v2',

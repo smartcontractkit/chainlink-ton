@@ -62,11 +62,11 @@ func NewCCIPProvider(
 			return nil, fmt.Errorf("failed to decode TON offRamp address: %w", err)
 		}
 	} else {
-		// EVM address provided - use zero address as placeholder
+		// EVM address provided - use a placeholder
 		lggr.Debug("EVM offramp address provided to TON provider, using zero address placeholder",
 			"providedLength", len(cargs.OffRampAddress),
 			"expectedLength", tvm.AddressLength)
-		// Use a zero TON address as placeholder
+		// Use a placeholder
 		offRampAddrStr = tvm.ZeroAddressStr
 	}
 
