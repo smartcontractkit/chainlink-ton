@@ -10,7 +10,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -68,47 +67,19 @@ var SendMessages = operations.NewOperation(
 		msgs := make([]*wallet.Message, 0, n)
 
 		for _, m := range in.Messages {
-			body, err := m.Body.ToCell() // TODO: body may be nil
+			_im, err := m.ToMessage()
 			if err != nil {
-				return SendMessagesOutput{}, fmt.Errorf("failed to convert message to cell: %w", err)
+				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to message: %w", err)
 			}
 
-			// StateInit is optional, and will derive dstAddr if available
-			dstAddr := m.DstAddr
-
-			var state *tlb.StateInit
-			if m.StateInit != nil {
-				state = &tlb.StateInit{
-					Code: m.StateInit.Code,
-					Data: m.StateInit.Data,
-				}
-
-				stateCell, err := tlb.ToCell(state)
-				if err != nil {
-					return SendMessagesOutput{}, fmt.Errorf("failed to convert state init to cell: %w", err)
-				}
-
-				wc := int8(0) // TODO: expose option to set workchain (default ok for now)
-				dstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
-			}
-
-			_im := tlb.InternalMessage{
-				IHRDisabled: true,
-				Bounce:      m.Bounce, // TODO: default to true
-				DstAddr:     dstAddr,
-				Amount:      m.Amount,
-				Body:        body,
-				StateInit:   state,
-			}
-
-			_imc, err := tlbe.NewCellFrom(_im)
+			_imc, err := tlbe.NewCellFrom(*_im)
 			if err != nil {
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to cell: %w", err)
 			}
 
 			plan := MessagePlanRaw{
 				Opcode:  0, // TODO: extract opcode from body if possible
-				DstAddr: dstAddr,
+				DstAddr: _im.DstAddr,
 				Amount:  m.Amount,
 
 				Cell: _imc,
@@ -117,7 +88,7 @@ var SendMessages = operations.NewOperation(
 
 			msgs = append(msgs, &wallet.Message{
 				Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
-				InternalMessage: &_im,
+				InternalMessage: _im,
 			})
 		}
 

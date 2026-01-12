@@ -58,9 +58,10 @@ type InternalMessage[T any] struct {
 
 func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 	msg := &tlb.InternalMessage{
-		Bounce:  im.Bounce,
-		DstAddr: im.DstAddr,
-		Amount:  im.Amount,
+		IHRDisabled: true,
+		Bounce:      im.Bounce,
+		DstAddr:     im.DstAddr,
+		Amount:      im.Amount,
 	}
 
 	if im.StateInit != nil {
@@ -72,6 +73,14 @@ func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 			msg.StateInit.Data = im.StateInit.Data
 		}
 	}
+
+	stateCell, err := tlb.ToCell(msg.StateInit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert state init to cell: %w", err)
+	}
+
+	wc := int8(0) // TODO: expose option to set workchain (default ok for now)
+	msg.DstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
 
 	bodyCell, err := im.Body.ToCell()
 	if err != nil {
