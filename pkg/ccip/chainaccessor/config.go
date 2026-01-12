@@ -255,10 +255,37 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 }
 
 // GetCurseInfo retrieves curse information for RMN verification
-func (a *TONAccessor) GetCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
+func (a *TONAccessor) GetCurseInfo(_ context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.CurseInfo, error) {
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.CurseInfo{}, err
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
+	if err != nil {
+		return ccipocr3.CurseInfo{}, err
+	}
+	cursedSubjects := parser.ParseLispTuple(result.AsTuple()) // TODO: this parses uint64 values, but global curse subject is uint128
+
+	cursedChains := make(map[ccipocr3.ChainSelector]bool, len(cursedSubjects))
+	globalCurse := false
+	destinationCurse := false
+
+	for _, curse := range cursedSubjects {
+		if curse == globalCurseValue {
+			globalCurse = true
+			continue
+		}
+		chainSel := ccipocr3.ChainSelector(curse)
+		if chainSel == dest {
+			destinationCurse = true
+			continue
+		}
+		cursedChains[chainSel] = true
+	}
+
 	return ccipocr3.CurseInfo{
-		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},
-		CursedDestination:  false,
-		GlobalCurse:        false,
+		CursedSourceChains: cursedChains,
+		CursedDestination:  destinationCurse,
+		GlobalCurse:        globalCurse,
 	}, nil
 }

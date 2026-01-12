@@ -126,7 +126,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// CurseInfo
-		curseInfo, err := a.GetCurseInfo(ctx, block)
+		curseInfo, err := a.GetCurseInfo(ctx, block, destChainSelector)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get curse info: %w", err)
 		}
