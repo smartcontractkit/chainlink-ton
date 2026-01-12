@@ -12,11 +12,12 @@ func _() {
 	_ = x[ErrorInvalidProofLeavesTooLarge-46201]
 	_ = x[ErrorInvalidProofProofsTooLarge-46202]
 	_ = x[ErrorInvalidProofTotalHashesExceededMax-46203]
+	_ = x[ErrorInvalidProofDataSizeMismatch-46204]
 }
 
-const _ExitCode_name = "ErrorInvalidProofLeavesCannotBeEmptyErrorInvalidProofLeavesTooLargeErrorInvalidProofProofsTooLargeErrorInvalidProofTotalHashesExceededMax"
+const _ExitCode_name = "ErrorInvalidProofLeavesCannotBeEmptyErrorInvalidProofLeavesTooLargeErrorInvalidProofProofsTooLargeErrorInvalidProofTotalHashesExceededMaxErrorInvalidProofDataSizeMismatch"
 
-var _ExitCode_index = [...]uint8{0, 36, 67, 98, 137}
+var _ExitCode_index = [...]uint8{0, 36, 67, 98, 137, 170}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 46200
