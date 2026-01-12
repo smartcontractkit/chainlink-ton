@@ -13,8 +13,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-
 	"github.com/smartcontractkit/mcms"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -189,10 +187,11 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 	msgs = append(msgs, updateFeeTokensReport.Output...)
 
-	err = helpers.ExecuteTransactions(env.GetContext(), env.Logger, chain.Client, chain.Wallet, msgs)
-
-	if err != nil {
-		return cldf.ChangesetOutput{}, err
+	if len(msgs) != 0 {
+		_, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
+		}
 	}
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD

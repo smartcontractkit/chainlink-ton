@@ -1,21 +1,27 @@
 package sequences
 
 import (
+	"fmt"
+
 	"github.com/Masterminds/semver/v3"
-	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+
+	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
 func (a *TonAdapter) SetOCR3Config() *cldf_ops.Sequence[deployops.SetOCR3ConfigInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
@@ -35,6 +41,12 @@ var SetOCR3Config = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
+		// TODO (ops): improve deps passing
+		opdeps := opston.SendMessagesDeps{
+			Wallet: tonChain.Wallet,
+			Client: tonChain.Client,
+		}
+
 		in := seq.SetOCR3OfframpSeqInput{
 			ChainSelector: input.ChainSelector,
 			Configs:       intoOCRConfigs(input.Configs),
@@ -47,9 +59,11 @@ var SetOCR3Config = cldf_ops.NewSequence(
 
 		//  TODO: 1. When executing directly (with injected DEP/wallet) execution is processed outside a cldf.Sequence
 		//        2. When executing indirectly - via MCMS (plan/proposal returned) - not currently supported
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, msgs)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
+		if len(msgs) != 0 {
+			_, err := operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
+			}
 		}
 
 		return sequences.OnChainOutput{}, nil

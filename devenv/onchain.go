@@ -12,8 +12,8 @@ import (
 
 	tonseqs "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -66,15 +66,23 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 			},
 		},
 	}
+	// TODO (ops): improve deps passing
+	opdeps := ton.SendMessagesDeps{
+		Wallet: tonChain.Wallet,
+		Client: tonChain.Client,
+	}
 	updatePricesReport, err := operations.ExecuteOperation(bundle, operation.UpdateFeeQuoterPricesOp, deps, updateConfig)
 	if err != nil {
 		return fmt.Errorf("failed to update feequoter prices: %w", err)
 	}
-	txs := updatePricesReport.Output
+	msgs := updatePricesReport.Output
 	// Execute the txs || MCMS proposals
-	err = helpers.ExecuteTransactions(bundle.GetContext(), bundle.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
-	if err != nil {
-		return fmt.Errorf("failed to execute update feequoter prices txs: %w", err)
+	if len(msgs) != 0 {
+		_, err := operations.ExecuteOperation(bundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+		if err != nil {
+			return fmt.Errorf("failed to send messages: %w", err)
+		}
 	}
+
 	return nil
 }

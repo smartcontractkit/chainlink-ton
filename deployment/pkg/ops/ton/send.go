@@ -60,11 +60,8 @@ var SendMessages = operations.NewOperation(
 	semver.MustParse("0.1.0"),
 	"Sends and/or plans messages as defined by the inputs",
 	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput) (SendMessagesOutput, error) {
-		ctx := b.GetContext()
-
-		n := len(in.Messages)
-		plans := make([]MessagePlanRaw, 0, n)
-		msgs := make([]*wallet.Message, 0, n)
+		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0, len(in.Messages))
+		plans := make([]MessagePlanRaw, 0, len(in.Messages))
 
 		for _, m := range in.Messages {
 			_im, err := m.ToMessage()
@@ -85,21 +82,56 @@ var SendMessages = operations.NewOperation(
 				Cell: _imc,
 			}
 			plans = append(plans, plan)
-
-			msgs = append(msgs, &wallet.Message{
-				Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
-				InternalMessage: _im,
-			})
+			msgs = append(msgs, _imc)
 		}
 
 		if in.Plan {
 			return SendMessagesOutput{Plans: plans}, nil // return early on plan
 		}
 
+		out, err := operations.ExecuteOperation(b, SendMessagesRaw, deps, SendMessagesRawInput{Messages: msgs})
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to send messages: %w", err)
+		}
+
+		return out.Output, nil
+	},
+)
+
+type SendMessagesRawInput struct {
+	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
+}
+
+var SendMessagesRaw = operations.NewOperation(
+	"ton/ops/send-messages-raw",
+	semver.MustParse("0.1.0"),
+	"Sends (raw) messages as defined by the inputs",
+	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesRawInput) (SendMessagesOutput, error) {
+		ctx := b.GetContext()
+
+		n := len(in.Messages)
+		msgs := make([]*wallet.Message, 0, n)
+
+		for _, m := range in.Messages {
+			_im, err := m.ToValue()
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to decode internal message from cell: %w", err)
+			}
+
+			msgs = append(msgs, &wallet.Message{
+				Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
+				InternalMessage: &_im,
+			})
+		}
+
+		b.Logger.Infow("Sending messages", "msgs", msgs)
+
 		_tx, block, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
 		}
+
+		b.Logger.Infow("Transaction sent", "blockID", block, "tx", _tx)
 
 		err = tracetracking.WaitForTrace(ctx, deps.Client, _tx)
 		if err != nil {
@@ -112,7 +144,6 @@ var SendMessages = operations.NewOperation(
 		}
 
 		return SendMessagesOutput{
-			Plans:       []MessagePlanRaw{}, // clear plans on send
 			Transaction: tx,
 			BlockInfo:   block,
 		}, nil

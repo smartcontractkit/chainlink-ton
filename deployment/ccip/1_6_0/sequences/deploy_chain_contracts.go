@@ -15,7 +15,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 
@@ -116,9 +115,11 @@ var DeployChainContracts = operations.NewSequence(
 		}
 		msgs = append(msgs, updateFeeTokensReport.Output...)
 
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, msgs)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
+		if len(msgs) != 0 {
+			_, err := operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
+			}
 		}
 
 		return sequences.OnChainOutput{

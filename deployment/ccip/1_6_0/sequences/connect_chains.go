@@ -13,8 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -154,10 +154,11 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		}
 		msgs = append(msgs, routerReport.Output...)
 
-		// Execute the txs || MCMS proposals
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, msgs)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
+		if len(msgs) != 0 {
+			_, err := operations.ExecuteOperation(b, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
+			}
 		}
 
 		return sequences.OnChainOutput{}, nil
@@ -177,6 +178,11 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		deps, err := extractTonDepsFrom(tonChain, input.Dest.OnRamp, input.Dest.OffRamp, input.Dest.Router, input.Dest.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
+		}
+		// TODO (ops): improve deps passing
+		opdeps := opston.SendMessagesDeps{
+			Wallet: tonChain.Wallet,
+			Client: tonChain.Client,
 		}
 
 		// configure offramp sources
@@ -199,9 +205,11 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		}
 		msgs = append(msgs, routerReport.Output...)
 
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, msgs)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
+		if len(msgs) != 0 {
+			_, err := operations.ExecuteOperation(b, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
+			}
 		}
 
 		return sequences.OnChainOutput{}, nil

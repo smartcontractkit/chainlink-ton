@@ -8,8 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -65,6 +64,11 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 			TonChain:         chain,
 			CCIPOnChainState: s,
 		}
+		// TODO (ops): improve deps passing
+		opdeps := ton.SendMessagesDeps{
+			Wallet: chain.Wallet,
+			Client: chain.Client,
+		}
 		// Execute the sequence
 		updateSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
 		if err != nil {
@@ -87,8 +91,13 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 		// }
 		// timeLockProposals = append(timeLockProposals, *proposal)
 
-		if err := helpers.ExecuteTransactions(env.GetContext(), env.Logger, chain.Client, chain.Wallet, updateSeqReport.Output); err != nil {
-			return cldf.ChangesetOutput{}, err
+		// TODO (ops): generate MCMS proposals
+		msgs := updateSeqReport.Output
+		if len(msgs) != 0 {
+			_, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
+			}
 		}
 	}
 

@@ -4,15 +4,16 @@ import (
 	"fmt"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/mcms"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -59,6 +60,11 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 			TonChain:         chain,
 			CCIPOnChainState: state,
 		}
+		// TODO (ops): improve deps passing
+		opdeps := ton.SendMessagesDeps{
+			Wallet: chain.Wallet,
+			Client: chain.Client,
+		}
 		in := seq.SetOCR3OfframpSeqInput{
 			ChainSelector: remoteSelector,
 			Configs:       cfg.Configs,
@@ -69,10 +75,13 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 		}
 		seqReports = append(seqReports, setOCR3SeqReport.ExecutionReports...)
 
-		// TODO: generate MCMS proposals
-
-		if err := helpers.ExecuteTransactions(env.GetContext(), env.Logger, chain.Client, chain.Wallet, setOCR3SeqReport.Output); err != nil {
-			return cldf.ChangesetOutput{}, err
+		// TODO (ops): generate MCMS proposals
+		msgs := setOCR3SeqReport.Output
+		if len(msgs) != 0 {
+			_, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
+			}
 		}
 	}
 
