@@ -17,16 +17,16 @@ var (
 
 type AnySequenceInput struct {
 	// Definitions and Inputs should be of the same length and order
-	Defs   []operations.Definition
-	Inputs []any // Each element should be the corresponding input type for its operation
+	Defs   []operations.Definition `json:"defs"`
+	Inputs []any                   `json:"inputs"` // Each element should be the corresponding input type for its operation
 }
 
 // TODO: reuse PlannerOption, Planner, MessageSender interfaces for
 // sequences as well. The interfaces would need to return a collection of plans/txs,
 // where an operation or a sequence may plan/produce multiple messages.
 type AnySequenceOutput struct {
-	Plans        []MessagePlanRaw
-	Transactions []*tlbe.Cell[tlb.Transaction]
+	Plans        []MessagePlanRaw              `json:"plans"`
+	Transactions []*tlbe.Cell[tlb.Transaction] `json:"transactions"`
 	// TODO: add deployed contract addresses mapping
 }
 

@@ -46,18 +46,20 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
-	mcmsState, ok := mcmsStates[uint64(in.ChainSelector)]
+
+	opts := in.Options
+	mcmsState, ok := mcmsStates[uint64(opts.ChainSelector)]
 	if ok {
-		if in.MCMSAddr == nil {
-			in.MCMSAddr = &mcmsState.MCMS
+		if opts.MCMSAddr == nil {
+			opts.MCMSAddr = &mcmsState.MCMS
 		}
-		if in.TimelockAddr == nil {
-			in.TimelockAddr = &mcmsState.Timelock
+		if opts.TimelockAddr == nil {
+			opts.TimelockAddr = &mcmsState.Timelock
 		}
 	}
 
 	tonChains := env.BlockChains.TonChains()
-	chain := tonChains[uint64(in.ChainSelector)]
+	chain := tonChains[uint64(opts.ChainSelector)]
 
 	// Dependencies currently injected per-operation
 	// TODO: generalize dependency injection per-type/s in sequences
@@ -81,7 +83,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	// Execute the (any) sequence based on the provided input
 	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, in)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", in.ChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", opts.ChainSelector, err)
 	}
 
 	// TODO: check outputs for deployed addresses and update dataStore.Addresses()

@@ -25,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
@@ -300,7 +301,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
 			}
 
-			return withOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
+			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
 		},
 	)
 }
@@ -391,7 +392,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
 			}
 
-			return withOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
+			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
 		},
 	)
 }
