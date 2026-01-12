@@ -21,8 +21,8 @@ type View struct {
 
 // FetchView generates a view of the router contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*View, error) {
-	var typeVersion common.TypeAndVersion
-	if err := tvm.FetchResult(ctx, c.Client, block, routerAddr, &typeVersion, nil); err != nil {
+	typeVersion, err := tvm.CallGetter(ctx, c.Client, block, routerAddr, common.GetTypeAndVersion)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 

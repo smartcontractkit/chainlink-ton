@@ -1,4 +1,4 @@
-package common
+package ccipcommon // nolint:revive // "common" is a standard name for shared bindings
 
 import (
 	"github.com/xssnick/tonutils-go/ton"
