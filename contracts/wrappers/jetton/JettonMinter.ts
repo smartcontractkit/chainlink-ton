@@ -11,8 +11,8 @@ import {
   toNano,
 } from '@ton/core'
 import { JettonOpcodes } from '../examples/jetton/types'
-import { ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode } from './JettonCode'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export type JettonMinterContent = {
   uri: string
@@ -23,7 +23,7 @@ export type JettonMinterConfig = {
   admin: Address
   walletCode: Cell
   jettonContent: Cell | JettonMinterContent
-  transferAdmin?: Address
+  transferAdmin: Maybe<Address>
 }
 
 export function jettonContentToCell(content: JettonMinterContent): Cell {
@@ -39,7 +39,7 @@ export function jettonMinterConfigToCell(config: JettonMinterConfig): Cell {
   return beginCell()
     .storeCoins(config.totalSupply)
     .storeAddress(config.admin)
-    .storeAddress(config.transferAdmin ?? ZERO_ADDRESS)
+    .storeAddress(config.transferAdmin)
     .storeRef(config.walletCode)
     .storeRef(content)
     .endCell()
@@ -76,8 +76,8 @@ export type MintMessage = {
   destination: Address
   tonAmount: bigint
   jettonAmount: bigint
-  from?: Address | null
-  responseDestination?: Address | null
+  from: Maybe<Address>
+  responseDestination: Maybe<Address>
   customPayload?: Cell | null
   forwardTonAmount?: bigint
 }
@@ -132,8 +132,8 @@ export class JettonMinter implements Contract {
       .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
       .storeUint(opts.message.queryId, 64)
       .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.from ?? ZERO_ADDRESS)
-      .storeAddress(opts.message.responseDestination ?? ZERO_ADDRESS)
+      .storeAddress(opts.message.from)
+      .storeAddress(opts.message.responseDestination)
       .storeCoins(opts.message.forwardTonAmount ?? 0n)
 
     if (opts.message.customPayload) {

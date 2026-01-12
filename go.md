@@ -206,6 +206,8 @@ flowchart LR
 	chainlink-ton/deployment --> chainlink-ccip/deployment
 	chainlink-ton/deployment --> chainlink-ton
 	click chainlink-ton/deployment href "https://github.com/smartcontractkit/chainlink-ton"
+	chainlink-ton/devenv --> chainlink-ton/deployment
+	click chainlink-ton/devenv href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/integration-tests --> chainlink-ccip/chains/evm/deployment
 	chainlink-ton/integration-tests --> chainlink/deployment
 	click chainlink-ton/integration-tests href "https://github.com/smartcontractkit/chainlink-ton"
@@ -341,6 +343,7 @@ flowchart LR
 	subgraph chainlink-ton-repo[chainlink-ton]
 		 chainlink-ton
 		 chainlink-ton/deployment
+		 chainlink-ton/devenv
 		 chainlink-ton/integration-tests
 		 chainlink-ton/staging-monitor
 	end

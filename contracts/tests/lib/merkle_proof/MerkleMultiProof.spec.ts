@@ -1,17 +1,27 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Cell } from '@ton/core'
+import { sha256_sync } from '@ton/crypto'
+import '@ton/test-utils'
+
+import { crc32 } from 'zlib'
+import { loadContractCode } from '../../../wrappers/codeLoader'
+import { asSnakeDataUint } from '../../../src/utils'
+import { testVectors } from './TestVectors'
+import { keccak256 } from '@ethersproject/keccak256'
+
+import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
+import * as mmp from '../../../wrappers/libraries/merkle_proof/MerkleMultiProof'
+import { facilityId } from '../../../wrappers/utils'
 import {
   MerkleMultiProofCalculator,
   MerkleMultiProofCalculatorStorage,
 } from '../../../wrappers/libraries/merkle_proof/MerkleMultiProofCalculator'
-import { sha256_sync } from '@ton/crypto'
 
-import '@ton/test-utils'
-import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
-import { loadContractCode } from '../../../wrappers/codeLoader'
-import { asSnakeDataUint } from '../../../src/utils'
-import { TestVector, testVectors } from './TestVectors'
-import { keccak256 } from '@ethersproject/keccak256'
+describe('MerkleMultiProof Unit Tests', () => {
+  it('should match facility ID', async () => {
+    expect(mmp.FACILITY_ID).toBe(facilityId(crc32(mmp.FACILITY_NAME)))
+  })
+})
 
 describe('MerkleMultiProofTests', () => {
   let blockchain: Blockchain

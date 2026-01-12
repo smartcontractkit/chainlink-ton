@@ -1,7 +1,6 @@
 import { toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { ZERO_ADDRESS } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'

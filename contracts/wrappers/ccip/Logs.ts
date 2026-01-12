@@ -75,7 +75,7 @@ export type ReceiverCCIPMessageReceived = {
 
 export type OnRampSet = {
   destChainSelectors: bigint[]
-  onRamp: Address
+  onRamp?: Address
 }
 
 export type OffRampAdded = {

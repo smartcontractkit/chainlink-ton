@@ -2,7 +2,7 @@ import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { beginCell, toNano } from '@ton/core'
 
-import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId } from '../../../src/utils'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'

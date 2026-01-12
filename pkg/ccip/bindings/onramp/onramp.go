@@ -1,23 +1,18 @@
 package onramp
 
 import (
-	"context"
 	"math/big"
-	"runtime"
-	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -40,7 +35,6 @@ const (
 
 // Registry method names
 const (
-	DestChainsGetter      = "destChainSelectors"
 	destChainConfigGetter = "destChainConfig"
 	dynamicConfigGetter   = "dynamicConfig"
 	staticConfigGetter    = "staticConfig"
@@ -294,47 +288,6 @@ func (c *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
 
 func (c *StaticConfig) GetterMethodName() string {
 	return staticConfigGetter
-}
-
-// DestChainConfigMap represents a map of destination chain selectors to their configurations.
-// This type aligns with the on-chain data structure for destination chain configs.
-type DestChainConfigMap map[uint64]DestChainConfig
-
-// Fetch retrieves all destination chain configurations from the on-ramp contract.
-func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, onRampAddr *address.Address) error {
-	result, err := client.RunGetMethod(ctx, block, onRampAddr, DestChainsGetter)
-	if err != nil {
-		return err
-	}
-
-	chainSelectors := parser.ParseLispTuple(result.AsTuple())
-
-	var lock sync.Mutex
-	eg, egCtx := errgroup.WithContext(ctx)
-	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]DestChainConfig)
-	for _, dest := range chainSelectors {
-		eg.Go(func() error {
-			var cfg DestChainConfig
-			opts := []interface{}{dest}
-			if err = tvm.FetchResult(egCtx, client, block, onRampAddr, &cfg, opts); err != nil {
-				return err
-			}
-
-			lock.Lock()
-			output[dest] = cfg
-			lock.Unlock()
-
-			return nil
-		})
-	}
-
-	if err = eg.Wait(); err != nil {
-		return err
-	}
-
-	*d = output
-	return nil
 }
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode

@@ -25,30 +25,28 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const Opcodes = {
-  commit: crc32('OffRamp_Commit'),
-  execute: crc32('OffRamp_Execute'),
-  manualExecute: crc32('OffRamp_ManuallyExecute'),
-  updateSourceChainConfigs: crc32('OffRamp_UpdateSourceChainConfigs'),
-  dispatchValidated: crc32('OffRamp_DispatchValidated'),
-  ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
-  updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
-  setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
-  updateDeployables: crc32('OffRamp_UpdateDeployables'),
+export const opcodes = {
+  in: {
+    commit: crc32('OffRamp_Commit'),
+    execute: crc32('OffRamp_Execute'),
+    manualExecute: crc32('OffRamp_ManuallyExecute'),
+    updateSourceChainConfigs: crc32('OffRamp_UpdateSourceChainConfigs'),
+    dispatchValidated: crc32('OffRamp_DispatchValidated'),
+    ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
+    updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
+    setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
+    updateDeployables: crc32('OffRamp_UpdateDeployables'),
+  },
 }
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 
-export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
-export const OFFRAMP_FACILITY_ID = 84
-export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
-
-export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
-export const RECEIVE_EXECUTOR_FACILITY_ID = 338
-export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
+export const FACILITY_ID = 84
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum OffRampError {
-  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
+  MessageNotFromOwnedContract = ERROR_CODE,
   SourceChainNotEnabled,
   EmptyExecutionReport,
   InvalidMessageDestChainSelector,
@@ -63,13 +61,9 @@ export enum OffRampError {
   SignatureVerificationNotAllowedInExecutionPlugin,
   InvalidInterval,
   BatchingNotSupported,
-}
-
-export enum ReceiveExecutorError {
-  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
-  UpdatingStateOfNonExecutedMessage,
-  NotificationFromInvalidReceiver,
-  Unauthorized,
+  OnRampAddressMismatch,
+  EmptyCommitReport,
+  MerkleRootCannotBeZero,
 }
 
 export type OffRampStorage = {
@@ -441,7 +435,7 @@ export const builder = {
       }> = {
         encode: (data): Builder => {
           return beginCell()
-            .storeUint(Opcodes.commit, 32)
+            .storeUint(opcodes.in.commit, 32)
             .storeUint(data.queryID ?? 0, 64)
             .storeUint(data.reportContext.configDigest, 256)
             .storeUint(data.reportContext.padding, 192) //should be zero
@@ -468,7 +462,7 @@ export const builder = {
       }> = {
         encode: (data): Builder => {
           return beginCell()
-            .storeUint(Opcodes.execute, 32)
+            .storeUint(opcodes.in.execute, 32)
             .storeUint(data.queryID ?? 0, 64)
             .storeUint(data.reportContext.configDigest, 256)
             .storeUint(data.reportContext.padding, 192) //should be zero
@@ -487,7 +481,7 @@ export const builder = {
       }> = {
         encode: (data): Builder => {
           return beginCell()
-            .storeUint(Opcodes.manualExecute, 32)
+            .storeUint(opcodes.in.manualExecute, 32)
             .storeUint(data.queryID ?? 0, 64)
             .storeBuilder(builder.data.executionReport.encode(data.report))
             .storeCoins(data.gasOverride ?? 0)
@@ -503,7 +497,7 @@ export const builder = {
       }> = {
         encode: (data): Builder => {
           return beginCell()
-            .storeUint(Opcodes.updateSourceChainConfigs, 32)
+            .storeUint(opcodes.in.updateSourceChainConfigs, 32)
             .storeUint(data.queryID ?? 0, 64)
             .storeRef(
               asSnakeData(data.configs, (message) => {
@@ -524,7 +518,7 @@ export const builder = {
           for (const subject of data.subjects) {
             subjects.set(subject, true)
           }
-          return beginCell().storeUint(Opcodes.updateCursedSubjects, 32).storeDict(subjects)
+          return beginCell().storeUint(opcodes.in.updateCursedSubjects, 32).storeDict(subjects)
         },
         load: (_: Slice) => {
           throw new Error('Implement me')
@@ -538,7 +532,7 @@ export const builder = {
       }> = {
         encode: (data): Builder => {
           return beginCell()
-            .storeUint(Opcodes.setDynamicConfig, 32)
+            .storeUint(opcodes.in.setDynamicConfig, 32)
             .storeUint(data.queryId ?? 0, 64)
             .storeAddress(data.feeQuoter)
             .storeUint(data.permissionlessExecutionThresholdSeconds, 32)
@@ -555,7 +549,7 @@ export const builder = {
       }> = {
         encode: (data): Builder => {
           return beginCell()
-            .storeUint(Opcodes.dispatchValidated, 32)
+            .storeUint(opcodes.in.dispatchValidated, 32)
             .storeRef(builder.data.any2TVMRampMessage.encode(data.message))
             .storeUint(data.execId, 192)
             .storeMaybeUint(data.gasOverride, 64)
@@ -567,7 +561,7 @@ export const builder = {
       const updateDeployables: CellCodec<UpdateDeployables> = {
         encode: (message: UpdateDeployables): Builder => {
           return beginCell()
-            .storeUint(Opcodes.updateDeployables, 32)
+            .storeUint(opcodes.in.updateDeployables, 32)
             .storeUint(message.queryId ?? 0, 64)
             .storeMaybeRef(message.receiveExecutorCode)
             .storeMaybeRef(message.merkleRootCode)
@@ -586,7 +580,7 @@ export const builder = {
       const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
         encode: (data: CCIPReceiveConfirm): Builder => {
           return beginCell()
-            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(opcodes.in.ccipReceiveConfirm, 32)
             .storeUint(data.execID, 192)
             .storeAddress(data.receiver)
         },
@@ -669,6 +663,18 @@ export class OffRamp
     return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return typeAndVersion.getTypeAndVersion(provider)
   }
@@ -684,7 +690,7 @@ export class OffRamp
   }
 
   static type() {
-    return OFFRAMP_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {

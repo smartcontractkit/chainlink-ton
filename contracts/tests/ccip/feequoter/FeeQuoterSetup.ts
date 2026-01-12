@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell, Dictionary, Address, CommonMessageInfoInternal } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import { crc32 } from 'zlib'
 
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
@@ -17,6 +17,7 @@ import {
   CHAIN_FAMILY_SELECTOR_EVM,
   CHAIN_FAMILY_SELECTOR_SVM,
   CHAIN_FAMILY_SELECTOR_SUI,
+  CHAIN_FAMILY_SELECTOR_APTOS,
 } from '../../gas-report/constants'
 
 export type TestCode = {
@@ -83,6 +84,7 @@ export class FeeQuoterSetup {
 
   static readonly DEST_CHAIN_SELECTOR_EVM = 909606746561742123n // EVM test chain (same as CHAINSEL_EVM_TEST_90000001)
   static readonly DEST_CHAIN_SELECTOR_SVM = 16423721717087811551n // SVM test chain
+  static readonly DEST_CHAIN_SELECTOR_APTOS = 77777n // Aptos test chain
   static readonly DEST_CHAIN_SELECTOR_SUI = 9762610643973837292n // SUI test chain
   static readonly SOURCE_CHAIN_SELECTOR = 13879075125137744094n // TON test chain
 
@@ -99,7 +101,7 @@ export class FeeQuoterSetup {
 
   // Native TON
   static readonly NATIVE_TON: Token = {
-    token: ZERO_ADDRESS,
+    token: WRAPPED_NATIVE,
     price: decimals.TESTING_VALUES.tokenPrice.ton,
   }
   // Generate random address from "sLINK"
@@ -301,6 +303,13 @@ export class FeeQuoterSetup {
             config: {
               ...FeeQuoterSetup.destChainConfig,
               chainFamilySelector: CHAIN_FAMILY_SELECTOR_SVM,
+            },
+          },
+          {
+            destChainSelector: FeeQuoterSetup.DEST_CHAIN_SELECTOR_APTOS,
+            config: {
+              ...FeeQuoterSetup.destChainConfig,
+              chainFamilySelector: CHAIN_FAMILY_SELECTOR_APTOS,
             },
           },
           {

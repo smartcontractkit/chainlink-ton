@@ -65,7 +65,7 @@ describe('Router', () => {
       from: router.address,
       to: offRamp.address,
       success: true,
-      op: of.Opcodes.ccipReceiveConfirm,
+      op: of.opcodes.in.ccipReceiveConfirm,
       body(x) {
         if (!x) return false
         const decoded = of.builder.messages.in.ccipReceiveConfirm.load(x.beginParse())
