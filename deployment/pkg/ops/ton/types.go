@@ -72,15 +72,15 @@ func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 		if im.StateInit.Data != nil {
 			msg.StateInit.Data = im.StateInit.Data
 		}
-	}
 
-	stateCell, err := tlb.ToCell(msg.StateInit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert state init to cell: %w", err)
-	}
+		stateCell, err := tlb.ToCell(msg.StateInit)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert state init to cell: %w", err)
+		}
 
-	wc := int8(0) // TODO: expose option to set workchain (default ok for now)
-	msg.DstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
+		wc := int8(0) // TODO: expose option to set workchain (default ok for now)
+		msg.DstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
+	}
 
 	bodyCell, err := im.Body.ToCell()
 	if err != nil {
