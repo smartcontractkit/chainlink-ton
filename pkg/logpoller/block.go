@@ -83,24 +83,19 @@ func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentMaste
 		return dbSeqno, nil
 	}
 
+	// fresh start: use lookback window
 	if currentMasterchainBlock.SeqNo == 0 {
-		// localnet genesis
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
 	lookbackSeqNo := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
-	if lookbackSeqNo > lastProcessed {
-		blocksToProcess := currentMasterchainBlock.SeqNo - lookbackSeqNo
-		lp.lggr.Debugw("Starting from lookback window",
-			"fromSeqNo", lookbackSeqNo,
-			"toSeqNo", currentMasterchainBlock.SeqNo,
-			"blocksToProcess", blocksToProcess,
-		)
-		return lookbackSeqNo, nil
-	}
-
-	return lastProcessed, nil
+	lp.lggr.Debugw("Starting from lookback window",
+		"fromSeqNo", lookbackSeqNo,
+		"toSeqNo", currentMasterchainBlock.SeqNo,
+		"blocksToProcess", currentMasterchainBlock.SeqNo-lookbackSeqNo,
+	)
+	return lookbackSeqNo, nil
 }
 
 // lookupBlock retrieves a block by sequence number using the current masterchain block's workchain and shard.
