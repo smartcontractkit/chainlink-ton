@@ -69,8 +69,6 @@ var Deploy = operations.NewOperation(
 			}
 
 			// prepare message with loaded code and data as StateInit
-			m := u.Message
-			valAny := any(m.Body.Value)
 
 			var data *cell.Cell
 			if u.Data != nil {
@@ -81,6 +79,7 @@ var Deploy = operations.NewOperation(
 				}
 			}
 
+			m := u.Message
 			_messages[i] = InternalMessage[any]{
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
@@ -89,7 +88,7 @@ var Deploy = operations.NewOperation(
 					Metadata: m.Body.Metadata,
 					Payload:  m.Body.Payload,
 					Cell:     m.Body.Cell,
-					Value:    &valAny,
+					Value:    m.Body.Value,
 				},
 				StateInit: &StateInit{
 					Code: c.Code,
@@ -103,7 +102,7 @@ var Deploy = operations.NewOperation(
 			Plan:     in.Plan,
 		}
 
-		// TOOD: improve deps passing
+		// TODO (ops): improve deps passing
 		opdeps := SendMessagesDeps{
 			Wallet: deps.Wallet,
 			Client: deps.Client,
@@ -134,7 +133,6 @@ func encodeDataCellFor(data any) (*cell.Cell, error) {
 		rt := rv.Type()
 		if rt.Kind() == reflect.Ptr {
 			rt = rt.Elem()
-			rv = rv.Elem()
 		}
 
 		if rt.Kind() == reflect.Struct {

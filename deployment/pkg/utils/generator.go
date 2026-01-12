@@ -183,7 +183,7 @@ func (g *Generator) RegisterFactory(t reflect.Type, factory Factory) {
 // Generate produces a value shaped after the provided prototype.
 func (g *Generator) Generate(proto any) (any, error) {
 	if proto == nil {
-		return nil, fmt.Errorf("nil prototype")
+		return nil, errors.New("nil prototype")
 	}
 
 	t := reflect.TypeOf(proto)
@@ -404,7 +404,7 @@ func (g *Generator) randomSignedInt(bits int) int64 {
 		bits = 63
 	}
 	if bits >= 63 {
-		return int64(g.rng.Int63())
+		return g.rng.Int63()
 	}
 	limit := (int64(1) << uint(bits)) - 1
 	value := g.rng.Int63n(limit + 1)
@@ -419,13 +419,13 @@ func (g *Generator) intBitLength(t reflect.Type, tag tlbTagHint) int {
 		return bits
 	}
 	if size := t.Bits(); size > 0 {
-		return int(size)
+		return size
 	}
 	switch t.Kind() { //nolint:exhaustive
 	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64, reflect.Uintptr:
 		return 64
 	default:
-		return int(t.Bits())
+		return t.Bits()
 	}
 }
 

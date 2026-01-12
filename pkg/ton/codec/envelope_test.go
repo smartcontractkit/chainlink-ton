@@ -21,7 +21,7 @@ func TestMessageEnvelopeMarshalJSONPrefersCell(t *testing.T) {
 
 	got, err := json.Marshal(env)
 	require.NoError(t, err)
-	require.Equal(t, string(want), string(got))
+	require.Equal(t, want, string(got))
 
 	var decoded codec.MessageEnvelope[*router.ApplyRampUpdates]
 	require.NoError(t, json.Unmarshal(got, &decoded))

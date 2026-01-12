@@ -47,7 +47,9 @@ func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpd
 		return nil, err
 	}
 
-	msgs := append(onramps, offramps...)
+	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
+	msgs = append(msgs, onramps...)
+	msgs = append(msgs, offramps...)
 	return msgs, nil
 }
 

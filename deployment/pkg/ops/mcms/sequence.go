@@ -119,6 +119,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 	}
 
 	// Build a proposal
+	//nolint:gosec // G115: safe to convert to uint32
 	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultValidUntilHours) * time.Hour).Unix())
 	builder := mcms.NewTimelockProposalBuilder().
 		SetVersion("v1").

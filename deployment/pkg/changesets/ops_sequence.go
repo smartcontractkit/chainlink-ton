@@ -9,7 +9,6 @@ import (
 
 	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
@@ -26,7 +25,7 @@ type opsAnySequence struct {
 	rregistry codec.ResolverRegistry
 }
 
-func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider ton.ContractCodeProvider) cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] {
+func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.ContractCodeProvider) cldf.ChangeSetV2[opsmcms.TimelockAnySequenceInput] {
 	return opsAnySequence{
 		rregistry: *codec.NewResolverRegistry(
 			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),

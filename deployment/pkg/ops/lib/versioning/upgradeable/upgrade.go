@@ -92,7 +92,7 @@ var Upgrade = operations.NewOperation(
 			Plan:     in.Plan,
 		}
 
-		// TOOD: improve deps passing
+		// TODO (ops): improve deps passing
 		opdeps := opston.SendMessagesDeps{
 			Wallet: deps.Wallet,
 			Client: deps.Client,

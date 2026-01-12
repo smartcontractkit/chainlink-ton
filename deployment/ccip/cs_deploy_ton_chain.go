@@ -133,7 +133,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	// Execute post-deployment cfg
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
-	// TOOD: improve deps passing
+	// TODO (ops): improve deps passing
 	opdeps := ton.SendMessagesDeps{
 		Wallet: chain.Wallet,
 		Client: chain.Client,

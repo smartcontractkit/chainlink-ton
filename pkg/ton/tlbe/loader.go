@@ -21,7 +21,7 @@ func ToCell(v any) (*cell.Cell, error) {
 	case reflect.Uint32:
 		return cell.BeginCell().MustStoreUInt(uint64(v.(uint32)), 32).EndCell(), nil
 	case reflect.Uint64, reflect.Uint:
-		return cell.BeginCell().MustStoreUInt(uint64(v.(uint64)), 64).EndCell(), nil
+		return cell.BeginCell().MustStoreUInt(v.(uint64), 64).EndCell(), nil
 	case reflect.Int8:
 		return cell.BeginCell().MustStoreInt(int64(v.(int8)), 8).EndCell(), nil
 	case reflect.Int16:
@@ -29,7 +29,7 @@ func ToCell(v any) (*cell.Cell, error) {
 	case reflect.Int32:
 		return cell.BeginCell().MustStoreInt(int64(v.(int32)), 32).EndCell(), nil
 	case reflect.Int64, reflect.Int:
-		return cell.BeginCell().MustStoreInt(int64(v.(int64)), 64).EndCell(), nil
+		return cell.BeginCell().MustStoreInt(v.(int64), 64).EndCell(), nil
 	}
 
 	return tlb.ToCell(v)

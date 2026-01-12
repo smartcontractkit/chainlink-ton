@@ -1,6 +1,7 @@
 package sequences
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -220,7 +221,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 		"Curse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
 			if len(in.Subjects) == 0 {
-				return sequences.OnChainOutput{}, fmt.Errorf("no subjects provided for curse")
+				return sequences.OnChainOutput{}, errors.New("no subjects provided for curse")
 			}
 
 			// Validate subject format (big-endian encoding)
@@ -293,7 +294,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				Plan: plan,
 			}
 
-			// TOOD: improve deps passing
+			// TODO (ops): improve deps passing
 			opdeps := ton.SendMessagesDeps{
 				Wallet: chain.Wallet,
 				Client: chain.Client,
@@ -322,7 +323,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 		"Uncurse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
 			if len(in.Subjects) == 0 {
-				return sequences.OnChainOutput{}, fmt.Errorf("no subjects provided for uncurse")
+				return sequences.OnChainOutput{}, errors.New("no subjects provided for uncurse")
 			}
 
 			// Validate subject format (big-endian encoding)
@@ -395,7 +396,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				Plan: plan,
 			}
 
-			// TOOD: improve deps passing
+			// TODO (ops): improve deps passing
 			opdeps := ton.SendMessagesDeps{
 				Wallet: chain.Wallet,
 				Client: chain.Client,

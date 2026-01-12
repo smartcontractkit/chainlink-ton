@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/stretchr/testify/require"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type Foo struct {
@@ -30,6 +31,7 @@ func TestCellDictionaryEquivalence(t *testing.T) {
 		{Value: 100},
 		{Value: 200},
 	}, 16)
+	require.NoError(t, err)
 
 	bar := Bar{}
 	bar.Dict, err = NewDictFromSlice[uint16]([]uint32{100, 200})

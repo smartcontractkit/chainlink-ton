@@ -1,6 +1,7 @@
 package sequences
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -20,9 +21,9 @@ import (
 // withOperationOutput is a helper to extract plans from operation output and map them to batch operations.
 func withOperationOutput(out sequences.OnChainOutput, _out any, selector types.ChainSelector, meta []types.OperationMetadata) (sequences.OnChainOutput, error) {
 	// Try to extract the plans and map to batch operation
-	planer, ok := _out.(opston.Planner[opston.MessagePlanRaw]) //nolint:govet // should be ok
+	planer, ok := _out.(opston.Planner[opston.MessagePlanRaw])
 	if !ok {
-		return out, fmt.Errorf("operation output does not implement Planner interface")
+		return out, errors.New("operation output does not implement Planner interface")
 	}
 	plans := planer.GetPlans()
 	plan := len(plans) > 0

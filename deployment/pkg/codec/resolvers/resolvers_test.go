@@ -55,7 +55,6 @@ type Bar struct {
 }
 
 func TestResolvingSendMessagesInputs(t *testing.T) {
-
 	testCases := []struct {
 		name    string
 		input   map[string]any
@@ -449,5 +448,4 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 			require.Equal(t, tc.want, actual, "resolved input mismatch")
 		})
 	}
-
 }
