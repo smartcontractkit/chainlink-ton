@@ -134,8 +134,8 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		PluginType:                     uint16(in.PluginType),
 		F:                              in.F,
 		IsSignatureVerificationEnabled: in.IsSignatureVerificationEnabled,
-		Signers:                        common.SnakeData[offramp.Signer](signers),
-		Transmitters:                   common.SnakeData[common.AddressWrap](transmitters),
+		Signers:                        signers,
+		Transmitters:                   transmitters,
 	}
 
 	payload, err := tlb.ToCell(input)

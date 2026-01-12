@@ -13,7 +13,6 @@ import (
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -60,9 +59,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 		// Skip if there's no updates
 		if len(updates) != 0 {
 			addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
-			body := feequoter.UpdateDestChainConfigs{
-				Updates: common.SnakeData[feequoter.UpdateDestChainConfig](updates),
-			}
+			body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
 			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{

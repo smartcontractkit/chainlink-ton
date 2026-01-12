@@ -13,7 +13,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -151,8 +150,8 @@ func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateF
 	}
 
 	input := feequoter.UpdatePrices{
-		TokenPrices:    common.SnakeData[feequoter.TokenPriceUpdate](tokenPrices),
-		GasPrices:      common.SnakeData[feequoter.GasPriceUpdate](gasPrices),
+		TokenPrices:    tokenPrices,
+		GasPrices:      gasPrices,
 		SendExcessesTo: address.NewAddressNone(),
 	}
 
