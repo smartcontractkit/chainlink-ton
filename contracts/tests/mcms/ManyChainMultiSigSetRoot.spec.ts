@@ -536,6 +536,83 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         success: true,
       })
     })
+
+    it('should revert when no override after everything executed but opFinalizationTimeout pending', async () => {
+      await baseTest.recreateTestOpsNoRevertingOp()
+
+      const rootMetadata = await baseTest.bind.mcms.getRootMetadata()
+      expect(rootMetadata.postOpCount).toBeGreaterThan(0n)
+
+      const newRootMetadata = { ...baseTest.initialTestRootMetadata }
+      newRootMetadata.overridePreviousRoot = false
+      newRootMetadata.preOpCount = baseTest.initialTestRootMetadata.postOpCount
+      newRootMetadata.postOpCount =
+        newRootMetadata.preOpCount + BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+      const newOpFinalizationTimeout = 60 // 1 minute
+      {
+        const result = await baseTest.bind.mcms.sendInternal(
+          baseTest.acc.multisigOwner.getSender(),
+          toNano('0.05'),
+          mcms.builder.message.in.updateOpFinalizationTimeout
+            .encode({
+              queryId: 0n,
+              newOpFinalizationTimeout,
+            })
+            .asCell(),
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: baseTest.acc.multisigOwner.address,
+          to: baseTest.bind.mcms.address,
+          success: true,
+        })
+      }
+
+      await baseTest.executeOperationsUpTo(
+        MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
+        newOpFinalizationTimeout,
+      )
+
+      const signers = baseTest.testSigners.map((s) => s.keyPair)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL,
+        newRootMetadata,
+        baseTest.testOps,
+      )
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
+
+      // It fails before opFinalizationTimeout
+      {
+        const result = await baseTest.bind.mcms.sendInternal(
+          baseTest.acc.deployer.getSender(),
+          toNano('0.05'),
+          setRootBody,
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: baseTest.acc.deployer.address,
+          to: baseTest.bind.mcms.address,
+          success: false,
+        })
+      }
+
+      baseTest.warpTime(newOpFinalizationTimeout)
+
+      // It succeeds after opFinalizationTimeout
+      {
+        const result = await baseTest.bind.mcms.sendInternal(
+          baseTest.acc.deployer.getSender(),
+          toNano('0.05'),
+          setRootBody,
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: baseTest.acc.deployer.address,
+          to: baseTest.bind.mcms.address,
+          success: true,
+        })
+      }
+    })
   })
 
   describe('SetRootVerifyProofTest', () => {

@@ -707,8 +707,9 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   }
 
   // Execute all operations up to the post-op count limit to simulate setOpCount
-  async executeOperationsUpTo(index: number) {
+  async executeOperationsUpTo(index: number, opFinalizationTimeout: number = 0): Promise<void> {
     for (let i = 0; i < index; i++) {
+      this.warpTime(opFinalizationTimeout)
       const executeBody = mcms.builder.message.in.execute
         .encode({
           queryId: BigInt(i + 1),

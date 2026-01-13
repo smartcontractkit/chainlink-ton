@@ -850,8 +850,14 @@ fun MCMS<T>.setRoot(
     // don't allow a new root to be set if there are still outstanding ops that have not been
     // executed, unless overridePreviousRoot is set
     val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
-    if (opCount != rootInfo.rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
-        throw MCMS_Error.PendingOps;
+    val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+    if (!metadata.overridePreviousRoot) {
+        if (blockchain.now() < opPendingInfo.validAfter) {
+            throw MCMS_Error.RootNotFinalized;
+        }
+        if (opCount != rootInfo.rootMetadata.postOpCount) {
+            throw MCMS_Error.PendingOps;
+        }
     }
 
     // the signers are responsible for tracking opCount offchain and ensuring that
@@ -863,8 +869,6 @@ fun MCMS<T>.setRoot(
     if (metadata.preOpCount > metadata.postOpCount) {
         throw MCMS_Error.WrongPostOpCount;
     }
-
-    val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
     // done with validation, persist in in contract state
     // Note: unbounded growth of the seen hashes map, unless cleaned with <MCMS_CleanExpiredRoots>
