@@ -17,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type AddTonLanes struct{}
@@ -51,7 +50,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 
 	// Add lane on TON chains
 	// Execute UpdateTonLanesSequence for each ton chain
-	stateCCIP, err := tonstate.LoadOnchainState(env)
+	stateCCIP, err := state.LoadOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}

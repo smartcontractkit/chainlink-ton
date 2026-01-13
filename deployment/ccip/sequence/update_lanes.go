@@ -90,7 +90,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
@@ -140,7 +140,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
@@ -152,7 +152,6 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 
 	// configure offramp sources
 	{
-
 		b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
 		r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
 		if err != nil {
@@ -167,7 +166,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 		}
 
-		plan := sender.Equals(owner) != true // plan if sender is not owner
+		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
 				ContractType: contractType,
@@ -194,7 +193,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 		}
 
-		plan := sender.Equals(owner) != true // plan if sender is not owner
+		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
 				ContractType: contractType,
@@ -219,7 +218,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 		}
 
-		plan := sender.Equals(owner) != true // plan if sender is not owner
+		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
 				ContractType: contractType,

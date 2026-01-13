@@ -277,7 +277,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{
@@ -368,7 +368,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 
 			_in := ton.SendMessagesInput{
 				Messages: []ton.InternalMessage[any]{

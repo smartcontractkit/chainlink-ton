@@ -69,7 +69,7 @@ var SendOrPlan = operations.NewOperation(
 
 		out := sequences.OnChainOutput{}
 
-		return WithOperationOutput(out, in.Plans, types.ChainSelector(in.ChainSelector), in.Metadata)
+		return WithOperationOutput(out, in.Plans, in.ChainSelector, in.Metadata)
 	},
 )
 

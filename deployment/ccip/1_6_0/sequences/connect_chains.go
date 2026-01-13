@@ -87,7 +87,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 				}
 
-				plan := sender.Equals(owner) != true // plan if sender is not owner
+				plan := !sender.Equals(owner) // plan if sender is not owner
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: contractType,
@@ -146,7 +146,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 				}
 
-				plan := sender.Equals(owner) != true // plan if sender is not owner
+				plan := !sender.Equals(owner) // plan if sender is not owner
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: contractType,
@@ -173,7 +173,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
@@ -202,7 +202,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
@@ -253,7 +253,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get offramp owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,
@@ -280,7 +280,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: contractType,

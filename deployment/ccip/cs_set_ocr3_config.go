@@ -89,7 +89,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}

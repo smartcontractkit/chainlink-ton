@@ -60,7 +60,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 			}
 
-			plan := sender.Equals(owner) != true // plan if sender is not owner
+			plan := !sender.Equals(owner) // plan if sender is not owner
 
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}
