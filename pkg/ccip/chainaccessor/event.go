@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -123,21 +124,25 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 		}
 	}
 
-	// TODO: do we need to validate price updates?
-	// for _, tpus := range ev.PriceUpdates.TokenPriceUpdates {
-	// 	if tpus.SourceToken.IsZeroOrEmpty() {
-	// 		return nil, fmt.Errorf("invalid source token address: %s", tpus.SourceToken.String())
-	// 	}
-	// 	if tpus.UsdPerToken == nil || tpus.UsdPerToken.Cmp(big.NewInt(0)) <= 0 {
-	// 		return nil, fmt.Errorf("nil or non-positive usd per token")
-	// 	}
-	// }
+	if ev.PriceUpdates == nil {
+		// Return early if there are no price updates to validate
+		return ev, nil
+	}
 
-	// for _, gpus := range ev.PriceUpdates.GasPriceUpdates {
-	// 	if gpus.UsdPerUnitGas == nil || gpus.UsdPerUnitGas.Cmp(big.NewInt(0)) < 0 {
-	// 		return nil, fmt.Errorf("nil or negative usd per unit gas: %s", gpus.UsdPerUnitGas.String())
-	// 	}
-	// }
+	for _, tpus := range ev.PriceUpdates.TokenPriceUpdates {
+		if tpus.SourceToken.IsAddrNone() {
+			return nil, fmt.Errorf("invalid source token address: %s", tpus.SourceToken.String())
+		}
+		if tpus.UsdPerToken == nil || tpus.UsdPerToken.Cmp(big.NewInt(0)) <= 0 {
+			return nil, errors.New("nil or non-positive usd per token")
+		}
+	}
+
+	for _, gpus := range ev.PriceUpdates.GasPriceUpdates {
+		if gpus.DataAvailabilityGasPrice == nil || gpus.DataAvailabilityGasPrice.Cmp(big.NewInt(0)) < 0 {
+			return nil, fmt.Errorf("nil or negative DataAvailabilityGasPrice: %v", gpus.DataAvailabilityGasPrice)
+		}
+	}
 
 	return ev, nil
 }

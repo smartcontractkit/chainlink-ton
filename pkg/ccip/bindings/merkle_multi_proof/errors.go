@@ -10,7 +10,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorInvalidProofLeavesCannotBeEmpty)
-		ecMax = int32(ErrorInvalidProofTotalHashesExceededMax)
+		ecMax = int32(ErrorInvalidProofDataSizeMismatch)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -20,4 +20,5 @@ const (
 	ErrorInvalidProofLeavesTooLarge
 	ErrorInvalidProofProofsTooLarge
 	ErrorInvalidProofTotalHashesExceededMax
+	ErrorInvalidProofDataSizeMismatch
 )

@@ -283,9 +283,11 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 	}
 	outgoingMessages, err := txOnReceived.IO.Out.ToSlice()
 	if err != nil {
-		return res, fmt.Errorf("failed to get outgoing messages: %w", err)
+		return ReceivedMessage{}, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
-	res.mapOutgoingMessages(outgoingMessages)
+	if err := res.mapOutgoingMessages(outgoingMessages); err != nil {
+		return ReceivedMessage{}, fmt.Errorf("failed to map outgoing messages: %w", err)
+	}
 	return res, nil
 }
 
@@ -293,7 +295,8 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 // converts them into SentMessages, storing them in OutgoingMessagesSent.
 // It also updates the total fees charged to the sender for forwarding messages.
 // Both internal and external outgoing messages are handled appropriately.
-func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
+// Returns an error if an unexpected external in message is encountered.
+func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) error {
 	m.OutgoingInternalSentMessages = make([]*SentMessage, 0, len(outgoingMessages))
 	for _, outgoingMessage := range outgoingMessages {
 		switch outgoingMessage.MsgType {
@@ -304,9 +307,10 @@ func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 			msg := outgoingMessage.AsExternalOut()
 			m.AppendEvent(msg)
 		case tlb.MsgTypeExternalIn:
-			panic("ReceivedMessage should not contain external in messages, only external out messages")
+			return errors.New("ReceivedMessage should not contain external in messages, only external out messages")
 		}
 	}
+	return nil
 }
 
 // AppendEvent adds an external message to the list of outgoing external messages.
@@ -390,8 +394,8 @@ func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*Recei
 	if rTX.IO.In == nil || rTX.IO.In.MsgType != tlb.MsgTypeInternal {
 		return nil, fmt.Errorf("transaction is not internal: %s", rTX.Dump())
 	}
-	incommingMessage := rTX.IO.In.AsInternal()
-	if !m.MatchesReceived(incommingMessage) {
+	incomingMessage := rTX.IO.In.AsInternal()
+	if !m.MatchesReceived(incomingMessage) {
 		return nil, nil
 	}
 	receivedMessage, err := MapToReceivedMessage(rTX)
