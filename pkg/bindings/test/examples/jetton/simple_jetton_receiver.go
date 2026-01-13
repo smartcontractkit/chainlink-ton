@@ -72,6 +72,9 @@ func (r SimpleJettonReceiver) GetAmountChecker() (*tlb.Coins, error) {
 	return &coins, nil
 }
 
+// GetPayloadChecker retrieves the payload checker cell, if set
+// Returns nil if no payload checker is set
+// Returns an error if retrieval or parsing fails
 func (r SimpleJettonReceiver) GetPayloadChecker() (*cell.Cell, error) {
 	result, err := r.Contract.Get("payloadChecker")
 	if err != nil {
@@ -85,6 +88,7 @@ func (r SimpleJettonReceiver) GetPayloadChecker() (*cell.Cell, error) {
 	if isPayloadCheckerNil {
 		fmt.Printf("Payload checker is nil, no payload validation will be performed\n")
 		fmt.Printf("As tupple: %v\n", result.AsTuple())
+		//nolint: nilnil // Explicit nil return
 		return nil, nil // No payload checker set
 	}
 

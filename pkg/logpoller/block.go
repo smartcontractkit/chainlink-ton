@@ -45,6 +45,7 @@ func (lp *service) getBlockRange(ctx context.Context, currentMasterchainBlock *t
 
 	// if we've already processed this block, wait for the next one (chain is idle)
 	if currentMasterchainBlock.SeqNo <= lastProcessedBlockSeqNo {
+		//nolint:nilnil // No new blocks to process
 		return nil, nil
 	}
 
@@ -101,7 +102,7 @@ func (lp *service) lookupBlock(ctx context.Context, seqNo uint32, currentMasterc
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
 func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	if lastProcessedBlockSeqNo == 0 {
-		// No previous block reference - lookback window returned 0
+		//nolint:nilnil // No previous block reference - lookback window returned 0
 		// (chain is shorter than configured lookback duration, likely localnet)
 		return nil, nil
 	}
