@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -17,11 +18,12 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms"
-	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
 	"github.com/smartcontractkit/mcms/types"
 
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	bindmcms "github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var (
@@ -127,8 +129,7 @@ func BuildTimelockProposal(ctx context.Context, client ton.APIClientWrapped, bat
 	}
 
 	// Inspect the latest MCMS on-chain state to get the current op count
-	inspector := mcmston.NewInspector(client)
-	opCount, err := inspector.GetOpCount(ctx, opts.MCMSAddr.String())
+	opCount, err := tvm.CallGetterLatest(ctx, client, opts.MCMSAddr, bindmcms.GetOpCount)
 	if err != nil {
 		return mcms.TimelockProposal{}, fmt.Errorf("failed to get op count from MCMS state: %w", err)
 	}
@@ -205,7 +206,9 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		}
 
 		value := msg.Amount.Nano()
-		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
+		// TODO: replace with below once https://github.com/smartcontractkit/mcms/pull/486 is merged
+		// mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
+		mcmsTxs[i], err = NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
 		}
@@ -216,3 +219,50 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		Transactions:  mcmsTxs,
 	}, nil
 }
+
+// TODO: remove and import once https://github.com/smartcontractkit/mcms/pull/486 is merged
+// Vendor code START - vendored from https://github.com/smartcontractkit/mcms/pull/486
+
+type AdditionalFields struct {
+	Value *big.Int `json:"value"`
+}
+
+// Validate ensures the TON-specific fields are correct
+func (f AdditionalFields) Validate() error {
+	if f.Value == nil || f.Value.Sign() < 0 {
+		return fmt.Errorf("invalid TON value: %v", f.Value)
+	}
+
+	return nil
+}
+
+func NewTransaction(
+	to *address.Address,
+	body *cell.Slice,
+	value *big.Int,
+	contractType string,
+	tags []string,
+) (types.Transaction, error) {
+	additionalFields, err := json.Marshal(AdditionalFields{Value: value})
+	if err != nil {
+		return types.Transaction{}, fmt.Errorf("failed to marshal additional fields: %w", err)
+	}
+
+	bodyCell, err := body.ToCell()
+	if err != nil {
+		return types.Transaction{}, fmt.Errorf("failed to convert body to cell: %w", err)
+	}
+	data := bodyCell.ToBOC()
+
+	return types.Transaction{
+		To:               to.String(),
+		Data:             data,
+		AdditionalFields: additionalFields,
+		OperationMetadata: types.OperationMetadata{
+			ContractType: contractType,
+			Tags:         tags,
+		},
+	}, nil
+}
+
+// Vendor code END
