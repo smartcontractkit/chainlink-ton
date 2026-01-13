@@ -111,7 +111,11 @@ func Test_LogPoller_System(t *testing.T) {
 		emitter, err := helper.NewTestEventSource(t.Context(), tonChain.Client, sender, "replayEmitter", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		// 2. Emit events before logpoller starts
+		// 2. Capture the current block before emitting events (for replay later)
+		blockBeforeEvents, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err)
+
+		// 3. Emit events before logpoller starts
 		const preReplayEvents = 5
 		for i := 1; i <= preReplayEvents; i++ {
 			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
@@ -131,7 +135,7 @@ func Test_LogPoller_System(t *testing.T) {
 		counterValue, _ := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
 		require.Equal(t, preReplayEvents, int(counterValue))
 
-		// 3. Start LogPoller (with in-memory stores)
+		// 4. Start LogPoller (with in-memory stores)
 		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
 			Config:      logpoller.DefaultConfigSet,
@@ -142,7 +146,7 @@ func Test_LogPoller_System(t *testing.T) {
 		lp, err := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
 		require.NoError(t, err)
 
-		// 4. Register filter (without replay)
+		// 5. Register filter (without replay)
 		filter := models.Filter{
 			Name:     "ReplayFilter",
 			Address:  emitter.ContractAddress(),
@@ -155,29 +159,25 @@ func Test_LogPoller_System(t *testing.T) {
 		require.NoError(t, lp.Start(t.Context()))
 		defer func() { require.NoError(t, lp.Close()) }()
 
-		// 5. Verify no logs before replay
+		// 6. Verify no logs before replay
 		logs, _, _, _ := lp.NewQuery().
 			WithSource(emitter.ContractAddress()).
 			WithEventSig(counter.TopicCountIncreased).
 			Execute(t.Context())
 		require.Empty(t, logs, "should have no logs before replay")
 
-		// 6. Request replay
-		currentBlock, err := tonChain.Client.CurrentMasterchainInfo(t.Context())
-		require.NoError(t, err)
-		fromBlock := currentBlock.SeqNo - 100 // sufficiently old block
-
-		err = lp.Replay(t.Context(), fromBlock)
+		// 7. Request replay from the block captured before events were emitted
+		err = lp.Replay(t.Context(), blockBeforeEvents.SeqNo)
 		require.NoError(t, err)
 
-		// 7. Verify replay status
+		// 8. Verify replay status
 		status := lp.ReplayStatus()
 		require.Contains(t, []models.ReplayStatus{
 			models.ReplayStatusRequested,
 			models.ReplayStatusPending,
 		}, status, "replay should be requested or pending")
 
-		// 8. Wait for replay completion and verify logs
+		// 9. Wait for replay completion and verify logs
 		require.Eventually(t, func() bool {
 			status := lp.ReplayStatus()
 			if status != models.ReplayStatusComplete {
@@ -199,7 +199,7 @@ func Test_LogPoller_System(t *testing.T) {
 			return len(result) == preReplayEvents
 		}, 60*time.Second, 2*time.Second, "replay should complete and index all events")
 
-		// 9. Emit additional events and verify normal polling works
+		// 10. Emit additional events and verify normal polling works
 		const postReplayEvents = 3
 		for i := 1; i <= postReplayEvents; i++ {
 			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
