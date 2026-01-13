@@ -150,7 +150,7 @@ func TestBalanceMonitor_Polling(t *testing.T) {
 	err = balanceMonitor.Start(t.Context())
 	require.NoError(t, err)
 	defer func() {
-		_ = balanceMonitor.Close()
+		require.NoError(t, balanceMonitor.Close())
 	}()
 
 	// Wait a bit to allow the monitor to poll at least once

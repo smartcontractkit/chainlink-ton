@@ -107,7 +107,8 @@ func Test_LogPoller(t *testing.T) {
 
 			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
-				msgs, _ := tx.Transaction.IO.Out.ToSlice()
+				msgs, serr := tx.Transaction.IO.Out.ToSlice()
+				require.NoError(t, serr)
 				for _, msg := range msgs {
 					// test contract only emits ExternalMessageOut
 					if msg.MsgType == tlb.MsgTypeExternalOut {
@@ -152,7 +153,8 @@ func Test_LogPoller(t *testing.T) {
 
 				// Extract messages from the loaded transactions
 				for _, tx := range txs {
-					msgs, _ := tx.Transaction.IO.Out.ToSlice()
+					msgs, serr := tx.Transaction.IO.Out.ToSlice()
+					require.NoError(t, serr)
 					for _, msg := range msgs {
 						if msg.MsgType == tlb.MsgTypeExternalOut {
 							if extOut := msg.AsExternalOut(); extOut != nil {
@@ -894,7 +896,8 @@ func Test_LogPoller(t *testing.T) {
 			return counterValue == preReplayEvents
 		}, 30*time.Second, 1*time.Second, "counter should reach expected value")
 
-		counterValue, _ := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
+		counterValue, err := counter.GetValue(t.Context(), tonChain.Client, emitter.ContractAddress())
+		require.NoError(t, err)
 		require.Equal(t, preReplayEvents, int(counterValue))
 
 		// 3. Start LogPoller (with in-memory stores)
@@ -922,10 +925,11 @@ func Test_LogPoller(t *testing.T) {
 		defer func() { require.NoError(t, lp.Close()) }()
 
 		// 5. Verify no logs before replay
-		logs, _, _, _ := lp.NewQuery().
+		logs, _, _, err := lp.NewQuery().
 			WithSource(emitter.ContractAddress()).
 			WithEventSig(counter.TopicCountIncreased).
 			Execute(t.Context())
+		require.NoError(t, err)
 		require.Empty(t, logs, "should have no logs before replay")
 
 		// 6. Request replay from block before events were emitted
@@ -956,7 +960,8 @@ func Test_LogPoller(t *testing.T) {
 				return false
 			}
 
-			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
+			result, serr := query.DecodedLogs[counter.CountIncreased](logs)
+			require.NoError(t, serr)
 			t.Logf("found %d logs after replay", len(result))
 			return len(result) == preReplayEvents
 		}, 60*time.Second, 2*time.Second, "replay should complete and index all events")
@@ -969,11 +974,13 @@ func Test_LogPoller(t *testing.T) {
 		}
 
 		require.Eventually(t, func() bool {
-			logs, _, _, _ := lp.NewQuery().
+			logs, _, _, err := lp.NewQuery().
 				WithSource(emitter.ContractAddress()).
 				WithEventSig(counter.TopicCountIncreased).
 				Execute(t.Context())
-			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
+			require.NoError(t, err)
+			result, err := query.DecodedLogs[counter.CountIncreased](logs)
+			require.NoError(t, err)
 			return len(result) == preReplayEvents+postReplayEvents
 		}, 30*time.Second, 2*time.Second, "should index new events after replay")
 	})

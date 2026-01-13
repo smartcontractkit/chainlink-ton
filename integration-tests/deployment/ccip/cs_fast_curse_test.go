@@ -7,9 +7,10 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/stretchr/testify/require"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
@@ -70,7 +71,7 @@ func TestFastCurseTON(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "Failed to apply DeployChainContracts changeset")
-	_ = out.DataStore.Merge(env.DataStore)
+	require.NoError(t, out.DataStore.Merge(env.DataStore))
 	env.DataStore = out.DataStore.Seal()
 	// </deploy-evm>
 
