@@ -14,7 +14,6 @@ import (
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
@@ -39,15 +38,15 @@ const defaultCCIPContractCoin = "0.05"
 // This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
-func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
 }
 
-var DeployChainContracts = operations.NewSequence(
+var DeployChainContracts = cldf_ops.NewSequence(
 	"ton/sequences/ccip/deploy-chain-contracts",
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
-	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
+	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
 		tonChain := chains.TonChains()[input.ChainSelector]
 
 		// deps used for op
@@ -60,7 +59,7 @@ var DeployChainContracts = operations.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		ccipSeqReport, err := operations.ExecuteSequence(b, seq.DeployCCIPSequence, deps, seqInput)
+		ccipSeqReport, err := cldf_ops.ExecuteSequence(b, seq.DeployCCIPSequence, deps, seqInput)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
 		}
@@ -119,7 +118,7 @@ var DeployChainContracts = operations.NewSequence(
 					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
 				},
 			}
-			r, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 			}
@@ -127,7 +126,7 @@ var DeployChainContracts = operations.NewSequence(
 			msgs = append(msgs, r.Output...)
 		}
 
-		_, err = operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
+		_, err = cldf_ops.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

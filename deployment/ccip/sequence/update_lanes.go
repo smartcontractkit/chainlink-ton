@@ -6,12 +6,12 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms/types"
 
@@ -23,13 +23,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type UpdateTonLanesSeqInput struct {
@@ -227,7 +225,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 		})
 	}
 
-	r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, deps.TonChain, _inputMCMS)
+	r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, deps.TonChain, _inputMCMS)
 	if err != nil {
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 	}
@@ -295,7 +293,7 @@ func setTonSourceUpdates(lane ccipConfig.LaneConfig, updateInputsByTonChain map[
 	maps.Copy(input.UpdateFeeQuoterPricesConfig.TokenPrices, source.TokenPrices)
 
 	// Setting the fee quoter destination on the source chain
-	input.UpdateFeeQuoterDestChainConfigs = append(input.UpdateFeeQuoterDestChainConfigs, ton_fee_quoter.UpdateDestChainConfig{
+	input.UpdateFeeQuoterDestChainConfigs = append(input.UpdateFeeQuoterDestChainConfigs, feequoter.UpdateDestChainConfig{
 		DestinationChainSelector: dest.Selector,
 		DestChainConfig:          ccipConfig.TonFeeQuoterConfig(dest.FeeQuoterDestChainConfig),
 	})

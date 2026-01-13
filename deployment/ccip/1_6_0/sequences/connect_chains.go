@@ -160,7 +160,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		{
 			_input := intoUpdateFeeQuoterPricesConfig(input)
 			b.Logger.Infow("Updating prices on FeeQuoter", "input", _input)
-			r, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
 			}
@@ -189,7 +189,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router onramps config: %w", err)
 			}
 			b.Logger.Infow("Updating Router Onramps", "input", _input)
-			r, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}
@@ -211,7 +211,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 			})
 		}
 
-		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}
@@ -220,11 +220,11 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 	},
 )
 
-var ConfigureLaneLegAsDest = operations.NewSequence(
+var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 	"ConfigureLaneLegAsDest",
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as dest on CCIP 1.6.0",
-	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
+	func(b cldf_ops.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
@@ -241,7 +241,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 		{
 			updateOffRampSourcesConfig := intoUpdateOffRampSourcesConfig(input)
 			b.Logger.Infow("Updating source configs on OffRamp", "input", updateOffRampSourcesConfig)
-			r, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
 			}
@@ -268,7 +268,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router offramps config: %w", err)
 			}
 			b.Logger.Infow("Updating Router OffRamps", "input", applyRampUpdatesConfig)
-			r, err := operations.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, applyRampUpdatesConfig)
+			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, applyRampUpdatesConfig)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}
@@ -289,7 +289,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 			})
 		}
 
-		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

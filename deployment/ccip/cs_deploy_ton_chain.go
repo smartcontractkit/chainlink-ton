@@ -11,8 +11,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -24,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 type DeployCCIPContractsCfg struct {
@@ -133,7 +132,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 	// TODO (ops): improve deps passing
-	opdeps := ton.SendMessagesDeps{
+	opdeps := opston.SendMessagesDeps{
 		Wallet: chain.Wallet,
 		Client: chain.Client,
 	}
@@ -149,8 +148,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 		feeQuoterAddr := s.FeeQuoter
 
-		_in := ton.SendMessagesInput{
-			Messages: []ton.InternalMessage[any]{
+		_in := opston.SendMessagesInput{
+			Messages: []opston.InternalMessage[any]{
 				{
 					Bounce:  true,
 					DstAddr: &feeQuoterAddr,
@@ -161,7 +160,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 			Plan: true, // plan, defer execution to later step
 		}
 
-		r, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessages, opdeps, _in)
+		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessages, opdeps, _in)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
@@ -191,7 +190,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 
 	if len(msgs) != 0 {
-		r, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}

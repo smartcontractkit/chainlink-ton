@@ -7,7 +7,7 @@ import (
 
 // InternalMessageHeader is a helper struct to read internal message header (subset of fields).
 type InternalMessageHeader struct {
-	_           tlb.Magic        `tlb:"$0"`
+	_           tlb.Magic        `tlb:"$0"` //nolint:revive // vendored from tonutils-go
 	IHRDisabled bool             `tlb:"bool"`
 	Bounce      bool             `tlb:"bool"`
 	Bounced     bool             `tlb:"bool"`

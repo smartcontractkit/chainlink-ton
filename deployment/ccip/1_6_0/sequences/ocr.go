@@ -13,7 +13,6 @@ import (
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -65,7 +64,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}
 
-		r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}
