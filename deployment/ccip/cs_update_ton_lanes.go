@@ -3,16 +3,21 @@ package ops
 import (
 	"fmt"
 
+	"github.com/xssnick/tonutils-go/tlb"
+
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/mcms"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/mcms"
+	"github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type AddTonLanes struct{}
@@ -41,68 +46,61 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 }
 
 func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfig) (cldf.ChangesetOutput, error) {
-	var (
-		timeLockProposals []mcms.TimelockProposal
-		// mcmsOperations    []mcmstypes.BatchOperation
-	)
-
-	seqReports := make([]operations.Report[any, any], 0)
+	proposals := make([]mcms.TimelockProposal, 0)
+	reports := make([]operations.Report[any, any], 0)
 
 	// Add lane on TON chains
 	// Execute UpdateTonLanesSequence for each ton chain
-	s, err := tonstate.LoadOnchainState(env)
+	stateCCIP, err := tonstate.LoadOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(s, cfg)
+	stateMCMS, err := state.LoadMCMSOnChainState(env)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
+	}
+
+	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(stateCCIP, cfg)
 	env.Logger.Debug("%+v\n", updateInputsByTonChain)
 	for tonChainSel, sequenceInput := range updateInputsByTonChain {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[tonChainSel]
 		deps := config.CCIPDeps{
 			TonChain:         chain,
-			CCIPOnChainState: s,
+			CCIPOnChainState: stateCCIP,
 		}
-		// TODO (ops): improve deps passing
-		opdeps := ton.SendMessagesDeps{
-			Wallet: chain.Wallet,
-			Client: chain.Client,
-		}
+
+		stateMCMSChain := stateMCMS[tonChainSel]
+
 		// Execute the sequence
-		updateSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
-		if err != nil {
-			return cldf.ChangesetOutput{}, err
-		}
-		seqReports = append(seqReports, updateSeqReport.ExecutionReports...)
-		// mcmsOperations = append(mcmsOperations, updateSeqReport.Output)
-
-		// Generate MCMS proposals
-		// proposal, err := utils.GenerateProposal(
-		// 	env,
-		// 	state.TonChains[tonChainSel].MCMSAddress,
-		// 	deps.TonChain.Selector,
-		// 	mcmsOperations,
-		// 	"Update lanes on Ton chain",
-		// 	*cfg.TonMCMSConfig,
-		// )
-		// if err != nil {
-		// 	return cldf.ChangesetOutput{}, fmt.Errorf("failed to generate MCMS proposal for Ton chain %d: %w", tonChainSel, err)
-		// }
-		// timeLockProposals = append(timeLockProposals, *proposal)
-
-		// TODO (ops): generate MCMS proposals
-		msgs := updateSeqReport.Output
-		if len(msgs) != 0 {
-			_, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+		{
+			r, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
 			if err != nil {
-				return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
+				return cldf.ChangesetOutput{}, err
+			}
+			reports = append(reports, r.ExecutionReports...)
+
+			if len(r.Output.BatchOps) > 0 {
+				opts := opsmcms.TimelockOpts{
+					ChainSelector: types.ChainSelector(tonChainSel),
+					MCMSAddr:      &stateMCMSChain.MCMS,
+					TimelockAddr:  &stateMCMSChain.Timelock,
+					Description:   fmt.Sprintf("Update lanes on Ton chain %d", tonChainSel),
+					Action:        types.TimelockActionSchedule,
+					Value:         tlb.MustFromTON("0.1"),
+				}
+				p, err := opsmcms.BuildTimelockProposal(env.GetContext(), chain.Client, r.Output.BatchOps, opts)
+				if err != nil {
+					return cldf.ChangesetOutput{}, fmt.Errorf("failed to build timelock proposal: %w", err)
+				}
+				proposals = append(proposals, p)
 			}
 		}
 	}
 
 	return cldf.ChangesetOutput{
-		MCMSTimelockProposals: timeLockProposals,
-		Reports:               seqReports,
+		MCMSTimelockProposals: proposals,
+		Reports:               reports,
 	}, nil
 }

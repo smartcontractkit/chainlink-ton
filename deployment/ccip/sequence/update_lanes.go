@@ -10,19 +10,24 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
@@ -42,14 +47,17 @@ var UpdateTonLanesSequence = cldf_ops.NewSequence(
 	updateLanes,
 )
 
-func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
-
+func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) (sequences.OnChainOutput, error) {
 	// TODO (ops): improve deps passing
 	opdeps := opston.SendMessagesDeps{
 		Wallet: deps.TonChain.Wallet,
 		Client: deps.TonChain.Client,
 	}
+
+	sender := deps.TonChain.Wallet.Address()
+
+	selector := deps.TonChain.Selector
+	_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(selector))
 
 	// update fee quoter with dest chain configs
 	{
@@ -58,7 +66,8 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 
 		// Skip if there's no updates
 		if len(updates) != 0 {
-			addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+			contractType := bindings.PkgCCIP + ".FeeQuoter"
+			addr := deps.CCIPOnChainState[selector].FeeQuoter
 			body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
 			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
@@ -67,16 +76,27 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 						Bounce:  true,
 						DstAddr: &addr,
 						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
-						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".FeeQuoter", body),
+						Body:    codec.MustWrapMessage[any](contractType, body),
 					},
 				},
 				Plan: true,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("failed to exec send messages operation: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), deps.TonChain.Client, &addr, ownable2step.GetOwner)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+			}
+
+			plan := sender.Equals(owner) != true // plan if sender is not owner
+			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				{
+					ContractType: contractType,
+					Tags:         []string{},
+				},
+			})
 		}
 	}
 
@@ -91,12 +111,13 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			for _, u := range updates {
 				// TODO: TestRouter support
 				if u.Router == nil {
-					router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+					router := deps.CCIPOnChainState[selector].Router
 					u.Router = &router
 				}
 			}
 
-			addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
+			contractType := bindings.PkgCCIP + ".OnRamp"
+			addr := deps.CCIPOnChainState[selector].OnRamp
 			body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
 
 			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
@@ -105,46 +126,114 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 						Bounce:  true,
 						DstAddr: &addr,
 						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
-						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".OnRamp", body),
+						Body:    codec.MustWrapMessage[any](contractType, body),
 					},
 				},
 				Plan: true,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("failed to exec send messages operation: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), deps.TonChain.Client, &addr, ownable2step.GetOwner)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+			}
+
+			plan := sender.Equals(owner) != true // plan if sender is not owner
+			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				{
+					ContractType: contractType,
+					Tags:         []string{},
+				},
+			})
 		}
 	}
 
 	// configure offramp sources
-	b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
-	offRampReport, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update offramp sources: %w", err)
+	{
+
+		b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
+		r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
+		}
+
+		contractType := bindings.PkgCCIP + ".OffRamp"
+		addr := deps.CCIPOnChainState[selector].OffRamp
+
+		owner, err := tvm.CallGetterLatest(b.GetContext(), deps.TonChain.Client, &addr, ownable2step.GetOwner)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+		}
+
+		plan := sender.Equals(owner) != true // plan if sender is not owner
+		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			{
+				ContractType: contractType,
+				Tags:         []string{},
+			},
+		})
 	}
-	msgs = append(msgs, offRampReport.Output...)
 
 	// add ccip owner to offramp allowlist
 
 	// update fee quoter with gas prices
-	b.Logger.Infow("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
-	updatePricesReport, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update feequoter prices: %w", err)
+	{
+		b.Logger.Infow("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
+		r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
+		}
+
+		contractType := bindings.PkgCCIP + ".FeeQuoter"
+		addr := deps.CCIPOnChainState[selector].FeeQuoter
+
+		owner, err := tvm.CallGetterLatest(b.GetContext(), deps.TonChain.Client, &addr, ownable2step.GetOwner)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+		}
+
+		plan := sender.Equals(owner) != true // plan if sender is not owner
+		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			{
+				ContractType: contractType,
+				Tags:         []string{},
+			},
+		})
 	}
-	msgs = append(msgs, updatePricesReport.Output...)
 
 	// router with onramps and offramps
-	b.Logger.Infow("Updating Router onramps & offramps", "input", in.ApplyRampUpdatesConfig)
-	routerApplyRampUpdatesReport, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, in.ApplyRampUpdatesConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update router onramps: %w", err)
-	}
-	msgs = append(msgs, routerApplyRampUpdatesReport.Output...)
+	{
+		b.Logger.Infow("Updating Router onramps & offramps", "input", in.ApplyRampUpdatesConfig)
+		r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, in.ApplyRampUpdatesConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router onramps: %w", err)
+		}
 
-	return msgs, nil
+		contractType := bindings.PkgCCIP + ".Router"
+		addr := deps.CCIPOnChainState[selector].Router
+
+		owner, err := tvm.CallGetterLatest(b.GetContext(), deps.TonChain.Client, &addr, ownable2step.GetOwner)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+		}
+
+		plan := sender.Equals(owner) != true // plan if sender is not owner
+		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			{
+				ContractType: contractType,
+				Tags:         []string{},
+			},
+		})
+	}
+
+	r, err := operations.ExecuteOperation(b, mcms.SendOrPlan, deps.TonChain, _inputMCMS)
+	if err != nil {
+		return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
+	}
+
+	return r.Output, nil
 }
 
 // ToTonUpdateLanesConfig converts UpdateTonLanesConfig into Ton specific update inputs

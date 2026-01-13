@@ -3,10 +3,12 @@ package ops
 import (
 	"fmt"
 
+	"github.com/xssnick/tonutils-go/tlb"
+
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/mcms"
 	"github.com/smartcontractkit/mcms/types"
-	"github.com/xssnick/tonutils-go/tlb"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -70,35 +72,36 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 
 		_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(remoteSelector))
 
-		in := seq.SetOCR3OfframpSeqInput{
-			ChainSelector: remoteSelector,
-			Configs:       cfg.Configs,
+		{
+			in := seq.SetOCR3OfframpSeqInput{
+				ChainSelector: remoteSelector,
+				Configs:       cfg.Configs,
+			}
+			r, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
+			if err != nil {
+				return cldf.ChangesetOutput{}, err
+			}
+			reports = append(reports, r.ExecutionReports...)
+
+			addr := deps.CCIPOnChainState[remoteSelector].OffRamp
+			owner, err := tvm.CallGetterLatest(env.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
+			}
+
+			plan := sender.Equals(owner) != true // plan if sender is not owner
+
+			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}
-		r, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
-		if err != nil {
-			return cldf.ChangesetOutput{}, err
-		}
-		reports = append(reports, r.ExecutionReports...)
 
-		addr := deps.CCIPOnChainState[remoteSelector].OffRamp
-		owner, err := tvm.CallGetterLatest(env.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
-		}
-
-		plan := sender.Equals(owner) != true // plan if sender is not owner
-
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
-
-		r1, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, chain, _inputMCMS)
+		r, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, chain, _inputMCMS)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}
-		reports = append(reports, r1.ToGenericReport())
-
+		reports = append(reports, r.ToGenericReport())
 		stateMCMSChain := stateMCMS[remoteSelector]
 
-		if len(r1.Output.BatchOps) > 0 {
+		if len(r.Output.BatchOps) > 0 {
 			opts := opsmcms.TimelockOpts{
 				ChainSelector: types.ChainSelector(remoteSelector),
 				MCMSAddr:      &stateMCMSChain.MCMS,
@@ -107,7 +110,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 				Action:        types.TimelockActionSchedule,
 				Value:         tlb.MustFromTON("0.1"),
 			}
-			p, err := opsmcms.BuildTimelockProposal(env.GetContext(), chain.Client, r1.Output.BatchOps, opts)
+			p, err := opsmcms.BuildTimelockProposal(env.GetContext(), chain.Client, r.Output.BatchOps, opts)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to build timelock proposal: %w", err)
 			}
