@@ -946,7 +946,7 @@ fun MCMS<T>.execute(
         throw MCMS_Error.WrongMultiSig;
     }
 
-    if (blockchain.now() >= currentExpiringRootAndOpCount.validUntil) {
+    if (blockchain.now() > currentExpiringRootAndOpCount.validUntil) {
         throw MCMS_Error.RootExpired;
     }
 
@@ -1299,7 +1299,7 @@ fun MCMS<T>.submitErrorReport(
     // Mark root in error state (recover with new root + bypass)
     if (blockchain.now() < rootInfo.expiringRootAndOpCount.validUntil) {
         // expire root immediately, if not already expired
-        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now();
+        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now() - 1;
         self.data.rootInfo = rootInfo.toCell();
     }
 
@@ -1546,7 +1546,7 @@ fun onBouncedMessage(in: InMessageBounced) {
         }
 
         // Mark root in error state (recover with new root + bypass)
-        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
+        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now() - 1; // expire root immediately
         mcms.data.rootInfo = rootInfo.toCell();
         mcms.data.storeAsContractData();
         return;
