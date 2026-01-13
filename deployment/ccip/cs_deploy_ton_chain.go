@@ -3,7 +3,13 @@ package ops
 import (
 	"fmt"
 
+	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/mcms"
+
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
@@ -13,17 +19,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
-	"github.com/smartcontractkit/mcms"
-
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-
-	"github.com/xssnick/tonutils-go/tlb"
 )
 
 type DeployCCIPContractsCfg struct {
@@ -57,7 +57,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[selector]
 
-	seqReports := make([]operations.Report[any, any], 0)
+	reports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
 	states, err := state.LoadOnchainState(env)
@@ -98,8 +98,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", selector, err)
 	}
-	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
+	reports = append(reports, ccipSeqReport.ExecutionReports...)
 
+	// TODO (ops): duplicates csMCMSDeploy - extract to common deploy/addr processing utility
 	// Add newly deployed TON addresses to our output data store
 	if len(ccipSeqReport.Output.Addresses) > 0 {
 		for _, addr := range ccipSeqReport.Output.Addresses {
@@ -165,33 +166,37 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
 
-		_msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
-		for _, plan := range r.Output.Plans {
-			_msgs = append(_msgs, plan.Cell)
-		}
-
-		msgs = append(msgs, _msgs...)
+		reports = append(reports, r.ToGenericReport())
+		msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
 	}
 
 	// feeQuoter.updateFeeTokens
-	feeTokens := make(map[string]operation.FeeTokenConfig, len(cfg.Params.FeeQuoterParams.FeeTokens))
-	for _, feeToken := range cfg.Params.FeeQuoterParams.FeeTokens {
-		feeTokens[feeToken.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: feeToken.PremiumMultiplierWeiPerEth}
+	{
+		feeTokens := make(map[string]operation.FeeTokenConfig, len(cfg.Params.FeeQuoterParams.FeeTokens))
+		for _, feeToken := range cfg.Params.FeeQuoterParams.FeeTokens {
+			feeTokens[feeToken.Address.String()] = operation.FeeTokenConfig{
+				PremiumMultiplierWeiPerEth: feeToken.PremiumMultiplierWeiPerEth,
+			}
+		}
+		_in := operation.UpdateFeeQuoterFeeTokensInput{
+			FeeTokens: feeTokens,
+		}
+		r, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, _in)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
+		}
+
+		reports = append(reports, r.ToGenericReport())
+		msgs = append(msgs, r.Output...)
 	}
-	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-		FeeTokens: feeTokens,
-	}
-	updateFeeTokensReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
-	}
-	msgs = append(msgs, updateFeeTokensReport.Output...)
 
 	if len(msgs) != 0 {
-		_, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+		r, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}
+
+		reports = append(reports, r.ToGenericReport())
 	}
 
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
@@ -203,7 +208,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
-		Reports:               seqReports,
+		Reports:               reports,
 		DataStore:             dataStore,
 		AddressBook:           ab,
 	}, nil

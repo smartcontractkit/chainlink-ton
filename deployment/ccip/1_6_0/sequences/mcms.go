@@ -16,11 +16,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 )
 
 // defaultMCMSContractCoin is the default amount of TON coins to allocate for MCMS contract deployment.
@@ -136,7 +137,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 
 func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
-		"finalize-deploy-mcms",
+		"ton/sequences/ccip/deploy-mcms-suite-finalize",
 		semver.MustParse("1.0.0"),
 		"On TON, finalizing MCM deployment is a no-op",
 		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -146,7 +147,7 @@ func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploy
 
 func (a *TonAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
-		"grant-admin-role-of-timelock-to-timelock",
+		"ton/sequences/ccip/grant-admin-role-to-timelock",
 		semver.MustParse("1.0.0"),
 		"On TON, GrantAdminRoleToTimelock is a no-op",
 		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector) (output sequences.OnChainOutput, err error) {

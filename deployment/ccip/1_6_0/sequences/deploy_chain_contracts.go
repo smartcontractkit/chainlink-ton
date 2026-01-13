@@ -4,28 +4,31 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 
-	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-
-	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 // defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.

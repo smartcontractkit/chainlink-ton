@@ -105,7 +105,12 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 	}
 
 	msgs := opston.AsCells(r.Output.GetPlans())
-	proposal, err := BuildTimelockProposal(ctx, chain.Client, msgs, opts)
+	batchOp, err := RawPlanCellsToBatch(opts.ChainSelector, msgs, opts.OpsMetadata)
+	if err != nil {
+		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
+	}
+
+	proposal, err := BuildTimelockProposal(ctx, chain.Client, []types.BatchOperation{batchOp}, opts)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to build timelock proposal: %w", err)
 	}
@@ -116,10 +121,9 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 	}, nil
 }
 
-func BuildTimelockProposal(ctx context.Context, client ton.APIClientWrapped, msgs []*tlbe.Cell[tlb.InternalMessage], opts TimelockOpts) (mcms.TimelockProposal, error) {
-	batchOp, err := RawPlanCellsToBatch(opts.ChainSelector, msgs, opts.OpsMetadata)
-	if err != nil {
-		return mcms.TimelockProposal{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
+func BuildTimelockProposal(ctx context.Context, client ton.APIClientWrapped, batchOps []types.BatchOperation, opts TimelockOpts) (mcms.TimelockProposal, error) {
+	if len(batchOps) == 0 {
+		return mcms.TimelockProposal{}, errors.New("no batch operations provided to build timelock proposal")
 	}
 
 	// Inspect the latest MCMS on-chain state to get the current op count
@@ -145,8 +149,12 @@ func BuildTimelockProposal(ctx context.Context, client ton.APIClientWrapped, msg
 		SetDescription(opts.Description).
 		AddTimelockAddress(opts.ChainSelector, opts.TimelockAddr.String()).
 		AddChainMetadata(opts.ChainSelector, metadata).
-		AddOperation(batchOp).
 		SetAction(opts.Action)
+
+	// Add all batch operations
+	for _, bop := range batchOps {
+		builder.AddOperation(bop)
+	}
 
 	// Set delay if provided, otherwise use default
 	delay := types.NewDuration(DefaultMinDelayHours * time.Hour)

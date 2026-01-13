@@ -4,23 +4,27 @@ import (
 	"fmt"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-
 	"github.com/smartcontractkit/mcms"
+	"github.com/smartcontractkit/mcms/types"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 var _ cldf.ChangeSetV2[SetOCR3OffRampConfig] = SetOCR3Config{}
 
 type SetOCR3OffRampConfig struct {
-	RemoteChainSels []uint64
+	RemoteChainSels []uint64 // TODO (ops): unused currently
 	Configs         map[operation.PluginType]operation.OCR3ConfigArgs
 }
 
@@ -42,51 +46,77 @@ func (cs SetOCR3Config) VerifyPreconditions(env cldf.Environment, cfg SetOCR3Off
 }
 
 func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (cldf.ChangesetOutput, error) {
-	var (
-		proposals []mcms.TimelockProposal
-		// mcmsOperations    []mcmstypes.BatchOperation
-	)
-	seqReports := make([]operations.Report[any, any], 0)
+	proposals := make([]mcms.TimelockProposal, 0)
+	reports := make([]operations.Report[any, any], 0)
 
-	state, err := state.LoadOnchainState(env)
+	stateCCIP, err := state.LoadOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	stateMCMS, err := state.LoadMCMSOnChainState(env)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
 
 	for _, remoteSelector := range cfg.RemoteChainSels {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[remoteSelector]
+		sender := chain.Wallet.Address()
 		deps := config.CCIPDeps{
 			TonChain:         chain,
-			CCIPOnChainState: state,
+			CCIPOnChainState: stateCCIP,
 		}
-		// TODO (ops): improve deps passing
-		opdeps := ton.SendMessagesDeps{
-			Wallet: chain.Wallet,
-			Client: chain.Client,
-		}
+
+		_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(remoteSelector))
+
 		in := seq.SetOCR3OfframpSeqInput{
 			ChainSelector: remoteSelector,
 			Configs:       cfg.Configs,
 		}
-		setOCR3SeqReport, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
+		r, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
 		if err != nil {
 			return cldf.ChangesetOutput{}, err
 		}
-		seqReports = append(seqReports, setOCR3SeqReport.ExecutionReports...)
+		reports = append(reports, r.ExecutionReports...)
 
-		// TODO (ops): generate MCMS proposals
-		msgs := setOCR3SeqReport.Output
-		if len(msgs) != 0 {
-			_, err := operations.ExecuteOperation(env.OperationsBundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
-			if err != nil {
-				return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
+		addr := deps.CCIPOnChainState[remoteSelector].OffRamp
+		owner, err := tvm.CallGetterLatest(env.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
+		}
+
+		plan := sender.Equals(owner) != true // plan if sender is not owner
+
+		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
+
+		r1, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, chain, _inputMCMS)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
+		}
+		reports = append(reports, r1.ToGenericReport())
+
+		stateMCMSChain := stateMCMS[remoteSelector]
+
+		if len(r1.Output.BatchOps) > 0 {
+			opts := opsmcms.TimelockOpts{
+				ChainSelector: types.ChainSelector(remoteSelector),
+				MCMSAddr:      &stateMCMSChain.MCMS,
+				TimelockAddr:  &stateMCMSChain.Timelock,
+				Description:   fmt.Sprintf("Set OCR3 Offramp Config on chain %d", remoteSelector),
+				Action:        types.TimelockActionSchedule,
+				Value:         tlb.MustFromTON("0.1"),
 			}
+			p, err := opsmcms.BuildTimelockProposal(env.GetContext(), chain.Client, r1.Output.BatchOps, opts)
+			if err != nil {
+				return cldf.ChangesetOutput{}, fmt.Errorf("failed to build timelock proposal: %w", err)
+			}
+			proposals = append(proposals, p)
 		}
 	}
 
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
-		Reports:               seqReports,
+		Reports:               reports,
 	}, nil
 }

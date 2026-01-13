@@ -55,7 +55,7 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		MCMSChainState: mcmsStates,
 	}
 
-	seqReports := make([]operations.Report[any, any], 0)
+	reports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
 	// Use data store to track new deployed addresses
@@ -67,6 +67,7 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
 	}
 
+	// TODO (ops): duplicates csCCIPDeploy - extract to common deploy/addr processing utility
 	// Only add new deployed addresses from DeployCCIPSequence to the output data store
 	if len(mcmsSeqReport.Output.Addresses) > 0 {
 		for _, addr := range mcmsSeqReport.Output.Addresses {
@@ -96,7 +97,7 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
-		Reports:               seqReports,
+		Reports:               reports,
 		DataStore:             dataStore,
 		AddressBook:           ab,
 	}, nil

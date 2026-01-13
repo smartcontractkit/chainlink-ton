@@ -24,9 +24,6 @@ type ApplyRampUpdatesInput struct {
 	OffRampRemoves RampUpdates
 }
 
-type ApplyRampUpdatesOutput struct {
-}
-
 var ApplyRampUpdatesOp = operations.NewOperation(
 	"apply-ramp-updates-op",
 	semver.MustParse("0.1.0"),
