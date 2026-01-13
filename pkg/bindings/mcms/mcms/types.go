@@ -507,7 +507,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorOutOfBoundsNumSigners)
-		ecMax = int32(ErrorUnauthorizedOracle)
+		ecMax = int32(InsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -597,4 +597,7 @@ const (
 
 	// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
 	ErrorRootNotExpired
+
+	// Value attached to incomming message is not enough to pay for handler execution
+	InsufficientFee
 )

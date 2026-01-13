@@ -473,6 +473,9 @@ enum MCMS_Error {
 
     /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
     RootNotExpired
+
+    /// Value attached to incomming message is not enough to pay for handler execution
+    InsufficientFee
 }
 
 // --- Constants - storage ---
@@ -912,10 +915,19 @@ fun MCMS<T>.setRoot(
 fun MCMS<T>.execute(
     mutate self,
     sender: address,
+    value: coins,
     queryId: uint64,
-    op: Op,
+    opCell: Cell<Op>,
     proof: SnakedCell<uint256>,
 ) {
+    val replyValue = calculateGasFeeFor(FEE_SIZE_SMALL);
+    val executionFee = calculateGasFeeDefault();
+    var requiredValue = replyValue + executionFee + MIN_TON_TO_RESERVE;
+    assert(value >= requiredValue, MCMS_Error.InsufficientFee as int);
+    val op = lazy opCell.load();
+    requiredValue += op.value;
+    assert(value >= requiredValue, MCMS_Error.InsufficientFee as int);
+
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
     val currentExpiringRootAndOpCount = rootInfo.expiringRootAndOpCount;
@@ -997,7 +1009,7 @@ fun MCMS<T>.execute(
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
+        value: replyValue, // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
@@ -1380,9 +1392,6 @@ fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
         return self.hooks.execute(self.context, dest, value, body); // extension hook
     }
 
-    // We reserve some TON coins on the balance for rent
-    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
-
     // Send a message to the target with the provided value and data
     val op = createMessage({bounce: true, value, dest, body});
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
@@ -1460,7 +1469,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
                 msg.metadataProof, msg.signatures);
         }
         MCMS_Execute => {
-            self.execute(msgSender, msg.queryId, Op.fromCell(msg.op), msg.proof);
+            self.execute(msgSender, msgValue, msg.queryId, msg.op, msg.proof);
         }
         MCMS_SetConfig => {
             self.setConfig(msgSender, msg.queryId, msg.signerAddresses, msg.signerGroups,

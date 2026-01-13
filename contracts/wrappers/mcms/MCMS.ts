@@ -254,6 +254,9 @@ export enum Error {
 
   /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
   RootNotExpired,
+
+  /// Value attached to incomming message is not enough to pay for handler execution
+  InsufficientFee,
 }
 
 // --- Data structures ---

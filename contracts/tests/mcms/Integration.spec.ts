@@ -559,7 +559,9 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.15'), // need 0.1 TON extra to reserve for rent
+        ops.reduce((sum, v) => sum + v.value, 0n) +
+          toNano('0.1') + // to reserve for rent
+          toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -677,7 +679,9 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'), // has enough reserve, no need for +1 TON
+        ops.reduce((sum, v) => sum + v.value, 0n) +
+          toNano('0.1') + // to reserve for rent
+          toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -800,7 +804,9 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.15'), // need 0.1 TON extra to reserve for rent
+        ops.reduce((sum, v) => sum + v.value, 0n) +
+          toNano('0.1') + // to reserve for rent
+          toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -922,7 +928,9 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.15'), // need 0.1 TON extra to reserve for rent
+        ops.reduce((sum, v) => sum + v.value, 0n) +
+          toNano('0.1') + // to reserve for rent
+          toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -997,7 +1005,9 @@ describe('MCMS - IntegrationTest', () => {
 
         const r1 = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
-          toNano('0.15'), // need 0.1 TON extra to reserve for rent
+          ops.reduce((sum, v) => sum + v.value, 0n) +
+            toNano('0.1') + // to reserve for rent
+            toNano('0.05'), // to cover execution fee
           mcms.builder.message.in.execute
             .encode({
               queryId: 1n,
@@ -1133,7 +1143,9 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        ops.reduce((sum, v) => sum + v.value, 0n) +
+          toNano('0.1') + // to reserve for rent
+          toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
