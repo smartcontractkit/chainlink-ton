@@ -48,6 +48,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 				ChainSelector: input.ChainSelector,
 				Configs:       intoOCRConfigs(input.Configs),
 			}
+			//nolint:govet // allow shadowing
 			r, err := cldf_ops.ExecuteSequence(b, seq.SetOCR3OfframpSequence, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, err

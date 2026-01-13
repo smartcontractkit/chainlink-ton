@@ -52,8 +52,8 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			Wallet: tonChain.Wallet,
 			Client: tonChain.Client,
 		}
-		sender := tonChain.Wallet.Address()
 
+		sender := tonChain.Wallet.Address()
 		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
 		// update fee quoter with dest chain configs
@@ -66,6 +66,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 				body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
+				//nolint:govet // allow shadowing
 				owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
@@ -125,6 +126,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 				body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
 
+				//nolint:govet // allow shadowing
 				owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get onramp owner: %w", err)
@@ -160,6 +162,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 		{
 			_input := intoUpdateFeeQuoterPricesConfig(input)
 			b.Logger.Infow("Updating prices on FeeQuoter", "input", _input)
+			//nolint:govet // allow shadowing
 			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
@@ -184,6 +187,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 		// update router with onramps
 		{
+			//nolint:govet // allow shadowing
 			_input, err := intoUpdateRouterOnrampsConfig(input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router onramps config: %w", err)
@@ -239,9 +243,10 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 
 		// configure offramp sources
 		{
-			updateOffRampSourcesConfig := intoUpdateOffRampSourcesConfig(input)
-			b.Logger.Infow("Updating source configs on OffRamp", "input", updateOffRampSourcesConfig)
-			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
+			_input := intoUpdateOffRampSourcesConfig(input)
+			b.Logger.Infow("Updating source configs on OffRamp", "input", _input)
+			//nolint:govet // allow shadowing
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
 			}
@@ -263,12 +268,13 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 		}
 
 		{
-			applyRampUpdatesConfig, err := intoUpdateRouterOfframpsConfig(input)
+			//nolint:govet // allow shadowing
+			_input, err := intoUpdateRouterOfframpsConfig(input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router offramps config: %w", err)
 			}
-			b.Logger.Infow("Updating Router OffRamps", "input", applyRampUpdatesConfig)
-			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, applyRampUpdatesConfig)
+			b.Logger.Infow("Updating Router OffRamps", "input", _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}

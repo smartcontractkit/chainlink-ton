@@ -139,6 +139,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// feequoter.addPriceUpdater(offramp)
 	{
+		//nolint:govet // allow shadowing
 		body, err := codec.WrapMessage[any](bindings.PkgCCIP+".FeeQuoter", feequoter.AddPriceUpdater{
 			PriceUpdater: &s.OffRamp,
 		})
@@ -180,6 +181,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		_in := operation.UpdateFeeQuoterFeeTokensInput{
 			FeeTokens: feeTokens,
 		}
+		//nolint:govet // allow shadowing
 		r, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, _in)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)

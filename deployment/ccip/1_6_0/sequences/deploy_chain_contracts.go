@@ -46,7 +46,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 	"ton/sequences/ccip/deploy-chain-contracts",
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
-	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
+	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (sequences.OnChainOutput, error) {
 		tonChain := chains.TonChains()[input.ChainSelector]
 
 		// deps used for op
@@ -90,6 +90,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 				PriceUpdater: &offrampAddr,
 			}
 
+			//nolint:govet // allow shadowing
 			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
@@ -118,6 +119,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
 				},
 			}
+			//nolint:govet // allow shadowing
 			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
