@@ -484,7 +484,9 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 			setupFunc: func() *cell.Slice {
 				builder := cell.BeginCell()
 				addr := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
-				_ = builder.StoreSlice(addr, uint(len(addr))*8)
+				if err := builder.StoreSlice(addr, uint(len(addr))*8); err != nil {
+					panic(err)
+				}
 				return builder.EndCell().BeginParse()
 			},
 			expectErr: "",
@@ -502,7 +504,9 @@ func TestLoadCrossChainAddressWithoutPrefix_Validation(t *testing.T) {
 			setupFunc: func() *cell.Slice {
 				builder := cell.BeginCell()
 				addr := make([]byte, 65)
-				_ = builder.StoreSlice(addr, uint(len(addr))*8)
+				if err := builder.StoreSlice(addr, uint(len(addr))*8); err != nil {
+					panic(err)
+				}
 				return builder.EndCell().BeginParse()
 			},
 			expectErr: "exceeds maximum of 64 bytes",
@@ -531,14 +535,14 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 	t.Run("exceeds maximum cell chain depth", func(t *testing.T) {
 		// Create a cell chain that exceeds MaxCellChainDepth
 		builder := cell.BeginCell()
-		_ = builder.StoreSlice([]byte{0x01}, 8)
+		require.NoError(t, builder.StoreSlice([]byte{0x01}, 8))
 		root := builder.EndCell()
 
 		// Build a chain longer than MaxCellChainDepth
 		for i := 0; i < MaxCellChainDepth+1; i++ {
 			builder = cell.BeginCell()
-			_ = builder.StoreSlice([]byte{0x01}, 8)
-			_ = builder.StoreRef(root)
+			require.NoError(t, builder.StoreSlice([]byte{0x01}, 8))
+			require.NoError(t, builder.StoreRef(root))
 			root = builder.EndCell()
 		}
 
@@ -577,28 +581,28 @@ func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
 		// Create a cell chain that exceeds MaxCellChainDepth by building a deep chain
 		// Start with a valid element cell
 		elemBuilder := cell.BeginCell()
-		_ = elemBuilder.StoreSlice([]byte{0x01}, 8)
+		require.NoError(t, elemBuilder.StoreSlice([]byte{0x01}, 8))
 		elemCell := elemBuilder.EndCell()
 
 		// Build initial cell with 3 data refs and 1 chain ref
 		builder := cell.BeginCell()
 		for i := 0; i < 3; i++ {
-			_ = builder.StoreRef(elemCell)
+			require.NoError(t, builder.StoreRef(elemCell))
 		}
 		// Add a chain ref to continue
 		chainBuilder := cell.BeginCell()
-		_ = chainBuilder.StoreRef(elemCell)
+		require.NoError(t, chainBuilder.StoreRef(elemCell))
 		chainCell := chainBuilder.EndCell()
-		_ = builder.StoreRef(chainCell)
+		require.NoError(t, builder.StoreRef(chainCell))
 		root := builder.EndCell()
 
 		// Now extend the chain beyond MaxCellChainDepth
 		for i := 0; i < MaxCellChainDepth; i++ {
 			builder = cell.BeginCell()
 			for j := 0; j < 3; j++ {
-				_ = builder.StoreRef(elemCell)
+				require.NoError(t, builder.StoreRef(elemCell))
 			}
-			_ = builder.StoreRef(root)
+			require.NoError(t, builder.StoreRef(root))
 			root = builder.EndCell()
 		}
 
@@ -682,24 +686,24 @@ func TestMaxArrayLength_Validation(t *testing.T) {
 		// We'll create a chain with 4 refs each, where each ref contains data
 		// This should be caught during unpacking
 		elemBuilder := cell.BeginCell()
-		_ = elemBuilder.StoreSlice([]byte{0x01}, 8)
+		require.NoError(t, elemBuilder.StoreSlice([]byte{0x01}, 8))
 		elemCell := elemBuilder.EndCell()
 
 		// Build chains that would exceed MaxArrayLength
 		// Each cell can have 3 data refs + 1 chain ref
 		// We need > 1000 elements, so > 334 cells (1000/3 = 333.33)
 		builder := cell.BeginCell()
-		_ = builder.StoreRef(elemCell)
-		_ = builder.StoreRef(elemCell)
-		_ = builder.StoreRef(elemCell)
+		require.NoError(t, builder.StoreRef(elemCell))
+		require.NoError(t, builder.StoreRef(elemCell))
+		require.NoError(t, builder.StoreRef(elemCell))
 
 		root := builder.EndCell()
 		for i := 0; i < MaxArrayLength/3+2; i++ {
 			builder = cell.BeginCell()
-			_ = builder.StoreRef(elemCell)
-			_ = builder.StoreRef(elemCell)
-			_ = builder.StoreRef(elemCell)
-			_ = builder.StoreRef(root)
+			require.NoError(t, builder.StoreRef(elemCell))
+			require.NoError(t, builder.StoreRef(elemCell))
+			require.NoError(t, builder.StoreRef(elemCell))
+			require.NoError(t, builder.StoreRef(root))
 			root = builder.EndCell()
 		}
 

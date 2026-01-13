@@ -173,8 +173,14 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 		{
 			name: "CCIP message sent event",
 			buildCell: func() *cell.Cell {
-				sender, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
-				feeToken, _ := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+				sender, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+				if err != nil {
+					panic(err)
+				}
+				feeToken, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+				if err != nil {
+					panic(err)
+				}
 
 				event := onramp.CCIPMessageSent{
 					Message: ocr.TVM2AnyRampMessage{
@@ -198,7 +204,10 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 					},
 				}
 
-				c, _ := tlb.ToCell(event)
+				c, err := tlb.ToCell(event)
+				if err != nil {
+					panic(err)
+				}
 				return c
 			},
 		},
@@ -212,7 +221,10 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 					State:               2,
 				}
 
-				c, _ := tlb.ToCell(event)
+				c, err := tlb.ToCell(event)
+				if err != nil {
+					panic(err)
+				}
 				return c
 			},
 		},
@@ -275,7 +287,10 @@ func TestBOCPayloadByteFiltering(t *testing.T) {
 					MessageID:           make([]byte, 32),
 					State:               0x02,
 				}
-				c, _ := tlb.ToCell(event)
+				c, err := tlb.ToCell(event)
+				if err != nil {
+					panic(err)
+				}
 				return c
 			},
 			expectedBytes: map[int][]byte{

@@ -183,7 +183,10 @@ func TestCommitPluginCodecV1(t *testing.T) {
 
 func randomBytes32() (r [32]byte) {
 	b := make([]byte, 32)
-	_, _ = cryptorand.Read(b) // Assignment for errcheck. Only used in tests so we can ignore.
+	_, err := cryptorand.Read(b)
+	if err != nil {
+		panic(err)
+	}
 	copy(r[:], b)
 	return
 }

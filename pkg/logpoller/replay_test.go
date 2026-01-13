@@ -425,12 +425,14 @@ func TestReplay(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-ready
-			_ = lp.Replay(context.Background(), 60) // higher than 40, should be ignored
+			err := lp.Replay(context.Background(), 60) // higher than 40, should be ignored
+			_ = err                                    // Intentionally ignored in concurrent test
 		}()
 		go func() {
 			defer wg.Done()
 			<-ready
-			_ = lp.Replay(context.Background(), 20) // lower than 40, should win
+			err := lp.Replay(context.Background(), 20) // lower than 40, should win
+			_ = err                                    // Intentionally ignored in concurrent test
 		}()
 
 		close(ready)
@@ -570,7 +572,8 @@ func TestReplayComplete(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-ready
-			_ = lp.Replay(context.Background(), 20) // Request for earlier block
+			err := lp.Replay(context.Background(), 20) // Request for earlier block
+			_ = err                                    // Intentionally ignored in concurrent test
 		}()
 
 		close(ready)

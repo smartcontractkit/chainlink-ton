@@ -266,7 +266,8 @@ func TestSetFromChain(t *testing.T) {
 func TestNodeValidation(t *testing.T) {
 	// Valid node passes
 	name := "test-node"
-	url, _ := config.ParseURL("http://localhost:8081")
+	url, err := config.ParseURL("http://localhost:8081")
+	require.NoError(t, err)
 	node := &Node{Name: &name, URL: url}
 	require.NoError(t, node.ValidateConfig())
 
