@@ -46,6 +46,7 @@ pkgs.mkShell {
        '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"] \
       | .linters.enable += [ \
         \"errcheck\", \
+        \"nilnil\", \
         \"govet\", \
         \"staticcheck\" \
       ] \
