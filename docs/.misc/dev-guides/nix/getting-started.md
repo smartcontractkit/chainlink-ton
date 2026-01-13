@@ -46,7 +46,7 @@ cd pkg && golint ./...                # lint your pkg directory
 cd integration-tests && golint ./...  # lint integration tests
 
 # Or run directly without alias:
-cd pkg && golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"]' -) --path-mode "abs" ./...
+cd pkg && golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"] | .linters.enable += ["errcheck", "nilnil", "govet", "staticcheck"] | .linters.settings.errcheck = {"check-type-assertions": true, "check-blank": true} | .linters.settings.govet.enable += ["nilness"]' -) --path-mode "abs" ./...
 ```
 
 This ensures you're always using the exact same lint rules as our CI without writing any config files locally.
