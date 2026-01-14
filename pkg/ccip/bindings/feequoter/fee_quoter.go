@@ -328,11 +328,7 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			res, cErr := client.RunGetMethod(egCtx, block, feeQuoter, destChainConfigGetter, dest)
-			if cErr != nil {
-				return cErr
-			}
-			cfg, cErr := GetDestChainConfig.Decoder.Decode(res)
+			cfg, cErr := tvm.CallGetter(egCtx, client, block, feeQuoter, GetDestChainConfig, dest)
 			if cErr != nil {
 				return cErr
 			}
