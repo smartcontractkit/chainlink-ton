@@ -66,6 +66,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 	for selector, sequenceInput := range updateInputsByTonChain {
 		chain := env.BlockChains.TonChains()[selector]
 		chainStateCCIP := stateCCIP[selector]
+		chainStateMCMS := stateMCMS[selector]
 		dp, err := dep.NewDependencyProvider(
 			dep.Provide(chain),
 			dep.Provide(chainStateCCIP),
@@ -73,8 +74,6 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
-
-		stateMCMSChain := stateMCMS[selector]
 
 		// Execute the sequence
 		{
@@ -87,8 +86,8 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 			if len(r.Output.BatchOps) > 0 {
 				opts := opsmcms.TimelockOpts{
 					ChainSelector: types.ChainSelector(selector),
-					MCMSAddr:      &stateMCMSChain.MCMS,
-					TimelockAddr:  &stateMCMSChain.Timelock,
+					MCMSAddr:      &chainStateMCMS.MCMS,
+					TimelockAddr:  &chainStateMCMS.Timelock,
 					Description:   fmt.Sprintf("Update lanes on Ton chain %d", selector),
 					Action:        types.TimelockActionSchedule,
 					Value:         tlb.MustFromTON("0.1"),

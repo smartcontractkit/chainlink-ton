@@ -130,28 +130,30 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		}
 	}
 
+	// Update TonChainState with newly deployed addresses + update provider
 	states[selector] = s
+	dp, err = dp.With(dep.Provide(states[selector]))
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to update dependency provider: %w", err)
+	}
 
 	// Execute post-deployment cfg
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 	// feequoter.addPriceUpdater(offramp)
 	{
+		contractType := bindings.PkgCCIP + ".FeeQuoter"
 		//nolint:govet // allow shadowing
-		body, err := codec.WrapMessage[any](bindings.PkgCCIP+".FeeQuoter", feequoter.AddPriceUpdater{
-			PriceUpdater: &s.OffRamp,
-		})
+		body, err := codec.WrapMessage[any](contractType, feequoter.AddPriceUpdater{PriceUpdater: &s.OffRamp})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to wrap message: %w", err)
 		}
-
-		feeQuoterAddr := s.FeeQuoter
 
 		_in := opston.SendMessagesInput{
 			Messages: []opston.InternalMessage[any]{
 				{
 					Bounce:  true,
-					DstAddr: &feeQuoterAddr,
+					DstAddr: &s.FeeQuoter,
 					Amount:  tlb.MustFromTON("0.1"),
 					Body:    body,
 				},

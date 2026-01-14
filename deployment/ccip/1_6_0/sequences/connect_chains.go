@@ -249,7 +249,6 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 		}
 
 		sender := chain.Wallet.Address()
-
 		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
 		// configure offramp sources

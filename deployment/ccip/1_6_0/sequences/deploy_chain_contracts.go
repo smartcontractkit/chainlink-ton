@@ -80,6 +80,10 @@ var DeployChainContracts = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
+		dp, err = dp.With(dep.Provide(stateCCIP))
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update dependency provider: %w", err)
+		}
 
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
 		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)

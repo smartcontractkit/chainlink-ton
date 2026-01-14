@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -36,7 +36,7 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 )
 
 func updateFeeQuoterFeeTokens(b operations.Bundle, dp *dep.DependencyProvider, in UpdateFeeQuoterFeeTokensInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	stateCCIP, err := dep.Resolve[state.CCIPChainState](dp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
@@ -131,7 +131,7 @@ func updateFeeQuoterPrices(b operations.Bundle, dp *dep.DependencyProvider, in U
 		return nil, nil
 	}
 
-	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	stateCCIP, err := dep.Resolve[state.CCIPChainState](dp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
