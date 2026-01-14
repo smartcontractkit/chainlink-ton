@@ -11,20 +11,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -37,7 +36,7 @@ var unsupported = []uint64{
 
 func TestIsSerializable_AllMessages(t *testing.T) {
 	lggr, _ := logger.New()
-	gen := utils.NewGenerator()
+	gen := NewGenerator()
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
@@ -48,14 +47,14 @@ func TestIsSerializable_AllMessages(t *testing.T) {
 
 			sample, err := gen.Generate(proto)
 			require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
-			assert.Truef(t, operations.IsSerializable(lggr, sample), "operation should be serializable: contract=%s opcode=0x%08x type=%T", contract, opcode, sample)
+			require.Truef(t, operations.IsSerializable(lggr, sample), "operation should be serializable: contract=%s opcode=0x%08x type=%T", contract, opcode, sample)
 		}
 	}
 }
 
 func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 	lggr, _ := logger.New()
-	gen := utils.NewGenerator()
+	gen := NewGenerator()
 
 	for contract, tlbMap := range bindings.Registry {
 		for opcode, proto := range tlbMap {
@@ -65,7 +64,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 			}
 
 			sample, err := gen.Generate(proto)
-			if errors.Is(err, utils.ErrUnsupportedSample) {
+			if errors.Is(err, ErrUnsupportedSample) {
 				t.Logf("skip envelope serializable for %s opcode=0x%08x (%T): %v", contract, opcode, proto, err)
 				continue
 			}
@@ -74,7 +73,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 			envelope, err := codec.WrapMessage(contract, sample)
 			require.NoErrorf(t, err, "wrap message failed: contract=%s opcode=0x%08x", contract, opcode)
 
-			assert.Truef(t, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
+			require.Truef(t, operations.IsSerializable(lggr, envelope), "envelope should be serializable: contract=%s opcode=0x%08x", contract, opcode)
 		}
 	}
 }
@@ -97,7 +96,7 @@ func FuzzMessageEnvelope_SerializationRoundTrip(f *testing.F) {
 func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArtifacts bool) {
 	lggr, _ := logger.New()
 	randSource := rand.New(rand.NewSource(seed))
-	gen := utils.NewGenerator(utils.WithRand(randSource))
+	gen := NewGenerator(WithRand(randSource))
 
 	for contract, tlbMap := range bindings.Registry {
 		toSequence := make([]codec.MessageEnvelope[any], 0)
@@ -139,8 +138,8 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 				rawDecoded, err := json.Marshal(decoded)
 				require.NoError(t, err)
 
-				assert.JSONEqf(t, string(raw), string(rawDecoded), "payload mismatch for contract=%s opcode=0x%08x", contract, opcode)
-				assert.Truef(t, operations.IsSerializable(lggr, envelope), "envelope serializable check failed: contract=%s opcode=0x%08x", contract, opcode)
+				require.JSONEqf(t, string(raw), string(rawDecoded), "payload mismatch for contract=%s opcode=0x%08x", contract, opcode)
+				require.Truef(t, operations.IsSerializable(lggr, envelope), "envelope serializable check failed: contract=%s opcode=0x%08x", contract, opcode)
 
 				originalTLB, err := codec.EnsureTLBStructPointer(sample)
 				require.NoErrorf(t, err, "original value is not a TL-B struct pointer: contract=%s opcode=0x%08x", contract, opcode)
@@ -154,7 +153,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 
 				originalHash := originalCell.Hash()
 				decodedHash := decodedCell.Hash()
-				assert.Equalf(t, originalHash, decodedHash, "cell hash mismatch after round-trip: contract=%s opcode=0x%08x original=%x decoded=%x", contract, opcode, originalHash, decodedHash)
+				require.Equalf(t, originalHash, decodedHash, "cell hash mismatch after round-trip: contract=%s opcode=0x%08x original=%x decoded=%x", contract, opcode, originalHash, decodedHash)
 
 				// Generate operation report
 				r := testMakeExecuteOp(t, contract, opcode, decoded)
@@ -198,7 +197,7 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 	dp, err := dep.NewDependencyProvider(
 		dep.Provide(cldf_ton.Chain{}), // No actual sending in tests
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	r, err := operations.ExecuteOperation(b, ton.SendMessages, dp, ton.SendMessagesInput{
 		Messages: []ton.InternalMessage[any]{
@@ -211,9 +210,9 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 		},
 		Plan: true,
 	})
-	assert.NotEmpty(t, r)
-	assert.Len(t, r.Output.Plans, 1)
-	assert.NoError(t, err)
+	require.NotEmpty(t, r)
+	require.Len(t, r.Output.Plans, 1)
+	require.NoError(t, err)
 	return r
 }
 
@@ -261,13 +260,13 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 	dp, err := dep.NewDependencyProvider(
 		dep.Provide(cldf_ton.Chain{}), // No actual sending in tests
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	input := ton.AnySequenceInput{
 		Defs:   defs,
 		Inputs: inputs,
 	}
 	r, err := operations.ExecuteSequence(b, ton.AnySequence, dp, input)
-	assert.NotEmpty(t, r)
-	assert.NoError(t, err)
+	require.NotEmpty(t, r)
+	require.NoError(t, err)
 }

@@ -192,6 +192,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 
 	if len(msgs) != 0 {
+		//nolint:govet // allow shadowing
 		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)

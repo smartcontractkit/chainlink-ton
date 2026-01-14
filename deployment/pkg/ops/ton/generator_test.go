@@ -1,4 +1,4 @@
-package utils
+package ton_test
 
 import (
 	"errors"

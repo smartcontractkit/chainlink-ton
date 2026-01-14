@@ -69,6 +69,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			addr := deps.CCIPOnChainState[selector].FeeQuoter
 			body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
+			//nolint:govet // allow shadowing
 			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
@@ -119,6 +120,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			addr := deps.CCIPOnChainState[selector].OnRamp
 			body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
 
+			//nolint:govet // allow shadowing
 			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
@@ -152,6 +154,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 	// configure offramp sources
 	{
 		b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
+		//nolint:govet // allow shadowing
 		r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
@@ -179,6 +182,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 	// update fee quoter with gas prices
 	{
 		b.Logger.Infow("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
+		//nolint:govet // allow shadowing
 		r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
@@ -204,6 +208,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 	// router with onramps and offramps
 	{
 		b.Logger.Infow("Updating Router onramps & offramps", "input", in.ApplyRampUpdatesConfig)
+		//nolint:govet // allow shadowing
 		r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, in.ApplyRampUpdatesConfig)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router onramps: %w", err)
