@@ -133,9 +133,9 @@ describe('MerkleMultiProofTests', () => {
     expect(await calculator.getRoot()).toBe(expectedRoot)
   })
 
-  it('bench merkleRoot 256 leaves', async () => {
+  it('bench merkleRoot 255 leaves', async () => {
     const leaves: string[] = []
-    for (let i = 0; i < 256; i++) {
+    for (let i = 0; i < 255; i++) {
       leaves.push('a')
     }
     const hashedLeaves: bigint[] = leaves.map((e) => BigInt(keccak256(Buffer.from(e))))

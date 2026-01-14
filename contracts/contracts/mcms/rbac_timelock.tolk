@@ -641,7 +641,7 @@ fun Timelock<T>.isOperationError(self, id: int): bool {
     return self.getTimestamp(id) == ERROR_TIMESTAMP;
 }
 
-/// Returns whether an operation is final or not.
+/// Returns whether the pending operation is final or not.
 fun Timelock<T>.isPendingOperationFinal(self): bool {
     return self.data.opPendingInfo.validAfter <= blockchain.now();
 }

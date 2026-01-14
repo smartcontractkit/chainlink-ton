@@ -40,6 +40,28 @@ import (
 
 var ErrNoBindings = errors.New("no bindings found")
 
+// CCIPMessageSent struct field sizes for log poller byte-level filtering
+const (
+	// CCIPMessageSentMessageSize is the size of the Message struct at offset 0
+	CCIPMessageSentMessageSize = 40
+	// CCIPMessageSentDestChainSelectorSize is the size of DestChainSelector (uint64) at offset 40
+	CCIPMessageSentDestChainSelectorSize = 8
+	// CCIPMessageSentSequenceNumberSize is the size of SequenceNumber (uint64) at offset 48
+	CCIPMessageSentSequenceNumberSize = 8
+)
+
+// ExecutionStateChanged struct field sizes for log poller byte-level filtering
+const (
+	// ExecutionStateChangedSourceChainSelectorSize is the size of SourceChainSelector (uint64) at offset 0
+	ExecutionStateChangedSourceChainSelectorSize = 8
+	// ExecutionStateChangedSequenceNumberSize is the size of SequenceNumber (uint64) at offset 8
+	ExecutionStateChangedSequenceNumberSize = 8
+	// ExecutionStateChangedMessageIDSize is the size of MessageID (32 bytes) at offset 16
+	ExecutionStateChangedMessageIDSize = 32
+	// ExecutionStateChangedStateSize is the size of State (uint8) at offset 48
+	ExecutionStateChangedStateSize = 1
+)
+
 type TONAccessor struct {
 	lggr          logger.Logger
 	chainSelector ccipocr3.ChainSelector
@@ -104,7 +126,9 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp config: %w", err)
 		}
-		// TODO: assert offrampStaticConfig.ChainSelector == destChainSelector as a quick sanity check
+		if offrampConfig.StaticConfig.ChainSelector != destChainSelector {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("offramp static config chain selector %d does not match requested dest chain selector %d. This shouldn't happen", offrampConfig.StaticConfig.ChainSelector, destChainSelector)
+		}
 		config.Offramp = offrampConfig
 
 		// FeeQuoter
@@ -233,9 +257,9 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		WithSource(onrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCCIPMessageSent)).
 		WithBocBytes(
-			query.SkipBytes(40),
-			query.MatchBytes(8, query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(dest)), primitives.Eq)),
-			query.MatchBytes(8,
+			query.SkipBytes(CCIPMessageSentMessageSize),
+			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(dest)), primitives.Eq)),
+			query.MatchBytes(CCIPMessageSentSequenceNumberSize,
 				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())), primitives.Gte),
 				query.WithCondition(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())), primitives.Lte),
 			),
@@ -307,8 +331,8 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		WithSource(onrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCCIPMessageSent)).
 		WithBocBytes(
-			query.SkipBytes(40),
-			query.MatchBytes(8, query.WithCondition(destBytes, primitives.Eq)),
+			query.SkipBytes(CCIPMessageSentMessageSize),
+			query.MatchBytes(CCIPMessageSentDestChainSelectorSize, query.WithCondition(destBytes, primitives.Eq)),
 		).
 		WithLimitAndSort(commonquery.LimitAndSort{
 			SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
@@ -630,12 +654,12 @@ func (a *TONAccessor) ExecutedMessages(
 				WithSource(offrampAddr).
 				WithEventSig(hash.CRC32(consts.EventNameExecutionStateChanged)).
 				WithBocBytes(
-					query.MatchBytes(8, query.WithCondition(chainSelectorBytes, primitives.Eq)), // Filter SourceChainSelector at offset 0
-					query.MatchBytes(8,
+					query.MatchBytes(ExecutionStateChangedSourceChainSelectorSize, query.WithCondition(chainSelectorBytes, primitives.Eq)), // Filter SourceChainSelector at offset 0
+					query.MatchBytes(ExecutionStateChangedSequenceNumberSize,
 						query.WithCondition(seqRangeStartBytes, primitives.Gte), // Filter SequenceNumber at offset 8
 						query.WithCondition(seqRangeEndBytes, primitives.Lte)),
-					query.SkipBytes(32), // Skip MessageID (32 bytes) - cursor now at offset 48
-					query.MatchBytes(1, query.WithCondition(stateBytes, primitives.Gt)), // Filter State at offset 48 (> 0 to skip UNTOUCHED=0)
+					query.SkipBytes(ExecutionStateChangedMessageIDSize),                                              // Skip MessageID (32 bytes) - cursor now at offset 48
+					query.MatchBytes(ExecutionStateChangedStateSize, query.WithCondition(stateBytes, primitives.Gt)), // Filter State at offset 48 (> 0 to skip UNTOUCHED=0)
 				).
 				Execute(ctx)
 
@@ -705,7 +729,7 @@ func (a *TONAccessor) NextSeqNum(ctx context.Context, sources []ccipocr3.ChainSe
 }
 
 func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelector][]ccipocr3.UnknownEncodedAddress) (map[ccipocr3.ChainSelector]map[string]uint64, error) {
-	// TON doesn't support out of order, so nonces will always be 0
+	// TON only supports out of order, so nonces will always be 0
 	nonces := make(map[ccipocr3.ChainSelector]map[string]uint64, len(query))
 	for chainSelector, addresses := range query {
 		nonces[chainSelector] = make(map[string]uint64, len(addresses))
@@ -809,7 +833,6 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	// TODO: decode token addresses here according to chain selector
 	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
 	for _, token := range tokens {
 		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
