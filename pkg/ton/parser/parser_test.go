@@ -69,3 +69,121 @@ func TestParseLispTuple(t *testing.T) {
 		})
 	}
 }
+
+func bigIntFromHex(s string) *big.Int {
+	bi, _ := new(big.Int).SetString(s, 16)
+	return bi
+}
+
+func TestParseLispTupleBigInt(t *testing.T) {
+	// Global curse subject hex from contracts/ccip/rmn_remote/lib.tolk
+	const globalCurseHex = "01000000000000000000000000000001"
+
+	tests := []struct {
+		name      string
+		input     []any
+		expectHex []string // use hex strings so we create fresh big.Int for comparison
+	}{
+		{
+			name:      "nil input",
+			input:     nil,
+			expectHex: nil,
+		},
+		{
+			name:      "empty input",
+			input:     []any{},
+			expectHex: nil,
+		},
+		{
+			name: "single element",
+			input: []any{
+				[]any{big.NewInt(42), nil},
+			},
+			expectHex: []string{"2a"}, // 42 in hex
+		},
+		{
+			name: "multiple elements",
+			input: []any{
+				[]any{
+					big.NewInt(1),
+					[]any{
+						big.NewInt(2),
+						[]any{
+							big.NewInt(3),
+							nil,
+						},
+					},
+				},
+			},
+			expectHex: []string{"1", "2", "3"},
+		},
+		{
+			name: "uint128 global curse subject",
+			input: []any{
+				[]any{bigIntFromHex(globalCurseHex), nil},
+			},
+			expectHex: []string{globalCurseHex},
+		},
+		{
+			name: "mixed uint64 and uint128 values",
+			input: []any{
+				[]any{
+					big.NewInt(12345),
+					[]any{
+						bigIntFromHex(globalCurseHex),
+						[]any{
+							big.NewInt(67890),
+							nil,
+						},
+					},
+				},
+			},
+			expectHex: []string{"3039", globalCurseHex, "10932"}, // 12345, global, 67890 in hex
+		},
+		{
+			name: "large chain selector values",
+			input: []any{
+				[]any{
+					bigIntFromHex("ffffffffffffffff"), // max uint64
+					[]any{
+						bigIntFromHex("10000000000000000"), // uint64 max + 1
+						nil,
+					},
+				},
+			},
+			expectHex: []string{"ffffffffffffffff", "10000000000000000"},
+		},
+		{
+			name: "malformed input - non big.Int",
+			input: []any{
+				[]any{42, nil},
+			},
+			expectHex: []string{},
+		},
+		{
+			name: "first element not a list",
+			input: []any{
+				"not a list",
+			},
+			expectHex: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseLispTupleBigInt(tt.input)
+			if len(got) != len(tt.expectHex) {
+				t.Errorf("expected length %d, got %d", len(tt.expectHex), len(got))
+				return
+			}
+			for i := range got {
+				// Create fresh big.Int from hex for comparison
+				expected := bigIntFromHex(tt.expectHex[i])
+				if got[i].Cmp(expected) != 0 {
+					t.Errorf("at index %d: expected %s, got %s", i, expected.Text(16), got[i].Text(16))
+					break
+				}
+			}
+		})
+	}
+}

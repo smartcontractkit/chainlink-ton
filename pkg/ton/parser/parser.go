@@ -29,3 +29,32 @@ func ParseLispTuple(tuple []any) []uint64 {
 	}
 	return result
 }
+
+// ParseLispTupleBigInt parses the result of a get method call that returns a Lisp-style list of big.Int values.
+// This is useful for values larger than uint64, such as uint128 curse subjects.
+func ParseLispTupleBigInt(tuple []any) []*big.Int {
+	if len(tuple) == 0 {
+		return nil
+	}
+
+	var result []*big.Int
+	// The first element is the lisp list contains [big.Int, [big.Int, [...]]]
+	rawList := tuple[0]
+	lispList, ok := rawList.([]any)
+	if !ok || lispList == nil {
+		return result
+	}
+
+	var bi *big.Int
+	var next []any
+	for len(lispList) == 2 {
+		if bi, ok = lispList[0].(*big.Int); ok {
+			result = append(result, bi)
+		}
+		if next, ok = lispList[1].([]any); !ok || next == nil {
+			break
+		}
+		lispList = next
+	}
+	return result
+}

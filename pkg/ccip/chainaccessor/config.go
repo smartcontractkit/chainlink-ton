@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -18,6 +20,13 @@ import (
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
+
+// globalCurseSubject is the uint128 value used to indicate a global curse.
+// Defined in contracts/contracts/ccip/rmn_remote/lib.tolk as RMNREMOTE_GLOBAL_CURSE_SUBJECT
+var globalCurseSubject = func() *big.Int {
+	subject, _ := new(big.Int).SetString("01000000000000000000000000000001", 16)
+	return subject
+}()
 
 // Note: This file contains contract configuration related methods for the TON accessor
 
@@ -115,8 +124,8 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		StaticConfig: ccipocr3.OffRampStaticChainConfig{
 			ChainSelector:        ccipocr3.ChainSelector(config.ChainSelector),
 			GasForCallExactCheck: 0,
-			RmnRemote:            nil, // TODO:
-			TokenAdminRegistry:   nil, // TODO:
+			RmnRemote:            nil, // Leave nil so we don't enable full RMN mode on TON, only fast curse
+			TokenAdminRegistry:   nil, // TODO: add once TON supports token transfers
 			NonceManager:         nil,
 		},
 		DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
@@ -255,37 +264,51 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 }
 
 // GetCurseInfo retrieves curse information for RMN verification
-func (a *TONAccessor) GetCurseInfo(_ context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.CurseInfo, error) {
+func (a *TONAccessor) GetCurseInfo(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.CurseInfo, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
-		return ccipocr3.CurseInfo{}, err
+		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get OffRamp address from accessor bindings: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
+	result, err := a.client.RunGetMethod(ctx, block, addr, "cursedSubjects")
 	if err != nil {
-		return ccipocr3.CurseInfo{}, err
+		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get cursed subjects: %w", err)
 	}
-	cursedSubjects := parser.ParseLispTuple(result.AsTuple()) // TODO: this parses uint64 values, but global curse subject is uint128
 
+	// Curse subjects are uint128, need to convert to bigInt
+	cursedSubjects := parser.ParseLispTupleBigInt(result.AsTuple())
+
+	return parseCurseInfo(cursedSubjects, dest), nil
+}
+
+// parseCurseInfo parses a list of cursed subjects and categorizes them into
+// global curse, destination curse, and cursed source chains.
+func parseCurseInfo(cursedSubjects []*big.Int, dest ccipocr3.ChainSelector) ccipocr3.CurseInfo {
 	cursedChains := make(map[ccipocr3.ChainSelector]bool, len(cursedSubjects))
 	globalCurse := false
 	destinationCurse := false
+	destAsBigInt := big.NewInt(int64(dest))
 
 	for _, curse := range cursedSubjects {
-		if curse == globalCurseValue {
+		if curse.Cmp(globalCurseSubject) == 0 {
 			globalCurse = true
 			continue
 		}
-		chainSel := ccipocr3.ChainSelector(curse)
-		if chainSel == dest {
+
+		// Chain sels should fit into uint64
+		if curse.Cmp(destAsBigInt) == 0 {
 			destinationCurse = true
 			continue
 		}
-		cursedChains[chainSel] = true
+
+		// Double check the cursed subject can fit in uint64 just in case
+		if curse.IsUint64() {
+			cursedChains[ccipocr3.ChainSelector(curse.Uint64())] = true
+		}
 	}
 
 	return ccipocr3.CurseInfo{
 		CursedSourceChains: cursedChains,
 		CursedDestination:  destinationCurse,
 		GlobalCurse:        globalCurse,
-	}, nil
+	}
 }
