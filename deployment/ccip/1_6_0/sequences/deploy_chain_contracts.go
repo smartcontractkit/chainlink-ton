@@ -58,6 +58,9 @@ var DeployChainContracts = cldf_ops.NewSequence(
 			dep.Provide(chain),
 			dep.Provide(stateCCIP),
 		)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+		}
 
 		seqInput, err := intoDeployCCIPSeqInput(input, chain.Wallet.Address())
 		if err != nil {

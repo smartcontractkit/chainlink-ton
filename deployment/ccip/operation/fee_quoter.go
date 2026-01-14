@@ -43,6 +43,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, dp *dep.DependencyProvider, i
 
 	configs := cell.NewDict(267)
 	for token, update := range in.FeeTokens {
+		//nolint:govet // allow shadowing
 		tokenAddress, err := address.ParseAddr(token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse token address: %w", err)
@@ -139,6 +140,7 @@ func updateFeeQuoterPrices(b operations.Bundle, dp *dep.DependencyProvider, in U
 	gasPrices := make([]feequoter.GasPriceUpdate, 0, len(in.GasPrices))
 
 	for token, value := range in.TokenPrices {
+		//nolint:govet // allow shadowing
 		tokenAddress, err := address.ParseAddr(token)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse token address: %w", err)

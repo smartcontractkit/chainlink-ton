@@ -18,7 +18,6 @@ import (
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
@@ -50,7 +49,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve chain: %w", err)
 	}
 
-	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	stateCCIP, err := dep.Resolve[state.CCIPChainState](dp)
 	if err != nil {
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}

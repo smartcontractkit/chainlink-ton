@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 )
 
