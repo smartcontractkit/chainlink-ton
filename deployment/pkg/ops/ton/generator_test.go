@@ -31,6 +31,9 @@ const (
 	defaultPointerNilProb     = 0.15
 )
 
+// TODO: replace with third-party option like github.com/go-faker/faker
+// Example: https://github.com/go-faker/faker/blob/main/example_custom_struct_test.go
+//
 // Generator produces TL-B compliant random values for tests.
 type Generator struct {
 	rng                *rand.Rand
@@ -441,7 +444,7 @@ func (g *Generator) randomDictionary(keyBits int) (*cell.Dictionary, error) {
 		keyBuilder := cell.BeginCell()
 		switch {
 		case keyBits <= 64:
-			mask := (uint64(1) << uint(keyBits)) - 1
+			mask := (uint64(1) << uint(keyBits)) - 1 //nolint:gosec // safe for tests
 			if keyBits == 64 {
 				mask = ^uint64(0)
 			}
