@@ -10,6 +10,7 @@ on:
 
 jobs:
   run-ton-smoke-tests:
+    if: ${{ false }} # Disabled intentionally; re-enable when smoke tests are needed
     name: Run TON Smoke Tests in Chainlink CCIP
     runs-on: ubuntu-24.04
     permissions:
