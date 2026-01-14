@@ -25,7 +25,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -34,11 +36,34 @@ var unsupported = []uint64{
 	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }
 
+// Test contract types
+const PkgTest = "com.chainlink.ton.test"
+
+// Sent back to sender after the executor role check is updated.
+type TestMessage struct {
+	_ tlb.Magic `tlb:"#c6d451e1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	Data *tlbe.Dict[uint16, common.AddressWrap] `tlb:"." json:"data"`
+}
+
+var TestTLBs = tvm.MustNewTLBMap([]any{
+	TestMessage{},
+})
+
+func getRegistry() tvm.ContractTLBRegistry {
+	r := bindings.Registry
+	// Test contract types // TODO (ops): remove from here, move to test file
+	r[PkgTest+".Foo"] = TestTLBs
+	return r
+}
+
 func TestIsSerializable_AllMessages(t *testing.T) {
 	lggr, _ := logger.New()
 	gen := NewGenerator()
 
-	for contract, tlbMap := range bindings.Registry {
+	for contract, tlbMap := range getRegistry() {
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
 				t.Logf("skip serializability check for unsupported %s opcode=0x%08x (%T)", contract, opcode, proto)
@@ -56,7 +81,7 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 	lggr, _ := logger.New()
 	gen := NewGenerator()
 
-	for contract, tlbMap := range bindings.Registry {
+	for contract, tlbMap := range getRegistry() {
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
 				t.Logf("skip serializability check for unsupported %s opcode=0x%08x (%T)", contract, opcode, proto)
@@ -98,7 +123,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	randSource := rand.New(rand.NewSource(seed))
 	gen := NewGenerator(WithRand(randSource))
 
-	for contract, tlbMap := range bindings.Registry {
+	for contract, tlbMap := range getRegistry() {
 		toSequence := make([]codec.MessageEnvelope[any], 0)
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
