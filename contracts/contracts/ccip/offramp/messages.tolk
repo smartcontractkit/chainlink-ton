@@ -22,7 +22,6 @@ type OffRamp_InMessage =
     | OffRamp_CCIPReceiveBounced
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
-    | OffRamp_NotifyFailure
     | OffRamp_UpdateCursedSubjects
     | OffRamp_SetDynamicConfig
     | OCR3Base_SetOCR3Config
