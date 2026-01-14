@@ -113,7 +113,7 @@ fun loadMaybeForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): sli
     val forwardPayloadCell = forwardPayload.loadMaybeRef();
     if (forwardPayloadCell != null) {
         forwardPayload.assertEnd();
-        return forwardPayloadCell!.beginParse();
+        return forwardPayloadCell.beginParse();
     } else {
         if (forwardPayload.isEmpty()) {
             return null;
@@ -140,7 +140,7 @@ fun loadForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
     val forwardPayloadCell = forwardPayload.loadMaybeRef();
     if (forwardPayloadCell != null) {
         forwardPayload.assertEnd();
-        return forwardPayloadCell!.beginParse();
+        return forwardPayloadCell.beginParse();
     }
     if (forwardPayload.isEmpty()) {
         return null;

@@ -110,7 +110,7 @@ func (e *OutgoingExternalMessages) AsString() (string, error) {
 // (both sent and received). This represents the complete cost of message processing
 // and forwarding during transaction execution.
 func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
-	total := m.TotalActionFees
+	total := big.NewInt(0).Set(m.TotalActionFees)
 	for _, sentMessage := range m.OutgoingInternalSentMessages {
 		total.Add(total, sentMessage.FwdFee)
 	}
