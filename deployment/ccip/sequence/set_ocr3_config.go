@@ -4,8 +4,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -24,14 +24,14 @@ var SetOCR3OfframpSequence = operations.NewSequence(
 	setOCR3OfframpSequence,
 )
 
-func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in SetOCR3OfframpSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+func setOCR3OfframpSequence(b operations.Bundle, dp *dep.DependencyProvider, in SetOCR3OfframpSeqInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
 	// TODO: this just needs to loop over configs
 
 	// Set commit OCR3 Config
 	if configCommit, exists := in.Configs[operation.PluginTypeCCIPCommit]; exists {
-		r, err := operations.ExecuteOperation(b, operation.SetOCR3ConfigOp, deps, configCommit)
+		r, err := operations.ExecuteOperation(b, operation.SetOCR3ConfigOp, dp, configCommit)
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +40,7 @@ func setOCR3OfframpSequence(b operations.Bundle, deps ccipConfig.CCIPDeps, in Se
 
 	// Set exec OCR3 Config
 	if configExec, exists := in.Configs[operation.PluginTypeCCIPExec]; exists {
-		r, err := operations.ExecuteOperation(b, operation.SetOCR3ConfigOp, deps, configExec)
+		r, err := operations.ExecuteOperation(b, operation.SetOCR3ConfigOp, dp, configExec)
 		if err != nil {
 			return nil, err
 		}

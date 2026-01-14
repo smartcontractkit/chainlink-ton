@@ -137,8 +137,8 @@ var (
 )
 
 func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployCCIPContractsCfg {
-	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
+	chain := env.BlockChains.TonChains()[chainSelector]
+	deployer := chain.Wallet
 
 	// if contractVersion is not set, use local version
 	if contractVersion == "" {
@@ -171,7 +171,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:                               idForContracts,
 				Coin:                             "0.05",
 				ContractsSemver:                  ccipContractSemver,
-				ChainSelector:                    tonChain.Selector,
+				ChainSelector:                    chain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
@@ -283,10 +283,10 @@ func SendCCIPMessage(
 	state state.CCIPChainState,
 	sourceChain uint64,
 	msg router.CCIPSend) (uint64, any, error) {
-	tonChain := e.BlockChains.TonChains()[sourceChain]
-	senderWallet := tonChain.Wallet
-	senderAddr := tonChain.WalletAddress
-	clientConn := tonChain.Client
+	chain := e.BlockChains.TonChains()[sourceChain]
+	senderWallet := chain.Wallet
+	senderAddr := chain.WalletAddress
+	clientConn := chain.Client
 
 	routerAddr := state.Router
 

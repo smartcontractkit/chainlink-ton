@@ -14,10 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
-	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -25,6 +21,11 @@ import (
 	ccipcodec "github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
 func (a *TonAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
@@ -41,19 +42,22 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 	"Configures lane leg as source on CCIP 1.6.0",
 	func(b cldf_ops.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 		chainSelector := input.Source.Selector
-		tonChain := chains.TonChains()[chainSelector]
+		chain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDepsFrom(tonChain, input.Source.OnRamp, input.Source.OffRamp, input.Source.Router, input.Source.FeeQuoter)
+		stateCCIP, err := extractCCIPChainStateFrom(input.Source.OnRamp, input.Source.OffRamp, input.Source.Router, input.Source.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
 
-		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateCCIP),
+		)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
-		sender := tonChain.Wallet.Address()
+		sender := chain.Wallet.Address()
 		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
 		// update fee quoter with dest chain configs
@@ -63,11 +67,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 
 			// Skip if there's no updates
 			if len(updates) != 0 {
-				addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+				addr := stateCCIP.FeeQuoter
 				body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
 				//nolint:govet // allow shadowing
-				owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+				owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 				}
@@ -102,7 +106,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 		{
 			// TODO (ops/ccip): !input.IsDisabled
 			// TODO (ops/ccip): input.TestRouter
-			router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+			router := stateCCIP.Router
 			updates := []onramp.UpdateDestChainConfig{
 				{
 					DestinationChainSelector: input.Dest.Selector,
@@ -118,16 +122,15 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				for _, u := range updates {
 					// TODO: TestRouter support
 					if u.Router == nil {
-						router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
-						u.Router = &router
+						u.Router = &stateCCIP.Router
 					}
 				}
 
-				addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
+				addr := stateCCIP.OnRamp
 				body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
 
 				//nolint:govet // allow shadowing
-				owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+				owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get onramp owner: %w", err)
 				}
@@ -163,15 +166,15 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			_input := intoUpdateFeeQuoterPricesConfig(input)
 			b.Logger.Infow("Updating prices on FeeQuoter", "input", _input)
 			//nolint:govet // allow shadowing
-			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, dp, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
 			}
 
+			addr := stateCCIP.FeeQuoter
 			contractType := bindings.PkgCCIP + ".FeeQuoter"
-			addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
-			owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 			}
@@ -193,15 +196,15 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router onramps config: %w", err)
 			}
 			b.Logger.Infow("Updating Router Onramps", "input", _input)
-			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, dp, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}
 
+			addr := stateCCIP.Router
 			contractType := bindings.PkgCCIP + ".Router"
-			addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
-			owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
@@ -230,19 +233,22 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 	"Configures lane leg as dest on CCIP 1.6.0",
 	func(b cldf_ops.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 		chainSelector := input.Dest.Selector
-		tonChain := chains.TonChains()[chainSelector]
+		chain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDepsFrom(tonChain, input.Dest.OnRamp, input.Dest.OffRamp, input.Dest.Router, input.Dest.FeeQuoter)
+		stateCCIP, err := extractCCIPChainStateFrom(input.Dest.OnRamp, input.Dest.OffRamp, input.Dest.Router, input.Dest.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
 
-		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateCCIP),
+		)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
-		sender := tonChain.Wallet.Address()
+		sender := chain.Wallet.Address()
 
 		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
@@ -251,14 +257,13 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			_input := intoUpdateOffRampSourcesConfig(input)
 			b.Logger.Infow("Updating source configs on OffRamp", "input", _input)
 			//nolint:govet // allow shadowing
-			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, dp, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
 			}
 
-			addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 			contractType := bindings.PkgCCIP + ".OffRamp"
-			owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &stateCCIP.OffRamp, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get offramp owner: %w", err)
 			}
@@ -279,14 +284,13 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router offramps config: %w", err)
 			}
 			b.Logger.Infow("Updating Router OffRamps", "input", _input)
-			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, deps, _input)
+			r, err := cldf_ops.ExecuteOperation(b, operation.ApplyRampUpdatesOp, dp, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}
 
-			addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 			contractType := bindings.PkgCCIP + ".Router"
-			owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &stateCCIP.Router, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}

@@ -9,7 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 )
 
@@ -23,7 +23,7 @@ type CompiledContractData struct {
 // InvokeDeployContractOperation deploys a TON contract if it's not already deployed.
 // It checks the current address, executes the deployment operation if needed,
 // Returns an error if the deployment fails.
-func InvokeDeployContractOperation(b operations.Bundle, deps config.TonDeps, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
+func InvokeDeployContractOperation(b operations.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
 	deployContractInput := operation.DeployContractInput{
 		Name:         compiledContract.Type.String(),
 		Storage:      storage,
@@ -32,7 +32,7 @@ func InvokeDeployContractOperation(b operations.Bundle, deps config.TonDeps, cha
 		Coins:        coin,
 	}
 
-	deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, config.TonDeps{TonChain: deps.TonChain}, deployContractInput)
+	deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, dp, deployContractInput)
 	if err != nil {
 		return nil, err
 	}

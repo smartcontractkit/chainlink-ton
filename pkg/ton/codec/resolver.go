@@ -222,7 +222,7 @@ func (r *ResolverRegistry) resolveOnce(value any) (resolved any, changed bool, e
 		if resolver.CanResolve(value) {
 			resolved, err := resolver.Resolve(value)
 			if err != nil {
-				// TODO: add didResolve bool return to distinguish errors from non-matches
+				// TODO (ops): add didResolve bool return to distinguish errors from non-matches
 				fmt.Println("Resolving ERROR: ", err)
 				continue // try next resolver
 			}

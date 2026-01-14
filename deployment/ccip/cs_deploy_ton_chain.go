@@ -81,14 +81,12 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		})
 	}
 
-	deps := config.CCIPDeps{
-		TonChain:         chain,
-		CCIPOnChainState: states,
-	}
+	states[selector] = s
 
-	deps.CCIPOnChainState[selector] = s
-
-	dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+	dp, err := dep.NewDependencyProvider(
+		dep.Provide(chain),
+		dep.Provide(states[selector]),
+	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 	}
@@ -99,7 +97,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		ContractsVersionSha: cfg.ContractsVersion,
 		ChainSelector:       selector,
 	}
-	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, deps, ccipSeqInput)
+	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, dp, ccipSeqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", selector, err)
 	}
@@ -132,7 +130,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		}
 	}
 
-	deps.CCIPOnChainState[selector] = s
+	states[selector] = s
 
 	// Execute post-deployment cfg
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
@@ -182,7 +180,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 			FeeTokens: feeTokens,
 		}
 		//nolint:govet // allow shadowing
-		r, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, _in)
+		r, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, dp, _in)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 		}

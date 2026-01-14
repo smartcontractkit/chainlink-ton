@@ -7,14 +7,15 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-
 	"github.com/smartcontractkit/mcms"
 	"github.com/smartcontractkit/mcms/types"
 
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
@@ -62,19 +63,22 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 
 	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(stateCCIP, cfg)
 	env.Logger.Debug("%+v\n", updateInputsByTonChain)
-	for tonChainSel, sequenceInput := range updateInputsByTonChain {
-		tonChains := env.BlockChains.TonChains()
-		chain := tonChains[tonChainSel]
-		deps := config.CCIPDeps{
-			TonChain:         chain,
-			CCIPOnChainState: stateCCIP,
+	for selector, sequenceInput := range updateInputsByTonChain {
+		chain := env.BlockChains.TonChains()[selector]
+		chainStateCCIP := stateCCIP[selector]
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(chainStateCCIP),
+		)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
-		stateMCMSChain := stateMCMS[tonChainSel]
+		stateMCMSChain := stateMCMS[selector]
 
 		// Execute the sequence
 		{
-			r, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
+			r, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, dp, sequenceInput)
 			if err != nil {
 				return cldf.ChangesetOutput{}, err
 			}
@@ -82,10 +86,10 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 
 			if len(r.Output.BatchOps) > 0 {
 				opts := opsmcms.TimelockOpts{
-					ChainSelector: types.ChainSelector(tonChainSel),
+					ChainSelector: types.ChainSelector(selector),
 					MCMSAddr:      &stateMCMSChain.MCMS,
 					TimelockAddr:  &stateMCMSChain.Timelock,
-					Description:   fmt.Sprintf("Update lanes on Ton chain %d", tonChainSel),
+					Description:   fmt.Sprintf("Update lanes on Ton chain %d", selector),
 					Action:        types.TimelockActionSchedule,
 					Value:         tlb.MustFromTON("0.1"),
 				}

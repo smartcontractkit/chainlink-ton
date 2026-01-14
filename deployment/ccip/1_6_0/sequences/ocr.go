@@ -12,14 +12,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -35,18 +34,21 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
 		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
-		tonChain := chains.TonChains()[chainSelector]
-		deps, err := extractTonDepsFromOcrInput(tonChain, a, input)
+		chain := chains.TonChains()[chainSelector]
+		stateCCIP, err := extractCCIPChainStateFromOcrInput(a, input)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
 
-		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateCCIP),
+		)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
-		sender := tonChain.Wallet.Address()
+		sender := chain.Wallet.Address()
 		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
 
 		{
@@ -55,13 +57,12 @@ var SetOCR3Config = cldf_ops.NewSequence(
 				Configs:       intoOCRConfigs(input.Configs),
 			}
 			//nolint:govet // allow shadowing
-			r, err := cldf_ops.ExecuteSequence(b, seq.SetOCR3OfframpSequence, deps, _input)
+			r, err := cldf_ops.ExecuteSequence(b, seq.SetOCR3OfframpSequence, dp, _input)
 			if err != nil {
 				return sequences.OnChainOutput{}, err
 			}
 
-			addr := deps.CCIPOnChainState[chainSelector].OffRamp
-			owner, err := tvm.CallGetterLatest(b.GetContext(), tonChain.Client, &addr, ownable2step.GetOwner)
+			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &stateCCIP.OffRamp, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 			}
@@ -80,24 +81,24 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	},
 )
 
-func extractTonDepsFromOcrInput(chain ton.Chain, a *TonAdapter, input deployops.SetOCR3ConfigInput) (config.CCIPDeps, error) {
+func extractCCIPChainStateFromOcrInput(a *TonAdapter, input deployops.SetOCR3ConfigInput) (state.CCIPChainState, error) {
 	offRampAddr, err := a.GetOffRampAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return config.CCIPDeps{}, err
+		return state.CCIPChainState{}, err
 	}
 	onRampAddr, err := a.GetOnRampAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return config.CCIPDeps{}, err
+		return state.CCIPChainState{}, err
 	}
 	routerAddr, err := a.GetRouterAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return config.CCIPDeps{}, err
+		return state.CCIPChainState{}, err
 	}
 	feeQuoter, err := a.GetFQAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
-		return config.CCIPDeps{}, err
+		return state.CCIPChainState{}, err
 	}
-	return extractTonDepsFrom(chain, onRampAddr, offRampAddr, routerAddr, feeQuoter)
+	return extractCCIPChainStateFrom(onRampAddr, offRampAddr, routerAddr, feeQuoter)
 }
 
 func intoOCRConfigs(configs map[ccipocr3.PluginType]deployops.OCR3ConfigArgs) map[operation.PluginType]operation.OCR3ConfigArgs {

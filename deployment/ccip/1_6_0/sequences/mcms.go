@@ -21,6 +21,7 @@ import (
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -37,16 +38,24 @@ var DeployMCMSContracts = operations.NewSequence(
 	semver.MustParse("0.0.4"), // TODO mcms and timelock has different versions, can we pick mcms version here?
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		tonChain := chains.TonChains()[input.ChainSelector]
-		deps, err := extractTonDepsFromMCMSDeploymentInput(tonChain, input.ExistingAddresses)
+		chain := chains.TonChains()[input.ChainSelector]
+		stateMCMS, err := extractMCMSChainStateFromMCMSDeploymentInput(chain, input.ExistingAddresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		_input, err := intoDeployMCMSSeqInput(input, deps.TonChain.WalletAddress)
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateMCMS[input.ChainSelector]),
+		)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+		}
+
+		_input, err := intoDeployMCMSSeqInput(input, chain.WalletAddress)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		r, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, deps, _input)
+		r, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, dp, _input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
 		}
@@ -58,7 +67,7 @@ var DeployMCMSContracts = operations.NewSequence(
 	},
 )
 
-func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (mcmsConfig.MCMSDeps, error) {
+func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (map[uint64]state.MCMSChainState, error) {
 	noneAddr := address.NewAddressNone()
 	init := state.MCMSChainState{
 		Timelock: *noneAddr,
@@ -69,7 +78,7 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore
 	for _, e := range existing {
 		tonAddr, err := address.ParseAddr(e.Address)
 		if err != nil {
-			return mcmsConfig.MCMSDeps{}, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
+			return nil, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
 		}
 		switch e.Type {
 		case state.Timelock:
@@ -81,13 +90,10 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore
 		}
 	}
 
-	deps := mcmsConfig.MCMSDeps{
-		TonChain: chain,
-		MCMSChainState: map[uint64]state.MCMSChainState{
-			chain.Selector: init,
-		},
+	state := map[uint64]state.MCMSChainState{
+		chain.Selector: init,
 	}
-	return deps, nil
+	return state, nil
 }
 
 func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) (mcmsSeq.DeployMCMSSeqInput, error) {

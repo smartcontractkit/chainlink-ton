@@ -11,7 +11,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	tonseqs "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -45,7 +44,7 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	env.OperationsBundle = bundle
 	bundle.Logger.Infow("Updating prices on FeeQuoter", "input", updateConfig)
 	a := &tonseqs.TonAdapter{}
-	tonChain := env.BlockChains.TonChains()[selector]
+	chain := env.BlockChains.TonChains()[selector]
 	fqAddr, err := a.GetFQAddress(env.DataStore, selector)
 	if err != nil {
 		return fmt.Errorf("failed to get router address: %w", err)
@@ -59,20 +58,18 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	if err != nil {
 		return fmt.Errorf("failed to parse router address: %w", err)
 	}
-	deps := config.CCIPDeps{
-		TonChain: tonChain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			tonChain.Selector: {
-				FeeQuoter: *fqContractAddress,
-			},
-		},
+	stateCCIP := state.CCIPChainState{
+		FeeQuoter: *fqContractAddress,
 	}
-	dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+	dp, err := dep.NewDependencyProvider(
+		dep.Provide(chain),
+		dep.Provide(stateCCIP),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create dependency provider: %w", err)
 	}
 
-	updatePricesReport, err := operations.ExecuteOperation(bundle, operation.UpdateFeeQuoterPricesOp, deps, updateConfig)
+	updatePricesReport, err := operations.ExecuteOperation(bundle, operation.UpdateFeeQuoterPricesOp, dp, updateConfig)
 	if err != nil {
 		return fmt.Errorf("failed to update feequoter prices: %w", err)
 	}

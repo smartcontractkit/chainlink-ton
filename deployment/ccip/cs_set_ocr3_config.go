@@ -16,7 +16,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
@@ -66,12 +65,12 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[remoteSelector]
 		sender := chain.Wallet.Address()
-		deps := config.CCIPDeps{
-			TonChain:         chain,
-			CCIPOnChainState: stateCCIP,
-		}
 
-		dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateCCIP[remoteSelector]),
+			dep.Provide(stateMCMS[remoteSelector]),
+		)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
@@ -84,13 +83,13 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 				Configs:       cfg.Configs,
 			}
 			//nolint:govet // allow shadowing
-			r, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
+			r, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, dp, in)
 			if err != nil {
 				return cldf.ChangesetOutput{}, err
 			}
 			reports = append(reports, r.ExecutionReports...)
 
-			addr := deps.CCIPOnChainState[remoteSelector].OffRamp
+			addr := stateCCIP[remoteSelector].OffRamp
 			owner, err := tvm.CallGetterLatest(env.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
 				return cldf.ChangesetOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)

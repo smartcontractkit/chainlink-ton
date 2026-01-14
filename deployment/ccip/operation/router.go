@@ -11,7 +11,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -31,15 +32,18 @@ var ApplyRampUpdatesOp = operations.NewOperation(
 	applyRampUpdates,
 )
 
-func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpdatesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+func applyRampUpdates(b operations.Bundle, dp *dep.DependencyProvider, in ApplyRampUpdatesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
 
-	onramps, err := updateRouterOnramps(routerAddr, in.OnRampUpdates)
+	onramps, err := updateRouterOnramps(&stateCCIP.Router, in.OnRampUpdates)
 	if err != nil {
 		return nil, err
 	}
 
-	offramps, err := updateRouterOfframps(routerAddr, in.OffRampAdds, in.OffRampRemoves)
+	offramps, err := updateRouterOfframps(&stateCCIP.Router, in.OffRampAdds, in.OffRampRemoves)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +54,7 @@ func applyRampUpdates(b operations.Bundle, deps config.CCIPDeps, in ApplyRampUpd
 	return msgs, nil
 }
 
-func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]router.ChainSelector) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+func updateRouterOnramps(routerAddr *address.Address, onRampUpdates map[string][]router.ChainSelector) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	msgs := make([]tlb.InternalMessage, 0)
 	for onRampAddrStr, selectors := range onRampUpdates {
 		var rampAddr *address.Address
@@ -72,7 +76,7 @@ func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]
 		msg := tlb.InternalMessage{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &routerAddr,
+			DstAddr: routerAddr,
 			Body:    payload,
 		}
 		msgs = append(msgs, msg)
@@ -81,7 +85,7 @@ func updateRouterOnramps(routerAddr address.Address, onRampUpdates map[string][]
 	return tlbe.ManyCellsFrom(msgs)
 }
 
-func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+func updateRouterOfframps(routerAddr *address.Address, offRampAdds map[string][]router.ChainSelector, offRampRemoves map[string][]router.ChainSelector) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	type change struct {
 		addr *address.Address
 		sels []router.ChainSelector
@@ -155,7 +159,7 @@ func updateRouterOfframps(routerAddr address.Address, offRampAdds map[string][]r
 		msg := tlb.InternalMessage{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"), // adjust if needed for larger ops
-			DstAddr: &routerAddr,
+			DstAddr: routerAddr,
 			Body:    payload,
 		}
 		msgs = append(msgs, msg)

@@ -12,7 +12,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -34,8 +35,11 @@ var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
 	updateFeeQuoterFeeTokens,
 )
 
-func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterFeeTokensInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+func updateFeeQuoterFeeTokens(b operations.Bundle, dp *dep.DependencyProvider, in UpdateFeeQuoterFeeTokensInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
 
 	configs := cell.NewDict(267)
 	for token, update := range in.FeeTokens {
@@ -55,7 +59,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 		}
 	}
 
-	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
+	b.Logger.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, stateCCIP.FeeQuoter.String())
 
 	// skip if there's no updates
 	if len(in.FeeTokens) == 0 {
@@ -76,7 +80,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps config.CCIPDeps, in Upda
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &feeQuoterAddress,
+			DstAddr: &stateCCIP.FeeQuoter,
 			Body:    payload,
 		},
 	})
@@ -120,12 +124,15 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 	updateFeeQuoterPrices,
 )
 
-func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateFeeQuoterPricesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
-
+func updateFeeQuoterPrices(b operations.Bundle, dp *dep.DependencyProvider, in UpdateFeeQuoterPricesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
 	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {
 		// Nothing to update
 		return nil, nil
+	}
+
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
 
 	tokenPrices := make([]feequoter.TokenPriceUpdate, 0, len(in.TokenPrices))
@@ -164,7 +171,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps config.CCIPDeps, in UpdateF
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &feeQuoterAddress,
+			DstAddr: &stateCCIP.FeeQuoter,
 			Body:    payload,
 		},
 	})

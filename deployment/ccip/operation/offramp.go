@@ -6,16 +6,18 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type OffRampSourceUpdate struct {
@@ -37,8 +39,11 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+func updateOffRampSourceChainConfigs(b operations.Bundle, dp *dep.DependencyProvider, in UpdateOffRampSourcesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping offramp.updateOffRampSourceChainConfigs, no updates")
@@ -52,11 +57,10 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 			return nil, errors.New("onramp.UpdateSourceChainConfigs: OnRamp address should not be nil")
 		}
 
-		router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 		configs = append(configs, offramp.UpdateSourceChainConfig{
 			SourceChainSelector: selector,
 			Config: offramp.SourceChainConfig{
-				Router:                    &router,
+				Router:                    &stateCCIP.Router,
 				IsEnabled:                 update.IsEnabled,
 				IsRMNVerificationDisabled: update.IsRMNVerificationDisabled,
 				OnRamp:                    update.OnRamp,
@@ -76,7 +80,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &addr,
+			DstAddr: &stateCCIP.OffRamp,
 			Body:    payload,
 		},
 	})
@@ -107,8 +111,11 @@ var SetOCR3ConfigOp = operations.NewOperation(
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) ([]*tlbe.Cell[tlb.InternalMessage], error) {
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+func setOCR3Config(b operations.Bundle, dp *dep.DependencyProvider, in OCR3ConfigArgs) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))
 	for _, signer := range in.Signers {
@@ -147,7 +154,7 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &addr,
+			DstAddr: &stateCCIP.OffRamp,
 			Body:    payload,
 		},
 	})

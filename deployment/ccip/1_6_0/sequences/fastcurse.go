@@ -11,7 +11,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -24,7 +23,6 @@ import (
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -244,13 +242,15 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("router address not found in cache for selector %d", in.ChainSelector)
 			}
 
-			// Build CCIPDeps
-			deps, err := buildCCIPDeps(chain, in.ChainSelector, _routerAddr)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
+			stateCCIP := state.CCIPChainState{
+				// fast curse operations should only need the router address
+				Router: _routerAddr,
 			}
 
-			dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+			dp, err := dep.NewDependencyProvider(
+				dep.Provide(chain),
+				dep.Provide(stateCCIP),
+			)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
@@ -266,7 +266,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 			body := router.RMNRemoteCurse{Subjects: subjects}
 
 			// Get router address from chain state
-			routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+			routerAddr := stateCCIP.Router
 
 			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
 			ctx := b.GetContext()
@@ -335,13 +335,15 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("router address not found in cache for selector %d", in.ChainSelector)
 			}
 
-			// Build CCIPDeps
-			deps, err := buildCCIPDeps(chain, in.ChainSelector, _routerAddr)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
+			stateCCIP := state.CCIPChainState{
+				// fast curse operations should only need the router address
+				Router: _routerAddr,
 			}
 
-			dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+			dp, err := dep.NewDependencyProvider(
+				dep.Provide(chain),
+				dep.Provide(stateCCIP),
+			)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
@@ -356,7 +358,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			contractType := bindings.PkgCCIP + ".Router"
 			body := router.RMNRemoteUncurse{Subjects: subjects}
 			// Get router address from chain state
-			routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+			routerAddr := stateCCIP.Router
 
 			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
 			ctx := b.GetContext()
@@ -415,17 +417,4 @@ func validateSubjectFormat(subject api.Subject) error {
 	}
 
 	return nil
-}
-
-// buildCCIPDeps builds the CCIPDeps structure needed for operations
-func buildCCIPDeps(tonChain cldf_ton.Chain, selector uint64, routerAddr address.Address) (config.CCIPDeps, error) {
-	return config.CCIPDeps{
-		TonChain: tonChain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			selector: {
-				// fast curse operations should only need the router address
-				Router: routerAddr,
-			},
-		},
-	}, nil
 }
