@@ -83,6 +83,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 				ChainSelector: remoteSelector,
 				Configs:       cfg.Configs,
 			}
+			//nolint:govet // allow shadowing
 			r, err := operations.ExecuteSequence(env.OperationsBundle, seq.SetOCR3OfframpSequence, deps, in)
 			if err != nil {
 				return cldf.ChangesetOutput{}, err

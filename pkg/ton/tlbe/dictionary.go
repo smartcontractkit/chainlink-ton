@@ -341,7 +341,7 @@ func lookupDictKeyBits(t reflect.Type) uint {
 		return 32
 	case reflect.Int64, reflect.Int:
 		return 64
+	default:
+		return 0
 	}
-
-	return 0
 }

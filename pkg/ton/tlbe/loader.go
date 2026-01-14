@@ -30,9 +30,9 @@ func ToCell(v any) (*cell.Cell, error) {
 		return cell.BeginCell().MustStoreInt(int64(v.(int32)), 32).EndCell(), nil
 	case reflect.Int64, reflect.Int:
 		return cell.BeginCell().MustStoreInt(v.(int64), 64).EndCell(), nil
+	default:
+		return tlb.ToCell(v)
 	}
-
-	return tlb.ToCell(v)
 }
 
 // LoadFromCell is a helper that decodes basic types directly,
@@ -102,7 +102,7 @@ func LoadFromCell(v any, loader *cell.Slice, skipMagic ...bool) error {
 		}
 		reflect.ValueOf(v).Elem().SetInt(val)
 		return nil
+	default:
+		return tlb.LoadFromCell(v, loader, skipMagic...)
 	}
-
-	return tlb.LoadFromCell(v, loader, skipMagic...)
 }
