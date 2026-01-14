@@ -1,18 +1,25 @@
 import "../utils.tolk"
 
+// getFacilityId(stringCrc32(com.chainlink.ton.lib.crypto.MerkleMultiProof))
+const MerkleMultiProof_FACILITY_ID= 462;
+const MerkleMultiProof_ERROR_CODE= MerkleMultiProof_FACILITY_ID * 100;
+
 // --- Errror Codes ---
 
-const ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY: int = 1001;
-const ERROR_INVALID_PROOF_LEAVES_TOO_LARGE: int = 1002;
-const ERROR_INVALID_PROOF_PROOFS_TOO_LARGE: int = 1003;
-const ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX: int = 1004;
-const ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH: int = 1005;
+enum MerkleMultiProof_Error {
+    InvalidProofLeavesCannotBeEmpty = MerkleMultiProof_ERROR_CODE,
+    InvalidProofLeavesTooLarge,
+    InvalidProofProofsTooLarge,
+    InvalidProofTotalHashesExceededMax,
+    InvalidProofDataSizeMismatch,
+}
 
 /// @notice internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
 const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
 /// @notice Maximum number of hashes that can be computed in a single Merkle root calculation.
-const MAX_NUM_HASHES: int = 256;
+/// Capped to 255 because a TVM tuple can only hold at most 255 elements.
+const MAX_NUM_HASHES: int = 255;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
@@ -24,12 +31,12 @@ fun merkleRoot<I>(
     val leavesLen = leaves.size(32);
     val proofsLen = proofs.size(32);
 
-    assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
-    assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);
-    assert (proofsLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_PROOFS_TOO_LARGE + 1);
+    assert (leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
+    assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
+    assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
 
     var totalHashes: int = leavesLen + proofsLen - 1;
-    assert (totalHashes <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX);
+    assert (totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
 
     if (totalHashes == 0) {
         return leaves.next();
@@ -49,11 +56,13 @@ fun merkleRoot<I>(
             if (! leaves.empty()) {
                 a = leaves.next();
             } else {
+                assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
                 a = hashes.get(hashPos);
                 hashPos += 1;
             }
         } else {
             // Use the next supplied proof.
+            assert(! proofs.empty(), MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             a = proofs.next();
         }
 
@@ -62,6 +71,7 @@ fun merkleRoot<I>(
         if (! leaves.empty()) {
             b = leaves.next();
         } else {
+            assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             b = hashes.get(hashPos);
             hashPos += 1;
         }
@@ -74,7 +84,7 @@ fun merkleRoot<I>(
     return hashes.get(hashPos);
 }
 
-fun hashPair(a: int, b: int): int {
+fun hashPair(a: uint256, b: uint256): uint256 {
     if (a < b) {
         return hashInternalNode(a, b);
     } else {
@@ -82,7 +92,7 @@ fun hashPair(a: int, b: int): int {
     }
 }
 
-fun hashInternalNode(a: int, b: int): int {
+fun hashInternalNode(a: uint256, b: uint256): uint256 {
     var data = beginCell()
         .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
         .storeUint(a, 256)

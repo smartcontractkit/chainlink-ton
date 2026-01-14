@@ -10,14 +10,12 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { CHAINSEL_EVM_TEST, CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
-const TEST_TOKEN_ADDR = Address.parseRaw(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
 
 describe('OnRamp - Send', () => {
   let blockchain: Blockchain
@@ -35,7 +33,7 @@ describe('OnRamp - Send', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: WRAPPED_NATIVE,
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',
@@ -131,10 +129,10 @@ describe('OnRamp - Send', () => {
     expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.opcodes.in.execute)
     const selfMsg = sx.builder.message.in.execute.load(msg.selfMessage.body.beginParse())
     expect(selfMsg.config.feeQuoter.equals(mockFeeQuoter.address)).toBe(true)
-    expect(selfMsg.onrampSend.metadata.sender.equals(senderAddress)).toBe(true)
+    expect(selfMsg.onrampSend.metadata.sender).toEqual(senderAddress)
     expect(selfMsg.onrampSend.metadata.value).toBe(toNano('42'))
     expect(selfMsg.onrampSend.msg.destChainSelector).toBe(ccipSend.destChainSelector)
-    expect(selfMsg.onrampSend.msg.feeToken.equals(ccipSend.feeToken)).toBe(true)
+    expect(selfMsg.onrampSend.msg.feeToken).toEqual(ccipSend.feeToken)
     expect(selfMsg.onrampSend.msg.queryID).toBe(ccipSend.queryID)
     expect(selfMsg.onrampSend.msg.receiver.toString('hex')).toBe(ccipSend.receiver.toString('hex'))
     expect(selfMsg.onrampSend.msg.tokenAmounts.length).toBe(0)

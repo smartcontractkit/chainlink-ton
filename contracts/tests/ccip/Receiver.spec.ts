@@ -87,12 +87,12 @@ describe('Receiver', () => {
     const id = await receiver.getId()
     const authorizedCaller = await receiver.getAuthorizedCaller()
     const facilityId = await receiver.getFacilityId()
-    const errorCode = await receiver.getErrorCode(0)
+    const errorCode = await receiver.getErrorCode(0n)
 
     expect(id).toBeDefined()
     expect(authorizedCaller.toString()).toEqual(deployer.address.toString())
-    expect(facilityId).toEqual(tr.FACILITY_ID)
-    expect(errorCode).toEqual(tr.ERROR_CODE)
+    expect(facilityId).toEqual(BigInt(tr.FACILITY_ID))
+    expect(errorCode).toEqual(BigInt(tr.ERROR_CODE))
   })
 
   it('should emit an event when calling with the right sender', async () => {

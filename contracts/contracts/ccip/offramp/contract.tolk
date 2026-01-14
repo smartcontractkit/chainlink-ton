@@ -25,9 +25,6 @@ import "../../lib/deployable/namespace"
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
 
-// NOTE: This OffRamp implementation assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
-// (or init contract state with that router addr? probably what solana does)
-
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     
@@ -287,16 +284,12 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
     var gasLimit: coins = message.gasLimit;
-    if (msg.gasOverride != null) {
-        if (gasLimit > msg.gasOverride!) {
-            gasLimit = message.gasLimit;
-        } else {
-            gasLimit = msg.gasOverride;
-        }
+    if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
+        gasLimit = msg.gasOverride;
     }
     val routeMessage = createMessage({
         bounce: true,
-        value: message.gasLimit + Router_Costs.routeMessage(),
+        value: gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
             message: Any2TVMMessage {
@@ -371,36 +364,45 @@ fun onUpdateDeployables(st: Storage, msg: OffRamp_UpdateDeployables) {
 //     OffRamp ->> MerkleRoot: Deployable_Initialize
 fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     var st = lazy Storage.load();
-
     val report = msg.report;
-    val priceUpdatesOnlyReport = report.merkleRoots.empty();
+    val hasRoots = !report.merkleRoots.empty();
 
+    assert (report.priceUpdates != null || hasRoots, Error.EmptyCommitReport);
     var root: MerkleRoot? = null;
 
-    if (!priceUpdatesOnlyReport) {
-        // no batching of roots supported for now
+    if (hasRoots) {
+        // no batching of roots supported for now, check that there is exactly one root in the SnakedCell
         var iter = report.merkleRoots.iter();
         root = iter.next();
         assert(iter.empty(), Error.BatchingNotSupported);
     }
 
-    // check that the amount attached is enough to cover message execution and delivery off outgoing messages
+    // Non-empty Commit reports will always have price updates
+    val priceUpdatesOnlyReport = !hasRoots;
+
+    // check that the amount attached is enough to cover message execution and delivery of outgoing messages
+    // required amount is lower for reports with only price updates
     assert(value >= OffRamp_Costs.commit(priceUpdatesOnlyReport), Error.InsufficientFee);
 
     if (root != null) {
-        // validate lane not cursed
+        // validate lane is enabled and not cursed
 
         var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
+        assert(!st.cursedSubjects.isCursed(root.sourceChainSelector as uint128), Error.SubjectCursed);
 
-        // hard cap of 128 messages per report
-        assert((root.maxSeqNr - root.minSeqNr) < 128, Error.TooManyMessagesInReport);
+        // hard cap of 64 messages per report
+        assert((root.maxSeqNr - root.minSeqNr) < 64, Error.TooManyMessagesInReport);
+
+        assert(sourceChainConfig.onRamp.bitsEqual(root.onRampAddress), Error.OnRampAddressMismatch);
 
         assert(
             (sourceChainConfig.minSeqNr == root.minSeqNr) && // No seqNr skipped
             (root.maxSeqNr >= root.minSeqNr), // valid root range
             Error.InvalidInterval
         );
+
+        assert(root.merkleRoot != 0, Error.MerkleRootCannotBeZero);
 
         // set next expected sequence number to maxSeqNr + 1 (matches EVM implementation)
         sourceChainConfig.minSeqNr = root.maxSeqNr + 1;
@@ -459,6 +461,8 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
             }
         }
     }
+
+
     // store updated state (latestPriceSequenceNumber and sourceChainConfigs)
     st.store();
 
@@ -535,8 +539,11 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // No execution batching so no need to use iterator
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
-    // if it's manual exec you don't need to deploy the executor so the cost is slightly lower
-    assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
+    if(gasOverride != null && (gasOverride >= message.gasLimit)) {
+        assert(value >= (OffRamp_Costs.execute() + gasOverride), Error.InsufficientFee);
+    } else {
+        assert(value >= (OffRamp_Costs.execute() + message.gasLimit), Error.InsufficientFee);
+    }
 
     var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
     assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
@@ -612,6 +619,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
             // committed and no messages should have been executed.
             config = existingConfigEntry.loadValue();
             assert (config.minSeqNr == 1 || config.onRamp.bitsEqual(configUpdate.config.onRamp)) throw Error.InvalidOnRampUpdate;
+            config.router = configUpdate.config.router;
             config.isEnabled = configUpdate.config.isEnabled;
             config.onRamp = configUpdate.config.onRamp;
         }
@@ -684,8 +692,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
         deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 
-    // Initiate the execution in the ReceiveExecutor. 'msg.gasOverride' may be null and that
-    // means that is a manual exec flow
+    // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
         bounce: true,
         value: ReceiveExecutor_Costs.initExec(),
@@ -863,11 +870,11 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
+    return (OffRamp_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OffRamp"));
+    return OffRamp_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

@@ -19,16 +19,16 @@ import {
   ExecutionReport,
   MerkleRoot,
   OffRampStorage,
-  OFFRAMP_FACILITY_ID,
+  FACILITY_ID,
   OffRamp,
 } from '../../../../wrappers/ccip/OffRamp'
 import '@ton/test-utils'
 import {
-  ZERO_ADDRESS,
   generateMockTonAddress,
   bigIntToBuffer,
   uint8ArrayToBigInt,
   generateEd25519KeyPair,
+  WRAPPED_NATIVE,
 } from '../../../../src/utils'
 import { setupTestFeeQuoter } from '../../../ccip/helpers/SetUp'
 import { Receiver, ReceiverBehavior } from '../../../../wrappers/libraries/Receiver'
@@ -136,7 +136,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
-        wrappedNative: ZERO_ADDRESS,
+        wrappedNative: WRAPPED_NATIVE,
         onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }
@@ -227,7 +227,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
       let data: OffRampStorage = {
-        id: BigInt(OFFRAMP_FACILITY_ID),
+        id: BigInt(FACILITY_ID),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,

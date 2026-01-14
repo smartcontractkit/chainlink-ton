@@ -10,9 +10,19 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { loadContractCode } from '../codeLoader'
 
+import { loadContractCode } from '../codeLoader'
 import { CellCodec } from '../utils'
+
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.Deployable'
+export const FACILITY_ID = 374
+export const ERROR_CODE = FACILITY_ID * 100
+
+export enum Errors {
+  ErrorNotOwner = ERROR_CODE,
+}
 
 export type DeployableStorage = {
   owner: Address
@@ -120,10 +130,6 @@ export const opcodes = {
   },
 }
 
-export enum Errors {
-  ErrorNotOwner = 37400,
-}
-
 export class ContractClient implements Contract {
   constructor(
     readonly address: Address,
@@ -139,9 +145,48 @@ export class ContractClient implements Contract {
     const init = { code, data }
     return new ContractClient(contractAddress(workchain, init), init)
   }
-
   static code(): Promise<Cell> {
     return loadContractCode('Deployable')
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
+
+  async sendInternal(
+    provider: ContractProvider,
+    via: Sender,
+    args: {
+      value: bigint | string
+      bounce?: boolean
+      sendMode?: SendMode
+      body?: Cell | string
+    },
+  ) {
+    await provider.internal(via, {
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      ...args,
+    })
   }
 
   async sendInitialize(provider: ContractProvider, via: Sender, value: bigint, msg: Initialize) {

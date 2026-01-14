@@ -19,23 +19,22 @@ import {
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec, StackCodec } from '../utils'
-import { asSnakeData, fromSnakeData } from '../../src/utils'
+import { asSnakeData } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { loadContractCode } from '../codeLoader'
 import * as rt from './Router'
-import * as sendExecutor from './CCIPSendExecutor'
 import { crc32 } from 'zlib'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 
-export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
-export const FEE_QUOTER_FACILITY_ID = 248
-export const FEE_QUOTER_ERROR_CODE = 24800 //FACILITY_ID * 100
+export const FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
+export const FACILITY_ID = 248
+export const ERROR_CODE = FACILITY_ID * 100
 
 export enum errors {
-  UnsupportedChainFamilySelector = FEE_QUOTER_ERROR_CODE,
+  UnsupportedChainFamilySelector = ERROR_CODE,
   GasLimitTooHigh,
   ExtraArgOutOfOrderExecutionMustBeTrue,
   InvalidExtraArgsData,
@@ -682,7 +681,7 @@ export class FeeQuoter
   }
 
   static type() {
-    return FEE_QUOTER_FACILITY_NAME
+    return FACILITY_NAME
   }
 
   static code(): Promise<Cell> {
@@ -970,16 +969,16 @@ export class FeeQuoter
     }
   }
 
-  async getFacilityId(provider: ContractProvider): Promise<number> {
-    const result = await provider.get('facilityId', [])
-    return result.stack.readNumber()
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
   }
 
-  async getErrorCode(provider: ContractProvider, localErrorCode: number): Promise<number> {
-    const result = await provider.get('errorCode', [
-      { type: 'int', value: BigInt(localErrorCode) } as TupleItem,
-    ])
-    return result.stack.readNumber()
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
   }
 
   async getTokenAndGasPrices(

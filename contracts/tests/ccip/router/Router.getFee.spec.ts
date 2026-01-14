@@ -1,6 +1,7 @@
 import { toNano, Cell, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
+import { WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
@@ -9,7 +10,6 @@ import {
   setup,
   CHAINSEL_EVM_TEST_90000001,
   EVM_ADDRESS,
-  TEST_TOKEN_ADDR,
   contractsCoverageConfig,
 } from './Router.Setup'
 
@@ -48,7 +48,7 @@ describe('Router', () => {
     receiver: EVM_ADDRESS,
     data: Cell.EMPTY,
     tokenAmounts: [],
-    feeToken: TEST_TOKEN_ADDR,
+    feeToken: WRAPPED_NATIVE,
     extraArgs: rt.builder.data.extraArgs
       .encode({
         kind: 'generic-v2',
@@ -86,20 +86,20 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
   })
 
-  it('should reject getValidatedFee for disabled dest chain', async () => {
+  it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
     const badMsg = {
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
       receiver: EVM_ADDRESS,
       data: Cell.EMPTY,
       tokenAmounts: [],
-      feeToken: TEST_TOKEN_ADDR,
+      feeToken: WRAPPED_NATIVE,
       extraArgs: rt.builder.data.extraArgs
         .encode({
           kind: 'generic-v2',
@@ -118,8 +118,79 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
       to: router.address,
-      success: false,
-      exitCode: rt.RouterError.DestChainNotEnabled,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.messageValidationFailed,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
+        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+      },
+    })
+  })
+
+  it('should reject getValidatedFee for disabled dest chain (zero address)', async () => {
+    // Disable the onRamp for the chain
+    {
+      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        data: {
+          queryID: 1n,
+          onRamps: {
+            destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
+            onRamp: undefined,
+          },
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    const badMsg = {
+      queryID: 1,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      receiver: EVM_ADDRESS,
+      data: Cell.EMPTY,
+      tokenAmounts: [],
+      feeToken: WRAPPED_NATIVE,
+      extraArgs: rt.builder.data.extraArgs
+        .encode({
+          kind: 'generic-v2',
+          gasLimit: 100n,
+          allowOutOfOrderExecution: true,
+        })
+        .asCell(),
+    }
+    const result = await router.sendGetValidatedFee(
+      sender.getSender(),
+      toNano('0.5'),
+      badMsg,
+      beginCell().asSlice(),
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: sender.address,
+      to: router.address,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: router.address,
+      to: sender.address,
+      op: rt.opcodes.out.messageValidationFailed,
+      body(x) {
+        if (!x) return false
+        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
+        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+      },
     })
   })
 
@@ -153,7 +224,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })
@@ -207,7 +278,7 @@ describe('Router', () => {
           decoded.msg.destChainSelector === CHAINSEL_EVM_TEST_90000001 &&
           decoded.msg.receiver.toString('hex') === EVM_ADDRESS.toString('hex') &&
           decoded.msg.tokenAmounts.length === 0 &&
-          decoded.msg.feeToken.equals(TEST_TOKEN_ADDR)
+          decoded.msg.feeToken!.equals(WRAPPED_NATIVE)
         )
       },
     })

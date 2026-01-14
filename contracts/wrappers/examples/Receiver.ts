@@ -9,18 +9,18 @@ import {
   Sender,
   SendMode,
   Slice,
-  TupleBuilder,
 } from '@ton/core'
 
-import * as ownable2step from '../libraries/access/Ownable2Step'
-
-import * as receiver from '../libraries/Receiver'
 import { CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
 
+import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as receiver from '../libraries/Receiver'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+
 export const FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
 export const FACILITY_ID = 346
-export const ERROR_CODE = 34600 //FACILITY_ID * 100
+export const ERROR_CODE = FACILITY_ID * 100
 
 enum TestReceiverError {
   Rejected = ERROR_CODE,
@@ -213,16 +213,26 @@ export class Receiver implements Contract, receiver.Receiver {
     return stack.readNumber()
   }
 
-  async getFacilityId(provider: ContractProvider): Promise<number> {
-    const { stack } = await provider.get('facilityId', [])
-    return stack.readNumber()
+  async getFacilityId(provider: ContractProvider): Promise<bigint> {
+    return provider.get('facilityId', []).then((res) => {
+      return res.stack.readBigNumber()
+    })
   }
 
-  async getErrorCode(provider: ContractProvider, local: number): Promise<number> {
-    const args = new TupleBuilder()
-    args.writeNumber(local) // Push your number argument onto the stack
+  async getErrorCode(provider: ContractProvider, code: bigint): Promise<bigint> {
+    return provider.get('errorCode', [{ type: 'int', value: code }]).then((res) => {
+      return res.stack.readBigNumber()
+    })
+  }
 
-    const { stack } = await provider.get('errorCode', args.build())
-    return stack.readNumber()
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
   }
 }

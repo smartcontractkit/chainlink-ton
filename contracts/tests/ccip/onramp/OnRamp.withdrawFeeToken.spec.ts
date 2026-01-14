@@ -5,7 +5,7 @@ import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
 import { setup } from './OnRamp.Setup'
-import { ZERO_ADDRESS } from '../../../src/utils'
+import { WRAPPED_NATIVE } from '../../../src/utils'
 
 describe('OnRamp - WithdrawFeeTokens', () => {
   let blockchain: Blockchain
@@ -60,7 +60,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
 
   it('should fail to withdraw non empty fee tokens', async () => {
     const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
-      feeTokens: [ZERO_ADDRESS],
+      feeTokens: [WRAPPED_NATIVE],
     })
 
     expect(result.transactions).toHaveTransaction({

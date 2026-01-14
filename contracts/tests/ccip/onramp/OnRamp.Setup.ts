@@ -1,7 +1,7 @@
 import { Address, Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { generateRandomContractId, ZERO_ADDRESS } from '../../../src/utils'
+import { generateRandomContractId } from '../../../src/utils'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import { randomAddress } from '@ton/test-utils'
 
@@ -31,7 +31,7 @@ export async function deployOnRampContract(
     config: {
       feeQuoter: randomAddress(),
       feeAggregator: (await blockchain.treasury('fee-aggregator')).address,
-      allowlistAdmin: ZERO_ADDRESS,
+      allowlistAdmin: owner.address,
       reserve: toNano('0.05'),
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),

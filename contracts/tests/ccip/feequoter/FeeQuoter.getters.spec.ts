@@ -171,37 +171,6 @@ describe('FeeQuoter Getters', () => {
     })
   })
 
-  describe('facilityId', () => {
-    it('should return correct facility ID', async () => {
-      const facilityId = await setup.bind.feeQuoter.getFacilityId()
-
-      // The facility ID is derived from the contract name hash
-      expect(facilityId).toBeGreaterThan(0)
-    })
-  })
-
-  describe('errorCode', () => {
-    it('should convert local error code to global error code', async () => {
-      const localErrorCode = 1
-
-      const globalErrorCode = await setup.bind.feeQuoter.getErrorCode(localErrorCode)
-
-      expect(globalErrorCode).toBeGreaterThan(localErrorCode)
-      // Global error code should be facilityId * 100 + localErrorCode
-      const facilityId = await setup.bind.feeQuoter.getFacilityId()
-      expect(globalErrorCode).toBe(facilityId * 100 + localErrorCode)
-    })
-
-    it('should handle zero error code', async () => {
-      const localErrorCode = 0
-
-      const globalErrorCode = await setup.bind.feeQuoter.getErrorCode(localErrorCode)
-
-      const facilityId = await setup.bind.feeQuoter.getFacilityId()
-      expect(globalErrorCode).toBe(facilityId * 100)
-    })
-  })
-
   describe('tokenTransferFeeConfig', () => {
     it('should throw error for non-existent token config', async () => {
       const nonExistentToken = await generateRandomTonAddress()

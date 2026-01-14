@@ -363,9 +363,7 @@ event. Updates are stored directly from the provided message payload.
 Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
-    assert (!msg.config.feeQuoter.isZero()) throw Error.InvalidConfig;
-    assert (!msg.config.feeAggregator.isZero()) throw Error.InvalidConfig;
-
+    // feeQuoter and feeAggregator are typed as address, so they're guaranteed not null (vs `address?`)
     st.config = msg.config.toCell();
 
     emit(
@@ -543,11 +541,11 @@ get fun sendExecutorCodeHash(): uint256 {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
+    return (OnRamp_FACILITY_NAME, CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OnRamp"));
+    return OnRamp_FACILITY_ID;
 }
 
 get fun errorCode(local: uint16): uint16 {

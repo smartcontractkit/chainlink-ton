@@ -4,6 +4,10 @@ import "../ccipsend_executor/types"
 import "../../deployable/types"
 import "../../lib/deployable/namespace"
 
+const OnRamp_FACILITY_NAME = "com.chainlink.ton.ccip.OnRamp";
+// getFacilityId(stringCrc32(OnRamp_FACILITY_NAME));
+const OnRamp_FACILITY_ID = 181;
+
 struct OnRamp_DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.
     sequenceNumber: uint64;
