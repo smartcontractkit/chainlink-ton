@@ -5,8 +5,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -14,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
@@ -49,21 +48,20 @@ func (o UpgradeOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 	return o.Transaction
 }
 
-type UpgradeDeps struct {
-	ContractProvider opston.ContractCodeProvider
-	Wallet           *wallet.Wallet
-	Client           ton.APIClientWrapped
-}
-
 var Upgrade = operations.NewOperation(
 	"ton/ops/lib/versioning/upgradeable/upgrade",
 	semver.MustParse("0.1.0"),
 	"Upgrades upgradeable contracts to a new implementation",
-	func(b operations.Bundle, deps UpgradeDeps, in UpgradeInput) (UpgradeOutput, error) {
+	func(b operations.Bundle, dp *dep.DependencyProvider, in UpgradeInput) (UpgradeOutput, error) {
 		// Load contracts and prepare the underlying []opston.InternalMessage[any]
 		_messages := make([]opston.InternalMessage[any], len(in.Messages))
 		for i, u := range in.Messages {
-			c, err := deps.ContractProvider.GetContract(u.ContractMeta)
+			contractProvider, err := dep.Resolve[opston.ContractCodeProvider](dp)
+			if err != nil {
+				return UpgradeOutput{}, fmt.Errorf("failed to resolve contract provider: %w", err)
+			}
+
+			c, err := contractProvider.GetContract(u.ContractMeta)
 			if err != nil {
 				return UpgradeOutput{}, fmt.Errorf("failed to get contract code: %w", err)
 			}
@@ -92,13 +90,7 @@ var Upgrade = operations.NewOperation(
 			Plan:     in.Plan,
 		}
 
-		// TODO (ops): improve deps passing
-		opdeps := opston.SendMessagesDeps{
-			Wallet: deps.Wallet,
-			Client: deps.Client,
-		}
-
-		r, err := operations.ExecuteOperation(b, opston.SendMessages, opdeps, _in)
+		r, err := operations.ExecuteOperation(b, opston.SendMessages, dp, _in)
 		if err != nil {
 			return UpgradeOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}

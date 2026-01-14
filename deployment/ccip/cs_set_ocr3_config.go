@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
@@ -70,6 +71,11 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 			CCIPOnChainState: stateCCIP,
 		}
 
+		dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+		}
+
 		_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(remoteSelector))
 
 		{
@@ -94,7 +100,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}
 
-		r, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, chain, _inputMCMS)
+		r, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, dp, _inputMCMS)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

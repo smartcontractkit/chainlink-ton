@@ -15,6 +15,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
@@ -47,10 +48,9 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
 
-		// TODO (ops): improve deps passing
-		opdeps := opston.SendMessagesDeps{
-			Wallet: tonChain.Wallet,
-			Client: tonChain.Client,
+		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
 		sender := tonChain.Wallet.Address()
@@ -73,7 +73,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				}
 
 				contractType := bindings.PkgCCIP + ".FeeQuoter"
-				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
@@ -133,7 +133,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				}
 
 				contractType := bindings.PkgCCIP + ".OnRamp"
-				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
@@ -215,7 +215,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			})
 		}
 
-		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, dp, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}
@@ -235,6 +235,11 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 		deps, err := extractTonDepsFrom(tonChain, input.Dest.OnRamp, input.Dest.OffRamp, input.Dest.Router, input.Dest.FeeQuoter)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
+		}
+
+		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
 		sender := tonChain.Wallet.Address()
@@ -295,7 +300,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			})
 		}
 
-		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, dp, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

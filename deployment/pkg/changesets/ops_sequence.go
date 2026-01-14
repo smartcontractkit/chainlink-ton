@@ -8,6 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -61,13 +62,10 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[uint64(opts.ChainSelector)]
 
-	// Dependencies currently injected per-operation
-	// TODO: generalize dependency injection per-type/s in sequences
-	deps := opston.AnySequenceDeps{}
-	deps["chain"] = chain
-	deps[opston.SendMessages.Def().ID] = opston.SendMessagesDeps{
-		Wallet: chain.Wallet,
-		Client: chain.Client,
+	// Create the dependencies provider - supplies chain and other dependencies to ops/sequences
+	dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 	}
 
 	// Resolve (operation) input values
@@ -81,7 +79,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	in.AnySequenceIn.Inputs = resolvedInputs.([]any)
 
 	// Execute the (any) sequence based on the provided input
-	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, deps, in)
+	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, dp, in)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", opts.ChainSelector, err)
 	}

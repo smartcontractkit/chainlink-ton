@@ -26,6 +26,7 @@ import (
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
@@ -73,10 +74,10 @@ var DeployChainContracts = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
-		// TODO (ops): improve deps passing
-		opdeps := opston.SendMessagesDeps{
-			Wallet: tonChain.Wallet,
-			Client: tonChain.Client,
+
+		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
 		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
@@ -91,7 +92,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 			}
 
 			//nolint:govet // allow shadowing
-			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
 						Bounce:  true,
@@ -128,7 +129,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 			msgs = append(msgs, r.Output...)
 		}
 
-		_, err = cldf_ops.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
+		_, err = cldf_ops.ExecuteOperation(b, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

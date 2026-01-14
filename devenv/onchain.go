@@ -13,6 +13,7 @@ import (
 	tonseqs "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -66,11 +67,11 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 			},
 		},
 	}
-	// TODO (ops): improve deps passing
-	opdeps := ton.SendMessagesDeps{
-		Wallet: tonChain.Wallet,
-		Client: tonChain.Client,
+	dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+	if err != nil {
+		return fmt.Errorf("failed to create dependency provider: %w", err)
 	}
+
 	updatePricesReport, err := operations.ExecuteOperation(bundle, operation.UpdateFeeQuoterPricesOp, deps, updateConfig)
 	if err != nil {
 		return fmt.Errorf("failed to update feequoter prices: %w", err)
@@ -78,7 +79,7 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	msgs := updatePricesReport.Output
 	// Execute the txs || MCMS proposals
 	if len(msgs) != 0 {
-		_, err := operations.ExecuteOperation(bundle, ton.SendMessagesRaw, opdeps, ton.SendMessagesRawInput{Messages: msgs})
+		_, err := operations.ExecuteOperation(bundle, ton.SendMessagesRaw, dp, ton.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return fmt.Errorf("failed to send messages: %w", err)
 		}

@@ -9,11 +9,11 @@ import (
 
 	"github.com/smartcontractkit/mcms/types"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -50,18 +50,13 @@ func (in *SendOrPlanInput) Add(msgs []*tlbe.Cell[tlb.InternalMessage], plan bool
 	}
 }
 
-var SendOrPlan = operations.NewOperation(
+var SendOrPlan = cldf_ops.NewOperation(
 	"ton/ops/mcms/send-or-plan",
 	semver.MustParse("0.1.0"),
 	"Sends messages or proposes them as a BatchOperation if the destination is ownable and the sender is not the owner",
-	func(b operations.Bundle, deps ton.Chain, in SendOrPlanInput) (sequences.OnChainOutput, error) {
+	func(b cldf_ops.Bundle, dp *dep.DependencyProvider, in SendOrPlanInput) (sequences.OnChainOutput, error) {
 		if len(in.Messages) > 0 {
-			// TODO (ops): improve deps passing
-			opdeps := opston.SendMessagesDeps{
-				Wallet: deps.Wallet,
-				Client: deps.Client,
-			}
-			_, err := operations.ExecuteOperation(b, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: in.Messages})
+			_, err := cldf_ops.ExecuteOperation(b, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: in.Messages})
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send messages: %w", err)
 			}

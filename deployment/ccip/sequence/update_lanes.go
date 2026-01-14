@@ -25,6 +25,7 @@ import (
 
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -46,10 +47,10 @@ var UpdateTonLanesSequence = cldf_ops.NewSequence(
 )
 
 func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesSeqInput) (sequences.OnChainOutput, error) {
-	// TODO (ops): improve deps passing
-	opdeps := opston.SendMessagesDeps{
-		Wallet: deps.TonChain.Wallet,
-		Client: deps.TonChain.Client,
+	// TODO (ops/deps): move dp construction upstream (include CCIPDeps)
+	dp, err := dep.NewDependencyProvider(dep.Provide(deps.TonChain))
+	if err != nil {
+		return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 	}
 
 	sender := deps.TonChain.Wallet.Address()
@@ -68,7 +69,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			addr := deps.CCIPOnChainState[selector].FeeQuoter
 			body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
-			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
 						Bounce:  true,
@@ -118,7 +119,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 			addr := deps.CCIPOnChainState[selector].OnRamp
 			body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
 
-			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, opdeps, opston.SendMessagesInput{
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 				Messages: []opston.InternalMessage[any]{
 					{
 						Bounce:  true,
@@ -225,7 +226,7 @@ func updateLanes(b cldf_ops.Bundle, deps ccipConfig.CCIPDeps, in UpdateTonLanesS
 		})
 	}
 
-	r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, deps.TonChain, _inputMCMS)
+	r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, dp, _inputMCMS)
 	if err != nil {
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 	}

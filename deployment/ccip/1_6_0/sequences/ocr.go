@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -38,6 +39,11 @@ var SetOCR3Config = cldf_ops.NewSequence(
 		deps, err := extractTonDepsFromOcrInput(tonChain, a, input)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
+		}
+
+		dp, err := dep.NewDependencyProvider(dep.Provide(tonChain))
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 		}
 
 		sender := tonChain.Wallet.Address()
@@ -65,7 +71,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
 		}
 
-		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, tonChain, _inputMCMS)
+		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, dp, _inputMCMS)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}

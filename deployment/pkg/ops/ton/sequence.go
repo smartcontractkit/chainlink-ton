@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
@@ -34,10 +35,6 @@ func (o AnySequenceOutput) GetPlans() []MessagePlanRaw {
 	return o.Plans
 }
 
-// AnySequenceDeps is a generic map of dependencies
-// for ops/seq that may require different types
-type AnySequenceDeps map[string]any
-
 var AnySequence = operations.NewSequence(
 	"ton/sequences/any",
 	semver.MustParse("0.1.0"),
@@ -45,7 +42,7 @@ var AnySequence = operations.NewSequence(
 	anySeqHandler,
 )
 
-func anySeqHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInput) (AnySequenceOutput, error) {
+func anySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in AnySequenceInput) (AnySequenceOutput, error) {
 	if len(in.Defs) != len(in.Inputs) {
 		return AnySequenceOutput{}, fmt.Errorf("number of definitions (%d) does not match number of inputs (%d)", len(in.Defs), len(in.Inputs))
 	}
@@ -62,14 +59,7 @@ func anySeqHandler(b operations.Bundle, deps AnySequenceDeps, in AnySequenceInpu
 			return output, fmt.Errorf("failed to retrieve operation %s: %w", def.ID, err)
 		}
 
-		// TODO: source requirements and inject deps for each op
-		key := def.ID
-		opdeps, ok := deps[key]
-		if !ok {
-			return output, fmt.Errorf("missing dependencies for operation %s", def.ID)
-		}
-
-		r, err := operations.ExecuteOperation(b, op, opdeps, in.Inputs[i])
+		r, err := operations.ExecuteOperation(b, op, any(dp), in.Inputs[i])
 		if err != nil {
 			return output, fmt.Errorf("failed to execute operation %s: %w", def.ID, err)
 		}

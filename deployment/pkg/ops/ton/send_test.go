@@ -18,8 +18,10 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/utils"
@@ -192,11 +194,13 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 		return t.Context()
 	}
 	b := operations.NewBundle(ctxFn, lggr, rptr)
-	deps := ton.SendMessagesDeps{
-		Wallet: nil, // No actual sending in tests
-	}
+	// Create the dependencies provider - supplies chain and other dependencies to ops/sequences
+	dp, err := dep.NewDependencyProvider(
+		dep.Provide(cldf_ton.Chain{}), // No actual sending in tests
+	)
+	assert.NoError(t, err)
 
-	r, err := operations.ExecuteOperation(b, ton.SendMessages, deps, ton.SendMessagesInput{
+	r, err := operations.ExecuteOperation(b, ton.SendMessages, dp, ton.SendMessagesInput{
 		Messages: []ton.InternalMessage[any]{
 			{
 				Body:    decoded,
@@ -252,19 +256,18 @@ func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.Message
 		operations.WithOperationRegistry(ops.Registry),
 	}
 	b := operations.NewBundle(ctxFn, lggr, rptr, opts...)
-	// Dependencies currently injected per-operation
-	// TODO: generalize dependency injection per-type/s in sequences
-	deps := ton.AnySequenceDeps{}
-	depsKey := ton.SendMessages.Def().ID
-	deps[depsKey] = ton.SendMessagesDeps{
-		Wallet: nil, // No actual sending in tests
-	}
+
+	// Create the dependencies provider - supplies chain and other dependencies to ops/sequences
+	dp, err := dep.NewDependencyProvider(
+		dep.Provide(cldf_ton.Chain{}), // No actual sending in tests
+	)
+	assert.NoError(t, err)
 
 	input := ton.AnySequenceInput{
 		Defs:   defs,
 		Inputs: inputs,
 	}
-	r, err := operations.ExecuteSequence(b, ton.AnySequence, deps, input)
+	r, err := operations.ExecuteSequence(b, ton.AnySequence, dp, input)
 	assert.NotEmpty(t, r)
 	assert.NoError(t, err)
 }

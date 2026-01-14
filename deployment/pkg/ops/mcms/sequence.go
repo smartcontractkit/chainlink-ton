@@ -9,21 +9,24 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms"
 	"github.com/smartcontractkit/mcms/types"
 
-	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	bindmcms "github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
 var (
@@ -69,7 +72,7 @@ func (o TimelockAnySequenceOutput) GetPlans() []mcms.TimelockProposal {
 	return o.Proposals
 }
 
-func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in TimelockAnySequenceInput) (TimelockAnySequenceOutput, error) {
+func timelockAnySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in TimelockAnySequenceInput) (TimelockAnySequenceOutput, error) {
 	ctx := b.GetContext()
 
 	// Check if any of the inputs requests planning only (this requires MCMS state)
@@ -88,7 +91,7 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 	}
 
 	// Execute the (any) sequence based on the provided input
-	r, err := operations.ExecuteSequence(b, opston.AnySequence, deps, in.AnySequenceIn)
+	r, err := operations.ExecuteSequence(b, opston.AnySequence, dp, in.AnySequenceIn)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to execute (underlying) any sequence: %w", err)
 	}
@@ -101,9 +104,9 @@ func timelockAnySeqHandler(b operations.Bundle, deps opston.AnySequenceDeps, in 
 		}, nil
 	}
 
-	chain, ok := deps["chain"].(cldfton.Chain)
-	if !ok {
-		return TimelockAnySequenceOutput{}, errors.New("missing or invalid TonChain dependency")
+	chain, err := dep.Resolve[cldf_ton.Chain](dp)
+	if err != nil {
+		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to resolve chain dependency: %w", err)
 	}
 
 	msgs := opston.AsCells(r.Output.GetPlans())

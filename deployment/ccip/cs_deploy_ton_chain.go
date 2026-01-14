@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
@@ -87,6 +88,11 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	deps.CCIPOnChainState[selector] = s
 
+	dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+	}
+
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		CCIPConfig:          cfg.Params,
@@ -131,12 +137,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	// Execute post-deployment cfg
 	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
 
-	// TODO (ops): improve deps passing
-	opdeps := opston.SendMessagesDeps{
-		Wallet: chain.Wallet,
-		Client: chain.Client,
-	}
-
 	// feequoter.addPriceUpdater(offramp)
 	{
 		//nolint:govet // allow shadowing
@@ -161,7 +161,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 			Plan: true, // plan, defer execution to later step
 		}
 
-		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessages, opdeps, _in)
+		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessages, dp, _in)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}
@@ -192,7 +192,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	}
 
 	if len(msgs) != 0 {
-		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessagesRaw, opdeps, opston.SendMessagesRawInput{Messages: msgs})
+		r, err := operations.ExecuteOperation(env.OperationsBundle, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}

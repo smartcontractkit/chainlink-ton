@@ -25,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -249,10 +250,9 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
 			}
 
-			// TODO (ops): improve deps passing
-			opdeps := ton.SendMessagesDeps{
-				Wallet: chain.Wallet,
-				Client: chain.Client,
+			dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
 			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
@@ -291,7 +291,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 				Plan: plan,
 			}
 
-			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
+			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, dp, _in)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
@@ -341,10 +341,9 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
 			}
 
-			// TODO (ops): improve deps passing
-			opdeps := ton.SendMessagesDeps{
-				Wallet: chain.Wallet,
-				Client: chain.Client,
+			dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
 			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
@@ -382,7 +381,7 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 				Plan: plan,
 			}
 
-			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, opdeps, _in)
+			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, dp, _in)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}

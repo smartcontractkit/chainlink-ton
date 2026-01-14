@@ -7,12 +7,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -50,21 +49,20 @@ func (o DeployOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 	return o.Transaction
 }
 
-type DeployDeps struct {
-	ContractProvider ContractCodeProvider
-	Wallet           *wallet.Wallet
-	Client           ton.APIClientWrapped
-}
-
 var Deploy = operations.NewOperation(
 	"ton/ops/deploy",
 	semver.MustParse("0.1.0"),
 	"Deploys contracts by sending messages with code loaded from the provider",
-	func(b operations.Bundle, deps DeployDeps, in DeployInput) (DeployOutput, error) {
+	func(b operations.Bundle, dp *dep.DependencyProvider, in DeployInput) (DeployOutput, error) {
 		// Load contracts and prepare the underlying []InternalMessage[any]
 		_messages := make([]InternalMessage[any], len(in.Messages))
 		for i, u := range in.Messages {
-			c, err := deps.ContractProvider.GetContract(u.ContractMeta)
+			contractProvider, err := dep.Resolve[ContractCodeProvider](dp)
+			if err != nil {
+				return DeployOutput{}, fmt.Errorf("failed to resolve contract provider: %w", err)
+			}
+
+			c, err := contractProvider.GetContract(u.ContractMeta)
 			if err != nil {
 				return DeployOutput{}, fmt.Errorf("failed to get contract code: %w", err)
 			}
@@ -103,13 +101,7 @@ var Deploy = operations.NewOperation(
 			Plan:     in.Plan,
 		}
 
-		// TODO (ops): improve deps passing
-		opdeps := SendMessagesDeps{
-			Wallet: deps.Wallet,
-			Client: deps.Client,
-		}
-
-		r, err := operations.ExecuteOperation(b, SendMessages, opdeps, _in)
+		r, err := operations.ExecuteOperation(b, SendMessages, dp, _in)
 		if err != nil {
 			return DeployOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 		}

@@ -5,8 +5,10 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
@@ -46,20 +48,11 @@ func (o SendMessagesOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 	return o.Transaction
 }
 
-type SendMessagesDeps struct {
-	Wallet *wallet.Wallet
-	Client ton.APIClientWrapped
-}
-
-type ProviderDeps struct {
-	Client *wallet.Wallet
-}
-
-var SendMessages = operations.NewOperation(
+var SendMessages = cldf_ops.NewOperation(
 	"ton/ops/send-messages",
 	semver.MustParse("0.1.0"),
 	"Sends and/or plans messages as defined by the inputs",
-	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesInput) (SendMessagesOutput, error) {
+	func(b cldf_ops.Bundle, dp *dep.DependencyProvider, in SendMessagesInput) (SendMessagesOutput, error) {
 		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0, len(in.Messages))
 		plans := make([]MessagePlanRaw, 0, len(in.Messages))
 
@@ -89,7 +82,7 @@ var SendMessages = operations.NewOperation(
 			return SendMessagesOutput{Plans: plans}, nil // return early on plan
 		}
 
-		out, err := operations.ExecuteOperation(b, SendMessagesRaw, deps, SendMessagesRawInput{Messages: msgs})
+		out, err := cldf_ops.ExecuteOperation(b, SendMessagesRaw, dp, SendMessagesRawInput{Messages: msgs})
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}
@@ -102,11 +95,11 @@ type SendMessagesRawInput struct {
 	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
 }
 
-var SendMessagesRaw = operations.NewOperation(
+var SendMessagesRaw = cldf_ops.NewOperation(
 	"ton/ops/send-messages-raw",
 	semver.MustParse("0.1.0"),
 	"Sends (raw) messages as defined by the inputs",
-	func(b operations.Bundle, deps SendMessagesDeps, in SendMessagesRawInput) (SendMessagesOutput, error) {
+	func(b cldf_ops.Bundle, dp *dep.DependencyProvider, in SendMessagesRawInput) (SendMessagesOutput, error) {
 		ctx := b.GetContext()
 
 		n := len(in.Messages)
@@ -124,16 +117,21 @@ var SendMessagesRaw = operations.NewOperation(
 			})
 		}
 
+		chain, err := dep.Resolve[cldf_ton.Chain](dp)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to resolve chain: %w", err)
+		}
+
 		b.Logger.Infow("Sending messages", "msgs", msgs)
 
-		_tx, block, err := deps.Wallet.SendManyWaitTransaction(ctx, msgs)
+		_tx, block, err := chain.Wallet.SendManyWaitTransaction(ctx, msgs)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send transaction: %w", err)
 		}
 
 		b.Logger.Infow("Transaction sent", "blockID", block, "tx", _tx)
 
-		err = tracetracking.WaitForTrace(ctx, deps.Client, _tx)
+		err = tracetracking.WaitForTrace(ctx, chain.Client, _tx)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
 		}
