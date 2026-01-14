@@ -33,7 +33,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("no curses - nil input", func(t *testing.T) {
-		var cursedSubjects []*big.Int = nil
+		var cursedSubjects []*big.Int
 
 		result := parseCurseInfo(cursedSubjects, destChainSelector)
 
@@ -54,7 +54,7 @@ func TestParseCurseInfo(t *testing.T) {
 	})
 
 	t.Run("destination chain cursed", func(t *testing.T) {
-		destAsBigInt := big.NewInt(int64(destChainSelector))
+		destAsBigInt := new(big.Int).SetUint64(uint64(destChainSelector))
 		cursedSubjects := []*big.Int{destAsBigInt}
 
 		result := parseCurseInfo(cursedSubjects, destChainSelector)
@@ -94,7 +94,7 @@ func TestParseCurseInfo(t *testing.T) {
 
 	t.Run("mixed curses - global, destination, and source chains", func(t *testing.T) {
 		globalCurse := bigIntFromHex(globalCurseSubjectHex)
-		destAsBigInt := big.NewInt(int64(destChainSelector))
+		destAsBigInt := new(big.Int).SetUint64(uint64(destChainSelector))
 		sourceChain1 := big.NewInt(111111)
 		sourceChain2 := big.NewInt(222222)
 

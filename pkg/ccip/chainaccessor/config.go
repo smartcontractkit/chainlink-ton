@@ -11,13 +11,13 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -286,7 +286,7 @@ func parseCurseInfo(cursedSubjects []*big.Int, dest ccipocr3.ChainSelector) ccip
 	cursedChains := make(map[ccipocr3.ChainSelector]bool, len(cursedSubjects))
 	globalCurse := false
 	destinationCurse := false
-	destAsBigInt := big.NewInt(int64(dest))
+	destAsBigInt := new(big.Int).SetUint64(uint64(dest))
 
 	for _, curse := range cursedSubjects {
 		if curse.Cmp(globalCurseSubject) == 0 {
