@@ -27,3 +27,9 @@ const UNCURSED_TOPIC: int = stringCrc32("Uncursed");
 struct Uncursed {
     subject: uint128;
 }
+
+const MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC = stringCrc32("MessageToOffRampBounced");
+struct MessageToOffRampBounced {
+    offRamp: address,
+    execId: uint192,
+}

@@ -11,8 +11,7 @@ import "../../lib/access/ownable_2step.tolk"
 import "../../lib/funding/withdrawable.tolk"
 import "../../lib/crypto/merkle_multi_proof.tolk"
 import "../../lib/ocr/multi_ocr3_base"
-import "../../lib/ocr/types"
-import "../../lib/utils.tolk"
+import "../../lib/ocr/types" import "../../lib/utils.tolk"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../merkle_root/storage"
@@ -131,7 +130,77 @@ fun onInternalMessage(in:InMessage) {
             }
 
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw 0xFFFF;
+        }
+    }
+}
+
+fun onBouncedMessage(in: InMessageBounced) {
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    val originalMessage = lazy OffRamp_InMessageBounced.fromCell(rich.originalBody);
+    match(originalMessage) {
+        ReceiveExecutor_InitExecute => {
+            // This shuold never happen, if InitExeute bounced that is probably a misconfiguration on the ReceiveExecutor code 
+            markStateOnRoot(
+                originalMessage.root,
+                originalMessage.sequenceNumber,
+                ExecutionState.Failure
+            );
+            emit(RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED, OffRamp_ReceiveExecutorInitExecuteBounced{
+                receiveExecutor: in.senderAddress,
+                root: originalMessage.root,
+                sequenceNumber: originalMessage.sequenceNumber,
+            });
+            emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+                sourceChainSelector: originalMessage.sourceChainSelector,
+                sequenceNumber: originalMessage.sequenceNumber,
+                messageId: originalMessage.messageId,
+                state: ExecutionState.Failure
+            });
+        },
+        Deployable_Initialize => {
+            // This should never have bounced. But it could be from a duplicated commit report or message.
+            val stateInit = originalMessage.stateInit;
+            emit(DEPLOYABLE_INITIALIZE_BOUNCED_TOPIC, OffRamp_DeployableInitializeBounced {
+                deployableAddress: in.senderAddress
+            });
+            commitContractDataAndActions();
+
+            // Try to cast the Deployable data to the ReceiveExecutor_Storage in order to mark the message execution as Failed
+            // If the deploy that failed is for a MerkleRoot contract this will fail and only the previously committed emit action will take place
+            val storageData = ReceiveExecutor_Storage.fromCell(stateInit.data);
+            val message = Any2TVMRampMessage.fromCell(storageData.message);
+            markStateOnRoot(
+                storageData.root,
+                message.header.sequenceNumber,
+                ExecutionState.Failure
+            );
+            emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+                sourceChainSelector: message.header.sourceChainSelector,
+                sequenceNumber: message.header.sequenceNumber,
+                messageId: message.header.messageId,
+                state: ExecutionState.Failure
+            });
+        },
+        Router_RouteMessage => {
+            // This should never happen. If RouteMessage bounced it probably means the Router is misconfigured
+            val st = Storage.load();
+
+            emit(ROUTE_MESSAGE_BOUNCED_TOPIC, OffRamp_RouteMessageBounced{
+                router: in.senderAddress,
+                execId: originalMessage.execId,
+            });
+
+            // Send ReceiveBounced to initiate the failure notification trace 
+            val receiveBounced = createMessage({
+                bounce: true,
+                value: 0,
+                dest: getReceiverExecutorDeployAddress(st, originalMessage.execId),
+                body: ReceiveExecutor_Bounced{
+                    receiver: originalMessage.receiver
+                }
+            });
+            receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
     }
 }
@@ -288,7 +357,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
         gasLimit = msg.gasOverride;
     }
     val routeMessage = createMessage({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: gasLimit + Router_Costs.routeMessage(),
         dest: router,
         body: Router_RouteMessage {
@@ -674,7 +743,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
     // initialize the executor
     if (msg.executionState == ExecutionState.Untouched) {
         val deployMsg = createMessage({
-            bounce: false,
+            bounce: BounceMode.RichBounce,
             value: AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT,
             dest: executorAddress,
             body: Deployable_Initialize {
@@ -694,11 +763,15 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
 
     // Initiate the execution in the ReceiveExecutor
     val initExecMsg = createMessage ({
-        bounce: true,
+        bounce: BounceMode.RichBounce,
         value: ReceiveExecutor_Costs.initExec(),
         dest: executorAddress,
         body: ReceiveExecutor_InitExecute {
             gasOverride: msg.gasOverride,
+            root: sender,
+            sequenceNumber: message.header.sequenceNumber,
+            sourceChainSelector: message.header.sourceChainSelector,
+            messageId,
         }
     });
     initExecMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
