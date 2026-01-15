@@ -25,7 +25,7 @@ const (
 type Config struct {
 	// PollPeriod controls how often the poller ticks. Each tick must complete processing
 	// before the next tick starts; otherwise, processing delay accumulates.
-	PollPeriod                *config.Duration
+	PollPeriod *config.Duration
 	// PageSize is the number of transactions fetched per API call. Larger values increase
 	// throughput but also increase per-tick processing time. Tune based on expected volume.
 	PageSize                  uint32
