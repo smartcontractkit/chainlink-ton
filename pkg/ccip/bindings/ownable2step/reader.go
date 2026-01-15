@@ -22,27 +22,34 @@ var (
 
 // MakeGetOwner creates a getter for the owner address, for a specified role (prefix).
 func MakeGetOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
+	_role := ""
+	if len(role) > 0 {
+		_role = role[0]
+	}
+
 	return tvm.Getter[struct{}, *address.Address]{
-		Name:    prefixGetter("owner", role),
+		Name:    prefixGetter("owner", _role),
 		Decoder: AddressRes,
 	}
 }
 
 // MakeGetPendingOwner creates a getter for the pending owner address, for a specified role (prefix).
 func MakeGetPendingOwner(role ...string) tvm.Getter[struct{}, *address.Address] {
+	_role := ""
+	if len(role) > 0 {
+		_role = role[0]
+	}
+
 	return tvm.Getter[struct{}, *address.Address]{
-		Name:    prefixGetter("pendingOwner", role),
+		Name:    prefixGetter("pendingOwner", _role),
 		Decoder: AddressRes,
 	}
 }
 
-func prefixGetter(getterMethodName string, role []string) string {
-	if len(role) > 1 {
-		// TODO: panic?
-		panic("only one role argument is allowed")
+func prefixGetter(getterMethodName string, role string) string {
+	if role == "" {
+		return getterMethodName
 	}
-	if len(role) == 1 {
-		return role[0] + "_" + getterMethodName
-	}
-	return getterMethodName
+
+	return role + "_" + getterMethodName
 }
