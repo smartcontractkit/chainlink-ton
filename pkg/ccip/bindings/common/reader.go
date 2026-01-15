@@ -1,4 +1,4 @@
-package common
+package common //nolint:revive,nolintlint
 
 import (
 	"github.com/xssnick/tonutils-go/ton"
