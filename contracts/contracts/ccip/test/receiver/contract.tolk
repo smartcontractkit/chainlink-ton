@@ -9,7 +9,6 @@ import "messages"
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
 import "../../../lib/utils";
-import "../../router/messages"
 import "../../../lib/access/ownable_2step"
 import "types"
 
@@ -22,31 +21,38 @@ struct CCIPMessageReceived {
 }
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Receiver_InMessage.fromSlice(in.body);
+    val msg = lazy TestReceiver_InMessage.fromSlice(in.body);
     match (msg) {
         Receiver_CCIPReceive => {
             var st = lazy Storage.load();
-            // Standard for every receiver to implement:
-            // - Check CCIPReceive only comes from router
-            // - Send CCIPReceiveConfirm to msg.callback
-            assert(in.senderAddress == st.authorizedCaller, Error.Unauthorized);
-
+            msg.validateAndConfirm({
+                router: st.authorizedCaller,
+                minValue: ton("0.01"),
+                inMsg: {
+                    senderAddress: in.senderAddress,
+                    valueCoins: in.valueCoins,
+                },
+                confirmationMsg: {
+                    sendMode: SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+                }
+            });
+           
             match (st.behavior) {
-                ReceiverBehavior.Accept => {
+                TestReceiverBehavior.Accept => {
                     processAccept(msg, in.senderAddress)
                 },
-                ReceiverBehavior.RejectAll => {
+                TestReceiverBehavior.RejectAll => {
                     processRejectAll()
                 },
-                ReceiverBehavior.ConsumeAllGas => {
+                TestReceiverBehavior.ConsumeAllGas => {
                     processConsumeAllGas()
                 }
             }
         }
-        Receiver_UpdateAuthorizedCaller => {
+        TestReceiver_UpdateAuthorizedCaller => {
             onUpdateAuthorizedCaller(msg, in.senderAddress)
         }
-        Receiver_UpdateBehavior => {
+        TestReceiver_UpdateBehavior => {
             onUpdateBehavior(msg, in.senderAddress)
         }
         else => {
@@ -57,23 +63,13 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun processAccept(msg: Receiver_CCIPReceive, senderAddress: address) {
-    val receiveConfirm = createMessage({
-        bounce: true,
-        value: 0,
-        dest: senderAddress,
-        body: Router_CCIPReceiveConfirm {
-            execId: msg.execId,
-        }
-    });
-    receiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
     emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
         message: msg.message,
     });
 }
 
 fun processRejectAll() {
-    throw Error.Rejected;
+    throw TestReceiver_Error.Rejected;
 }
 
 // This is just for testing purposes
@@ -82,7 +78,7 @@ fun processConsumeAllGas() {
     while (true) { x = x + 1; }
 }
 
-fun onUpdateAuthorizedCaller(msg: Receiver_UpdateAuthorizedCaller, senderAddress: address) {
+fun onUpdateAuthorizedCaller(msg: TestReceiver_UpdateAuthorizedCaller, senderAddress: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(senderAddress);
 
@@ -90,7 +86,7 @@ fun onUpdateAuthorizedCaller(msg: Receiver_UpdateAuthorizedCaller, senderAddress
     st.store();
 }
 
-fun onUpdateBehavior(msg: Receiver_UpdateBehavior, senderAddress: address) {
+fun onUpdateBehavior(msg: TestReceiver_UpdateBehavior, senderAddress: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(senderAddress);
 

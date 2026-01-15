@@ -144,6 +144,24 @@ func encodeArgsDefault(input any) ([]any, error) {
 	}
 }
 
+// CallGetterLatest executes the provided getter with the latest masterchain block
+func CallGetterLatest[A any, R any](
+	ctx context.Context,
+	client ton.APIClientWrapped,
+	contractAddr *address.Address,
+	getter Getter[A, R],
+	input ...A, // optional input arguments
+) (R, error) {
+	var zero R
+	// Get current block
+	block, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return zero, fmt.Errorf("failed to get current block: %w", err)
+	}
+
+	return CallGetter(ctx, client, block, contractAddr, getter, input...)
+}
+
 // CallGetter executes the provided getter using the supplied arguments of type A and
 // decodes the result into type R. With no arguments it issues the request without
 // parameters, while a single argument is encoded (using the getter's encoder when

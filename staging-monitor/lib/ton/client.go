@@ -278,7 +278,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 					continue
 				}
 				seenEvents[eventKey] = true
-				receivedMessageID := hex.EncodeToString(event.TypedData.Message.MessageID[:])
+				receivedMessageID := hex.EncodeToString(event.TypedData.Message.MessageID)
 
 				// Match on messageID if provided
 				if messageID != "" && receivedMessageID != messageID {

@@ -12,7 +12,7 @@ import (
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -90,14 +90,14 @@ const CCIPReceiveOpCode = 0xb3126df1
 
 // CCIPReceive represents the CCIP message received on TON
 type CCIPReceive struct {
-	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic      `tlb:"#b3126df1" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
 	Message Any2TVMMessage `tlb:"."`
 }
 
 // Any2TVMMessage represents a cross-chain message to TON
 type Any2TVMMessage struct {
-	MessageID           [32]byte                     `tlb:"bits 256"`
+	MessageID           []byte                       `tlb:"bits 256"`
 	SourceChainSelector uint64                       `tlb:"## 64"`
 	Sender              ccipcommon.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
 	Data                *cell.Cell                   `tlb:"^"`
@@ -111,7 +111,7 @@ type Signer struct {
 
 // SetOCR3Config represents the setOCR3Config method call on the offRamp contract
 type SetOCR3Config struct {
-	_                              tlb.Magic                                    `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
+	_                              tlb.Magic                                    `tlb:"#2b78359f" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID                        uint64                                       `tlb:"## 64"`
 	ConfigDigest                   []byte                                       `tlb:"bits 256"`
 	PluginType                     uint16                                       `tlb:"## 16"`
@@ -129,14 +129,14 @@ type UpdateSourceChainConfig struct {
 
 // UpdateSourceChainConfigs represents the updateSourceChainConfigs method call on the offRamp contract
 type UpdateSourceChainConfigs struct {
-	_       tlb.Magic                                     `tlb:"#22b4f05c"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                                     `tlb:"#22b4f05c" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64                                        `tlb:"## 64"`
 	Configs ccipcommon.SnakeData[UpdateSourceChainConfig] `tlb:"^"`
 }
 
 // Commit represents the commit method call on the offRamp contract
 type Commit struct {
-	_                tlb.Magic                                  `tlb:"#9d431905"` //nolint:revive // Ignore opcode tag
+	_                tlb.Magic                                  `tlb:"#9d431905" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID          uint64                                     `tlb:"## 64"`
 	ConfigDigest     []byte                                     `tlb:"bits 512"`
 	CommitReport     ocr.CommitReport                           `tlb:"."`
@@ -145,27 +145,27 @@ type Commit struct {
 
 // Execute represents the execute method call on the offRamp contract
 type Execute struct {
-	_             tlb.Magic         `tlb:"#27bdac33"` //nolint:revive // Ignore opcode tag
+	_             tlb.Magic         `tlb:"#27bdac33" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID       uint64            `tlb:"## 64"`
 	ConfigDigest  []byte            `tlb:"bits 512"`
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
 }
 
 type SetDynamicConfig struct {
-	_                                       tlb.Magic        `tlb:"#95bc5a5c"` //nolint:revive // Ignore opcode tag
+	_                                       tlb.Magic        `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID                                 uint64           `tlb:"## 64"`
 	FeeQuoter                               *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
 type UpdateDeployables struct {
-	_                   tlb.Magic  `tlb:"#a015e0e2"` //nolint:revive // Ignore opcode tag
+	_                   tlb.Magic  `tlb:"#a015e0e2" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID             uint64     `tlb:"## 64"`
 	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
 	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPReceive{},
 	SetOCR3Config{},
 	UpdateSourceChainConfigs{},
@@ -173,7 +173,7 @@ var TLBs = lib.MustNewTLBMap([]any{
 	Execute{},
 	SetDynamicConfig{},
 	UpdateDeployables{},
-})
+}).MustWithStorageType(Storage{})
 
 // Config types that implements getter fetching interface with rpc client
 

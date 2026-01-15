@@ -33,7 +33,7 @@ import * as mr from '../../wrappers/ccip/MerkleRoot'
 import * as fq from '../../wrappers/ccip/FeeQuoter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as ocr from '../../wrappers/libraries/ocr/MultiOCR3Base'
-import * as rec from '../../wrappers/ccip/Receiver'
+import * as tr from '../../wrappers/examples/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
@@ -216,7 +216,7 @@ describe('OffRamp - Unit Tests', () => {
   let offRamp: SandboxContract<of.OffRamp>
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<fq.FeeQuoter>
-  let receiver: SandboxContract<rec.Receiver>
+  let receiver: SandboxContract<tr.Receiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let receiveExecutorCodeRaw: Cell
@@ -697,12 +697,12 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        rec.Receiver.createFromConfig(
+        tr.Receiver.createFromConfig(
           {
             id: generateRandomContractId(),
             ownable: { owner: deployer.address, pendingOwner: null },
             authorizedCaller: router.address,
-            behavior: rec.ReceiverBehavior.Accept,
+            behavior: tr.ReceiverBehavior.Accept,
           },
           code,
         ),
@@ -1706,12 +1706,12 @@ describe('OffRamp - Unit Tests', () => {
     let code = await compile('ccip.test.receiver')
     const wrongRouterAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-      rec.Receiver.createFromConfig(
+      tr.Receiver.createFromConfig(
         {
           id: generateRandomContractId(),
           ownable: { owner: deployer.address, pendingOwner: null },
           authorizedCaller: wrongRouterAddress,
-          behavior: rec.ReceiverBehavior.Accept,
+          behavior: tr.ReceiverBehavior.Accept,
         },
         code,
       ),
@@ -1870,7 +1870,7 @@ describe('OffRamp - Unit Tests', () => {
     const report = createExecuteReport([message])
 
     const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: rec.ReceiverBehavior.RejectAll,
+      behavior: tr.ReceiverBehavior.RejectAll,
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1893,7 +1893,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: rec.ReceiverBehavior.Accept,
+      behavior: tr.ReceiverBehavior.Accept,
     })
     expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1946,7 +1946,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
     const result = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: rec.ReceiverBehavior.RejectAll,
+      behavior: tr.ReceiverBehavior.RejectAll,
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1969,7 +1969,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
-      behavior: rec.ReceiverBehavior.Accept,
+      behavior: tr.ReceiverBehavior.Accept,
     })
     expect(result3.transactions).toHaveTransaction({
       from: deployer.address,
