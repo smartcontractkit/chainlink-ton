@@ -1,11 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
-import {
-  createTimestampedPriceValue,
-  FeeQuoter,
-  FeeQuoterStorage,
-  TimestampedPrice,
-} from '../../../wrappers/ccip/FeeQuoter'
+import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import { compile } from '@ton/blueprint'
 import { Dictionary, toNano } from '@ton/core'
 
@@ -17,7 +12,7 @@ export const setupTestFeeQuoter = async (
 ) => {
   let code = await compile('FeeQuoter')
 
-  let data: FeeQuoterStorage = {
+  let data: fq.FeeQuoterStorage = {
     id: generateRandomContractId(),
     ownable: {
       owner: deployer.address,
@@ -27,7 +22,7 @@ export const setupTestFeeQuoter = async (
     maxFeeJuelsPerMsg: 1000000n,
     linkToken: LINK_TOKEN,
     tokenPriceStalenessThreshold: 1000n,
-    usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
+    usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
     premiumMultiplierWeiPerEth: Dictionary.empty(
       Dictionary.Keys.Address(),
       Dictionary.Values.BigUint(64),
@@ -38,10 +33,10 @@ export const setupTestFeeQuoter = async (
   data.usdPerToken.set(WRAPPED_NATIVE, {
     value: 123n,
     timestamp: BigInt(Math.floor(Date.now() / 1000)), // Convert milliseconds to seconds for uint32
-  } as TimestampedPrice)
-  let feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
+  } as fq.TimestampedPrice)
+  let feeQuoter = blockchain.openContract(fq.FeeQuoter.createFromConfig(data, code))
 
-  let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('0.05'))
+  let result = await feeQuoter.sendDeploy(deployer.getSender(), fq.SOFT_FREEZE_THRESHOLD)
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: feeQuoter.address,

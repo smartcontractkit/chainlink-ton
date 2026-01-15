@@ -168,7 +168,7 @@ async function deployFeeQuoterInstance(
   const feeQuoter = blockchain.openContract(fq.FeeQuoter.createFromConfig(data, code))
 
   {
-    const result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
+    const result = await feeQuoter.sendDeploy(deployer.getSender(), fq.SOFT_FREEZE_THRESHOLD)
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: feeQuoter.address,
@@ -288,7 +288,7 @@ async function deployOnRampInstance(
   const onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
 
   {
-    const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
+    const result = await onRamp.sendDeploy(deployer.getSender(), or.SOFT_FREEZE_THRESHOLD)
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: onRamp.address,
@@ -360,7 +360,7 @@ async function deployOffRampInstance(
   const offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
 
   {
-    const result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
+    const result = await offRamp.sendDeploy(deployer.getSender(), of.SOFT_FREEZE_THRESHOLD)
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: offRamp.address,

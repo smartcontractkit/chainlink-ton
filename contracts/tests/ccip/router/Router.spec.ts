@@ -65,7 +65,7 @@ describe('Router - Withdrawable Tests', () => {
 //         ),
 //       )
 //       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+//       await contract.sendDeploy(deployer.getSender(), rt.SOFT_FREEZE_THRESHOLD)
 //       return contract
 //     },
 //   )

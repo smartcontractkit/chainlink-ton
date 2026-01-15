@@ -12,16 +12,7 @@ import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/ccip/OnRamp'
 import { FeeQuoter } from '../../../../wrappers/ccip/FeeQuoter'
-import {
-  Any2TVMRampMessage,
-  builder,
-  CommitReport,
-  ExecutionReport,
-  MerkleRoot,
-  OffRampStorage,
-  FACILITY_ID,
-  OffRamp,
-} from '../../../../wrappers/ccip/OffRamp'
+import * as of from '../../../../wrappers/ccip/OffRamp'
 import '@ton/test-utils'
 import {
   generateMockTonAddress,
@@ -77,7 +68,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<or.OnRamp>
-  let offRamp: SandboxContract<OffRamp>
+  let offRamp: SandboxContract<of.OffRamp>
   let receiver: SandboxContract<Receiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
@@ -177,7 +168,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
         },
       }
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
-      const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
+      const result = await onRamp.sendDeploy(deployer.getSender(), or.SOFT_FREEZE_THRESHOLD)
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: onRamp.address,
@@ -220,14 +211,14 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     // Deploy OffRamp
     {
-      let code = await OffRamp.code()
+      let code = await of.OffRamp.code()
 
       // Use a library reference for merkleRootCode
       let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
-      let data: OffRampStorage = {
-        id: BigInt(FACILITY_ID),
+      let data: of.OffRampStorage = {
+        id: BigInt(of.FACILITY_ID),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -243,8 +234,8 @@ describe('CCIP OffRamp Gas Estimation', () => {
         permissionlessExecutionThresholdSeconds: 60,
         latestPriceSequenceNumber: 0n,
       }
-      offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
-      const result = await offRamp.sendDeploy(deployer.getSender(), toNano('10000'))
+      offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
+      const result = await offRamp.sendDeploy(deployer.getSender(), of.SOFT_FREEZE_THRESHOLD)
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: offRamp.address,
@@ -320,7 +311,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
           receiverCode,
         ),
       )
-      const result = await receiver.sendDeploy(deployer.getSender(), toNano('1'))
+      const result = await receiver.sendDeploy(deployer.getSender(), toNano('0.05'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: receiver.address,
@@ -334,7 +325,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const maxPayload = createMaxPayload()
 
     // Step 1: Create test message
-    const testMessage: Any2TVMRampMessage = {
+    const testMessage: of.Any2TVMRampMessage = {
       header: {
         messageId: 1n,
         sourceChainSelector: CHAINSEL_EVM_TEST,
@@ -353,7 +344,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
     const rootBytes = uint8ArrayToBigInt(messageIdBytes)
 
     // Step 2: Create merkle roots
-    const merkleRoots: MerkleRoot[] = []
+    const merkleRoots: of.MerkleRoot[] = []
     merkleRoots.push({
       sourceChainSelector: CHAINSEL_EVM_TEST,
       onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
@@ -362,7 +353,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       merkleRoot: rootBytes + 0n,
     })
 
-    const commitReport: CommitReport = {
+    const commitReport: of.CommitReport = {
       merkleRoots,
       priceUpdates: undefined,
     }
@@ -375,7 +366,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
 
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(builder.data.commitReport.encode(commitReport).endCell(), reportContext),
+      hashReport(of.builder.data.commitReport.encode(commitReport).endCell(), reportContext),
     )
 
     // Step 3: Commit phase
@@ -451,7 +442,7 @@ describe('CCIP OffRamp Gas Estimation', () => {
       }
     }
 
-    const executeReport: ExecutionReport = {
+    const executeReport: of.ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST,
       messages: [testMessage],
       offchainTokenData: [],

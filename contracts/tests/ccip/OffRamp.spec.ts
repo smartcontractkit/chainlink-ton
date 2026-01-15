@@ -138,7 +138,7 @@ async function deployOffRampContract(
 
   const contract = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
-  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+  await contract.sendDeploy(deployer.getSender(), of.SOFT_FREEZE_THRESHOLD)
   return contract
 }
 
@@ -192,7 +192,7 @@ describe('OffRamp - Withdrawable Tests', () => {
 //         ),
 //       )
 //       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+//       await contract.sendDeploy(deployer.getSender(), rt.SOFT_FREEZE_THRESHOLD)
 //       return contract
 //     },
 //   )
@@ -626,7 +626,7 @@ describe('OffRamp - Unit Tests', () => {
 
       offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
 
-      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('0.05'))
+      let result = await offRamp.sendDeploy(deployer.getSender(), of.SOFT_FREEZE_THRESHOLD)
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: offRamp.address,

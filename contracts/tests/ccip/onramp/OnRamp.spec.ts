@@ -48,7 +48,7 @@ describe('OnRamp - TypeAndVersion Tests', () => {
 //         ),
 //       )
 //       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+//       await contract.sendDeploy(deployer.getSender(), or.SOFT_FREEZE_THRESHOLD)
 //       return contract
 //     },
 //   )

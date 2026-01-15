@@ -134,7 +134,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       },
     }
     onRamp = blockchain.openContract(or.OnRamp.createFromConfig(onRampData, code))
-    await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
+    await onRamp.sendDeploy(deployer.getSender(), or.SOFT_FREEZE_THRESHOLD)
 
     // Configure Router
     await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {

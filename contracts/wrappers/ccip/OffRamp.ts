@@ -12,6 +12,7 @@ import {
   ContractABI,
   Contract,
   DictionaryValue,
+  toNano,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { loadContractCode } from '../codeLoader'
@@ -44,6 +45,7 @@ export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 export const FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const FACILITY_ID = 84
 export const ERROR_CODE = FACILITY_ID * 100
+export const SOFT_FREEZE_THRESHOLD = toNano('1')
 
 export enum OffRampError {
   MessageNotFromOwnedContract = ERROR_CODE,

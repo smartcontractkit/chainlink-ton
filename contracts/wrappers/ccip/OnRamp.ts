@@ -11,6 +11,7 @@ import {
   Slice,
   Builder,
   TupleItem,
+  toNano,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -26,6 +27,7 @@ import * as fq from './FeeQuoter'
 export const FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
 export const FACILITY_ID = 181
 export const ERROR_CODE = FACILITY_ID * 100
+export const SOFT_FREEZE_THRESHOLD = toNano('1')
 
 export const CONTRACT_VERSION = '1.6.0'
 
