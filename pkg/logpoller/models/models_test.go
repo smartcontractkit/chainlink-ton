@@ -38,14 +38,14 @@ func TestLog_Validate(t *testing.T) {
 			wantErr:         true,
 		},
 		{
-			name: "zero MCBlockSeqno",
+			name: "zero MCBlockSeqno is allowed",
 			log: Log{
 				ChainID:      "test-chain",
 				MCBlockSeqno: 0,
 				Address:      testAddr,
 			},
 			expectedChainID: "test-chain",
-			wantErr:         true,
+			wantErr:         false,
 		},
 	}
 

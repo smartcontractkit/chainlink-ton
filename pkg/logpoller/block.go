@@ -77,10 +77,12 @@ func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentMaste
 			"err", err)
 	} else if exists {
 		if dbSeqno == 0 {
-			return 0, errors.New("database contains logs with master_block_seqno=0, which indicates data corruption")
+			lp.lggr.Warnw("Highest master_block_seqno is 0, falling back to lookback window",
+				"currentSeqNo", currentMasterchainBlock.SeqNo)
+		} else {
+			lp.lggr.Infow("Resuming from database state", "masterBlockSeqno", dbSeqno, "currentSeqNo", currentMasterchainBlock.SeqNo)
+			return dbSeqno, nil
 		}
-		lp.lggr.Infow("Resuming from database state", "masterBlockSeqno", dbSeqno, "currentSeqNo", currentMasterchainBlock.SeqNo)
-		return dbSeqno, nil
 	}
 
 	// fresh start: use lookback window

@@ -282,17 +282,17 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 }
 
 // resolveTxsMCBlock resolves masterchain block seqno for each transaction and forwards to output channel.
+// On resolution failure, tx proceeds with MCBlockSeqno=0 to avoid data loss (resumption handles this).
 func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models.Tx, txsOut chan<- models.Tx, errsOut chan<- error) {
 	defer close(txsOut)
 
 	for tx := range rawTxsCh {
 		mcSeqno, err := lp.resolveMCBlockSeqNo(ctx, tx.Block)
 		if err != nil {
-			lp.lggr.Errorw("failed to resolve masterchain block seqno",
+			lp.lggr.Warnw("failed to resolve masterchain block seqno, using 0 as fallback",
 				"block", shardBlockKey(tx.Block),
 				"err", err)
 			errsOut <- fmt.Errorf("failed to resolve masterchain block seqno: %w", err)
-			continue
 		}
 		tx.MCBlockSeqno = mcSeqno
 
