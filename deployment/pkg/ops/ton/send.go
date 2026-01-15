@@ -15,6 +15,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 var (
@@ -67,8 +68,13 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to cell: %w", err)
 			}
 
+			opcode, err := extractOpcode(_im.Body)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to extract opcode from message body: %w", err)
+			}
+
 			plan := MessagePlanRaw{
-				Opcode:  0, // TODO: extract opcode from body if possible
+				Opcode:  opcode,
 				DstAddr: _im.DstAddr,
 				Amount:  m.Amount,
 
@@ -90,6 +96,26 @@ var SendMessages = cldf_ops.NewOperation(
 		return out.Output, nil
 	},
 )
+
+// extractOpcode extracts the opcode from the message body cell.
+func extractOpcode(body *cell.Cell) (uint32, error) {
+	if body == nil {
+		return 0, nil
+	}
+
+	s := body.BeginParse()
+	if s.BitsLeft() < 32 {
+		return 0, nil
+	}
+
+	// extract opcode (first 32 bits)
+	opcode, err := s.LoadUInt(32)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load opcode: %w", err)
+	}
+
+	return uint32(opcode), nil //nolint:gosec // LoadUInt(32) fits in uint32
+}
 
 type SendMessagesRawInput struct {
 	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
