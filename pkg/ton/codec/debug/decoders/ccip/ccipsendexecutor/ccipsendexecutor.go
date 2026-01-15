@@ -6,6 +6,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -25,11 +26,11 @@ func (d *decoder) ContractType() string {
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, &lib.UnknownMessageError{}
+	return nil, codec.ErrUnknownMessage
 }
 
 func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, &lib.UnknownMessageError{}
+	return nil, codec.ErrUnknownMessage
 }
 
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
@@ -39,7 +40,7 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
 	ec, err := ccipsendexecutor.ExitCodeCodec.NewFrom(exitCode)
 	if err != nil {
-		return "", &lib.UnknownMessageError{}
+		return "", codec.ErrUnknownMessage
 	}
 
 	return ec.String(), nil

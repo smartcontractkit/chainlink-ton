@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -215,6 +216,17 @@ func (r *ResolverRegistry) resolveCollections(value any, depth int) (any, error)
 	}
 }
 
+// ErrSkipResolver indicates that resolution should be skipped
+type ErrSkipResolver struct{ cause error }
+
+func NewErrSkipResolver(cause error) ErrSkipResolver {
+	return ErrSkipResolver{cause: cause}
+}
+
+func (e ErrSkipResolver) Error() string {
+	return fmt.Sprintf("skip resolver: %v", e.cause)
+}
+
 // resolveOnce attempts to resolve a value once using any matching resolver
 func (r *ResolverRegistry) resolveOnce(value any) (resolved any, changed bool, err error) {
 	// Try each resolver to see if it can handle this value
@@ -222,9 +234,11 @@ func (r *ResolverRegistry) resolveOnce(value any) (resolved any, changed bool, e
 		if resolver.CanResolve(value) {
 			resolved, err := resolver.Resolve(value)
 			if err != nil {
-				// TODO (ops): add didResolve bool return to distinguish errors from non-matches
-				fmt.Println("Resolving ERROR: ", err)
-				continue // try next resolver
+				if errors.As(err, &ErrSkipResolver{}) {
+					continue // try next resolver (non-fatal error)
+				}
+
+				return nil, false, fmt.Errorf("resolver %q failed: %w", resolver.Key(), err)
 			}
 			return resolved, true, err
 		}

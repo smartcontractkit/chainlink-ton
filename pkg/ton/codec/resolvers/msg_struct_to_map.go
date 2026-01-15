@@ -1,6 +1,7 @@
 package resolvers
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -25,6 +26,10 @@ func NewStructToMapResolver(tlbMap tvm.TLBMap) codec.Resolver[any, map[string]an
 func (r *structToMapResolver) Resolve(input any) (map[string]any, error) {
 	_, out, err := codec.DecodeTLBStructToJSON(input, r.TLBMap)
 	if err != nil {
+		if errors.Is(err, codec.ErrUnknownMessage) {
+			return nil, codec.NewErrSkipResolver(err)
+		}
+
 		return nil, fmt.Errorf("failed to decode struct to map: %w", err)
 	}
 	return out, nil

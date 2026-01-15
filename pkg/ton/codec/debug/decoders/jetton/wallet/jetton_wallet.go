@@ -5,6 +5,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	jetton_common "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/jetton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
@@ -28,12 +29,12 @@ func (d *decoder) ContractType() string {
 
 // EventInfo implements lib.ContractDecoder.
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, &lib.UnknownMessageError{}
+	return nil, codec.ErrUnknownMessage
 }
 
 // ExternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, &lib.UnknownMessageError{}
+	return nil, codec.ErrUnknownMessage
 }
 
 // InternalMessageInfo implements lib.ContractDecoder.

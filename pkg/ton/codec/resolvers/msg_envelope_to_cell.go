@@ -1,6 +1,7 @@
 package resolvers
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -31,6 +32,10 @@ func (r *msgEnvelopeToCellResolver) Key() string {
 func (r *msgEnvelopeToCellResolver) Resolve(input map[string]any) (*cell.Cell, error) {
 	e, err := r.msgEnvelopeResolver.Resolve(input)
 	if err != nil {
+		if errors.Is(err, codec.ErrSkipResolver{}) {
+			return nil, err
+		}
+
 		return nil, fmt.Errorf("failed to resolve message envelope: %w", err)
 	}
 

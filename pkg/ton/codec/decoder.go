@@ -14,11 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-type UnknownMessageError struct{}
-
-func (e *UnknownMessageError) Error() string {
-	return "unknown message"
-}
+var ErrUnknownMessage = fmt.Errorf("unknown message type")
 
 func DecodeTLBCellToAny(c *cell.Cell, tlbs tvm.TLBMap) (any, error) {
 	if c == nil {
@@ -28,7 +24,7 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs tvm.TLBMap) (any, error) {
 	// Try to decode *cell.Cell as one of the TLBs type by reading the opcode
 	r := c.BeginParse()
 	if r.BitsLeft() == 0 {
-		return nil, &UnknownMessageError{}
+		return nil, ErrUnknownMessage
 	}
 	opcode, err := r.PreloadUInt(32)
 	if err != nil {
@@ -37,7 +33,7 @@ func DecodeTLBCellToAny(c *cell.Cell, tlbs tvm.TLBMap) (any, error) {
 
 	i, ok := tlbs[opcode]
 	if !ok {
-		return nil, &UnknownMessageError{}
+		return nil, ErrUnknownMessage
 	}
 
 	// Create new instance of the candidate type

@@ -54,7 +54,7 @@ var TestTLBs = tvm.MustNewTLBMap([]any{
 
 func getRegistry() tvm.ContractTLBRegistry {
 	r := bindings.Registry
-	// Test contract types // TODO (ops): remove from here, move to test file
+	// Add test contract types
 	r[PkgTest+".Foo"] = TestTLBs
 	return r
 }

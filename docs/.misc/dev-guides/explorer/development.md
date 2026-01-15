@@ -34,4 +34,4 @@ Your decoder should go in `pkg/ton/debug/decoders/<domain>` package. If it is a 
 
 I suggest not placing any business logic in the decoder. Instead, create a separate package for that, e.g. `pkg/ccip/bindings/feequoter/codec.go` and use it from the decoder.
 
-When trying to parse a message, your decoder should return `lib.UnknownMessageError{}` if the opcode doesn't match. As we are relying on unique opcodes, if the opcode matches, you can assume the message is for your contract, and return a different error if the message is malformed.
+When trying to parse a message, your decoder should return `codec.ErrUnknownMessage` if the opcode doesn't match. As we are relying on unique opcodes, if the opcode matches, you can assume the message is for your contract, and return a different error if the message is malformed.

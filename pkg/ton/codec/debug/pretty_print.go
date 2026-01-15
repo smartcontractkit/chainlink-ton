@@ -11,6 +11,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/offramp"
@@ -211,7 +212,7 @@ func (d DebuggerEnvironment) describeReceivedMessage(m *tt.ReceivedMessage, verb
 			}
 			if err == nil {
 				msgInfo = &t
-			} else if e := (&lib.UnknownMessageError{}); !errors.As(err, &e) {
+			} else if !errors.Is(err, codec.ErrUnknownMessage) {
 				return nil, err
 			}
 		}
@@ -219,7 +220,7 @@ func (d DebuggerEnvironment) describeReceivedMessage(m *tt.ReceivedMessage, verb
 			newVar, err := contract.ExitCodeInfo(m.ExitCode)
 			if err == nil {
 				exitCodeDescription = &newVar
-			} else if e := &(lib.UnknownMessageError{}); !errors.As(err, &e) {
+			} else if !errors.Is(err, codec.ErrUnknownMessage) {
 				return nil, err
 			}
 		}
@@ -251,7 +252,7 @@ func (d DebuggerEnvironment) describeSentMessage(m *tt.SentMessage, verbose bool
 		if err == nil {
 			return info, nil
 		}
-		if e := &(lib.UnknownMessageError{}); !errors.As(err, &e) {
+		if !errors.Is(err, codec.ErrUnknownMessage) {
 			return nil, err
 		}
 	}
@@ -267,7 +268,7 @@ func (d DebuggerEnvironment) describeExternalOutMsg(m tt.OutgoingExternalMessage
 		if err == nil {
 			return &info, nil
 		}
-		if e := &(lib.UnknownMessageError{}); !errors.As(err, &e) {
+		if !errors.Is(err, codec.ErrUnknownMessage) {
 			return nil, err
 		}
 	}

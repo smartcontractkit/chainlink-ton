@@ -7,6 +7,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/ccipcommon"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
@@ -31,7 +32,7 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 	bucket := event.NewExtOutLogBucket(dstAddr)
 	topic, err := bucket.DecodeEventTopic()
 	if err != nil {
-		return nil, &lib.UnknownMessageError{}
+		return nil, codec.ErrUnknownMessage
 	}
 	if topic == onramp.TopicCCIPMessageSent {
 		var ccipMessageSent onramp.CCIPMessageSent
@@ -42,11 +43,11 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 		return lib.NewMessageInfo("CCIPMessageSent", ccipMessageSent)
 	}
 
-	return nil, &lib.UnknownMessageError{}
+	return nil, codec.ErrUnknownMessage
 }
 
 func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, &lib.UnknownMessageError{}
+	return nil, codec.ErrUnknownMessage
 }
 
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {

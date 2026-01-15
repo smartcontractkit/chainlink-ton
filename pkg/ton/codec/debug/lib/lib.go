@@ -34,12 +34,6 @@ type BodyInfo interface {
 	Describe() string
 }
 
-type UnknownMessageError struct{}
-
-func (e *UnknownMessageError) Error() string {
-	return "unknown message"
-}
-
 type ContractDecoder interface {
 	ContractType() string
 	InternalMessageInfo(body *cell.Cell) (MessageInfo, error)
@@ -72,7 +66,7 @@ func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs tvm.TLBMap, tlbsCtx t
 	}
 
 	if typeName == "Cell" { // on decoder fallback (not decoded)
-		return nil, &UnknownMessageError{}
+		return nil, codec.ErrUnknownMessage
 	}
 
 	// Second round of decoding - internal payloads using TLBs from loaded context
