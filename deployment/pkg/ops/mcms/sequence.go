@@ -209,7 +209,7 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		}
 
 		value := msg.Amount.Nano()
-		// TODO: replace with below once https://github.com/smartcontractkit/mcms/pull/486 is merged
+		// TODO (ops/mcms): replace with below once https://github.com/smartcontractkit/mcms/pull/486 is merged
 		// mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
 		mcmsTxs[i], err = NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
 		if err != nil {
@@ -223,7 +223,7 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 	}, nil
 }
 
-// TODO: remove and import once https://github.com/smartcontractkit/mcms/pull/486 is merged
+// TODO (ops/mcms): remove and import once https://github.com/smartcontractkit/mcms/pull/486 is merged
 // Vendor code START - vendored from https://github.com/smartcontractkit/mcms/pull/486
 
 type AdditionalFields struct {

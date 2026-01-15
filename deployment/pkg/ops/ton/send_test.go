@@ -104,7 +104,8 @@ func TestIsSerializable_AllMessageEnvelopes(t *testing.T) {
 }
 
 func TestMessageEnvelope_SerializationRoundTrip(t *testing.T) {
-	messageEnvelopeRoundTrip(t, 42, 10, true)
+	writeArtifacts := os.Getenv("WRITE_TEST_ARTIFACTS") == "1"
+	messageEnvelopeRoundTrip(t, 42, 10, writeArtifacts)
 }
 
 func FuzzMessageEnvelope_SerializationRoundTrip(f *testing.F) {

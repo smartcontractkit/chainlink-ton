@@ -30,8 +30,7 @@ func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.Contrac
 	return opsAnySequence{
 		rregistry: *codec.NewResolverRegistry(
 			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
-			// TODO: add storage type resolver (deployment data - struct to cell)
-			// codec.NewTypedResolver(resolvers.NewDataEnvelopeToCellResolver(registry)),
+			codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
 			codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),
 		),
 	}
@@ -84,7 +83,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", opts.ChainSelector, err)
 	}
 
-	// TODO: check outputs for deployed addresses and update dataStore.Addresses()
+	// TODO (ops/deploy): check outputs for deployed addresses and update dataStore.Addresses()
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD

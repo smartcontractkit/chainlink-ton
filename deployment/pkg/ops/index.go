@@ -16,10 +16,11 @@ var (
 		ton.Deploy.AsUntypedRelaxed(),
 		upgradeable.Upgrade.AsUntypedRelaxed(),
 
-		// TODO: refactor ops below
+		// TODO (ops): refactor ops below
 		operation.DeployTONContractOp.AsUntypedRelaxed(),
 		operation.DownloadArtifactsOp.AsUntypedRelaxed(),
 	}
+
 	// Registry is the (default) operations registry for available TON operations.
 	Registry = operations.NewOperationRegistry(AllOperations...)
 )

@@ -240,7 +240,7 @@ func (e *MessageEnvelope[T]) LoadDecoded(r tvm.ContractTLBRegistry) error {
 // decode attempts to decode the message using either the Payload or Cell and the provided registry.
 func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 	var zero T
-	// TODO: map contract name to opcode (as a fallback) !!
+	// TODO (ops): map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry
 	if e.Payload != nil {
 		typ, ok := r.Lookup(e.Metadata.Contract, e.Metadata.Opcode)
