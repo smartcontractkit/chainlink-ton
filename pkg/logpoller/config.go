@@ -17,8 +17,17 @@ const (
 // Config holds the configuration for the log poller.
 // NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
 // Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
+//
+// Performance Note: Tick processing time must complete within PollPeriod to avoid falling behind chain head.
+// Processing time is primarily driven by PageSize (transactions fetched per API call) and transaction volume.
+// If processing consistently exceeds PollPeriod, reduce PageSize or increase PollPeriod. Monitor
+// ton_logpoller_poll_duration_seconds metric to detect when processing approaches PollPeriod.
 type Config struct {
+	// PollPeriod controls how often the poller ticks. Each tick must complete processing
+	// before the next tick starts; otherwise, processing delay accumulates.
 	PollPeriod                *config.Duration
+	// PageSize is the number of transactions fetched per API call. Larger values increase
+	// throughput but also increase per-tick processing time. Tune based on expected volume.
 	PageSize                  uint32
 	LogPollerStartingLookback *config.Duration
 	BlockTime                 *config.Duration
