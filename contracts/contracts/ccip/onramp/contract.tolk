@@ -8,6 +8,7 @@ import "messages"
 
 import "../common/types";
 import "../../lib/access/ownable_2step";
+import "../../lib/funding/soft_freeze"
 import "../../lib/utils";
 import "../ccipsend_executor/storage"
 import "../ccipsend_executor/types"
@@ -20,8 +21,10 @@ import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
+const SOFT_FREEZE_THRESHOLD = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
+    SoftFreeze{owner}.requireOperationalBalance(in.senderAddress, SOFT_FREEZE_THRESHOLD);
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
         // Permissionless

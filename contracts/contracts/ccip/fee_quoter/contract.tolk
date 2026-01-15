@@ -13,12 +13,15 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
+import "../../lib/funding/soft_freeze"
 import "../../lib/versioning/upgradeable"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1"); // TODO: set correct value
+const RESERVE = ton("5"); // TODO: set correct value
+const SOFT_FREEZE_THRESHOLD = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
+    SoftFreeze{owner}.requireOperationalBalance(in.senderAddress, SOFT_FREEZE_THRESHOLD);
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
     match (msg) {
         FeeQuoter_AddPriceUpdater => {

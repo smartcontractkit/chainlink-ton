@@ -4,6 +4,7 @@ import "errors"
 import "../onramp/messages"
 import "../onramp/types"
 import "../../lib/funding/withdrawable.tolk"
+import "../../lib/funding/soft_freeze.tolk"
 import "../../deployable/types"
 import "../../lib/access/ownable_2step"
 import "../../lib/utils"
@@ -17,9 +18,11 @@ import "../offramp/types"
 import "events"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1"); // TODO: set correct value
+const RESERVE = ton("5"); // TODO: set correct value
+const SOFT_FREEZE_THRESHOLD = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
+    SoftFreeze{owner}.requireOperationalBalance(in.senderAddress, SOFT_FREEZE_THRESHOLD);
     val msg = lazy Router_InMsg.fromSlice(in.body);
     match (msg) {
         // Sender must be owner

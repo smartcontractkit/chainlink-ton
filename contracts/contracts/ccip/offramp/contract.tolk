@@ -9,6 +9,7 @@ import "../common/types.tolk"
 import "../../deployable/types.tolk"
 import "../../lib/access/ownable_2step.tolk"
 import "../../lib/funding/withdrawable.tolk"
+import "../../lib/funding/soft_freeze"
 import "../../lib/crypto/merkle_multi_proof.tolk"
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
@@ -23,9 +24,11 @@ import "../../lib/receiver/types"
 import "../../lib/deployable/namespace"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("5");
+const RESERVE = ton("5"); // TODO: set correct value
+const SOFT_FREEZE_THRESHOLD = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {
+    SoftFreeze{owner}.requireOperationalBalance(in.senderAddress, SOFT_FREEZE_THRESHOLD);
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     
     match(msg) {
