@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
 
   master_block_seqno BIGINT NOT NULL,
 
+  error TEXT, -- parse/validation error message (NULL for successful logs)
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   CONSTRAINT fk_logs_filter FOREIGN KEY (filter_id) REFERENCES ton.log_poller_filters(id) ON DELETE CASCADE
