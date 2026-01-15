@@ -10,11 +10,8 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
-
-const sourceChainsGetter = "sourceChainSelectors"
 
 // SourceChainConfigMap represents a map of source chain selectors to their configurations.
 // This type aligns with the on-chain data structure for source chain configs.
@@ -22,7 +19,7 @@ type SourceChainConfigMap map[uint64]offramp.SourceChainConfig
 
 // Fetch retrieves all source chain configurations from the off-ramp contract.
 func (s *SourceChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) error {
-	result, err := client.RunGetMethod(ctx, block, offRampAddr, sourceChainsGetter)
+	chainSelectors, err := tvm.CallGetter(ctx, client, block, offRampAddr, offramp.GetSourceChainSelectors)
 	if err != nil {
 		return err
 	}
@@ -31,14 +28,12 @@ func (s *SourceChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWr
 	eg.SetLimit(runtime.NumCPU())
 	var lock sync.Mutex
 	output := make(SourceChainConfigMap)
-	chainSelectors := parser.ParseLispTuple(result.AsTuple())
 
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			var cfg offramp.SourceChainConfig
-			opts := []interface{}{dest}
-			if err = tvm.FetchResult(egCtx, client, block, offRampAddr, &cfg, opts); err != nil {
-				return err
+			cfg, cErr := tvm.CallGetter(egCtx, client, block, offRampAddr, offramp.GetSourceChainConfig, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()

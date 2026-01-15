@@ -1,3 +1,5 @@
+tolk 1.2
+
 struct Withdrawable {
     reserve: coins;
 }
@@ -11,8 +13,7 @@ enum Withdrawable_Error {
     InvalidRequest;
 }
 
-/// Message for upgrading a contract.
-/// 0xf343fc1b == crc32("Withdrawable_Withdraw")
+// Withdraw TON from the contract balance.
 struct (0xf343fc1b) Withdrawable_Withdraw {
     queryId: uint64;
     // address to send TON

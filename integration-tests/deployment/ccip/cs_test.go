@@ -281,7 +281,7 @@ func TestDeployCCIP(t *testing.T) {
 	})
 
 	t.Run("ExecuteProposalShouldCatchChangesetError", func(t *testing.T) {
-		expectedErrStr := fmt.Sprintf("failed to apply changeset at index 0: transaction failed with exit code: %d", ocr.ErrorBigFMustBePositive)
+		expectedErrStr := fmt.Sprintf("failed to apply changeset at index 0: failed to send or plan messages: failed to send messages: failed to wait for trace: transaction failed with exit code: %d", ocr.ErrorBigFMustBePositive)
 		_, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 			commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
 				RemoteChainSels: []uint64{tonChain.Selector},

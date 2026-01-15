@@ -381,7 +381,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 	refNum, err := getTotalReference(c)
 	require.NoError(t, err)
 	require.Equal(t, uint(4), refNum)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		c, err = c.PeekRef(0)
 		require.NoError(t, err)
 		require.Equal(t, uint(523), c.BitsSize())
@@ -422,7 +422,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 	refNum, err := getTotalReference(merkleRoots)
 	require.NoError(t, err)
 	require.Equal(t, uint(2), refNum)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		merkleRoots, err = merkleRoots.PeekRef(0)
 		require.NoError(t, err)
 		require.Equal(t, uint(960), merkleRoots.BitsSize())
@@ -582,7 +582,7 @@ func TestUnpackArrayWithRefChaining_Validation(t *testing.T) {
 
 		// Build initial cell with 3 data refs and 1 chain ref
 		builder := cell.BeginCell()
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			_ = builder.StoreRef(elemCell)
 		}
 		// Add a chain ref to continue

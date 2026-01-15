@@ -49,4 +49,8 @@ _vendor/
 # Binary
 cmd/chainlink-ton/chainlink-ton
 
+# Local environment variables
 .env
+
+# Experimental files
+pkg/ton/codec/jsoncodec/

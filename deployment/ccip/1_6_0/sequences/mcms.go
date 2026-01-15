@@ -5,17 +5,23 @@ import (
 	"math"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+
+	"github.com/xssnick/tonutils-go/address"
+
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -28,32 +34,40 @@ func (a *TonAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConf
 }
 
 var DeployMCMSContracts = operations.NewSequence(
-	"deploy-mcms",
+	"ton/sequences/ccip/deploy-mcms-suite",
 	semver.MustParse("0.0.4"), // TODO mcms and timelock has different versions, can we pick mcms version here?
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		tonChain := chains.TonChains()[input.ChainSelector]
-		deps, err := extractTonDepsFromMCMSDeploymentInput(tonChain, input.ExistingAddresses)
+		chain := chains.TonChains()[input.ChainSelector]
+		stateMCMS, err := extractMCMSChainStateFromMCMSDeploymentInput(chain, input.ExistingAddresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		seqInput, err := intoDeployMCMSSeqInput(input, deps.TonChain.WalletAddress)
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateMCMS[input.ChainSelector]),
+		)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+		}
+
+		_input, err := intoDeployMCMSSeqInput(input, chain.WalletAddress)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		mcmsSeqReport, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, deps, seqInput)
+		r, err := operations.ExecuteSequence(b, mcmsSeq.DeployMCMSSequence, dp, _input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
 		}
 
 		return sequences.OnChainOutput{
-			Addresses: mcmsSeqReport.Output.Addresses,
-			BatchOps:  mcmsSeqReport.Output.BatchOps,
+			Addresses: r.Output.Addresses,
+			BatchOps:  r.Output.BatchOps,
 		}, nil
 	},
 )
 
-func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (mcmsConfig.MCMSDeps, error) {
+func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (map[uint64]state.MCMSChainState, error) {
 	noneAddr := address.NewAddressNone()
 	init := state.MCMSChainState{
 		Timelock: *noneAddr,
@@ -64,7 +78,7 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore
 	for _, e := range existing {
 		tonAddr, err := address.ParseAddr(e.Address)
 		if err != nil {
-			return mcmsConfig.MCMSDeps{}, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
+			return nil, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
 		}
 		switch e.Type {
 		case state.Timelock:
@@ -76,13 +90,10 @@ func extractTonDepsFromMCMSDeploymentInput(chain ton.Chain, existing []datastore
 		}
 	}
 
-	deps := mcmsConfig.MCMSDeps{
-		TonChain: chain,
-		MCMSChainState: map[uint64]state.MCMSChainState{
-			chain.Selector: init,
-		},
+	state := map[uint64]state.MCMSChainState{
+		chain.Selector: init,
 	}
-	return deps, nil
+	return state, nil
 }
 
 func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) (mcmsSeq.DeployMCMSSeqInput, error) {
@@ -114,9 +125,11 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 			Timelock: mcmsConfig.TimelockParams{
 				ID:              contractID,
 				Coin:            defaultMCMSContractCoin,
-				MinDelay:        minDelay,
-				Admin:           deployer,
 				ContractsSemver: timelockSemver,
+				InitMessage: timelock.Init{
+					MinDelay: minDelay,
+					Admin:    deployer,
+				},
 			},
 			MCMS: mcmsConfig.MCMSParams{
 				ID:              contractID,
@@ -130,7 +143,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 
 func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
-		"finalize-deploy-mcms",
+		"ton/sequences/ccip/deploy-mcms-suite-finalize",
 		semver.MustParse("1.0.0"),
 		"On TON, finalizing MCM deployment is a no-op",
 		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -140,7 +153,7 @@ func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploy
 
 func (a *TonAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
-		"grant-admin-role-of-timelock-to-timelock",
+		"ton/sequences/ccip/grant-admin-role-to-timelock",
 		semver.MustParse("1.0.0"),
 		"On TON, GrantAdminRoleToTimelock is a no-op",
 		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector) (output sequences.OnChainOutput, err error) {

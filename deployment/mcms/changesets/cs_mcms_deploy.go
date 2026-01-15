@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	mcmsSeq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
@@ -50,23 +51,27 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		ChainSelector:       cfg.ChainSelector,
 	}
 
-	mcmsDeps := config.MCMSDeps{
-		TonChain:       chain,
-		MCMSChainState: mcmsStates,
+	dp, err := dep.NewDependencyProvider(
+		dep.Provide(chain),
+		dep.Provide(mcmsStates[selector]),
+	)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 	}
 
-	seqReports := make([]operations.Report[any, any], 0)
+	reports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
 
 	// deploy MCMS contracts
-	mcmsSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, mcmsSeq.DeployMCMSSequence, mcmsDeps, mcmsSeqInput)
+	mcmsSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, mcmsSeq.DeployMCMSSequence, dp, mcmsSeqInput)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", selector, err)
 	}
 
+	// TODO (ops): duplicates csCCIPDeploy - extract to common deploy/addr processing utility
 	// Only add new deployed addresses from DeployCCIPSequence to the output data store
 	if len(mcmsSeqReport.Output.Addresses) > 0 {
 		for _, addr := range mcmsSeqReport.Output.Addresses {
@@ -89,14 +94,14 @@ func (cs DeployMCMSContracts) Apply(env cldf.Environment, cfg DeployMCMSContract
 		}
 	}
 
-	mcmsDeps.MCMSChainState[selector] = m
+	mcmsStates[selector] = m
 	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
 	ab, _ := utils.DataStoreToAddressBook(dataStore)
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
-		Reports:               seqReports,
+		Reports:               reports,
 		DataStore:             dataStore,
 		AddressBook:           ab,
 	}, nil
