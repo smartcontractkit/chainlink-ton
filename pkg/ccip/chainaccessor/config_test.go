@@ -9,7 +9,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 )
 
-// Helper to create big.Int from hex string
 func bigIntFromHex(s string) *big.Int {
 	bi, _ := new(big.Int).SetString(s, 16)
 	return bi
