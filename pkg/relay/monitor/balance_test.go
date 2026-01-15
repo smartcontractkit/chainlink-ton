@@ -24,7 +24,8 @@ func TestDecodeHexPublicKey(t *testing.T) {
 		}
 
 		// Extract and convert the public key
-		expectedPubKey := testPrivateKey.Public().(ed25519.PublicKey)
+		expectedPubKey, ok := testPrivateKey.Public().(ed25519.PublicKey)
+		require.True(t, ok, "public key should be ed25519.PublicKey")
 		hexPubKey := hex.EncodeToString(expectedPubKey)
 
 		// Test the decoding
@@ -63,7 +64,8 @@ func TestHexPublicKeyToWalletAddress(t *testing.T) {
 		}
 
 		// Extract and convert the public key
-		pubKey := testPrivateKey.Public().(ed25519.PublicKey)
+		pubKey, ok := testPrivateKey.Public().(ed25519.PublicKey)
+		require.True(t, ok, "public key should be ed25519.PublicKey")
 		hexPubKey := hex.EncodeToString(pubKey)
 
 		// Test the conversion (no client needed - pure cryptographic operation)

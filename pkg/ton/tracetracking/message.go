@@ -396,6 +396,7 @@ func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*Recei
 	}
 	incomingMessage := rTX.IO.In.AsInternal()
 	if !m.MatchesReceived(incomingMessage) {
+		//nolint:nilnil // No match found for this sent message
 		return nil, nil
 	}
 	receivedMessage, err := MapToReceivedMessage(rTX)

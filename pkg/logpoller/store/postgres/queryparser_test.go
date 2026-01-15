@@ -306,7 +306,8 @@ func TestBuildLogQuery(t *testing.T) {
 			require.True(t, sqlMatches(t, tt.expectedSQL, sql))
 
 			if tt.checkParams != nil {
-				params := args.(map[string]any)
+				params, ok := args.(map[string]any)
+				require.True(t, ok, "args should be map[string]any")
 				tt.checkParams(t, params)
 			}
 		})

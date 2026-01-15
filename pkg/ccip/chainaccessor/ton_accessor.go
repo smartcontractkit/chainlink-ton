@@ -621,6 +621,7 @@ func (a *TONAccessor) ExecutedMessages(
 
 	if len(nonEmptyRangesPerChain) == 0 {
 		lggr.Debugw("no sequence numbers to query", "nonEmptyRangesPerChain", nonEmptyRangesPerChain)
+		//nolint:nilnil // returning nil map is acceptable here?
 		return nil, nil
 	}
 

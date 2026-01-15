@@ -147,6 +147,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
 func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	// Note: we don't test the API client interaction here, so we return empty client
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		//nolint:nilnil // mock
 		return nil, nil
 	}
 
@@ -639,7 +640,8 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.Start(), "MinSeqNr should be 1")
 	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.End(), "MaxSeqNr should be 1")
 
-	expectedMerkleRootBytes, _ := hex.DecodeString("bea275bb6614f85036536bc670e540bc748118e90537b8441c950672f74607d5")
+	expectedMerkleRootBytes, err := hex.DecodeString("bea275bb6614f85036536bc670e540bc748118e90537b8441c950672f74607d5")
+	require.NoError(t, err)
 	require.Equal(t, expectedMerkleRootBytes, merkleRoot.MerkleRoot[:], "MerkleRoot should match")
 
 	// Validate PriceUpdates should be empty for this test (since we used merkleRootOnlyCell)
@@ -695,11 +697,6 @@ func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
 }
 
 func Test_TonAccessorExecutedMessages(t *testing.T) {
-	// Note: we don't test the API client interaction here, so we return empty client
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return nil, nil
-	}
-
 	// Setup in-memory store
 	lggr := logger.Test(t)
 	opts := &logpoller.ServiceOptions{
@@ -711,7 +708,8 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	lp, err := logpoller.NewService(
 		lggr,
 		"test-chain",
-		clientProvider,
+		// Note: we don't test the API client interaction here, so we return empty client
+		mockClientProvider,
 		opts,
 	)
 	require.NoError(t, err)
@@ -720,14 +718,14 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	testExecutedMessagesHelper(t, lp, opts.LogStore, 1)
 }
 
+func mockClientProvider(ctx context.Context) (ton.APIClientWrapped, error) {
+	//nolint:nilnil // mock
+	return nil, nil
+}
+
 // Test validation for MsgsBetweenSeqNums sequence number range
 func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 	lggr := logger.Test(t)
-
-	// Note: we don't test the API client interaction here, so we return empty client
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return nil, nil
-	}
 
 	opts := &logpoller.ServiceOptions{
 		Config:      logpoller.DefaultConfigSet,
@@ -738,7 +736,8 @@ func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 	lp, err := logpoller.NewService(
 		lggr,
 		"test-chain",
-		clientProvider,
+		// Note: we don't test the API client interaction here, so we return empty client
+		mockClientProvider,
 		opts,
 	)
 	require.NoError(t, err)
@@ -788,11 +787,6 @@ func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
 		t.Skip("Skipping postgres test in short mode")
 	}
 
-	// Note: we don't test the API client interaction here, so we return empty client
-	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return nil, nil
-	}
-
 	// Setup postgres store using testcontainers
 	lggr := logger.Test(t)
 	ds := pgtest.SetupTestDB(t)
@@ -814,7 +808,8 @@ func Test_TonAccessorExecutedMessages_WithPostgresStore(t *testing.T) {
 	lp, err := logpoller.NewService(
 		lggr,
 		"test-chain",
-		clientProvider,
+		// Note: we don't test the API client interaction here, so we return empty client
+		mockClientProvider,
 		opts,
 	)
 	require.NoError(t, err)

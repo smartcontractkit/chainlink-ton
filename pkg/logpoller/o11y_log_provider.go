@@ -78,7 +78,10 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 	var allLogs []models.RawLog
 
 	for _, tx := range txs {
-		msgs, _ := tx.Transaction.IO.Out.ToSlice()
+		msgs, err := tx.Transaction.IO.Out.ToSlice()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse out messages for txHash=%v, LT=%d: %w", tx.Transaction.Hash, tx.Transaction.LT, err)
+		}
 
 		blockData, err := tlp.client.GetBlockData(ctx, tx.Block)
 		if err != nil {

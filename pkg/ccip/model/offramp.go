@@ -233,13 +233,13 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 	b = b.WithOCR3BaseChainID(int(raw.OCR3Base.ChainID))
 
 	// OCR3Base.Config.Commit
-	commit, err := ocr3ConfigToModel(raw.OCR3Base.Commit)
+	commit, err := maybeOcr3ConfigToModel(raw.OCR3Base.Commit)
 	if err != nil {
 		return fmt.Errorf("error while loading OCR3Base.Commit: %w", err)
 	}
 
 	// OCR3Base.Config.Execute
-	execute, err := ocr3ConfigToModel(raw.OCR3Base.Execute)
+	execute, err := maybeOcr3ConfigToModel(raw.OCR3Base.Execute)
 	if err != nil {
 		return fmt.Errorf("error while loading OCR3Base.Execute: %w", err)
 	}
@@ -295,119 +295,124 @@ func (s *OffRampStorage) FromBinding(raw *offramp.Storage) error {
 	return nil
 }
 
-func ocr3ConfigToModel(raw *offramp.OCR3Config) (*OCR3Config, error) {
-	if raw != nil {
-		// OCR3Base.Config.Signers
-		signersMap, err := raw.Signers.LoadAll()
-
-		if err != nil {
-			return nil, fmt.Errorf("error while loading signers: %w", err)
-		}
-
-		var signers []*big.Int
-		for _, signerEntry := range signersMap {
-			signer, err2 := signerEntry.Key.LoadBigUInt(256)
-			if err2 != nil {
-				return nil, fmt.Errorf("error while decoding signer: %w", err2)
-			}
-
-			signers = append(signers, signer)
-		}
-
-		// OCR3Base.Config.Transmitters
-		transmittersMap, err := raw.Transmitters.LoadAll()
-
-		if err != nil {
-			return nil, fmt.Errorf("error while loading transmitters: %w", err)
-		}
-
-		var transmitters []*address.Address
-		for _, transmitterEntry := range transmittersMap {
-			var transmitter common.AddressWrap
-			if err2 := tlb.LoadFromCell(&transmitter, transmitterEntry.Key); err2 != nil {
-				return nil, fmt.Errorf("error while decoding transmitter value: %w", err2)
-			}
-
-			transmitters = append(transmitters, transmitter.Val)
-		}
-
-		wrappedSigners, err := bigIntArrayToHexArray(signers, 32) // 256 bits = 32 bytes
-		if err != nil {
-			return nil, fmt.Errorf("error while loading transmitters: %w", err)
-		}
-
-		commitConfig := OCR3Config{
-			ConfigDigest:                   hex.EncodeToString(raw.ConfigInfo.ConfigDigest),
-			Signers:                        wrappedSigners,
-			Transmitters:                   transmitters,
-			F:                              int(raw.ConfigInfo.F),
-			N:                              int(raw.ConfigInfo.N),
-			IsSignatureVerificationEnabled: raw.ConfigInfo.IsSignatureVerificationEnabled,
-		}
-
-		return &commitConfig, nil
+// maybeOcr3ConfigToModel converts a binding OCR3Config to a model OCR3Config,
+// returning nil if the input is nil.
+func maybeOcr3ConfigToModel(raw *offramp.OCR3Config) (*OCR3Config, error) {
+	if raw == nil {
+		//nolint:nilnil // Explicit nil return
+		return nil, nil
 	}
 
-	return nil, nil
+	// OCR3Base.Config.Signers
+	signersMap, err := raw.Signers.LoadAll()
+
+	if err != nil {
+		return nil, fmt.Errorf("error while loading signers: %w", err)
+	}
+
+	signers := make([]*big.Int, 0, len(signersMap))
+	for _, signerEntry := range signersMap {
+		signer, err2 := signerEntry.Key.LoadBigUInt(256)
+		if err2 != nil {
+			return nil, fmt.Errorf("error while decoding signer: %w", err2)
+		}
+
+		signers = append(signers, signer)
+	}
+
+	// OCR3Base.Config.Transmitters
+	transmittersMap, err := raw.Transmitters.LoadAll()
+
+	if err != nil {
+		return nil, fmt.Errorf("error while loading transmitters: %w", err)
+	}
+
+	transmitters := make([]*address.Address, 0, len(transmittersMap))
+	for _, transmitterEntry := range transmittersMap {
+		var transmitter common.AddressWrap
+		if err2 := tlb.LoadFromCell(&transmitter, transmitterEntry.Key); err2 != nil {
+			return nil, fmt.Errorf("error while decoding transmitter value: %w", err2)
+		}
+
+		transmitters = append(transmitters, transmitter.Val)
+	}
+
+	wrappedSigners, err := bigIntArrayToHexArray(signers, 32) // 256 bits = 32 bytes
+	if err != nil {
+		return nil, fmt.Errorf("error while loading transmitters: %w", err)
+	}
+
+	commitConfig := OCR3Config{
+		ConfigDigest:                   hex.EncodeToString(raw.ConfigInfo.ConfigDigest),
+		Signers:                        wrappedSigners,
+		Transmitters:                   transmitters,
+		F:                              int(raw.ConfigInfo.F),
+		N:                              int(raw.ConfigInfo.N),
+		IsSignatureVerificationEnabled: raw.ConfigInfo.IsSignatureVerificationEnabled,
+	}
+
+	return &commitConfig, nil
 }
 
-func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
-	if config != nil {
-		// OCR3Base.Config.Signers
-		signers := cell.NewDict(256)
-		for _, rawSigner := range config.Signers {
-			signer, err := hexToBigInt(rawSigner)
-			if err != nil {
-				return nil, fmt.Errorf("error while decoding signer: %w", err)
-			}
-
-			if err := signers.Set(
-				cell.BeginCell().MustStoreBigUInt(signer, 256).EndCell(),
-				cell.BeginCell().EndCell(),
-			); err != nil {
-				return nil, fmt.Errorf("error while setting signers: %w", err)
-			}
-		}
-
-		// OCR3Base.Config.Transmitters
-		transmitters := cell.NewDict(267)
-		for _, transmitter := range config.Transmitters {
-			if err := transmitters.Set(
-				cell.BeginCell().MustStoreAddr(transmitter).EndCell(),
-				cell.BeginCell().EndCell(),
-			); err != nil {
-				return nil, fmt.Errorf("error while setting transmitters: %w", err)
-			}
-		}
-
-		if config.F < 0 || config.F > math.MaxUint8 {
-			return nil, fmt.Errorf("f in ocr3base %d overflows or underflows uint8", config.F)
-		}
-		fU8 := uint8(config.F)
-
-		if config.N < 0 || config.N > math.MaxUint8 {
-			return nil, fmt.Errorf("n in ocr3base %d overflows or underflows uint8", config.N)
-		}
-		nU8 := uint8(config.N)
-
-		configDigest, err := hex.DecodeString(config.ConfigDigest)
+// maybeOcr3ConfigToBinding converts a model OCR3Config to a binding OCR3Config,
+// returning nil if the input is nil.
+func maybeOcr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
+	if config == nil {
+		//nolint:nilnil // Explicit nil return
+		return nil, nil
+	}
+	// OCR3Base.Config.Signers
+	signers := cell.NewDict(256)
+	for _, rawSigner := range config.Signers {
+		signer, err := hexToBigInt(rawSigner)
 		if err != nil {
-			return nil, fmt.Errorf("error while decoding configDigest: %w", err)
+			return nil, fmt.Errorf("error while decoding signer: %w", err)
 		}
 
-		return &offramp.OCR3Config{
-			Signers:      signers,
-			Transmitters: transmitters,
-			ConfigInfo: offramp.ConfigInfo{
-				ConfigDigest:                   configDigest,
-				F:                              fU8,
-				N:                              nU8,
-				IsSignatureVerificationEnabled: config.IsSignatureVerificationEnabled,
-			},
-		}, nil
+		if err := signers.Set(
+			cell.BeginCell().MustStoreBigUInt(signer, 256).EndCell(),
+			cell.BeginCell().EndCell(),
+		); err != nil {
+			return nil, fmt.Errorf("error while setting signers: %w", err)
+		}
 	}
 
-	return nil, nil
+	// OCR3Base.Config.Transmitters
+	transmitters := cell.NewDict(267)
+	for _, transmitter := range config.Transmitters {
+		if err := transmitters.Set(
+			cell.BeginCell().MustStoreAddr(transmitter).EndCell(),
+			cell.BeginCell().EndCell(),
+		); err != nil {
+			return nil, fmt.Errorf("error while setting transmitters: %w", err)
+		}
+	}
+
+	if config.F < 0 || config.F > math.MaxUint8 {
+		return nil, fmt.Errorf("f in ocr3base %d overflows or underflows uint8", config.F)
+	}
+	fU8 := uint8(config.F)
+
+	if config.N < 0 || config.N > math.MaxUint8 {
+		return nil, fmt.Errorf("n in ocr3base %d overflows or underflows uint8", config.N)
+	}
+	nU8 := uint8(config.N)
+
+	configDigest, err := hex.DecodeString(config.ConfigDigest)
+	if err != nil {
+		return nil, fmt.Errorf("error while decoding configDigest: %w", err)
+	}
+
+	return &offramp.OCR3Config{
+		Signers:      signers,
+		Transmitters: transmitters,
+		ConfigInfo: offramp.ConfigInfo{
+			ConfigDigest:                   configDigest,
+			F:                              fU8,
+			N:                              nU8,
+			IsSignatureVerificationEnabled: config.IsSignatureVerificationEnabled,
+		},
+	}, nil
 }
 
 func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
@@ -426,12 +431,12 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 		return nil, fmt.Errorf("error while loading receive executor code: %w", err)
 	}
 
-	commitOCR3Config, err := ocr3ConfigToBinding(s.OCR3Base.Commit)
+	commitOCR3Config, err := maybeOcr3ConfigToBinding(s.OCR3Base.Commit)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading commit OCR3 config: %w", err)
 	}
 
-	executeOCR3Config, err := ocr3ConfigToBinding(s.OCR3Base.Execute)
+	executeOCR3Config, err := maybeOcr3ConfigToBinding(s.OCR3Base.Execute)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading execute OCR3 config: %w", err)
 	}

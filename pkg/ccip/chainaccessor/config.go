@@ -143,6 +143,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 
 	// if the dictionary is empty, we get back nil
 	if len(sourceConfigsGot) == 0 {
+		//nolint:nilnil // returning nil map is acceptable here?
 		return nil, nil
 	}
 
