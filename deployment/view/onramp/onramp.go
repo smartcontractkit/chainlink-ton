@@ -25,13 +25,13 @@ type View struct {
 
 // FetchView generates a view of the on-ramp contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address, srcSelector uint64) (*View, error) {
-	var typeVersion ccipcommon.TypeAndVersion
-	if err := tvm.FetchResult(ctx, c.Client, block, onRampAddr, &typeVersion, nil); err != nil {
+	typeVersion, err := tvm.CallGetter(ctx, c.Client, block, onRampAddr, ccipcommon.GetTypeAndVersion)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
-	var dConfig onramp.DynamicConfig
-	if err := tvm.FetchResult(ctx, c.Client, block, onRampAddr, &dConfig, nil); err != nil {
+	dConfig, err := tvm.CallGetter(ctx, c.Client, block, onRampAddr, onramp.GetDynamicConfig)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse DynamicConfig: %w", err)
 	}
 

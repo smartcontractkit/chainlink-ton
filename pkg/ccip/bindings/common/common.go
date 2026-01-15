@@ -94,34 +94,17 @@ type TypeAndVersion struct {
 	Version string `tlb:"str"`
 }
 
+// Deprecated: Use GetTypeAndVersion getter instead.
 func (t *TypeAndVersion) UnmarshalResult(result *ton.ExecutionResult) error {
-	typ, err := result.Slice(0)
+	res, err := GetTypeAndVersion.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	tStr, err := typ.LoadStringSnake()
-	if err != nil {
-		return err
-	}
-
-	version, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-
-	vStr, err := version.LoadStringSnake()
-	if err != nil {
-		return err
-	}
-
-	*t = TypeAndVersion{
-		Type:    tStr,
-		Version: vStr,
-	}
-
+	*t = res
 	return nil
 }
 
+// Deprecated: Use GetTypeAndVersion getter instead.
 func (t *TypeAndVersion) GetterMethodName() string {
 	return versionGetter
 }

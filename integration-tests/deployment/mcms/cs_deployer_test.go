@@ -114,8 +114,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 
 	// Verify MCMS contract
 	mcmsAddr := mcmsState[chainSelector].MCMS
-	var tv common.TypeAndVersion
-	err = tvm.FetchResult(ctx, chain.Client, mc, &mcmsAddr, &tv, nil)
+	tv, err := tvm.CallGetter(ctx, chain.Client, mc, &mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
@@ -147,7 +146,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	mcmsAddr = mcmsState[chainSelector].MCMS
-	err = tvm.FetchResult(ctx, chain.Client, mc, &mcmsAddr, &tv, nil)
+	tv, err = tvm.CallGetter(ctx, chain.Client, mc, &mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
