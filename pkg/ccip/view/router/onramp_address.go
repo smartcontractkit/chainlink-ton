@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"sync"
 
@@ -10,12 +9,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
-)
-
-const (
-	destChainsGetter = "destChainSelectors"
-	onRampGetter     = "onRamp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // OnRampAddressMap represents a map of destination chain selectors to their on-ramp addresses.
@@ -24,12 +19,10 @@ type OnRampAddressMap map[uint64]*address.Address
 
 // Fetch retrieves all on-ramp addresses for destination chains from the router contract.
 func (o *OnRampAddressMap) Fetch(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, routerAddr *address.Address) error {
-	result, err := client.RunGetMethod(ctx, block, routerAddr, destChainsGetter)
+	selectorSlice, err := tvm.CallGetter(ctx, client, block, routerAddr, router.GetDestChainSelectors)
 	if err != nil {
 		return err
 	}
-
-	selectorSlice := parser.ParseLispTuple(result.AsTuple())
 
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
@@ -37,19 +30,9 @@ func (o *OnRampAddressMap) Fetch(ctx context.Context, client ton.APIClientWrappe
 	onRampAddrMap := make(OnRampAddressMap)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			res, e := client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest)
-			if e != nil {
-				return fmt.Errorf("error getting onrampAddr: %w", e)
-			}
-
-			onRampSlice, e := res.Slice(0)
-			if e != nil {
-				return e
-			}
-
-			onRampAddr, e := onRampSlice.LoadAddr()
-			if e != nil {
-				return fmt.Errorf("failed to load onramp address: %w", e)
+			onRampAddr, cErr := tvm.CallGetter(egCtx, client, block, routerAddr, router.GetOnRamp, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()
