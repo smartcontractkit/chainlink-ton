@@ -28,6 +28,10 @@ type Config struct {
 	BatchInsertSize uint32
 	MinBatchSize    uint32
 	SaveThreshold   uint32 // Number of logs to buffer in memory before saving
+
+	// MC block resolution retry configuration
+	MCBlockResolveMaxRetries uint32           // Max retry attempts for masterchain block resolution
+	MCBlockResolveBaseDelay  *config.Duration // Base delay for exponential backoff
 }
 
 var DefaultConfigSet = Config{
@@ -45,6 +49,9 @@ var DefaultConfigSet = Config{
 	SaveThreshold:   7000, // Memory buffer size before batch saving
 
 	MCBlockCacheSize: 1000, // ~100 bytes per entry, 1000 entries ≈ 100KB
+
+	MCBlockResolveMaxRetries: 3,
+	MCBlockResolveBaseDelay:  config.MustNewDuration(100 * time.Millisecond),
 }
 
 func (c *Config) ApplyDefaults() {
@@ -71,6 +78,12 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.MCBlockCacheSize <= 0 {
 		c.MCBlockCacheSize = DefaultConfigSet.MCBlockCacheSize
+	}
+	if c.MCBlockResolveMaxRetries == 0 {
+		c.MCBlockResolveMaxRetries = DefaultConfigSet.MCBlockResolveMaxRetries
+	}
+	if c.MCBlockResolveBaseDelay == nil {
+		c.MCBlockResolveBaseDelay = DefaultConfigSet.MCBlockResolveBaseDelay
 	}
 }
 

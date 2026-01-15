@@ -53,8 +53,10 @@ type service struct {
 	minBatchSize    uint32 // Minimum batch size for timeout retry
 	saveThreshold   uint32 // Number of logs to buffer in memory before saving
 
-	// masterchain block resolution cache (shard block -> masterchain seqno)
-	mcBlockCache *lru.Cache[string, uint32]
+	// masterchain block resolution configuration
+	mcBlockCache             *lru.Cache[string, uint32] // shard block -> masterchain seqno
+	mcBlockResolveMaxRetries uint32                     // Max retry attempts for MC block resolution
+	mcBlockResolveBaseDelay  time.Duration              // Base delay for exponential backoff
 
 	// replay management
 	replay replayInfo // Tracks replay requests and status
@@ -86,21 +88,23 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 	}
 
 	lp := &service{
-		lggr:             logger.Sugared(lggr),
-		chainID:          chainID,
-		clientProvider:   clientProvider,
-		filterStore:      observedFilterStore,
-		loader:           opts.TxLoader,
-		logStore:         observedLogStore,
-		metrics:          metrics,
-		pollPeriod:       opts.Config.PollPeriod.Duration(),
-		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
-		blockTime:        opts.Config.BlockTime.Duration(),
-		pageSize:         opts.Config.PageSize,
-		batchInsertSize:  opts.Config.BatchInsertSize,
-		minBatchSize:     opts.Config.MinBatchSize,
-		saveThreshold:    opts.Config.SaveThreshold,
-		mcBlockCache:     mcBlockCache,
+		lggr:                     logger.Sugared(lggr),
+		chainID:                  chainID,
+		clientProvider:           clientProvider,
+		filterStore:              observedFilterStore,
+		loader:                   opts.TxLoader,
+		logStore:                 observedLogStore,
+		metrics:                  metrics,
+		pollPeriod:               opts.Config.PollPeriod.Duration(),
+		startingLookback:         opts.Config.LogPollerStartingLookback.Duration(),
+		blockTime:                opts.Config.BlockTime.Duration(),
+		pageSize:                 opts.Config.PageSize,
+		batchInsertSize:          opts.Config.BatchInsertSize,
+		minBatchSize:             opts.Config.MinBatchSize,
+		saveThreshold:            opts.Config.SaveThreshold,
+		mcBlockCache:             mcBlockCache,
+		mcBlockResolveMaxRetries: opts.Config.MCBlockResolveMaxRetries,
+		mcBlockResolveBaseDelay:  opts.Config.MCBlockResolveBaseDelay.Duration(),
 	}
 	lp.replay.status = models.ReplayStatusNoRequest
 	lp.Service, lp.eng = services.Config{
@@ -282,14 +286,14 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 }
 
 // resolveTxsMCBlock resolves masterchain block seqno for each transaction and forwards to output channel.
-// On resolution failure, tx proceeds with MCBlockSeqno=0 to avoid data loss (resumption handles this).
+// On resolution failure after retries, tx proceeds with MCBlockSeqno=0 to avoid data loss.
 func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models.Tx, txsOut chan<- models.Tx, errsOut chan<- error) {
 	defer close(txsOut)
 
 	for tx := range rawTxsCh {
-		mcSeqno, err := lp.resolveMCBlockSeqNo(ctx, tx.Block)
+		mcSeqno, err := lp.resolveMCBlockSeqNoWithRetry(ctx, tx.Block)
 		if err != nil {
-			lp.lggr.Warnw("failed to resolve masterchain block seqno, using 0 as fallback",
+			lp.lggr.Warnw("failed to resolve masterchain block seqno after retries, using 0 as fallback",
 				"block", shardBlockKey(tx.Block),
 				"err", err)
 			errsOut <- fmt.Errorf("failed to resolve masterchain block seqno: %w", err)
@@ -302,6 +306,42 @@ func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models
 			return
 		}
 	}
+}
+
+// resolveMCBlockSeqNoWithRetry wraps resolveMCBlockSeqNo with exponential backoff retry.
+func (lp *service) resolveMCBlockSeqNoWithRetry(ctx context.Context, block *ton.BlockIDExt) (uint32, error) {
+	var lastErr error
+	delay := lp.mcBlockResolveBaseDelay
+
+	for attempt := range lp.mcBlockResolveMaxRetries {
+		mcSeqno, err := lp.resolveMCBlockSeqNo(ctx, block)
+		if err == nil {
+			return mcSeqno, nil
+		}
+		lastErr = err
+
+		// don't retry on context cancellation
+		if ctx.Err() != nil {
+			return 0, ctx.Err()
+		}
+
+		if attempt < lp.mcBlockResolveMaxRetries-1 {
+			lp.lggr.Debugw("retrying masterchain block resolution",
+				"block", shardBlockKey(block),
+				"attempt", attempt+1,
+				"delay", delay,
+				"err", err)
+
+			select {
+			case <-time.After(delay):
+				delay *= 2 // exponential backoff
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			}
+		}
+	}
+
+	return 0, fmt.Errorf("failed after %d attempts: %w", lp.mcBlockResolveMaxRetries, lastErr)
 }
 
 func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int, error) {
