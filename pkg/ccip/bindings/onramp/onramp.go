@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -56,14 +55,14 @@ type DestChainSelectorUpdated struct {
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
-	_                        tlb.Magic `tlb:"#181dcf10"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
+	_                        tlb.Magic `tlb:"#181dcf10" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
 	GasLimit                 *big.Int  `tlb:"maybe ## 256"`
 	AllowOutOfOrderExecution bool      `tlb:"bool"`
 }
 
 // SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
-	_                        tlb.Magic                          `tlb:"#1f3b3aba"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1")), can be verified with hexutil.MustDecode("0x1f3b3aba")
+	_                        tlb.Magic                          `tlb:"#1f3b3aba" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1")), can be verified with hexutil.MustDecode("0x1f3b3aba")
 	ComputeUnits             uint32                             `tlb:"## 32"`
 	AccountIsWritableBitmap  uint64                             `tlb:"## 64"`
 	AllowOutOfOrderExecution bool                               `tlb:"bool"`
@@ -96,7 +95,7 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigsMessage struct {
-	_       tlb.Magic                               `tlb:"#1a246b6c"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                               `tlb:"#1a246b6c" json:"-"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
@@ -107,7 +106,7 @@ type UpdateAllowlist struct {
 }
 
 type UpdateAllowlists struct {
-	_       tlb.Magic                        `tlb:"#9dc06185"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                        `tlb:"#9dc06185" json:"-"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
 }
 
@@ -118,9 +117,9 @@ type WithdrawFeeTokens struct {
 
 // Message structures that map to the existing types in onramp.go
 type Send struct {
-	_        tlb.Magic  `tlb:"#dcf993c2"` //nolint:revive // Ignore opcode tag
-	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
-	Metadata Metadata   `tlb:"."`         // Cell containing metadata
+	_        tlb.Magic  `tlb:"#dcf993c2" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
+	Metadata Metadata   `tlb:"."`                  // Cell containing metadata
 }
 
 type Metadata struct {
@@ -129,44 +128,44 @@ type Metadata struct {
 }
 
 type WithdrawJettons struct {
-	_                  tlb.Magic        `tlb:"#266AEACF"` //nolint:revive // Ignore opcode tag
-	MsgId              big.Int          `tlb:"## 224"`    // Message ID
-	Tokens             *cell.Cell       `tlb:"^"`         // Token amounts
-	OnrampJettonWallet *address.Address `tlb:"addr"`      // Onramp jetton wallet address
+	_                  tlb.Magic        `tlb:"#266AEACF" json:"-"` //nolint:revive // Ignore opcode tag
+	MsgId              *big.Int         `tlb:"## 224"`             // Message ID
+	Tokens             *cell.Cell       `tlb:"^"`                  // Token amounts
+	OnrampJettonWallet *address.Address `tlb:"addr"`               // Onramp jetton wallet address
 }
 
 type ExecutorFinishedSuccessfully struct {
-	_        tlb.Magic     `tlb:"#CFA6B336"` //nolint:revive // Ignore opcode tag
-	MsgId    big.Int       `tlb:"## 224"`    // Message ID
-	Fee      feequoter.Fee `tlb:"."`         // Fee amount
-	Msg      *cell.Cell    `tlb:"^"`         // Original CCIPSend message
-	Metadata Metadata      `tlb:"."`         // Metadata
+	_        tlb.Magic     `tlb:"#CFA6B336" json:"-"` //nolint:revive // Ignore opcode tag
+	MsgId    *big.Int      `tlb:"## 224"`             // Message ID
+	Fee      feequoter.Fee `tlb:"."`                  // Fee amount
+	Msg      *cell.Cell    `tlb:"^"`                  // Original CCIPSend message
+	Metadata Metadata      `tlb:"."`                  // Metadata
 }
 
 type ExecutorFinishedWithError struct {
-	_        tlb.Magic  `tlb:"#C4068E21"` //nolint:revive // Ignore opcode tag
-	MsgId    big.Int    `tlb:"## 224"`    // Message ID
-	Error    big.Int    `tlb:"## 256"`    // Error reason
-	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
-	Metadata Metadata   `tlb:"."`         // Metadata
+	_        tlb.Magic  `tlb:"#C4068E21" json:"-"` //nolint:revive // Ignore opcode tag
+	MsgId    *big.Int   `tlb:"## 224"`             // Message ID
+	Error    *big.Int   `tlb:"## 256"`             // Error reason
+	Msg      *cell.Cell `tlb:"^"`                  // Original CCIPSend message
+	Metadata Metadata   `tlb:"."`                  // Metadata
 }
 
 type SetDynamicConfigMessage struct {
-	_      tlb.Magic     `tlb:"#a178c62e"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic     `tlb:"#a178c62e" json:"-"` //nolint:revive // Ignore opcode tag
 	Config DynamicConfig `tlb:"."`
 }
 
 type UpdateAllowlistsMessage struct {
-	_       tlb.Magic  `tlb:"#9dc06185"` //nolint:revive // Ignore opcode tag
-	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
+	_       tlb.Magic  `tlb:"#9dc06185" json:"-"` //nolint:revive // Ignore opcode tag
+	Updates *cell.Cell `tlb:"^"`                  // Snake-encoded updates
 }
 
 type UpdateSendExecutorMessage struct {
-	_    tlb.Magic  `tlb:"#82901c45"` //nolint:revive // Ignore opcode tag
-	Code *cell.Cell `tlb:"^"`         // New executor code
+	_    tlb.Magic  `tlb:"#82901c45" json:"-"` //nolint:revive // Ignore opcode tag
+	Code *cell.Cell `tlb:"^"`                  // New executor code
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateAllowlists{},
 	Send{},
 	WithdrawJettons{},
@@ -176,7 +175,7 @@ var TLBs = lib.MustNewTLBMap([]any{
 	UpdateDestChainConfigsMessage{},
 	UpdateAllowlistsMessage{},
 	UpdateSendExecutorMessage{},
-})
+}).MustWithStorageType(Storage{})
 
 // binding types that supports FetchResult interface with rpc client
 

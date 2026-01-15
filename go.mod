@@ -11,6 +11,7 @@ require (
 	github.com/gagliardetto/solana-go v1.13.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/prometheus/client_golang v1.23.0
+	github.com/samber/lo v1.52.0
 	github.com/smartcontractkit/chain-selectors v1.0.85
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260107192940-0be702ef3ff5
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260109203210-6efadaacad99
