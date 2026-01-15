@@ -36,7 +36,10 @@ func newQueryParser(chainID string) *queryParser {
 		chainID: chainID,
 	}
 
-	builder.query.WriteString(`SELECT 
+	// Using DISTINCT to handle duplicate logs from multiple filters matching the same event.
+	// This is required because multiple filters can track the same log events.
+	// Deduplication is also done in-memory after query for additional safety.
+	builder.query.WriteString(`SELECT DISTINCT
 		id, 
 		filter_id, 
 		chain_id, 

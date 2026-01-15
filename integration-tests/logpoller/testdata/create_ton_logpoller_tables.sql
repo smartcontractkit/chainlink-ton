@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
 );
 
 -- Unique constraint to prevent duplicate log entries
-CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_unique ON ton.log_poller_logs (tx_hash, tx_lt, msg_index);
+-- Includes filter_id to allow multiple filters to store the same blockchain event
+CREATE UNIQUE INDEX IF NOT EXISTS idx_logs_unique ON ton.log_poller_logs (chain_id, filter_id, tx_hash, tx_lt, msg_index);
 
 -- Generic filtering index: base filter for all log queries
 CREATE INDEX IF NOT EXISTS idx_logs_filter ON ton.log_poller_logs(chain_id, address, event_sig);
@@ -74,3 +75,6 @@ CREATE INDEX IF NOT EXISTS idx_logs_chrono ON ton.log_poller_logs(chain_id, addr
 
 -- Generic pagination index: cursor-based result pagination
 CREATE INDEX IF NOT EXISTS idx_logs_page ON ton.log_poller_logs(chain_id, address, msg_lt);
+
+-- TODO: resolve conflict when https://github.com/smartcontractkit/chainlink-ton/pull/464 is merged
+CREATE INDEX IF NOT EXISTS idx_logs_master_block ON ton.log_poller_logs(chain_id, master_block_seqno DESC);

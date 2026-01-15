@@ -24,12 +24,12 @@ import (
 
 var _ logpoller.LogStore = (*inMemoryLogs)(nil)
 
-// logKey represents a composite key for log deduplication
-// using address + event signature + TxLT
+// logKey represents a composite key for log deduplication (filter_id, tx_hash, tx_lt, msg_index).
 type logKey struct {
-	address  string // address string representation
-	eventSig uint32 // event signature
-	txLT     uint64 // transaction logical time
+	filterID int64
+	txHash   string
+	txLT     uint64
+	msgIndex int64
 }
 
 // inMemoryLogs is in-memory implementation of the LogStore interface.
@@ -58,24 +58,27 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 	defer s.mu.Unlock()
 
 	// Validate chainID for each log (same behavior as PostgreSQL store)
+	var inserted int64
 	for _, log := range logs {
 		if log.ChainID != s.chainID {
 			return 0, fmt.Errorf("invalid chainID in log got %s want %s", log.ChainID, s.chainID)
 		}
 
 		key := logKey{
-			address:  log.Address.String(),
-			eventSig: log.EventSig,
+			filterID: log.FilterID,
+			txHash:   fmt.Sprintf("%x", log.TxHash),
 			txLT:     log.TxLT,
+			msgIndex: log.MsgIndex,
 		}
 
 		if s.logKeys[key] {
-			continue
+			continue // Skip duplicate (same as ON CONFLICT DO NOTHING)
 		}
 		s.logs = append(s.logs, log)
 		s.logKeys[key] = true
+		inserted++
 	}
-	return int64(len(logs)), nil
+	return inserted, nil
 }
 
 // QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
@@ -103,6 +106,29 @@ func (s *inMemoryLogs) QueryLogs(
 	if logQuery.LimitAndSort.HasCursorLimit() {
 		filtered = s.applyCursorFilter(filtered, logQuery.LimitAndSort)
 	}
+
+	// Deduplicate logs by (TxHash, TxLT, MsgIndex).
+	// Multiple filters can track the same log events, resulting in duplicates in storage.
+	type logKey struct {
+		txHash   string
+		txLT     uint64
+		msgIndex int64
+	}
+	seen := make(map[logKey]struct{}, len(filtered))
+	deduped := make([]models.Log, 0, len(filtered))
+	for _, log := range filtered {
+		key := logKey{
+			txHash:   fmt.Sprintf("%x", log.TxHash),
+			txLT:     log.TxLT,
+			msgIndex: log.MsgIndex,
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, log)
+	}
+	filtered = deduped
 
 	// apply limit
 	requestedLimit := int(logQuery.LimitAndSort.Limit.Count) //nolint:gosec // limit values are reasonable for in-memory store

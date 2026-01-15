@@ -133,14 +133,17 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 	// record logs matched metric
 	lp.metrics.AddLogsMatched(ctx, addressLabel, opcodeLabel, int64(len(filterIDs)))
 
-	// create logs with the found filterIDs
-	logs := make([]models.Log, len(filterIDs))
-	for i, filterID := range filterIDs {
-		msgLT, err := extractMsgLT(msg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
-		}
-		logs[i] = models.Log{
+	msgLT, err := extractMsgLT(msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract msgLT: %w", err)
+	}
+
+	// create a log entry for each matching filter.
+	// DB unique constraint (chain_id, filter_id, tx_hash, tx_lt, msg_index) allows multiple filters
+	// to store the same blockchain event. Query-time deduplication handles returning unique events.
+	logs := make([]models.Log, 0, len(filterIDs))
+	for _, filterID := range filterIDs {
+		log := models.Log{
 			ChainID:          chainID,
 			FilterID:         filterID,
 			EventSig:         eventSig,
@@ -159,6 +162,7 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 			// currently handled by returning error from processMessage, but error logs not stored
 			Error: nil,
 		}
+		logs = append(logs, log)
 	}
 	return logs, nil
 }
