@@ -7,16 +7,16 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/config"
-
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -33,7 +33,7 @@ type DeployContractOutput struct {
 	Address *address.Address
 }
 
-var DeployTONContractOp = operations.NewOperation(
+var DeployTONContractOp = cldf_ops.NewOperation(
 	"deploy-ton-contract-op",
 	semver.MustParse("0.1.0"),
 	"Deploys a TON contract in a generic way",
@@ -57,7 +57,7 @@ func (i *DeployContractInput) Validate() error {
 	return nil
 }
 
-func deployTONContract(b operations.Bundle, deps config.TonDeps, in DeployContractInput) (DeployContractOutput, error) {
+func deployTONContract(b cldf_ops.Bundle, dp *dep.DependencyProvider, in DeployContractInput) (DeployContractOutput, error) {
 	output := DeployContractOutput{}
 
 	if err := in.Validate(); err != nil {
@@ -66,7 +66,11 @@ func deployTONContract(b operations.Bundle, deps config.TonDeps, in DeployContra
 
 	b.Logger.Infow("Deploy contract with generic deploy operation", "contract name", in.Name)
 
-	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
+	chain, err := dep.Resolve[cldf_ton.Chain](dp)
+	if err != nil {
+		return output, fmt.Errorf("failed to resolve chain: %w", err)
+	}
+	conn := tracetracking.NewSignedAPIClient(chain.Client, *chain.Wallet)
 
 	initData, err := tlb.ToCell(in.Storage)
 	if err != nil {
@@ -96,7 +100,7 @@ func deployTONContract(b operations.Bundle, deps config.TonDeps, in DeployContra
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy contract: %w", err)
 	}
-	b.Logger.Infow("Contract deployed", "contract name", in.Name, "addr", contract.Address, "deployer wallet addr", deps.TonChain.WalletAddress.String())
+	b.Logger.Infow("Contract deployed", "contract name", in.Name, "addr", contract.Address, "deployer wallet addr", chain.WalletAddress.String())
 
 	output.Address = contract.Address
 	return output, nil

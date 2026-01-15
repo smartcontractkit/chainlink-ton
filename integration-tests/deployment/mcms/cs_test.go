@@ -4,23 +4,25 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/stretchr/testify/require"
+
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/address"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/changesets"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
 
 func TestDeployMCMS(t *testing.T) {
@@ -34,8 +36,8 @@ func TestDeployMCMS(t *testing.T) {
 	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
-	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
+	chain := env.BlockChains.TonChains()[chainSelector]
+	deployer := chain.Wallet
 
 	t.Log("Deployer: ", deployer.WalletAddress().String())
 
@@ -52,12 +54,14 @@ func TestDeployMCMS(t *testing.T) {
 				ID:              contractID,
 				Coin:            "0.5",
 				ContractsSemver: timelockContractSemver,
-				MinDelay:        0,
-				Admin:           deployer.WalletAddress(),
-				Proposers:       []*address.Address{deployer.WalletAddress()},
-				Executors:       []*address.Address{deployer.WalletAddress()},
-				Cancellers:      []*address.Address{deployer.WalletAddress()},
-				Bypassers:       []*address.Address{deployer.WalletAddress()},
+				InitMessage: timelock.Init{
+					MinDelay:   0,
+					Admin:      deployer.WalletAddress(),
+					Proposers:  []common.AddressWrap{{Val: deployer.WalletAddress()}},
+					Executors:  []common.AddressWrap{{Val: deployer.WalletAddress()}},
+					Cancellers: []common.AddressWrap{{Val: deployer.WalletAddress()}},
+					Bypassers:  []common.AddressWrap{{Val: deployer.WalletAddress()}},
+				},
 			},
 			MCMS: mcmsConfig.MCMSParams{
 				ID:              contractID,
@@ -77,28 +81,28 @@ func TestDeployMCMS(t *testing.T) {
 
 	ctx := t.Context()
 	addrCodec := codec.NewAddressCodec()
-	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
+	mc, err := chain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
 
 	// <Verify timelock address>
 	timelockAddr := mcmsState[chainSelector].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
-	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
 	require.NoError(t, err)
 	isInitialized := rawIsInitialized.Sign() != 0
 	require.True(t, isInitialized)
-	getProposerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
 	require.NoError(t, err)
-	getExecutorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
 	require.NoError(t, err)
-	getCancellerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
 	require.NoError(t, err)
-	getBypasserResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
+	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
 	require.NoError(t, err)
-	getAdminResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
 	require.NoError(t, err)
 	shouldBeDeployer1 := getProposerResponse.MustSlice(0).MustLoadAddr()
 	shouldBeDeployer2 := getExecutorResponse.MustSlice(0).MustLoadAddr()
@@ -115,7 +119,7 @@ func TestDeployMCMS(t *testing.T) {
 	// <Verify MCMS address>
 	mcmsAddr := mcmsState[chainSelector].MCMS
 	var tv common.TypeAndVersion
-	err = tvm.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, &tv, nil)
+	err = tvm.FetchResult(ctx, chain.Client, mc, &mcmsAddr, &tv, nil)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type)
 	// </Verify MCMS address>

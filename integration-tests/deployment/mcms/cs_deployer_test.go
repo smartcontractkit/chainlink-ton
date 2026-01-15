@@ -35,8 +35,8 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
-	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
+	chain := env.BlockChains.TonChains()[chainSelector]
+	deployer := chain.Wallet
 
 	t.Log("TON Chain Selector:", chainSelector)
 	t.Log("Deployer:", deployer.WalletAddress().String())
@@ -74,7 +74,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 
 	ctx := t.Context()
 	addrCodec := codec.NewAddressCodec()
-	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
+	mc, err := chain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
 
 	// Verify timelock address
@@ -83,7 +83,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify timelock is initialized
-	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
 	require.NoError(t, err)
@@ -91,15 +91,15 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.True(t, isInitialized, "Timelock should be initialized")
 
 	// Verify timelock roles (all should be the deployer)
-	getProposerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
 	require.NoError(t, err)
-	getExecutorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
 	require.NoError(t, err)
-	getCancellerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
 	require.NoError(t, err)
-	getBypasserResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
+	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
 	require.NoError(t, err)
-	getAdminResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
 	require.NoError(t, err)
 
 	require.True(t, getProposerResponse.MustIsNil(0), "Proposer should be empty")
@@ -115,7 +115,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	// Verify MCMS contract
 	mcmsAddr := mcmsState[chainSelector].MCMS
 	var tv common.TypeAndVersion
-	err = tvm.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, &tv, nil)
+	err = tvm.FetchResult(ctx, chain.Client, mc, &mcmsAddr, &tv, nil)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
@@ -147,7 +147,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	mcmsAddr = mcmsState[chainSelector].MCMS
-	err = tvm.FetchResult(ctx, tonChain.Client, mc, &mcmsAddr, &tv, nil)
+	err = tvm.FetchResult(ctx, chain.Client, mc, &mcmsAddr, &tv, nil)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
@@ -157,7 +157,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify timelock is still initialized
-	isInitializedResponse, err = tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	isInitializedResponse, err = chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err = isInitializedResponse.Int(0)
 	require.NoError(t, err)

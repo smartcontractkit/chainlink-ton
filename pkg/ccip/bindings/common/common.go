@@ -84,6 +84,10 @@ func WrapAddresses(addrs []*address.Address) []AddressWrap {
 	return wrapped
 }
 
+func (a AddressWrap) BitsLen() uint {
+	return 267
+}
+
 // TypeAndVersion holds the type and version of the onramp contract.
 type TypeAndVersion struct {
 	Type    string `tlb:"str"`
