@@ -3,16 +3,18 @@ import { beginCell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
-import * as rx from '../../wrappers/ccip/Receiver'
+import { generateRandomContractId } from '../../src/utils'
+import { facilityId } from '../../wrappers/utils'
+import { crc32 } from 'zlib'
+
+import * as r from '../../wrappers/libraries/Receiver'
+import * as tr from '../../wrappers/examples/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
-import { generateRandomContractId } from '../../src/utils'
-import { errorCode, facilityId } from '../../wrappers/utils'
-import { crc32 } from 'zlib'
 
-const ccipReceiveSampleMessage: rx.CCIPReceive = {
+const ccipReceiveSampleMessage: r.CCIPReceive = {
   rootId: BigInt(1),
   message: {
     messageId: BigInt(1),
@@ -22,11 +24,26 @@ const ccipReceiveSampleMessage: rx.CCIPReceive = {
   },
 }
 
+describe('Receiver - FacilityID', () => {
+  it('Test facilityId matches facility name', () => {
+    expect(r.FACILITY_ID).toEqual(facilityId(crc32(r.FACILITY_NAME)))
+    expect(tr.FACILITY_ID).toEqual(facilityId(crc32(tr.FACILITY_NAME)))
+  })
+})
+
+describe('Receiver - Opcodes', () => {
+  it('should match in opcodes', () => {
+    expect(r.opcodes.in.ccipReceive).toBe(crc32('Receiver_CCIPReceive'))
+    expect(tr.opcodes.in.updateBehavior).toBe(crc32('TestReceiver_UpdateBehavior'))
+    expect(tr.opcodes.in.updateAuthorizedCaller).toBe(crc32('TestReceiver_UpdateAuthorizedCaller'))
+  })
+})
+
 describe('Receiver', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let unauthorized: SandboxContract<TreasuryContract>
-  let receiver: SandboxContract<rx.Receiver>
+  let receiver: SandboxContract<tr.Receiver>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -40,17 +57,17 @@ describe('Receiver', () => {
       let code = await compile('ccip.test.receiver')
 
       // Use a library reference
-      let data: rx.ReceiverStorage = {
+      let data: tr.Storage = {
         id: generateRandomContractId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
         },
         authorizedCaller: deployer.address,
-        behavior: rx.ReceiverBehavior.Accept,
+        behavior: tr.ReceiverBehavior.Accept,
       }
 
-      receiver = blockchain.openContract(rx.Receiver.createFromConfig(data, code))
+      receiver = blockchain.openContract(tr.Receiver.createFromConfig(data, code))
 
       let result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -69,26 +86,13 @@ describe('Receiver', () => {
   it('should have the right storage', async () => {
     const id = await receiver.getId()
     const authorizedCaller = await receiver.getAuthorizedCaller()
+    const facilityId = await receiver.getFacilityId()
+    const errorCode = await receiver.getErrorCode(0n)
 
     expect(id).toBeDefined()
     expect(authorizedCaller.toString()).toEqual(deployer.address.toString())
-  })
-
-  it('should match facility name and ID', async () => {
-    const facilityIdVal = await receiver.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(rx.FACILITY_ID))
-
-    const { type } = await receiver.getTypeAndVersion()
-    expect(type).toBe(rx.FACILITY_NAME)
-
-    expect(rx.FACILITY_ID).toEqual(facilityId(crc32(rx.FACILITY_NAME)))
-  })
-
-  it('should match error code', async () => {
-    const errorCodeVal = await receiver.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(rx.ERROR_CODE))
-
-    expect(rx.ERROR_CODE).toEqual(errorCode(crc32(rx.FACILITY_NAME), 0))
+    expect(facilityId).toEqual(BigInt(tr.FACILITY_ID))
+    expect(errorCode).toEqual(BigInt(tr.ERROR_CODE))
   })
 
   it('should emit an event when calling with the right sender', async () => {
@@ -103,7 +107,7 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: rx.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
+      body: tr.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -126,7 +130,7 @@ describe('Receiver', () => {
     )
   })
 
-  it('should failed with unauthorized when calling ccipReceive with a different sender as the offramp address', async () => {
+  it('should failed with unauthorized when calling ccipReceive with a different sender as the router address', async () => {
     const result = await receiver.sendCCIPReceive(
       unauthorized.getSender(),
       toNano('1'),
@@ -137,12 +141,12 @@ describe('Receiver', () => {
       from: unauthorized.address,
       to: receiver.address,
       success: false,
-      exitCode: rx.ReceiverError.Unauthorized,
+      exitCode: tr.error.Unauthorized,
     })
   })
 
   it('should failed with OnlyCallableByOwner when trying to modify authorized caller without the owner', async () => {
-    const updateAuthorizedCaller: rx.UpdateAuthorizedCaller = {
+    const updateAuthorizedCaller: tr.UpdateAuthorizedCaller = {
       authorizedCaller: deployer.address,
     }
 
@@ -161,8 +165,8 @@ describe('Receiver', () => {
   })
 
   it('should failed with OnlyCallableByOwner when trying to modify behavior without the owner', async () => {
-    const updateBehavior: rx.UpdateBehavior = {
-      behavior: rx.ReceiverBehavior.RejectAll,
+    const updateBehavior: tr.UpdateBehavior = {
+      behavior: tr.ReceiverBehavior.RejectAll,
     }
 
     const result = await receiver.sendUpdateBehavior(
@@ -180,8 +184,8 @@ describe('Receiver', () => {
   })
 
   it('should always fail gracefully when updating the behavior to fail gracefully', async () => {
-    const updateBehaviorToFailGracefully: rx.UpdateBehavior = {
-      behavior: rx.ReceiverBehavior.RejectAll,
+    const updateBehaviorToFailGracefully: tr.UpdateBehavior = {
+      behavior: tr.ReceiverBehavior.RejectAll,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
@@ -195,11 +199,11 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: rx.builder.message.in.updateBehavior.encode(updateBehaviorToFailGracefully).asCell(),
+      body: tr.builder.message.in.updateBehavior.encode(updateBehaviorToFailGracefully).asCell(),
     })
 
     const newBehavior = await receiver.getBehavior()
-    expect(newBehavior).toEqual(rx.ReceiverBehavior.RejectAll)
+    expect(newBehavior).toEqual(tr.ReceiverBehavior.RejectAll)
 
     // Send new ccipReceive expecting to bounce
     const result = await receiver.sendCCIPReceive(
@@ -213,13 +217,13 @@ describe('Receiver', () => {
       to: receiver.address,
       success: false,
       aborted: true,
-      exitCode: rx.ReceiverError.ReceiverIsConfigureToFailGracefully,
+      exitCode: tr.error.Rejected,
     })
   })
 
   it('should fail consuming all gas from transaction when updating the behavior to consume all gas', async () => {
-    const updateBehaviorToConsumeAllGas: rx.UpdateBehavior = {
-      behavior: rx.ReceiverBehavior.ConsumeAllGas,
+    const updateBehaviorToConsumeAllGas: tr.UpdateBehavior = {
+      behavior: tr.ReceiverBehavior.ConsumeAllGas,
     }
 
     const updateBehaviorResult = await receiver.sendUpdateBehavior(
@@ -233,11 +237,11 @@ describe('Receiver', () => {
       to: receiver.address,
       success: true,
       deploy: false,
-      body: rx.builder.message.in.updateBehavior.encode(updateBehaviorToConsumeAllGas).asCell(),
+      body: tr.builder.message.in.updateBehavior.encode(updateBehaviorToConsumeAllGas).asCell(),
     })
 
     const newBehavior = await receiver.getBehavior()
-    expect(newBehavior).toEqual(rx.ReceiverBehavior.ConsumeAllGas)
+    expect(newBehavior).toEqual(tr.ReceiverBehavior.ConsumeAllGas)
 
     // Send new ccipReceive expecting to run out of gas
     const result = await receiver.sendCCIPReceive(
