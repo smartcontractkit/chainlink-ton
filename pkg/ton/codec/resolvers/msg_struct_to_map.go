@@ -27,7 +27,7 @@ func (r *structToMapResolver) Resolve(input any) (map[string]any, error) {
 	_, out, err := codec.DecodeTLBStructToJSON(input, r.TLBMap)
 	if err != nil {
 		if errors.Is(err, codec.ErrUnknownMessage) {
-			return nil, codec.NewErrSkipResolver(err)
+			return nil, codec.NewNonFatalResolverError(err)
 		}
 
 		return nil, fmt.Errorf("failed to decode struct to map: %w", err)

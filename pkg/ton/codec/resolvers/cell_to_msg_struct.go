@@ -26,7 +26,7 @@ func (r *cellToStructResolver) Resolve(input *cell.Cell) (any, error) {
 	structVal, err := codec.DecodeTLBCellToAny(input, r.TLBMap)
 	if err != nil {
 		if errors.Is(err, codec.ErrUnknownMessage) {
-			return nil, codec.NewErrSkipResolver(err)
+			return nil, codec.NewNonFatalResolverError(err)
 		}
 
 		return nil, fmt.Errorf("failed to decode cell to struct: %w", err)

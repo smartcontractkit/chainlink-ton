@@ -48,7 +48,7 @@ func (r *msgEnvelopeResolver) Resolve(input map[string]any) (codec.MessageEnvelo
 	err = e.LoadDecoded(r.registry)
 	if err != nil {
 		if errors.Is(err, codec.ErrUnknownMessage) {
-			return codec.MessageEnvelope[any]{}, codec.NewErrSkipResolver(err)
+			return codec.MessageEnvelope[any]{}, codec.NewNonFatalResolverError(err)
 		}
 
 		return codec.MessageEnvelope[any]{}, fmt.Errorf("failed to load decoded data: %w", err)

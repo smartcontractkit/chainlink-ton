@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var ErrUnknownMessage = fmt.Errorf("unknown message type")
+var ErrUnknownMessage = errors.New("unknown message type")
 
 func DecodeTLBCellToAny(c *cell.Cell, tlbs tvm.TLBMap) (any, error) {
 	if c == nil {

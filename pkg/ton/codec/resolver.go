@@ -216,14 +216,14 @@ func (r *ResolverRegistry) resolveCollections(value any, depth int) (any, error)
 	}
 }
 
-// ErrSkipResolver indicates that resolution should be skipped
-type ErrSkipResolver struct{ cause error }
+// NonFatalResolverError indicates that resolution error is non-fatal and the resolver should be skipped
+type NonFatalResolverError struct{ cause error }
 
-func NewErrSkipResolver(cause error) ErrSkipResolver {
-	return ErrSkipResolver{cause: cause}
+func NewNonFatalResolverError(cause error) NonFatalResolverError {
+	return NonFatalResolverError{cause: cause}
 }
 
-func (e ErrSkipResolver) Error() string {
+func (e NonFatalResolverError) Error() string {
 	return fmt.Sprintf("skip resolver: %v", e.cause)
 }
 
@@ -234,7 +234,7 @@ func (r *ResolverRegistry) resolveOnce(value any) (resolved any, changed bool, e
 		if resolver.CanResolve(value) {
 			resolved, err := resolver.Resolve(value)
 			if err != nil {
-				if errors.As(err, &ErrSkipResolver{}) {
+				if errors.As(err, &NonFatalResolverError{}) {
 					continue // try next resolver (non-fatal error)
 				}
 
