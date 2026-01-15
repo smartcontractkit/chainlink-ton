@@ -4,10 +4,10 @@ struct Storage {
     id: uint32;
     ownable: Ownable2Step;
     authorizedCaller: address; // When using the contract in CCIP, the authorized caller must be the router
-    behavior: ReceiverBehavior;
+    behavior: TestReceiverBehavior;
 }
 
-enum ReceiverBehavior : uint8 {
+enum TestReceiverBehavior : uint8 {
     Accept = 0,
     RejectAll
     ConsumeAllGas

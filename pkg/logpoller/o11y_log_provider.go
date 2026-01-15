@@ -30,6 +30,11 @@ func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) RawLogP
 
 // GetLogs retrieves all ExternalMsgOutLogs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
 func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]models.RawLog, error) {
+	// validate that the provided block belongs to the masterchain
+	if to.Workchain != address.MasterchainID {
+		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, to.Workchain)
+	}
+
 	// No new logs to fetch
 	if to.SeqNo <= from {
 		return nil, nil

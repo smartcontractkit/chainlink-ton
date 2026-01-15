@@ -11,13 +11,15 @@ enum MerkleMultiProof_Error {
     InvalidProofLeavesTooLarge,
     InvalidProofProofsTooLarge,
     InvalidProofTotalHashesExceededMax,
+    InvalidProofDataSizeMismatch,
 }
 
 /// @notice internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
 const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
 /// @notice Maximum number of hashes that can be computed in a single Merkle root calculation.
-const MAX_NUM_HASHES: int = 256;
+/// Capped to 255 because a TVM tuple can only hold at most 255 elements.
+const MAX_NUM_HASHES: int = 255;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
@@ -54,11 +56,13 @@ fun merkleRoot<I>(
             if (! leaves.empty()) {
                 a = leaves.next();
             } else {
+                assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
                 a = hashes.get(hashPos);
                 hashPos += 1;
             }
         } else {
             // Use the next supplied proof.
+            assert(! proofs.empty(), MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             a = proofs.next();
         }
 
@@ -67,6 +71,7 @@ fun merkleRoot<I>(
         if (! leaves.empty()) {
             b = leaves.next();
         } else {
+            assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             b = hashes.get(hashPos);
             hashPos += 1;
         }
@@ -79,7 +84,7 @@ fun merkleRoot<I>(
     return hashes.get(hashPos);
 }
 
-fun hashPair(a: int, b: int): int {
+fun hashPair(a: uint256, b: uint256): uint256 {
     if (a < b) {
         return hashInternalNode(a, b);
     } else {
@@ -87,7 +92,7 @@ fun hashPair(a: int, b: int): int {
     }
 }
 
-fun hashInternalNode(a: int, b: int): int {
+fun hashInternalNode(a: uint256, b: uint256): uint256 {
     var data = beginCell()
         .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
         .storeUint(a, 256)

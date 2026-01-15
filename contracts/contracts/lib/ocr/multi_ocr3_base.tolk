@@ -125,7 +125,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 }
 
 fun OCR3Base.transmit(
-    mutate self,
+    self,
     transmitter: address,
     ocrPluginType: int,
     reportContext: ReportContext,
