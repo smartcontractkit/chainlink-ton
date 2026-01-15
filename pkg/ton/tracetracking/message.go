@@ -439,6 +439,9 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 // The function returns immediately if the message is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
 func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapped) error {
+	if m == nil {
+		return errors.New("cannot wait for trace on nil message")
+	}
 	if m.Status() == Finalized {
 		return nil
 	}
@@ -449,11 +452,25 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
 		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
 		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
+
+		// defensive nil check: skip nil messages that may have been added to the slice
+		// due to race conditions or incomplete trace data from the liteserver
+		// TODO: investigate root cause - nil messages should not appear in OutgoingInternalReceivedMessages
+		if cascadingMessage == nil {
+			continue
+		}
+
 		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ctx, c)
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}
-		messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, cascadingMessage.OutgoingInternalReceivedMessages...)
+
+		// filter out nil messages before appending
+		for _, msg := range cascadingMessage.OutgoingInternalReceivedMessages {
+			if msg != nil {
+				messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, msg)
+			}
+		}
 	}
 	return nil
 }
