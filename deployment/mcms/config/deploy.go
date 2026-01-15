@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 )
 
 type ChainContractParams struct {
@@ -25,19 +26,15 @@ func (c ChainContractParams) Validate() error {
 }
 
 type TimelockParams struct {
-	ID              uint32
 	ContractsSemver *semver.Version
 	Coin            string
-	MinDelay        uint32
-	Admin           *address.Address
-	Proposers       []*address.Address
-	Executors       []*address.Address
-	Cancellers      []*address.Address
-	Bypassers       []*address.Address
+	// Data for Timelock deployment
+	ID          uint32
+	InitMessage timelock.Init
 }
 
 func (t TimelockParams) Validate() error {
-	if t.Admin == nil {
+	if t.InitMessage.Admin == nil {
 		return errors.New("timelock admin should be specified")
 	}
 

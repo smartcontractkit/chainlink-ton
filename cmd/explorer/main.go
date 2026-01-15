@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/explorer"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/explorer"
 )
 
 var rootCmd = explorer.GenerateExplorerCmd(nil, map[string]debug.TypeAndVersion{}, nil)

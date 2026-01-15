@@ -27,7 +27,7 @@ func NewMemoryProvider(apiClient tracetracking.SignedAPIClient) *MemoryProvider 
 
 type MemoryInitData struct {
 	ID uint32    `tlb:"## 32"`
-	_  tlb.Magic `tlb:"#00000000"` //nolint:revive // (opcode) should stay uninitialized
+	_  tlb.Magic `tlb:"#00000000" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 }
 
 func (p *MemoryProvider) Deploy(ctx context.Context, initData MemoryInitData) (Memory, error) {
@@ -55,7 +55,7 @@ type Memory struct {
 }
 
 type setValueMessage struct {
-	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#00000001" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 	Value   uint32    `tlb:"## 32"`
 }

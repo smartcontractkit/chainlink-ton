@@ -24,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	tonconfig "github.com/smartcontractkit/chainlink-ton/deployment/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops"
 	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
@@ -239,11 +240,12 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 	}
 
 	blockchains := cldfchain.NewBlockChainsFromSlice(providers)
-	bundle := operations.NewBundle(
-		t.Context,
-		b.Logger,
-		operations.NewMemoryReporter(),
-	)
+
+	opts := []operations.BundleOption{
+		operations.WithOperationRegistry(ops.Registry),
+	}
+	rptr := operations.NewMemoryReporter()
+	bundle := operations.NewBundle(t.Context, b.Logger, rptr, opts...)
 
 	env := cldf.Environment{
 		GetContext:        t.Context,

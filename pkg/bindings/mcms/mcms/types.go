@@ -11,7 +11,6 @@ import (
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -33,7 +32,7 @@ import (
 // @dev this method can be executed by anyone who has the root and valid signatures.
 // as we validate the correctness of signatures, this imposes no risk.
 type SetRoot struct {
-	_ tlb.Magic `tlb:"#e7fabde3"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#e7fabde3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -61,7 +60,7 @@ type SetRoot struct {
 // @dev the gas limit of the call can be freely determined by the caller of this function.
 // We expect callees to revert if they run out of gas.
 type Execute struct {
-	_ tlb.Magic `tlb:"#9b9ce96a"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#9b9ce96a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -87,14 +86,14 @@ type Execute struct {
 // might be used when the current root was signed under a loser group configuration or when
 // some previous signers aren't trusted any more.
 type SetConfig struct {
-	_ tlb.Magic `tlb:"#89277f4b"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#89277f4b" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	SignerAddresses common.SnakeData[SignerAddress] `tlb:"^"`
 	SignerGroups    common.SnakeData[SignerGroup]   `tlb:"^"`
-	GroupQuorums    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents    *cell.Dictionary                `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupQuorums    *tlbe.Dict[uint8, uint8]        `tlb:"."` // indexed, iterable backwards
+	GroupParents    *tlbe.Dict[uint8, uint8]        `tlb:"."` // indexed, iterable backwards
 	ClearRoot       bool                            `tlb:"bool"`
 }
 
@@ -106,7 +105,7 @@ type SetConfig struct {
 //
 // - the caller must be the owner
 type UpdateOpFinalizationTimeout struct {
-	_ tlb.Magic `tlb:"#9dcbbab1"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#9dcbbab1" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -122,7 +121,7 @@ type UpdateOpFinalizationTimeout struct {
 // @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
 // stale errors for operations that are no longer valid.
 type SubmitErrorReport struct {
-	_ tlb.Magic `tlb:"#43ebc734"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#43ebc734" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -136,7 +135,7 @@ type SubmitErrorReport struct {
 
 // Message sent by the owner to transfer the oracle role.
 type TransferOracleRole struct {
-	_ tlb.Magic `tlb:"#f275742f"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#f275742f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -151,7 +150,7 @@ type TransferOracleRole struct {
 //
 // - the caller must be the owner
 type CleanExpiredRoots struct {
-	_ tlb.Magic `tlb:"#903c276"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#903c276" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -163,7 +162,7 @@ type CleanExpiredRoots struct {
 
 // Sent back to sender when a new root is set.
 type NewRoot struct {
-	_ tlb.Magic `tlb:"#a6533a3d"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#a6533a3d" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -175,7 +174,7 @@ type NewRoot struct {
 
 // Sent back to sender when a new config is set.
 type ConfigSet struct {
-	_ tlb.Magic `tlb:"#d80be574"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#d80be574" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -186,7 +185,7 @@ type ConfigSet struct {
 
 // Replied to sender when the op finalization timeout is modified.
 type OpFinalizationTimeoutChange struct {
-	_ tlb.Magic `tlb:"#16fc10e6"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#16fc10e6" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -196,7 +195,7 @@ type OpFinalizationTimeoutChange struct {
 
 // Sent back to sender when an op gets successfully executed.
 type OpExecuted struct {
-	_ tlb.Magic `tlb:"#7cf37cbf"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#7cf37cbf" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -209,7 +208,7 @@ type OpExecuted struct {
 
 // Sent back to sender when an error report is successfully submitted.
 type ErrorReportSubmitted struct {
-	_ tlb.Magic `tlb:"#bbc4deb4"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#bbc4deb4" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -226,7 +225,7 @@ type ErrorReportSubmitted struct {
 
 // Sent back to sender when the oracle role is transferred.
 type OracleRoleTransferred struct {
-	_ tlb.Magic `tlb:"#ff4176a3"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#ff4176a3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
@@ -237,7 +236,7 @@ type OracleRoleTransferred struct {
 
 // Sent back to sender once roots are cleaned from storage
 type ExpiredRootsCleaned struct {
-	_ tlb.Magic `tlb:"#a86846d5"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#a86846d5" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -245,7 +244,7 @@ type ExpiredRootsCleaned struct {
 	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	SetRoot{},
 	Execute{},
 	SetConfig{},
@@ -257,7 +256,7 @@ var TLBs = lib.MustNewTLBMap([]any{
 	OpExecuted{},
 	ErrorReportSubmitted{},
 	OracleRoleTransferred{},
-})
+}).MustWithStorageType(Data{})
 
 // --- Data (storage & structures) ---
 
@@ -274,13 +273,13 @@ type Data struct {
 
 	// Signers is used to easily validate the existence of the signer by its public key. We still
 	// have signers stored in config in order to easily deactivate them when a new config is set.
-	Signers *cell.Dictionary `tlb:"dict 256"` // map<uint256, Signer> - exists if the public key is a signer
+	Signers *tlbe.Dict[*tlbe.Uint160, Signer] `tlb:"."` // exists if the public key is a signer
 
 	// The current configuration of the contract
 	Config Config `tlb:"^"` // @dev split out as cell to avoid size limits
 
 	// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
-	SeenSignedHashes *cell.Dictionary `tlb:"dict 256"` // map<uint256, bool>
+	SeenSignedHashes *tlbe.Dict[*tlbe.Uint256, bool] `tlb:"."`
 
 	// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
 	RootInfo RootInfo `tlb:"^"`
@@ -349,17 +348,17 @@ type Signer struct {
 //	  {addr: address(D), index: 4, group: 2}, {addr: address(B), index: 5, group: 1},
 //	]
 type Config struct {
-	Signers *cell.Dictionary `tlb:"dict 8"` // map<uint8, Signer> - (indexed)
+	Signers *tlbe.Dict[uint8, Signer] `tlb:"."` // indexed
 	// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
 	// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
 	// it is enabled and at least groupQuorums[i] of its children are successful.
-	GroupQuorums *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupQuorums *tlbe.Dict[uint8, uint8] `tlb:"."` // indexed, iterable backwards
 	// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
 	// groups form a tree structure (where the root/0-th signer group points to itself as
 	// parent) by enforcing
 	// - (i != 0) implies (groupParents[i] < i)
 	// - groupParents[0] == 0
-	GroupParents *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *tlbe.Dict[uint8, uint8] `tlb:"."` // indexed, iterable backwards
 }
 
 // Information about the current root, extracted into a separate struct (wrapped in a cell).
@@ -467,16 +466,6 @@ type SignerAddress struct {
 }
 
 type SignerGroup struct {
-	Val uint8 `tlb:"## 8"`
-}
-
-// Config.GroupQuorums value wrapper
-type GroupQuorum struct {
-	Val uint8 `tlb:"## 8"`
-}
-
-// Config.GroupParents value wrapper
-type GroupParent struct {
 	Val uint8 `tlb:"## 8"`
 }
 

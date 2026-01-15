@@ -1,28 +1,35 @@
 package sequences
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	api "github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
+
+	"github.com/smartcontractkit/mcms/types"
 )
 
 // CurseAdapter interface implementation
@@ -71,23 +78,17 @@ func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64,
 	}
 
 	// Get TON chain from environment
-	chain, exists := e.BlockChains.TonChains()[selector]
-	if !exists {
+	chain, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
 		return false, fmt.Errorf("TON chain with selector %d not found in environment", selector)
 	}
 
-	// Get current block
-	block, err := chain.Client.CurrentMasterchainInfo(e.GetContext())
-	if err != nil {
-		return false, fmt.Errorf("failed to get current block: %w", err)
-	}
-
 	// Convert subject to *big.Int for RPC call
-	subjectBigInt := subjectToBigInt(subject)
+	subjectBigInt := new(big.Int).SetBytes(subject[:])
 
 	// Call verifyNotCursed on router contract, verifyNotCursed returns 0 (false) if cursed, -1 (true) if not cursed
 	// tvm.CallGetter returns true if NOT cursed, we want to return true if cursed so we need to negate
-	notCursed, err := tvm.CallGetter(e.GetContext(), chain.Client, block, &routerAddr, router.GetVerifyNotCursed, subjectBigInt)
+	notCursed, err := tvm.CallGetterLatest(e.GetContext(), chain.Client, &routerAddr, router.GetVerifyNotCursed, subjectBigInt)
 	if err != nil {
 		return false, fmt.Errorf("failed to call verifyNotCursed: %w", err)
 	}
@@ -105,8 +106,8 @@ func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector 
 	}
 
 	// Get TON chain from environment
-	chain, exists := e.BlockChains.TonChains()[selector]
-	if !exists {
+	chain, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
 		return false, fmt.Errorf("TON chain with selector %d not found in environment", selector)
 	}
 
@@ -116,6 +117,7 @@ func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector 
 		return false, fmt.Errorf("failed to get current block: %w", err)
 	}
 
+	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call isChainSupported(targetSel) to check if connection exists
 	// If it returns a valid address, the chains are connected
 	// TODO check if we should call onramp isChainSupported() or router onRamp()
@@ -157,8 +159,8 @@ func (a *TonAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([
 	}
 
 	// Get TON chain from environment
-	chain, exists := e.BlockChains.TonChains()[selector]
-	if !exists {
+	chain, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
 		return nil, fmt.Errorf("TON chain with selector %d not found in environment", selector)
 	}
 
@@ -168,6 +170,7 @@ func (a *TonAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
+	// TODO: extract a Getter and use tvm.CallGetterLatest
 	// Call destChainSelectors() to get all destination chains
 	result, err := chain.Client.RunGetMethod(e.GetContext(), block, &router, "destChainSelectors")
 	if err != nil {
@@ -213,10 +216,14 @@ func (a *TonAdapter) DeriveCurseAdapterVersion(e cldf.Environment, selector uint
 // Curse returns the sequence to curse subjects on a chain.
 func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton-curse",
+		"ton/sequences/ccip/curse",
 		semver.MustParse("1.6.0"),
 		"Curse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
+			if len(in.Subjects) == 0 {
+				return sequences.OnChainOutput{}, errors.New("no subjects provided for curse")
+			}
+
 			// Validate subject format (big-endian encoding)
 			for _, subject := range in.Subjects {
 				if err := validateSubjectFormat(subject); err != nil {
@@ -225,45 +232,76 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 			}
 
 			// Get TON chain
-			chain, exists := chains.TonChains()[in.ChainSelector]
-			if !exists {
+			chain, ok := chains.TonChains()[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found", in.ChainSelector)
 			}
 
-			routerAddr, exist := a.routerAddressCache[in.ChainSelector]
-			if !exist {
+			_routerAddr, ok := a.routerAddressCache[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("router address not found in cache for selector %d", in.ChainSelector)
 			}
 
-			// Build CCIPDeps
-			deps, err := buildCCIPDeps(chain, in.ChainSelector, routerAddr)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
+			stateCCIP := state.CCIPChainState{
+				// fast curse operations should only need the router address
+				Router: _routerAddr,
 			}
 
-			// Convert api.CurseInput.Subjects ([]Subject) to operation.CurseInput.Subjects ([]*big.Int)
-			subjects := make([]*big.Int, len(in.Subjects))
+			dp, err := dep.NewDependencyProvider(
+				dep.Provide(chain),
+				dep.Provide(stateCCIP),
+			)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+			}
+
+			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
+			subjects := make([]router.Subject, len(in.Subjects))
 			for i, subject := range in.Subjects {
-				subjects[i] = subjectToBigInt(subject)
+				subjects[i] = router.Subject{Value: new(big.Int).SetBytes(subject[:])}
 			}
 
-			// Build operation input
-			opInput := operation.CurseInput{
-				Subjects: subjects,
-			}
+			// Create uncurse message
+			contractType := bindings.PkgCCIP + ".Router"
+			body := router.RMNRemoteCurse{Subjects: subjects}
 
-			// Execute CurseOp operation
-			report, err := cldf_ops.ExecuteOperation(b, operation.CurseOp, deps, opInput)
+			// Get router address from chain state
+			routerAddr := stateCCIP.Router
+
+			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
+			ctx := b.GetContext()
+			sender := chain.Wallet.Address()
+
+			owner, err := tvm.CallGetterLatest(ctx, chain.Client, &routerAddr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute curse operation: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output)
+			plan := !sender.Equals(owner) // plan if sender is not owner
+
+			_in := ton.SendMessagesInput{
+				Messages: []ton.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: &routerAddr,
+						Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+						Body:    codec.MustWrapMessage[any](contractType, body),
+					},
+				},
+				Plan: plan,
+			}
+
+			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, dp, _in)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			return sequences.OnChainOutput{}, nil
+			out := sequences.OnChainOutput{}
+			meta := []types.OperationMetadata{
+				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
+			}
+
+			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
 		},
 	)
 }
@@ -271,10 +309,14 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 // Uncurse returns the sequence to lift the curse on subjects on a chain.
 func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton-uncurse",
+		"ton/sequences/ccip/uncurse",
 		semver.MustParse("1.6.0"),
 		"Uncurse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
+			if len(in.Subjects) == 0 {
+				return sequences.OnChainOutput{}, errors.New("no subjects provided for uncurse")
+			}
+
 			// Validate subject format (big-endian encoding)
 			for _, subject := range in.Subjects {
 				if err := validateSubjectFormat(subject); err != nil {
@@ -283,45 +325,75 @@ func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnCh
 			}
 
 			// Get TON chain
-			chain, exists := chains.TonChains()[in.ChainSelector]
-			if !exists {
+			chain, ok := chains.TonChains()[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found", in.ChainSelector)
 			}
 
-			routerAddr, exist := a.routerAddressCache[in.ChainSelector]
-			if !exist {
+			_routerAddr, ok := a.routerAddressCache[in.ChainSelector]
+			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("router address not found in cache for selector %d", in.ChainSelector)
 			}
 
-			// Build CCIPDeps
-			deps, err := buildCCIPDeps(chain, in.ChainSelector, routerAddr)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to build CCIPDeps: %w", err)
+			stateCCIP := state.CCIPChainState{
+				// fast curse operations should only need the router address
+				Router: _routerAddr,
 			}
 
-			// Convert api.CurseInput.Subjects ([]Subject) to operation.UncurseInput.Subjects ([]*big.Int)
-			subjects := make([]*big.Int, len(in.Subjects))
+			dp, err := dep.NewDependencyProvider(
+				dep.Provide(chain),
+				dep.Provide(stateCCIP),
+			)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+			}
+
+			// Convert api.CurseInput.Subjects ([]Subject) to []router.Subject
+			subjects := make([]router.Subject, len(in.Subjects))
 			for i, subject := range in.Subjects {
-				subjects[i] = subjectToBigInt(subject)
+				subjects[i] = router.Subject{Value: new(big.Int).SetBytes(subject[:])}
 			}
 
-			// Build operation input
-			opInput := operation.UncurseInput{
-				Subjects: subjects,
-			}
+			// Create uncurse message
+			contractType := bindings.PkgCCIP + ".Router"
+			body := router.RMNRemoteUncurse{Subjects: subjects}
+			// Get router address from chain state
+			routerAddr := stateCCIP.Router
 
-			// Execute UncurseOp operation
-			report, err := cldf_ops.ExecuteOperation(b, operation.UncurseOp, deps, opInput)
+			// Notice: planning option depends on ownership. If sender is not the owner, we should plan via timelock.
+			ctx := b.GetContext()
+			sender := chain.Wallet.Address()
+
+			owner, err := tvm.CallGetterLatest(ctx, chain.Client, &routerAddr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute uncurse operation: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
 			}
 
-			err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, chain.Client, chain.Wallet, report.Output)
+			plan := !sender.Equals(owner) // plan if sender is not owner
+
+			_in := ton.SendMessagesInput{
+				Messages: []ton.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: &routerAddr,
+						Amount:  tlb.MustFromTON("0.1"), // TON amount for gas
+						Body:    codec.MustWrapMessage[any](contractType, body),
+					},
+				},
+				Plan: plan,
+			}
+
+			r, err := cldf_ops.ExecuteOperation(b, ton.SendMessages, dp, _in)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
 			}
 
-			return sequences.OnChainOutput{}, nil
+			out := sequences.OnChainOutput{}
+			meta := []types.OperationMetadata{
+				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
+			}
+
+			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
 		},
 	)
 }
@@ -345,22 +417,4 @@ func validateSubjectFormat(subject api.Subject) error {
 	}
 
 	return nil
-}
-
-// subjectToBigInt converts a [16]byte Subject to *big.Int for RPC calls
-func subjectToBigInt(subject api.Subject) *big.Int {
-	return new(big.Int).SetBytes(subject[:])
-}
-
-// buildCCIPDeps builds the CCIPDeps structure needed for operations
-func buildCCIPDeps(tonChain cldf_ton.Chain, selector uint64, routerAddr address.Address) (config.CCIPDeps, error) {
-	return config.CCIPDeps{
-		TonChain: tonChain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			selector: {
-				// fast curse operations should only need the router address
-				Router: routerAddr,
-			},
-		},
-	}, nil
 }

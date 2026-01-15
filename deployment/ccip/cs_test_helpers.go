@@ -11,29 +11,27 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
-	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-
-	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
+
+	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
-	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
+	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 )
 
 const (
@@ -139,8 +137,8 @@ var (
 )
 
 func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployCCIPContractsCfg {
-	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
+	chain := env.BlockChains.TonChains()[chainSelector]
+	deployer := chain.Wallet
 
 	// if contractVersion is not set, use local version
 	if contractVersion == "" {
@@ -173,7 +171,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				ID:                               idForContracts,
 				Coin:                             "0.05",
 				ContractsSemver:                  ccipContractSemver,
-				ChainSelector:                    tonChain.Selector,
+				ChainSelector:                    chain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
@@ -285,10 +283,10 @@ func SendCCIPMessage(
 	state state.CCIPChainState,
 	sourceChain uint64,
 	msg router.CCIPSend) (uint64, any, error) {
-	tonChain := e.BlockChains.TonChains()[sourceChain]
-	senderWallet := tonChain.Wallet
-	senderAddr := tonChain.WalletAddress
-	clientConn := tonChain.Client
+	chain := e.BlockChains.TonChains()[sourceChain]
+	senderWallet := chain.Wallet
+	senderAddr := chain.WalletAddress
+	clientConn := chain.Client
 
 	routerAddr := state.Router
 

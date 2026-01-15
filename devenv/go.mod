@@ -19,7 +19,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260109203210-6efadaacad99
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.12.3
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20251222225825-082db6f6514f
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20251229193709-08e5eefac63c
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20251222225825-082db6f6514f
 	github.com/xssnick/tonutils-go v1.14.1
 )
@@ -155,7 +155,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v1.20.99 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/samber/lo v1.49.1 // indirect
+	github.com/samber/lo v1.52.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/scylladb/go-reflectx v1.0.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
@@ -178,7 +178,7 @@ require (
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250912173940-f3ab0246e23d // indirect
-	github.com/smartcontractkit/mcms v0.31.1 // indirect
+	github.com/smartcontractkit/mcms v0.32.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/stephenlacy/go-ethereum-hdwallet v0.0.0-20230913225845-a4fa94429863 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect

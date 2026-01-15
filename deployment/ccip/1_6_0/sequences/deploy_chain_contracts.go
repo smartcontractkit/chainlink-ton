@@ -4,22 +4,30 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
+
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
+	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-
 	ccipConfig "github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.
@@ -30,83 +38,117 @@ const defaultCCIPContractCoin = "0.05"
 // This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
-func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
 }
 
-var DeployChainContracts = operations.NewSequence(
+var DeployChainContracts = cldf_ops.NewSequence(
 	"ton/sequences/ccip/deploy-chain-contracts",
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
-	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
-		tonChain := chains.TonChains()[input.ChainSelector]
+	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (sequences.OnChainOutput, error) {
+		chain := chains.TonChains()[input.ChainSelector]
 
-		// deps used for op
-		deps, err := extractTonDepsFromContractDeploymentInput(tonChain, input.ExistingAddresses)
+		stateCCIP, err := extractCCIPChainStateFromContractDeploymentInput(input.ExistingAddresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		seqInput, err := intoDeployCCIPSeqInput(input, deps.TonChain.WalletAddress)
+
+		dp, err := dep.NewDependencyProvider(
+			dep.Provide(chain),
+			dep.Provide(stateCCIP),
+		)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+		}
+
+		seqInput, err := intoDeployCCIPSeqInput(input, chain.Wallet.Address())
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
-		ccipSeqReport, err := operations.ExecuteSequence(b, seq.DeployCCIPSequence, deps, seqInput)
+		ccipSeqReport, err := cldf_ops.ExecuteSequence(b, seq.DeployCCIPSequence, dp, seqInput)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)
 		}
 
-		deps, err = updateTonDepsWithDeployedAddresses(deps, ccipSeqReport.Output.Addresses)
+		out := sequences.OnChainOutput{
+			Addresses: ccipSeqReport.Output.Addresses,
+			BatchOps:  ccipSeqReport.Output.BatchOps,
+		}
+
+		stateCCIP, err = updateCCIPChainStateWithDeployedAddresses(input.ChainSelector, stateCCIP, ccipSeqReport.Output.Addresses)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update TON deps with deployed addresses: %w", err)
 		}
-		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
-		txs := helpers.NewEmptyTransactions()
-		offrampAddr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
-		// feequoter.addPriceUpdater(offramp)
-		addPriceUpdaterInput := operation.AddPriceUpdaterInput{
-			PriceUpdater: &offrampAddr,
-		}
-		addPriceUpdaterReport, err := operations.ExecuteOperation(b, operation.AddPriceUpdaterOp, deps, addPriceUpdaterInput)
+		dp, err = dp.With(dep.Provide(stateCCIP))
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to set offramp as price updater: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update dependency provider: %w", err)
 		}
-		txs.Append(addPriceUpdaterReport.Output)
+
+		// TODO should we include these updates operations in this DeployCCIPSequence ? Probably move to a custom operation and call in CLD ?
+		msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
+
+		// feequoter.addPriceUpdater(offramp)
+		{
+			addr := stateCCIP.FeeQuoter
+			body := feequoter.AddPriceUpdater{
+				PriceUpdater: &stateCCIP.OffRamp,
+			}
+
+			//nolint:govet // allow shadowing
+			r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  true,
+						DstAddr: &addr,
+						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
+						Body:    codec.MustWrapMessage[any](bindings.PkgCCIP+".FeeQuoter", body),
+					},
+				},
+				Plan: true,
+			})
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to exec send messages operation: %w", err)
+			}
+
+			msgs = append(msgs, opston.AsCells(r.Output.Plans)...)
+		}
 
 		// feeQuoter.updateFeeTokens
-		updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-			FeeTokens: map[string]operation.FeeTokenConfig{
-				tvm.TonTokenAddr.String(): {
-					PremiumMultiplierWeiPerEth: 1,
+		{
+			_input := operation.UpdateFeeQuoterFeeTokensInput{
+				FeeTokens: map[string]operation.FeeTokenConfig{
+					tvm.TonTokenAddr.String(): {
+						PremiumMultiplierWeiPerEth: 1,
+					},
+					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
 				},
-				// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
-			},
-		}
-		updateFeeTokensReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
-		}
-		txs.Append(updateFeeTokensReport.Output)
+			}
+			//nolint:govet // allow shadowing
+			r, err := cldf_ops.ExecuteOperation(b, operation.UpdateFeeQuoterFeeTokensOp, dp, _input)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
+			}
 
-		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, tonChain.Client, tonChain.Wallet, txs)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to execute post-deployment transactions: %w", err)
+			msgs = append(msgs, r.Output...)
 		}
 
-		return sequences.OnChainOutput{
-			Addresses: ccipSeqReport.Output.Addresses,
-			BatchOps:  ccipSeqReport.Output.BatchOps,
-		}, nil
+		_, err = cldf_ops.ExecuteOperation(b, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs})
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
+		}
+
+		return out, nil
 	},
 )
 
-func updateTonDepsWithDeployedAddresses(deps ccipConfig.CCIPDeps, deployed []datastore.AddressRef) (ccipConfig.CCIPDeps, error) {
-	existingAddr := deps.CCIPOnChainState[deps.TonChain.Selector]
+func updateCCIPChainStateWithDeployedAddresses(selector uint64, existingAddr state.CCIPChainState, deployed []datastore.AddressRef) (state.CCIPChainState, error) {
 	for _, r := range deployed {
 		tonAddr, err := address.ParseAddr(r.Address)
 		if err != nil {
-			return ccipConfig.CCIPDeps{}, err
+			return state.CCIPChainState{}, err
 		}
-		if r.ChainSelector != deps.TonChain.Selector {
+		if r.ChainSelector != selector {
 			continue
 		}
 		switch r.Type {
@@ -124,11 +166,11 @@ func updateTonDepsWithDeployedAddresses(deps ccipConfig.CCIPDeps, deployed []dat
 			// ignore unknown types
 		}
 	}
-	deps.CCIPOnChainState[deps.TonChain.Selector] = existingAddr
-	return deps, nil
+
+	return existingAddr, nil
 }
 
-func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (ccipConfig.CCIPDeps, error) {
+func extractCCIPChainStateFromContractDeploymentInput(existing []datastore.AddressRef) (state.CCIPChainState, error) {
 	noneAddr := address.NewAddressNone()
 	init := state.CCIPChainState{
 		OnRamp:    *noneAddr,
@@ -141,7 +183,7 @@ func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datas
 	for _, e := range existing {
 		tonAddr, err := address.ParseAddr(e.Address)
 		if err != nil {
-			return ccipConfig.CCIPDeps{}, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
+			return state.CCIPChainState{}, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
 		}
 		switch e.Type {
 		case state.OnRamp:
@@ -159,13 +201,7 @@ func extractTonDepsFromContractDeploymentInput(chain ton.Chain, existing []datas
 		}
 	}
 
-	deps := ccipConfig.CCIPDeps{
-		TonChain: chain,
-		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			chain.Selector: init,
-		},
-	}
-	return deps, nil
+	return init, nil
 }
 
 func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddress, deployer *address.Address) (seq.DeployCCIPSeqInput, error) {

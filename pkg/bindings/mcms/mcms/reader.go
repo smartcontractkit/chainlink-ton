@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -20,40 +21,55 @@ var GetConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[Config]{
 		}
 
 		keySz := uint(tvm.SizeUINT8)
-		signers := cell.NewDict(keySz)
+		_signers := cell.NewDict(keySz)
 		if rResult[0] != nil {
 			rc0, err := r.Cell(0)
 			if err != nil {
-				return Config{}, fmt.Errorf("error getting Config.Signers cell(0): %w", err)
+				return Config{}, fmt.Errorf("error getting Cell(0) - Config.Signers: %w", err)
 			}
 
 			if rc0 != nil {
-				signers = rc0.AsDict(keySz)
+				_signers = rc0.AsDict(keySz)
 			}
 		}
 
-		groupQuorums := cell.NewDict(keySz)
+		_groupQuorums := cell.NewDict(keySz)
 		if rResult[1] != nil {
 			rc1, err := r.Cell(1)
 			if err != nil {
-				return Config{}, fmt.Errorf("error getting Config.GroupQuorums cell(1): %w", err)
+				return Config{}, fmt.Errorf("error getting Cell(1) - Config.GroupQuorums: %w", err)
 			}
 
 			if rc1 != nil {
-				groupQuorums = rc1.AsDict(keySz)
+				_groupQuorums = rc1.AsDict(keySz)
 			}
 		}
 
-		groupParents := cell.NewDict(keySz)
+		_groupParents := cell.NewDict(keySz)
 		if rResult[2] != nil {
 			rc2, err := r.Cell(2) //nolint:mnd // 2 index for 3rd return value
 			if err != nil {
-				return Config{}, fmt.Errorf("error getting Config.GroupParents cell(2): %w", err)
+				return Config{}, fmt.Errorf("error getting Cell(2) - Config.GroupParents: %w", err)
 			}
 
 			if rc2 != nil {
-				groupParents = rc2.AsDict(keySz)
+				_groupParents = rc2.AsDict(keySz)
 			}
+		}
+
+		signers, err := tlbe.NewDictFromDictionary[uint8, Signer](_signers)
+		if err != nil {
+			return Config{}, fmt.Errorf("error decoding Config.Signers dict: %w", err)
+		}
+
+		groupQuorums, err := tlbe.NewDictFromDictionary[uint8, uint8](_groupQuorums)
+		if err != nil {
+			return Config{}, fmt.Errorf("error decoding Config.GroupQuorums dict: %w", err)
+		}
+
+		groupParents, err := tlbe.NewDictFromDictionary[uint8, uint8](_groupParents)
+		if err != nil {
+			return Config{}, fmt.Errorf("error decoding Config.GroupParents dict: %w", err)
 		}
 
 		return Config{
@@ -70,7 +86,7 @@ var GetOpCount = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint64]{
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint64, error) {
 		ri, err := r.Int(0)
 		if err != nil {
-			return 0, fmt.Errorf("error getting opCount slice: %w", err)
+			return 0, fmt.Errorf("error getting Int(0) - opCount: %w", err)
 		}
 
 		return ri.Uint64(), nil
@@ -107,32 +123,32 @@ var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (RootMetadata, error) {
 		chainID, err := r.Int(0)
 		if err != nil {
-			return RootMetadata{}, fmt.Errorf("error getting chainID int: %w", err)
+			return RootMetadata{}, fmt.Errorf("error getting Int(0) - chainID: %w", err)
 		}
 
 		sAddr, err := r.Slice(1)
 		if err != nil {
-			return RootMetadata{}, fmt.Errorf("error decoding MultiSig addr result: %w", err)
+			return RootMetadata{}, fmt.Errorf("error getting Slice(1) - addr: %w", err)
 		}
 
 		addr, err := sAddr.LoadAddr()
 		if err != nil {
-			return RootMetadata{}, fmt.Errorf("error decoding MultiSig addr result slice: %w", err)
+			return RootMetadata{}, fmt.Errorf("error decoding Slice(1) - addr: %w", err)
 		}
 
 		preOpCount, err := r.Int(2)
 		if err != nil {
-			return RootMetadata{}, fmt.Errorf("error getting preOpCount int: %w", err)
+			return RootMetadata{}, fmt.Errorf("error getting Int(2) - preOpCount: %w", err)
 		}
 
 		postOpCount, err := r.Int(3)
 		if err != nil {
-			return RootMetadata{}, fmt.Errorf("error getting postOpCount int: %w", err)
+			return RootMetadata{}, fmt.Errorf("error getting Int(3) - postOpCount: %w", err)
 		}
 
 		rs, err := r.Int(4)
 		if err != nil {
-			return RootMetadata{}, fmt.Errorf("error getting overridePreviousRoot bool result: %w", err)
+			return RootMetadata{}, fmt.Errorf("error getting Int(4) - overridePreviousRoot: %w", err)
 		}
 		overridePreviousRoot := rs.Uint64() == 1
 
