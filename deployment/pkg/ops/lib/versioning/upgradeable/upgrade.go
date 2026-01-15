@@ -54,7 +54,7 @@ var Upgrade = operations.NewOperation(
 	"Upgrades upgradeable contracts to a new implementation",
 	func(b operations.Bundle, dp *dep.DependencyProvider, in UpgradeInput) (UpgradeOutput, error) {
 		// Load contracts and prepare the underlying []opston.InternalMessage[any]
-		_messages := make([]opston.InternalMessage[any], len(in.Messages))
+		messages := make([]opston.InternalMessage[any], len(in.Messages))
 		for i, u := range in.Messages {
 			contractProvider, err := dep.Resolve[opston.ContractCodeProvider](dp)
 			if err != nil {
@@ -72,7 +72,7 @@ var Upgrade = operations.NewOperation(
 			val.Code = c.Code
 			valAny := any(val)
 
-			_messages[i] = opston.InternalMessage[any]{
+			messages[i] = opston.InternalMessage[any]{
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
@@ -86,7 +86,7 @@ var Upgrade = operations.NewOperation(
 		}
 
 		_in := opston.SendMessagesInput{
-			Messages: _messages,
+			Messages: messages,
 			Plan:     in.Plan,
 		}
 

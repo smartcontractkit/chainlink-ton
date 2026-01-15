@@ -69,7 +69,7 @@ func TestProvideFactoryIsLazy(t *testing.T) {
 		t.Fatalf("factory invoked eagerly")
 	}
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		value, err := Resolve[string](provider)
 		if err != nil {
 			t.Fatalf("resolve failed: %v", err)
@@ -162,7 +162,7 @@ func TestConcurrentFactoryResolution(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(4)
 
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		go func() {
 			defer wg.Done()
 			value, err := Resolve[int](provider)
