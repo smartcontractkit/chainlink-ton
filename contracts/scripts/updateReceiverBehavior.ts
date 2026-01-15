@@ -1,6 +1,6 @@
 import { Address, toNano } from '@ton/core'
 import { NetworkProvider } from '@ton/blueprint'
-import { Receiver, ReceiverBehavior } from '../wrappers/ccip/Receiver'
+import { Receiver, ReceiverBehavior } from '../wrappers/examples/Receiver'
 
 export async function run(provider: NetworkProvider, args: string[]) {
   const [receiverRaw, behaviorRaw] = args
