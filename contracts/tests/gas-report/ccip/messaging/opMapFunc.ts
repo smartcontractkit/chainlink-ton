@@ -3,7 +3,8 @@ import * as fq from '../../../../wrappers/ccip/FeeQuoter'
 import * as onRamp from '../../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as sx from '../../../../wrappers/ccip/CCIPSendExecutor'
-import * as rx from '../../../../wrappers/ccip/Receiver'
+import * as receiver from '../../../../wrappers/libraries/Receiver'
+import * as testReceiver from '../../../../wrappers/examples/Receiver'
 import * as deployable from '../../../../wrappers/libraries/Deployable'
 import * as offRamp from '../../../../wrappers/ccip/OffRamp'
 import * as mr from '../../../../wrappers/ccip/MerkleRoot'
@@ -37,8 +38,11 @@ export function opMapFunc(): OpMapFunc {
   Object.entries(offRamp.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `OffRamp::In::${name}`)
   })
-  Object.entries(rx.opcodes.in).forEach(([name, code]) => {
-    opcodeMap.set(code, `ReceiveExecutor::In::${name}`)
+  Object.entries(testReceiver.opcodes.in).forEach(([name, code]) => {
+    opcodeMap.set(code, `TestReceiver::In::${name}`)
+  })
+  Object.entries(receiver.opcodes.in).forEach(([name, code]) => {
+    opcodeMap.set(code, `Receiver::In::${name}`)
   })
   Object.entries(mr.opcodes.in).forEach(([name, code]) => {
     opcodeMap.set(code, `MerkleRoot::${name}`)

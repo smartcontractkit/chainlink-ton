@@ -24,13 +24,13 @@ type View struct {
 
 // FetchView generates a view of the fee quoter contract at the specified block.
 func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
-	var typeVersion common.TypeAndVersion
-	if err := tvm.FetchResult(ctx, c.Client, block, feeQuoter, &typeVersion, nil); err != nil {
+	typeVersion, err := tvm.CallGetter(ctx, c.Client, block, feeQuoter, common.GetTypeAndVersion)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
-	var sc feequoter.StaticConfig
-	if err := tvm.FetchResult(ctx, c.Client, block, feeQuoter, &sc, nil); err != nil {
+	sc, err := tvm.CallGetter(ctx, c.Client, block, feeQuoter, feequoter.GetStaticConfig)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse StaticConfig: %w", err)
 	}
 

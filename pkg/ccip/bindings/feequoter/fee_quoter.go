@@ -14,7 +14,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -108,14 +107,17 @@ type USDPerUnitGas struct {
 	Timestamp                uint64   `tlb:"## 64"`
 }
 
+// Deprecated: Use GetDestinationChainGasPrice getter instead.
 func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
-	c, err := result.Cell(0)
+	res, err := GetDestinationChainGasPrice.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	return tlb.LoadFromCell(u, c.BeginParse())
+	*u = res
+	return nil
 }
 
+// Deprecated: Use GetDestinationChainGasPrice getter instead.
 func (u *USDPerUnitGas) GetterMethodName() string {
 	return destinationChainGasPriceGetter
 }
@@ -141,104 +143,17 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
+// Deprecated: Use GetDestChainConfig getter instead.
 func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	isEnabledInt, err := result.Int(0)
+	res, err := GetDestChainConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	isEnabled := isEnabledInt.Cmp(big.NewInt(-1)) == 0
-	maxNumberOfTokensPerMsg, err := result.Int(1)
-	if err != nil {
-		return err
-	}
-	maxDataBytes, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	maxPerMsgGasLimit, err := result.Int(3)
-	if err != nil {
-		return err
-	}
-	destGasOverhead, err := result.Int(4)
-	if err != nil {
-		return err
-	}
-	destGasPerPayloadByteBase, err := result.Int(5)
-	if err != nil {
-		return err
-	}
-	destGasPerPayloadByteHigh, err := result.Int(6)
-	if err != nil {
-		return err
-	}
-	destGasPerPayloadByteThreshold, err := result.Int(7)
-	if err != nil {
-		return err
-	}
-	destDataAvailabilityOverheadGas, err := result.Int(8)
-	if err != nil {
-		return err
-	}
-	destGasPerDataAvailabilityByte, err := result.Int(9)
-	if err != nil {
-		return err
-	}
-	destDataAvailabilityMultiplierBps, err := result.Int(10)
-	if err != nil {
-		return err
-	}
-	chainFamilySelector, err := result.Int(11)
-	if err != nil {
-		return err
-	}
-	defaultTokenFeeUsdCents, err := result.Int(12)
-	if err != nil {
-		return err
-	}
-	defaultTokenDestGasOverhead, err := result.Int(13)
-	if err != nil {
-		return err
-	}
-	defaultTxGasLimit, err := result.Int(14)
-	if err != nil {
-		return err
-	}
-	gasMultiplierWeiPerEth, err := result.Int(15)
-	if err != nil {
-		return err
-	}
-	gasPriceStalenessThreshold, err := result.Int(16)
-	if err != nil {
-		return err
-	}
-	networkFeeUsdCents, err := result.Int(17)
-	if err != nil {
-		return err
-	}
-
-	*c = DestChainConfig{
-		IsEnabled:                         isEnabled,
-		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
-		MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
-		MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),                 //nolint:gosec // G115
-		DestGasOverhead:                   uint32(destGasOverhead.Uint64()),                   //nolint:gosec // G115
-		DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),          //nolint:gosec // G115
-		DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),          //nolint:gosec // G115
-		DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),    //nolint:gosec // G115
-		DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),   //nolint:gosec // G115
-		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
-		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
-		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
-		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),           //nolint:gosec // G115
-		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()),       //nolint:gosec // G115
-		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),                 //nolint:gosec // G115
-		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
-		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetDestChainConfig getter instead.
 func (c *DestChainConfig) GetterMethodName() string {
 	return destChainConfigGetter
 }
@@ -257,23 +172,17 @@ type TimestampedPrice struct {
 	Timestamp uint32   `tlb:"## 32"`
 }
 
+// Deprecated: Use GetTokenPrice getter instead.
 func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
-	value, err := result.Int(0)
+	res, err := GetTokenPrice.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	timestamp, err := result.Int(1)
-	if err != nil {
-		return err
-	}
-
-	*p = TimestampedPrice{
-		Value:     value,
-		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
-	}
+	*p = res
 	return nil
 }
 
+// Deprecated: Use GetTokenPrice getter instead.
 func (p *TimestampedPrice) GetterMethodName() string {
 	return tokenPriceGetter
 }
@@ -297,14 +206,14 @@ type FeeToken struct {
 
 // Generic wrapper for fee quoter messages with context
 type GetValidatedFee struct {
-	_       tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
-	Msg     *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
-	Context *cell.Cell `tlb:"maybe ^"`   // Cell containing context
+	_       tlb.Magic  `tlb:"#7496FF56" json:"-"` //nolint:revive // Ignore opcode tag
+	Msg     *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
+	Context *cell.Cell `tlb:"maybe ^"`            // Cell containing context
 }
 
 // --- Response from GetValidatedFee ---
 type MessageValidated struct {
-	_       tlb.Magic  `tlb:"#1fa60374"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic  `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee     Fee        `tlb:"."`
 	Msg     *cell.Cell `tlb:"^"`       // Original message
 	Context *cell.Cell `tlb:"maybe ^"` // Original context
@@ -316,42 +225,42 @@ type Fee struct {
 }
 
 type MessageValidationFailed struct {
-	_         tlb.Magic  `tlb:"#bcf0ab0f"` //nolint:revive // Ignore opcode tag
+	_         tlb.Magic  `tlb:"#bcf0ab0f" json:"-"` //nolint:revive // Ignore opcode tag
 	ErrorCode *big.Int   `tlb:"## 256"`
 	Msg       *cell.Cell `tlb:"^"`       // Original message,
 	Context   *cell.Cell `tlb:"maybe ^"` // Original context
 }
 
 type AddPriceUpdater struct {
-	_            tlb.Magic        `tlb:"#71DF848A"` //nolint:revive // Ignore opcode tag
+	_            tlb.Magic        `tlb:"#71DF848A" json:"-"` //nolint:revive // Ignore opcode tag
 	PriceUpdater *address.Address `tlb:"addr"`
 }
 
 type RemovePriceUpdater struct {
-	_            tlb.Magic        `tlb:"#5DFBB1BC"` //nolint:revive // Ignore opcode tag
+	_            tlb.Magic        `tlb:"#5DFBB1BC" json:"-"` //nolint:revive // Ignore opcode tag
 	PriceUpdater *address.Address `tlb:"addr"`
 }
 
 type UpdatePrices struct {
-	_              tlb.Magic                          `tlb:"#de852b1b"` //nolint:revive // Ignore opcode tag
+	_              tlb.Magic                          `tlb:"#de852b1b" json:"-"` //nolint:revive // Ignore opcode tag
 	TokenPrices    common.SnakeData[TokenPriceUpdate] `tlb:"^"`
 	GasPrices      common.SnakeData[GasPriceUpdate]   `tlb:"^"`
 	SendExcessesTo *address.Address                   `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                            `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic                            `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
 	Add    *cell.Dictionary                     `tlb:"dict 267"`
 	Remove common.SnakeData[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
-	_      tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
 	Add    map[*address.Address]TokenTransferFeeConfig
 	Remove []*address.Address `tlb:"addr"`
 }
 type UpdateTokenTransferFeeConfigs struct {
-	_ tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+	_ tlb.Magic `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
 }
 
 type UpdateDestChainConfig struct {
@@ -360,11 +269,11 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#2d2410f6"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                               `tlb:"#2d2410f6" json:"-"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]interface{}{
+var TLBs = tvm.MustNewTLBMap([]any{
 	GetValidatedFee{},
 	MessageValidated{},
 	MessageValidationFailed{},
@@ -374,7 +283,7 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	UpdateFeeTokens{},
 	UpdateTokenTransferFeeConfigs{},
 	UpdateDestChainConfigs{},
-})
+}).MustWithStorageType(Storage{})
 
 // binding types that supports FetchResult interface with rpc client
 
@@ -384,31 +293,17 @@ type StaticConfig struct {
 	StalenessThreshold uint32
 }
 
+// Deprecated: Use GetStaticConfig getter instead.
 func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	maxFeeJuelsPerMsg, err := result.Int(0)
+	res, err := GetStaticConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	linkTokenAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	tokenPriceStalenessThreshold, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	*s = StaticConfig{
-		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
-		LinkToken:          linkTokenAddress,
-		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-	}
+	*s = res
 	return nil
 }
 
+// Deprecated: Use GetStaticConfig getter instead.
 func (s *StaticConfig) GetterMethodName() string {
 	return staticConfigGetter
 }
@@ -432,10 +327,9 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			var cfg DestChainConfig
-			opts := []interface{}{dest}
-			if err = tvm.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
-				return err
+			cfg, cErr := tvm.CallGetter(egCtx, client, block, feeQuoter, GetDestChainConfig, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()

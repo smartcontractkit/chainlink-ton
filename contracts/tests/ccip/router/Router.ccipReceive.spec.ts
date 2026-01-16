@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
 import * as rt from '../../../wrappers/ccip/Router'
-import * as rec from '../../../wrappers/ccip/Receiver'
+import * as rec from '../../../wrappers/libraries/Receiver'
 import {
   setup,
   CHAINSEL_EVM_TEST_90000001,

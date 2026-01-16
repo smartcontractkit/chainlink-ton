@@ -15,8 +15,8 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260109203210-6efadaacad99
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20250904183752-4ea5c19ee886
-	github.com/smartcontractkit/mcms v0.31.1
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20251229193709-08e5eefac63c
+	github.com/smartcontractkit/mcms v0.32.0
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/sync v0.19.0
@@ -151,7 +151,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/samber/lo v1.49.1 // indirect
+	github.com/samber/lo v1.52.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/scylladb/go-reflectx v1.0.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect

@@ -16,16 +16,23 @@ type InMessage interface {
 
 // Sets a new pending owner. Can only be called by the current owner.
 type TransferOwnership struct {
-	_        tlb.Magic        `tlb:"#f21b7da1"` //nolint:revive // Ignore opcode tag
+	_ tlb.Magic `tlb:"#f21b7da1" json:"-"` //nolint:revive // Ignore opcode tag
+
 	QueryID  uint64           `tlb:"## 64"`
 	NewOwner *address.Address `tlb:"addr"`
 }
 
 // AcceptOwnership allows the pending owner to accept ownership of the contract.
 type AcceptOwnership struct {
-	_       tlb.Magic `tlb:"#f9e29e4a"` //nolint:revive // Ignore opcode tag
-	QueryID uint64    `tlb:"## 64"`
+	_ tlb.Magic `tlb:"#f9e29e4a" json:"-"` //nolint:revive // Ignore opcode tag
+
+	QueryID uint64 `tlb:"## 64"`
 }
+
+var TLBs = tvm.MustNewTLBMap([]any{
+	TransferOwnership{},
+	AcceptOwnership{},
+})
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode tvm.ExitCode

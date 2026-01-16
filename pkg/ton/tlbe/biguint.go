@@ -88,53 +88,57 @@ func NewUint160(v *big.Int) *Uint160 {
 	return (*Uint160)(AsUnsigned(v, 160))
 }
 
+func (*Uint160) BitsLen() uint {
+	return 160
+}
+
 // LoadFromCell implements tlb.Unmarshaler.
-func (u *Uint160) LoadFromCell(loader *cell.Slice) error {
+func (x *Uint160) LoadFromCell(loader *cell.Slice) error {
 	b := new(BigUint)
-	err := b.loadFromCell(160, loader)
+	err := b.loadFromCell(x.BitsLen(), loader)
 	if err != nil {
 		return fmt.Errorf("failed to load Uint160 from cell: %w", err)
 	}
 
-	*u = Uint160(*b.Value)
+	*x = Uint160(*b.Value)
 	return nil
 }
 
 // ToCell implements tlb.Marshaller.
-func (u Uint160) ToCell() (*cell.Cell, error) {
+func (x Uint160) ToCell() (*cell.Cell, error) {
 	b := BigUint{
-		Bits:  160,
-		Value: (*big.Int)(&u),
+		Bits:  x.BitsLen(),
+		Value: (*big.Int)(&x),
 	}
-	return b.toCell(160)
+	return b.toCell(x.BitsLen())
 }
 
-func (u *Uint160) MarshalJSON() ([]byte, error) {
-	if u == nil {
+func (x *Uint160) MarshalJSON() ([]byte, error) {
+	if x == nil {
 		return []byte("null"), nil
 	}
 
-	return u.Value().MarshalJSON()
+	return x.Value().MarshalJSON()
 }
 
 // UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
-func (u *Uint160) UnmarshalJSON(data []byte) error {
+func (x *Uint160) UnmarshalJSON(data []byte) error {
 	b := new(big.Int)
 	if err := b.UnmarshalJSON(data); err != nil {
 		return fmt.Errorf("failed to unmarshal Uint160 from JSON: %w", err)
 	}
 
-	unsigned := AsUnsigned(b, 160)
-	*u = Uint160(*unsigned)
+	unsigned := AsUnsigned(b, x.BitsLen())
+	*x = Uint160(*unsigned)
 	return nil
 }
 
-func (u Uint160) Value() *big.Int {
-	return (*big.Int)(&u)
+func (x Uint160) Value() *big.Int {
+	return (*big.Int)(&x)
 }
 
-func (u Uint160) String() string {
-	return u.Value().String()
+func (x Uint160) String() string {
+	return x.Value().String()
 }
 
 // Uint256 is a 256-bit unsigned integer wrapper.
@@ -144,51 +148,59 @@ func NewUint256(v *big.Int) *Uint256 {
 	return (*Uint256)(AsUnsigned(v, 256))
 }
 
+func (*Uint256) BitsLen() uint {
+	return 256
+}
+
+func (x *Uint256) Cmp(y *Uint256) (r int) {
+	return x.Value().Cmp(y.Value())
+}
+
 // LoadFromCell implements tlb.Unmarshaler.
-func (u *Uint256) LoadFromCell(loader *cell.Slice) error {
+func (x *Uint256) LoadFromCell(loader *cell.Slice) error {
 	b := new(BigUint)
-	err := b.loadFromCell(256, loader)
+	err := b.loadFromCell(x.BitsLen(), loader)
 	if err != nil {
 		return fmt.Errorf("failed to load Uint256 from cell: %w", err)
 	}
 
-	*u = Uint256(*b.Value)
+	*x = Uint256(*b.Value)
 	return nil
 }
 
 // ToCell implements tlb.Marshaller.
-func (u Uint256) ToCell() (*cell.Cell, error) {
+func (x Uint256) ToCell() (*cell.Cell, error) {
 	b := BigUint{
-		Bits:  256,
-		Value: (*big.Int)(&u),
+		Bits:  x.BitsLen(),
+		Value: (*big.Int)(&x),
 	}
-	return b.toCell(256)
+	return b.toCell(x.BitsLen())
 }
 
-func (u *Uint256) MarshalJSON() ([]byte, error) {
-	if u == nil {
+func (x *Uint256) MarshalJSON() ([]byte, error) {
+	if x == nil {
 		return []byte("null"), nil
 	}
 
-	return u.Value().MarshalJSON()
+	return x.Value().MarshalJSON()
 }
 
 // UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
-func (u *Uint256) UnmarshalJSON(data []byte) error {
+func (x *Uint256) UnmarshalJSON(data []byte) error {
 	b := new(big.Int)
 	if err := b.UnmarshalJSON(data); err != nil {
 		return fmt.Errorf("failed to unmarshal Uint256 from JSON: %w", err)
 	}
 
-	unsigned := AsUnsigned(b, 256)
-	*u = Uint256(*unsigned)
+	unsigned := AsUnsigned(b, x.BitsLen())
+	*x = Uint256(*unsigned)
 	return nil
 }
 
-func (u Uint256) Value() *big.Int {
-	return (*big.Int)(&u)
+func (x Uint256) Value() *big.Int {
+	return (*big.Int)(&x)
 }
 
-func (u Uint256) String() string {
-	return u.Value().String()
+func (x Uint256) String() string {
+	return x.Value().String()
 }

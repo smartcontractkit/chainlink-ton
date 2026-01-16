@@ -227,7 +227,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		store := NewTxStore()
 
 		// Add and finalize multiple transactions
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			tx := &Tx{
 				From: *address.MustParseAddr(testAddr1),
 				ReceivedMessage: tracetracking.ReceivedMessage{
@@ -242,7 +242,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		}
 
 		// Verify all are present and finalized
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			lt := uint64(1000 + i)
 			status, succeeded, _, _, found := store.GetTxState(lt)
 			assert.Equal(t, tracetracking.Finalized, status)
@@ -256,7 +256,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		assert.Equal(t, 5, finalizedCount)
 
 		// Verify all finalized transactions are removed
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			lt := uint64(1000 + i)
 			_, _, _, _, found := store.GetTxState(lt)
 			assert.False(t, found)
@@ -308,7 +308,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
 		// Add finalized transactions
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			tx := &Tx{
 				From: *address.MustParseAddr(testAddr1),
 				ReceivedMessage: tracetracking.ReceivedMessage{
@@ -323,7 +323,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		}
 
 		// Add expired unconfirmed transactions
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr1)}
 			lt := uint64(3000 + i)
 			err := store.AddUnconfirmed(lt, currentTimeMs-10000, tx)
@@ -343,14 +343,14 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		assert.Equal(t, 2, expiredCount)
 
 		// Verify finalized transactions are removed
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			lt := uint64(2000 + i)
 			_, _, _, _, found := store.GetTxState(lt)
 			assert.False(t, found)
 		}
 
 		// Verify expired unconfirmed transactions are removed
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			lt := uint64(3000 + i)
 			_, _, _, _, found := store.GetTxState(lt)
 			assert.False(t, found)
@@ -377,7 +377,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
 		// Add only non-expired transactions
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr1)}
 			lt := uint64(5000 + i)
 			err := store.AddUnconfirmed(lt, currentTimeMs+10000, tx)
@@ -391,7 +391,7 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		assert.Equal(t, 0, expiredCount)
 
 		// Verify all transactions remain
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			lt := uint64(5000 + i)
 			_, _, _, _, found := store.GetTxState(lt)
 			assert.True(t, found)
@@ -430,14 +430,14 @@ func TestAccountStore_GetTotalInflightCount(t *testing.T) {
 		store2 := accountStore.GetTxStore(testAddr2)
 
 		// Add transactions to first account
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr1)}
 			err := store1.AddUnconfirmed(uint64(1000+i), 2000000, tx)
 			require.NoError(t, err)
 		}
 
 		// Add transactions to second account
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr2)}
 			err := store2.AddUnconfirmed(uint64(2000+i), 2000000, tx)
 			require.NoError(t, err)
@@ -487,7 +487,7 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 		store2 := accountStore.GetTxStore(testAddr2)
 
 		// Account 1: Add finalized and expired transactions
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			tx := &Tx{
 				From: *address.MustParseAddr(testAddr1),
 				ReceivedMessage: tracetracking.ReceivedMessage{
@@ -506,7 +506,7 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 		require.NoError(t, err)
 
 		// Account 2: Add finalized and expired transactions
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			tx := &Tx{
 				From: *address.MustParseAddr(testAddr2),
 				ReceivedMessage: tracetracking.ReceivedMessage{
@@ -520,7 +520,7 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr2)}
 			lt := uint64(2100 + i)
 			err := store2.AddUnconfirmed(lt, currentTimeMs-10000, tx)
@@ -551,7 +551,7 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 		store := accountStore.GetTxStore(testAddr1)
 
 		// Add only expired unconfirmed transactions
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr1)}
 			lt := uint64(3000 + i)
 			err := store.AddUnconfirmed(lt, currentTimeMs-10000, tx)
@@ -572,7 +572,7 @@ func TestTxStore_InflightCount(t *testing.T) {
 		assert.Equal(t, 0, store.InflightCount())
 
 		// Add unconfirmed transactions
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			tx := &Tx{From: *address.MustParseAddr(testAddr1)}
 			err := store.AddUnconfirmed(uint64(1000+i), 2000000, tx)
 			require.NoError(t, err)

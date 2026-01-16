@@ -30,7 +30,7 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 	t.Helper()
 	logs := make([]models.Log, 3)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		// Create CountIncreased event: ID (32) + Value (32) + Sender (address)
 		counterID := uint32(1)                // Fixed ID
 		counterValue := uint32((i + 1) * 100) //nolint:gosec // test code with small values
@@ -179,7 +179,7 @@ func TestPgLogStore(t *testing.T) {
 		// Test timestamp sorting with tiebreakers (same timestamp, different tx_lt)
 		sameTimestamp := time.Now().Truncate(time.Second)
 		collisionLogs := make([]models.Log, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			eventCell := cell.BeginCell().
 				MustStoreUInt(uint64(1), 32).
 				MustStoreUInt(uint64((i+1)*1000), 32). //nolint:gosec // test code with small values
