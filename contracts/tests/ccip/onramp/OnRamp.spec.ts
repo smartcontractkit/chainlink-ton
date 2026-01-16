@@ -1,8 +1,10 @@
-import { beginCell, toNano } from '@ton/core'
+import { beginCell, toNano, Cell, SendMode } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
+import { compile } from '@ton/blueprint'
 
 import * as coverage from '../../coverage/coverage'
+import { newSoftFreezeSpec } from '../../lib/funding/SoftFreezeSpec'
 import { errorCode, facilityId } from '../../../wrappers/utils'
 
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
@@ -11,6 +13,7 @@ import * as Ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import { deployOnRampContract, CHAINSEL_TON, setup } from './OnRamp.Setup'
+import { EVM_ADDRESS } from '../router/Router.Setup'
 
 describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -20,6 +23,109 @@ describe('OnRamp - TypeAndVersion Tests', () => {
       deployOnRampContract(blockchain, owner).then((c) => c.onramp),
   })
   currentVersionSpec.run([
+    {
+      code: 'OnRamp',
+      name: 'onramp',
+    },
+  ])
+})
+
+describe('OnRamp - SoftFreeze Tests', () => {
+  const softFreezeSpec = newSoftFreezeSpec({
+    getCode: () => compile('OnRamp'),
+    ContractConstructor: or.OnRamp,
+    softFreezeThreshold: or.SOFT_FREEZE_THRESHOLD,
+    deployContract: async (blockchain, owner, targetBalance) => {
+      const { onramp } = await deployOnRampContract(blockchain, owner)
+      // Adjust balance to match initial balance requirement
+      const initialBalance = (await blockchain.getContract(onramp.address)).balance
+      if (initialBalance < targetBalance) {
+        const funder = await blockchain.treasury('funder')
+        const result = await funder.send({
+          to: onramp.address,
+          value: targetBalance - initialBalance + toNano('0.05'),
+          sendMode: SendMode.PAY_GAS_SEPARATELY,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: funder.address,
+          to: onramp.address,
+          success: true,
+        })
+      }
+      const balanceAfterFunding = (await blockchain.getContract(onramp.address)).balance
+      if (balanceAfterFunding > targetBalance) {
+        const warpTime = (seconds: number) => {
+          blockchain.now = blockchain.now! + seconds
+        }
+        async function triggerAccountStateUpdate() {
+          const result = await onramp.sendInternal(
+            owner.getSender(),
+            toNano('1'),
+            beginCell().storeUint(0xffffffff, 32).asCell(),
+          )
+          expect(result.transactions).toHaveTransaction({
+            from: owner.address,
+            to: onramp.address,
+            success: false, // The call must fail so it bounces the TON back
+          })
+          expect(result.transactions).toHaveTransaction({
+            from: onramp.address,
+            to: owner.address,
+            inMessageBounced: true,
+          })
+        }
+        // Let rent drain the excess balance
+        const warpAndGetBalance = async (seconds: number) => {
+          warpTime(seconds)
+          await triggerAccountStateUpdate()
+          return (await blockchain.getContract(onramp.address)).balance
+        }
+
+        // Measure rent rate
+        const initialProbeInterval = 100000
+        const balanceBeforeProbe = balanceAfterFunding
+        const balanceAfterProbe = await warpAndGetBalance(initialProbeInterval)
+        expect(balanceAfterProbe).toBeGreaterThan(targetBalance)
+
+        const rentRate = Number(balanceBeforeProbe - balanceAfterProbe) / initialProbeInterval
+
+        // Iteratively approach target balance
+        let currentBalance = balanceAfterProbe
+        while (currentBalance > targetBalance) {
+          const excessBalance = Number(currentBalance - targetBalance)
+          const estimatedTime = Math.max(1, Math.floor(excessBalance / rentRate))
+
+          currentBalance = await warpAndGetBalance(estimatedTime)
+        }
+
+        expect(currentBalance).toBe(targetBalance)
+      }
+      return onramp
+    },
+    callOwnerMethod: async (contract, sender) => {
+      return contract.sendUpdateAllowlists(sender.getSender(), {
+        value: toNano('0.1'),
+        updateAllowlists: {
+          updates: [],
+        },
+      })
+    },
+    callNonOwnerMethod: async (contract, sender) => {
+      return contract.sendGetValidatedFee(sender.getSender(), {
+        value: toNano('0.1'),
+        msg: {
+          receiver: EVM_ADDRESS,
+          data: Cell.EMPTY,
+          tokenAmounts: [],
+          feeToken: null,
+          extraArgs: Cell.EMPTY,
+          destChainSelector: 0n,
+        },
+        context: Cell.EMPTY.asSlice(),
+      })
+    },
+  })
+  softFreezeSpec.run([
     {
       code: 'OnRamp',
       name: 'onramp',

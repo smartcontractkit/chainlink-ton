@@ -1,6 +1,7 @@
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Cell, SendMode, toNano } from '@ton/core'
 
 import { crc32 } from 'zlib'
 import * as coverage from '../../coverage/coverage'
@@ -9,6 +10,7 @@ import { errorCode, facilityId } from '../../../wrappers/utils'
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
+import { newSoftFreezeSpec } from '../../lib/funding/SoftFreezeSpec'
 import { ownable2StepSpec } from '../../lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as rt from '../../../wrappers/ccip/Router'
@@ -37,6 +39,64 @@ describe('Router - Withdrawable Tests', () => {
     deployContract: deployRouterContract,
   })
   withdrawableSpec.run([
+    {
+      code: 'Router',
+      name: 'router',
+    },
+  ])
+})
+
+describe('Router - SoftFreeze Tests', () => {
+  const softFreezeSpec = newSoftFreezeSpec({
+    getCode: () => compile('Router'),
+    ContractConstructor: rt.Router,
+    softFreezeThreshold: rt.SOFT_FREEZE_THRESHOLD,
+    deployContract: async (blockchain, owner, initialBalance) => {
+      const router = await deployRouterContract(blockchain, owner)
+      // Adjust balance to match initial balance requirement
+      const currentBalance = (await blockchain.getContract(router.address)).balance
+      const result = await router.sendWithdraw(owner.getSender(), initialBalance, {
+        queryId: 0n,
+        amount: 0n,
+        destination: owner.address,
+        reserve: initialBalance,
+        drainAllAvailable: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: owner.address,
+        success: true,
+        value(x) {
+          if (!x) return false
+          return x >= currentBalance - initialBalance - toNano('0.05') // account for gas
+        },
+      })
+      expect((await blockchain.getContract(router.address)).balance).toBe(initialBalance)
+      return router
+    },
+    callOwnerMethod: async (contract, sender) => {
+      return contract.sendApplyRampUpdatesSetRamps(sender.getSender(), {
+        value: toNano('0.1'),
+        data: {
+          queryID: 0n,
+        },
+      })
+    },
+    callNonOwnerMethod: async (contract, sender) => {
+      return contract.sendCcipSend(sender.getSender(), {
+        value: toNano('0.1'),
+        body: {
+          destChainSelector: 909606746561742123n,
+          receiver: Buffer.from('0000000000000000000000000000000000000000', 'hex'),
+          data: Cell.EMPTY,
+          tokenAmounts: [],
+          feeToken: null,
+          extraArgs: Cell.EMPTY,
+        },
+      })
+    },
+  })
+  softFreezeSpec.run([
     {
       code: 'Router',
       name: 'router',

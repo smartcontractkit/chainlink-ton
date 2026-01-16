@@ -89,7 +89,7 @@ interface TestSetup<TContract> {
  *   }
  * })
  *
- * describe('FeeQuoter Soft Freeze Tests', () => {
+ * describe('FeeQuoter SoftFreeze Tests', () => {
  *   softFreezeSpec.run()
  * })
  * ```
@@ -99,6 +99,7 @@ export function newSoftFreezeSpec<TContract extends Contract>(
 ) {
   async function setup(): Promise<TestSetup<TContract>> {
     const blockchain = await Blockchain.create()
+    blockchain.now = 1 // Pause time
     blockchain.verbosity = {
       print: false,
       blockchainLogs: false,
@@ -127,9 +128,21 @@ export function newSoftFreezeSpec<TContract extends Contract>(
   return {
     run: (coverageConfigs?: coverage.ContractCoverageConfig[]) => {
       let suiteSetup: TestSetup<TContract>
+      let i = 0
 
-      beforeAll(async () => {
+      beforeEach(async () => {
+        i++
         suiteSetup = await setup()
+      })
+
+      /**
+       * Test that contract factory works correctly
+       */
+      it('should deploy contract with initial balance equal to expected', async () => {
+        const { blockchain, owner, nonOwner, deployContract } = suiteSetup
+        const initialBalance = config.softFreezeThreshold
+        const contract = await deployContract(blockchain, owner, initialBalance)
+        expect(await balance(blockchain, contract)).toBe(initialBalance)
       })
 
       /**
@@ -145,11 +158,7 @@ export function newSoftFreezeSpec<TContract extends Contract>(
         // Non-owner should be able to call methods when balance is above threshold
         const result = await config.callNonOwnerMethod(contract, nonOwner)
 
-        expect(result.transactions).toHaveTransaction({
-          from: nonOwner.address,
-          to: contract.address,
-          success: true,
-        })
+        expectLetMsgPass(result, nonOwner, contract)
       })
 
       /**
@@ -186,11 +195,7 @@ export function newSoftFreezeSpec<TContract extends Contract>(
         // Non-owner should be able to call when balance equals threshold
         const result = await config.callNonOwnerMethod(contract, nonOwner)
 
-        expect(result.transactions).toHaveTransaction({
-          from: nonOwner.address,
-          to: contract.address,
-          success: true,
-        })
+        expectLetMsgPass(result, nonOwner, contract)
       })
 
       /**
@@ -206,11 +211,7 @@ export function newSoftFreezeSpec<TContract extends Contract>(
         // Owner should be able to call methods even when balance is below threshold
         const result = await config.callOwnerMethod(contract, owner)
 
-        expect(result.transactions).toHaveTransaction({
-          from: owner.address,
-          to: contract.address,
-          success: true,
-        })
+        expectLetMsgPass(result, owner, contract)
       })
 
       /**
@@ -244,23 +245,36 @@ export function newSoftFreezeSpec<TContract extends Contract>(
 
         // Now non-owner should be able to call methods
         const resultAfterFunding = await config.callNonOwnerMethod(contract, nonOwner)
-        expect(resultAfterFunding.transactions).toHaveTransaction({
-          from: nonOwner.address,
-          to: contract.address,
-          success: true,
-        })
+        expectLetMsgPass(resultAfterFunding, nonOwner, contract)
       })
 
-      afterAll(async () => {
+      afterEach(async () => {
         if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
           await coverage.generateCoverageArtifacts(
             suiteSetup.blockchain,
-            'soft_freeze_spec_tests',
+            `soft_freeze_spec_tests_${i}`,
             coverageConfigs,
           )
         }
       })
     },
+  }
+
+  function expectLetMsgPass(
+    result: SendMessageResult,
+    nonOwner: SandboxContract<TreasuryContract>,
+    contract: SandboxContract<TContract>,
+  ) {
+    expect(result.transactions).toHaveTransaction({
+      from: nonOwner.address,
+      to: contract.address,
+      exitCode(x) {
+        if (!x) {
+          return true
+        }
+        return x != softFreeze.Errors.BelowOperationalBalance
+      },
+    })
   }
 
   async function balance<TContract extends Contract>(

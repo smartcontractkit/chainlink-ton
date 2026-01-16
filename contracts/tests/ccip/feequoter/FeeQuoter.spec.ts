@@ -32,7 +32,7 @@ describe('FeeQuoter - Withdrawable Tests', () => {
   ])
 })
 
-describe('FeeQuoter - Soft Freeze Tests', () => {
+describe('FeeQuoter - SoftFreeze Tests', () => {
   const softFreezeSpec = newSoftFreezeSpec({
     getCode: () => compile('FeeQuoter'),
     ContractConstructor: fq.FeeQuoter,
@@ -41,36 +41,22 @@ describe('FeeQuoter - Soft Freeze Tests', () => {
       const feeQuoter = await setupTestFeeQuoter(owner, blockchain)
       // Adjust balance to match initial balance requirement
       const currentBalance = (await blockchain.getContract(feeQuoter.address)).balance
-      if (currentBalance < initialBalance) {
-        const funder = await blockchain.treasury('funder')
-        const result = await funder.send({
-          to: feeQuoter.address,
-          value: initialBalance - currentBalance,
-          sendMode: SendMode.PAY_GAS_SEPARATELY,
-        })
-        expect(result.transactions).toHaveTransaction({
-          from: funder.address,
-          to: feeQuoter.address,
-          success: true,
-        })
-      } else if (currentBalance > initialBalance) {
-        const result = await feeQuoter.sendWithdraw(owner.getSender(), toNano('0.1'), {
-          queryId: 0n,
-          amount: currentBalance - initialBalance,
-          destination: owner.address,
-          reserve: 0n, // Override reserve to allow withdrawal below soft freeze threshold
-          drainAllAvailable: false,
-        })
-        expect(result.transactions).toHaveTransaction({
-          from: feeQuoter.address,
-          to: owner.address,
-          success: true,
-          value(x) {
-            if (!x) return false
-            return x >= currentBalance - initialBalance - toNano('0.05') // account for gas
-          },
-        })
-      }
+      const result = await feeQuoter.sendWithdraw(owner.getSender(), initialBalance, {
+        queryId: 0n,
+        amount: 0n,
+        destination: owner.address,
+        reserve: initialBalance,
+        drainAllAvailable: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: feeQuoter.address,
+        to: owner.address,
+        success: true,
+        value(x) {
+          if (!x) return false
+          return x >= currentBalance - initialBalance - toNano('0.05') // account for gas
+        },
+      })
       expect((await blockchain.getContract(feeQuoter.address)).balance).toBe(initialBalance)
       return feeQuoter
     },

@@ -1,5 +1,14 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
+import {
+  Address,
+  beginCell,
+  Cell,
+  contractAddress,
+  Dictionary,
+  StateInit,
+  toNano,
+  SendMode,
+} from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
@@ -22,6 +31,7 @@ import * as coverage from '../coverage/coverage'
 import { errorCode, facilityId } from '../../wrappers/utils'
 
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import { newSoftFreezeSpec } from '../lib/funding/SoftFreezeSpec'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 import * as ownable2StepSpec from '../../tests/lib/access/Ownable2StepSpec'
@@ -164,6 +174,61 @@ describe('OffRamp - Withdrawable Tests', () => {
     deployContract: deployOffRampContract,
   })
   withdrawableSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
+})
+
+describe('OffRamp - SoftFreeze Tests', () => {
+  const softFreezeSpec = newSoftFreezeSpec({
+    getCode: () => compile('OffRamp'),
+    ContractConstructor: of.OffRamp,
+    softFreezeThreshold: of.SOFT_FREEZE_THRESHOLD,
+    deployContract: async (blockchain, owner, initialBalance) => {
+      const offRamp = await deployOffRampContract(blockchain, owner)
+      // Adjust balance to match initial balance requirement
+      const currentBalance = (await blockchain.getContract(offRamp.address)).balance
+      const result = await offRamp.sendWithdraw(owner.getSender(), initialBalance, {
+        queryId: 0n,
+        amount: 0n,
+        destination: owner.address,
+        reserve: initialBalance,
+        drainAllAvailable: true,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: offRamp.address,
+        to: owner.address,
+        success: true,
+        value(x) {
+          if (!x) return false
+          return x >= currentBalance - initialBalance - toNano('0.05') // account for gas
+        },
+      })
+      expect((await blockchain.getContract(offRamp.address)).balance).toBe(initialBalance)
+      return offRamp
+    },
+    callOwnerMethod: async (contract, sender) => {
+      return contract.sendUpdateSourceChainConfigs(sender.getSender(), {
+        value: toNano('0.1'),
+        configs: [],
+      })
+    },
+    callNonOwnerMethod: async (contract, sender) => {
+      return contract.sendManualExecute(sender.getSender(), {
+        value: toNano('0.1'),
+        report: {
+          sourceChainSelector: 0n,
+          messages: [],
+          offchainTokenData: [],
+          proofs: [],
+          proofFlagBits: 0n,
+        },
+      })
+    },
+  })
+  softFreezeSpec.run([
     {
       code: 'OffRamp',
       name: 'offramp',
