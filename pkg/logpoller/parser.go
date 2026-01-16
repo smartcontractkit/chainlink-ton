@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +15,13 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
+
+// msgTypeLowerLabels maps MsgType to pre-computed lowercase strings for metrics.
+var msgTypeLowerLabels = map[tlb.MsgType]string{
+	tlb.MsgTypeInternal:    "internal",
+	tlb.MsgTypeExternalIn:  "external_in",
+	tlb.MsgTypeExternalOut: "external_out",
+}
 
 // parseTransactions spawns goroutines to parse transactions in parallel.
 // TODO: consider worker pool if transaction volume becomes high (>1000/block)
@@ -111,7 +117,7 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 	opcodeLabel := fmt.Sprintf("0x%08x", eventSig)
 
 	// record message processed metric
-	lp.metrics.IncrementMsgsProcessed(ctx, strings.ToLower(string(msg.MsgType)), addressLabel, opcodeLabel)
+	lp.metrics.IncrementMsgsProcessed(ctx, msgTypeLowerLabels[msg.MsgType], addressLabel, opcodeLabel)
 
 	// skip messages that aren't valid, parseable events
 	if body == nil || eventSig == 0 {
