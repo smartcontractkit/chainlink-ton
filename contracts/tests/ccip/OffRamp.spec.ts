@@ -2753,7 +2753,7 @@ describe('OffRamp - Unit Tests', () => {
     it('should handle Deployable_Initialize bounce and emit events', async () => {
       await setupOCRConfigs()
 
-      // Try commiting the same root twice. This should normally never happen because the seqNr
+      // Try committing the same root twice. This should normally never happen because the seqNr
       // would not match, but we can intentionally build a commit report with correct seqNr
       const message1 = createTestMessage(1n, 1n, receiver.address)
       const rootBytes = uint8ArrayToBigInt(
