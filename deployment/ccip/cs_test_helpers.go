@@ -153,12 +153,12 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 		Params: config.ChainContractParams{
 			RouterParams: config.RouterParams{
 				ID:              idForContracts,
-				Coin:            "0.05",
+				Coin:            "1",
 				ContractsSemver: ccipContractSemver,
 			},
 			FeeQuoterParams: config.FeeQuoterParams{
 				ID:                           idForContracts,
-				Coin:                         "0.05",
+				Coin:                         "1",
 				ContractsSemver:              ccipContractSemver,
 				MaxFeeJuelsPerMsg:            big.NewInt(0).Mul(big.NewInt(2e2), big.NewInt(1e18)),
 				TokenPriceStalenessThreshold: 0,
@@ -171,24 +171,24 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			},
 			OffRampParams: config.OffRampParams{
 				ID:                               idForContracts,
-				Coin:                             "0.05",
+				Coin:                             "1",
 				ContractsSemver:                  ccipContractSemver,
 				ChainSelector:                    tonChain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
 				ID:              idForContracts,
-				Coin:            "0.05",
+				Coin:            "1",
 				ContractsSemver: ccipContractSemver,
 				ChainSelector:   ChainSelEVMTest90000001,
 				// TODO:
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
-				Reserve:       "0.5",
+				Reserve:       "1.5",
 			},
 			ReceiverParams: config.ReceiverParams{
 				ID:              idForContracts,
-				Coin:            "0.05",
+				Coin:            "1.0",
 				ContractsSemver: ccipContractSemver,
 			},
 		},

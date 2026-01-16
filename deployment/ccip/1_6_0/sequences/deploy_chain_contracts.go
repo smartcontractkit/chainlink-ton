@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/address"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
@@ -24,11 +25,11 @@ import (
 
 // defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.
 // This value is chosen to cover contract initialization and storage costs on TON blockchain.
-const defaultCCIPContractCoin = "0.05"
+const defaultCCIPContractCoin = "1"
 
 // defaultReserveAmount is the default reserve amount allocated to the OnRamp contract.
 // This reserve ensures the contract has sufficient balance for operational transactions.
-const defaultReserveAmount = "0.5"
+const defaultReserveAmount = "1.5"
 
 func (a *TonAdapter) DeployChainContracts() *operations.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
