@@ -33,7 +33,7 @@ export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 export const FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
 export const FACILITY_ID = 248
 export const ERROR_CODE = FACILITY_ID * 100
-export const SOFT_FREEZE_THRESHOLD = toNano('1')
+export const SOFT_FREEZE_THRESHOLD = toNano('0.5')
 
 export enum errors {
   UnsupportedChainFamilySelector = ERROR_CODE,

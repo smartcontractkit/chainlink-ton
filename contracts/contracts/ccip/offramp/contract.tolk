@@ -25,7 +25,7 @@ import "../../lib/deployable/namespace"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5"); // TODO: set correct value
-const SOFT_FREEZE_THRESHOLD = ton("1"); // TODO: set correct value
+const SOFT_FREEZE_THRESHOLD = ton("0.5"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {
     SoftFreeze{owner}.requireOperationalBalance(in.senderAddress, SOFT_FREEZE_THRESHOLD);
