@@ -24,6 +24,6 @@ struct SoftFreeze {
 @inline
 fun SoftFreeze.requireOperationalBalance(self, sender: address, threshold: coins) {
     if (contract.getOriginalBalance() < threshold) {
-        assert (sender == self.owner()) throw 1;
+        assert (sender == self.owner()) throw (SoftFreeze_Error.BelowOperationalBalance as int);
     };
 }
