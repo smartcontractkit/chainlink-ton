@@ -10,7 +10,7 @@ export const setupTestFeeQuoter = async (
   deployer: SandboxContract<TreasuryContract>,
   blockchain: Blockchain,
 ) => {
-  let code = await compile('FeeQuoter')
+  let code = await fq.FeeQuoter.code()
 
   let data: fq.FeeQuoterStorage = {
     id: generateRandomContractId(),
