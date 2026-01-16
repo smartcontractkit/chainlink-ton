@@ -18,13 +18,13 @@ const (
 // NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
 // Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
 //
-// Performance Note: Tick processing time must complete within PollPeriod to avoid falling behind chain head.
-// Processing time is primarily driven by PageSize (transactions fetched per API call) and transaction volume.
-// If processing consistently exceeds PollPeriod, reduce PageSize or increase PollPeriod. Monitor
-// ton_logpoller_poll_duration_seconds metric to detect when processing approaches PollPeriod.
+// Performance Note: The service loop is synchronous - each tick blocks until processing completes,
+// so concurrent ticks cannot occur. However, if processing takes longer than PollPeriod, the poller
+// falls behind chain head (a warning is logged when this happens). Processing time is primarily
+// driven by PageSize and transaction volume. If processing consistently exceeds PollPeriod,
+// reduce PageSize or increase PollPeriod. Monitor ton_logpoller_poll_duration_seconds metric.
 type Config struct {
-	// PollPeriod controls how often the poller ticks. Each tick must complete processing
-	// before the next tick starts; otherwise, processing delay accumulates.
+	// PollPeriod is the target interval between tick starts.
 	PollPeriod *config.Duration
 	// PageSize is the number of transactions fetched per API call. Larger values increase
 	// throughput but also increase per-tick processing time. Tune based on expected volume.
