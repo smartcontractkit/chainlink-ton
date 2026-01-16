@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -19,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms"
+	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
 	"github.com/smartcontractkit/mcms/types"
 
 	bindmcms "github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
@@ -209,9 +209,7 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		}
 
 		value := msg.Amount.Nano()
-		// TODO (ops/mcms): replace with below once https://github.com/smartcontractkit/mcms/pull/486 is merged
-		// mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
-		mcmsTxs[i], err = NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
+		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
 		}
@@ -222,50 +220,3 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		Transactions:  mcmsTxs,
 	}, nil
 }
-
-// TODO (ops/mcms): remove and import once https://github.com/smartcontractkit/mcms/pull/486 is merged
-// Vendor code START - vendored from https://github.com/smartcontractkit/mcms/pull/486
-
-type AdditionalFields struct {
-	Value *big.Int `json:"value"`
-}
-
-// Validate ensures the TON-specific fields are correct
-func (f AdditionalFields) Validate() error {
-	if f.Value == nil || f.Value.Sign() < 0 {
-		return fmt.Errorf("invalid TON value: %v", f.Value)
-	}
-
-	return nil
-}
-
-func NewTransaction(
-	to *address.Address,
-	body *cell.Slice,
-	value *big.Int,
-	contractType string,
-	tags []string,
-) (types.Transaction, error) {
-	additionalFields, err := json.Marshal(AdditionalFields{Value: value})
-	if err != nil {
-		return types.Transaction{}, fmt.Errorf("failed to marshal additional fields: %w", err)
-	}
-
-	bodyCell, err := body.ToCell()
-	if err != nil {
-		return types.Transaction{}, fmt.Errorf("failed to convert body to cell: %w", err)
-	}
-	data := bodyCell.ToBOC()
-
-	return types.Transaction{
-		To:               to.String(),
-		Data:             data,
-		AdditionalFields: additionalFields,
-		OperationMetadata: types.OperationMetadata{
-			ContractType: contractType,
-			Tags:         tags,
-		},
-	}, nil
-}
-
-// Vendor code END
