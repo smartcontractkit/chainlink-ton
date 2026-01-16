@@ -17,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -265,13 +264,10 @@ func (a *TONAccessor) GetCurseInfo(ctx context.Context, block *ton.BlockIDExt, d
 	if err != nil {
 		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get OffRamp address from accessor bindings: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "cursedSubjects")
+	cursedSubjects, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetCursedSubjects)
 	if err != nil {
 		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get cursed subjects: %w", err)
 	}
-
-	// Curse subjects are uint128, need to convert to bigInt
-	cursedSubjects := parser.ParseLispTupleBigInt(result.AsTuple())
 
 	return parseCurseInfo(cursedSubjects, dest), nil
 }
