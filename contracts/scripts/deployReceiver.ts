@@ -1,6 +1,6 @@
 import { Address, toNano } from '@ton/core'
 import { compile, NetworkProvider } from '@ton/blueprint'
-import { Receiver, ReceiverBehavior } from '../wrappers/ccip/Receiver'
+import { Receiver, ReceiverBehavior } from '../wrappers/examples/Receiver'
 import { generateRandomContractId } from '../src/utils'
 
 export async function run(provider: NetworkProvider, args: string[]) {

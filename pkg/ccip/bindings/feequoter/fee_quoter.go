@@ -107,14 +107,17 @@ type USDPerUnitGas struct {
 	Timestamp                uint64   `tlb:"## 64"`
 }
 
+// Deprecated: Use GetDestinationChainGasPrice getter instead.
 func (u *USDPerUnitGas) UnmarshalResult(result *ton.ExecutionResult) error {
-	c, err := result.Cell(0)
+	res, err := GetDestinationChainGasPrice.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	return tlb.LoadFromCell(u, c.BeginParse())
+	*u = res
+	return nil
 }
 
+// Deprecated: Use GetDestinationChainGasPrice getter instead.
 func (u *USDPerUnitGas) GetterMethodName() string {
 	return destinationChainGasPriceGetter
 }
@@ -140,104 +143,17 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
+// Deprecated: Use GetDestChainConfig getter instead.
 func (c *DestChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	isEnabledInt, err := result.Int(0)
+	res, err := GetDestChainConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	isEnabled := isEnabledInt.Cmp(big.NewInt(-1)) == 0
-	maxNumberOfTokensPerMsg, err := result.Int(1)
-	if err != nil {
-		return err
-	}
-	maxDataBytes, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	maxPerMsgGasLimit, err := result.Int(3)
-	if err != nil {
-		return err
-	}
-	destGasOverhead, err := result.Int(4)
-	if err != nil {
-		return err
-	}
-	destGasPerPayloadByteBase, err := result.Int(5)
-	if err != nil {
-		return err
-	}
-	destGasPerPayloadByteHigh, err := result.Int(6)
-	if err != nil {
-		return err
-	}
-	destGasPerPayloadByteThreshold, err := result.Int(7)
-	if err != nil {
-		return err
-	}
-	destDataAvailabilityOverheadGas, err := result.Int(8)
-	if err != nil {
-		return err
-	}
-	destGasPerDataAvailabilityByte, err := result.Int(9)
-	if err != nil {
-		return err
-	}
-	destDataAvailabilityMultiplierBps, err := result.Int(10)
-	if err != nil {
-		return err
-	}
-	chainFamilySelector, err := result.Int(11)
-	if err != nil {
-		return err
-	}
-	defaultTokenFeeUsdCents, err := result.Int(12)
-	if err != nil {
-		return err
-	}
-	defaultTokenDestGasOverhead, err := result.Int(13)
-	if err != nil {
-		return err
-	}
-	defaultTxGasLimit, err := result.Int(14)
-	if err != nil {
-		return err
-	}
-	gasMultiplierWeiPerEth, err := result.Int(15)
-	if err != nil {
-		return err
-	}
-	gasPriceStalenessThreshold, err := result.Int(16)
-	if err != nil {
-		return err
-	}
-	networkFeeUsdCents, err := result.Int(17)
-	if err != nil {
-		return err
-	}
-
-	*c = DestChainConfig{
-		IsEnabled:                         isEnabled,
-		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
-		MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
-		MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),                 //nolint:gosec // G115
-		DestGasOverhead:                   uint32(destGasOverhead.Uint64()),                   //nolint:gosec // G115
-		DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),          //nolint:gosec // G115
-		DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),          //nolint:gosec // G115
-		DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),    //nolint:gosec // G115
-		DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),   //nolint:gosec // G115
-		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
-		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
-		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
-		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),           //nolint:gosec // G115
-		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()),       //nolint:gosec // G115
-		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),                 //nolint:gosec // G115
-		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
-		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetDestChainConfig getter instead.
 func (c *DestChainConfig) GetterMethodName() string {
 	return destChainConfigGetter
 }
@@ -256,23 +172,17 @@ type TimestampedPrice struct {
 	Timestamp uint32   `tlb:"## 32"`
 }
 
+// Deprecated: Use GetTokenPrice getter instead.
 func (p *TimestampedPrice) UnmarshalResult(result *ton.ExecutionResult) error {
-	value, err := result.Int(0)
+	res, err := GetTokenPrice.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	timestamp, err := result.Int(1)
-	if err != nil {
-		return err
-	}
-
-	*p = TimestampedPrice{
-		Value:     value,
-		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
-	}
+	*p = res
 	return nil
 }
 
+// Deprecated: Use GetTokenPrice getter instead.
 func (p *TimestampedPrice) GetterMethodName() string {
 	return tokenPriceGetter
 }
@@ -383,31 +293,17 @@ type StaticConfig struct {
 	StalenessThreshold uint32
 }
 
+// Deprecated: Use GetStaticConfig getter instead.
 func (s *StaticConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	maxFeeJuelsPerMsg, err := result.Int(0)
+	res, err := GetStaticConfig.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	linkTokenAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	tokenPriceStalenessThreshold, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	*s = StaticConfig{
-		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
-		LinkToken:          linkTokenAddress,
-		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-	}
+	*s = res
 	return nil
 }
 
+// Deprecated: Use GetStaticConfig getter instead.
 func (s *StaticConfig) GetterMethodName() string {
 	return staticConfigGetter
 }
@@ -431,10 +327,9 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			var cfg DestChainConfig
-			opts := []interface{}{dest}
-			if err = tvm.FetchResult(egCtx, client, block, feeQuoter, &cfg, opts); err != nil {
-				return err
+			cfg, cErr := tvm.CallGetter(egCtx, client, block, feeQuoter, GetDestChainConfig, dest)
+			if cErr != nil {
+				return cErr
 			}
 
 			lock.Lock()
