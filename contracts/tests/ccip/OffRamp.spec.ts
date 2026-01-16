@@ -691,7 +691,7 @@ describe('OffRamp - Unit Tests', () => {
 
       offRamp = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
 
-      let result = await offRamp.sendDeploy(deployer.getSender(), of.SOFT_FREEZE_THRESHOLD)
+      let result = await offRamp.sendDeploy(deployer.getSender(), of.SOFT_FREEZE_THRESHOLD * 10n)
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: offRamp.address,

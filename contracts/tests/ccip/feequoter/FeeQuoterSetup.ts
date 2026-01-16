@@ -278,7 +278,7 @@ export class FeeQuoterSetup {
   async deployFeeQuoterContract(): Promise<void> {
     const deployResult = await this.bind.feeQuoter.sendDeploy(
       this.acc.deployer.getSender(),
-      toNano('1'),
+      feeQuoter.SOFT_FREEZE_THRESHOLD * 2n,
     )
 
     expect(deployResult.transactions).toHaveTransaction({

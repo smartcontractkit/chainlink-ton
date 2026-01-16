@@ -82,7 +82,7 @@ describe('OnRamp - SoftFreeze Tests', () => {
         }
 
         // Measure rent rate
-        const initialProbeInterval = 100000
+        const initialProbeInterval = 1e5
         const balanceBeforeProbe = balanceAfterFunding
         const balanceAfterProbe = await warpAndGetBalance(initialProbeInterval)
         expect(balanceAfterProbe).toBeGreaterThan(targetBalance)
@@ -93,8 +93,7 @@ describe('OnRamp - SoftFreeze Tests', () => {
         let currentBalance = balanceAfterProbe
         while (currentBalance > targetBalance) {
           const excessBalance = Number(currentBalance - targetBalance)
-          const estimatedTime = Math.max(1, Math.floor(excessBalance / rentRate))
-
+          const estimatedTime = Math.min(Math.max(1, Math.floor(excessBalance / rentRate)), 1e8)
           currentBalance = await warpAndGetBalance(estimatedTime)
         }
 

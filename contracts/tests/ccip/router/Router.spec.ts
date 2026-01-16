@@ -54,23 +54,39 @@ describe('Router - SoftFreeze Tests', () => {
     deployContract: async (blockchain, owner, initialBalance) => {
       const router = await deployRouterContract(blockchain, owner)
       // Adjust balance to match initial balance requirement
-      const currentBalance = (await blockchain.getContract(router.address)).balance
-      const result = await router.sendWithdraw(owner.getSender(), initialBalance, {
-        queryId: 0n,
-        amount: 0n,
-        destination: owner.address,
-        reserve: initialBalance,
-        drainAllAvailable: true,
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: router.address,
-        to: owner.address,
-        success: true,
-        value(x) {
-          if (!x) return false
-          return x >= currentBalance - initialBalance - toNano('0.05') // account for gas
-        },
-      })
+      var currentBalance = (await blockchain.getContract(router.address)).balance
+      if (currentBalance < initialBalance) {
+        const result = await owner.send({
+          value: initialBalance + toNano('0.1'),
+          to: router.address,
+          bounce: false,
+          sendMode: SendMode.PAY_GAS_SEPARATELY,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: owner.address,
+          to: router.address,
+          success: true,
+        })
+      }
+      currentBalance = (await blockchain.getContract(router.address)).balance
+      if (currentBalance > initialBalance) {
+        const result = await router.sendWithdraw(owner.getSender(), initialBalance, {
+          queryId: 0n,
+          amount: 0n,
+          destination: owner.address,
+          reserve: initialBalance,
+          drainAllAvailable: true,
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: router.address,
+          to: owner.address,
+          success: true,
+          value(x) {
+            if (!x) return false
+            return x >= currentBalance - initialBalance - toNano('0.05') // account for gas
+          },
+        })
+      }
       expect((await blockchain.getContract(router.address)).balance).toBe(initialBalance)
       return router
     },

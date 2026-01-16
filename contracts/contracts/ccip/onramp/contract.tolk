@@ -21,7 +21,7 @@ import "../fee_quoter/messages"
 import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
-const SOFT_FREEZE_THRESHOLD = ton("0.5"); // TODO: set correct value
+const SOFT_FREEZE_THRESHOLD = ton("5"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     SoftFreeze{owner}.requireOperationalBalance(in.senderAddress, SOFT_FREEZE_THRESHOLD);
@@ -367,6 +367,7 @@ Only the owner is authorized to call this function.
 */
 fun onSetDynamicConfig(mutate st: OnRamp_Storage, msg: OnRamp_SetDynamicConfig) {
     // feeQuoter and feeAggregator are typed as address, so they're guaranteed not null (vs `address?`)
+    assert (msg.config.reserve > SOFT_FREEZE_THRESHOLD, Error.InvalidReserve);
     st.config = msg.config.toCell();
 
     emit(

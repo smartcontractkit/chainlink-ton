@@ -131,7 +131,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
     if (balance < defaultReserve + minimumBalance) {
       const funder = await blockchain.treasury('funder')
       const res = await funder.send({
-        value: minimumBalance,
+        value: (defaultReserve + minimumBalance) * 2n,
         to: contract.address,
       })
       expect(res.transactions).toHaveTransaction({
@@ -140,6 +140,8 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
         success: true,
       })
     }
+    const newBalance = (await blockchain.getContract(contract.address)).balance
+    expect(newBalance).toBeGreaterThan(defaultReserve)
     return contract
   }
 

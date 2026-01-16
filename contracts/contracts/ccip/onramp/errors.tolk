@@ -7,4 +7,5 @@ enum Error {
     InvalidConfig
     UnknownToken
     InsufficientValue
+    InvalidReserve
 }

@@ -253,7 +253,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(UnknownDestChainSelector)
-		ecMax = int32(InsufficientValue)
+		ecMax = int32(InvalidReserve)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -265,4 +265,5 @@ const (
 	InvalidConfig
 	UnknownToken
 	InsufficientValue
+	InvalidReserve
 )

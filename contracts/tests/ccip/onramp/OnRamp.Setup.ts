@@ -62,7 +62,7 @@ export async function deployOnRampContract(
   }
   const onramp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
   const deployer = await blockchain.treasury('deployer')
-  await onramp.sendDeploy(deployer.getSender(), or.SOFT_FREEZE_THRESHOLD * 3n)
+  await onramp.sendDeploy(deployer.getSender(), or.SOFT_FREEZE_THRESHOLD)
   return { onramp, config }
 }
 

@@ -132,7 +132,11 @@ async function deployRouterInstance(
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }
   const router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
-  const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+  const result = await router.sendInternal(
+    deployer.getSender(),
+    rt.SOFT_FREEZE_THRESHOLD * 2n,
+    Cell.EMPTY,
+  )
   expect(result.transactions).toHaveTransaction({
     from: deployer.address,
     to: router.address,
@@ -168,7 +172,7 @@ async function deployFeeQuoterInstance(
   const feeQuoter = blockchain.openContract(fq.FeeQuoter.createFromConfig(data, code))
 
   {
-    const result = await feeQuoter.sendDeploy(deployer.getSender(), fq.SOFT_FREEZE_THRESHOLD)
+    const result = await feeQuoter.sendDeploy(deployer.getSender(), fq.SOFT_FREEZE_THRESHOLD * 2n)
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: feeQuoter.address,

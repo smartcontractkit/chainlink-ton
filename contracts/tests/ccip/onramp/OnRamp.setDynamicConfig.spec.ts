@@ -32,7 +32,7 @@ describe('OnRamp - set Dynamic Config', () => {
       feeQuoter: randomAddress(),
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
-      reserve: toNano('42'),
+      reserve: or.SOFT_FREEZE_THRESHOLD + toNano('1'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
       value: toNano('0.5'),
@@ -53,13 +53,34 @@ describe('OnRamp - set Dynamic Config', () => {
     expect(dynamicConfig.reserve).toBe(newConfig.reserve)
   })
 
+  it('should fail on setting invalid reserve', async () => {
+    const newConfig = {
+      feeQuoter: randomAddress(),
+      feeAggregator: randomAddress(),
+      allowlistAdmin: randomAddress(),
+      reserve: or.SOFT_FREEZE_THRESHOLD / 2n,
+    }
+    const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(owner.getSender(), {
+      value: toNano('0.5'),
+      body: {
+        config: newConfig,
+      },
+    })
+    expect(resultUpdateDestChainConfigs.transactions).toHaveTransaction({
+      from: owner.address,
+      to: onramp.address,
+      success: false,
+      exitCode: or.Errors.InvalidReserve,
+    })
+  })
+
   it('should fail on non-owner setting dynamic config', async () => {
     const nonOwner = await blockchain.treasury('nonOwner')
     const newConfig = {
       feeQuoter: randomAddress(),
       feeAggregator: randomAddress(),
       allowlistAdmin: randomAddress(),
-      reserve: toNano('42'),
+      reserve: or.SOFT_FREEZE_THRESHOLD + toNano('1'),
     }
     const resultUpdateDestChainConfigs = await onramp.sendSetDynamicConfig(nonOwner.getSender(), {
       value: toNano('0.5'),

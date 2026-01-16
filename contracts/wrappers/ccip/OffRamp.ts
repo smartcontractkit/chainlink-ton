@@ -45,7 +45,7 @@ export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 export const FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const FACILITY_ID = 84
 export const ERROR_CODE = FACILITY_ID * 100
-export const SOFT_FREEZE_THRESHOLD = toNano('0.5')
+export const SOFT_FREEZE_THRESHOLD = toNano('5')
 
 export enum OffRampError {
   MessageNotFromOwnedContract = ERROR_CODE,

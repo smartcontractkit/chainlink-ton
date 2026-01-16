@@ -32,8 +32,7 @@ describe('OnRamp - WithdrawFeeTokens', () => {
     const reserve = await onramp.getReserve()
     expect(reserve).toBeGreaterThan(BigInt(0))
 
-    const balanceBefore = (await blockchain.getContract(onramp.address)).balance
-    expect(balanceBefore).toBeGreaterThan(reserve)
+    const balanceBefore = await expectBalanceGreaterThanReserve(reserve)
 
     const result = await onramp.sendWithdrawFeeTokens(deployer.getSender(), toNano('0.5'), {
       feeTokens: [],
@@ -160,4 +159,23 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       ])
     }
   })
+
+  async function expectBalanceGreaterThanReserve(reserve: bigint): Promise<bigint> {
+    const balanceBefore = (await blockchain.getContract(onramp.address)).balance
+    if (balanceBefore > reserve) {
+      return balanceBefore
+    }
+    const result = await deployer.send({
+      value: (reserve - balanceBefore) * 2n,
+      to: onramp.address,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: onramp.address,
+      success: true,
+    })
+
+    return (await blockchain.getContract(onramp.address)).balance
+  }
 })

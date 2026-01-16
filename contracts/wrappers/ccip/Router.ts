@@ -31,7 +31,7 @@ export const ROUTER_CONTRACT_VERSION = '1.6.0'
 export const FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const FACILITY_ID = 496
 export const ERROR_CODE = FACILITY_ID * 100
-export const SOFT_FREEZE_THRESHOLD = toNano('0.5')
+export const SOFT_FREEZE_THRESHOLD = toNano('5')
 
 export enum RouterError {
   DestChainNotEnabled = ERROR_CODE,
