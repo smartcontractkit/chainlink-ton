@@ -355,6 +355,18 @@ export class Router
     return res.stack.readBoolean()
   }
 
+  async getCursedSubjects(provider: ContractProvider): Promise<bigint[]> {
+    const res = await provider.get('cursedSubjects', [])
+    const tupleItems = res.stack.readLispList()
+    const cursedSubjects: bigint[] = tupleItems.map((t: TupleItem) => {
+      if (t.type != 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return cursedSubjects
+  }
+
   // Withdrawable methods
   async sendWithdraw(
     provider: ContractProvider,

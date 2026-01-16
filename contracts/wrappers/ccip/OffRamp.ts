@@ -12,6 +12,7 @@ import {
   ContractABI,
   Contract,
   DictionaryValue,
+  TupleItem,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { loadContractCode } from '../codeLoader'
@@ -835,6 +836,18 @@ export class OffRamp
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.dispatchValidated.encode(opts).endCell(),
     })
+  }
+
+  async getCursedSubjects(provider: ContractProvider): Promise<bigint[]> {
+    const res = await provider.get('cursedSubjects', [])
+    const tupleItems = res.stack.readLispList()
+    const cursedSubjects: bigint[] = tupleItems.map((t: TupleItem) => {
+      if (t.type != 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return cursedSubjects
   }
 
   async getLatestPriceSequenceNumber(provider: ContractProvider): Promise<bigint> {
