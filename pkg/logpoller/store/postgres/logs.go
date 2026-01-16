@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -191,7 +190,7 @@ func (s *pgLogStore) QueryLogs(
 
 	for i := range dbLogs {
 		key := logKey{
-			txHash:   hex.EncodeToString(dbLogs[i].TxHash),
+			txHash:   string(dbLogs[i].TxHash),
 			txLT:     dbLogs[i].TxLT,
 			msgIndex: dbLogs[i].MsgIndex,
 		}

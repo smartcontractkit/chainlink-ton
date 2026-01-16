@@ -24,12 +24,18 @@ import (
 
 var _ logpoller.LogStore = (*inMemoryLogs)(nil)
 
-// logKey represents a composite key for log deduplication (filter_id, tx_hash, tx_lt, msg_index).
+// logKey uniquely identifies a log event by (TxHash, TxLT, MsgIndex).
 type logKey struct {
-	filterID int64
 	txHash   string
 	txLT     uint64
 	msgIndex int64
+}
+
+// storageKey identifies a stored log entry by (FilterID, logKey).
+// The same log event can be stored under multiple filters.
+type storageKey struct {
+	filterID int64
+	logKey
 }
 
 // inMemoryLogs is in-memory implementation of the LogStore interface.
@@ -38,7 +44,7 @@ type logKey struct {
 type inMemoryLogs struct {
 	mu      sync.Mutex
 	logs    []models.Log
-	logKeys map[logKey]bool // set of existing log keys for deduplication
+	logKeys map[storageKey]bool // tracks stored entries (simulates ON CONFLICT DO NOTHING)
 	lggr    logger.Logger
 	chainID string
 }
@@ -49,7 +55,7 @@ func NewLogStore(chainID string, lggr logger.Logger) logpoller.LogStore {
 		chainID: chainID,
 
 		logs:    make([]models.Log, 0),
-		logKeys: make(map[logKey]bool),
+		logKeys: make(map[storageKey]bool),
 	}
 }
 
@@ -64,11 +70,13 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 			return 0, fmt.Errorf("invalid chainID in log got %s want %s", log.ChainID, s.chainID)
 		}
 
-		key := logKey{
+		key := storageKey{
 			filterID: log.FilterID,
-			txHash:   fmt.Sprintf("%x", log.TxHash),
-			txLT:     log.TxLT,
-			msgIndex: log.MsgIndex,
+			logKey: logKey{
+				txHash:   string(log.TxHash[:]),
+				txLT:     log.TxLT,
+				msgIndex: log.MsgIndex,
+			},
 		}
 
 		if s.logKeys[key] {
@@ -109,16 +117,11 @@ func (s *inMemoryLogs) QueryLogs(
 
 	// Deduplicate logs by (TxHash, TxLT, MsgIndex).
 	// Multiple filters can track the same log events, resulting in duplicates in storage.
-	type logKey struct {
-		txHash   string
-		txLT     uint64
-		msgIndex int64
-	}
 	seen := make(map[logKey]struct{}, len(filtered))
 	deduped := make([]models.Log, 0, len(filtered))
 	for _, log := range filtered {
 		key := logKey{
-			txHash:   fmt.Sprintf("%x", log.TxHash),
+			txHash:   string(log.TxHash[:]),
 			txLT:     log.TxLT,
 			msgIndex: log.MsgIndex,
 		}
