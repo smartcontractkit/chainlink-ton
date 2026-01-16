@@ -155,36 +155,44 @@ func TestSaveLogs_Deduplication(t *testing.T) {
 	})
 }
 
-// TestLogKeyMatchesDBConstraint verifies the in-memory deduplication key behavior.
-func TestLogKeyMatchesDBConstraint(t *testing.T) {
+// TestStorageKeyMatchesDBConstraint verifies the in-memory storage key behavior.
+func TestStorageKeyMatchesDBConstraint(t *testing.T) {
 	t.Parallel()
 
-	key1 := logKey{
+	key1 := storageKey{
 		filterID: 100,
-		txHash:   "abc123",
-		txLT:     1000,
-		msgIndex: 0,
+		logKey: logKey{
+			txHash:   "abc123",
+			txLT:     1000,
+			msgIndex: 0,
+		},
 	}
 
-	key2 := logKey{
+	key2 := storageKey{
 		filterID: 100,
-		txHash:   "abc123",
-		txLT:     1000,
-		msgIndex: 0,
+		logKey: logKey{
+			txHash:   "abc123",
+			txLT:     1000,
+			msgIndex: 0,
+		},
 	}
 
-	key3 := logKey{
+	key3 := storageKey{
 		filterID: 200, // different filter_id
-		txHash:   "abc123",
-		txLT:     1000,
-		msgIndex: 0,
+		logKey: logKey{
+			txHash:   "abc123",
+			txLT:     1000,
+			msgIndex: 0,
+		},
 	}
 
-	key4 := logKey{
+	key4 := storageKey{
 		filterID: 100,
-		txHash:   "def456", // different tx_hash
-		txLT:     1000,
-		msgIndex: 0,
+		logKey: logKey{
+			txHash:   "def456", // different tx_hash
+			txLT:     1000,
+			msgIndex: 0,
+		},
 	}
 
 	// Same key should be equal
