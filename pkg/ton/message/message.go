@@ -44,7 +44,7 @@ func ParseInternalMsg(msg *tlb.InternalMessage) (sig uint32, body *cell.Cell, er
 // extractOpcodeAndBody safely extracts the opcode and remaining body without mutating the original cell
 func extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cell.Cell, err error) {
 	if payload == nil {
-		return 0, nil, fmt.Errorf("payload cell is nil")
+		return 0, nil, errors.New("payload cell is nil")
 	}
 
 	opcode, err = tvm.ExtractOpcode(payload)
