@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_filters (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_filters_name ON ton.log_poller_filters (chain_id, name) WHERE NOT is_deleted;
-CREATE INDEX IF NOT EXISTS idx_filters_address_msgtype ON ton.log_poller_filters(address, msg_type);
+CREATE INDEX IF NOT EXISTS idx_filters_address_msgtype ON ton.log_poller_filters(chain_id, address, msg_type);
 
 -- Create logs table
 CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
@@ -76,5 +76,5 @@ CREATE INDEX IF NOT EXISTS idx_logs_chrono ON ton.log_poller_logs(chain_id, addr
 -- Generic pagination index: cursor-based result pagination
 CREATE INDEX IF NOT EXISTS idx_logs_page ON ton.log_poller_logs(chain_id, address, msg_lt);
 
--- TODO: resolve conflict when https://github.com/smartcontractkit/chainlink-ton/pull/464 is merged
+-- Checkpoint resumption index: used on service restart to find last processed masterchain block
 CREATE INDEX IF NOT EXISTS idx_logs_master_block ON ton.log_poller_logs(chain_id, master_block_seqno DESC);
