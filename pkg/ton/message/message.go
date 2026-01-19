@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ParseExtMsgOut returns body and event signature(topic) for an external out message.
@@ -42,28 +43,27 @@ func ParseInternalMsg(msg *tlb.InternalMessage) (sig uint32, body *cell.Cell, er
 
 // extractOpcodeAndBody safely extracts the opcode and remaining body without mutating the original cell
 func extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cell.Cell, err error) {
-	// create a slice for reading without mutating the original
-	payloadSlice := payload.BeginParse()
-
-	// validate we have enough bits for opcode
-	if payloadSlice.BitsLeft() < 32 {
-		return 0, nil, fmt.Errorf("insufficient bits for opcode: %d bits available, 32 required", payloadSlice.BitsLeft())
+	if payload == nil {
+		return 0, nil, fmt.Errorf("payload cell is nil")
 	}
 
-	// extract opcode (first 32 bits)
-	opcode64, err := payloadSlice.LoadUInt(32)
+	opcode, err = tvm.ExtractOpcode(payload)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to load opcode: %w", err)
+		return 0, nil, fmt.Errorf("failed to extract opcode: %w", err)
 	}
-	opcode = uint32(opcode64) //nolint:gosec // LoadUInt(32) guarantees this fits in uint32
 
+	if opcode == 0 && payload.BitsSize() < 32 {
+		return 0, nil, fmt.Errorf("expected at least 32 bits for opcode, got %d", payload.BitsSize())
+	}
+
+	s := payload.BeginParse()
 	// create a new cell from the remaining data after opcode
-	if payloadSlice.BitsLeft() == 0 {
+	if s.BitsLeft() == 0 {
 		// no remaining bits, create empty cell
 		remainingBody = cell.BeginCell().EndCell()
 	} else {
 		// convert remaining data to cell
-		remainingBody, err = payloadSlice.ToCell()
+		remainingBody, err = s.ToCell()
 		if err != nil {
 			return 0, nil, fmt.Errorf("failed to convert remaining body to cell: %w", err)
 		}
