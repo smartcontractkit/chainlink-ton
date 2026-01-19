@@ -841,6 +841,16 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     return st.sourceChainConfigs;
 }
 
+get fun verifyNotCursed(subject: uint128): bool {
+    val st = lazy Storage.load();
+    return !st.cursedSubjects.isCursed(subject);
+}
+
+get fun cursedSubjects(): tuple? {
+    val st = lazy Storage.load();
+    return keysLispList(st.cursedSubjects.data)!;
+}
+
 get fun deployableHashes() : DeployableHashes {
     val st = lazy Storage.load();
     val deployables = st.deployables.load();

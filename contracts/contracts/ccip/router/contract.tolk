@@ -614,6 +614,12 @@ get fun verifyNotCursed(subject: uint128): bool {
     return !rmn.cursedSubjects.isCursed(subject);
 }
 
+get fun cursedSubjects(): tuple? {
+    val st = lazy Storage.load();
+    var rmn = st.rmnRemote.load();
+    return keysLispList(rmn.cursedSubjects.data)!;
+}
+
 /// Gets the current owner of the contract.
 get fun owner(): address {
     val st = lazy Storage.load();

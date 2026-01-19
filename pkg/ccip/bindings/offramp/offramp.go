@@ -281,4 +281,5 @@ const (
 	ocr3BaseGetter             = "ocr3Config"
 	configGetter               = "config"
 	sourceChainSelectorsGetter = "sourceChainSelectors"
+	cursedSubjectsGetter       = "cursedSubjects"
 )

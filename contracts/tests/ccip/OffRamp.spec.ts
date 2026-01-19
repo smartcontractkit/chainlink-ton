@@ -905,6 +905,8 @@ describe('OffRamp - Unit Tests', () => {
       to: offRamp.address,
       success: true,
     })
+    let cursedSubjects = await offRamp.getCursedSubjects()
+    expect(cursedSubjects).toEqual([CHAINSEL_EVM_TEST_90000001])
 
     // Attempt to commit - should fail with SubjectCursed
     await commitReport([root], toNano('0.5'), 0x01, undefined, false, of.OffRampError.SubjectCursed)
@@ -919,6 +921,8 @@ describe('OffRamp - Unit Tests', () => {
       to: offRamp.address,
       success: true,
     })
+    cursedSubjects = await offRamp.getCursedSubjects()
+    expect(cursedSubjects).toEqual([])
 
     // Now commit should succeed
     await commitReport([root], toNano('0.5'), 0x02, undefined)

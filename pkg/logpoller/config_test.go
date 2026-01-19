@@ -21,6 +21,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		require.Equal(t, DefaultConfigSet.BatchInsertSize, cfg.BatchInsertSize)
 		require.Equal(t, DefaultConfigSet.MinBatchSize, cfg.MinBatchSize)
 		require.Equal(t, DefaultConfigSet.SaveThreshold, cfg.SaveThreshold)
+		require.Equal(t, DefaultConfigSet.MCBlockCacheSize, cfg.MCBlockCacheSize)
+		require.Equal(t, DefaultConfigSet.MCBlockResolveMaxRetries, cfg.MCBlockResolveMaxRetries)
+		require.Equal(t, DefaultConfigSet.MCBlockResolveBaseDelay, cfg.MCBlockResolveBaseDelay)
 	})
 
 	t.Run("preserves custom values and applies defaults to missing fields", func(t *testing.T) {
@@ -56,6 +59,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 			BatchInsertSize:           2000,
 			MinBatchSize:              250,
 			SaveThreshold:             4000,
+			MCBlockCacheSize:          2000,
+			MCBlockResolveMaxRetries:  5,
+			MCBlockResolveBaseDelay:   config.MustNewDuration(200 * time.Millisecond),
 		}
 
 		original := customConfig
@@ -68,6 +74,9 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		require.Equal(t, original.BatchInsertSize, customConfig.BatchInsertSize)
 		require.Equal(t, original.MinBatchSize, customConfig.MinBatchSize)
 		require.Equal(t, original.SaveThreshold, customConfig.SaveThreshold)
+		require.Equal(t, original.MCBlockCacheSize, customConfig.MCBlockCacheSize)
+		require.Equal(t, original.MCBlockResolveMaxRetries, customConfig.MCBlockResolveMaxRetries)
+		require.Equal(t, original.MCBlockResolveBaseDelay, customConfig.MCBlockResolveBaseDelay)
 	})
 }
 
