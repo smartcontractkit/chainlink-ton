@@ -9,6 +9,7 @@ require (
 	github.com/TyphonHill/go-mermaid v1.0.0
 	github.com/ethereum/go-ethereum v1.16.7
 	github.com/gagliardetto/solana-go v1.13.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/prometheus/client_golang v1.23.0
 	github.com/samber/lo v1.52.0

@@ -41,6 +41,8 @@ type inMemoryLogs struct {
 	logKeys map[logKey]bool // set of existing log keys for deduplication
 	lggr    logger.Logger
 	chainID string
+
+	maxMCBlockSeqno uint32 // cached max for O(1) lookup
 }
 
 func NewLogStore(chainID string, lggr logger.Logger) logpoller.LogStore {
@@ -57,12 +59,15 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Validate chainID for each log (same behavior as PostgreSQL store)
-	for _, log := range logs {
-		if log.ChainID != s.chainID {
-			return 0, fmt.Errorf("invalid chainID in log got %s want %s", log.ChainID, s.chainID)
+	// Validate all logs before processing
+	for i, log := range logs {
+		if err := log.Validate(s.chainID); err != nil {
+			return 0, fmt.Errorf("invalid log at index %d: %w", i, err)
 		}
+	}
 
+	// Process logs (deduplication and storage)
+	for _, log := range logs {
 		key := logKey{
 			address:  log.Address.String(),
 			eventSig: log.EventSig,
@@ -74,6 +79,11 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 		}
 		s.logs = append(s.logs, log)
 		s.logKeys[key] = true
+
+		// update cached max
+		if log.MCBlockSeqno > s.maxMCBlockSeqno {
+			s.maxMCBlockSeqno = log.MCBlockSeqno
+		}
 	}
 	return int64(len(logs)), nil
 }
@@ -159,7 +169,7 @@ var fieldExtractors = map[string]func(models.Log) any{
 	"block_seqno":        func(l models.Log) any { return l.Block.SeqNo },
 	"block_workchain":    func(l models.Log) any { return l.Block.Workchain },
 	"block_shard":        func(l models.Log) any { return l.Block.Shard },
-	"master_block_seqno": func(l models.Log) any { return l.MasterBlockSeqno },
+	"master_block_seqno": func(l models.Log) any { return l.MCBlockSeqno },
 	"msg_index":          func(l models.Log) any { return l.MsgIndex },
 }
 
@@ -444,4 +454,14 @@ func (s *inMemoryLogs) compareLogToCursor(log models.Log, cursorAddr *address.Ad
 	}
 
 	return 0
+}
+
+// GetHighestMCBlockSeqno returns the highest masterchain block sequence number
+// from stored logs. Returns (seqno, exists, err) where exists indicates whether any
+// logs are stored.
+func (s *inMemoryLogs) GetHighestMCBlockSeqno(_ context.Context) (uint32, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.maxMCBlockSeqno, len(s.logs) > 0, nil
 }

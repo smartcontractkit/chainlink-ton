@@ -140,16 +140,14 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// RMN
-		// TODO: RMNProxy should be an implementation detail hidden behind chainAccessor
-		config.RMNProxy = ccipocr3.RMNProxyConfig{
-			// TODO: point at a rmnremote address/router/offramp to allow fetching curseinfo
-		}
+		// TODO: RMNProxy is EVM-specific and should be an implementation detail hidden behind chainAccessor
+		config.RMNProxy = ccipocr3.RMNProxyConfig{}
 		config.RMNRemote = ccipocr3.RMNRemoteConfig{
-			// We don't support RMN so return an empty config
+			// We don't support full RMN mode so return an empty config
 		}
 
 		// CurseInfo
-		curseInfo, err := a.GetCurseInfo(ctx, block)
+		curseInfo, err := a.GetCurseInfo(ctx, block, destChainSelector)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get curse info: %w", err)
 		}
@@ -550,7 +548,7 @@ func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.T
 				PriceUpdates:         priceUpdates,
 			},
 			Timestamp: log.TxTimestamp,
-			BlockNum:  uint64(log.MasterBlockSeqno),
+			BlockNum:  uint64(log.MCBlockSeqno),
 		})
 	}
 	lggr.Debugw("decoded commit reports", "reports", reports)
