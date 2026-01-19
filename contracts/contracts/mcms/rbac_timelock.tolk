@@ -1002,22 +1002,22 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
+    var body = createEmptyCell();
     val updated = self.data.blockedFnSelectors.addIfNotExists(selector, true);
     if (updated) {
         self.data.blockedFnSelectorsLen += 1;
-
-        val reply = createMessage({
-            bounce: false,
-            value: 0,
-            dest: sender,
-            body: Timelock_FunctionSelectorBlocked{queryId, selector}
-        });
-        reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-        return true;
+        body = Timelock_FunctionSelectorBlocked{queryId, selector}.toCell();
     }
 
-    return false;
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: body,
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+    return updated;
 }
 
 /// Unblocks a previously blocked function selector so it can be used again.
@@ -1031,22 +1031,22 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
+    var body = createEmptyCell();
     val updated = self.data.blockedFnSelectors.delete(selector);
     if (updated) {
         self.data.blockedFnSelectorsLen -= 1;
-
-        val reply = createMessage({
-            bounce: false,
-            value: 0,
-            dest: sender,
-            body: Timelock_FunctionSelectorUnblocked{queryId, selector}
-        });
-        reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-        return true;
+        body = Timelock_FunctionSelectorUnblocked{queryId, selector}.toCell()
     }
 
-    return false;
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: body,
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+    return updated;
 }
 
 /// Directly execute a batch of transactions, bypassing any other checks.
