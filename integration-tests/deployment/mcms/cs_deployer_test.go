@@ -13,8 +13,6 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -45,6 +43,9 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	dReg := deployops.GetRegistry()
 	mcmsRegistry := cs_ccip.GetRegistry()
 
+	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
+	version := "c9d69aa78a4731ad9ad431f2ebd562dc1b9841aa" // Jan 20, 2026
+
 	// Note: The MCMSDeploymentConfigPerChain uses EVM-specific types (common.Address),
 	// but the TON adapter ignores these and uses the deployer address for all roles.
 	// We provide zero values here as they will be replaced by the adapter.
@@ -56,7 +57,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 				Bypasser:         mcmstypes.Config{}, // Will be replaced by TON adapter
 				Proposer:         mcmstypes.Config{}, // Will be replaced by TON adapter
 				TimelockMinDelay: big.NewInt(0),
-				ContractVersion:  sequence.ContractsVersionLatestSupported,
+				ContractVersion:  version,
 			},
 		},
 		AdapterVersion: adapterVersion,
@@ -129,7 +130,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 				Bypasser:         mcmstypes.Config{},
 				Proposer:         mcmstypes.Config{},
 				TimelockMinDelay: big.NewInt(0),
-				ContractVersion:  sequence.ContractsVersionLatestSupported,
+				ContractVersion:  version,
 			},
 		},
 		AdapterVersion: adapterVersion,

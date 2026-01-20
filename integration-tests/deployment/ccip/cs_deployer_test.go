@@ -18,8 +18,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -70,6 +68,9 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("EVM Chain Selector:", evmSelector)
 	t.Log("TON Chain Selector:", tonSelector)
 
+	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
+	version := "c9d69aa78a4731ad9ad431f2ebd562dc1b9841aa" // Jan 20, 2026
+
 	// Testing DeployContracts from Tooling API, and SetOCR3Config, without calling AddLane
 	dReg := deployops.GetRegistry()
 	output, err := deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
@@ -81,7 +82,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
-				ContractVersion:                         sequence.ContractsVersionLatestSupported,
+				ContractVersion:                         version,
 			},
 		},
 	})
@@ -103,7 +104,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
-				ContractVersion:                         sequence.ContractsVersionLatestSupported,
+				ContractVersion:                         version,
 			},
 		},
 	})

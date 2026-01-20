@@ -15,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/changesets"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -45,6 +44,9 @@ func TestDeployMCMS(t *testing.T) {
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
 
+	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
+	version := "c9d69aa78a4731ad9ad431f2ebd562dc1b9841aa" // Jan 20, 2026
+
 	timelockContractSemver := semver.MustParse("0.0.3")
 	mcmsContractSemver := semver.MustParse("0.0.4")
 	cfg := changesets.DeployMCMSContractsCfg{
@@ -69,7 +71,7 @@ func TestDeployMCMS(t *testing.T) {
 				Coin:            "0.5",
 			},
 		},
-		ContractsVersion: sequence.ContractsVersionLatestSupported,
+		ContractsVersion: version,
 	}
 
 	cs := commonchangeset.Configure(changesets.DeployMCMSContracts{}, cfg)
