@@ -1540,7 +1540,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     //
     // @dev on setRoot the OpPendingInfo is cleared, so a bounce from an old root will not match
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
-    if (opPendingInfo.opPendingReceiver! != in.senderAddress
+    if (opPendingInfo.opPendingReceiver == null
+        || opPendingInfo.opPendingReceiver! != in.senderAddress
         || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
 
         // Check the case when a new root was just set and no ops yet executed
