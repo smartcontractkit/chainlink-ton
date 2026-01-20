@@ -607,7 +607,7 @@ fun Timelock<T>.getId(self): uint32 {
 }
 
 /// Requires that the sender has the given role or the admin role.
-fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
+fun Timelock<T>.onlyRoleOrAdminRole(self, role: uint256, sender: address): void {
     val rbac = self.hookTrait__AccessControl();
     if (!rbac.hasRole(ADMIN_ROLE, sender)) {
         rbac.requireRole(role, sender);
@@ -616,28 +616,28 @@ fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
 
 /// Returns whether an id correspond to a registered operation. This
 /// includes both Pending, Ready and Done operations.
-fun Timelock<T>.isOperation(self, id: int): bool {
+fun Timelock<T>.isOperation(self, id: uint256): bool {
     return self.getTimestamp(id) > 0;
 }
 
 /// Returns whether an operation is pending or not.
-fun Timelock<T>.isOperationPending(self, id: int): bool {
+fun Timelock<T>.isOperationPending(self, id: uint256): bool {
     return self.getTimestamp(id) > ERROR_TIMESTAMP;
 }
 
 /// Returns whether an operation is ready or not.
-fun Timelock<T>.isOperationReady(self, id: int): bool {
+fun Timelock<T>.isOperationReady(self, id: uint256): bool {
     val t = self.getTimestamp(id);
     return t > ERROR_TIMESTAMP && t <= blockchain.now();
 }
 
 /// Returns whether an operation is done or not.
-fun Timelock<T>.isOperationDone(self, id: int): bool {
+fun Timelock<T>.isOperationDone(self, id: uint256): bool {
     return self.getTimestamp(id) == DONE_TIMESTAMP;
 }
 
 /// Returns whether an operation is in error state or not.
-fun Timelock<T>.isOperationError(self, id: int): bool {
+fun Timelock<T>.isOperationError(self, id: uint256): bool {
     return self.getTimestamp(id) == ERROR_TIMESTAMP;
 }
 
@@ -1377,27 +1377,27 @@ get fun getId(): uint32 {
 }
 
 /// @see <Timelock<T>.isOperation>
-get fun isOperation(id: int): bool {
+get fun isOperation(id: uint256): bool {
     return Timelock<bool>.load().isOperation(id);
 }
 
 /// @see <Timelock<T>.isOperationPending>
-get fun isOperationPending(id: int): bool {
+get fun isOperationPending(id: uint256): bool {
     return Timelock<bool>.load().isOperationPending(id);
 }
 
 /// @see <Timelock<T>.isOperationReady>
-get fun isOperationReady(id: int): bool {
+get fun isOperationReady(id: uint256): bool {
     return Timelock<bool>.load().isOperationReady(id);
 }
 
 /// @see <Timelock<T>.isOperationDone>
-get fun isOperationDone(id: int): bool {
+get fun isOperationDone(id: uint256): bool {
     return Timelock<bool>.load().isOperationDone(id);
 }
 
 /// @see <Timelock<T>.isOperationError>
-get fun isOperationError(id: int): bool {
+get fun isOperationError(id: uint256): bool {
     return Timelock<bool>.load().isOperationError(id);
 }
 
@@ -1407,7 +1407,7 @@ get fun isPendingOperationFinal(): bool {
 }
 
 /// @see <Timelock<T>.getTimestamp>
-get fun getTimestamp(id: int): uint64 {
+get fun getTimestamp(id: uint256): uint64 {
     return Timelock<bool>.load().getTimestamp(id);
 }
 
@@ -1449,14 +1449,14 @@ get fun getOpPendingInfo(): Timelock_OpPendingInfo {
 // --- Getters - <AccessControl<T>> extension ---
 
 /// @see <AccessControl<T>.hasRole>
-get fun hasRole(role: int, account: address): bool {
+get fun hasRole(role: uint256, account: address): bool {
     val timelock = Timelock<bool>.load();
     val rbac = timelock.hookTrait__AccessControl();
     return rbac.hasRole(role, account);
 }
 
 /// @see <AccessControl<T>.getRoleAdmin>
-get fun getRoleAdmin(role: int): int {
+get fun getRoleAdmin(role: uint256): uint256 {
     val timelock = Timelock<bool>.load();
     val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleAdmin(role);
@@ -1465,31 +1465,31 @@ get fun getRoleAdmin(role: int): int {
 // --- Getters - <AccessControl<T>> enumerable extension ---
 
 /// @see <AccessControl<T>.getRoleMember>
-get fun getRoleMember(role: int, index: uint32): address? {
+get fun getRoleMember(role: uint256, index: uint32): address? {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberFirst>
-get fun getRoleMemberFirst(role: int): address? {
+get fun getRoleMemberFirst(role: uint256): address? {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberFirst(role);
 }
 
 /// @see <AccessControl<T>.getRoleMemberNext>
-get fun getRoleMemberNext(role: int, pivot: address): address? {
+get fun getRoleMemberNext(role: uint256, pivot: address): address? {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberNext(role, pivot);
 }
 
 /// @see <AccessControl<T>.getRoleMemberCount>
-get fun getRoleMemberCount(role: int): int {
+get fun getRoleMemberCount(role: uint256): int {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberCount(role);
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
-get fun getRoleMembers(role: int): map<address, bool>  {
+get fun getRoleMembers(role: uint256): map<address, bool>  {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }
