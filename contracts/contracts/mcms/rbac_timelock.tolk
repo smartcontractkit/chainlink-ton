@@ -1177,9 +1177,9 @@ fun Timelock<T>.isExecutorRoleCheckEnabled(self): bool {
 
 /// Returns the blocked function selector with the given index.
 ///
-/// This function is useful for enumerating all accounts that have a role, but is expensive
+/// This function is useful for enumerating all blocked function selectors, but is expensive
 /// in terms of gas. It is recommended to use {getBlockedFunctionSelectorFirst} and {getBlockedFunctionSelectorNext}
-/// to iterate through the accounts in a more gas-efficient way.
+/// to iterate through the selectors in a more gas-efficient way.
 ///
 /// Function selectors are not sorted in any particular way, and their ordering may
 /// change at any point.
@@ -1202,15 +1202,14 @@ fun Timelock<T>.getBlockedFunctionSelectorAt(self, index: uint32): uint32 {
     // Notice: we need to iterate through the map to get the item at the specified index.
     // This is not efficient, but it is the only way to get an item at index without additional data structures.
     var i = 0;
-    while (i < index) {
-        val first = blockedFnSelectors.findFirst(); // assume exists
-        blockedFnSelectors.delete(first.getKey());
-        i += 1; // increment to next account
+    var s = blockedFnSelectors.findFirst();
+    while (i < index && s.isFound) {
+        s = blockedFnSelectors.iterateNext(s);
+        i += 1; // increment to next selector
     }
 
     // Get the item at the specified index
-    val selector = blockedFnSelectors.findFirst();
-    return selector.getKey();
+    return s.isFound ? s.getKey() : 0;
 }
 
 @inline

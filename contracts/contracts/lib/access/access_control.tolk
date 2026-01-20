@@ -325,18 +325,17 @@ fun AccessControl<T>.getRoleMember(self, role: uint256, index: uint32): address?
         return null; // index out of bounds
     }
 
-    // Notice: we need to iterate through the dictionary to get the account at the specified index.
-    // This is not efficient, but it is the only way to get an account at index without additional data structures.
+    // Notice: we need to iterate through the map to get the account at the specified index.
+    // This is not efficient, but it is a way to get an account at index without additional data structures.
     var i = 0;
-    while (i < index) {
-        val first = d.hasRole.findFirst(); // assume exists
-        d.hasRole.delete(first.getKey());
+    var rd = d.hasRole.findFirst(); // assumes <index> members exist
+    while (i < index && rd.isFound) {
+        rd = d.hasRole.iterateNext(rd);
         i += 1; // increment to next account
     }
 
     // Get the account at the specified index
-    var acc = d.hasRole.findFirst();
-    return acc.getKey();
+    return rd.isFound ? rd.getKey() : null;
 }
 
 /// @dev Returns the number of accounts that have `role`. Can be used
