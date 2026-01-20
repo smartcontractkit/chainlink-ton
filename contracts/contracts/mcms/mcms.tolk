@@ -1010,6 +1010,9 @@ fun MCMS<T>.execute(
 
     self._execute(op.to, op.value, op.data);
 
+    // We reserve some TON coins on the balance for rent
+    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
