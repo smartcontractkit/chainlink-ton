@@ -51,6 +51,24 @@ type DynamicConfigSet struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
+// ReceiveExecutorInitExecuteBounced represents the ReceiveExecutorInitExecuteBounced event data
+type ReceiveExecutorInitExecuteBounced struct {
+	ReceiveExecutor *address.Address `tlb:"addr"`
+	Root            *address.Address `tlb:"addr"`
+	SequenceNumber  uint64           `tlb:"## 64"`
+}
+
+// DeployableInitializeBounced represents the DeployableInitializeBounced event data
+type DeployableInitializeBounced struct {
+	DeployableAddress *address.Address `tlb:"addr"`
+}
+
+// RouteMessageBounced represents the RouteMessageBounced event data
+type RouteMessageBounced struct {
+	Router *address.Address `tlb:"addr"`
+	ExecID []byte           `tlb:"bits 192"`
+}
+
 // Storage represents the offRamp contract storage state
 type Storage struct {
 	ID                                      uint32               `tlb:"## 32"`

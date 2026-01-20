@@ -156,6 +156,19 @@ fun onBouncedMessage(in: InMessageBounced) {
       // We are lazy matching and only accessing the first element of the struct.
       // The rest of the data is not a part of the bounced body so it cannot be accessed
       Receiver_CCIPReceive => { onCCIPReceiveBounced(msg.execId, in.senderAddress) }
+      // We cannot take any action if the OffRamp is bouncing the Router messages other than to emit an event for visibility
+      OffRamp_CCIPReceiveConfirm => {
+        emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
+            offRamp: in.senderAddress,
+            execId: msg.execId,
+        });
+      }
+      OffRamp_CCIPReceiveBounced => {
+        emit(MESSAGE_TO_OFF_RAMP_BOUNCED_TOPIC, MessageToOffRampBounced {
+            offRamp: in.senderAddress,
+            execId: msg.execId,
+        });
+      }
     }
 }
 

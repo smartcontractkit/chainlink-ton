@@ -112,6 +112,7 @@ struct OffRamp_Deployables {
     receiveExecutorCode: cell; // ReceiveExecutor contract compiled code
 }
 
+
 const MERKLE_ROOT_ID_SIZE = 256;
 const RECEIVE_EXECUTOR_ID_SIZE = 192;
 
