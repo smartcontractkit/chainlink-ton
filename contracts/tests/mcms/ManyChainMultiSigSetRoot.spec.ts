@@ -173,7 +173,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
     it('should revert on expired validUntil', async () => {
       // Warp time beyond validUntil
-      baseTest.warpTime(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1)
+      baseTest.warpTime(Number(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL) + 1)
 
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
@@ -254,7 +254,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1,
+        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1n,
         rootMetadata,
         baseTest.testOps,
       )
@@ -431,7 +431,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1,
+        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1n,
         newRootMetadata,
         baseTest.testOps,
       ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SignedHashAlreadySeen if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
@@ -926,7 +926,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
-      setRoot.validUntil = MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1
+      setRoot.validUntil = MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1n
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -948,7 +948,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const signers = baseTest.testSigners.map((s) => s.keyPair)
       const [setRoot, opProofs] = merkleProof.build(
         signers,
-        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100, // derive different root hash
+        MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100n, // derive different root hash
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
       )
@@ -972,7 +972,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           roots: [
             {
               root: setRoot.root,
-              validUntil: MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100,
+              validUntil: MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100n,
             },
           ],
         })
@@ -992,7 +992,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       })
 
       // Move time when root expired
-      baseTest.warpTime(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 100 + 1)
+      baseTest.warpTime(Number(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL) + 100 + 1)
       const r3 = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.multisigOwner.getSender(),
         toNano('0.05'),

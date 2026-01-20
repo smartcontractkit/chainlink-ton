@@ -81,7 +81,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
-				ContractVersion:                         sequence.ContractsLocalVersion,
+				ContractVersion:                         sequence.ContractsVersionLatestSupported,
 			},
 		},
 	})
@@ -103,7 +103,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
-				ContractVersion:                         sequence.ContractsLocalVersion,
+				ContractVersion:                         sequence.ContractsVersionLatestSupported,
 			},
 		},
 	})

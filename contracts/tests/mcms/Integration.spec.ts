@@ -183,7 +183,7 @@ describe('MCMS - IntegrationTest', () => {
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
         opPendingInfo: {
-          validAfter: 0,
+          validAfter: 0n,
           opFinalizationTimeout: 0,
           opPendingId: 0n,
         },
@@ -517,7 +517,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -636,7 +636,7 @@ describe('MCMS - IntegrationTest', () => {
     //
     {
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -767,7 +767,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = signerKeyPairs
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsBypass.address,
@@ -885,7 +885,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -970,7 +970,7 @@ describe('MCMS - IntegrationTest', () => {
 
       {
         const signers = vetoKeyPairs()
-        const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+        const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
         const metadata = {
           chainId,
           multiSig: bind.mcmsVeto.address,
@@ -1100,7 +1100,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,

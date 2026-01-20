@@ -2,12 +2,7 @@ module github.com/smartcontractkit/chainlink-ton/devenv
 
 go 1.25.4
 
-replace (
-	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
-
-	github.com/smartcontractkit/chainlink-ton => ..
-	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
-)
+replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
 require (
 	github.com/ethereum/go-ethereum v1.16.8
@@ -18,8 +13,8 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.12.3
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260115170733-b16e9683d4d5
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20251222225825-082db6f6514f
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260120144738-c9d69aa78a47
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260119210543-276a92092771
 	github.com/xssnick/tonutils-go v1.14.1
 )
 

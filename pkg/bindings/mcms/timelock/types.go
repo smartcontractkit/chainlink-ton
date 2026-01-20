@@ -391,7 +391,7 @@ type OpPendingInfo struct {
 	// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
 	// At this time the previous executed operation is considered optimistically final and successful,
 	// meaning no bounce was received and we can continue executing.
-	ValidAfter uint32 `tlb:"## 32"`
+	ValidAfter uint64 `tlb:"## 64"`
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)

@@ -4,8 +4,6 @@ go 1.25.3
 
 require github.com/hashicorp/go-plugin v1.7.0 // indirect
 
-replace github.com/smartcontractkit/chainlink-ton => ../
-
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/rs/zerolog v1.34.0
@@ -15,7 +13,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260115170733-b16e9683d4d5
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260120144738-c9d69aa78a47
 	github.com/smartcontractkit/mcms v0.32.1-0.20260115182955-e63152532517
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1

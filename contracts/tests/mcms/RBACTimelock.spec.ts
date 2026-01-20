@@ -61,7 +61,7 @@ describe('RBACTimelock', () => {
       minDelay,
       executorRoleCheckEnabled: true,
       opPendingInfo: {
-        validAfter: 0,
+        validAfter: 0n,
         opFinalizationTimeout: 0,
         opPendingId: 0n,
       },

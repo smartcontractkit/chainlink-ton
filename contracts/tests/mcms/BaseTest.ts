@@ -174,7 +174,7 @@ export class BaseTestSetup {
       minDelay: BaseTestSetup.MIN_DELAY,
       executorRoleCheckEnabled: true,
       opPendingInfo: {
-        validAfter: 0,
+        validAfter: 0n,
         opFinalizationTimeout: 0,
         opPendingId: 0n,
       },

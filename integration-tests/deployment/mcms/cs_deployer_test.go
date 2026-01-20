@@ -56,7 +56,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 				Bypasser:         mcmstypes.Config{}, // Will be replaced by TON adapter
 				Proposer:         mcmstypes.Config{}, // Will be replaced by TON adapter
 				TimelockMinDelay: big.NewInt(0),
-				ContractVersion:  sequence.ContractsLocalVersion,
+				ContractVersion:  sequence.ContractsVersionLatestSupported,
 			},
 		},
 		AdapterVersion: adapterVersion,
@@ -129,7 +129,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 				Bypasser:         mcmstypes.Config{},
 				Proposer:         mcmstypes.Config{},
 				TimelockMinDelay: big.NewInt(0),
-				ContractVersion:  sequence.ContractsLocalVersion,
+				ContractVersion:  sequence.ContractsVersionLatestSupported,
 			},
 		},
 		AdapterVersion: adapterVersion,

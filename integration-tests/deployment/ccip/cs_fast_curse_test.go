@@ -78,7 +78,7 @@ func TestFastCurseTON(t *testing.T) {
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
 	contractID, err := ops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsLocalVersion, contractID))
+	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsVersionLatestSupported, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")

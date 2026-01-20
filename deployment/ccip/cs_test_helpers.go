@@ -142,7 +142,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 
 	// if contractVersion is not set, use local version
 	if contractVersion == "" {
-		contractVersion = sequence.ContractsLocalVersion
+		contractVersion = sequence.ContractsVersionLatestSupported
 	}
 
 	ccipContractSemver := semver.MustParse("1.6.0")

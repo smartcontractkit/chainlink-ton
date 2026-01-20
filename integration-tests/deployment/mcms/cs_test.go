@@ -69,7 +69,7 @@ func TestDeployMCMS(t *testing.T) {
 				Coin:            "0.5",
 			},
 		},
-		ContractsVersion: sequence.ContractsLocalVersion,
+		ContractsVersion: sequence.ContractsVersionLatestSupported,
 	}
 
 	cs := commonchangeset.Configure(changesets.DeployMCMSContracts{}, cfg)

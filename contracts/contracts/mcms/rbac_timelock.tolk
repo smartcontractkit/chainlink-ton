@@ -516,7 +516,7 @@ struct Timelock_OpPendingInfo {
     /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
     /// At this time the previous executed operation is considered optimistically final and successful,
     /// meaning no bounce was received and we can continue executing.
-    validAfter: uint32;
+    validAfter: uint64;
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
@@ -981,7 +981,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryI
         bounce: false,
         value: 0,
         dest: sender,
-        body: Timelock_OpFinalizationTimeoutChange{ queryId, oldDuration, newDuration: newOpFinalizationTimeout}
+        body: Timelock_OpFinalizationTimeoutChange{queryId, oldDuration, newDuration: newOpFinalizationTimeout}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

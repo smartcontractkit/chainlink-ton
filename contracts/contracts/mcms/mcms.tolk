@@ -56,7 +56,7 @@ struct (0xe7fabde3) MCMS_SetRoot {
     /// The new expiring root.
     root: uint256;
     /// The time by which the root is valid.
-    validUntil: uint32;
+    validUntil: uint64;
 
     /// The metadata about the root, which is stored as one of the leaves.
     metadata: RootMetadata;
@@ -214,7 +214,7 @@ struct (0xa6533a3d) MCMS_NewRoot {
     /// The new expiring root.
     root: uint256;
     /// The time by which the root is valid.
-    validUntil: uint32;
+    validUntil: uint64;
     /// The metadata about the root, which is stored as one of the leaves.
     metadata: RootMetadata;
 }
@@ -362,7 +362,7 @@ struct MCMS_Hooks<T> {
     execute: ((T?, address, coins, cell) -> void)?;
 
     /// Hook to inject custom root encoding/hashing logic.
-    hashRoot: ((T?, uint256, uint32) -> uint256)?;
+    hashRoot: ((T?, uint256, uint64) -> uint256)?;
 }
 
 // --- Constants ---
@@ -574,7 +574,7 @@ struct ExpiringRootAndOpCount {
     /// root may target many chains. We assume that block.timestamp can
     /// be manipulated by block producers but only within relatively tight
     /// bounds (a few minutes at most).
-    validUntil: uint32;
+    validUntil: uint64;
     /// each ManyChainMultiSig instance has it own independent opCount.
     opCount: uint40;
     /// Information about the currently pending operation.
@@ -588,7 +588,7 @@ struct OpPendingInfo {
     /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
     /// At this time the previous executed operation is considered optimistically final and successful,
     /// meaning no bounce was received and we can continue executing.
-    validAfter: uint32;
+    validAfter: uint64;
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
     /// The address that the (pending) operation was sent to (and could bounce from).
@@ -650,7 +650,7 @@ struct RootDescriptor {
   // The merkle tree root
   root: uint256;
   // The time until which root is valid
-  validUntil: uint32;
+  validUntil: uint64;
 }
 
 // --- Methods ---
@@ -693,7 +693,7 @@ fun MCMS<T>.setRoot(
     sender: address,
     queryId: uint64,
     root: uint256,
-    validUntil: uint32,
+    validUntil: uint64,
     metadata: RootMetadata,
     metadataProof: SnakedCell<uint256>,
     signatures: SnakedCell<Signature>,
@@ -1405,12 +1405,12 @@ fun MCMS<T>._execute(self, dest: address, value: coins, body: cell): void {
 }
 
 /// Encode and hash a root with its validUntil timestamp (EIP191 + keccak256)
-fun MCMS<T>._hashRoot(self, root: uint256, validUntil: uint32): uint256 {
+fun MCMS<T>._hashRoot(self, root: uint256, validUntil: uint64): uint256 {
     if (self.hooks != null && self.hooks.hashRoot != null) {
         return self.hooks.hashRoot(self.context, root, validUntil); // extension hook
     }
 
-    // ABI encode root (uint256) and validUntil (uint32 padded to 256 bits)
+    // ABI encode root (uint256) and validUntil (uint64 padded to 256 bits)
     // This matches: abi.encode(root, validUntil)
     val data = beginCell()
         .storeUint(root, 256)
@@ -1444,7 +1444,7 @@ fun MCMS<T>.getOpCount(self): uint40 {
 }
 
 /// Returns the current expiring root and its validUntil time.
-fun MCMS<T>.getRoot(self): (uint256, uint32) {
+fun MCMS<T>.getRoot(self): (uint256, uint64) {
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
     return (rootInfo.expiringRootAndOpCount.root, rootInfo.expiringRootAndOpCount.validUntil);
 }
@@ -1593,7 +1593,7 @@ get fun getOpCount(): uint40 {
 }
 
 /// @see <MCMS<T>.getRoot>
-get fun getRoot(): (uint256, uint32) {
+get fun getRoot(): (uint256, uint64) {
     return MCMS<bool>.load().getRoot();
 }
 

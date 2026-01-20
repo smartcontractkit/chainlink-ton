@@ -9,8 +9,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260107192940-0be702ef3ff5
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
 	github.com/smartcontractkit/chainlink-deployments-framework v0.72.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260120144738-c9d69aa78a47
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260119210543-276a92092771
 	github.com/xssnick/tonutils-go v1.14.1
 )
 
@@ -227,9 +227,5 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/smartcontractkit/chainlink-ton => ../
-
-replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d

@@ -216,7 +216,7 @@ export type OpPendingInfo = {
   /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
   /// At this time the previous executed operation is considered optimistically final and successful,
   /// meaning no bounce was received and we can continue executing.
-  validAfter: number
+  validAfter: bigint
   /// The timeout required to finalize the currently executing op
   opFinalizationTimeout: number
   /// The id of the currently pending operation (OperationBatch hash)
@@ -709,7 +709,7 @@ export const builder = {
               Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
           )
           .storeBit(data.executorRoleCheckEnabled)
-          .storeUint(data.opPendingInfo.validAfter, 32)
+          .storeUint(data.opPendingInfo.validAfter, 64)
           .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
           .storeRef(data.rbac)
@@ -1028,7 +1028,7 @@ export class ContractClient implements Contract {
     return p // break line
       .get('getOpPendingInfo', [])
       .then((result) => ({
-        validAfter: result.stack.readNumber(),
+        validAfter: result.stack.readBigNumber(),
         opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
       }))
