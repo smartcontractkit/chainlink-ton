@@ -107,14 +107,14 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#31768d95" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64                       `tlb:"## 64"`
-	DestChainSelector uint64                       `tlb:"## 64"`
-	Receiver          common.CrossChainAddress     `tlb:"."`
-	Data              common.SnakeBytes            `tlb:"^"`
-	TokenAmounts      common.SnakeRef[TokenAmount] `tlb:"^"`
-	FeeToken          *address.Address             `tlb:"addr"`
-	ExtraArgs         *cell.Cell                   `tlb:"^"`
+	_                 tlb.Magic                     `tlb:"#31768d95" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                        `tlb:"## 64"`
+	DestChainSelector uint64                        `tlb:"## 64"`
+	Receiver          common.CrossChainAddress      `tlb:"."`
+	Data              common.SnakeBytes             `tlb:"^"`
+	TokenAmounts      common.SnakeData[TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address              `tlb:"addr"`
+	ExtraArgs         *cell.Cell                    `tlb:"^"`
 }
 
 type RouteMessage struct {

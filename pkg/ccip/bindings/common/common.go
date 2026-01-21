@@ -71,7 +71,7 @@ const (
 	ErrorDispatchNotFromMerkleRoot
 )
 
-// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
+// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeData[] of addresses.
 type AddressWrap struct {
 	Val *address.Address `tlb:"addr"`
 }
@@ -192,9 +192,6 @@ func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error
 	return data, nil
 }
 
-// PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
-// storing each element as a cell reference. When only one reference slot is left, it starts a new cell
-// and uses the last reference for chaining.
 func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 	if len(array) > MaxArrayLength {
 		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
@@ -282,10 +279,26 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	return result, nil
 }
 
-// packArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
-// Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
-// Cells are linked via references for arrays that span multiple cells.
-// note: T cannot be primitive types not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.); a wrapper type is needed, such as ChainSelector in router binding
+// packArrayWithStaticType packs a slice of any serializable type T into a snake cell structure.
+// Each element is serialized via tlb.ToCell, storing its bits and refs into the current cell.
+// When an element doesn't fit (bits exhausted or only 1 ref left), a new cell is started.
+// The last ref in each cell is reserved for chaining to the next cell.
+//
+// Example for []T where each T has 555 bits + 2 refs:
+//
+//	Cell 0 (root)
+//	├── bits: [elem0: 555 bits]
+//	├── ref[0]: elem0.field1 (^)
+//	├── ref[1]: elem0.field2 (^)
+//	└── ref[2]: → Cell 1 (chain)
+//	                ├── bits: [elem1: 555 bits]
+//	                ├── ref[0]: elem1.field1 (^)
+//	                ├── ref[1]: elem1.field2 (^)
+//	                └── ref[2]: → Cell 2 (chain)
+//	                                └── ... (no chain ref on last cell)
+//
+// Note: T cannot be primitive types unsupported by tlb.ToCell (e.g., uint64, bool);
+// use wrapper types like ChainSelector in router binding.
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	if len(array) > MaxArrayLength {
 		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
@@ -298,7 +311,12 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize element %d: %w", i, err)
 		}
-		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() <= 1 {
+		// Each element can have at most 3 refs; 1 ref must be reserved for chaining to next cell.
+		if c.RefsNum() > 3 {
+			return nil, fmt.Errorf("element %d has %d cell refs, maximum is 3 (1 ref reserved for chain)", i, c.RefsNum())
+		}
+		// Start new cell if: not enough bits, OR not enough refs for element + 1 chain ref
+		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() < c.RefsNum()+1 {
 			cells = append(cells, builder)
 			builder = cell.BeginCell()
 		}
@@ -321,11 +339,21 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// unpackArrayWithStaticType unpacks a linked cell structure created by packArrayWithStaticType
-// into a slice of type T. Elements are read from the cell's bits, and the function follows references
-// to subsequent cells as needed.
-// Validates against TVM limits to document assumptions and prevent potential issues
-// if this code is extended to handle untrusted data sources.
+// unpackArrayWithStaticType unpacks a snake cell structure into a slice of type T.
+// For each cell, it reads elements via tlb.LoadFromCell until bits are exhausted,
+// then follows the remaining chain ref to the next cell.
+//
+// Critical: tlb.LoadFromCell consumes both bits AND refs from the slice for elements
+// with ^ fields. After loading all elements, only the chain ref (if any) should remain.
+// This matches on-chain validation: assert(refs == 1) when following the chain.
+//
+// Example unpacking flow:
+//
+//	Cell 0: slice has 555 bits, 3 refs
+//	        → tlb.LoadFromCell consumes 555 bits + 2 refs (elem0's ^ fields)
+//	        → slice now has 0 bits, 1 ref (chain ref only)
+//	        → follow chain ref to Cell 1
+//	Cell 1: repeat until no chain ref remains
 func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
@@ -351,8 +379,15 @@ func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 				return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(result), MaxArrayLength)
 			}
 		}
-		if curr.RefsNum() > 0 {
-			ref, err := curr.PeekRef(0)
+		// Use slice's remaining refs (after element refs are consumed), not cell's original refs.
+		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
+		// For snake data to be well-formed, there should be exactly one reference when following the chain.
+		refsNum := s.RefsNum()
+		if refsNum > 1 {
+			return nil, fmt.Errorf("invalid snake data: expected at most 1 ref for chain, got %d", refsNum)
+		}
+		if refsNum == 1 {
+			ref, err := s.LoadRefCell()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
 			}
@@ -454,7 +489,12 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 
 			result = append(result, part...)
 		}
-		if curr.RefsNum() > 0 {
+		// For snake data to be well-formed, there should be exactly one reference when following the chain.
+		refsNum := curr.RefsNum()
+		if refsNum > 1 {
+			return nil, fmt.Errorf("invalid snake data: expected at most 1 ref for chain, got %d", refsNum)
+		}
+		if refsNum == 1 {
 			ref, err := curr.PeekRef(0)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get next cell ref: %w", err)

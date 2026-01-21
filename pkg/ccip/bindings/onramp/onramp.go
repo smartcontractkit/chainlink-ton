@@ -61,14 +61,20 @@ type GenericExtraArgsV2 struct {
 	AllowOutOfOrderExecution bool      `tlb:"bool"`
 }
 
+// Account256 is a fixed 256-bit (32 byte) account address wrapper for SVM accounts.
+// This matches the onchain SnakedCell<uint256> expectation for account addresses.
+type Account256 struct {
+	Value []byte `tlb:"bits 256"`
+}
+
 // SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
-	_                        tlb.Magic                          `tlb:"#1f3b3aba" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1")), can be verified with hexutil.MustDecode("0x1f3b3aba")
-	ComputeUnits             uint32                             `tlb:"## 32"`
-	AccountIsWritableBitmap  uint64                             `tlb:"## 64"`
-	AllowOutOfOrderExecution bool                               `tlb:"bool"`
-	TokenReceiver            []byte                             `tlb:"bits 256"`
-	Accounts                 common.SnakeRef[common.SnakeBytes] `tlb:"^"`
+	_                        tlb.Magic                    `tlb:"#1f3b3aba" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1")), can be verified with hexutil.MustDecode("0x1f3b3aba")
+	ComputeUnits             uint32                       `tlb:"## 32"`
+	AccountIsWritableBitmap  uint64                       `tlb:"## 64"`
+	AllowOutOfOrderExecution bool                         `tlb:"bool"`
+	TokenReceiver            []byte                       `tlb:"bits 256"`
+	Accounts                 common.SnakeData[Account256] `tlb:"^"`
 }
 
 // Storage represents the storage structure for the CCIP onramp contract.
@@ -107,8 +113,8 @@ type UpdateAllowlist struct {
 }
 
 type UpdateAllowlists struct {
-	_       tlb.Magic                        `tlb:"#9dc06185" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
+	_       tlb.Magic                         `tlb:"#9dc06185" json:"-"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakeData[UpdateAllowlist] `tlb:"^"`
 }
 
 type WithdrawFeeTokens struct {
