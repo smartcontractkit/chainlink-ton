@@ -33,15 +33,17 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	const TokenPriceBaseAmount = 1e18  // Base amount for TokenPrices
 	var USDDecimals = big.NewInt(1e18) // USD precision
 
-	// Calculate TON token price
-	// TON is ~$2 USD, scaled to 1e27 precision (formula: USD * 10^(36 - tokenDecimals) = USD * 10^27 for 9 decimals)
+	// Token prices are normalized to account for token decimals.
+	// The formula is: (USD price in 1e18) * (1e18 / 10^tokenDecimals)
+	// For TON/LINK with 9 decimals: price * 1e18 * (1e18 / 1e9) = price * 1e27
+	// See: deployment/ccip/config/tokenPrice.go:CCIPTokenPrice
+
+	// Calculate TON token price: 2 USD with 9 decimals = 2e27
 	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
 	tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
 
-	// Calculate LINK token price
-	// LINK is ~$20 USD (10x the price of TON at $2)
-	// LINK has 9 decimals on TON, same as TON, so uses same 1e27 precision
-	// Formula: USD * 10^(36 - tokenDecimals) = 20 * 10^27
+	// Calculate LINK token price: 20 USD with 9 decimals = 20e27
+	// LINK has 9 decimals on TON, same as TON
 	linkTokenPrice := big.NewInt(0).Mul(big.NewInt(20), big.NewInt(1e18))
 	linkTokenPrice = big.NewInt(0).Mul(linkTokenPrice, big.NewInt(1e9)) // Scale from 1e18 to 1e27
 
