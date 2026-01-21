@@ -28,19 +28,22 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	}
 
 	// Token price constants
-	const TONtoUSD = 2                 // Example value
-	const TONtoNanoTON = 1e9           // Smallest denomination
-	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
-	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
+	const TONtoUSD = 2                 // Example value (test/dev only)
+	const TONtoNanoTON = 1e9           // TON has 9 decimals
+	const TokenPriceBaseAmount = 1e18  // Base amount for TokenPrices
+	var USDDecimals = big.NewInt(1e18) // USD precision
 
 	// Calculate TON token price
+	// TON is ~$2 USD, scaled to 1e27 precision (formula: USD * 10^(36 - tokenDecimals) = USD * 10^27 for 9 decimals)
 	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
 	tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
 
-	// Calculate LINK token price (20 USD with 1e18 precision)
-	// LINK has 9 decimals on TON, similar to Solana
+	// Calculate LINK token price
+	// LINK is ~$20 USD (10x the price of TON at $2)
+	// LINK has 9 decimals on TON, same as TON, so uses same 1e27 precision
+	// Formula: USD * 10^(36 - tokenDecimals) = 20 * 10^27
 	linkTokenPrice := big.NewInt(0).Mul(big.NewInt(20), big.NewInt(1e18))
-	linkTokenPrice = linkTokenPrice.Mul(linkTokenPrice, big.NewInt(1e10)) // Scale to 1e28
+	linkTokenPrice = big.NewInt(0).Mul(linkTokenPrice, big.NewInt(1e9)) // Scale from 1e18 to 1e27
 
 	updateConfig := operation.UpdateFeeQuoterPricesInput{
 		TokenPrices: map[string]*big.Int{
