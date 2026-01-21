@@ -704,6 +704,10 @@ fun MCMS<T>.setRoot(
         throw MCMS_Error.InsufficientFee;
     }
 
+    if (validUntil < blockchain.now()) {
+        throw MCMS_Error.ValidUntilHasAlreadyPassed;
+    }
+
     // Construct the message that should be signed by the signers.
     val signedHash = self._hashRoot(root, validUntil);
 
@@ -820,10 +824,6 @@ fun MCMS<T>.setRoot(
         if (!_rootVotes.isFound || _rootVotes.loadValue() < rootQuorum) {
             throw MCMS_Error.InsufficientSigners;
         }
-    }
-
-    if (validUntil < blockchain.now()) {
-        throw MCMS_Error.ValidUntilHasAlreadyPassed;
     }
 
     {
