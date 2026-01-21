@@ -65,7 +65,7 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 		Value:    tlb.MustFromTON("1.5"),
 		Data: mustToCell(timelock.ScheduleBatch{
 			QueryID: 31,
-			Calls: common.SnakeCell[timelock.Call]{
+			Calls: common.SnakedCell[timelock.Call]{
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 					Value:  tlb.MustFromTON("0.5"),

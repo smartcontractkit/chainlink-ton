@@ -41,7 +41,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				TokenAmounts: nil,
 			},
 			OffChainTokenData: common.SnakeRef[common.SnakeBytes]{},
-			Proofs:            common.SnakeCell[common.Proof]{},
+			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
 
@@ -89,7 +89,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				TokenAmounts: nil,
 			},
 			OffChainTokenData: common.SnakeRef[common.SnakeBytes]{},
-			Proofs:            common.SnakeCell[common.Proof]{},
+			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
 
@@ -120,13 +120,13 @@ func TestGetReportTxInfo(t *testing.T) {
 	t.Run("commit report price only (no merkle roots)", func(t *testing.T) {
 		commitReport := ocr.CommitReport{
 			PriceUpdates: &ocr.PriceUpdates{
-				TokenPriceUpdates: common.SnakeCell[ocr.TokenPriceUpdate]{
+				TokenPriceUpdates: common.SnakedCell[ocr.TokenPriceUpdate]{
 					{
 						SourceToken: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
 						UsdPerToken: big.NewInt(1000000),
 					},
 				},
-				GasPriceUpdates: common.SnakeCell[ocr.GasPriceUpdate]{
+				GasPriceUpdates: common.SnakedCell[ocr.GasPriceUpdate]{
 					{
 						DestChainSelector:        456,
 						ExecutionGasPrice:        big.NewInt(500000),
@@ -134,7 +134,7 @@ func TestGetReportTxInfo(t *testing.T) {
 					},
 				},
 			},
-			MerkleRoots: common.SnakeCell[ocr.MerkleRoot]{}, // No merkle roots
+			MerkleRoots: common.SnakedCell[ocr.MerkleRoot]{}, // No merkle roots
 		}
 
 		reportCell, err := tlb.ToCell(commitReport)
@@ -161,7 +161,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 		commitReport := ocr.CommitReport{
 			PriceUpdates: nil,
-			MerkleRoots: common.SnakeCell[ocr.MerkleRoot]{
+			MerkleRoots: common.SnakedCell[ocr.MerkleRoot]{
 				{
 					SourceChainSelector: 123,
 					OnRampAddress:       onrampAddr,
@@ -201,7 +201,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		onrampAddr3 := common.CrossChainAddress{0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
 		commitReport := ocr.CommitReport{
 			PriceUpdates: nil,
-			MerkleRoots: common.SnakeCell[ocr.MerkleRoot]{
+			MerkleRoots: common.SnakedCell[ocr.MerkleRoot]{
 				{
 					SourceChainSelector: 123,
 					OnRampAddress:       onrampAddr1,
@@ -254,13 +254,13 @@ func TestGetReportTxInfo(t *testing.T) {
 		onrampAddr2 := common.CrossChainAddress{0x06, 0x07, 0x08, 0x09, 0x0a}
 		commitReport := ocr.CommitReport{
 			PriceUpdates: &ocr.PriceUpdates{
-				TokenPriceUpdates: common.SnakeCell[ocr.TokenPriceUpdate]{
+				TokenPriceUpdates: common.SnakedCell[ocr.TokenPriceUpdate]{
 					{
 						SourceToken: address.MustParseAddr("EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"),
 						UsdPerToken: big.NewInt(1000000),
 					},
 				},
-				GasPriceUpdates: common.SnakeCell[ocr.GasPriceUpdate]{
+				GasPriceUpdates: common.SnakedCell[ocr.GasPriceUpdate]{
 					{
 						DestChainSelector:        456,
 						ExecutionGasPrice:        big.NewInt(500000),
@@ -268,7 +268,7 @@ func TestGetReportTxInfo(t *testing.T) {
 					},
 				},
 			},
-			MerkleRoots: common.SnakeCell[ocr.MerkleRoot]{
+			MerkleRoots: common.SnakedCell[ocr.MerkleRoot]{
 				{
 					SourceChainSelector: 123,
 					OnRampAddress:       onrampAddr1,
@@ -329,7 +329,7 @@ func TestGetReportTxInfo(t *testing.T) {
 		onrampAddr2 := common.CrossChainAddress{0x06, 0x07, 0x08, 0x09, 0x0a}
 		commitReport := ocr.CommitReport{
 			PriceUpdates: nil,
-			MerkleRoots: common.SnakeCell[ocr.MerkleRoot]{
+			MerkleRoots: common.SnakedCell[ocr.MerkleRoot]{
 				{
 					SourceChainSelector: 123,
 					OnRampAddress:       onrampAddr1,

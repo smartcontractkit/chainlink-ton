@@ -242,16 +242,16 @@ type RemovePriceUpdater struct {
 }
 
 type UpdatePrices struct {
-	_              tlb.Magic                          `tlb:"#de852b1b" json:"-"` //nolint:revive // Ignore opcode tag
-	TokenPrices    common.SnakeCell[TokenPriceUpdate] `tlb:"^"`
-	GasPrices      common.SnakeCell[GasPriceUpdate]   `tlb:"^"`
-	SendExcessesTo *address.Address                   `tlb:"addr"`
+	_              tlb.Magic                           `tlb:"#de852b1b" json:"-"` //nolint:revive // Ignore opcode tag
+	TokenPrices    common.SnakedCell[TokenPriceUpdate] `tlb:"^"`
+	GasPrices      common.SnakedCell[GasPriceUpdate]   `tlb:"^"`
+	SendExcessesTo *address.Address                    `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                            `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
-	Add    *cell.Dictionary                     `tlb:"dict 267"`
-	Remove common.SnakeCell[common.AddressWrap] `tlb:"^"`
+	_      tlb.Magic                             `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
+	Add    *cell.Dictionary                      `tlb:"dict 267"`
+	Remove common.SnakedCell[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
@@ -269,8 +269,8 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#2d2410f6" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeCell[UpdateDestChainConfig] `tlb:"^"`
+	_       tlb.Magic                                `tlb:"#2d2410f6" json:"-"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakedCell[UpdateDestChainConfig] `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

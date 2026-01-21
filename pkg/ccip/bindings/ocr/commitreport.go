@@ -15,14 +15,14 @@ type SignatureEd25519 struct {
 
 // CommitReport represents the top-level structure for a commit report.
 type CommitReport struct {
-	PriceUpdates *PriceUpdates                `tlb:"maybe ^"`
-	MerkleRoots  common.SnakeCell[MerkleRoot] `tlb:"^"`
+	PriceUpdates *PriceUpdates                 `tlb:"maybe ^"`
+	MerkleRoots  common.SnakedCell[MerkleRoot] `tlb:"^"`
 }
 
 // PriceUpdates holds token and gas price updates.
 type PriceUpdates struct {
-	TokenPriceUpdates common.SnakeCell[TokenPriceUpdate] `tlb:"^"`
-	GasPriceUpdates   common.SnakeCell[GasPriceUpdate]   `tlb:"^"`
+	TokenPriceUpdates common.SnakedCell[TokenPriceUpdate] `tlb:"^"`
+	GasPriceUpdates   common.SnakedCell[GasPriceUpdate]   `tlb:"^"`
 }
 
 // TokenPriceUpdate represents a price update for a token.
