@@ -496,10 +496,10 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 
 			result = append(result, part...)
 		}
-		// For snake data to be well-formed, there should be exactly one reference when following the chain.
+		// For a snake cell chain to be well-formed, there should be exactly one reference when following the chain.
 		refsNum := curr.RefsNum()
 		if refsNum > 1 {
-			return nil, fmt.Errorf("invalid snake data: expected at most 1 ref for chain, got %d", refsNum)
+			return nil, fmt.Errorf("invalid snake cell: expected at most 1 ref for chain, got %d", refsNum)
 		}
 		if refsNum == 1 {
 			ref, err := curr.PeekRef(0)
