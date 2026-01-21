@@ -316,11 +316,11 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 		}
 		// Each element can have at most 3 refs; 1 ref must be reserved for chaining to next cell.
 		if c.RefsNum() > 3 {
-			return nil, errors.New("SnakeCell does not support elements with 4 references; use SnakeRef")
+			return nil, errors.New("SnakeCell supports elements with at most 3 references (one ref is reserved for chaining cells); for values requiring more references, use a reference-snake encoding such as SnakeRef or a custom layout")
 		}
 		// Reject ref-only elements (no data bits) - unpacking loop requires bits to iterate.
 		if c.BitsSize() == 0 && c.RefsNum() > 0 {
-			return nil, errors.New("SnakeCell does not support elements with references but no data bits")
+			return nil, errors.New("SnakeCell supports only elements that contain data bits; to encode ref-only values, use a reference-snake encoding such as SnakeRef or redesign the element type")
 		}
 		// Start new cell if: not enough bits, OR not enough refs for element + 1 chain ref
 		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() < c.RefsNum()+1 {
