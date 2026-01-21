@@ -27,8 +27,10 @@ describe('MCMS - SnakedCell<Timelock_Call> Cross-Implementation Encoding', () =>
 
   // Expected hashes - must match pkg/bindings/mcms/timelock/types_test.go
   const EXPECTED_CALL_HASH = '9d76debffe8ed5a1aed0afc679a2184605e716d79eb0a620a26c816ffc4db69e'
-  const EXPECTED_SNAKED_CELL_HASH = 'bdd17632e37830a1717d09be997fe13368b668f781406e2eaa3299e13da9d294'
-  const EXPECTED_OPERATION_BATCH_HASH = '9425b1429118466b66ca668b982b36b99ca5a17cfe334002d1cd0728e4009320'
+  const EXPECTED_SNAKED_CELL_HASH =
+    'bdd17632e37830a1717d09be997fe13368b668f781406e2eaa3299e13da9d294'
+  const EXPECTED_OPERATION_BATCH_HASH =
+    '9425b1429118466b66ca668b982b36b99ca5a17cfe334002d1cd0728e4009320'
 
   it('should match Go encoding for single Call', () => {
     const call: rbactl.Call = {
