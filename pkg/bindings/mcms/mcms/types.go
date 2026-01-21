@@ -41,8 +41,8 @@ type SetRoot struct {
 	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
 
 	Metadata      RootMetadata                `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
-	MetadataProof common.SnakeData[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
-	Signatures    common.SnakeData[Signature] `tlb:"^"` // The ECDSA signatures on (root, validUntil).
+	MetadataProof common.SnakeCell[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
+	Signatures    common.SnakeCell[Signature] `tlb:"^"` // The ECDSA signatures on (root, validUntil).
 }
 
 // Execute the received op after verifying the proof of its inclusion in the
@@ -65,7 +65,7 @@ type Execute struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
-	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
+	Proof common.SnakeCell[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
 }
 
 // Sets a new data.config. If clearRoot is true, then it also invalidates
@@ -90,8 +90,8 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerAddresses common.SnakeData[SignerAddress] `tlb:"^"`
-	SignerGroups    common.SnakeData[SignerGroup]   `tlb:"^"`
+	SignerAddresses common.SnakeCell[SignerAddress] `tlb:"^"`
+	SignerGroups    common.SnakeCell[SignerGroup]   `tlb:"^"`
 	GroupQuorums    *tlbe.Dict[uint8, uint8]        `tlb:"."` // indexed, iterable backwards
 	GroupParents    *tlbe.Dict[uint8, uint8]        `tlb:"."` // indexed, iterable backwards
 	ClearRoot       bool                            `tlb:"bool"`
@@ -126,7 +126,7 @@ type SubmitErrorReport struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Op       Op                      `tlb:"^"` // The operation which produced the error.
-	Proof    common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
+	Proof    common.SnakeCell[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
 	OpTxHash *tlbe.Uint256           `tlb:"."` // The hash of the execute transaction.
 
 	ErrorTxHash *tlbe.Uint256 `tlb:"."`     // The hash of the transaction which errored (part of the tx trace).
@@ -155,7 +155,7 @@ type CleanExpiredRoots struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	/// The roots to clean up - RootDescriptor{root, validUntil}
-	Roots common.SnakeData[RootDescriptor] `tlb:"^"`
+	Roots common.SnakeCell[RootDescriptor] `tlb:"^"`
 }
 
 // --- Messages - outgoing ---
@@ -240,8 +240,8 @@ type ExpiredRootsCleaned struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Roots       common.SnakeData[Root]       `tlb:"^"` // The cleaned up roots
-	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
+	Roots       common.SnakeCell[Root]       `tlb:"^"` // The cleaned up roots
+	ValidUntils common.SnakeCell[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

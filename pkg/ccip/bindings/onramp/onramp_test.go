@@ -38,7 +38,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.NoError(t, err)
 
 	// Solana public keys are 32 bytes, matching Account256's 256-bit expectation
-	accountList := common.SnakeData[Account256]{
+	accountList := common.SnakeCell[Account256]{
 		{Value: solanaAddr1.PublicKey().Bytes()},
 		{Value: solanaAddr2.PublicKey().Bytes()},
 	}

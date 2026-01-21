@@ -243,15 +243,15 @@ type RemovePriceUpdater struct {
 
 type UpdatePrices struct {
 	_              tlb.Magic                          `tlb:"#de852b1b" json:"-"` //nolint:revive // Ignore opcode tag
-	TokenPrices    common.SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPrices      common.SnakeData[GasPriceUpdate]   `tlb:"^"`
+	TokenPrices    common.SnakeCell[TokenPriceUpdate] `tlb:"^"`
+	GasPrices      common.SnakeCell[GasPriceUpdate]   `tlb:"^"`
 	SendExcessesTo *address.Address                   `tlb:"addr"`
 }
 
 type UpdateFeeTokens struct {
 	_      tlb.Magic                            `tlb:"#D0984986" json:"-"` //nolint:revive // Ignore opcode tag
 	Add    *cell.Dictionary                     `tlb:"dict 267"`
-	Remove common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Remove common.SnakeCell[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
@@ -270,7 +270,7 @@ type UpdateDestChainConfig struct {
 
 type UpdateDestChainConfigs struct {
 	_       tlb.Magic                               `tlb:"#2d2410f6" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	Updates common.SnakeCell[UpdateDestChainConfig] `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

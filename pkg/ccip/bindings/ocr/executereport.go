@@ -13,12 +13,12 @@ import (
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
 // Message: single message as cell reference
 // OffChainTokenData: vec<vec<u8>> - each token data as separate cell ref
-// Proofs: vec<bytes32> - inline 256-bit proofs using SnakeData with Proof wrapper (matches TypeScript asSnakeData)
+// Proofs: vec<bytes32> - inline 256-bit proofs using SnakeCell with Proof wrapper (matches TypeScript asSnakeData)
 type ExecuteReport struct {
 	SourceChainSelector uint64                             `tlb:"## 64"`
 	Message             Any2TVMRampMessage                 `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
 	OffChainTokenData   common.SnakeRef[common.SnakeBytes] `tlb:"^"` // vec<vec<u8>>
-	Proofs              common.SnakeData[common.Proof]     `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
+	Proofs              common.SnakeCell[common.Proof]     `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
 	ProofFlagBits       *big.Int                           `tlb:"## 256"`
 }
 
@@ -29,7 +29,7 @@ type Any2TVMRampMessage struct {
 	Data         common.SnakeBytes                      `tlb:"^"`
 	Receiver     *address.Address                       `tlb:"addr"`
 	GasLimit     tlb.Coins                              `tlb:"."`
-	TokenAmounts common.SnakeData[Any2TVMTokenTransfer] `tlb:"maybe ^"`
+	TokenAmounts common.SnakeCell[Any2TVMTokenTransfer] `tlb:"maybe ^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.

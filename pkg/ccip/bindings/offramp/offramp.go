@@ -132,8 +132,8 @@ type SetOCR3Config struct {
 	PluginType                     uint16                                       `tlb:"## 16"`
 	F                              uint8                                        `tlb:"## 8"`
 	IsSignatureVerificationEnabled bool                                         `tlb:"bool"`
-	Signers                        ccipcommon.SnakeData[Signer]                 `tlb:"^"`
-	Transmitters                   ccipcommon.SnakeData[ccipcommon.AddressWrap] `tlb:"^"`
+	Signers                        ccipcommon.SnakeCell[Signer]                 `tlb:"^"`
+	Transmitters                   ccipcommon.SnakeCell[ccipcommon.AddressWrap] `tlb:"^"`
 }
 
 // UpdateSourceChainConfig represents the updateSourceChainConfig structure
@@ -146,7 +146,7 @@ type UpdateSourceChainConfig struct {
 type UpdateSourceChainConfigs struct {
 	_       tlb.Magic                                     `tlb:"#22b4f05c" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID uint64                                        `tlb:"## 64"`
-	Configs ccipcommon.SnakeData[UpdateSourceChainConfig] `tlb:"^"`
+	Configs ccipcommon.SnakeCell[UpdateSourceChainConfig] `tlb:"^"`
 }
 
 // Commit represents the commit method call on the offRamp contract
@@ -155,7 +155,7 @@ type Commit struct {
 	QueryID          uint64                                     `tlb:"## 64"`
 	ConfigDigest     []byte                                     `tlb:"bits 512"`
 	CommitReport     ocr.CommitReport                           `tlb:"."`
-	SignatureEd25519 ccipcommon.SnakeData[ocr.SignatureEd25519] `tlb:"^"`
+	SignatureEd25519 ccipcommon.SnakeCell[ocr.SignatureEd25519] `tlb:"^"`
 }
 
 // Execute represents the execute method call on the offRamp contract

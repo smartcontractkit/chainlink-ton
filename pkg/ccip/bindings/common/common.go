@@ -71,7 +71,7 @@ const (
 	ErrorDispatchNotFromMerkleRoot
 )
 
-// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeData[] of addresses.
+// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeCell[] of addresses.
 type AddressWrap struct {
 	Val *address.Address `tlb:"addr"`
 }
@@ -316,11 +316,11 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 		}
 		// Each element can have at most 3 refs; 1 ref must be reserved for chaining to next cell.
 		if c.RefsNum() > 3 {
-			return nil, fmt.Errorf("SnakeData does not support elements with 4 references; use SnakeRef")
+			return nil, errors.New("SnakeCell does not support elements with 4 references; use SnakeRef")
 		}
 		// Reject ref-only elements (no data bits) - unpacking loop requires bits to iterate.
 		if c.BitsSize() == 0 && c.RefsNum() > 0 {
-			return nil, fmt.Errorf("SnakeData does not support elements with references but no data bits")
+			return nil, errors.New("SnakeCell does not support elements with references but no data bits")
 		}
 		// Start new cell if: not enough bits, OR not enough refs for element + 1 chain ref
 		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() < c.RefsNum()+1 {
@@ -516,17 +516,17 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 
 // ----------- Below is wrapper types that implement the ToCell and LoadFromCell methods for packing and unpacking into cell structures. -----------
 
-// SnakeData is a generic type for packing and unpacking slices of any type T into a cell structure.
-type SnakeData[T any] []T
+// SnakeCell is a generic type for packing and unpacking slices of any type T into a cell structure.
+type SnakeCell[T any] []T
 
-// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+// ToCell packs the SnakeCell into a cell. It uses PackArray to serialize the data.
 // currently this function is not using pointer receiver, lack of support from tonutils-go library https://github.com/xssnick/tonutils-go/issues/340
-func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
+func (s SnakeCell[T]) ToCell() (*cell.Cell, error) {
 	return packArrayWithStaticType(s)
 }
 
-// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
-func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
+// LoadFromCell loads the SnakeCell from a cell slice. It uses UnpackArray to deserialize the data.
+func (s *SnakeCell[T]) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
@@ -594,7 +594,7 @@ func NewDummyCell() (*cell.Cell, error) {
 }
 
 // Proof represents a 32-byte (256 bits) proof used in merkle proofs.
-// This wrapper type allows [32]byte to be used with SnakeData by implementing
+// This wrapper type allows [32]byte to be used with SnakeCell by implementing
 // ToCell/LoadFromCell that directly store/load 256 bits inline, avoiding the
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {

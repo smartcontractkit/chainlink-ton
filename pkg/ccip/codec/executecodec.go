@@ -176,7 +176,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		offChainTokenData = tokenDataSlice
 	}
 
-	proofs := make(common.SnakeData[common.Proof], 0, len(chainReport.Proofs))
+	proofs := make(common.SnakeCell[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
 		var p common.Proof
 		p.Value = new(big.Int).SetBytes(proof[:])

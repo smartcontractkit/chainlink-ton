@@ -70,12 +70,12 @@ type RMNRemote struct {
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
 }
 
-// ChainSelector is a wrapper uint64 to support SnakeData encoding.
+// ChainSelector is a wrapper uint64 to support SnakeCell encoding.
 type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
-// Subject is a wrapper for uint128 to support SnakeData encoding.
+// Subject is a wrapper for uint128 to support SnakeCell encoding.
 // Stored as *big.Int since Go doesn't have native uint128.
 type Subject struct {
 	Value *big.Int `tlb:"## 128"`
@@ -91,12 +91,12 @@ type ApplyRampUpdates struct {
 }
 
 type OnRamps struct {
-	DestChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
+	DestChainSelectors common.SnakeCell[ChainSelector] `tlb:"^"`
 	OnRamps            *address.Address                `tlb:"addr"`
 }
 
 type OffRamps struct {
-	SourceChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
+	SourceChainSelectors common.SnakeCell[ChainSelector] `tlb:"^"`
 	OffRamp              *address.Address                `tlb:"addr"`
 }
 
@@ -112,7 +112,7 @@ type CCIPSend struct {
 	DestChainSelector uint64                        `tlb:"## 64"`
 	Receiver          common.CrossChainAddress      `tlb:"."`
 	Data              common.SnakeBytes             `tlb:"^"`
-	TokenAmounts      common.SnakeData[TokenAmount] `tlb:"^"`
+	TokenAmounts      common.SnakeCell[TokenAmount] `tlb:"^"`
 	FeeToken          *address.Address              `tlb:"addr"`
 	ExtraArgs         *cell.Cell                    `tlb:"^"`
 }
@@ -162,14 +162,14 @@ type CCIPSendNACK struct {
 type RMNRemoteCurse struct {
 	_        tlb.Magic                 `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                    `tlb:"## 64"`
-	Subjects common.SnakeData[Subject] `tlb:"^"`
+	Subjects common.SnakeCell[Subject] `tlb:"^"`
 }
 
 // RMNRemoteUncurse message type for uncursing subjects on the router.
 type RMNRemoteUncurse struct {
 	_        tlb.Magic                 `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID  uint64                    `tlb:"## 64"`
-	Subjects common.SnakeData[Subject] `tlb:"^"`
+	Subjects common.SnakeCell[Subject] `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

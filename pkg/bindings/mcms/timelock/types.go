@@ -37,10 +37,10 @@ type Init struct {
 	Admin *address.Address `tlb:"addr"`
 
 	// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-	Proposers  common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Executors  common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Cancellers common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Bypassers  common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Proposers  common.SnakeCell[common.AddressWrap] `tlb:"^"`
+	Executors  common.SnakeCell[common.AddressWrap] `tlb:"^"`
+	Cancellers common.SnakeCell[common.AddressWrap] `tlb:"^"`
+	Bypassers  common.SnakeCell[common.AddressWrap] `tlb:"^"`
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
@@ -61,7 +61,7 @@ type ScheduleBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeData[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
+	Calls       common.SnakeCell[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
 	Predecessor *tlbe.Uint256          `tlb:"."`     // Predecessor operation ID
 	Salt        *tlbe.Uint256          `tlb:"."`     // Salt used to derive the operation ID
 	Delay       uint32                 `tlb:"## 32"` // Delay in seconds before the operation can be executed
@@ -93,7 +93,7 @@ type ExecuteBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeData[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
+	Calls       common.SnakeCell[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
 	Predecessor *tlbe.Uint256          `tlb:"."` // Predecessor operation ID
 	Salt        *tlbe.Uint256          `tlb:"."` // Salt used to derive the operation ID
 }
@@ -176,7 +176,7 @@ type BypasserExecuteBatch struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// Array of calls to be scheduled
-	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakeCell[Call] `tlb:"^"` // vec<Timelock_Call>
 }
 
 // Updates the executor role check (enabled/disabled) which guards the execution of operations.

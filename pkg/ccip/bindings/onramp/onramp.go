@@ -74,7 +74,7 @@ type SVMExtraArgsV1 struct {
 	AccountIsWritableBitmap  uint64                       `tlb:"## 64"`
 	AllowOutOfOrderExecution bool                         `tlb:"bool"`
 	TokenReceiver            []byte                       `tlb:"bits 256"`
-	Accounts                 common.SnakeData[Account256] `tlb:"^"`
+	Accounts                 common.SnakeCell[Account256] `tlb:"^"`
 }
 
 // Storage represents the storage structure for the CCIP onramp contract.
@@ -103,23 +103,23 @@ type UpdateDestChainConfig struct {
 
 type UpdateDestChainConfigsMessage struct {
 	_       tlb.Magic                               `tlb:"#1a246b6c" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	Updates common.SnakeCell[UpdateDestChainConfig] `tlb:"^"`
 }
 
 type UpdateAllowlist struct {
 	DestinationChainSelector uint64                               `tlb:"## 64"`
-	Add                      common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Remove                   common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Add                      common.SnakeCell[common.AddressWrap] `tlb:"^"`
+	Remove                   common.SnakeCell[common.AddressWrap] `tlb:"^"`
 }
 
 type UpdateAllowlists struct {
 	_       tlb.Magic                         `tlb:"#9dc06185" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateAllowlist] `tlb:"^"`
+	Updates common.SnakeCell[UpdateAllowlist] `tlb:"^"`
 }
 
 type WithdrawFeeTokens struct {
 	_         tlb.Magic                            `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
-	FeeTokens common.SnakeData[common.AddressWrap] `tlb:"."`
+	FeeTokens common.SnakeCell[common.AddressWrap] `tlb:"."`
 }
 
 // Message structures that map to the existing types in onramp.go
