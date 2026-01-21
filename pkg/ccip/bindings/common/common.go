@@ -282,7 +282,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	return result, nil
 }
 
-// packArrayWithToCell packs a slice of any serializable type T into a snake cell structure.
+// packArrayToCell packs a slice of any serializable type T into a snake cell structure.
 // Each element is serialized via tlb.ToCell, storing its bits and refs into the current cell.
 // When an element doesn't fit (bits exhausted or only 1 ref left), a new cell is started.
 // The last ref in each cell is reserved for chaining to the next cell.
@@ -302,7 +302,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 //
 // Note: T cannot be primitive types unsupported by tlb.ToCell (e.g., uint64, bool);
 // use wrapper types like ChainSelector in router binding.
-func packArrayWithToCell[T any](array []T) (*cell.Cell, error) {
+func packArrayToCell[T any](array []T) (*cell.Cell, error) {
 	if len(array) > MaxArrayLength {
 		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
 	}
@@ -522,7 +522,7 @@ type SnakedCell[T any] []T
 // ToCell packs the SnakedCell into a cell. It uses PackArray to serialize the data.
 // currently this function is not using pointer receiver, lack of support from tonutils-go library https://github.com/xssnick/tonutils-go/issues/340
 func (s SnakedCell[T]) ToCell() (*cell.Cell, error) {
-	return packArrayWithToCell(s)
+	return packArrayToCell(s)
 }
 
 // LoadFromCell loads the SnakedCell from a cell slice. It uses UnpackArray to deserialize the data.
