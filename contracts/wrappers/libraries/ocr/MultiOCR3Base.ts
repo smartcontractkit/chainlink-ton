@@ -3,7 +3,7 @@ import { KeyPair, sign } from '@ton/crypto'
 import { uint8ArrayToBigInt } from '../../../src/utils'
 
 import { crc32 } from 'zlib'
-import { asSnakeData, fromSnakeData } from '../../../src/utils'
+import { asSnakedCell, fromSnakeData } from '../../../src/utils'
 
 export const FACILITY_NAME = 'com.chainlink.ton.lib.ocr.MultiOCR3Base'
 export const FACILITY_ID = 31
@@ -154,9 +154,9 @@ export class OCR3Base {
         .storeUint(opts.ocrPluginType, 16)
         .storeUint(opts.bigF, 8)
         .storeBit(opts.isSignatureVerificationEnabled)
-        .storeRef(asSnakeData<bigint>(opts.signers, (item) => new Builder().storeUint(item, 256)))
+        .storeRef(asSnakedCell<bigint>(opts.signers, (item) => new Builder().storeUint(item, 256)))
         .storeRef(
-          asSnakeData<Address>(opts.transmitters, (item) => new Builder().storeAddress(item)),
+          asSnakedCell<Address>(opts.transmitters, (item) => new Builder().storeAddress(item)),
         )
         .endCell(),
     })

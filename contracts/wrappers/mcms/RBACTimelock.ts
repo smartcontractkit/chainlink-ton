@@ -15,7 +15,7 @@ import { crc32 } from 'zlib'
 import { CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
 import { keccak256 } from '@ethersproject/keccak256'
-import { asSnakeData, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
+import { asSnakedCell, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
 // Initializes the contract
 export type Init = {
@@ -339,10 +339,10 @@ export const builder = {
             .storeUint(msg.queryId, 64)
             .storeUint(msg.minDelay, 32)
             .storeAddress(msg.admin)
-            .storeRef(asSnakeData<Address>(msg.proposers, (a) => beginCell().storeAddress(a)))
-            .storeRef(asSnakeData<Address>(msg.executors, (a) => beginCell().storeAddress(a)))
-            .storeRef(asSnakeData<Address>(msg.cancellers, (a) => beginCell().storeAddress(a)))
-            .storeRef(asSnakeData<Address>(msg.bypassers, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakedCell<Address>(msg.proposers, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakedCell<Address>(msg.executors, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakedCell<Address>(msg.cancellers, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakedCell<Address>(msg.bypassers, (a) => beginCell().storeAddress(a)))
             .storeBit(msg.executorRoleCheckEnabled)
             .storeUint(msg.opFinalizationTimeout, 32)
         },

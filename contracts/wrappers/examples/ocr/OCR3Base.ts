@@ -17,7 +17,7 @@ import {
   ReportContext,
   SignatureEd25519,
 } from '../../libraries/ocr/MultiOCR3Base'
-import { asSnakeData } from '../../../src/utils'
+import { asSnakedCell } from '../../../src/utils'
 import { loadContractCode } from '../../codeLoader'
 
 export function ocr3BaseExampleStorage(): Cell {
@@ -74,7 +74,7 @@ export class OCR3BaseExample extends OCR3Base {
         .storeUint(opts.reportContext.sequenceBytes, 64)
         .storeRef(opts.report)
         .storeRef(
-          asSnakeData<SignatureEd25519>(opts.signatures, (item) =>
+          asSnakedCell<SignatureEd25519>(opts.signatures, (item) =>
             new Builder().storeUint(item.signer, 256).storeUint(item.r, 256).storeUint(item.s, 256),
           ),
         )
