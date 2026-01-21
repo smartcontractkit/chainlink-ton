@@ -388,10 +388,10 @@ func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 		}
 		// Use slice's remaining refs (after element refs are consumed), not cell's original refs.
 		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
-		// For snake data to be well-formed, there should be exactly one reference when following the chain.
+		// For a SnakeCell chain to be well-formed, there should be exactly one reference when following the chain.
 		refsNum := s.RefsNum()
 		if refsNum > 1 {
-			return nil, fmt.Errorf("invalid snake data: expected at most 1 ref for chain, got %d", refsNum)
+			return nil, fmt.Errorf("invalid SnakeCell data: expected at most 1 ref for chain, got %d", refsNum)
 		}
 		if refsNum == 1 {
 			ref, err := s.LoadRefCell()
