@@ -377,7 +377,7 @@ type Call struct {
 // Batch of transactions represented as a operation, which can be scheduled and executed.
 type OperationBatch struct {
 	// Array of calls to be scheduled
-	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakedCell[Call] `tlb:"^"` // vec<Timelock_Call>
 	// Predecessor operation ID
 	Predecessor *tlbe.Uint256 `tlb:"."`
 	// Salt used to derive the operation ID
