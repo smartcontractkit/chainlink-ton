@@ -436,9 +436,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
-      baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX].value +
-        toNano('0.1') + // to reserve for rent
-        toNano('0.05'), // to cover execution fee
+      toNano('0.05'), // to cover execution fee
       executeBody,
     )
 

@@ -774,22 +774,30 @@ export const DONE_TIMESTAMP = 1n
 export const ERROR_TIMESTAMP = 2n
 
 export enum Error {
+  // Thrown when trying to schedule an operation which contains a blocked function selector.
   SelectorIsBlocked = 19300,
+  // Thrown when trying to execute an operation which is not ready yet.
   OperationNotReady,
+  // Thrown when an operation is missing a required dependency (predecessor not done).
   OperationMissingDependency,
+  // Thrown when trying to cancel a non-pending operation.
   OperationCanNotBeCancelled,
+  // Thrown when trying to schedule an already scheduled operation.
   OperationAlreadyScheduled,
+  // Thrown when the provided delay is less than the minimum delay.
   InsufficientDelay,
-  /// Thrown when trying to execute a pending operation while another pending operation is not yet final
+  // Thrown when trying to execute a pending operation while another pending operation is not yet final
   PendingOperationNotFinal,
-  /// Thrown when the provided op.value is insufficient (min required value not met).
+  // Thrown when the provided op.value is insufficient (min required value not met).
   InsufficientValue,
-  /// Thrown when trying to submit an error report for an operation that is not done.
+  // Thrown when trying to submit an error report for an operation that is not done.
   OperationNotDone,
-  /// Thrown when trying to initialize the contract more than once.
+  // Thrown when trying to initialize the contract more than once.
   ContractAlreadyInitialized,
-  /// Thrown when trying to call a function on an uninitialized contract.
+  // Thrown when trying to call a function on an uninitialized contract.
   ContractNotInitialized,
+  // Value attached to incomming message is not enough to pay for handler execution
+  InsufficientFee,
 }
 
 export class ContractClient implements Contract {

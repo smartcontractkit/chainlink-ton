@@ -720,9 +720,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
 
       const result = await this.bind.mcms.sendInternal(
         this.acc.deployer.getSender(),
-        this.testOps[i].value +
-          toNano('0.1') + // to reserve for rent
-          toNano('0.05'), // to cover execution fee
+        toNano('0.05'), // to cover execution fee
         executeBody,
       )
 

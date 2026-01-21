@@ -385,7 +385,7 @@ const MAX_NUM_SIGNERS = 200;
 // --- Constants - storage ---
 
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
-const MIN_TON_TO_RESERVE: int = ton("0.1");
+const MIN_TON_TO_RESERVE: int = ton("0.05");
 
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
@@ -691,6 +691,7 @@ fun MCMS<T>.load(context: T? = null, hooks: MCMS_Hooks<T>? = null): MCMS<T> {
 fun MCMS<T>.setRoot(
     mutate self,
     sender: address,
+    value: coins,
     queryId: uint64,
     root: uint256,
     validUntil: uint64,
@@ -698,7 +699,12 @@ fun MCMS<T>.setRoot(
     metadataProof: SnakedCell<uint256>,
     signatures: SnakedCell<Signature>,
 ) {
-    /// Construct the message that should be signed by the signers.
+    // Verify value covers the fee
+    if (value < MCMS_Costs.setRoot()) {
+        throw MCMS_Error.InsufficientFee;
+    }
+
+    // Construct the message that should be signed by the signers.
     val signedHash = self._hashRoot(root, validUntil);
 
     // Each (root, validUntil) tuple can only bet set once. For example, this prevents a
@@ -921,16 +927,13 @@ fun MCMS<T>.execute(
     sender: address,
     value: coins,
     queryId: uint64,
-    opCell: Cell<Op>,
+    op: Op,
     proof: SnakedCell<uint256>,
 ) {
-    val replyValue = calculateGasFeeFor(FEE_SIZE_SMALL);
-    val executionFee = calculateGasFeeDefault();
-    var requiredValue = replyValue + executionFee + MIN_TON_TO_RESERVE;
-    assert(value >= requiredValue, MCMS_Error.InsufficientFee as int);
-    val op = lazy opCell.load();
-    requiredValue += op.value;
-    assert(value >= requiredValue, MCMS_Error.InsufficientFee as int);
+    // Verify value covers the fee
+    if (value < MCMS_Costs.execute()) {
+        throw MCMS_Error.InsufficientFee;
+    }
 
     // Unpack the root info from the contract data
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
@@ -1008,15 +1011,16 @@ fun MCMS<T>.execute(
         rootMetadata
     }.toCell();
 
-    self._execute(op.to, op.value, op.data);
-
     // We reserve some TON coins on the balance for rent
-    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, RESERVE_MODE_EXACT_AMOUNT);
+    val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
+    reserveToncoinsOnBalance(MIN_TON_TO_RESERVE, reserveMode);
+
+    self._execute(op.to, op.value, op.data);
 
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: replyValue, // send small value as gas budget, keep the rest (payable)
+        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
@@ -1043,6 +1047,7 @@ fun MCMS<T>.execute(
 fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
+    value: coins,
     queryId: uint64,
     signerAddresses: SnakedCell<uint160>, // EVM addresses
     signerGroups: SnakedCell<uint8>,
@@ -1051,6 +1056,11 @@ fun MCMS<T>.setConfig(
     clearRoot: bool,
 ) {
     self.data.ownable.requireOwner(sender);
+
+    // Verify value covers the fee
+    if (value < MCMS_Costs.setConfig()) {
+        throw MCMS_Error.InsufficientFee;
+    }
 
     // Validate input lengths
     var signerAddrsIterator = signerAddresses.iter();
@@ -1231,7 +1241,13 @@ fun MCMS<T>.setConfig(
 
 /// Changes the timeout required to finalize the currently executing op
 /// @see {MCMS_UpdateOpFinalizationTimeout} for more information.
-fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint32): void {
+fun MCMS<T>.updateOpFinalizationTimeout(
+    mutate self,
+    sender: address,
+    value: coins,
+    queryId: uint64,
+    newOpFinalizationTimeout: uint32
+): void {
     self.data.ownable.requireOwner(sender);
 
     // Unpack the root info from the contract data
@@ -1267,6 +1283,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: u
 fun MCMS<T>.submitErrorReport(
     mutate self,
     sender: address,
+    value: coins,
     queryId: uint64,
     op: Op,
     proof: SnakedCell<uint256>,
@@ -1277,6 +1294,11 @@ fun MCMS<T>.submitErrorReport(
     // Only the oracle can submit error reports
     if (sender != self.data.oracle) {
         throw MCMS_Error.UnauthorizedOracle;
+    }
+
+    // Verify value covers the fee
+    if (value < MCMS_Costs.submitErrorReport()) {
+        throw MCMS_Error.InsufficientFee;
     }
 
     // Check if right environment via chainId
@@ -1346,6 +1368,7 @@ fun MCMS<T>.submitErrorReport(
 fun MCMS<T>.transferOracleRole(
     mutate self,
     sender: address,
+    value: coins,
     queryId: uint64,
     newOracle: address
 ) {
@@ -1369,6 +1392,7 @@ fun MCMS<T>.transferOracleRole(
 fun MCMS<T>.cleanExpiredRoots(
     mutate self,
     sender: address,
+    value: coins,
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {
@@ -1472,28 +1496,28 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
     val msg = lazy MCMS_InMessage.fromSlice(msgBody);
     match (msg) {
         MCMS_SetRoot => {
-            self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
+            self.setRoot(msgSender, msgValue, msg.queryId, msg.root, msg.validUntil, msg.metadata,
                 msg.metadataProof, msg.signatures);
         }
         MCMS_Execute => {
-            self.execute(msgSender, msgValue, msg.queryId, msg.op, msg.proof);
+            self.execute(msgSender, msgValue, msg.queryId, msg.op.load(), msg.proof);
         }
         MCMS_SetConfig => {
-            self.setConfig(msgSender, msg.queryId, msg.signerAddresses, msg.signerGroups,
+            self.setConfig(msgSender, msgValue, msg.queryId, msg.signerAddresses, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
         MCMS_UpdateOpFinalizationTimeout => {
-            self.updateOpFinalizationTimeout(msgSender, msg.queryId, msg.newOpFinalizationTimeout);
+            self.updateOpFinalizationTimeout(msgSender, msgValue, msg.queryId, msg.newOpFinalizationTimeout);
         }
         MCMS_SubmitErrorReport => {
-            self.submitErrorReport(msgSender, msg.queryId, Op.fromCell(msg.op),
+            self.submitErrorReport(msgSender, msgValue, msg.queryId, msg.op.load(),
                 msg.proof, msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
         MCMS_TransferOracleRole => {
-            self.transferOracleRole(msgSender, msg.queryId, msg.newOracle);
+            self.transferOracleRole(msgSender, msgValue, msg.queryId, msg.newOracle);
         }
         MCMS_CleanExpiredRoots => {
-            self.cleanExpiredRoots(msgSender, msg.queryId, msg.roots);
+            self.cleanExpiredRoots(msgSender, msgValue, msg.queryId, msg.roots);
         }
         // noop handlers (expected replies for ownable ops when owning self)
         MCMS_OracleRoleTransferred => {
@@ -1528,6 +1552,10 @@ fun onInternalMessage(in: InMessage) {
     mcms.data.storeAsContractData();
 }
 
+// Handle bounced messages from executed ops
+//
+// On bounce, any bounced value is kept/stored in the MCMS contract
+// and can be withdrawn with subsequent proposals.
 fun onBouncedMessage(in: InMessageBounced) {
     // Load the contract storage as MCMS and handle the bounced message
     var mcms = MCMS<bool>.load();
@@ -1569,6 +1597,46 @@ fun onBouncedMessage(in: InMessageBounced) {
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
     mcms.data.rootInfo = rootInfo.toCell();
     mcms.data.storeAsContractData();
+}
+
+// --- Costs ---
+
+struct MCMS_Costs{}
+
+fun MCMS_Costs.setRoot(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MCMS_NewRoot fwdFee (reply)
+        + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
+        ;
+}
+
+// Notice: execute caller is expected to pay for the processing fees,
+// while the rest (rent, op.value) is paid/reserved by the contract.
+fun MCMS_Costs.execute(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // message executed/sent fwdFee
+        + 0            // op.value is reserved by the contract
+        + ton("0.019") // MCMS_OpExecuted fwdFee (reply)
+        + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
+        ;
+}
+
+fun MCMS_Costs.setConfig(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MCMS_ConfigSet fwdFee (reply)
+        + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
+        ;
+}
+
+fun MCMS_Costs.submitErrorReport(): int {
+    return
+        + ton("0.002") // computeFee
+        + ton("0.019") // MCMS_ErrorReportSubmitted fwdFee (reply)
+        + calculateGasFeeFor(FEE_SIZE_SMALL) // reply value
+        ;
 }
 
 // --- Getters ---
