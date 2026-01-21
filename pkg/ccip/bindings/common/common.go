@@ -192,6 +192,9 @@ func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error
 	return data, nil
 }
 
+// PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
+// storing each element as a cell reference. When only one reference slot is left, it starts a new cell
+// and uses the last reference for chaining.
 func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 	if len(array) > MaxArrayLength {
 		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
@@ -313,7 +316,11 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 		}
 		// Each element can have at most 3 refs; 1 ref must be reserved for chaining to next cell.
 		if c.RefsNum() > 3 {
-			return nil, fmt.Errorf("element %d has %d cell refs, maximum is 3 (1 ref reserved for chain)", i, c.RefsNum())
+			return nil, fmt.Errorf("SnakeData does not support elements with 4 references; use SnakeRef")
+		}
+		// Reject ref-only elements (no data bits) - unpacking loop requires bits to iterate.
+		if c.BitsSize() == 0 && c.RefsNum() > 0 {
+			return nil, fmt.Errorf("SnakeData does not support elements with references but no data bits")
 		}
 		// Start new cell if: not enough bits, OR not enough refs for element + 1 chain ref
 		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() < c.RefsNum()+1 {
