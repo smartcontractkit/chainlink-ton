@@ -115,8 +115,9 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	// FeeQuoter
 	linkTokenAddress := stateCCIP.LinkTokenAddress
 	if linkTokenAddress.IsAddrNone() {
+		linkTokenAddress = *tvm.LinkTokenAddr
 		addresses = append(addresses, datastore.AddressRef{
-			Address:       tvm.LinkTokenAddr.String(),
+			Address:       linkTokenAddress.String(),
 			ChainSelector: in.ChainSelector,
 			Labels:        datastore.LabelSet{},
 			Type:          state.LinkToken,
