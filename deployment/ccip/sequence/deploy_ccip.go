@@ -115,10 +115,8 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	// FeeQuoter
 	linkTokenAddress := stateCCIP.LinkTokenAddress
 	if linkTokenAddress.IsAddrNone() {
-		// TODO: create a constant in tvm package for the default LINK token address (NONEVM-1651)
-		linkTokenAddress = *address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
 		addresses = append(addresses, datastore.AddressRef{
-			Address:       linkTokenAddress.String(),
+			Address:       tvm.LinkTokenAddr.String(),
 			ChainSelector: in.ChainSelector,
 			Labels:        datastore.LabelSet{},
 			Type:          state.LinkToken,
