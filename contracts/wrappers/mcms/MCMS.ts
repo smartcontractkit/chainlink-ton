@@ -460,6 +460,7 @@ export const opcodes = {
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
     OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
     ExpiredRootsCleaned: crc32('MCMS_ExpiredRootsCleaned'),
+    BounceHandled: crc32('MCMS_BounceHandled'),
   },
 }
 

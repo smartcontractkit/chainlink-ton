@@ -266,6 +266,16 @@ struct (0xf4538b79) Timelock_SubmitErrorReport {
     errorCode: uint32;
 }
 
+/// Emitted when a bounced message is handled.
+struct (0x3ed17038) Timelock_BounceHandled {
+    /// The sender of the bounced message.
+    sender: address;
+    /// The truncated body of the bounced message.
+    bouncedBody: uint256;
+    /// The id of the currently pending operation (Timelock_OperationBatch hash)
+    opPendingId: uint256;
+}
+
 /// Union of all incoming messages.
 type Timelock_InMessage =
     | Timelock_Init
@@ -294,7 +304,8 @@ type Timelock_OutMessage =
     | Timelock_FunctionSelectorBlocked
     | Timelock_FunctionSelectorUnblocked
     | Timelock_ExecutorRoleCheckUpdated
-    | Timelock_ErrorReportSubmitted;
+    | Timelock_ErrorReportSubmitted
+    | Timelock_BounceHandled;
 
 // --- Messages - outgoing ---
 
@@ -539,6 +550,7 @@ struct Timelock_Hooks<T> {
 const TOPIC_BYPASSER_CALL_EXECUTED = stringCrc32("Timelock_BypasserCallExecuted");
 const TOPIC_CALL_SCHEDULED = stringCrc32("Timelock_CallScheduled");
 const TOPIC_CALL_EXECUTED = stringCrc32("Timelock_CallExecuted");
+const TOPIC_BOUNCE_HANDLED = stringCrc32("Timelock_BounceHandled");
 
 /// Notice: role constants are kept as original Ethereum implementation (keccak256)
 const ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;     // keccak256('ADMIN_ROLE')
@@ -1402,14 +1414,19 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Load the contract storage as Timelock and handle the message
     var timelock = Timelock<bool>.load();
 
-    // TODO: emit an event with the bounce info (for observability)?
+    val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    val id = timelock.data.opPendingInfo.opPendingId;
+    emit(TOPIC_BOUNCE_HANDLED, Timelock_BounceHandled{
+        sender: in.senderAddress,
+        bouncedBody,
+        opPendingId: id,
+    });
 
-    if (timelock.data.opPendingInfo.opPendingId == 0) {
+    if (id == 0) {
         return; // noop
     }
 
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
-    val id = timelock.data.opPendingInfo.opPendingId;
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
     timelock.data.opPendingInfo.validAfter = blockchain.now(); // Mark the operation as final
 

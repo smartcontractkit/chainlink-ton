@@ -296,6 +296,22 @@ struct (0xa86846d5) MCMS_ExpiredRootsCleaned {
     roots: SnakedCell<RootDescriptor>;
 }
 
+/// Emitted when a bounced message is handled.
+struct (0xe695431e) MCMS_BounceHandled {
+    /// The sender of the bounced message.
+    sender: address;
+    /// The truncated body of the bounced message.
+    bouncedBody: uint256;
+    /// The current root
+    root: uint256;
+    /// The current root op count (nonce).
+    nonce: uint40;
+    /// Whether the bounced message matched the pending op.
+    matchesPendingOp: bool;
+    /// Whether the bounce caused the root to be overridden.
+    rootExpired: bool;
+}
+
 /// @dev Union of all outgoing messages.
 type MCMS_OutMessage =
     | MCMS_NewRoot
@@ -304,7 +320,8 @@ type MCMS_OutMessage =
     | MCMS_OpFinalizationTimeoutChange
     | MCMS_ErrorReportSubmitted
     | MCMS_OracleRoleTransferred
-    | MCMS_ExpiredRootsCleaned;
+    | MCMS_ExpiredRootsCleaned
+    | MCMS_BounceHandled;
 
 // --- Storage ---
 
@@ -381,6 +398,8 @@ const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
+
+const TOPIC_BOUNCE_HANDLED = stringCrc32("MCMS_BounceHandled");
 
 // --- Constants - storage ---
 
@@ -620,7 +639,8 @@ struct RootMetadata {
     // ops weren't executed.
     // Important: it is strongly recommended that offchain code set this to false by default.
     // Be careful setting this to true as it may break assumptions about what transactions from
-    // the previous root have already been executed.
+    // the previous root have already been executed. When true, bounce mismatches from
+    // the displaced root are ignored (but emitted) instead of expiring the new root.
     overridePreviousRoot: bool;
 }
 
@@ -854,7 +874,7 @@ fun MCMS<T>.setRoot(
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
     // don't allow a new root to be set if there are still outstanding ops that have not been
-    // executed, unless overridePreviousRoot is set
+    // executed or finalized, unless the overridePreviousRoot flag is set
     val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
     if (!metadata.overridePreviousRoot) {
@@ -1311,7 +1331,7 @@ fun MCMS<T>.submitErrorReport(
 
     var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
-    // verify that the op exists in the merkle tree
+    // Can only report errors against active root - verify op exists in the merkle tree
     // @dev we use the standard sha256 hash function to hash the leaf.
     val hashedLeaf =
         beginCell()
@@ -1334,8 +1354,8 @@ fun MCMS<T>.submitErrorReport(
     // Check the reported error against the stored pending operation
     val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
-    val matchesPendingOp =
-        opPendingInfo.opPendingReceiver != null
+    val matchesPendingOp = true
+        && opPendingInfo.opPendingReceiver != null
         && opPendingInfo.opPendingReceiver == op.to
         && opPendingInfo.opPendingBodyTruncated == extractBouncedBody(op.data.beginParse());
 
@@ -1551,10 +1571,10 @@ fun onInternalMessage(in: InMessage) {
     mcms.data.storeAsContractData();
 }
 
-// Handle bounced messages from executed ops
+// Handle bounced messages from executed ops.
 //
-// On bounce, any bounced value is kept/stored in the MCMS contract
-// and can be withdrawn with subsequent proposals.
+// On bounce, any bounced value is kept/stored in the MCMS contract and can be withdrawn with
+// subsequent proposals. Every bounce emits MCMS_BounceHandled for observability.
 fun onBouncedMessage(in: InMessageBounced) {
     // Load the contract storage as MCMS and handle the bounced message
     var mcms = MCMS<bool>.load();
@@ -1562,33 +1582,58 @@ fun onBouncedMessage(in: InMessageBounced) {
     var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
     var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
-    // TODO: emit an event with the bounce info (for observability)?
-
-    // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
-    // Check the bounced message against the stored pending operation
-    // If the received bounce does NOT equal expected, mark the root invalid.
-    //
-    // @dev on setRoot the OpPendingInfo is cleared, so a bounce from an old root will not match
+    // Note: make sure opFinalizationTimeout is a large enough value to avoid races here.
+    // Check the bounced message against the stored pending operation. If the bounce matches the currently
+    // pending op treat it as a retry signal. Otherwise, expire the root based on conditions below.
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
-    if (opPendingInfo.opPendingReceiver == null
-        || opPendingInfo.opPendingReceiver! != in.senderAddress
-        || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
+    val root = rootInfo.expiringRootAndOpCount.root;
+    val nonce = rootInfo.expiringRootAndOpCount.opCount;
 
-        // Check the case when a new root was just set and no ops yet executed
-        val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
-        if (opCount == rootInfo.rootMetadata.preOpCount) {
-            return; // prev root op bounced, don't expire the fresh new root
+    val matchesPendingOp = true
+        && opPendingInfo.opPendingReceiver != null
+        && opPendingInfo.opPendingReceiver! == in.senderAddress
+        && opPendingInfo.opPendingBodyTruncated == bouncedBody;
+
+    if (!matchesPendingOp) {
+        // A bounce that doesn't match the stored pending op may be:
+        //   1. a delayed bounce from a previous root (at most one op executed under new root)
+        //     - expire the root or ignore if overridePreviousRoot set
+        //   2. a delayed bounce from a previous op in the current root
+        //     - expire the root
+        val ignoreMismatchedBounce = true
+            && rootInfo.rootMetadata.overridePreviousRoot // quorum overrides any prev root errors/bounces
+            && (nonce == rootInfo.rootMetadata.preOpCount || nonce == rootInfo.rootMetadata.preOpCount + 1);
+
+        if (ignoreMismatchedBounce) {
+            emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
+                sender: in.senderAddress,
+                bouncedBody,
+                root,
+                nonce,
+                matchesPendingOp,
+                rootExpired: false, // root remains valid to continue
+            });
+            return;
         }
 
         // Mark root in error state (recover with new root + bypass)
         rootInfo.expiringRootAndOpCount.validUntil = blockchain.now() - 1; // expire root immediately
         mcms.data.rootInfo = rootInfo.toCell();
         mcms.data.storeAsContractData();
+
+        emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
+            sender: in.senderAddress,
+            bouncedBody,
+            root,
+            nonce,
+            matchesPendingOp,
+            rootExpired: true,
+        });
         return;
     }
 
     // If the received bounce equals expected, revert state (allow op retry)
-    rootInfo.expiringRootAndOpCount.opCount = rootInfo.expiringRootAndOpCount.opCount - 1;
+    rootInfo.expiringRootAndOpCount.opCount = nonce - 1;
     opPendingInfo.validAfter = blockchain.now(); // can be retried immediately
     opPendingInfo.opPendingReceiver = null;
     opPendingInfo.opPendingBodyTruncated = 0;
@@ -1596,6 +1641,15 @@ fun onBouncedMessage(in: InMessageBounced) {
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
     mcms.data.rootInfo = rootInfo.toCell();
     mcms.data.storeAsContractData();
+
+    emit(TOPIC_BOUNCE_HANDLED, MCMS_BounceHandled{
+        sender: in.senderAddress,
+        bouncedBody,
+        root,
+        nonce,
+        matchesPendingOp,
+        rootExpired: false, // root remains valid for retry
+    });
 }
 
 // --- Costs ---

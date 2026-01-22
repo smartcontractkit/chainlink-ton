@@ -309,6 +309,7 @@ export const opcodes = {
     ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
     ErrorReportSubmitted: crc32('Timelock_ErrorReportSubmitted'),
     OpFinalizationTimeoutChange: crc32('Timelock_OpFinalizationTimeoutChange'),
+    BounceHandeled: crc32('Timelock_BounceHandled'),
   },
 }
 
