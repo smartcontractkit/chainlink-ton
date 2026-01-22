@@ -121,7 +121,9 @@ var DeployChainContracts = cldf_ops.NewSequence(
 					tvm.TonTokenAddr.String(): {
 						PremiumMultiplierWeiPerEth: 1,
 					},
-					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
+					tvm.LinkTokenAddr.String(): {
+						PremiumMultiplierWeiPerEth: 1,
+					},
 				},
 			}
 			//nolint:govet // allow shadowing

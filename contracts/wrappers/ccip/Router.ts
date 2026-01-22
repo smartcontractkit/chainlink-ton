@@ -13,7 +13,7 @@ import {
   TupleItem,
 } from '@ton/core'
 
-import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
+import { asSnakedCell, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
 
@@ -673,7 +673,7 @@ export const builder = (() => {
               .storeBit(data.allowOutOfOrderExecution)
               .storeBuffer(data.tokenReceiver, 32)
               .storeRef(
-                asSnakeData(data.accounts, (account) => new Builder().storeBuffer(account, 32)),
+                asSnakedCell(data.accounts, (account) => new Builder().storeBuffer(account, 32)),
               )
           case 'sui-v1':
             return beginCell()
@@ -682,7 +682,7 @@ export const builder = (() => {
               .storeBit(data.allowOutOfOrderExecution)
               .storeBuffer(data.tokenReceiver, 32)
               .storeRef(
-                asSnakeData(data.receiverObjectIds, (objectId) =>
+                asSnakedCell(data.receiverObjectIds, (objectId) =>
                   new Builder().storeBuffer(objectId, 32),
                 ),
               )
@@ -747,7 +747,7 @@ export const builder = (() => {
             .storeUint(opts.destChainSelector, 64)
             .storeBuilder(crossChainAddressCodec.encode(opts.receiver))
             .storeRef(opts.data)
-            .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
+            .storeRef(asSnakedCell(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
             .storeAddress(opts.feeToken)
 
             .storeRef(opts.extraArgs)
@@ -913,7 +913,7 @@ export const builder = (() => {
             .storeUint(opcodes.in.rmnRemoteCurse, 32)
             .storeUint(data.queryID, 64)
             .storeRef(
-              asSnakeData<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
+              asSnakedCell<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
             )
         },
         load: (src: Slice): RMNRemoteCurse => {
@@ -931,7 +931,7 @@ export const builder = (() => {
             .storeUint(opcodes.in.rmnRemoteUncurse, 32)
             .storeUint(data.queryID, 64)
             .storeRef(
-              asSnakeData<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
+              asSnakedCell<bigint>(data.subjects, (item) => new Builder().storeUint(item, 128)),
             )
         },
         load: (src: Slice): RMNRemoteUncurse => {

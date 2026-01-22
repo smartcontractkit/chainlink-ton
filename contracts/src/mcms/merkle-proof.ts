@@ -1,7 +1,7 @@
 import { beginCell, Cell } from '@ton/core'
 import { getBytes, hashMessage, keccak256, SigningKey } from 'ethers'
 
-import { asSnakeData, uint8ArrayToBigInt } from '../utils'
+import { asSnakedCell, uint8ArrayToBigInt } from '../utils'
 
 import { mcms } from '../../wrappers/mcms'
 
@@ -36,8 +36,8 @@ export function build(
       root,
       validUntil,
       metadata,
-      metadataProof: asSnakeData<bigint>(metadataProof, encodeProof),
-      signatures: asSnakeData<mcms.Signature>(signatures, encodeSignature),
+      metadataProof: asSnakedCell<bigint>(metadataProof, encodeProof),
+      signatures: asSnakedCell<mcms.Signature>(signatures, encodeSignature),
     },
     opProofs,
   ]

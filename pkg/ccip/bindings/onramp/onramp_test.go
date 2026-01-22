@@ -37,9 +37,10 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	solanaAddr2, err := solana.NewRandomPrivateKey()
 	require.NoError(t, err)
 
-	accountList := common.SnakeRef[common.SnakeBytes]{
-		solanaAddr1.PublicKey().Bytes(),
-		solanaAddr2.PublicKey().Bytes(),
+	// Solana public keys are 32 bytes, matching Account256's 256-bit expectation
+	accountList := common.SnakedCell[Account256]{
+		{Value: solanaAddr1.PublicKey().Bytes()},
+		{Value: solanaAddr2.PublicKey().Bytes()},
 	}
 
 	orig := SVMExtraArgsV1{
@@ -61,8 +62,8 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
 	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
 	require.Len(t, orig.Accounts, len(decoded.Accounts))
-	for i, addr := range orig.Accounts {
-		require.Equal(t, addr, decoded.Accounts[i])
+	for i, acc := range orig.Accounts {
+		require.Equal(t, acc.Value, decoded.Accounts[i].Value)
 	}
 }
 

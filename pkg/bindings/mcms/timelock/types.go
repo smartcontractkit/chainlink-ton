@@ -37,10 +37,10 @@ type Init struct {
 	Admin *address.Address `tlb:"addr"`
 
 	// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-	Proposers  common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Executors  common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Cancellers common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Bypassers  common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Proposers  common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Executors  common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Cancellers common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Bypassers  common.SnakedCell[common.AddressWrap] `tlb:"^"`
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
@@ -61,10 +61,10 @@ type ScheduleBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeRef[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *tlbe.Uint256         `tlb:"."`     // Predecessor operation ID
-	Salt        *tlbe.Uint256         `tlb:"."`     // Salt used to derive the operation ID
-	Delay       uint32                `tlb:"## 32"` // Delay in seconds before the operation can be executed
+	Calls       common.SnakedCell[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *tlbe.Uint256           `tlb:"."`     // Predecessor operation ID
+	Salt        *tlbe.Uint256           `tlb:"."`     // Salt used to derive the operation ID
+	Delay       uint32                  `tlb:"## 32"` // Delay in seconds before the operation can be executed
 }
 
 // Cancel an operation.
@@ -93,9 +93,9 @@ type ExecuteBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeRef[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *tlbe.Uint256         `tlb:"."` // Predecessor operation ID
-	Salt        *tlbe.Uint256         `tlb:"."` // Salt used to derive the operation ID
+	Calls       common.SnakedCell[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *tlbe.Uint256           `tlb:"."` // Predecessor operation ID
+	Salt        *tlbe.Uint256           `tlb:"."` // Salt used to derive the operation ID
 }
 
 // Changes the minimum timelock duration for future operations.
@@ -176,7 +176,7 @@ type BypasserExecuteBatch struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// Array of calls to be scheduled
-	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakedCell[Call] `tlb:"^"` // vec<Timelock_Call>
 }
 
 // Updates the executor role check (enabled/disabled) which guards the execution of operations.
@@ -377,7 +377,7 @@ type Call struct {
 // Batch of transactions represented as a operation, which can be scheduled and executed.
 type OperationBatch struct {
 	// Array of calls to be scheduled
-	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakedCell[Call] `tlb:"^"` // vec<Timelock_Call>
 	// Predecessor operation ID
 	Predecessor *tlbe.Uint256 `tlb:"."`
 	// Salt used to derive the operation ID

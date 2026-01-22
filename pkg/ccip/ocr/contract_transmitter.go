@@ -153,7 +153,7 @@ var CommitCallData = func(
 		return nil, fmt.Errorf("cannot decode commit report from cell: %w", err)
 	}
 
-	sigs := make(common.SnakeData[ocr.SignatureEd25519], len(signatures))
+	sigs := make(common.SnakedCell[ocr.SignatureEd25519], len(signatures))
 	for i, sig := range signatures {
 		sigs[i] = ocr.SignatureEd25519{Data: sig[:]}
 	}

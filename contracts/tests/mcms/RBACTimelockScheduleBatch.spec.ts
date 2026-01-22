@@ -3,7 +3,7 @@ import '@ton/test-utils'
 import { Cell, toNano } from '@ton/core'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { asSnakeData } from '../../src/utils'
+import { asSnakedCell } from '../../src/utils'
 
 import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
@@ -22,7 +22,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   beforeEach(async () => {
     await baseTest.beforeEach()
 
-    calls = asSnakeData<rbactl.Call>(
+    calls = asSnakedCell<rbactl.Call>(
       [
         {
           target: baseTest.bind.counter.address,
@@ -55,7 +55,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
 
     return [
       calls.map((call) => rbactl.builder.data.call.encode(call).asCell()),
-      asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c)),
+      asSnakedCell<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c)),
     ]
   }
 

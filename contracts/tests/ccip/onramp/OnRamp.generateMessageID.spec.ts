@@ -4,7 +4,7 @@ import { compile } from '@ton/blueprint'
 import { sha256 } from '@ton/crypto'
 
 import * as coverage from '../../coverage/coverage'
-import { asSnakeData, generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
+import { asSnakedCell, generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as rt from '../../../wrappers/ccip/Router'
@@ -157,7 +157,7 @@ describe('OnRamp - generate message id', () => {
         receiver: rt.builder.data.crossChainAddress.encode(ccipSend.receiver).asCell(),
         data: ccipSend.data,
         extraArgs: ccipSend.extraArgs,
-        tokenAmounts: asSnakeData(ccipSend.tokenAmounts, rt.builder.data.tokenAmount.encode),
+        tokenAmounts: asSnakedCell(ccipSend.tokenAmounts, rt.builder.data.tokenAmount.encode),
         feeToken: ccipSend.feeToken!,
         feeTokenAmount: 1n,
       },

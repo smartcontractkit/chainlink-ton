@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 import * as coverage from '../coverage/coverage'
 
 import { mcms } from '../../wrappers/mcms'
@@ -493,7 +493,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // increment twice through regular flow
     {
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.counter.address,
@@ -744,7 +744,7 @@ describe('MCMS - IntegrationTest', () => {
       // halve minDelay from bypasser
       //
       const newDelay = Math.floor(MIN_DELAY / 2)
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.timelock.address,
@@ -854,7 +854,7 @@ describe('MCMS - IntegrationTest', () => {
         })
       }
 
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.timelock.address,
@@ -1044,7 +1044,7 @@ describe('MCMS - IntegrationTest', () => {
       // decrease quorum for vetoers & proposers
       //
 
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.mcmsPropose.address,

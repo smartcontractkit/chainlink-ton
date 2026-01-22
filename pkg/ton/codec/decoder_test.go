@@ -65,7 +65,7 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 		Value:    tlb.MustFromTON("1.5"),
 		Data: mustToCell(timelock.ScheduleBatch{
 			QueryID: 31,
-			Calls: common.SnakeRef[timelock.Call]{
+			Calls: common.SnakedCell[timelock.Call]{
 				timelock.Call{
 					Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 					Value:  tlb.MustFromTON("0.5"),
@@ -447,7 +447,7 @@ func TestDecodeJSONMapFromCellIteratively(t *testing.T) {
 					"Nonce":    float64(42),
 					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 					"Value":    "1500000000",
-					"Data":     "te6cckECCAEAAUIAAaAJRxj0AAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEVwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAEDAAIDBAFLgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbSDuaygEFAUuAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtIdzWUAQcBS4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0iy0F4BBgAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMHAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUONjwks=",
+					"Data":     "te6cckECBQEAATkAAaAJRxj0AAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEVwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAnEAED44AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0g7msoBAADa3W6G0nSiTV4a6euRA42fU9QxSEnb+WeDpcrtWzA2kO5rKAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0iy0F4BAIEAwAQAAAAAgNPteMBcw+KfqUAAAAAAAAAAEATEtAIAAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0DmJaAAAAAAMEAEsAAAADgABtbrdDaTpRJq8NdPXIgcbPqeoYpCTt/LPB0uV2rZgbUFnx9dM=",
 				},
 				"Proof": nil,
 			},
