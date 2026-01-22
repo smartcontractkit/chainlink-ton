@@ -323,7 +323,7 @@ func packArrayToCell[T any](array []T) (*cell.Cell, error) {
 			return nil, errors.New("SnakedCell supports only elements that contain data bits; to encode ref-only values, use a reference-snake encoding such as SnakeRef or redesign the element type")
 		}
 		// Start new cell if: not enough bits, OR not enough refs for element + 1 chain ref
-		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() < c.RefsNum()+1 {
+		if c.BitsSize() > builder.BitsLeft() || c.RefsNum()+1 > builder.RefsLeft() {
 			cells = append(cells, builder)
 			builder = cell.BeginCell()
 		}
@@ -344,6 +344,19 @@ func packArrayToCell[T any](array []T) (*cell.Cell, error) {
 		next = cells[i].EndCell()
 	}
 	return next, nil
+}
+
+// loadChainRef returns the next cell in a snake chain, or nil if no more cells.
+// Returns error if more than 1 ref remains (malformed chain).
+func loadChainRef(s *cell.Slice) (*cell.Cell, error) {
+	refsNum := s.RefsNum()
+	if refsNum > 1 {
+		return nil, fmt.Errorf("invalid snake chain: expected at most 1 ref, got %d", refsNum)
+	}
+	if refsNum == 1 {
+		return s.LoadRefCell()
+	}
+	return nil, nil
 }
 
 // unpackArrayFromCell unpacks a snake cell structure into a slice of type T.
@@ -388,19 +401,10 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 		}
 		// Use slice's remaining refs (after element refs are consumed), not cell's original refs.
 		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
-		// For a SnakedCell chain to be well-formed, there should be exactly one reference when following the chain.
-		refsNum := s.RefsNum()
-		if refsNum > 1 {
-			return nil, fmt.Errorf("invalid SnakedCell data: expected at most 1 ref for chain, got %d", refsNum)
-		}
-		if refsNum == 1 {
-			ref, err := s.LoadRefCell()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
-			}
-			curr = ref
-		} else {
-			curr = nil
+		var err error
+		curr, err = loadChainRef(s)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return result, nil
@@ -497,19 +501,10 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			result = append(result, part...)
 		}
 
-		// For a SnakeBytes chain to be well-formed, there should be at most one reference for chaining.
-		refsNum := s.RefsNum()
-		if refsNum > 1 {
-			return nil, fmt.Errorf("invalid SnakeBytes data: expected at most 1 ref for chain, got %d", refsNum)
-		}
-		if refsNum == 1 {
-			ref, err := s.LoadRefCell()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
-			}
-			curr = ref
-		} else {
-			curr = nil
+		var err error
+		curr, err = loadChainRef(s)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return result, nil
