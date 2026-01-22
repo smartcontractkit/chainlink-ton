@@ -1253,16 +1253,15 @@ fun MCMS<T>.updateOpFinalizationTimeout(
     // Unpack the root info from the contract data
     var rootInfo = RootInfo.fromCell(self.data.rootInfo);
     var opPendingInfo = OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
-    val oldDuration = opPendingInfo.opFinalizationTimeout;
+
+    // Set the pending operation finalization timeout (if exists and shorter than current)
+    val currTimeout = opPendingInfo.opFinalizationTimeout;
+    if (opPendingInfo.opPendingReceiver != null && newOpFinalizationTimeout < currTimeout) {
+        opPendingInfo.validAfter = opPendingInfo.validAfter - currTimeout + newOpFinalizationTimeout;
+    }
 
     // Update the op finalization timeout
     opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout;
-    // Set the pending operation finalization timeout (if lower than current)
-    val newValidAfter = blockchain.now() + opPendingInfo.opFinalizationTimeout;
-    if (newValidAfter < opPendingInfo.validAfter) {
-        // If the new timeout is shorter, we can update validAfter to the new time
-        opPendingInfo.validAfter = newValidAfter;
-    }
 
     // Update the info for the pending op, store the new root info
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
@@ -1272,7 +1271,7 @@ fun MCMS<T>.updateOpFinalizationTimeout(
         bounce: false,
         value: 0,
         dest: sender,
-        body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration, newDuration: newOpFinalizationTimeout}
+        body: MCMS_OpFinalizationTimeoutChange{ queryId, oldDuration: currTimeout, newDuration: newOpFinalizationTimeout}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
