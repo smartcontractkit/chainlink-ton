@@ -1156,13 +1156,12 @@ fun Timelock<T>.bypasserExecuteBatch(
     assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
 
-    // Reset the pending operation info, on bypass
-    self.data.opPendingInfo = Timelock_OpPendingInfo {
-        validAfter: blockchain.now(),
-        opFinalizationTimeout: self.data.opPendingInfo.opFinalizationTimeout,
-        opPendingId: 0,
-        opPendingCalls: createEmptyMap()
-    };
+    // Notice: bypass doesn't clear or update pending operation info,
+    // as it is not related to scheduled operations and is executed out of band.
+    //
+    // Make sure the bypass calls (truncated) are unique (e.g., via queryId) so they
+    // do not interfere with (normal) scheduled pending calls - matched bounces will
+    // otherwise produce false positives.
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
