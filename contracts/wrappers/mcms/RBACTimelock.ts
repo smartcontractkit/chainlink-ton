@@ -167,7 +167,7 @@ export type InMessage =
 
 // RBACTimelock contract storage
 export type ContractData = {
-  /// ID allows multiple independent instances, since contract address depends on initial state.
+  // ID allows multiple independent instances, since contract address depends on initial state.
   id: number // uint32
 
   // Minimum delay for operations in seconds
@@ -199,7 +199,7 @@ export type Call = {
   data: Cell
 }
 
-/// Batch of transactions represented as a operation, which can be scheduled and executed.
+// Batch of transactions represented as a operation, which can be scheduled and executed.
 export type OperationBatch = {
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
@@ -209,18 +209,20 @@ export type OperationBatch = {
   salt: bigint
 }
 
-/// Information about the currently pending operation.
-///
-/// @dev TON-specific additional data required to support reliable execution in the async environment.
+// Information about the currently pending operation.
+//
+// @dev TON-specific additional data required to support reliable execution in the async environment.
 export type OpPendingInfo = {
-  /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
-  /// At this time the previous executed operation is considered optimistically final and successful,
-  /// meaning no bounce was received and we can continue executing.
+  // The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
+  // At this time the previous executed operation is considered optimistically final and successful,
+  // meaning no bounce was received and we can continue executing.
   validAfter: bigint
-  /// The timeout required to finalize the currently executing op
+  // The timeout required to finalize the currently executing op
   opFinalizationTimeout: number
-  /// The id of the currently pending operation (OperationBatch hash)
+  // The id of the currently pending operation (OperationBatch hash)
   opPendingId: bigint
+  // The ids (fingerprints) for calls awaiting finalization in the pending op.
+  opPendingCalls?: Dictionary<bigint, boolean>
 }
 
 export type ExecuteData = {
@@ -713,6 +715,7 @@ export const builder = {
           .storeUint(data.opPendingInfo.validAfter, 64)
           .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
+          .storeDict(data.opPendingInfo.opPendingCalls)
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
@@ -1040,6 +1043,7 @@ export class ContractClient implements Contract {
         validAfter: result.stack.readBigNumber(),
         opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
+        // TODO: read opPendingCalls dictionary
       }))
   }
 }

@@ -274,6 +274,8 @@ struct (0x3ed17038) Timelock_BounceHandled {
     bouncedBody: uint256;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
+    /// Whether the bounced message matched the pending op (one of the calls).
+    matchesPendingOp: bool;
 }
 
 /// Union of all incoming messages.
@@ -525,13 +527,14 @@ struct Timelock_OperationBatch {
 /// @dev TON-specific additional data required to support reliable execution in the async environment.
 struct Timelock_OpPendingInfo {
     /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
-    /// At this time the previous executed operation is considered optimistically final and successful,
-    /// meaning no bounce was received and we can continue executing.
+    /// At this time the previous executed operation is considered optimistically final.
     validAfter: uint64;
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint32;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
+    /// The ids (fingerprints) for calls awaiting finalization in the pending op.
+    opPendingCalls: map<uint256, bool>;
 }
 
 // --- Hooks struct (extensions) ---
@@ -769,7 +772,8 @@ fun Timelock<T>.init(
     self.data.opPendingInfo = Timelock_OpPendingInfo {
         validAfter: blockchain.now(),
         opFinalizationTimeout,
-        opPendingId: 0
+        opPendingId: 0,
+        opPendingCalls: createEmptyMap()
     };
 
     // Reply back to sender
@@ -908,6 +912,7 @@ fun Timelock<T>.executeBatch(
 
     val id = self.hashOperationBatch(Timelock_OperationBatch{calls, predecessor, salt});
     self.beforeCall(id, predecessor);
+    self.resetPendingOpTracking();
 
     // We reserve some TON coins on the balance for rent
     val reserveMode = RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
@@ -917,6 +922,11 @@ fun Timelock<T>.executeBatch(
     var cc = calls.iter();
     while (!cc.empty()) {
         val call = cc.next();
+
+        // Track pending call fingerprint
+        val truncatedBody = extractBouncedBody(call.data.beginParse());
+        val fingerprint = self.getCallFingerprint(call.target, truncatedBody);
+        self.data.opPendingInfo.opPendingCalls.set(fingerprint, true);
 
         self.execute(call);
 
@@ -956,6 +966,20 @@ fun Timelock<T>.execute(self, call: Timelock_Call): void {
         body: call.data
     });
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+
+/// Returns the fingerprint for a call (used to track pending calls).
+fun Timelock<T>.getCallFingerprint(self, target: address, truncatedBody: uint256): uint256 {
+    return beginCell()
+        .storeAddress(target)
+        .storeUint(truncatedBody, 256)
+        .hash();
+}
+
+/// Resets the pending operation tracking info.
+fun Timelock<T>.resetPendingOpTracking(mutate self): void {
+    self.data.opPendingInfo.opPendingCalls = createEmptyMap();
+    self.data.opPendingInfo.opPendingId = 0;
 }
 
 /// Hook before execution of an operation's calls.
@@ -1136,7 +1160,8 @@ fun Timelock<T>.bypasserExecuteBatch(
     self.data.opPendingInfo = Timelock_OpPendingInfo {
         validAfter: blockchain.now(),
         opFinalizationTimeout: self.data.opPendingInfo.opFinalizationTimeout,
-        opPendingId: 0
+        opPendingId: 0,
+        opPendingCalls: createEmptyMap()
     };
 
     // We reserve some TON coins on the balance for rent
@@ -1224,6 +1249,9 @@ fun Timelock<T>.submitErrorReport(
 
     // Check the reported error against the stored pending operation
     val matchesPendingOp = self.data.opPendingInfo.opPendingId == id;
+    if (matchesPendingOp) {
+        self.data.opPendingInfo.validAfter = blockchain.now(); // finalize immediately
+    }
 
     val reply = createMessage({
         bounce: false,
@@ -1414,16 +1442,25 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Load the contract storage as Timelock and handle the message
     var timelock = Timelock<bool>.load();
 
+    // Check if bounce relates to pending operation
     val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    val fingerprint = timelock.getCallFingerprint(in.senderAddress, bouncedBody);
+    val matchesPendingOp = timelock.data.opPendingInfo.opPendingCalls.get(fingerprint).isFound;
+
     val id = timelock.data.opPendingInfo.opPendingId;
     emit(TOPIC_BOUNCE_HANDLED, Timelock_BounceHandled{
         sender: in.senderAddress,
         bouncedBody,
         opPendingId: id,
+        matchesPendingOp,
     });
 
     if (id == 0) {
         return; // noop
+    }
+
+    if (!matchesPendingOp) {
+        return; // unrelated bounce, error oracle should intervene with a report
     }
 
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
