@@ -7,7 +7,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup } from './BaseTest'
-import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -143,7 +143,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
             .asCell(),
         },
       ]
-      const encodedCalls = asSnakeData<rbactl.Call>(calls, (c) =>
+      const encodedCalls = asSnakedCell<rbactl.Call>(calls, (c) =>
         rbactl.builder.data.call.encode(c).asCell().asBuilder(),
       )
       const executeMsg = rbactl.builder.message.in.bypasserExecuteBatch

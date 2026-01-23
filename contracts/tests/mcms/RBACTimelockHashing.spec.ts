@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { asSnakeData } from '../../src/utils'
+import { asSnakedCell } from '../../src/utils'
 
 import { rbactl } from '../../wrappers/mcms'
 import * as counter from '../../wrappers/examples/Counter'
@@ -19,7 +19,7 @@ describe('MCMS - RBACTimelockHashingTest', () => {
   })
 
   it('should hash batch operation correctly', async () => {
-    const calls = asSnakeData<rbactl.Call>(
+    const calls = asSnakedCell<rbactl.Call>(
       [
         {
           target: baseTest.bind.counter.address,

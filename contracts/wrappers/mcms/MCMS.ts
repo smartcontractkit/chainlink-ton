@@ -14,7 +14,7 @@ import {
 import { crc32 } from 'zlib'
 import { CellCodec, sha256 } from '../utils'
 import { loadContractCode } from '../codeLoader'
-import { asSnakeData, fromSnakeData, DUMMY_ADDRESS } from '../../src/utils'
+import { asSnakedCell, fromSnakeData, DUMMY_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { loadDict, loadMap } from '../../src/utils/dict'
 import { Maybe } from '@ton/core/dist/utils/maybe'
@@ -518,7 +518,7 @@ export const builder = {
             .storeUint(opcodes.in.Execute, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.op)
-            .storeRef(asSnakeData<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
+            .storeRef(asSnakedCell<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
         },
         load: (src: Slice): Execute => {
           src.skip(32) // skip opcode
@@ -536,9 +536,9 @@ export const builder = {
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(
-              asSnakeData<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 160)), // 20 byte EVM address
+              asSnakedCell<bigint>(msg.signerAddresses, (a) => beginCell().storeUint(a, 160)), // 20 byte EVM address
             )
-            .storeRef(asSnakeData<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
+            .storeRef(asSnakedCell<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
             .storeDict(
               loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupQuorums),
             )
@@ -592,7 +592,7 @@ export const builder = {
             .storeUint(opcodes.in.SubmitErrorReport, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.op)
-            .storeRef(asSnakeData<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
+            .storeRef(asSnakedCell<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
             .storeUint(msg.opTxHash, 256)
             .storeUint(msg.errorTxHash, 256)
             .storeUint(msg.errorCode, 32)
@@ -630,7 +630,7 @@ export const builder = {
             .storeUint(opcodes.in.CleanExpiredRoots, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(
-              asSnakeData<RootDescriptor>(msg.roots, (v) =>
+              asSnakedCell<RootDescriptor>(msg.roots, (v) =>
                 beginCell().storeUint(v.root, 256).storeUint(v.validUntil, 64),
               ),
             )

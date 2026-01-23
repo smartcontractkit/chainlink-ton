@@ -126,14 +126,14 @@ type Signer struct {
 
 // SetOCR3Config represents the setOCR3Config method call on the offRamp contract
 type SetOCR3Config struct {
-	_                              tlb.Magic                                    `tlb:"#2b78359f" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID                        uint64                                       `tlb:"## 64"`
-	ConfigDigest                   []byte                                       `tlb:"bits 256"`
-	PluginType                     uint16                                       `tlb:"## 16"`
-	F                              uint8                                        `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool                                         `tlb:"bool"`
-	Signers                        ccipcommon.SnakeData[Signer]                 `tlb:"^"`
-	Transmitters                   ccipcommon.SnakeData[ccipcommon.AddressWrap] `tlb:"^"`
+	_                              tlb.Magic                                     `tlb:"#2b78359f" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                                        `tlb:"## 64"`
+	ConfigDigest                   []byte                                        `tlb:"bits 256"`
+	PluginType                     uint16                                        `tlb:"## 16"`
+	F                              uint8                                         `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                                          `tlb:"bool"`
+	Signers                        ccipcommon.SnakedCell[Signer]                 `tlb:"^"`
+	Transmitters                   ccipcommon.SnakedCell[ccipcommon.AddressWrap] `tlb:"^"`
 }
 
 // UpdateSourceChainConfig represents the updateSourceChainConfig structure
@@ -144,18 +144,18 @@ type UpdateSourceChainConfig struct {
 
 // UpdateSourceChainConfigs represents the updateSourceChainConfigs method call on the offRamp contract
 type UpdateSourceChainConfigs struct {
-	_       tlb.Magic                                     `tlb:"#22b4f05c" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID uint64                                        `tlb:"## 64"`
-	Configs ccipcommon.SnakeData[UpdateSourceChainConfig] `tlb:"^"`
+	_       tlb.Magic                                      `tlb:"#22b4f05c" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64                                         `tlb:"## 64"`
+	Configs ccipcommon.SnakedCell[UpdateSourceChainConfig] `tlb:"^"`
 }
 
 // Commit represents the commit method call on the offRamp contract
 type Commit struct {
-	_                tlb.Magic                                  `tlb:"#9d431905" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID          uint64                                     `tlb:"## 64"`
-	ConfigDigest     []byte                                     `tlb:"bits 512"`
-	CommitReport     ocr.CommitReport                           `tlb:"."`
-	SignatureEd25519 ccipcommon.SnakeData[ocr.SignatureEd25519] `tlb:"^"`
+	_                tlb.Magic                                   `tlb:"#9d431905" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID          uint64                                      `tlb:"## 64"`
+	ConfigDigest     []byte                                      `tlb:"bits 512"`
+	CommitReport     ocr.CommitReport                            `tlb:"."`
+	SignatureEd25519 ccipcommon.SnakedCell[ocr.SignatureEd25519] `tlb:"^"`
 }
 
 // Execute represents the execute method call on the offRamp contract

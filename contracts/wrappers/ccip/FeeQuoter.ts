@@ -19,7 +19,7 @@ import {
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec, StackCodec } from '../utils'
-import { asSnakeData } from '../../src/utils'
+import { asSnakedCell } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { loadContractCode } from '../codeLoader'
@@ -336,8 +336,8 @@ export const builder = (() => {
       }
       const updatePrices: CellCodec<UpdatePrices> = {
         encode: (data: UpdatePrices): Builder => {
-          const tokenPrices = asSnakeData(data.updates.tokenPricesUpdates, encodeTokenPriceUpdate)
-          const gasPrices = asSnakeData(data.updates.gasPricesUpdates, encodeGasPriceUpdate)
+          const tokenPrices = asSnakedCell(data.updates.tokenPricesUpdates, encodeTokenPriceUpdate)
+          const gasPrices = asSnakedCell(data.updates.gasPricesUpdates, encodeGasPriceUpdate)
 
           return beginCell()
             .storeUint(opcodes.in.updatePrices, 32)
@@ -355,7 +355,7 @@ export const builder = (() => {
           for (const [token, feeToken] of data.add) {
             add.set(token, feeToken.premiumMultiplierWeiPerEth)
           }
-          const remove = asSnakeData(data.remove, (addr) => new TonBuilder().storeAddress(addr))
+          const remove = asSnakedCell(data.remove, (addr) => new TonBuilder().storeAddress(addr))
 
           return beginCell()
             .storeUint(opcodes.in.updateFeeTokens, 32)
@@ -389,7 +389,7 @@ export const builder = (() => {
           return beginCell()
             .storeUint(opcodes.in.updateDestChainConfig, 32)
             .storeRef(
-              asSnakeData(updates, (update) =>
+              asSnakedCell(updates, (update) =>
                 new TonBuilder()
                   .storeUint(update.destChainSelector, 64)
                   .storeBuilder(destChainConfigToBuilder(update.config)),
@@ -490,7 +490,7 @@ export const stackBuilder = {
             { type: 'cell', cell: data.data },
             {
               type: 'cell',
-              cell: asSnakeData(data.tokenAmounts, rt.builder.data.tokenAmount.encode),
+              cell: asSnakedCell(data.tokenAmounts, rt.builder.data.tokenAmount.encode),
             },
             { type: 'slice', cell: beginCell().storeAddress(data.feeToken).endCell() },
             { type: 'cell', cell: data.extraArgs },
@@ -1017,7 +1017,7 @@ function encodeUpdateTokenTransferFeeConfig(
   updateTokenTransferFeeConfig: UpdateTokenTransferFeeConfig,
 ): Cell {
   let add = Dictionary.empty(Dictionary.Keys.Address(), TokenTransferFeeConfigDictionaryValueType())
-  let remove = asSnakeData(updateTokenTransferFeeConfig.remove, (addr) =>
+  let remove = asSnakedCell(updateTokenTransferFeeConfig.remove, (addr) =>
     new TonBuilder().storeAddress(addr),
   )
   for (const [token, tokenTransferFeeConfig] of updateTokenTransferFeeConfig.add.entries()) {
