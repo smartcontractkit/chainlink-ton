@@ -14,8 +14,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
 )
 
-// msgTypeLowerLabels maps MsgType to pre-computed lowercase strings for metrics.
-var msgTypeLowerLabels = map[tlb.MsgType]string{
+// msgTypeLabels maps MsgType to pre-computed lowercase strings for metrics.
+var msgTypeLabels = map[tlb.MsgType]string{
 	tlb.MsgTypeInternal:    "internal",
 	tlb.MsgTypeExternalIn:  "external_in",
 	tlb.MsgTypeExternalOut: "external_out",
@@ -110,12 +110,11 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 		return nil, fmt.Errorf("event extraction failed: %w", err)
 	}
 
-	// derive metric labels
-	addressLabel := msg.Msg.SenderAddr().String()
+	// derive metric label
 	opcodeLabel := fmt.Sprintf("0x%08x", eventSig)
 
 	// record message processed metric
-	lp.metrics.IncrementMsgsProcessed(ctx, msgTypeLowerLabels[msg.MsgType], addressLabel, opcodeLabel)
+	lp.metrics.IncrementMsgsProcessed(ctx, msgTypeLabels[msg.MsgType], opcodeLabel)
 
 	// skip messages that aren't valid, parseable events
 	if body == nil || eventSig == 0 {
@@ -135,7 +134,7 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 	}
 
 	// record logs matched metric
-	lp.metrics.AddLogsMatched(ctx, addressLabel, opcodeLabel, int64(len(filterIDs)))
+	lp.metrics.AddLogsMatched(ctx, msgTypeLabels[msg.MsgType], opcodeLabel, int64(len(filterIDs)))
 
 	msgLT, err := extractMsgLT(msg)
 	if err != nil {

@@ -82,12 +82,12 @@ var (
 	promTonLpMsgsProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "ton_logpoller_msgs_processed_total",
 		Help: "Total number of messages processed by parser",
-	}, []string{"chainID", "msg_type", "address", "opcode"})
+	}, []string{"chainID", "msg_type", "opcode"})
 
 	promTonLpLogsMatched = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "ton_logpoller_logs_matched_total",
 		Help: "Total number of logs matched by filters",
-	}, []string{"chainID", "address", "opcode"})
+	}, []string{"chainID", "msg_type", "opcode"})
 )
 
 // logPollerMetrics provides instrumentation for the TON LogPoller
@@ -293,22 +293,21 @@ func (m *logPollerMetrics) IncrementTxsProcessed(ctx context.Context) {
 	m.txsProcessed.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-// IncrementMsgsProcessed increments the messages processed counter with message type, address, and opcode labels
-func (m *logPollerMetrics) IncrementMsgsProcessed(ctx context.Context, msgType, address, opcode string) {
-	promTonLpMsgsProcessed.WithLabelValues(m.chainID, msgType, address, opcode).Inc()
+// IncrementMsgsProcessed increments the messages processed counter with message type and opcode labels
+func (m *logPollerMetrics) IncrementMsgsProcessed(ctx context.Context, msgType, opcode string) {
+	promTonLpMsgsProcessed.WithLabelValues(m.chainID, msgType, opcode).Inc()
 	attrs := append(m.getOtelAttributes(),
 		attribute.String("msg_type", msgType),
-		attribute.String("address", address),
 		attribute.String("opcode", opcode),
 	)
 	m.msgsProcessed.Add(ctx, 1, metric.WithAttributes(attrs...))
 }
 
-// AddLogsMatched increments the logs matched counter with address and opcode labels
-func (m *logPollerMetrics) AddLogsMatched(ctx context.Context, address, opcode string, count int64) {
-	promTonLpLogsMatched.WithLabelValues(m.chainID, address, opcode).Add(float64(count))
+// AddLogsMatched increments the logs matched counter with message type and opcode labels
+func (m *logPollerMetrics) AddLogsMatched(ctx context.Context, msgType, opcode string, count int64) {
+	promTonLpLogsMatched.WithLabelValues(m.chainID, msgType, opcode).Add(float64(count))
 	attrs := append(m.getOtelAttributes(),
-		attribute.String("address", address),
+		attribute.String("msg_type", msgType),
 		attribute.String("opcode", opcode),
 	)
 	m.logsMatched.Add(ctx, count, metric.WithAttributes(attrs...))
