@@ -28,11 +28,11 @@ import (
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
-func (a *TonAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource
 }
 
-func (a *TonAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonLaneAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsDest
 }
 

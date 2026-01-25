@@ -127,8 +127,8 @@ func TestFastCurseTON(t *testing.T) {
 	require.False(t, routerAddr.IsAddrNone(), "router address should be set")
 
 	t.Run("FastCurseAPI", func(t *testing.T) {
-		// Create and initialize the TonAdapter for fast curse
-		adapter := &sequences.TonAdapter{}
+		// Create and initialize the TonCurseAdapter for fast curse
+		adapter := &sequences.TonCurseAdapter{}
 
 		// Initialize the adapter for TON chain
 		err := adapter.Initialize(env, tonChainSelector)

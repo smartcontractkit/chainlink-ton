@@ -25,27 +25,45 @@ func init() {
 		panic(err)
 	}
 
-	adapter := &TonAdapter{}
+	// Register separate adapters for each interface
+	deploy.GetRegistry().RegisterDeployer(chainsel.FamilyTon, v, &TonDeployAdapter{})
+	lanes.GetLaneAdapterRegistry().RegisterLaneAdapter(chainsel.FamilyTon, v, &TonLaneAdapter{})
 
-	// Register adapter
-	deploy.GetRegistry().RegisterDeployer(chainsel.FamilyTon, v, adapter)
-	lanes.GetLaneAdapterRegistry().RegisterLaneAdapter(chainsel.FamilyTon, v, adapter)
+	curseAdapter := &TonCurseAdapter{}
 	fastcurse.GetCurseRegistry().RegisterNewCurse(
 		fastcurse.CurseRegistryInput{
 			CursingFamily:       chainsel.FamilyTon,
 			CursingVersion:      v,
-			CurseAdapter:        adapter,
-			CurseSubjectAdapter: adapter,
+			CurseAdapter:        curseAdapter,
+			CurseSubjectAdapter: curseAdapter,
 		},
 	)
 }
 
-type TonAdapter struct {
-	routerAddressCache map[uint64]address.Address // fast cursing cache
-	onRampAddressCache map[uint64]address.Address
+// TonDeployAdapter implements the deploy.Deployer interface for TON chains.
+type TonDeployAdapter struct{}
+
+// TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
+type TonLaneAdapter struct{}
+
+func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getOnRampAddress(ds, chainSelector)
 }
 
-func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+func (a *TonLaneAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getOffRampAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getFQAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getRouterAddress(ds, chainSelector)
+}
+
+// Standalone functions - can be used by any adapter without coupling
+func getOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
@@ -54,7 +72,7 @@ func (a *TonAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint
 	return convertAddress(stateCCIP.OnRamp)
 }
 
-func (a *TonAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+func getOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
@@ -63,7 +81,7 @@ func (a *TonAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uin
 	return convertAddress(stateCCIP.OffRamp)
 }
 
-func (a *TonAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+func getFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
@@ -72,7 +90,7 @@ func (a *TonAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) 
 	return convertAddress(stateCCIP.FeeQuoter)
 }
 
-func (a *TonAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+func getRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)

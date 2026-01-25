@@ -38,7 +38,7 @@ const defaultCCIPContractCoin = "0.05"
 // This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
-func (a *TonAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonDeployAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
 }
 
