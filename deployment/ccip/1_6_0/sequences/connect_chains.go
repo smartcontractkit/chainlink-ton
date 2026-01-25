@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -27,6 +28,25 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
+
+// TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
+type TonLaneAdapter struct{}
+
+func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getOnRampAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getOffRampAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getFQAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getRouterAddress(ds, chainSelector)
+}
 
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource

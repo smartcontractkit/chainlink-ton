@@ -40,28 +40,6 @@ func init() {
 	)
 }
 
-// TonDeployAdapter implements the deploy.Deployer interface for TON chains.
-type TonDeployAdapter struct{}
-
-// TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
-type TonLaneAdapter struct{}
-
-func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	return getOnRampAddress(ds, chainSelector)
-}
-
-func (a *TonLaneAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	return getOffRampAddress(ds, chainSelector)
-}
-
-func (a *TonLaneAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	return getFQAddress(ds, chainSelector)
-}
-
-func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
-	return getRouterAddress(ds, chainSelector)
-}
-
 // Standalone functions - can be used by any adapter without coupling
 func getOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	stateCCIP, err := tonstate.LoadCCIPOnChainStateUsingDataStore(ds, chainSelector)

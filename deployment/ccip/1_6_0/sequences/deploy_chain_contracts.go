@@ -38,6 +38,9 @@ const defaultCCIPContractCoin = "0.05"
 // This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
+// TonDeployAdapter implements the deploy.Deployer interface for TON chains.
+type TonDeployAdapter struct{}
+
 func (a *TonDeployAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
 }
