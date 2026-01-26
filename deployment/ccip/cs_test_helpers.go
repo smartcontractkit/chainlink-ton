@@ -282,14 +282,14 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 // TODO: add TokenAmounts support for TON token transfers
 // temp with 0x38a69e3b
 type CCIPSendWithOldOpCode struct {
-	_                 tlb.Magic                           `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64                              `tlb:"## 64"`
-	DestChainSelector uint64                              `tlb:"## 64"`
-	Receiver          common.CrossChainAddress            `tlb:"."`
-	Data              common.SnakeBytes                   `tlb:"^"`
-	TokenAmounts      common.SnakeRef[router.TokenAmount] `tlb:"^"`
-	FeeToken          *address.Address                    `tlb:"addr"`
-	ExtraArgs         *cell.Cell                          `tlb:"^"`
+	_                 tlb.Magic                             `tlb:"#38a69e3b"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                                `tlb:"## 64"`
+	DestChainSelector uint64                                `tlb:"## 64"`
+	Receiver          common.CrossChainAddress              `tlb:"."`
+	Data              common.SnakeBytes                     `tlb:"^"`
+	TokenAmounts      common.SnakedCell[router.TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address                      `tlb:"addr"`
+	ExtraArgs         *cell.Cell                            `tlb:"^"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
