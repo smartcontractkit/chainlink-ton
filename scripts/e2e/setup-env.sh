@@ -91,8 +91,8 @@ update_plugin_config() {
     # Note: yq removes blank lines from YAML files due to underlying go-yaml parser behavior
     # This is a known limitation: https://github.com/mikefarah/yq/issues/515
     # For preserving blank lines, diff+patch approach would be needed, but functionality is preserved
-    yq eval '.plugins.ton[0].gitRef = "'"$CURRENT_TON_COMMIT"'"' -i "$PLUGINS_FILE"
-    log_info "Updated TON plugin gitRef to: $CURRENT_TON_COMMIT"
+    yq eval '.plugins.ton[0].gitRef = "'"$BLESSED_CHAINLINK_TON_REF"'"' -i "$PLUGINS_FILE"
+    log_info "Updated TON plugin gitRef to: $BLESSED_CHAINLINK_TON_REF"
   else
     log_error "plugins.public.yaml not found at $PLUGINS_FILE"
     log_error "This file is required for plugin configuration."
@@ -100,9 +100,18 @@ update_plugin_config() {
   fi
 }
 
-# replace chainlink-ton modules with local versions in core repository
+# replace chainlink-ton modules with latest configured versions in core repository
 replace_ton_modules() {
-  log_info "Replacing chainlink-ton dependencies with local version..."
+  log_info "Replacing chainlink-ton dependencies with latest configured versions..."
+
+  # for each TON module replace with configured chainlink-ton module
+  for mod in "${!MODULES_TON[@]}"; do
+    if [ "$mod" != "$MODULE_CT" ]; then  # filter chainlink-ton root module
+      log_info "    $MODULE_CT -> ${MODULES_TON[$MODULE_CT]}"
+      go mod edit -replace="$MODULE_CT=${MODULES_TON[$MODULE_CT]}"
+      go mod tidy
+    fi
+  done
   
   # scan for go.mod files that use chainlink-ton
   find "$CHAINLINK_CORE_DIR" -name "go.mod" -type f -print0 | while IFS= read -r -d '' gomod; do
@@ -110,7 +119,7 @@ replace_ton_modules() {
     
     # check if any chainlink-ton modules are used
     needs_update=false
-    for mod in "${!TON_MODULES[@]}"; do
+    for mod in "${!MODULES_TON[@]}"; do
       if grep -q "$mod" "$gomod"; then
         needs_update=true
         break
@@ -121,10 +130,11 @@ replace_ton_modules() {
       log_info "  Updating ${dir#$CHAINLINK_CORE_DIR/}"
       
       pushd "$dir" > /dev/null
-      for mod in "${!TON_MODULES[@]}"; do
+      for mod in "${!MODULES_TON[@]}"; do
         if grep -q "$mod" go.mod; then
-          log_info "    $mod -> ${TON_MODULES[$mod]}"
-          go mod edit -replace="$mod=${TON_MODULES[$mod]}"
+          log_info "    $mod -> ${MODULES_TON[$mod]}"
+          go mod edit -replace="$mod=${MODULES_TON[$mod]}"
+          go mod tidy
         fi
       done
       popd > /dev/null
@@ -163,7 +173,7 @@ done
 CHAINLINK_CORE_DIR=$(realpath "${ARG_CORE_DIR:-$DEFAULT_CHAINLINK_CORE_DIR}")
 
 log_info "=== CHAINLINK TON CCIP - E2E Test Environment Setup ==="
-log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
+log_info "Using chainlink-ton commit: $BLESSED_CHAINLINK_TON_REF"
 
 log_info "Using Chainlink TON: $ROOT_DIR"
 validate_project_dir "$ROOT_DIR" "Chainlink TON"
@@ -203,6 +213,6 @@ log_info "export CL_DATABASE_URL=${CL_DATABASE_URL}"
 log_info "=================================="
 log_info "IMPORTANT: Please note this setup makes the following changes to chainlink core:"
 log_info "  1. Replaces chainlink-ton module dependencies with local versions"
-log_info "  2. Updates TON plugin gitRef in plugins.public.yaml to: ${CURRENT_TON_COMMIT}"
+log_info "  2. Updates TON plugin gitRef in plugins.public.yaml to: ${BLESSED_CHAINLINK_TON_REF}"
 log_info "This will use your local chainlink-ton code and submodules in the core repo."
 log_info "=================================="
