@@ -131,7 +131,7 @@ describe('RBACTimelock', () => {
     expect(rbactl.opcodes.out.ExecutorRoleCheckUpdated).toBe(0xc6d451e2)
     expect(rbactl.opcodes.out.ErrorReportSubmitted).toBe(0xdbd4c8ee)
     expect(rbactl.opcodes.out.OpFinalizationTimeoutChange).toBe(0x1f102718)
-    expect(rbactl.opcodes.out.BounceHandeled).toBe(0x3ed17038)
+    expect(rbactl.opcodes.out.BounceHandled).toBe(0x3ed17038)
   })
 
   it('should deploy', async () => {

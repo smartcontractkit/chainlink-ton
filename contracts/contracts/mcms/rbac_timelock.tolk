@@ -606,7 +606,7 @@ enum Timelock_Error {
     /// Thrown when trying to call a function on an uninitialized contract.
     ContractNotInitialized
 
-    /// Value attached to incomming message is not enough to pay for handler execution
+    /// Value attached to incoming message is not enough to pay for handler execution
     InsufficientFee
 }
 
@@ -1246,6 +1246,9 @@ fun Timelock<T>.submitErrorReport(
     // Mark op in error state (recover with new op + bypass)
     self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
+    // TODO: notify everyone in the batch about the error (message)
+    //   - opportunity to rollback, not currently supported
+
     // Check the reported error against the stored pending operation
     val matchesPendingOp = self.data.opPendingInfo.opPendingId == id;
     if (matchesPendingOp) {
@@ -1466,7 +1469,10 @@ fun onBouncedMessage(in: InMessageBounced) {
     timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
     timelock.data.opPendingInfo.validAfter = blockchain.now(); // Mark the operation as final
 
-     // Store the updated contract data
+    // TODO: notify everyone in the batch about the error (message)
+    //   - opportunity to rollback, not currently supported
+
+    // Store the updated contract data
     timelock.data.storeAsContractData();
 }
 

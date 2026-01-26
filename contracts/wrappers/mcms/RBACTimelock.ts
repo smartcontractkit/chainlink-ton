@@ -311,7 +311,7 @@ export const opcodes = {
     ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
     ErrorReportSubmitted: crc32('Timelock_ErrorReportSubmitted'),
     OpFinalizationTimeoutChange: crc32('Timelock_OpFinalizationTimeoutChange'),
-    BounceHandeled: crc32('Timelock_BounceHandled'),
+    BounceHandled: crc32('Timelock_BounceHandled'),
   },
 }
 
@@ -800,7 +800,7 @@ export enum Error {
   ContractAlreadyInitialized,
   // Thrown when trying to call a function on an uninitialized contract.
   ContractNotInitialized,
-  // Value attached to incomming message is not enough to pay for handler execution
+  // Value attached to incoming message is not enough to pay for handler execution
   InsufficientFee,
 }
 

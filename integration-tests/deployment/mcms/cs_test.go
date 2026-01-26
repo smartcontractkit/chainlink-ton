@@ -45,7 +45,7 @@ func TestDeployMCMS(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
-	version := "c9d69aa78a4731ad9ad431f2ebd562dc1b9841aa" // Jan 20, 2026
+	version := "4f7b7be09c30" // Jan 22, 2026
 
 	timelockContractSemver := semver.MustParse("0.0.3")
 	mcmsContractSemver := semver.MustParse("0.0.4")

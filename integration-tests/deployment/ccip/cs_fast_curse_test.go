@@ -78,7 +78,7 @@ func TestFastCurseTON(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
-	version := "c9d69aa78a4731ad9ad431f2ebd562dc1b9841aa" // Jan 20, 2026
+	version := "4f7b7be09c30" // Jan 22, 2026
 	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, version, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})

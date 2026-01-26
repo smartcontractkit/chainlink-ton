@@ -69,7 +69,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("TON Chain Selector:", tonSelector)
 
 	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
-	version := "c9d69aa78a4731ad9ad431f2ebd562dc1b9841aa" // Jan 20, 2026
+	version := "4f7b7be09c30" // Jan 22, 2026
 
 	// Testing DeployContracts from Tooling API, and SetOCR3Config, without calling AddLane
 	dReg := deployops.GetRegistry()
