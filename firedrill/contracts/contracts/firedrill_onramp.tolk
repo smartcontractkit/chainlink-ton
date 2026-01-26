@@ -1,0 +1,99 @@
+tolk 1.2
+
+import "../../../contracts/contracts/lib/utils.tolk"
+import "../../../contracts/contracts/ccip/onramp/events.tolk"
+import "../../../contracts/contracts/ccip/onramp/types.tolk"
+import "../../../contracts/contracts/ccip/common/types.tolk"
+import "firedrill_onramp_messages.tolk"
+import "firedrill_utils.tolk"
+
+struct FiredrillOnRamp_Storage {
+	id: uint32;
+	controlAddress: address;
+	chainSelector: uint64;
+}
+
+fun FiredrillOnRamp_Storage.load(): FiredrillOnRamp_Storage {
+	return FiredrillOnRamp_Storage.fromCell(contract.getData());
+}
+
+fun FiredrillOnRamp_Storage.store(self) {
+	return contract.setData(self.toCell());
+}
+
+fun onInternalMessage(in: InMessage) {
+	val st = lazy FiredrillOnRamp_Storage.load();
+	val msg = lazy FiredrillOnRamp_InMessage.fromSlice(in.body);
+	
+	match (msg) {
+		FiredrillOnRamp_EmitCCIPMessageSent => {
+			// Only control address can trigger emissions
+			assert(in.senderAddress == st.controlAddress, 100);
+			emitCCIPMessageSent(msg.sender, msg.sequenceNumber, st.chainSelector);
+		}
+	}
+}
+
+fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: uint64) {
+	// Create a mock message header
+	val messageId = beginCell()
+		.storeAddress(sender)
+		.storeUint(sequenceNumber, 64)
+		.endCell()
+		.hash();
+	
+	val header = RampMessageHeader {
+		messageId: messageId,
+		sourceChainSelector: chainSelector,
+		destChainSelector: chainSelector, // For firedrill, using same chain
+		sequenceNumber: sequenceNumber,
+		nonce: 1
+	};
+	
+	// Create mock message body
+	val messageBody = TVM2AnyRampMessageBody {
+		receiver: getEvmSenderReceiverAddress().toCell(),
+		data: beginCell().storeUint(123, 32).endCell(),
+		extraArgs: beginCell().endCell(),
+		tokenAmounts: beginCell().endCell(),
+		feeToken: sender,
+		feeTokenAmount: 0
+	};
+	
+	val message = TVM2AnyRampMessage {
+		header: header,
+		sender: sender,
+		body: messageBody.toCell(),
+		feeValueJuels: 0
+	};
+	
+	emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: message });
+}
+
+// Note: getStaticConfig name is kept to match EVM implementation
+// Returns chain selector to match the StaticConfig struct from EVM
+get fun staticConfig(): uint64 {
+	val st = lazy FiredrillOnRamp_Storage.load();
+	return st.chainSelector;
+}
+
+get fun dynamicConfig(): OnRamp_DynamicConfig {
+	val st = lazy FiredrillOnRamp_Storage.load();
+	return OnRamp_DynamicConfig {
+		feeQuoter: st.controlAddress,
+		feeAggregator: st.controlAddress,
+		allowlistAdmin: st.controlAddress,
+		reserve: ton("0")
+	};
+}
+
+// Getter for destination chain config
+get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
+	val st = lazy FiredrillOnRamp_Storage.load();
+	return OnRamp_DestChainConfig {
+		router: st.controlAddress,
+		sequenceNumber: 0,
+		allowlistEnabled: false,
+		allowedSenders: createEmptyMap()
+	};
+}
