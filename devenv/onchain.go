@@ -52,7 +52,7 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	if err != nil {
 		return fmt.Errorf("failed to calculate TON token price: %w", err)
 	}
-	linkTokenPrice, err := config.CCIPTokenPrice("20", 18)
+	linkTokenPrice, err := config.CCIPTokenPrice("20", 9)
 	if err != nil {
 		return fmt.Errorf("failed to calculate LINK token price: %w", err)
 	}
