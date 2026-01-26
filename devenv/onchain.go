@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/simple_node_set"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -40,12 +41,26 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 
 	// Calculate TON token price: 2 USD with 9 decimals = 2e27
 	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
-	tonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
+	oldTonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
 
 	// Calculate LINK token price: 20 USD with 9 decimals = 20e27
 	// LINK has 9 decimals on TON, same as TON
-	linkTokenPrice := big.NewInt(0).Mul(big.NewInt(20), big.NewInt(1e18))
-	linkTokenPrice = big.NewInt(0).Mul(linkTokenPrice, big.NewInt(1e9)) // Scale from 1e18 to 1e27
+	oldLinkTokenPrice := big.NewInt(0).Mul(big.NewInt(20), big.NewInt(1e18))
+	oldLinkTokenPrice = big.NewInt(0).Mul(oldLinkTokenPrice, big.NewInt(1e9)) // Scale from 1e18 to 1e27
+
+	tonTokenPrice, err := config.CCIPTokenPrice("2", 9)
+	if err != nil {
+		return fmt.Errorf("failed to calculate TON token price: %w", err)
+	}
+	linkTokenPrice, err := config.CCIPTokenPrice("20", 18)
+	if err != nil {
+		return fmt.Errorf("failed to calculate LINK token price: %w", err)
+	}
+
+	if tonTokenPrice.Cmp(oldTonTokenPrice) != 0 || linkTokenPrice.Cmp(oldLinkTokenPrice) != 0 {
+		env.Logger.Errorf("Token price calculations should match, but got:\nTON token price: expected %s, got %s\nLINK token price: expected %s, got %s\n", oldTonTokenPrice.String(), tonTokenPrice.String(), oldLinkTokenPrice.String(), linkTokenPrice.String())
+		return nil
+	}
 
 	updateConfig := operation.UpdateFeeQuoterPricesInput{
 		TokenPrices: map[string]*big.Int{
