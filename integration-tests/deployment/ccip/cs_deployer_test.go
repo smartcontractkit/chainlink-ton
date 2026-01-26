@@ -48,6 +48,7 @@ import (
 
 	mocks "github.com/smartcontractkit/chainlink-ton/deployment/mocks/client"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -68,8 +69,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("EVM Chain Selector:", evmSelector)
 	t.Log("TON Chain Selector:", tonSelector)
 
-	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
-	version := "4f7b7be09c30" // Jan 22, 2026
+	version := sequence.ContractsVersionLatestSupported
 
 	// Testing DeployContracts from Tooling API, and SetOCR3Config, without calling AddLane
 	dReg := deployops.GetRegistry()

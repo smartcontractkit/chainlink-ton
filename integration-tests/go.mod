@@ -2,6 +2,10 @@ module github.com/smartcontractkit/chainlink-ton/integration-tests
 
 go 1.25.5
 
+// Use local chainlink-ton/deployment module,
+// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
+replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/jmoiron/sqlx v1.4.0

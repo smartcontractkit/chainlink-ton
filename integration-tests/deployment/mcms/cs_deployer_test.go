@@ -15,6 +15,7 @@ import (
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -43,8 +44,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	dReg := deployops.GetRegistry()
 	mcmsRegistry := cs_ccip.GetRegistry()
 
-	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
-	version := "4f7b7be09c30" // Jan 22, 2026
+	version := sequence.ContractsVersionLatestSupported
 
 	// Note: The MCMSDeploymentConfigPerChain uses EVM-specific types (common.Address),
 	// but the TON adapter ignores these and uses the deployer address for all roles.

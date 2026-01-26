@@ -28,6 +28,7 @@ import (
 
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
@@ -87,9 +88,7 @@ func TestAddLanes(t *testing.T) {
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
-	// TODO: update with `sequence.ContractsVersionLatestSupported` once smartcontractkit/chainlink-ton/deployments is updated
-	version := "4f7b7be09c30" // Jan 22, 2026
-	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, version, contractID))
+	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsVersionLatestSupported, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
