@@ -2,7 +2,7 @@ import '@ton/test-utils'
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano, beginCell } from '@ton/core'
 
-import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 import * as coverage from '../coverage/coverage'
 
 import { mcms, rbactl } from '../../wrappers/mcms'
@@ -69,7 +69,7 @@ export class BaseTestSetup {
    */
   static singletonCalls(call: rbactl.Call): Cell {
     const calls = [call]
-    return asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c))
+    return asSnakedCell<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c))
   }
 
   /**

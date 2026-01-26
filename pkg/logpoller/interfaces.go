@@ -71,6 +71,11 @@ type LogStore interface {
 	// The LogStore is responsible for translating parameters to its optimal execution strategy.
 	// Uses chainlink-common's LimitAndSort for standardized pagination and sorting.
 	QueryLogs(ctx context.Context, query *query.LogQuery) (logs []models.Log, hasMore bool, nextCursor string, err error)
+	// GetHighestMCBlockSeqno retrieves the highest masterchain block sequence number
+	// from stored logs. Returns (seqno, exists, err) where exists indicates whether any
+	// logs are stored. This is used for resuming processing from the last known state
+	// after a service restart.
+	GetHighestMCBlockSeqno(ctx context.Context) (seqno uint32, exists bool, err error)
 }
 
 // RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)

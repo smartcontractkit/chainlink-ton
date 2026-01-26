@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -18,6 +19,13 @@ import (
 	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
+
+// globalCurseSubject is the uint128 value used to indicate a global curse.
+// Defined in contracts/contracts/ccip/rmn_remote/lib.tolk as RMNREMOTE_GLOBAL_CURSE_SUBJECT
+var globalCurseSubject = func() *big.Int {
+	subject, _ := new(big.Int).SetString("01000000000000000000000000000001", 16)
+	return subject
+}()
 
 // Note: This file contains contract configuration related methods for the TON accessor
 
@@ -93,13 +101,12 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
-	var config offramp.Config
-	if err = tvm.FetchResult(ctx, a.client, block, addr, &config, nil); err != nil {
+	config, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetConfig)
+	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
 
-	var ocr3Base offramp.OCR3Base
-	err = tvm.FetchResult(ctx, a.client, block, addr, &ocr3Base, nil)
+	ocr3Base, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetOCR3Config)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
@@ -115,8 +122,8 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		StaticConfig: ccipocr3.OffRampStaticChainConfig{
 			ChainSelector:        ccipocr3.ChainSelector(config.ChainSelector),
 			GasForCallExactCheck: 0,
-			RmnRemote:            nil, // TODO:
-			TokenAdminRegistry:   nil, // TODO:
+			RmnRemote:            nil, // Leave nil so we don't enable full RMN mode on TON, only fast curse
+			TokenAdminRegistry:   nil, // TODO: add once TON supports token transfers
 			NonceManager:         nil,
 		},
 		DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
@@ -171,9 +178,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 		return ccipocr3.SourceChainConfig{}, err
 	}
 
-	var config offramp.SourceChainConfig
-	opts := []interface{}{uint64(sourceChainSelector)}
-	err = tvm.FetchResult(ctx, a.client, block, addr, &config, opts)
+	config, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetSourceChainConfig, uint64(sourceChainSelector))
 	if err != nil {
 		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
 		var execError ton.ContractExecError
@@ -204,8 +209,8 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
-	var cfg feequoter.StaticConfig
-	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, nil); err != nil {
+	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetStaticConfig)
+	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	return ccipocr3.FeeQuoterStaticConfig{
@@ -221,8 +226,8 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
-	var cfg onramp.DynamicConfig
-	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, nil); err != nil {
+	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, onramp.GetDynamicConfig)
+	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
 	return ccipocr3.OnRampDynamicConfig{
@@ -241,9 +246,8 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
-	var cfg onramp.DestChainConfig
-	opts := []interface{}{uint64(dest)}
-	if err = tvm.FetchResult(ctx, a.client, block, addr, &cfg, opts); err != nil {
+	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, onramp.GetDestChainConfig, uint64(dest))
+	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
@@ -255,10 +259,48 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 }
 
 // GetCurseInfo retrieves curse information for RMN verification
-func (a *TONAccessor) GetCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
+func (a *TONAccessor) GetCurseInfo(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.CurseInfo, error) {
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get OffRamp address from accessor bindings: %w", err)
+	}
+	cursedSubjects, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetCursedSubjects)
+	if err != nil {
+		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get cursed subjects: %w", err)
+	}
+
+	return parseCurseInfo(cursedSubjects, dest), nil
+}
+
+// parseCurseInfo parses a list of cursed subjects and categorizes them into
+// global curse, destination curse, and cursed source chains.
+func parseCurseInfo(cursedSubjects []*big.Int, dest ccipocr3.ChainSelector) ccipocr3.CurseInfo {
+	cursedChains := make(map[ccipocr3.ChainSelector]bool, len(cursedSubjects))
+	globalCurse := false
+	destinationCurse := false
+	destAsBigInt := new(big.Int).SetUint64(uint64(dest))
+
+	for _, curse := range cursedSubjects {
+		if curse.Cmp(globalCurseSubject) == 0 {
+			globalCurse = true
+			continue
+		}
+
+		// Chain sels should fit into uint64
+		if curse.Cmp(destAsBigInt) == 0 {
+			destinationCurse = true
+			continue
+		}
+
+		// Double check the cursed subject can fit in uint64 just in case
+		if curse.IsUint64() {
+			cursedChains[ccipocr3.ChainSelector(curse.Uint64())] = true
+		}
+	}
+
 	return ccipocr3.CurseInfo{
-		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},
-		CursedDestination:  false,
-		GlobalCurse:        false,
-	}, nil
+		CursedSourceChains: cursedChains,
+		CursedDestination:  destinationCurse,
+		GlobalCurse:        globalCurse,
+	}
 }

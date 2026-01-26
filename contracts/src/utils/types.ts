@@ -32,7 +32,7 @@ export function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
   return result
 }
 
-export function asSnakeData<T>(array: T[], builderFn: (item: T) => Builder): Cell {
+export function asSnakedCell<T>(array: T[], builderFn: (item: T) => Builder): Cell {
   const cells: Builder[] = []
   let builder = beginCell()
 
@@ -74,11 +74,11 @@ export function fromSnakeData<T>(data: Cell, readerFn: (cs: Slice) => T): T[] {
 }
 
 export function asSnakeBytes(data: Buffer): Cell {
-  return asSnakeData(Array.from(data), (item: number) => new Builder().storeUint(item, 8))
+  return asSnakedCell(Array.from(data), (item: number) => new Builder().storeUint(item, 8))
 }
 
 export function asSnakeDataUint(data: bigint[] | number[], bits: number): Cell {
-  return asSnakeData(data, (item: bigint | number) => new Builder().storeUint(item, bits))
+  return asSnakedCell(data, (item: bigint | number) => new Builder().storeUint(item, bits))
 }
 
 export function isEmpty(slice: Slice): boolean {

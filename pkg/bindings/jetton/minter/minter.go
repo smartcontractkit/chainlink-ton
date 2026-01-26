@@ -11,7 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -45,7 +45,7 @@ const (
 )
 
 type MintMessage struct {
-	_           tlb.Magic                      `tlb:"#642b7d07"` //nolint:revive // (opcode) should stay uninitialized
+	_           tlb.Magic                      `tlb:"#642b7d07" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID     uint64                         `tlb:"## 64"`
 	Destination *address.Address               `tlb:"addr"`
 	TonAmount   tlb.Coins                      `tlb:"."`
@@ -53,39 +53,39 @@ type MintMessage struct {
 }
 
 type ChangeAdminMessage struct {
-	_        tlb.Magic        `tlb:"#6501f354"` //nolint:revive // (opcode) should stay uninitialized
+	_        tlb.Magic        `tlb:"#6501f354" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID  uint64           `tlb:"## 64"`
 	NewAdmin *address.Address `tlb:"addr"`
 }
 
 type ClaimAdminMessage struct {
-	_       tlb.Magic `tlb:"#fb88e119"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#fb88e119" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
 type DropAdminMessage struct {
-	_       tlb.Magic `tlb:"#7431f221"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic `tlb:"#7431f221" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
 type ChangeContentMessage struct {
-	_       tlb.Magic  `tlb:"#cb862902"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic  `tlb:"#cb862902" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	Content *cell.Cell `tlb:"^"`
 }
 
 type UpgradeMessage struct {
-	_       tlb.Magic  `tlb:"#2508d66a"` //nolint:revive // (opcode) should stay uninitialized
+	_       tlb.Magic  `tlb:"#2508d66a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	NewData *cell.Cell `tlb:"^"`
 	NewCode *cell.Cell `tlb:"^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	MintMessage{},
 	ChangeAdminMessage{},
 	ClaimAdminMessage{},
 	DropAdminMessage{},
 	ChangeContentMessage{},
 	UpgradeMessage{},
-})
+}).MustWithStorageType(InitData{})

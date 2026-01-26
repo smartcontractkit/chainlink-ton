@@ -1,9 +1,6 @@
 package offramp
 
 import (
-	"fmt"
-	"math/big"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -12,7 +9,7 @@ import (
 	ccipcommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -54,6 +51,24 @@ type DynamicConfigSet struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
+// ReceiveExecutorInitExecuteBounced represents the ReceiveExecutorInitExecuteBounced event data
+type ReceiveExecutorInitExecuteBounced struct {
+	ReceiveExecutor *address.Address `tlb:"addr"`
+	Root            *address.Address `tlb:"addr"`
+	SequenceNumber  uint64           `tlb:"## 64"`
+}
+
+// DeployableInitializeBounced represents the DeployableInitializeBounced event data
+type DeployableInitializeBounced struct {
+	DeployableAddress *address.Address `tlb:"addr"`
+}
+
+// RouteMessageBounced represents the RouteMessageBounced event data
+type RouteMessageBounced struct {
+	Router *address.Address `tlb:"addr"`
+	ExecID []byte           `tlb:"bits 192"`
+}
+
 // Storage represents the offRamp contract storage state
 type Storage struct {
 	ID                                      uint32               `tlb:"## 32"`
@@ -90,14 +105,14 @@ const CCIPReceiveOpCode = 0xb3126df1
 
 // CCIPReceive represents the CCIP message received on TON
 type CCIPReceive struct {
-	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic      `tlb:"#b3126df1" json:"-"` //nolint:revive // Ignore opcode tag
 	RootID  []byte         `tlb:"bits 192"`
 	Message Any2TVMMessage `tlb:"."`
 }
 
 // Any2TVMMessage represents a cross-chain message to TON
 type Any2TVMMessage struct {
-	MessageID           [32]byte                     `tlb:"bits 256"`
+	MessageID           []byte                       `tlb:"bits 256"`
 	SourceChainSelector uint64                       `tlb:"## 64"`
 	Sender              ccipcommon.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
 	Data                *cell.Cell                   `tlb:"^"`
@@ -111,14 +126,14 @@ type Signer struct {
 
 // SetOCR3Config represents the setOCR3Config method call on the offRamp contract
 type SetOCR3Config struct {
-	_                              tlb.Magic                                    `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
-	QueryID                        uint64                                       `tlb:"## 64"`
-	ConfigDigest                   []byte                                       `tlb:"bits 256"`
-	PluginType                     uint16                                       `tlb:"## 16"`
-	F                              uint8                                        `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool                                         `tlb:"bool"`
-	Signers                        ccipcommon.SnakeData[Signer]                 `tlb:"^"`
-	Transmitters                   ccipcommon.SnakeData[ccipcommon.AddressWrap] `tlb:"^"`
+	_                              tlb.Magic                                     `tlb:"#2b78359f" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                                        `tlb:"## 64"`
+	ConfigDigest                   []byte                                        `tlb:"bits 256"`
+	PluginType                     uint16                                        `tlb:"## 16"`
+	F                              uint8                                         `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                                          `tlb:"bool"`
+	Signers                        ccipcommon.SnakedCell[Signer]                 `tlb:"^"`
+	Transmitters                   ccipcommon.SnakedCell[ccipcommon.AddressWrap] `tlb:"^"`
 }
 
 // UpdateSourceChainConfig represents the updateSourceChainConfig structure
@@ -129,43 +144,43 @@ type UpdateSourceChainConfig struct {
 
 // UpdateSourceChainConfigs represents the updateSourceChainConfigs method call on the offRamp contract
 type UpdateSourceChainConfigs struct {
-	_       tlb.Magic                                     `tlb:"#22b4f05c"` //nolint:revive // Ignore opcode tag
-	QueryID uint64                                        `tlb:"## 64"`
-	Configs ccipcommon.SnakeData[UpdateSourceChainConfig] `tlb:"^"`
+	_       tlb.Magic                                      `tlb:"#22b4f05c" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID uint64                                         `tlb:"## 64"`
+	Configs ccipcommon.SnakedCell[UpdateSourceChainConfig] `tlb:"^"`
 }
 
 // Commit represents the commit method call on the offRamp contract
 type Commit struct {
-	_                tlb.Magic                                  `tlb:"#9d431905"` //nolint:revive // Ignore opcode tag
-	QueryID          uint64                                     `tlb:"## 64"`
-	ConfigDigest     []byte                                     `tlb:"bits 512"`
-	CommitReport     ocr.CommitReport                           `tlb:"."`
-	SignatureEd25519 ccipcommon.SnakeData[ocr.SignatureEd25519] `tlb:"^"`
+	_                tlb.Magic                                   `tlb:"#9d431905" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID          uint64                                      `tlb:"## 64"`
+	ConfigDigest     []byte                                      `tlb:"bits 512"`
+	CommitReport     ocr.CommitReport                            `tlb:"."`
+	SignatureEd25519 ccipcommon.SnakedCell[ocr.SignatureEd25519] `tlb:"^"`
 }
 
 // Execute represents the execute method call on the offRamp contract
 type Execute struct {
-	_             tlb.Magic         `tlb:"#27bdac33"` //nolint:revive // Ignore opcode tag
+	_             tlb.Magic         `tlb:"#27bdac33" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID       uint64            `tlb:"## 64"`
 	ConfigDigest  []byte            `tlb:"bits 512"`
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
 }
 
 type SetDynamicConfig struct {
-	_                                       tlb.Magic        `tlb:"#95bc5a5c"` //nolint:revive // Ignore opcode tag
+	_                                       tlb.Magic        `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID                                 uint64           `tlb:"## 64"`
 	FeeQuoter                               *address.Address `tlb:"addr"`
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
 type UpdateDeployables struct {
-	_                   tlb.Magic  `tlb:"#a015e0e2"` //nolint:revive // Ignore opcode tag
+	_                   tlb.Magic  `tlb:"#a015e0e2" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID             uint64     `tlb:"## 64"`
 	ReceiveExecutorCode *cell.Cell `tlb:"maybe ^"`
 	MerkleRootCode      *cell.Cell `tlb:"maybe ^"`
 }
 
-var TLBs = lib.MustNewTLBMap([]any{
+var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPReceive{},
 	SetOCR3Config{},
 	UpdateSourceChainConfigs{},
@@ -173,7 +188,7 @@ var TLBs = lib.MustNewTLBMap([]any{
 	Execute{},
 	SetDynamicConfig{},
 	UpdateDeployables{},
-})
+}).MustWithStorageType(Storage{})
 
 // Config types that implements getter fetching interface with rpc client
 
@@ -184,53 +199,17 @@ type OCR3Base struct {
 	Execute *OCR3Config `tlb:"maybe ^"`
 }
 
+// Deprecated: Use GetOCR3Config getter instead.
 func (c *OCR3Base) UnmarshalResult(result *ton.ExecutionResult) error {
-	// chainID (index 0)
-	chainIDInt, err := result.Int(0)
-	if err != nil {
-		return fmt.Errorf("failed to get ChainID: %w", err)
-	}
-	c.ChainID = uint8(chainIDInt.Uint64()) //nolint:gosec // this type is uint8 onchain
-
-	// commit (index 1)
-	isNil, err := result.IsNil(1)
+	res, err := GetOCR3Config.Decoder.Decode(result)
 	if err != nil {
 		return err
 	}
-	if !isNil {
-		configCell, err1 := result.Cell(1)
-		if err1 != nil {
-			return err1
-		}
-
-		var config OCR3Config
-		if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-			return fmt.Errorf("load OCR3Config from cell: %w", err)
-		}
-		c.Commit = &config
-	}
-
-	// execute (index 2)
-	isNil, err = result.IsNil(2)
-	if err != nil {
-		return err
-	}
-	if !isNil {
-		configCell, err2 := result.Cell(2)
-		if err2 != nil {
-			return err2
-		}
-
-		var config OCR3Config
-		if err = tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-			return fmt.Errorf("load OCR3Config from cell: %w", err)
-		}
-		c.Execute = &config
-	}
-
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetOCR3Config getter instead.
 func (c *OCR3Base) GetterMethodName() string {
 	return ocr3BaseGetter
 }
@@ -242,37 +221,17 @@ type Config struct {
 	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
 }
 
+// Deprecated: Use GetConfig getter instead.
 func (c *Config) UnmarshalResult(result *ton.ExecutionResult) error {
-	cs, err := result.Int(0)
+	res, err := GetConfig.Decoder.Decode(result)
 	if err != nil {
-		return fmt.Errorf("failed to get ChainSelector: %w", err)
+		return err
 	}
-
-	chainSelector := cs.Uint64()
-
-	feeQuoterAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return fmt.Errorf("failed to get feeQuoter address slice: %w", err)
-	}
-
-	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
-	if err != nil {
-		return fmt.Errorf("failed to load feeQuoter address: %w", err)
-	}
-
-	thresholdInt, err := result.Int(2)
-	if err != nil {
-		return fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
-	}
-
-	*c = Config{
-		ChainSelector:                           chainSelector,
-		FeeQuoterAddress:                        feeQuoterAddress,
-		PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()), //nolint:gosec // this type is uint32 onchain
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetConfig getter instead.
 func (c *Config) GetterMethodName() string {
 	return configGetter
 }
@@ -286,53 +245,17 @@ type SourceChainConfig struct {
 	OnRamp                    ccipcommon.CrossChainAddress `tlb:"."`
 }
 
+// Deprecated: Use GetSourceChainConfig getter instead.
 func (c *SourceChainConfig) UnmarshalResult(result *ton.ExecutionResult) error {
-	routerAddressSlice, err := result.Slice(0)
+	res, err := GetSourceChainConfig.Decoder.Decode(result)
 	if err != nil {
-		return fmt.Errorf("failed to get router address slice: %w", err)
+		return err
 	}
-	routerAddress, err := routerAddressSlice.LoadAddr()
-	if err != nil {
-		return fmt.Errorf("failed to load router address: %w", err)
-	}
-
-	isEnabledInt, err := result.Int(1)
-	if err != nil {
-		return fmt.Errorf("failed to get isEnabled: %w", err)
-	}
-	isEnabled := isEnabledInt.Cmp(big.NewInt(0)) != 0
-
-	minSeqNrInt, err := result.Int(2)
-	if err != nil {
-		return fmt.Errorf("failed to get minSeqNr: %w", err)
-	}
-	minSeqNr := minSeqNrInt.Uint64()
-
-	isRMNDisabledInt, err := result.Int(3)
-	if err != nil {
-		return fmt.Errorf("failed to get isRMNVerificationDisabled: %w", err)
-	}
-	isRMNVerificationDisabled := isRMNDisabledInt.Cmp(big.NewInt(0)) != 0
-
-	onRampSlice, err := result.Slice(4)
-	if err != nil {
-		return fmt.Errorf("failed to get onRamp slice: %w", err)
-	}
-	onRamp, err := ccipcommon.LoadCrossChainAddressWithoutPrefix(onRampSlice)
-	if err != nil {
-		return fmt.Errorf("failed to parse onRamp: %w", err)
-	}
-
-	*c = SourceChainConfig{
-		Router:                    routerAddress,
-		IsEnabled:                 isEnabled,
-		MinSeqNr:                  minSeqNr,
-		IsRMNVerificationDisabled: isRMNVerificationDisabled,
-		OnRamp:                    onRamp,
-	}
+	*c = res
 	return nil
 }
 
+// Deprecated: Use GetSourceChainConfig getter instead.
 func (c *SourceChainConfig) GetterMethodName() string {
 	return srcChainConfigGetter
 }
@@ -372,7 +295,9 @@ const (
 
 // Getter method names for binding fetchers
 const (
-	srcChainConfigGetter = "sourceChainConfig"
-	ocr3BaseGetter       = "ocr3Config"
-	configGetter         = "config"
+	srcChainConfigGetter       = "sourceChainConfig"
+	ocr3BaseGetter             = "ocr3Config"
+	configGetter               = "config"
+	sourceChainSelectorsGetter = "sourceChainSelectors"
+	cursedSubjectsGetter       = "cursedSubjects"
 )

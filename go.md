@@ -143,8 +143,6 @@ flowchart LR
 	chainlink-evm --> chainlink-protos/svr
 	chainlink-evm --> chainlink-tron/relayer
 	click chainlink-evm href "https://github.com/smartcontractkit/chainlink-evm"
-	chainlink-evm/contracts/cre/gobindings
-	click chainlink-evm/contracts/cre/gobindings href "https://github.com/smartcontractkit/chainlink-evm"
 	chainlink-evm/gethwrappers
 	click chainlink-evm/gethwrappers href "https://github.com/smartcontractkit/chainlink-evm"
 	chainlink-evm/gethwrappers/helpers
@@ -161,14 +159,8 @@ flowchart LR
 	click chainlink-framework/multinode href "https://github.com/smartcontractkit/chainlink-framework"
 	chainlink-protos/billing/go
 	click chainlink-protos/billing/go href "https://github.com/smartcontractkit/chainlink-protos"
-	chainlink-protos/chainlink-ccv/committee-verifier
-	click chainlink-protos/chainlink-ccv/committee-verifier href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/chainlink-ccv/go
 	click chainlink-protos/chainlink-ccv/go href "https://github.com/smartcontractkit/chainlink-protos"
-	chainlink-protos/chainlink-ccv/message-discovery
-	click chainlink-protos/chainlink-ccv/message-discovery href "https://github.com/smartcontractkit/chainlink-protos"
-	chainlink-protos/chainlink-ccv/verifier
-	click chainlink-protos/chainlink-ccv/verifier href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/cre/go
 	click chainlink-protos/cre/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/job-distributor
@@ -219,7 +211,6 @@ flowchart LR
 	chainlink-ton --> chainlink-framework/metrics
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/deployment --> chainlink-ccip/deployment
-	chainlink-ton/deployment --> chainlink-ton
 	click chainlink-ton/deployment href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/devenv --> chainlink-ton/deployment
 	click chainlink-ton/devenv href "https://github.com/smartcontractkit/chainlink-ton"
@@ -232,7 +223,6 @@ flowchart LR
 	chainlink-tron/relayer --> chainlink-common/pkg/values
 	click chainlink-tron/relayer href "https://github.com/smartcontractkit/chainlink-tron"
 	chainlink/deployment --> ccip-contract-examples/chains/evm
-	chainlink/deployment --> chainlink-protos/chainlink-ccv/go
 	chainlink/deployment --> chainlink-sui/deployment
 	chainlink/deployment --> chainlink-testing-framework/lib
 	chainlink/deployment --> chainlink-ton/deployment
@@ -242,11 +232,8 @@ flowchart LR
 	chainlink/v2 --> chainlink-ccv
 	chainlink/v2 --> chainlink-data-streams
 	chainlink/v2 --> chainlink-evm
-	chainlink/v2 --> chainlink-evm/contracts/cre/gobindings
 	chainlink/v2 --> chainlink-feeds
-	chainlink/v2 --> chainlink-protos/chainlink-ccv/committee-verifier
-	chainlink/v2 --> chainlink-protos/chainlink-ccv/message-discovery
-	chainlink/v2 --> chainlink-protos/chainlink-ccv/verifier
+	chainlink/v2 --> chainlink-protos/chainlink-ccv/go
 	chainlink/v2 --> chainlink-protos/orchestrator
 	chainlink/v2 --> chainlink-solana
 	chainlink/v2 --> chainlink-sui
@@ -276,6 +263,7 @@ flowchart LR
 	mcms --> chainlink-ccip/chains/solana
 	mcms --> chainlink-sui
 	mcms --> chainlink-testing-framework/framework
+	mcms --> chainlink-ton
 	click mcms href "https://github.com/smartcontractkit/mcms"
 	quarantine
 	click quarantine href "https://github.com/smartcontractkit/quarantine"
@@ -316,7 +304,6 @@ flowchart LR
 
 	subgraph chainlink-evm-repo[chainlink-evm]
 		 chainlink-evm
-		 chainlink-evm/contracts/cre/gobindings
 		 chainlink-evm/gethwrappers
 		 chainlink-evm/gethwrappers/helpers
 	end
@@ -332,10 +319,7 @@ flowchart LR
 
 	subgraph chainlink-protos-repo[chainlink-protos]
 		 chainlink-protos/billing/go
-		 chainlink-protos/chainlink-ccv/committee-verifier
 		 chainlink-protos/chainlink-ccv/go
-		 chainlink-protos/chainlink-ccv/message-discovery
-		 chainlink-protos/chainlink-ccv/verifier
 		 chainlink-protos/cre/go
 		 chainlink-protos/job-distributor
 		 chainlink-protos/linking-service/go

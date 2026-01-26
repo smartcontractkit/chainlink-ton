@@ -6,7 +6,7 @@ import { crc32 } from 'zlib'
 import * as coverage from '../coverage/coverage'
 import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
-import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 import { errorCode } from '../../wrappers/utils'
 
 describe('RBACTimelock', () => {
@@ -543,7 +543,7 @@ describe('RBACTimelock', () => {
       },
     ]
     const op = {
-      calls: asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c)),
+      calls: asSnakedCell<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c)),
       predecessor: predecessor,
       salt: salt,
     }

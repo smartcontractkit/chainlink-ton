@@ -1,15 +1,15 @@
 import "storage"
 import "../../../lib/receiver/messages"
 
-type Receiver_InMessage = 
+type TestReceiver_InMessage = 
     | Receiver_CCIPReceive 
-    | Receiver_UpdateBehavior
-    | Receiver_UpdateAuthorizedCaller;
+    | TestReceiver_UpdateBehavior
+    | TestReceiver_UpdateAuthorizedCaller;
 
-struct (0x14d3fadb) Receiver_UpdateBehavior {
-    behavior: ReceiverBehavior
+struct (0xcf87a147) TestReceiver_UpdateBehavior {
+    behavior: TestReceiverBehavior
 }
 
-struct (0xaf9950c5) Receiver_UpdateAuthorizedCaller {
+struct (0x9f5e489f) TestReceiver_UpdateAuthorizedCaller {
     authorizedCaller: address
 }

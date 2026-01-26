@@ -6,16 +6,18 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type OffRampSourceUpdate struct {
@@ -31,19 +33,22 @@ type UpdateOffRampSourcesInput struct {
 }
 
 var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
-	"update-offramp-source-chain-configs",
+	"ton/ops/ccip/offramp/update-source-chain-configs",
 	semver.MustParse("0.1.0"),
 	"Updates offramp's source chain configs",
 	updateOffRampSourceChainConfigs,
 )
 
-func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, in UpdateOffRampSourcesInput) (*helpers.Transactions, error) {
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+func updateOffRampSourceChainConfigs(b operations.Bundle, dp *dep.DependencyProvider, in UpdateOffRampSourcesInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
 
 	if len(in.Updates) == 0 {
 		b.Logger.Info("Skipping offramp.updateOffRampSourceChainConfigs, no updates")
 		// Nothing to update
-		return helpers.NewEmptyTransactions(), nil
+		return nil, nil
 	}
 
 	configs := make([]offramp.UpdateSourceChainConfig, 0, len(in.Updates))
@@ -52,11 +57,10 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 			return nil, errors.New("onramp.UpdateSourceChainConfigs: OnRamp address should not be nil")
 		}
 
-		router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 		configs = append(configs, offramp.UpdateSourceChainConfig{
 			SourceChainSelector: selector,
 			Config: offramp.SourceChainConfig{
-				Router:                    &router,
+				Router:                    &stateCCIP.Router,
 				IsEnabled:                 update.IsEnabled,
 				IsRMNVerificationDisabled: update.IsRMNVerificationDisabled,
 				OnRamp:                    update.OnRamp,
@@ -72,15 +76,14 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps config.CCIPDeps, 
 		return nil, err
 	}
 
-	messages := []*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &addr,
+			DstAddr: &stateCCIP.OffRamp,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }
 
 // PluginType represents the type of CCIP plugin.
@@ -102,14 +105,17 @@ type OCR3ConfigArgs struct {
 }
 
 var SetOCR3ConfigOp = operations.NewOperation(
-	"update-offramp-ocr3-config",
+	"ton/ops/ccip/offramp/set-ocr3-config",
 	semver.MustParse("0.1.0"),
 	"Updates offramp's OCR3 config",
 	setOCR3Config,
 )
 
-func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs) (*helpers.Transactions, error) {
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+func setOCR3Config(b operations.Bundle, dp *dep.DependencyProvider, in OCR3ConfigArgs) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
 
 	signers := make([]offramp.Signer, 0, len(in.Signers))
 	for _, signer := range in.Signers {
@@ -135,8 +141,8 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		PluginType:                     uint16(in.PluginType),
 		F:                              in.F,
 		IsSignatureVerificationEnabled: in.IsSignatureVerificationEnabled,
-		Signers:                        common.SnakeData[offramp.Signer](signers),
-		Transmitters:                   common.SnakeData[common.AddressWrap](transmitters),
+		Signers:                        signers,
+		Transmitters:                   transmitters,
 	}
 
 	payload, err := tlb.ToCell(input)
@@ -144,13 +150,12 @@ func setOCR3Config(b operations.Bundle, deps config.CCIPDeps, in OCR3ConfigArgs)
 		return nil, err
 	}
 
-	messages := []*tlb.InternalMessage{
+	return tlbe.ManyCellsFrom([]tlb.InternalMessage{
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
-			DstAddr: &addr,
+			DstAddr: &stateCCIP.OffRamp,
 			Body:    payload,
 		},
-	}
-	return helpers.NewTransactions(messages)
+	})
 }

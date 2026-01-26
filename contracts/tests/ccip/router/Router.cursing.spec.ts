@@ -14,7 +14,7 @@ import {
   contractsCoverageConfig,
 } from './Router.Setup'
 
-describe('Router', () => {
+describe('Router.cursing', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let sender: SandboxContract<TreasuryContract>
@@ -77,6 +77,8 @@ describe('Router', () => {
       })
 
       await verifyNotCursed(router, deployer, false)
+      const cursedSubjects = await router.getCursedSubjects()
+      expect(cursedSubjects).toEqual([CHAINSEL_EVM_TEST_90000001])
     }
 
     // Fail router.ccipSend
@@ -113,6 +115,8 @@ describe('Router', () => {
       })
 
       await verifyNotCursed(router, deployer, true)
+      const cursedSubjects = await router.getCursedSubjects()
+      expect(cursedSubjects).toEqual([])
     }
 
     // Succeed router.ccipSend

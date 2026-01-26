@@ -68,6 +68,11 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
   [CCIPLogs.LogTypes.Cursed]: CCIPLogs.Cursed
   [CCIPLogs.LogTypes.Uncursed]: CCIPLogs.Uncursed
+  [CCIPLogs.LogTypes
+    .ReceiveExecutorInitExecuteBounced]: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>
+  [CCIPLogs.LogTypes.DeployableInitializeBounced]: DeepPartial<CCIPLogs.DeployableInitializeBounced>
+  [CCIPLogs.LogTypes.RouteMessageBounced]: DeepPartial<CCIPLogs.RouteMessageBounced>
+  [CCIPLogs.LogTypes.MessageToOffRampBounced]: DeepPartial<CCIPLogs.MessageToOffRampBounced>
 }
 
 // union of the keys of that map
@@ -128,6 +133,26 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
 
   [CCIPLogs.LogTypes.Uncursed]: (x, from, match) =>
     testLogRMNRemoteUncursed(x, from, match as CCIPLogs.Uncursed),
+
+  [CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced]: (x, from, match) =>
+    testLogReceiveExecutorInitExecuteBounced(
+      x,
+      from,
+      match as DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>,
+    ),
+
+  [CCIPLogs.LogTypes.DeployableInitializeBounced]: (x, from, match) =>
+    testLogDeployableInitializeBounced(
+      x,
+      from,
+      match as DeepPartial<CCIPLogs.DeployableInitializeBounced>,
+    ),
+
+  [CCIPLogs.LogTypes.RouteMessageBounced]: (x, from, match) =>
+    testLogRouteMessageBounced(x, from, match as DeepPartial<CCIPLogs.RouteMessageBounced>),
+
+  [CCIPLogs.LogTypes.MessageToOffRampBounced]: (x, from, match) =>
+    testLogMessageToOffRampBounced(x, from, match as DeepPartial<CCIPLogs.MessageToOffRampBounced>),
 }
 
 // assertLog delegates via the handler table
@@ -441,6 +466,70 @@ export const testLogDestChainConfigUpdated = (
     const msg = {
       destChainSelector: cs.loadUintBig(64),
       config: onramp.builder.data.destChainConfig.load(cs),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+export const testLogReceiveExecutorInitExecuteBounced = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      receiveExecutor: cs.loadAddress(),
+      root: cs.loadAddress(),
+      sequenceNumber: cs.loadUintBig(64),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+export const testLogDeployableInitializeBounced = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.DeployableInitializeBounced>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.DeployableInitializeBounced, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      deployableAddress: cs.loadAddress(),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+export const testLogRouteMessageBounced = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.RouteMessageBounced>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.RouteMessageBounced, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      router: cs.loadAddress(),
+      execId: cs.loadUintBig(192),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+export const testLogMessageToOffRampBounced = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.MessageToOffRampBounced>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.MessageToOffRampBounced, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      offRamp: cs.loadAddress(),
+      execId: cs.loadUintBig(192),
     }
     matchesObject(msg, match)
     return true

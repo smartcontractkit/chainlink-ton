@@ -128,8 +128,21 @@ describe('OnRamp - WithdrawFeeTokens', () => {
       inMessageBounced: true,
     })
 
+    const tx = result.transactions.find(
+      (t) =>
+        t.inMessage?.info.type === 'internal' &&
+        t.inMessage.info.dest.equals(onramp.address) &&
+        t.description.type === 'generic',
+    )
+    if (!tx) {
+      throw new Error('Expected transaction not found')
+    }
+    if (tx.description.type !== 'generic') {
+      throw new Error('Expected generic transaction description')
+    }
+
     const newBalance = (await blockchain.getContract(onramp.address)).balance
-    expect(newBalance).toBe(prevBalance) // Balance should remain unchanged
+    expect(newBalance).toBe(prevBalance - (tx.description.storagePhase?.storageFeesCollected ?? 0n)) // Balance should remain unchanged except from rent fees
   })
 
   it('should get reserve', async () => {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tl"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
@@ -38,17 +39,17 @@ func (lp *service) getMasterchainCurrentBlock(ctx context.Context) (*ton.BlockID
 // Returns nil if there are no new blocks to process (chain is idle).
 // The currentMasterchainBlock parameter should be obtained from getMasterchainCurrentBlock().
 func (lp *service) getBlockRange(ctx context.Context, currentMasterchainBlock *ton.BlockIDExt) (*models.BlockRange, error) {
-	lastProcessedBlockSeqNo, err := lp.getLastProcessedBlockSeqNo(currentMasterchainBlock)
+	checkpointSeqNo, err := lp.getOrComputeCheckpointSeqNo(ctx, currentMasterchainBlock)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last processed block: %w", err)
+		return nil, fmt.Errorf("failed to get checkpoint seqno: %w", err)
 	}
 
 	// if we've already processed this block, wait for the next one (chain is idle)
-	if currentMasterchainBlock.SeqNo <= lastProcessedBlockSeqNo {
+	if currentMasterchainBlock.SeqNo <= checkpointSeqNo {
 		return nil, nil
 	}
 
-	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlockSeqNo, currentMasterchainBlock)
+	prevBlock, err := lp.resolvePreviousBlock(ctx, checkpointSeqNo, currentMasterchainBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
@@ -56,37 +57,46 @@ func (lp *service) getBlockRange(ctx context.Context, currentMasterchainBlock *t
 	return &models.BlockRange{Prev: prevBlock, To: currentMasterchainBlock}, nil
 }
 
-// getLastProcessedBlockSeqNo retrieves the last processed masterchain sequence number.
-// If no previous block has been processed, it uses the lookback window to determine
-// an appropriate starting point to avoid missing recent events.
-func (lp *service) getLastProcessedBlockSeqNo(currentMasterchainBlock *ton.BlockIDExt) (uint32, error) {
+// getOrComputeCheckpointSeqNo returns the masterchain sequence number to resume processing from.
+// Priority order:
+// 1. In-memory lastProcessedBlockSeqNo (from previous poll iterations)
+// 2. Database (highest master_block_seqno from stored logs - for service restart resumption)
+// 3. Lookback window calculation (for fresh start)
+func (lp *service) getOrComputeCheckpointSeqNo(ctx context.Context, currentMasterchainBlock *ton.BlockIDExt) (uint32, error) {
+	// Check in-memory state first (fastest)
 	lastProcessed := lp.lastProcessedBlockSeqNo
 	if lastProcessed > 0 {
 		lp.lggr.Debugw("Resuming from last processed block", "seqNo", lastProcessed)
 		return lastProcessed, nil
 	}
 
-	// TODO: get the latest processed seqno from log table when persistent storage is implemented
-	// TODO: need to implement a separate routine to fetch and cache the masterchain seqno from shard block in each message
+	// try to resume from database on service restart
+	dbSeqno, exists, err := lp.logStore.GetHighestMCBlockSeqno(ctx)
+	if err != nil {
+		lp.lggr.Warnw("Failed to query latest master block seqno from database, falling back to lookback window",
+			"err", err)
+	} else if exists {
+		if dbSeqno != 0 {
+			lp.lggr.Infow("Resuming from database state", "masterBlockSeqno", dbSeqno, "currentSeqNo", currentMasterchainBlock.SeqNo)
+			return dbSeqno, nil
+		}
+		lp.lggr.Warnw("Highest master_block_seqno is 0, falling back to lookback window",
+			"currentSeqNo", currentMasterchainBlock.SeqNo)
+	}
 
+	// fresh start: use lookback window
 	if currentMasterchainBlock.SeqNo == 0 {
-		// localnet genesis
 		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
 	lookbackSeqNo := computeLookbackWindow(currentMasterchainBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
-	if lookbackSeqNo > lastProcessed {
-		blocksToProcess := currentMasterchainBlock.SeqNo - lookbackSeqNo
-		lp.lggr.Debugw("Starting from lookback window",
-			"fromSeqNo", lookbackSeqNo,
-			"toSeqNo", currentMasterchainBlock.SeqNo,
-			"blocksToProcess", blocksToProcess,
-		)
-		return lookbackSeqNo, nil
-	}
-
-	return lastProcessed, nil
+	lp.lggr.Debugw("Starting from lookback window",
+		"fromSeqNo", lookbackSeqNo,
+		"toSeqNo", currentMasterchainBlock.SeqNo,
+		"blocksToProcess", currentMasterchainBlock.SeqNo-lookbackSeqNo,
+	)
+	return lookbackSeqNo, nil
 }
 
 // lookupBlock retrieves a block by sequence number using the current masterchain block's workchain and shard.
@@ -130,4 +140,66 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 	}
 
 	return lookbackSeqNo
+}
+
+// resolveMCBlockSeqNo returns the masterchain block sequence number that finalized the given shard block.
+// Results are cached to optimize batch processing where multiple transactions share the same shard block.
+func (lp *service) resolveMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockIDExt) (uint32, error) {
+	if shardBlock == nil {
+		return 0, errors.New("shardBlock is nil")
+	}
+
+	// transaction blocks should always be shard blocks, not masterchain blocks
+	if shardBlock.Workchain == address.MasterchainID {
+		return 0, errors.New("unexpected masterchain block: transaction blocks should be shard blocks")
+	}
+
+	key := shardBlockKey(shardBlock)
+
+	if seqno, ok := lp.mcBlockCache.Get(key); ok {
+		return seqno, nil
+	}
+
+	mcSeqNo, err := lp.fetchMCBlockSeqNo(ctx, shardBlock)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch masterchain block seqno for %s: %w", key, err)
+	}
+
+	lp.mcBlockCache.Add(key, mcSeqNo)
+
+	return mcSeqNo, nil
+}
+
+// fetchMCBlockSeqNo queries liteserver for the masterchain block that finalized the given shard block.
+// Uses GetShardBlockProof which directly returns the masterchain block ID.
+func (lp *service) fetchMCBlockSeqNo(ctx context.Context, shardBlock *ton.BlockIDExt) (uint32, error) {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get client: %w", err)
+	}
+
+	var resp tl.Serializable
+	err = client.Client().QueryLiteserver(ctx, ton.GetShardBlockProof{
+		ID: shardBlock,
+	}, &resp)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query shard block proof: %w", err)
+	}
+
+	switch t := resp.(type) {
+	case ton.ShardBlockProof:
+		if t.MasterchainID == nil {
+			return 0, errors.New("MasterchainID is nil in shard block proof")
+		}
+		return t.MasterchainID.SeqNo, nil
+	case ton.LSError:
+		return 0, fmt.Errorf("liteserver error: code=%d, msg=%s", t.Code, t.Text)
+	default:
+		return 0, fmt.Errorf("unexpected response type: %T", resp)
+	}
+}
+
+// shardBlockKey generates a unique cache key for a shard block
+func shardBlockKey(block *ton.BlockIDExt) string {
+	return fmt.Sprintf("%d:%d:%d", block.Workchain, block.Shard, block.SeqNo)
 }

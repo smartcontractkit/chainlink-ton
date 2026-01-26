@@ -40,8 +40,9 @@ func (rs ReplayStatus) String() string {
 type TxHash [32]byte // transaction hash
 
 type Tx struct {
-	Transaction *tlb.Transaction // raw TON transaction from blockchain
-	Block       *ton.BlockIDExt  // block metadata
+	Transaction  *tlb.Transaction // raw TON transaction from blockchain
+	Block        *ton.BlockIDExt  // shard block metadata (workchain 0)
+	MCBlockSeqno uint32           // masterchain block seqno that finalized this shard block
 }
 
 // BlockRange represents a range of blocks to process
@@ -72,20 +73,20 @@ type Filter struct {
 }
 
 type Log struct {
-	ID               int64            // Unique identifier for the log entry.
-	FilterID         int64            // Identifier of the filter that matched this log.
-	ChainID          string           // ChainID of the blockchain where the log was generated.
-	Address          *address.Address // Source contract address associated with the log entry.
-	EventSig         uint32           // EventSig is a identifier for the event log(topic in external out messages, opcode in internal messages).
-	Data             *cell.Cell       // Event msg body containing the log data.
-	TxHash           TxHash           // Transaction hash for uniqueness within the blockchain.
-	TxLT             uint64           // Logical time (LT) of the transaction, used for ordering and uniqueness.
-	TxTimestamp      time.Time        // Timestamp of the transaction that generated the log.
-	Block            *ton.BlockIDExt  // Shard block metadata
-	MasterBlockSeqno uint32           // Masterchain block sequence number
-	MsgLT            uint64           // Message logical time for ordering
-	MsgIndex         int64            // Index of the message within the transaction (0, 1, 2, ...)
-	Error            error            // Optional error associated with the log entry.
+	ID           int64            // Unique identifier for the log entry.
+	FilterID     int64            // Identifier of the filter that matched this log.
+	ChainID      string           // ChainID of the blockchain where the log was generated.
+	Address      *address.Address // Source contract address associated with the log entry.
+	EventSig     uint32           // EventSig is a identifier for the event log(topic in external out messages, opcode in internal messages).
+	Data         *cell.Cell       // Event msg body containing the log data.
+	TxHash       TxHash           // Transaction hash for uniqueness within the blockchain.
+	TxLT         uint64           // Logical time (LT) of the transaction, used for ordering and uniqueness.
+	TxTimestamp  time.Time        // Timestamp of the transaction that generated the log.
+	Block        *ton.BlockIDExt  // Shard block metadata
+	MCBlockSeqno uint32           // Masterchain block sequence number
+	MsgLT        uint64           // Message logical time for ordering
+	MsgIndex     int64            // Index of the message within the transaction (0, 1, 2, ...)
+	Error        error            // Optional error associated with the log entry.
 }
 
 // TypedLog represents a log entry with its parsed data.
@@ -113,7 +114,7 @@ func (l Log) String() string {
 		sb.WriteString("  Data (BOC):   <nil>\n")
 	}
 	sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
-	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MasterBlockSeqno))
+	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MCBlockSeqno))
 	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
 
 	return sb.String()
@@ -124,6 +125,14 @@ func (l TypedLog[T]) String() string {
 	sb.WriteString(l.Log.String())
 	sb.WriteString(fmt.Sprintf("  Typed Data:   %v\n", l.TypedData))
 	return sb.String()
+}
+
+// Validate checks if the log is valid for the given expected chainID.
+func (l Log) Validate(expectedChainID string) error {
+	if l.ChainID != expectedChainID {
+		return fmt.Errorf("invalid chainID: got %v, want %v", l.ChainID, expectedChainID)
+	}
+	return nil
 }
 
 // FilterIndex maps filter key strings to matching filter IDs for efficient O(1) lookup

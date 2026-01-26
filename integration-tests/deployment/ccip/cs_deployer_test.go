@@ -9,14 +9,14 @@ import (
 	"testing"
 
 	chainselectors "github.com/smartcontractkit/chain-selectors"
-	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
-	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/ton"
 	"google.golang.org/grpc"
+
+	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
@@ -35,6 +35,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"

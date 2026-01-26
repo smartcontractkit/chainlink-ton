@@ -9,12 +9,10 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
 )
 
 // parseTransactions spawns goroutines to parse transactions in parallel.
@@ -35,7 +33,7 @@ func (lp *service) parseTransactions(
 		for tx := range txsIn {
 			txCount.Add(1)
 			wg.Go(func() {
-				logs, err := lp.parseTx(tx.Transaction, tx.Block, chainID, filterIndex)
+				logs, err := lp.parseTx(tx, chainID, filterIndex)
 				if err != nil {
 					errsOut <- fmt.Errorf("failed to process tx %x: %w", tx.Transaction.Hash, err)
 					return
@@ -61,33 +59,33 @@ func (lp *service) parseTransactions(
 }
 
 // parseTx handles a single transaction
-func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
-	if tx == nil {
+func (lp *service) parseTx(tx models.Tx, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+	if tx.Transaction == nil {
 		return nil, errors.New("transaction is nil")
 	}
 
 	// validate block metadata is present - required for log storage
-	if block == nil {
+	if tx.Block == nil {
 		return nil, errors.New("block is nil")
 	}
 
-	if tx.IO.Out == nil {
+	if tx.Transaction.IO.Out == nil {
 		// this should never happen, since we filter out transactions without output messages in the loader
 		return nil, errors.New("transaction has no output messages")
 	}
 
 	var allLogs []models.Log
 
-	msgs, err := tx.IO.Out.ToSlice()
+	msgs, err := tx.Transaction.IO.Out.ToSlice()
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract messages from transaction: %w", err)
 	}
 
 	for msgIndex, msg := range msgs {
-		logs, err := lp.parseMessage(&msg, msgIndex, tx, block, chainID, filterIndex)
+		logs, err := lp.parseMessage(&msg, msgIndex, tx, chainID, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
-			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Hash, "msgIndex", msgIndex, "err", err)
+			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Transaction.Hash, "msgIndex", msgIndex, "err", err)
 			continue
 		}
 		allLogs = append(allLogs, logs...)
@@ -96,7 +94,7 @@ func (lp *service) parseTx(tx *tlb.Transaction, block *ton.BlockIDExt, chainID s
 }
 
 // parseMessage handles a single message within a transaction
-func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	// guard clauses for initial validation and early exit
 	if msg == nil || msg.Msg == nil {
 		return nil, errors.New("message or message content is nil")
@@ -133,18 +131,18 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx *tlb.Transact
 			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
 		}
 		logs[i] = models.Log{
-			ChainID:          chainID,
-			FilterID:         filterID,
-			EventSig:         eventSig,
-			Address:          msg.Msg.SenderAddr(),
-			Data:             body,
-			TxHash:           models.TxHash(tx.Hash),
-			TxLT:             tx.LT,
-			TxTimestamp:      time.Unix(int64(tx.Now), 0).UTC(),
-			Block:            block,
-			MasterBlockSeqno: 0, // TODO: populate MasterBlockSeqno
-			MsgLT:            msgLT,
-			MsgIndex:         int64(msgIndex),
+			ChainID:      chainID,
+			FilterID:     filterID,
+			EventSig:     eventSig,
+			Address:      msg.Msg.SenderAddr(),
+			Data:         body,
+			TxHash:       models.TxHash(tx.Transaction.Hash),
+			TxLT:         tx.Transaction.LT,
+			TxTimestamp:  time.Unix(int64(tx.Transaction.Now), 0).UTC(),
+			Block:        tx.Block,
+			MCBlockSeqno: tx.MCBlockSeqno,
+			MsgLT:        msgLT,
+			MsgIndex:     int64(msgIndex),
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)
 			// scope: event extraction errors (BOC decode failures, unsupported message types)

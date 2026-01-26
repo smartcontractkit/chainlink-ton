@@ -18,6 +18,10 @@ export const LogTypes = {
   OffRampRemoved: `OffRampRemoved`,
   Cursed: 'Cursed',
   Uncursed: 'Uncursed',
+  ReceiveExecutorInitExecuteBounced: 'ReceiveExecutorInitExecuteBounced',
+  DeployableInitializeBounced: 'DeployableInitializeBounced',
+  RouteMessageBounced: 'RouteMessageBounced',
+  MessageToOffRampBounced: 'MessageToOffRampBounced',
 } as const
 
 export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
@@ -37,6 +41,10 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   OffRampRemoved: crc32('OffRampRemoved'),
   Cursed: crc32('Cursed'),
   Uncursed: crc32('Uncursed'),
+  ReceiveExecutorInitExecuteBounced: crc32('ReceiveExecutorInitExecuteBounced'),
+  DeployableInitializeBounced: crc32('DeployableInitializeBounced'),
+  RouteMessageBounced: crc32('RouteMessageBounced'),
+  MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
 }
 
 export type CommitReportAccepted = {
@@ -94,4 +102,24 @@ export type Cursed = {
 
 export type Uncursed = {
   subject: bigint
+}
+
+export type ReceiveExecutorInitExecuteBounced = {
+  receiveExecutor: Address
+  root: Address
+  sequenceNumber: bigint
+}
+
+export type DeployableInitializeBounced = {
+  deployableAddress: Address
+}
+
+export type RouteMessageBounced = {
+  router: Address
+  execId: bigint
+}
+
+export type MessageToOffRampBounced = {
+  offRamp: Address
+  execId: bigint
 }

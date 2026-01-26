@@ -66,25 +66,25 @@ func (f filterModel) ToFilter() (lptypes.Filter, error) {
 
 // logModel represents the 'ton.log_poller_logs' table schema.
 type logModel struct {
-	ID               int64     `db:"id"`
-	FilterID         int64     `db:"filter_id"`
-	ChainID          string    `db:"chain_id"`
-	Address          []byte    `db:"address"`      // TON address in raw byte format
-	EventSig         []byte    `db:"event_sig"`    // CRC32 hash as 4-byte binary
-	DataHeader       []byte    `db:"data_header"`  // BOC header (variable size)
-	DataPayload      []byte    `db:"data_payload"` // BOC payload (cell descriptor + data)
-	TxHash           []byte    `db:"tx_hash"`
-	TxLT             string    `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
-	TxTimestamp      time.Time `db:"tx_timestamp"`
-	MsgLT            string    `db:"msg_lt"` // msg_lt is stored as NUMERIC(20,0) to support uint64 range
-	MsgIndex         int64     `db:"msg_index"`
-	BlockWorkchain   int       `db:"block_workchain"`
-	BlockShard       int64     `db:"block_shard"`
-	BlockSeqno       int64     `db:"block_seqno"`
-	BlockRootHash    []byte    `db:"block_root_hash"`
-	BlockFileHash    []byte    `db:"block_file_hash"`
-	MasterBlockSeqno int64     `db:"master_block_seqno"`
-	CreatedAt        time.Time `db:"created_at"`
+	ID             int64     `db:"id"`
+	FilterID       int64     `db:"filter_id"`
+	ChainID        string    `db:"chain_id"`
+	Address        []byte    `db:"address"`      // TON address in raw byte format
+	EventSig       []byte    `db:"event_sig"`    // CRC32 hash as 4-byte binary
+	DataHeader     []byte    `db:"data_header"`  // BOC header (variable size)
+	DataPayload    []byte    `db:"data_payload"` // BOC payload (cell descriptor + data)
+	TxHash         []byte    `db:"tx_hash"`
+	TxLT           string    `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
+	TxTimestamp    time.Time `db:"tx_timestamp"`
+	MsgLT          string    `db:"msg_lt"` // msg_lt is stored as NUMERIC(20,0) to support uint64 range
+	MsgIndex       int64     `db:"msg_index"`
+	BlockWorkchain int       `db:"block_workchain"`
+	BlockShard     int64     `db:"block_shard"`
+	BlockSeqno     int64     `db:"block_seqno"`
+	BlockRootHash  []byte    `db:"block_root_hash"`
+	BlockFileHash  []byte    `db:"block_file_hash"`
+	MCBlockSeqno   int64     `db:"master_block_seqno"`
+	CreatedAt      time.Time `db:"created_at"`
 }
 
 // FromLog converts a models.Log to logModel
@@ -107,23 +107,23 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 
 	rawAddr := codec.ToRawAddr(log.Address)
 	return logModel{
-		FilterID:         log.FilterID,
-		ChainID:          log.ChainID,
-		Address:          rawAddr[:],
-		EventSig:         eventSig,
-		DataHeader:       dataHeader,
-		DataPayload:      dataPayload,
-		TxHash:           log.TxHash[:],
-		TxLT:             strconv.FormatUint(log.TxLT, 10), // Convert uint64 to string for NUMERIC(20,0) storage
-		TxTimestamp:      log.TxTimestamp,
-		BlockWorkchain:   int(log.Block.Workchain),
-		BlockShard:       log.Block.Shard,
-		BlockSeqno:       int64(log.Block.SeqNo),
-		BlockRootHash:    log.Block.RootHash,
-		BlockFileHash:    log.Block.FileHash,
-		MasterBlockSeqno: int64(log.MasterBlockSeqno),
-		MsgLT:            strconv.FormatUint(log.MsgLT, 10),
-		MsgIndex:         log.MsgIndex,
+		FilterID:       log.FilterID,
+		ChainID:        log.ChainID,
+		Address:        rawAddr[:],
+		EventSig:       eventSig,
+		DataHeader:     dataHeader,
+		DataPayload:    dataPayload,
+		TxHash:         log.TxHash[:],
+		TxLT:           strconv.FormatUint(log.TxLT, 10), // Convert uint64 to string for NUMERIC(20,0) storage
+		TxTimestamp:    log.TxTimestamp,
+		BlockWorkchain: int(log.Block.Workchain),
+		BlockShard:     log.Block.Shard,
+		BlockSeqno:     int64(log.Block.SeqNo),
+		BlockRootHash:  log.Block.RootHash,
+		BlockFileHash:  log.Block.FileHash,
+		MCBlockSeqno:   int64(log.MCBlockSeqno),
+		MsgLT:          strconv.FormatUint(log.MsgLT, 10),
+		MsgIndex:       log.MsgIndex,
 	}, nil
 }
 
@@ -177,18 +177,18 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 	}
 
 	return lptypes.Log{
-		ID:               l.ID,
-		FilterID:         l.FilterID,
-		ChainID:          l.ChainID,
-		Address:          addr,
-		EventSig:         binary.BigEndian.Uint32(l.EventSig),
-		Data:             cellData,
-		TxHash:           txHash,
-		TxLT:             txLT,
-		TxTimestamp:      l.TxTimestamp,
-		Block:            block,
-		MasterBlockSeqno: uint32(l.MasterBlockSeqno), //nolint:gosec // MasterBlockSeqno values are safe to convert to uint32
-		MsgLT:            msgLT,
-		MsgIndex:         l.MsgIndex,
+		ID:           l.ID,
+		FilterID:     l.FilterID,
+		ChainID:      l.ChainID,
+		Address:      addr,
+		EventSig:     binary.BigEndian.Uint32(l.EventSig),
+		Data:         cellData,
+		TxHash:       txHash,
+		TxLT:         txLT,
+		TxTimestamp:  l.TxTimestamp,
+		Block:        block,
+		MCBlockSeqno: uint32(l.MCBlockSeqno), //nolint:gosec // MCBlockSeqno values are safe to convert to uint32
+		MsgLT:        msgLT,
+		MsgIndex:     l.MsgIndex,
 	}, nil
 }

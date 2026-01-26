@@ -27,7 +27,10 @@ type Router_InMsg =
     | Router_RMNOwnableMessage
     ;
 
-type Router_BouncedMessage = Receiver_CCIPReceive;
+type Router_BouncedMessage = 
+    | Receiver_CCIPReceive
+    | OffRamp_CCIPReceiveConfirm
+    | OffRamp_CCIPReceiveBounced;
 
 // update multiple chain selectors in batch to the same onramp/offramp address
 struct (0x7db6745d) Router_ApplyRampUpdates {
