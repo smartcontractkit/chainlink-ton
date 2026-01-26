@@ -1,4 +1,4 @@
-package monitor
+package balance
 
 import (
 	"context"
@@ -19,8 +19,8 @@ import (
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 )
 
-// BalanceMonitorOpts contains the options for creating a new TON account balance monitor.
-type BalanceMonitorOpts struct {
+// MonitorOpts contains the options for creating a new TON account balance monitor.
+type MonitorOpts struct {
 	ChainInfo balance.ChainInfo
 
 	Config    balance.GenericBalanceConfig
@@ -29,8 +29,8 @@ type BalanceMonitorOpts struct {
 	NewClient func(context.Context) (*ton.APIClient, error)
 }
 
-// NewBalanceMonitor returns a balance monitoring services.Service which reports balance of all Keystore accounts.
-func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
+// NewMonitor returns a balance monitoring services.Service which reports balance of all Keystore accounts.
+func NewMonitor(opts MonitorOpts) (services.Service, error) {
 	return balance.NewGenericBalanceMonitor(balance.GenericBalanceMonitorOpts{
 		ChainInfo:           opts.ChainInfo,
 		ChainNativeCurrency: "TON",

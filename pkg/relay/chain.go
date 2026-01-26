@@ -35,7 +35,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	lppgstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
-	"github.com/smartcontractkit/chainlink-ton/pkg/relay/monitor"
+	balancemonitor "github.com/smartcontractkit/chainlink-ton/pkg/relay/monitor/balance"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -161,7 +161,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		return nil, fmt.Errorf("failed to get chain info for balance monitor: %w", err)
 	}
 
-	ch.bm, err = monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
+	ch.bm, err = balancemonitor.NewMonitor(balancemonitor.MonitorOpts{
 		ChainInfo: balance.ChainInfo{
 			ChainFamilyName: chainInfo.FamilyName,
 			ChainID:         chainInfo.ChainID,
