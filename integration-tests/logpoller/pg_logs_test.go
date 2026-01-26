@@ -415,13 +415,13 @@ func TestMultiFilterDeduplication(t *testing.T) {
 	// Register 3 filters tracking the SAME (address, event_sig)
 	filterIDs := make([]int64, 3)
 	for i := range 3 {
-		filterID, err := filterStore.RegisterFilter(ctx, models.Filter{
+		filterID, ferr := filterStore.RegisterFilter(ctx, models.Filter{
 			Name:     fmt.Sprintf("filter-%d", i),
 			Address:  testAddr,
 			MsgType:  tlb.MsgTypeExternalOut,
 			EventSig: counter.TopicCountIncreased,
 		})
-		require.NoError(t, err)
+		require.NoError(t, ferr)
 		filterIDs[i] = filterID
 	}
 
@@ -440,21 +440,21 @@ func TestMultiFilterDeduplication(t *testing.T) {
 
 		for _, filterID := range filterIDs {
 			log := models.Log{
-				FilterID:    filterID,
-				ChainID:     "test-chain",
-				Address:     testAddr,
-				EventSig:    counter.TopicCountIncreased,
-				Data:        eventCell,
-				TxHash:      models.TxHash{byte(eventIdx + 1), 2, 3, 4, 5},
-				TxLT:        uint64(1000 + eventIdx), //nolint:gosec // test code
-				MsgLT:       uint64(1000 + eventIdx), //nolint:gosec // test code
-				TxTimestamp: baseTime.Add(time.Duration(eventIdx) * time.Minute),
-				Block:       &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + eventIdx)}, //nolint:gosec // test code
+				FilterID:     filterID,
+				ChainID:      "test-chain",
+				Address:      testAddr,
+				EventSig:     counter.TopicCountIncreased,
+				Data:         eventCell,
+				TxHash:       models.TxHash{byte(eventIdx + 1), 2, 3, 4, 5},
+				TxLT:         uint64(1000 + eventIdx), //nolint:gosec // test code
+				MsgLT:        uint64(1000 + eventIdx), //nolint:gosec // test code
+				TxTimestamp:  baseTime.Add(time.Duration(eventIdx) * time.Minute),
+				Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + eventIdx)}, //nolint:gosec // test code
 				MCBlockSeqno: uint32(200 + eventIdx),                                                  //nolint:gosec // test code
-				MsgIndex:    int64(eventIdx),
+				MsgIndex:     int64(eventIdx),
 			}
-			inserted, err := logStore.SaveLogs(ctx, []models.Log{log}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
-			require.NoError(t, err)
+			inserted, ierr := logStore.SaveLogs(ctx, []models.Log{log}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
+			require.NoError(t, ierr)
 			totalInserted += inserted
 		}
 	}
