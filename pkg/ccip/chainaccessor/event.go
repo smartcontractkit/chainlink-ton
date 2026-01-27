@@ -96,7 +96,8 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
 		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
-		// TokenAmounts:   tokenAmounts, // TODO: enable token transfer
+		// TODO(2025-01-09): TON CCIP currently supports message transfer only, not token transfer
+		// TokenAmounts:   tokenAmounts,
 	}
 	genericEvent := &ccipocr3.SendRequestedEvent{
 		DestChainSelector: msg.Header.DestChainSelector,

@@ -72,6 +72,22 @@ var (
 		Name: "ton_logpoller_query_result_size",
 		Help: "Number of rows returned by query",
 	}, []string{"chainID", "query"})
+
+	// Parser pipeline metrics
+	promTonLpTxsProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_txs_processed_total",
+		Help: "Total number of transactions processed by parser",
+	}, []string{"chainID"})
+
+	promTonLpMsgsProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_msgs_processed_total",
+		Help: "Total number of messages processed by parser",
+	}, []string{"chainID", "msg_type", "opcode"})
+
+	promTonLpLogsMatched = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_logs_matched_total",
+		Help: "Total number of logs matched by filters",
+	}, []string{"chainID", "msg_type", "opcode"})
 )
 
 // logPollerMetrics provides instrumentation for the TON LogPoller
@@ -93,6 +109,11 @@ type logPollerMetrics struct {
 	queryDuration      metric.Float64Gauge
 	addressesMonitored metric.Int64Gauge
 	queryResultSize    metric.Int64Gauge
+
+	// parser pipeline metrics (OTel)
+	txsProcessed  metric.Int64Counter
+	msgsProcessed metric.Int64Counter
+	logsMatched   metric.Int64Counter
 }
 
 // newMetrics creates a new metrics instance for TON LogPoller
@@ -154,6 +175,21 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		return nil, fmt.Errorf("failed to register query result size: %w", err)
 	}
 
+	txsProcessed, err := m.Int64Counter("ton_logpoller_txs_processed_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register txs processed: %w", err)
+	}
+
+	msgsProcessed, err := m.Int64Counter("ton_logpoller_msgs_processed_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register msgs processed: %w", err)
+	}
+
+	logsMatched, err := m.Int64Counter("ton_logpoller_logs_matched_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register logs matched: %w", err)
+	}
+
 	return &logPollerMetrics{
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
@@ -161,7 +197,6 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		pollDuration:            pollDuration,
 		pollErrors:              pollErrors,
 		blocksBehind:            blocksBehind,
-		lastProcessedBlockSeqNo: lastProcessedBlockSeqNo,
 		blocksProcessed:         blocksProcessed,
 		logsInserted:            logsInserted,
 		loaderErrors:            loaderErrors,
@@ -169,6 +204,10 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		queryDuration:           queryDuration,
 		addressesMonitored:      addressesMonitored,
 		queryResultSize:         queryResultSize,
+		txsProcessed:            txsProcessed,
+		msgsProcessed:           msgsProcessed,
+		logsMatched:             logsMatched,
+		lastProcessedBlockSeqNo: lastProcessedBlockSeqNo,
 	}, nil
 }
 
@@ -246,4 +285,30 @@ func (m *logPollerMetrics) SetQueryResultSize(ctx context.Context, queryName str
 	promTonLpQueryResultSize.WithLabelValues(m.chainID, queryName).Set(float64(count))
 	attrs := append(m.getOtelAttributes(), attribute.String("query", queryName))
 	m.queryResultSize.Record(ctx, int64(count), metric.WithAttributes(attrs...))
+}
+
+// IncrementTxsProcessed increments the transactions processed counter
+func (m *logPollerMetrics) IncrementTxsProcessed(ctx context.Context) {
+	promTonLpTxsProcessed.WithLabelValues(m.chainID).Inc()
+	m.txsProcessed.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+// IncrementMsgsProcessed increments the messages processed counter with message type and opcode labels
+func (m *logPollerMetrics) IncrementMsgsProcessed(ctx context.Context, msgType, opcode string) {
+	promTonLpMsgsProcessed.WithLabelValues(m.chainID, msgType, opcode).Inc()
+	attrs := append(m.getOtelAttributes(),
+		attribute.String("msg_type", msgType),
+		attribute.String("opcode", opcode),
+	)
+	m.msgsProcessed.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// AddLogsMatched increments the logs matched counter with message type and opcode labels
+func (m *logPollerMetrics) AddLogsMatched(ctx context.Context, msgType, opcode string, count int64) {
+	promTonLpLogsMatched.WithLabelValues(m.chainID, msgType, opcode).Add(float64(count))
+	attrs := append(m.getOtelAttributes(),
+		attribute.String("msg_type", msgType),
+		attribute.String("opcode", opcode),
+	)
+	m.logsMatched.Add(ctx, count, metric.WithAttributes(attrs...))
 }

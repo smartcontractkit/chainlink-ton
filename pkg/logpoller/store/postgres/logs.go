@@ -115,7 +115,7 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 			:block_file_hash,
 			:master_block_seqno,
 			NOW()
-		) ON CONFLICT (tx_hash, tx_lt, msg_index) DO NOTHING
+		) ON CONFLICT DO NOTHING
 	`
 
 	var totalInserted int64
@@ -171,13 +171,32 @@ func (s *pgLogStore) QueryLogs(
 		"resultCount", len(dbLogs),
 		"hasMore", hasMore)
 
-	// Convert ORM models to application models
-	logs = make([]models.Log, len(dbLogs))
+	// Deduplicate logs by (TxHash, TxLT, MsgIndex).
+	// Multiple filters can track the same log events, resulting in duplicates in storage.
+	type logKey struct {
+		txHash   string
+		txLT     string
+		msgIndex int64
+	}
+	seen := make(map[logKey]struct{}, len(dbLogs))
+	logs = make([]models.Log, 0, len(dbLogs))
+
 	for i := range dbLogs {
-		logs[i], err = dbLogs[i].ToLog()
+		key := logKey{
+			txHash:   string(dbLogs[i].TxHash),
+			txLT:     dbLogs[i].TxLT,
+			msgIndex: dbLogs[i].MsgIndex,
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		log, err := dbLogs[i].ToLog()
 		if err != nil {
 			return nil, false, "", fmt.Errorf("failed to convert db log to model at index %d (id=%d): %w", i, dbLogs[i].ID, err)
 		}
+		logs = append(logs, log)
 	}
 
 	// generate next cursor if there are more results

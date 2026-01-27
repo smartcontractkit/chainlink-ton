@@ -36,7 +36,10 @@ func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Ad
 	return filterIndex, nil
 }
 
-// RegisterFilter adds a new filter to monitor specific address/event signature combinations
+// RegisterFilter adds a new filter to monitor specific address/event signature combinations.
+// Note: Filter changes take effect on the next LogPoller loop tick (up to pollPeriod delay)
+// If registration occurs before run() reads addresses, the change applies immediately.
+// Otherwise, it waits until the next tick.
 func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
 	id, err := lp.filterStore.RegisterFilter(ctx, flt)
 	if err != nil {
@@ -46,7 +49,9 @@ func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64
 	return id, nil
 }
 
-// UnregisterFilter removes a filter by name
+// UnregisterFilter removes a filter by name.
+// Note: Filter removal takes effect on the next LogPoller loop tick (up to pollPeriod delay)
+// If unregistration occurs during an active tick, the old filter continues processing for that tick.
 func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
 	return lp.filterStore.UnregisterFilter(ctx, name)
 }
