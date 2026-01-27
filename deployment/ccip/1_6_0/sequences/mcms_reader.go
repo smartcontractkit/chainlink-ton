@@ -46,7 +46,7 @@ func (r *MCMSReaderAdapter) GetTimelockRef(e deployment.Environment, chainSelect
 		e.DataStore.Addresses().Filter(),
 		chainSelector,
 		deployment.ContractType(state.Timelock),
-		&state.Version1_6_0,
+		&state.TimelockVersion,
 		input.Qualifier,
 	)
 	if ref.Address == "" {
@@ -61,7 +61,7 @@ func (r *MCMSReaderAdapter) GetMCMSRef(e deployment.Environment, chainSelector u
 		e.DataStore.Addresses().Filter(),
 		chainSelector,
 		deployment.ContractType(state.MCMS),
-		&state.Version1_6_0,
+		&state.MCMSVersion,
 		input.Qualifier,
 	)
 	if ref.Address == "" {
