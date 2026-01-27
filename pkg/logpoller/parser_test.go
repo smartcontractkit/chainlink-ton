@@ -16,13 +16,13 @@ func TestParseTxValidation(t *testing.T) {
 	filterIndex := models.FilterIndex{}
 
 	t.Run("rejects nil transaction", func(t *testing.T) {
-		_, err := lp.parseTx(models.Tx{Transaction: nil}, "chainID", filterIndex)
+		_, err := lp.parseTx(t.Context(), models.Tx{Transaction: nil}, "chainID", filterIndex)
 		require.Error(t, err)
 	})
 
 	t.Run("rejects nil block", func(t *testing.T) {
 		tx := models.Tx{Transaction: &tlb.Transaction{}}
-		_, err := lp.parseTx(tx, "chainID", filterIndex)
+		_, err := lp.parseTx(t.Context(), tx, "chainID", filterIndex)
 		require.Error(t, err)
 	})
 }

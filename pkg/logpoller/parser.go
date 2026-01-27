@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/xssnick/tonutils-go/tlb"
@@ -14,6 +13,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
 )
+
+// msgTypeLabels maps MsgType to pre-computed lowercase strings for metrics.
+var msgTypeLabels = map[tlb.MsgType]string{
+	tlb.MsgTypeInternal:    "internal",
+	tlb.MsgTypeExternalIn:  "external_in",
+	tlb.MsgTypeExternalOut: "external_out",
+}
 
 // parseTransactions spawns goroutines to parse transactions in parallel.
 // TODO: consider worker pool if transaction volume becomes high (>1000/block)
@@ -27,13 +33,12 @@ func (lp *service) parseTransactions(
 	errsOut := make(chan error)
 
 	var wg sync.WaitGroup
-	var txCount, logCount atomic.Int32
 
 	go func() {
 		for tx := range txsIn {
-			txCount.Add(1)
+			lp.metrics.IncrementTxsProcessed(ctx)
 			wg.Go(func() {
-				logs, err := lp.parseTx(tx, chainID, filterIndex)
+				logs, err := lp.parseTx(ctx, tx, chainID, filterIndex)
 				if err != nil {
 					errsOut <- fmt.Errorf("failed to process tx %x: %w", tx.Transaction.Hash, err)
 					return
@@ -42,7 +47,6 @@ func (lp *service) parseTransactions(
 				for _, log := range logs {
 					select {
 					case logsOut <- log:
-						logCount.Add(1)
 					case <-ctx.Done():
 						return
 					}
@@ -59,7 +63,7 @@ func (lp *service) parseTransactions(
 }
 
 // parseTx handles a single transaction
-func (lp *service) parseTx(tx models.Tx, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) parseTx(ctx context.Context, tx models.Tx, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx.Transaction == nil {
 		return nil, errors.New("transaction is nil")
 	}
@@ -82,7 +86,7 @@ func (lp *service) parseTx(tx models.Tx, chainID string, filterIndex models.Filt
 	}
 
 	for msgIndex, msg := range msgs {
-		logs, err := lp.parseMessage(&msg, msgIndex, tx, chainID, filterIndex)
+		logs, err := lp.parseMessage(ctx, &msg, msgIndex, tx, chainID, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
 			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Transaction.Hash, "msgIndex", msgIndex, "err", err)
@@ -94,7 +98,7 @@ func (lp *service) parseTx(tx models.Tx, chainID string, filterIndex models.Filt
 }
 
 // parseMessage handles a single message within a transaction
-func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex int, tx models.Tx, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	// guard clauses for initial validation and early exit
 	if msg == nil || msg.Msg == nil {
 		return nil, errors.New("message or message content is nil")
@@ -105,6 +109,12 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, ch
 	if err != nil {
 		return nil, fmt.Errorf("event extraction failed: %w", err)
 	}
+
+	// derive metric label
+	opcodeLabel := fmt.Sprintf("0x%08x", eventSig)
+
+	// record message processed metric
+	lp.metrics.IncrementMsgsProcessed(ctx, msgTypeLabels[msg.MsgType], opcodeLabel)
 
 	// skip messages that aren't valid, parseable events
 	if body == nil || eventSig == 0 {
@@ -123,14 +133,20 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, ch
 		return []models.Log{}, nil // no matching filters found
 	}
 
-	// create logs with the found filterIDs
-	logs := make([]models.Log, len(filterIDs))
-	for i, filterID := range filterIDs {
-		msgLT, err := extractMsgLT(msg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
-		}
-		logs[i] = models.Log{
+	// record logs matched metric
+	lp.metrics.AddLogsMatched(ctx, msgTypeLabels[msg.MsgType], opcodeLabel, int64(len(filterIDs)))
+
+	msgLT, err := extractMsgLT(msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract msgLT: %w", err)
+	}
+
+	// create a log entry for each matching filter.
+	// DB unique constraint (chain_id, filter_id, tx_hash, tx_lt, msg_index) allows multiple filters
+	// to store the same blockchain event. Query-time deduplication handles returning unique events.
+	logs := make([]models.Log, 0, len(filterIDs))
+	for _, filterID := range filterIDs {
+		log := models.Log{
 			ChainID:      chainID,
 			FilterID:     filterID,
 			EventSig:     eventSig,
@@ -143,12 +159,14 @@ func (lp *service) parseMessage(msg *tlb.Message, msgIndex int, tx models.Tx, ch
 			MCBlockSeqno: tx.MCBlockSeqno,
 			MsgLT:        msgLT,
 			MsgIndex:     int64(msgIndex),
+
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)
 			// scope: event extraction errors (BOC decode failures, unsupported message types)
 			// currently handled by returning error from processMessage, but error logs not stored
 			Error: nil,
 		}
+		logs = append(logs, log)
 	}
 	return logs, nil
 }
