@@ -1,36 +1,26 @@
 package ops
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
-
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
-	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 )
 
@@ -41,8 +31,6 @@ const (
 	CalldataGasPerByteHigh      = 40
 	CalldataGasPerByteThreshold = 3000
 )
-
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
 	// TODO Remove in favor of the canonical model
@@ -275,164 +263,15 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 	}
 }
 
-// TODO Consider move chainlink core AnyMsgSentEvent and CCIPSendReqConfig to CLDF?
-// SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
-// TODO: add TokenAmounts support for TON token transfers
+// Deprecated: Use testadapters instead
 func SendCCIPMessage(
 	e cldf.Environment,
 	state state.CCIPChainState,
 	sourceChain uint64,
 	msg router.CCIPSend) (uint64, any, error) {
 	chain := e.BlockChains.TonChains()[sourceChain]
-	senderWallet := chain.Wallet
-	senderAddr := chain.WalletAddress
-	clientConn := chain.Client
-
-	routerAddr := state.Router
-
-	ccipSend := msg
-
-	ccipSendCell, err := tlb.ToCell(ccipSend)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to convert to cell: %w", err)
-	}
-
-	e.Logger.Infof("Getting Fee to send CCIP request from chain selector %d to chain selector %d",
-		sourceChain, msg.DestChainSelector)
-
-	ctx := context.Background()
-	block, err := clientConn.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-	getResult, err := clientConn.RunGetMethod(ctx, block, &state.FeeQuoter, "validatedFeeCell", ccipSendCell)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get validatedFee: %w", err)
-	}
-
-	fee, err := getResult.Int(0)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get fee: %w", err)
-	}
-	e.Logger.Infof("Fee to send CCIP request: %s nano TON", fee.String())
-
-	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
-		sourceChain, msg.DestChainSelector, senderAddr.String())
-
-	value := big.NewInt(0).Add(fee, tlb.MustFromTON("0.5").Nano() /* To cover for gas */)
-
-	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     &routerAddr,
-			Amount:      tlb.MustFromNano(value, 9),
-			Body:        ccipSendCell,
-		},
-	}
-
-	ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
-	receivedMsg, blockID, err := ttConn.SendWaitTransaction(e.GetContext(), routerAddr, walletMsg)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to send transaction: %w", err)
-	}
-
-	if receivedMsg.ExitCode != 0 {
-		return 0, nil, fmt.Errorf("transaction failed: with exitcode %d: %s", receivedMsg.ExitCode, receivedMsg.ExitCode.Describe())
-	}
-
-	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
-	err = receivedMsg.WaitForTrace(e.GetContext(), clientConn)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to wait for trace: %w", err)
-	}
-
-	// TODO: This is temporary debugging code to be removed later
-	zeroVersion := *semver.MustParse("0.0.0")
-	knownAddresses := map[string]debug.TypeAndVersion{
-		senderAddr.String():             {Type: "SenderWallet", Version: zeroVersion},
-		state.LinkTokenAddress.String(): {Type: "LinkTokenAddress", Version: zeroVersion},
-		state.OffRamp.String():          {Type: "OffRamp", Version: zeroVersion},
-		state.Router.String():           {Type: "Router", Version: zeroVersion},
-		state.OnRamp.String():           {Type: "OnRamp", Version: zeroVersion},
-		state.FeeQuoter.String():        {Type: "FeeQuoter", Version: zeroVersion},
-		state.ReceiverAddress.String():  {Type: "ReceiverAddress", Version: zeroVersion},
-	}
-	e.Logger.Infof("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(receivedMsg))
-	e.Logger.Infof("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMsg))
-
-	event, err := waitForReceivedMsgFlatten(e, clientConn, receivedMsg)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to get CCIPMessageSent from flattening received messages: %w", err)
-	}
-	return event.Message.Header.SequenceNumber, event, nil
-}
-
-func waitForReceivedMsgFlatten(e cldf.Environment, clientConn ton.APIClientWrapped, msg *tracetracking.ReceivedMessage) (onramp.CCIPMessageSent, error) {
-	if msg == nil {
-		return onramp.CCIPMessageSent{}, errors.New("received message is nil")
-	}
-
-	// Collect all messages to process in a queue
-	var messagesToProcess []*tracetracking.ReceivedMessage
-	messagesToProcess = append(messagesToProcess, msg)
-
-	var commitMessage *tracetracking.ReceivedMessage
-
-	// Process messages iteratively
-	for len(messagesToProcess) > 0 {
-		// Get the first message from the queue
-		currentMsg := messagesToProcess[0]
-		messagesToProcess = messagesToProcess[1:]
-
-		if len(currentMsg.OutgoingInternalReceivedMessages) == 0 {
-			continue
-		}
-
-		e.Logger.Infof("Flattening %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
-
-		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
-			e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-				i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-
-			if outMsg.ExitCode != 0 {
-				e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-			}
-			if !outMsg.Success {
-				e.Logger.Errorf("Outgoing message %d was not successful", i)
-			}
-			if outMsg.EmittedBouncedMessage {
-				e.Logger.Errorf("Outgoing message %d was bounced", i)
-			}
-
-			err := outMsg.WaitForTrace(e.GetContext(), clientConn)
-			if err != nil {
-				e.Logger.Errorf("failed to wait for trace: %v", err)
-				continue
-			}
-
-			// Add this message to the queue for further processing
-			messagesToProcess = append(messagesToProcess, outMsg)
-			opcode, err := outMsg.InternalMsg.Body.BeginParse().LoadUInt(32)
-			if err == nil && opcode == onramp.OpcodeOnRampExecutorFinishedSuccessfully {
-				commitMessage = outMsg
-			}
-		}
-	}
-
-	if commitMessage == nil || len(commitMessage.OutgoingExternalMessages) == 0 {
-		return onramp.CCIPMessageSent{}, errors.New("no received messages were processed")
-	}
-
-	var event onramp.CCIPMessageSent
-	err := tlb.LoadFromCell(&event, commitMessage.OutgoingExternalMessages[0].Body.BeginParse())
-	if err != nil {
-		e.Logger.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
-		return onramp.CCIPMessageSent{}, err
-	}
-
-	return event, nil
+	stateProvider := &testadapters.DataStoreStateProvider{Selector: sourceChain, DS: e.DataStore}
+	return testadapter.SendCCIPMessage(e.GetContext(), chain, stateProvider, sourceChain, msg)
 }
 
 func RandomUint32() (uint32, error) {

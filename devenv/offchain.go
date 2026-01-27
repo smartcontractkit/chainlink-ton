@@ -8,10 +8,12 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
-	ccipocr3common "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/clclient"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
@@ -25,30 +27,36 @@ import (
 )
 
 type CCIP16TON struct {
-	e                   *deployment.Environment
-	ExpectedSeqNumRange map[SourceDestPair]ccipocr3common.SeqNumRange
-	ExpectedSeqNumExec  map[SourceDestPair][]uint64
-	MsgSentEvents       []*AnyMsgSentEvent
+	e            *deployment.Environment
+	chainDetails chain_selectors.ChainDetails
+	testadapters.TestAdapter
 }
 
-func NewEmptyCCIP16TON() *CCIP16TON {
+func NewEmptyCCIP16TON(chainDetails chain_selectors.ChainDetails) *CCIP16TON {
 	return &CCIP16TON{
-		ExpectedSeqNumRange: make(map[SourceDestPair]ccipocr3common.SeqNumRange),
-		ExpectedSeqNumExec:  make(map[SourceDestPair][]uint64),
-		MsgSentEvents:       make([]*AnyMsgSentEvent, 0),
+		chainDetails: chainDetails,
 	}
 }
 
 // NewCCIP16TON creates new smart-contracts wrappers with utility functions for CCIP16TON implementation.
-func NewCCIP16TON(ctx context.Context, e *deployment.Environment) (*CCIP16TON, error) {
+func NewCCIP16TON(ctx context.Context, e *deployment.Environment, chainDetails chain_selectors.ChainDetails) (*CCIP16TON, error) {
 	_ = zerolog.Ctx(ctx)
-	out := NewEmptyCCIP16TON()
-	out.e = e
+	out := NewEmptyCCIP16TON(chainDetails)
+	out.SetCLDF(e)
 	return out, nil
 }
 
 func (m *CCIP16TON) SetCLDF(e *deployment.Environment) {
 	m.e = e
+	factory, found := testadapters.GetTestAdapterRegistry().GetTestAdapter(chain_selectors.FamilyTon, semver.MustParse("1.6.0"))
+	if !found {
+		panic(fmt.Sprintf("failed to find testadapter factory for %s", chain_selectors.FamilyTon))
+	}
+	m.TestAdapter = factory(e, m.chainDetails.ChainSelector)
+}
+
+func (m *CCIP16TON) ChainSelector() uint64 {
+	return m.chainDetails.ChainSelector
 }
 
 func (m *CCIP16TON) ExposeMetrics(
