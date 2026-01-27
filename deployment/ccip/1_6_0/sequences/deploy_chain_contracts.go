@@ -260,3 +260,5 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		ChainSelector: cfg.ChainSelector,
 	}, nil
 }
+
+var _ deploy.Deployer = &TonDeployAdapter{}

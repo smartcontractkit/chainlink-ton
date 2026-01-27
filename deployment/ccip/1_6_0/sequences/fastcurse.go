@@ -424,3 +424,5 @@ func validateSubjectFormat(subject api.Subject) error {
 
 	return nil
 }
+
+var _ api.CurseAdapter = &TonCurseAdapter{}
