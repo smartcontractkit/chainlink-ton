@@ -68,6 +68,8 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 }
 
 func TestPgLogStore(t *testing.T) {
+	// TODO(@jadepark-dev) enable tests when chainlink-ton <> integration-tests module is resolved
+	t.Skip("Skipping: integration-tests uses published chainlink-ton module, pending local replace fix")
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
 
@@ -319,6 +321,8 @@ func TestPgLogStore(t *testing.T) {
 }
 
 func TestGetLatestBlock(t *testing.T) {
+	// TODO(@jadepark-dev) enable tests when chainlink-ton <> integration-tests module is resolved
+	t.Skip("Skipping: integration-tests uses published chainlink-ton module, pending local replace fix")
 	t.Parallel()
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
@@ -397,6 +401,8 @@ func TestGetLatestBlock(t *testing.T) {
 }
 
 func TestMultiFilterDeduplication(t *testing.T) {
+	// TODO(@jadepark-dev) enable tests when chainlink-ton <> integration-tests module is resolved
+	t.Skip("Skipping: integration-tests uses published chainlink-ton module, pending local replace fix")
 	t.Parallel()
 	ctx := t.Context()
 	ds := pgtest.SetupTestDB(t)
