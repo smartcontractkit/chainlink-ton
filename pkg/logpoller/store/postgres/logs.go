@@ -117,7 +117,6 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 			NOW()
 		) ON CONFLICT DO NOTHING
 	`
-	// testing ci
 
 	var totalInserted int64
 	for i := 0; i < len(logs); i += batchSize {
