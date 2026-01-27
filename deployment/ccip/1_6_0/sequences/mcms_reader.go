@@ -3,6 +3,7 @@ package sequences
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	mcms_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -68,3 +69,5 @@ func (r *MCMSReaderAdapter) GetMCMSRef(e deployment.Environment, chainSelector u
 	}
 	return ref, nil
 }
+
+var _ changesets.MCMSReader = &MCMSReaderAdapter{}
