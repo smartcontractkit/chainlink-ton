@@ -135,7 +135,11 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 	if currentSeqNo > lookbackBlocks {
 		lookbackSeqNo = currentSeqNo - lookbackBlocks
 	} else {
-		// If lookback went before genesis, start from 0(likely with localnet)
+		// If lookback went before genesis, return 0. Note: this does NOT mean we process
+		// block 0 (genesis). When lookbackSeqNo=0 is returned, getLastProcessedBlockSeqNo
+		// uses it, and resolvePreviousBlock returns nil (no previous block reference).
+		// The poller then waits for block 1+ before starting. This is the expected behavior
+		// on fresh localnet chains where the lookback window exceeds the chain length.
 		lookbackSeqNo = 0
 	}
 

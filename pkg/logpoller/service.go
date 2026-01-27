@@ -148,7 +148,18 @@ func (lp *service) start(_ context.Context) error {
 			lp.lggr.Errorw("iteration failed", "err", err)
 			lp.metrics.IncrementPollErrors(ctx)
 		}
-		lp.metrics.SetPollDuration(ctx, time.Since(start))
+		duration := time.Since(start)
+		lp.metrics.SetPollDuration(ctx, duration)
+
+		// GoTick is blocking - next tick only starts after this one completes.
+		// warn if processing took longer than poll period, as this causes cumulative delay.
+		if duration > lp.pollPeriod {
+			lp.lggr.Warnw("tick processing exceeded poll period, falling behind chain head",
+				"duration", duration,
+				"pollPeriod", lp.pollPeriod,
+				"overage", duration-lp.pollPeriod,
+			)
+		}
 	})
 	return nil
 }

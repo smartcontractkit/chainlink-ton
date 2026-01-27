@@ -72,7 +72,7 @@ func TestBuildLogQuery(t *testing.T) {
 					},
 				},
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 				require.IsType(t, []byte{}, params["address"])
@@ -103,7 +103,7 @@ func TestBuildLogQuery(t *testing.T) {
 				},
 				LimitAndSort: commonquery.LimitAndSort{},
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND SUBSTRING(data_payload, 7, 8) = :byte_value_0 ORDER BY address ASC, msg_lt ASC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND SUBSTRING(data_payload, 7, 8) = :byte_value_0 ORDER BY address ASC, msg_lt ASC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, []byte{0x00, 0x00, 0x01, 0x00}, params["byte_value_0"])
 			},
@@ -118,7 +118,7 @@ func TestBuildLogQuery(t *testing.T) {
 				},
 				LimitAndSort: commonquery.NewLimitAndSort(commonquery.CountLimit(10)),
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC LIMIT 11`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY address ASC, msg_lt ASC LIMIT 11`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 			},
@@ -136,7 +136,7 @@ func TestBuildLogQuery(t *testing.T) {
 					query.NewTxLTSort(commonquery.Desc),
 				),
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_lt DESC, msg_index DESC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_lt DESC, msg_index DESC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 			},
@@ -154,7 +154,7 @@ func TestBuildLogQuery(t *testing.T) {
 					query.NewTimestampSort(commonquery.Asc),
 				),
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_timestamp ASC, tx_lt ASC, msg_index ASC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_timestamp ASC, tx_lt ASC, msg_index ASC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 			},
@@ -172,7 +172,7 @@ func TestBuildLogQuery(t *testing.T) {
 					query.NewTimestampSort(commonquery.Desc),
 				),
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_timestamp DESC, tx_lt DESC, msg_index DESC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig ORDER BY tx_timestamp DESC, tx_lt DESC, msg_index DESC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 			},
@@ -189,7 +189,7 @@ func TestBuildLogQuery(t *testing.T) {
 					commonquery.CursorLimit("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF:1000", commonquery.CursorFollowing, 5),
 				),
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (address, msg_lt) > (:cursor_address, :cursor_msg_lt) ORDER BY address ASC, msg_lt ASC LIMIT 6`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (address, msg_lt) > (:cursor_address, :cursor_msg_lt) ORDER BY address ASC, msg_lt ASC LIMIT 6`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 				require.IsType(t, []byte{}, params["cursor_address"])
@@ -256,7 +256,7 @@ func TestBuildLogQuery(t *testing.T) {
 				},
 				LimitAndSort: commonquery.LimitAndSort{},
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (get_bit(data_payload, 23) = 1) ORDER BY address ASC, msg_lt ASC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (get_bit(data_payload, 23) = 1) ORDER BY address ASC, msg_lt ASC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 			},
@@ -283,7 +283,7 @@ func TestBuildLogQuery(t *testing.T) {
 				},
 				LimitAndSort: commonquery.LimitAndSort{},
 			},
-			expectedSQL: `SELECT id, filter_id, chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (get_bit(data_payload, 23) = 1 AND get_bit(data_payload, 22) = 0 AND get_bit(data_payload, 21) = 0 AND get_bit(data_payload, 20) = 0 AND get_bit(data_payload, 19) = 0 AND get_bit(data_payload, 18) = 1 AND get_bit(data_payload, 17) = 1 AND get_bit(data_payload, 16) = 0) ORDER BY address ASC, msg_lt ASC`,
+			expectedSQL: `SELECT DISTINCT chain_id, address, event_sig, data_header, data_payload, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND (get_bit(data_payload, 23) = 1 AND get_bit(data_payload, 22) = 0 AND get_bit(data_payload, 21) = 0 AND get_bit(data_payload, 20) = 0 AND get_bit(data_payload, 19) = 0 AND get_bit(data_payload, 18) = 1 AND get_bit(data_payload, 17) = 1 AND get_bit(data_payload, 16) = 0) ORDER BY address ASC, msg_lt ASC`,
 			checkParams: func(t *testing.T, params map[string]any) {
 				require.Equal(t, "test-chain", params["chain_id"])
 			},
