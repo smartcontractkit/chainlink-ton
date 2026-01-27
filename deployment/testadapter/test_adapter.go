@@ -60,7 +60,6 @@ type TONAdapter struct {
 }
 
 func NewTONAdapter(env *deployment.Environment, selector uint64) testadapters.TestAdapter {
-	// TODO: tron needs to use TronChains
 	c, ok := env.BlockChains.TonChains()[selector]
 	if !ok {
 		panic(fmt.Sprintf("chain not found: %d", selector))
@@ -131,12 +130,12 @@ func (a *TONAdapter) NativeFeeToken() string {
 func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
-		return nil, nil
-	case chain_selectors.FamilyTon:
 		return ccipcommon.SerializeClientGenericExtraArgsV2(msg_hasher163.ClientGenericExtraArgsV2{
 			GasLimit:                 new(big.Int).SetUint64(100_000),
 			AllowOutOfOrderExecution: true,
 		})
+	case chain_selectors.FamilyTon:
+		return nil, nil
 	case chain_selectors.FamilySolana:
 		return nil, nil
 	default:
