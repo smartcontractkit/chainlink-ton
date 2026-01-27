@@ -10,6 +10,7 @@ import "../merkle_root/messages"
 import "../receive_executor/messages"
 import "../fee_quoter/messages"
 import "../router/messages"
+import "../../deployable/types.tolk"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -28,6 +29,11 @@ type OffRamp_InMessage =
     | OffRamp_UpdateDeployables
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw;
+
+type OffRamp_InMessageBounced = 
+    | ReceiveExecutor_InitExecute
+    | Deployable_Initialize
+    | Router_RouteMessage;
 
 struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;

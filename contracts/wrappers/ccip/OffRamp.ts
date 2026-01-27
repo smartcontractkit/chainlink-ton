@@ -13,6 +13,7 @@ import {
   Contract,
   DictionaryValue,
   toNano,
+  TupleItem,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { loadContractCode } from '../codeLoader'
@@ -20,7 +21,7 @@ import { crc32 } from 'zlib'
 
 import { CellCodec } from '../utils'
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
-import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
+import { asSnakedCell, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
@@ -247,12 +248,12 @@ export const builder = {
       encode: (data: PriceUpdates): Builder => {
         return beginCell()
           .storeRef(
-            asSnakeData(data.tokenPriceUpdates, (item) =>
+            asSnakedCell(data.tokenPriceUpdates, (item) =>
               beginCell().storeAddress(item.sourceToken).storeUint(item.usdPerToken, 224),
             ),
           )
           .storeRef(
-            asSnakeData(data.gasPriceUpdates, (item) =>
+            asSnakedCell(data.gasPriceUpdates, (item) =>
               beginCell()
                 .storeUint(item.destChainSelector, 64)
                 .storeUint(item.executionGasPrice, 112)
@@ -312,7 +313,7 @@ export const builder = {
 
         return beginCell()
           .storeMaybeRef(priceUpdatesCell)
-          .storeRef(asSnakeData(data.merkleRoots, (item) => merkleRoot.encode(item)))
+          .storeRef(asSnakedCell(data.merkleRoots, (item) => merkleRoot.encode(item)))
       },
 
       load: (_: Slice): CommitReport => {
@@ -399,10 +400,10 @@ export const builder = {
       encode: (data: ExecutionReport): Builder => {
         return beginCell()
           .storeUint(data.sourceChainSelector, 64)
-          .storeRef(asSnakeData(data.messages, any2TVMRampMessage.encode))
+          .storeRef(asSnakedCell(data.messages, any2TVMRampMessage.encode))
           .storeRef(Cell.EMPTY) //TODO: offchainTokenData
           .storeRef(
-            asSnakeData(data.proofs, (proof) => {
+            asSnakedCell(data.proofs, (proof) => {
               return beginCell().storeUint(proof, 256)
             }),
           )
@@ -444,7 +445,7 @@ export const builder = {
             .storeUint(data.reportContext.sequenceBytes, 64)
             .storeBuilder(builder.data.commitReport.encode(data.report))
             .storeRef(
-              asSnakeData(data.signatures, (item) =>
+              asSnakedCell(data.signatures, (item) =>
                 beginCell()
                   .storeUint(item.signer, 256)
                   .storeUint(item.r, 256)
@@ -502,7 +503,7 @@ export const builder = {
             .storeUint(opcodes.in.updateSourceChainConfigs, 32)
             .storeUint(data.queryID ?? 0, 64)
             .storeRef(
-              asSnakeData(data.configs, (message) => {
+              asSnakedCell(data.configs, (message) => {
                 return builder.data.updateSourceChainConfig.encode(message)
               }),
             )
@@ -837,6 +838,18 @@ export class OffRamp
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.dispatchValidated.encode(opts).endCell(),
     })
+  }
+
+  async getCursedSubjects(provider: ContractProvider): Promise<bigint[]> {
+    const res = await provider.get('cursedSubjects', [])
+    const tupleItems = res.stack.readLispList()
+    const cursedSubjects: bigint[] = tupleItems.map((t: TupleItem) => {
+      if (t.type != 'int') {
+        throw Error('Not an int: ' + t.type)
+      }
+      return t.value
+    })
+    return cursedSubjects
   }
 
   async getLatestPriceSequenceNumber(provider: ContractProvider): Promise<bigint> {

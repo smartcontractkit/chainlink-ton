@@ -91,8 +91,8 @@ func TestLogModel_Conversion(t *testing.T) {
 			Shard:     -1,
 			SeqNo:     100,
 		},
-		MasterBlockSeqno: 200,
-		MsgIndex:         0,
+		MCBlockSeqno: 200,
+		MsgIndex:     0,
 	}
 
 	// Convert to database model and back
@@ -113,7 +113,7 @@ func TestLogModel_Conversion(t *testing.T) {
 	require.Equal(t, originalLog.Block.Workchain, convertedLog.Block.Workchain)
 	require.Equal(t, originalLog.Block.Shard, convertedLog.Block.Shard)
 	require.Equal(t, originalLog.Block.SeqNo, convertedLog.Block.SeqNo)
-	require.Equal(t, originalLog.MasterBlockSeqno, convertedLog.MasterBlockSeqno)
+	require.Equal(t, originalLog.MCBlockSeqno, convertedLog.MCBlockSeqno)
 	require.Equal(t, originalLog.MsgIndex, convertedLog.MsgIndex)
 
 	// Verify cell data can be read
@@ -393,9 +393,9 @@ func TestLogModel_BOCHeaderPayloadSplit(t *testing.T) {
 					RootHash:  make([]byte, 32),
 					FileHash:  make([]byte, 32),
 				},
-				MasterBlockSeqno: 200,
-				MsgLT:            1000,
-				MsgIndex:         0,
+				MCBlockSeqno: 200,
+				MsgLT:        1000,
+				MsgIndex:     0,
 			}
 
 			dbModel, err := (&logModel{}).FromLog(originalLog)

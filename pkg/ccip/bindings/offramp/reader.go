@@ -164,3 +164,11 @@ var GetSourceChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 		return parser.ParseLispTuple(r.AsTuple()), nil
 	}),
 })
+
+// GetCursedSubjects gets all cursed subjects from the OffRamp contract
+var GetCursedSubjects = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]*big.Int]{
+	Name: cursedSubjectsGetter,
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]*big.Int, error) {
+		return parser.ParseLispTupleBigInt(r.AsTuple()), nil
+	}),
+})

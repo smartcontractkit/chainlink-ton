@@ -31,3 +31,21 @@ struct OffRamp_DynamicConfigSet {
     feeQuoter: address;
     permissionlessExecutionThresholdSeconds: uint32,
 }
+
+const RECEIVE_EXECUTOR_INIT_EXECUTE_BOUNCED: int = stringCrc32("ReceiveExecutorInitExecuteBounced");
+struct OffRamp_ReceiveExecutorInitExecuteBounced {
+    receiveExecutor: address;
+    root: address;
+    sequenceNumber: uint64;
+}
+
+const DEPLOYABLE_INITIALIZE_BOUNCED_TOPIC: int = stringCrc32("DeployableInitializeBounced");
+struct OffRamp_DeployableInitializeBounced {
+    deployableAddress: address;
+}
+
+const ROUTE_MESSAGE_BOUNCED_TOPIC: int = stringCrc32("RouteMessageBounced");
+struct OffRamp_RouteMessageBounced {
+    router: address;
+    execId: uint192;
+}

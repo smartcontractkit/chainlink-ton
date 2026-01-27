@@ -16,7 +16,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { asSnakeData, fromSnakeData } from '../../src/utils'
+import { asSnakedCell, fromSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
@@ -278,12 +278,12 @@ export const builder = (() => {
         return beginCell()
           .storeUint(data.destChainSelector, 64)
           .storeRef(
-            asSnakeData(data.add, (x) => {
+            asSnakedCell(data.add, (x) => {
               return beginCell().storeAddress(x)
             }),
           )
           .storeRef(
-            asSnakeData(data.remove, (x) => {
+            asSnakedCell(data.remove, (x) => {
               return beginCell().storeAddress(x)
             }),
           )
@@ -476,7 +476,7 @@ export const builder = (() => {
         encode: (data: UpdateAllowlists): Builder => {
           return beginCell()
             .storeUint(opcodes.in.updateAllowlists, 32)
-            .storeRef(asSnakeData(data.updates, builder.data.updateAllowlist.encode))
+            .storeRef(asSnakedCell(data.updates, builder.data.updateAllowlist.encode))
         },
         load: (src: Slice): UpdateAllowlists => {
           src.skip(32)
@@ -543,7 +543,7 @@ export const builder = (() => {
           return beginCell()
             .storeUint(opcodes.in.withdrawFeeTokens, 32)
             .storeRef(
-              asSnakeData<Address>(data.feeTokens, (token: Address) =>
+              asSnakedCell<Address>(data.feeTokens, (token: Address) =>
                 beginCell().storeAddress(token),
               ),
             )
@@ -886,7 +886,7 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
       body: beginCell()
         .storeUint(opcodes.in.updateDestChainConfigs, 32)
         .storeRef(
-          asSnakeData(opts.destChainConfigs, (config) =>
+          asSnakedCell(opts.destChainConfigs, (config) =>
             new Builder()
               .storeUint(config.destChainSelector, 64)
               .storeAddress(config.router)

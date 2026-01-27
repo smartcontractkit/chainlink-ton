@@ -156,7 +156,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 
 	var tokenCell *cell.Cell
 	if len(msg.TokenAmounts) != 0 {
-		tokenCell, err = common.SnakeRef[ocr.Any2TVMTokenTransfer](tokenAmounts).ToCell()
+		tokenCell, err = common.SnakedCell[ocr.Any2TVMTokenTransfer](tokenAmounts).ToCell()
 		if err != nil {
 			return [32]byte{}, fmt.Errorf("pack token amounts to cell: %w", err)
 		}

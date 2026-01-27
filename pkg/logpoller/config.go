@@ -22,11 +22,16 @@ type Config struct {
 	PageSize                  uint32
 	LogPollerStartingLookback *config.Duration
 	BlockTime                 *config.Duration
+	MCBlockCacheSize          int // LRU cache maps shard block keys to masterchain seqno
 
 	// Database configuration - simple values with defaults
 	BatchInsertSize uint32
 	MinBatchSize    uint32
 	SaveThreshold   uint32 // Number of logs to buffer in memory before saving
+
+	// MC block resolution retry configuration
+	MCBlockResolveMaxRetries uint32           // Max retry attempts for masterchain block resolution
+	MCBlockResolveBaseDelay  *config.Duration // Base delay for exponential backoff
 }
 
 var DefaultConfigSet = Config{
@@ -42,6 +47,11 @@ var DefaultConfigSet = Config{
 	BatchInsertSize: 3500, // postgresql batch insert size
 	MinBatchSize:    500,  // Minimum batch size for timeout retry
 	SaveThreshold:   7000, // Memory buffer size before batch saving
+
+	MCBlockCacheSize: 1000, // ~100 bytes per entry, 1000 entries ≈ 100KB
+
+	MCBlockResolveMaxRetries: 3,
+	MCBlockResolveBaseDelay:  config.MustNewDuration(100 * time.Millisecond),
 }
 
 func (c *Config) ApplyDefaults() {
@@ -65,6 +75,15 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.SaveThreshold == 0 {
 		c.SaveThreshold = DefaultConfigSet.SaveThreshold
+	}
+	if c.MCBlockCacheSize <= 0 {
+		c.MCBlockCacheSize = DefaultConfigSet.MCBlockCacheSize
+	}
+	if c.MCBlockResolveMaxRetries == 0 {
+		c.MCBlockResolveMaxRetries = DefaultConfigSet.MCBlockResolveMaxRetries
+	}
+	if c.MCBlockResolveBaseDelay == nil {
+		c.MCBlockResolveBaseDelay = DefaultConfigSet.MCBlockResolveBaseDelay
 	}
 }
 

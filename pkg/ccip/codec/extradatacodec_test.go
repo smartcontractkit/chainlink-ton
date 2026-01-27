@@ -30,15 +30,16 @@ func Test_decodeExtraArgs(t *testing.T) {
 	t.Run("decode extra args into map svm", func(t *testing.T) {
 		destGasAmount := uint32(10000)
 		bitmap := uint64(5)
+		accountList := common.SnakedCell[onramp.Account256]{
+			{Value: solana.SystemProgramID.Bytes()},
+			{Value: solana.SystemProgramID.Bytes()},
+		}
 		extraArgs := onramp.SVMExtraArgsV1{
 			ComputeUnits:             destGasAmount,
 			AccountIsWritableBitmap:  bitmap,
 			AllowOutOfOrderExecution: false,
 			TokenReceiver:            solana.SystemProgramID.Bytes(),
-			Accounts: common.SnakeRef[common.SnakeBytes]{
-				solana.SystemProgramID.Bytes(),
-				solana.SystemProgramID.Bytes(),
-			},
+			Accounts:                 accountList,
 		}
 
 		c, err := tlb.ToCell(extraArgs)
