@@ -426,3 +426,5 @@ func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.App
 		OffRampRemoves: nil,
 	}, nil
 }
+
+var _ lanes.LaneAdapter = &TonLaneAdapter{}
