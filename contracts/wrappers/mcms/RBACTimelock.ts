@@ -221,7 +221,7 @@ export type OpPendingInfo = {
   opFinalizationTimeout: number
   // The id of the currently pending operation (OperationBatch hash)
   opPendingId: bigint
-  // The ids (fingerprints) for calls awaiting finalization in the pending op.
+  // The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
   opPendingCalls?: Dictionary<bigint, boolean>
 }
 

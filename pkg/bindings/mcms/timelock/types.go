@@ -396,7 +396,7 @@ type OpPendingInfo struct {
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *tlbe.Uint256 `tlb:"."`
-	// The ids (fingerprints) for calls awaiting finalization in the pending op.
+	// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
 	OpPendingCalls *tlbe.Dict[*tlbe.Uint256, bool] `tlb:"."`
 }
 
@@ -483,6 +483,6 @@ const (
 	ErrorContractAlreadyInitialized
 	// Thrown when trying to call a function on an uninitialized contract.
 	ErrorContractNotInitialized
-	// Value attached to incomming message is not enough to pay for handler execution
+	// Value attached to incoming message is not enough to pay for handler execution
 	InsufficientFee
 )

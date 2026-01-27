@@ -533,7 +533,7 @@ struct Timelock_OpPendingInfo {
     opFinalizationTimeout: uint32;
     /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
-    /// The ids (fingerprints) for calls awaiting finalization in the pending op.
+    /// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
     opPendingCalls: map<uint256, bool>;
 }
 
@@ -1466,8 +1466,9 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 
     // Note: make sure opFinalizationTimeout is a large enough value to avoid races here
-    timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
-    timelock.data.opPendingInfo.validAfter = blockchain.now(); // Mark the operation as final
+    timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // mark op as error
+    timelock.data.opPendingInfo.validAfter = blockchain.now(); // mark op as final
+    timelock.data.opPendingInfo.opPendingCalls.set(fingerprint, false); // mark op pendingCalls as final/bounced
 
     // TODO: notify everyone in the batch about the error (message)
     //   - opportunity to rollback, not currently supported
