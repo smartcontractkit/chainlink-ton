@@ -58,8 +58,9 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 	}
 
 	if tonTokenPrice.Cmp(oldTonTokenPrice) != 0 || linkTokenPrice.Cmp(oldLinkTokenPrice) != 0 {
-		env.Logger.Errorf("Token price calculations should match, but got:\nTON token price: expected %s, got %s\nLINK token price: expected %s, got %s\n", oldTonTokenPrice.String(), tonTokenPrice.String(), oldLinkTokenPrice.String(), linkTokenPrice.String())
-		return nil
+		errorStr := fmt.Errorf("Token price calculations should match, but got:\nTON token price: expected %s, got %s\nLINK token price: expected %s, got %s\n", oldTonTokenPrice.String(), tonTokenPrice.String(), oldLinkTokenPrice.String(), linkTokenPrice.String())
+		env.Logger.Errorf(errorStr.Error())
+		return errorStr
 	}
 
 	updateConfig := operation.UpdateFeeQuoterPricesInput{
