@@ -54,8 +54,8 @@ func init() {
 	testadapters.GetTestAdapterRegistry().RegisterTestAdapter(chain_selectors.FamilyTon, semver.MustParse("1.6.0"), NewTONAdapter)
 }
 
-type TONAdapter[S testadapters.StateProvider] struct {
-	state S
+type TONAdapter struct {
+	state testadapters.StateProvider
 	cldf_ton.Chain
 }
 
@@ -67,13 +67,13 @@ func NewTONAdapter(env *deployment.Environment, selector uint64) testadapters.Te
 	}
 
 	s := &testadapters.DataStoreStateProvider{Selector: selector, DS: env.DataStore}
-	return &TONAdapter[*testadapters.DataStoreStateProvider]{
+	return &TONAdapter{
 		state: s,
 		Chain: c,
 	}
 }
 
-func (a *TONAdapter[S]) getAddress(ty datastore.ContractType) (address.Address, error) {
+func (a *TONAdapter) getAddress(ty datastore.ContractType) (address.Address, error) {
 	addr, err := a.state.GetAddress(ty)
 	if err != nil {
 		return address.Address{}, fmt.Errorf("failed to get %v address: %w", ty, err)
@@ -81,7 +81,7 @@ func (a *TONAdapter[S]) getAddress(ty datastore.ContractType) (address.Address, 
 	return *address.MustParseAddr(addr), nil
 }
 
-func (a *TONAdapter[S]) BuildMessage(components testadapters.MessageComponents) (any, error) {
+func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (any, error) {
 	var feeToken *address.Address
 	if len(components.FeeToken) > 0 {
 		var err error
@@ -107,7 +107,7 @@ func (a *TONAdapter[S]) BuildMessage(components testadapters.MessageComponents) 
 	}, nil
 }
 
-func (a *TONAdapter[S]) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, error) {
+func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
@@ -120,15 +120,15 @@ func (a *TONAdapter[S]) SendMessage(ctx context.Context, destChainSelector uint6
 	return seq, err
 }
 
-func (a *TONAdapter[S]) CCIPReceiver() []byte {
+func (a *TONAdapter) CCIPReceiver() []byte {
 	panic("unimplemented")
 }
 
-func (a *TONAdapter[S]) NativeFeeToken() string {
+func (a *TONAdapter) NativeFeeToken() string {
 	return tvm.TonTokenAddr.String()
 }
 
-func (a *TONAdapter[S]) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
+func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
 		return nil, nil
@@ -145,11 +145,11 @@ func (a *TONAdapter[S]) GetExtraArgs(receiver []byte, sourceFamily string, opts 
 	}
 }
 
-func (a *TONAdapter[S]) GetInboundNonce(ctx context.Context, sender []byte, srcSel uint64) (uint64, error) {
+func (a *TONAdapter) GetInboundNonce(ctx context.Context, sender []byte, srcSel uint64) (uint64, error) {
 	return 0, errors.ErrUnsupported
 }
 
-func (a *TONAdapter[S]) ValidateCommit(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNumRange ccipocr3.SeqNumRange) {
+func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNumRange ccipocr3.SeqNumRange) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
 	_, err = confirmCommitWithExpectedSeqNumRangeTON(
@@ -162,7 +162,7 @@ func (a *TONAdapter[S]) ValidateCommit(t *testing.T, sourceSelector uint64, star
 	require.NoError(t, err)
 }
 
-func (a *TONAdapter[S]) ValidateExec(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (executionStates map[uint64]int) {
+func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (executionStates map[uint64]int) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
 	executionStates, err = confirmExecWithExpectedSeqNrsTON(
