@@ -1,14 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  Address,
-  beginCell,
-  Cell,
-  contractAddress,
-  Dictionary,
-  StateInit,
-  toNano,
-  SendMode,
-} from '@ton/core'
+import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
@@ -731,7 +722,11 @@ describe('OffRamp - Unit Tests', () => {
 
       router = blockchain.openContract(rt.Router.createFromConfig(data, code))
 
-      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      const result = await router.sendInternal(
+        deployer.getSender(),
+        rt.SOFT_FREEZE_THRESHOLD * 2n,
+        Cell.EMPTY,
+      )
 
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
