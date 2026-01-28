@@ -256,6 +256,10 @@ func Test_LogPoller_System(t *testing.T) {
 
 		for _, sc := range allStoreConfigs() {
 			t.Run(sc.name, func(t *testing.T) {
+				if sc.name == "Postgres" {
+					// TODO(@jadepark-dev) enable tests when chainlink-ton <> integration-tests module is resolved
+					t.Skip("Skipping: integration-tests uses published chainlink-ton module, pending local replace fix")
+				}
 				// Setup: create wallet and emitter
 				sender, serr := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 				require.NoError(t, serr)
