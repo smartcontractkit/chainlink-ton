@@ -419,7 +419,29 @@ export const testLogSourceChainConfigUpdated = (
       sourceChainSelector: cs.loadUintBig(64),
       config: offRamp.builder.data.sourceChainConfig.load(cs),
     }
-    equalsObject(msg, match)
+    const modifiedMsg = {
+      sourceChainSelector: msg.sourceChainSelector,
+      config: {
+        router: msg.config.router.toString(),
+        isEnabled: msg.config.isEnabled,
+        minSeqNr: msg.config.minSeqNr,
+        isRMNVerificationDisabled: msg.config.isRMNVerificationDisabled,
+        onRamp: msg.config.onRamp,
+      }
+    }
+
+    const modifiedMatch = {
+      sourceChainSelector: match.sourceChainSelector,
+      config: {
+        router: match.config.router.toString(),
+        isEnabled: match.config.isEnabled,
+        minSeqNr: match.config.minSeqNr,
+        isRMNVerificationDisabled: match.config.isRMNVerificationDisabled,
+        onRamp: match.config.onRamp,
+      }
+    }
+
+    equalsObject(modifiedMsg, modifiedMatch)
     return true
   })
 }
@@ -463,11 +485,19 @@ export const testLogUsdPerTokenUpdated = (
   return testLog(message, from, CCIPLogs.LogTypes.UsdPerTokenUpdated, (x) => {
     const cs = x.beginParse()
     const msg = {
-      sourceToken: cs.loadAddress(),
+      sourceToken: cs.loadAddress().toString(),
       usdPerToken: cs.loadUintBig(224),
       timestamp: cs.loadUintBig(64),
     }
-    matchesObject(msg, match)
+
+    const modifiedMatch = {...match}
+    if (match.sourceToken && match.sourceToken instanceof Address) {
+      modifiedMatch.sourceToken = match.sourceToken.toString()
+    }
+    console.log(modifiedMatch)
+    console.log(msg)
+
+    matchesObject(msg, modifiedMatch)
     return true
   })
 }
@@ -479,7 +509,7 @@ export const testLogUsdPerUnitGasUpdated = (
 ) => {
   return testLog(message, from, CCIPLogs.LogTypes.UsdPerUnitGasUpdated, (x) => {
     const cs = x.beginParse()
-    const msg = {
+    const msg: CCIPLogs.UsdPerUnitGasUpdated = {
       destChainSelector: cs.loadUintBig(64),
       executionGasPrice: cs.loadUintBig(112),
       dataAvailabilityGasPrice: cs.loadUintBig(112),

@@ -14,7 +14,7 @@ struct FiredrillEntrypoint_Storage {
 	ownable: Ownable2Step;
 	chainSelector: uint64;
 	tokenAddress: address;
-	firedrillContracts: Cell<FiredrillContracts>;
+	firedrillContracts: Cell<FiredrillContracts>?;
 	sSendLast: uint64;
 }
 
@@ -36,11 +36,17 @@ enum FiredrillEntrypoint_Error {
 	NothingToSend,
 	MessageAlreadySent,
 	NotYetSent,
+	RampsAlreadyInitialized,
+	RampsNotInitialized,
+	NotEnoughTon
 }
+
+const DRILL_MESSAGE_VALUE: coins = ton("0.007");
 
 fun onInternalMessage(in: InMessage) {
 	var st = lazy FiredrillEntrypoint_Storage.load();
 	val msg = lazy FiredrillEntrypoint_InMessage.fromSlice(in.body);
+	val value = in.valueCoins;
 	
 	match (msg) {
 		FiredrillEntrypoint_PrepareRegister => {
@@ -49,7 +55,7 @@ fun onInternalMessage(in: InMessage) {
 		}
 		FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike => {
 			st.ownable.requireOwner(in.senderAddress);
-			drillPendingCommitPendingQueueTxSpike(mutate st, msg);
+			drillPendingCommitPendingQueueTxSpike(mutate st, msg, value);
 			st.store();
 		}
 		FiredrillEntrypoint_DrillPendingExecution => {
@@ -60,11 +66,26 @@ fun onInternalMessage(in: InMessage) {
 			st.ownable.requireOwner(in.senderAddress);
 			drillPriceRegistries(st);
 		}
+		FiredrillEntrypoint_InitRamps => {
+			st.ownable.requireOwner(in.senderAddress);
+			initRamps(mutate st, msg);
+			st.store();
+		}
 	}
+}
+
+fun initRamps(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_InitRamps) {
+	assert(st.firedrillContracts == null, FiredrillEntrypoint_Error.RampsAlreadyInitialized);
+	val firedrillContracts = FiredrillContracts {
+		firedrillOnRamp: msg.onramp,
+		firedrillOffRamp: msg.offramp
+	};
+	st.firedrillContracts = firedrillContracts.toCell();
 }
 
 fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	// Send message to OffRamp to emit SourceChainConfigSet event
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	val msg = createMessage({
 		bounce: false,
@@ -75,11 +96,14 @@ fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike) {
+fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike, value: coins) {
 	assert(msg.from <= msg.to, FiredrillEntrypoint_Error.NothingToSend);
 	assert(msg.from > st.sSendLast, FiredrillEntrypoint_Error.MessageAlreadySent);
+	assert(value >= DRILL_MESSAGE_VALUE * (msg.to - msg.from + 1) + ton("0.005"), FiredrillEntrypoint_Error.NotEnoughTon);
 	
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
+
 	// Send messages to OnRamp to emit CCIPMessageSent events
 	var i: uint64 = msg.from;
 	while (i <= msg.to) {
@@ -90,11 +114,11 @@ fun drillPendingCommitPendingQueueTxSpike(mutate st: FiredrillEntrypoint_Storage
 		
 		val message = createMessage({
 			bounce: false,
-			value: 0,
+			value: DRILL_MESSAGE_VALUE,
 			dest: firedrillContracts.firedrillOnRamp,
 			body: emitMsg,
 		});
-		message.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+		message.send(SEND_MODE_REGULAR);
 		
 		i += 1;
 	}
@@ -112,7 +136,9 @@ fun drillPendingExecution(st: FiredrillEntrypoint_Storage, msg: FiredrillEntrypo
 		maxSeqNr: msg.to
 	};
 
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
+
 	val message = createMessage({
 		bounce: false,
 		value: 0,
@@ -136,23 +162,30 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 // ========== Router Getters ==========
 
 get fun onRamp(destChainSelector: uint64): address {
-
 	val st = lazy FiredrillEntrypoint_Storage.load();
+
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
+
 	return firedrillContracts.firedrillOnRamp;
 }
 
 get fun offRamp(sourceChainSelector: uint64): address {
-	
 	val st = lazy FiredrillEntrypoint_Storage.load();
+
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
+
 	return firedrillContracts.firedrillOffRamp;
 }
 
 get fun onRamps(): OnRamps {
 	val st = lazy FiredrillEntrypoint_Storage.load();
+
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
-	val selectors = beginCell().storeUint(1, 32).storeUint(st.chainSelector, 64).endCell();
+
+	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell();
 
 	return OnRamps {
 		destChainSelectors: selectors,
@@ -162,8 +195,10 @@ get fun onRamps(): OnRamps {
 
 get fun offRamps(): OffRamps {
 	val st = lazy FiredrillEntrypoint_Storage.load();
+
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
-	val selectors = beginCell().storeUint(1, 32).storeUint(st.chainSelector, 64).endCell();
+	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell();
 	return OffRamps {
 		sourceChainSelectors: selectors,
 		offRamp: firedrillContracts.firedrillOffRamp
@@ -197,7 +232,9 @@ get fun destinationChainGasPrice(destChainSelector: uint64): cell {
 // ========== Common Getters ==========
 
 get fun chainSelector(): uint64 {
+	debug.print(1);
 	val st = lazy FiredrillEntrypoint_Storage.load();
+	debug.print(2);
 	return st.chainSelector;
 }
 
@@ -208,12 +245,16 @@ get fun tokenAddress(): address {
 
 get fun onRampAddress(): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
+
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	return firedrillContracts.firedrillOnRamp;
 }
 
 get fun offRampAddress(): address {
 	val st = lazy FiredrillEntrypoint_Storage.load();
+
+	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 	return firedrillContracts.firedrillOffRamp;
 }
