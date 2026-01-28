@@ -108,16 +108,15 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		assert.Contains(t, err.Error(), "error convert receiver address")
 	})
 
-	// TODO: Re-enable when gasLimit is no longer hardcoded in the msgHasher and executecodec
-	// t.Run("message without extra args", func(t *testing.T) {
-	//	 msg := randomTONMessage(t, 5009297550715157269)
-	//	 msg.ExtraArgs = nil
-	//
-	//	 hash, err := hasher.Hash(ctx, msg)
-	//	 require.Error(t, err)
-	//	 assert.Contains(t, err.Error(), "cannot hash without extra args")
-	//	 assert.NotEqual(t, [32]byte{}, hash)
-	// })
+	t.Run("message with empty ", func(t *testing.T) {
+		msg := randomTONMessage(t, 5009297550715157269)
+		msg.ExtraArgs = nil
+
+		hash, err := hasher.Hash(ctx, msg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot hash without extra args")
+		assert.NotEqual(t, [32]byte{}, hash)
+	})
 
 	t.Run("message without token amounts", func(t *testing.T) {
 		msg := randomTONMessage(t, 5009297550715157269)
