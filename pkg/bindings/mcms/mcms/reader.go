@@ -118,6 +118,43 @@ var GetRoot = tvm.NewNoArgsGetter(tvm.NoArgsOpts[GetRootResult]{
 	}),
 })
 
+var GetOpPendingInfo = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OpPendingInfo]{
+	Name: "getOpPendingInfo",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (OpPendingInfo, error) {
+		validAfter, err := r.Int(0)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(0) - validAfter: %w", err)
+		}
+
+		opFinalizationTimeout, err := r.Int(1)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(1) - opFinalizationTimeout: %w", err)
+		}
+
+		sAddr, err := r.Slice(2)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Slice(2) - opPendingReceiver: %w", err)
+		}
+
+		opPendingReceiver, err := sAddr.LoadAddr()
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error decoding Slice(2) - opPendingReceiver: %w", err)
+		}
+
+		opPendingBodyTruncated, err := r.Int(3)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(3) - opPendingBodyTruncated: %w", err)
+		}
+
+		return OpPendingInfo{
+			ValidAfter:             validAfter.Uint64(),
+			OpFinalizationTimeout:  uint32(opFinalizationTimeout.Uint64()),
+			OpPendingReceiver:      opPendingReceiver,
+			OpPendingBodyTruncated: tlbe.NewUint256(opPendingBodyTruncated),
+		}, nil
+	}),
+})
+
 var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 	Name: "getRootMetadata",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (RootMetadata, error) {
