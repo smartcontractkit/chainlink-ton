@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -28,11 +29,30 @@ import (
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 )
 
-func (a *TonAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+// TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
+type TonLaneAdapter struct{}
+
+func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getOnRampAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetOffRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getOffRampAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getFQAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
+	return getRouterAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource
 }
 
-func (a *TonAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonLaneAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsDest
 }
 
@@ -406,3 +426,5 @@ func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.App
 		OffRampRemoves: nil,
 	}, nil
 }
+
+var _ lanes.LaneAdapter = &TonLaneAdapter{}

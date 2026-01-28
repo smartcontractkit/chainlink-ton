@@ -29,7 +29,7 @@ import (
 // MCMS contracts require more storage and operational capacity, hence the higher allocation compared to CCIP contracts.
 const defaultMCMSContractCoin = "1.5"
 
-func (a *TonAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonDeployAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployMCMSContracts
 }
 
@@ -141,7 +141,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 	}, nil
 }
 
-func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonDeployAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
 		"ton/sequences/ccip/deploy-mcms-suite-finalize",
 		semver.MustParse("1.0.0"),
@@ -151,7 +151,7 @@ func (a *TonAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploy
 		})
 }
 
-func (a *TonAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonDeployAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
 		"ton/sequences/ccip/grant-admin-role-to-timelock",
 		semver.MustParse("1.0.0"),
