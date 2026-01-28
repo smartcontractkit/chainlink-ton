@@ -5,6 +5,8 @@ go 1.25.5
 // Use local chainlink-ton/deployment module,
 // but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
 replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+// TODO: remove on merge(TBD local package dependency management)
+replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0

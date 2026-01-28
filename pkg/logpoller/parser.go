@@ -128,37 +128,47 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 		EventSig: eventSig,
 	}
 
-	filterIDs := filterIndex[filterKey.String()]
-	if len(filterIDs) == 0 {
+	filters := filterIndex[filterKey.String()]
+	if len(filters) == 0 {
 		return []models.Log{}, nil // no matching filters found
 	}
 
 	// record logs matched metric
-	lp.metrics.AddLogsMatched(ctx, msgTypeLabels[msg.MsgType], opcodeLabel, int64(len(filterIDs)))
+	lp.metrics.AddLogsMatched(ctx, msgTypeLabels[msg.MsgType], opcodeLabel, int64(len(filters)))
 
 	msgLT, err := extractMsgLT(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract msgLT: %w", err)
 	}
 
-	// create a log entry for each matching filter.
+	txTimestamp := time.Unix(int64(tx.Transaction.Now), 0).UTC()
+
+	// create a log entry for each matching filter
 	// DB unique constraint (chain_id, filter_id, tx_hash, tx_lt, msg_index) allows multiple filters
 	// to store the same blockchain event. Query-time deduplication handles returning unique events.
-	logs := make([]models.Log, 0, len(filterIDs))
-	for _, filterID := range filterIDs {
+	logs := make([]models.Log, 0, len(filters))
+	for _, filter := range filters {
+		// compute expires_at if filter has retention configured (retention > 0)
+		var expiresAt *time.Time
+		if filter.LogRetention > 0 {
+			exp := txTimestamp.Add(filter.LogRetention)
+			expiresAt = &exp
+		}
+
 		log := models.Log{
 			ChainID:      chainID,
-			FilterID:     filterID,
+			FilterID:     filter.ID,
 			EventSig:     eventSig,
 			Address:      msg.Msg.SenderAddr(),
 			Data:         body,
 			TxHash:       models.TxHash(tx.Transaction.Hash),
 			TxLT:         tx.Transaction.LT,
-			TxTimestamp:  time.Unix(int64(tx.Transaction.Now), 0).UTC(),
+			TxTimestamp:  txTimestamp,
 			Block:        tx.Block,
 			MCBlockSeqno: tx.MCBlockSeqno,
 			MsgLT:        msgLT,
 			MsgIndex:     int64(msgIndex),
+			ExpiresAt:    expiresAt,
 
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)

@@ -17,14 +17,16 @@ import (
 
 // filterModel represents the 'ton_log_poller_filters' table schema.
 type filterModel struct {
-	ID            int64     `db:"id"`
-	ChainID       string    `db:"chain_id"`
-	Name          string    `db:"name"`
-	Address       []byte    `db:"address"` // TON address in raw byte format
-	MsgType       string    `db:"msg_type"`
-	EventSig      []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
-	StartingSeqNo int64     `db:"starting_seq_no"`
-	CreatedAt     time.Time `db:"created_at"`
+	ID            int64         `db:"id"`
+	ChainID       string        `db:"chain_id"`
+	Name          string        `db:"name"`
+	Address       []byte        `db:"address"` // TON address in raw byte format
+	MsgType       string        `db:"msg_type"`
+	EventSig      []byte        `db:"event_sig"` // CRC32 hash as 4-byte binary
+	StartingSeqNo int64         `db:"starting_seq_no"`
+	LogRetention  time.Duration `db:"log_retention"`
+	MaxLogsKept   int64         `db:"max_logs_kept"`
+	CreatedAt     time.Time     `db:"created_at"`
 }
 
 // FromFilter converts a types.Filter to FilterModel
@@ -39,6 +41,8 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
 		MsgType:       string(filter.MsgType),
 		EventSig:      eventSig,
 		StartingSeqNo: int64(filter.StartingSeqNo),
+		LogRetention:  filter.LogRetention,
+		MaxLogsKept:   filter.MaxLogsKept,
 	}
 }
 
@@ -61,30 +65,33 @@ func (f filterModel) ToFilter() (lptypes.Filter, error) {
 		MsgType:       tlb.MsgType(f.MsgType),
 		EventSig:      binary.BigEndian.Uint32(f.EventSig),
 		StartingSeqNo: uint32(f.StartingSeqNo), //nolint:gosec // safe conversion
+		LogRetention:  f.LogRetention,
+		MaxLogsKept:   f.MaxLogsKept,
 	}, nil
 }
 
 // logModel represents the 'ton.log_poller_logs' table schema.
 type logModel struct {
-	ID             int64     `db:"id"`
-	FilterID       int64     `db:"filter_id"`
-	ChainID        string    `db:"chain_id"`
-	Address        []byte    `db:"address"`      // TON address in raw byte format
-	EventSig       []byte    `db:"event_sig"`    // CRC32 hash as 4-byte binary
-	DataHeader     []byte    `db:"data_header"`  // BOC header (variable size)
-	DataPayload    []byte    `db:"data_payload"` // BOC payload (cell descriptor + data)
-	TxHash         []byte    `db:"tx_hash"`
-	TxLT           string    `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
-	TxTimestamp    time.Time `db:"tx_timestamp"`
-	MsgLT          string    `db:"msg_lt"` // msg_lt is stored as NUMERIC(20,0) to support uint64 range
-	MsgIndex       int64     `db:"msg_index"`
-	BlockWorkchain int       `db:"block_workchain"`
-	BlockShard     int64     `db:"block_shard"`
-	BlockSeqno     int64     `db:"block_seqno"`
-	BlockRootHash  []byte    `db:"block_root_hash"`
-	BlockFileHash  []byte    `db:"block_file_hash"`
-	MCBlockSeqno   int64     `db:"master_block_seqno"`
-	CreatedAt      time.Time `db:"created_at"`
+	ID             int64      `db:"id"`
+	FilterID       int64      `db:"filter_id"`
+	ChainID        string     `db:"chain_id"`
+	Address        []byte     `db:"address"`      // TON address in raw byte format
+	EventSig       []byte     `db:"event_sig"`    // CRC32 hash as 4-byte binary
+	DataHeader     []byte     `db:"data_header"`  // BOC header (variable size)
+	DataPayload    []byte     `db:"data_payload"` // BOC payload (cell descriptor + data)
+	TxHash         []byte     `db:"tx_hash"`
+	TxLT           string     `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
+	TxTimestamp    time.Time  `db:"tx_timestamp"`
+	MsgLT          string     `db:"msg_lt"` // msg_lt is stored as NUMERIC(20,0) to support uint64 range
+	MsgIndex       int64      `db:"msg_index"`
+	BlockWorkchain int        `db:"block_workchain"`
+	BlockShard     int64      `db:"block_shard"`
+	BlockSeqno     int64      `db:"block_seqno"`
+	BlockRootHash  []byte     `db:"block_root_hash"`
+	BlockFileHash  []byte     `db:"block_file_hash"`
+	MCBlockSeqno   int64      `db:"master_block_seqno"`
+	CreatedAt      time.Time  `db:"created_at"`
+	ExpiresAt      *time.Time `db:"expires_at"` // nullable when retention = 0
 }
 
 // FromLog converts a models.Log to logModel
@@ -124,6 +131,7 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 		MCBlockSeqno:   int64(log.MCBlockSeqno),
 		MsgLT:          strconv.FormatUint(log.MsgLT, 10),
 		MsgIndex:       log.MsgIndex,
+		ExpiresAt:      log.ExpiresAt,
 	}, nil
 }
 
@@ -190,5 +198,6 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		MCBlockSeqno: uint32(l.MCBlockSeqno), //nolint:gosec // MCBlockSeqno values are safe to convert to uint32
 		MsgLT:        msgLT,
 		MsgIndex:     l.MsgIndex,
+		ExpiresAt:    l.ExpiresAt,
 	}, nil
 }
