@@ -48,14 +48,15 @@ func init() {
 type Client struct {
 	chainSel uint64
 	lggr     logger.Logger
-	client   ton.APIClientWrapped
+	client   *ton.APIClient
 	wallet   *wallet.Wallet
 }
 
 // NewClient creates a new TON client
 func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) (lib.Client, error) {
 	// support both liteserver:// and config URL format
-	client, err := utils.CreateClient(ctx, endpoint)
+	// Use CreateRawClient to get *ton.APIClient for compatibility with cldfton.Chain
+	client, err := utils.CreateRawClient(ctx, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get TON client: %w", err)
 	}

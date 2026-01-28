@@ -180,13 +180,22 @@ func StartChain(t *testing.T, chainID uint64, once *sync.Once) (cldf_ton.Chain, 
 }
 
 func CreateClient(ctx context.Context, url string) (ton.APIClientWrapped, error) {
-	var client ton.APIClientWrapped
+	client, err := CreateRawClient(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	return client.WithRetry(defaultTONClientRetryCount), nil
+}
+
+// CreateRawClient creates a raw TON API client without retry wrapper
+func CreateRawClient(ctx context.Context, url string) (*ton.APIClient, error) {
+	var client *ton.APIClient
 	if strings.HasPrefix(url, "liteserver://") {
 		pool, err := tonchainpkg.CreateLiteserverConnectionPool(ctx, url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
 		}
-		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
 	} else {
 		// connect via config URL
 		cfg, err := liteclient.GetConfigFromUrl(ctx, url)
@@ -198,7 +207,7 @@ func CreateClient(ctx context.Context, url string) (ton.APIClientWrapped, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to TON: %w", err)
 		}
-		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
 	}
 	return client, nil
 }
