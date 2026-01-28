@@ -45,6 +45,8 @@ func TestDeployMCMS(t *testing.T) {
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
 
+	version := sequence.ContractsVersionLatestSupported
+
 	timelockContractSemver := semver.MustParse("0.0.3")
 	mcmsContractSemver := semver.MustParse("0.0.4")
 	cfg := changesets.DeployMCMSContractsCfg{
@@ -69,7 +71,7 @@ func TestDeployMCMS(t *testing.T) {
 				Coin:            "0.5",
 			},
 		},
-		ContractsVersion: sequence.ContractsLocalVersion,
+		ContractsVersion: version,
 	}
 
 	cs := commonchangeset.Configure(changesets.DeployMCMSContracts{}, cfg)

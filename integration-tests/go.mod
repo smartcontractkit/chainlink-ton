@@ -2,6 +2,10 @@ module github.com/smartcontractkit/chainlink-ton/integration-tests
 
 go 1.25.5
 
+// Use local chainlink-ton/deployment module,
+// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
+replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -16,20 +20,14 @@ require (
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20251211123524-f0c4fe7cfc0a
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260115170733-b16e9683d4d5
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20251209123958-08209efcf3f3
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260127214148-d1bc1a4821a9
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260120144738-c9d69aa78a47
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20251201102914-ca8e10040285
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20251201102914-ca8e10040285
 	github.com/smartcontractkit/mcms v0.32.1-0.20260115182955-e63152532517
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	google.golang.org/grpc v1.77.0
-)
-
-// use local modules
-replace (
-	github.com/smartcontractkit/chainlink-ton => ../
-	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15

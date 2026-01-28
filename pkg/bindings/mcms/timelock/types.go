@@ -391,11 +391,13 @@ type OpPendingInfo struct {
 	// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
 	// At this time the previous executed operation is considered optimistically final and successful,
 	// meaning no bounce was received and we can continue executing.
-	ValidAfter uint32 `tlb:"## 32"`
+	ValidAfter uint64 `tlb:"## 64"`
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *tlbe.Uint256 `tlb:"."`
+	// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
+	OpPendingCalls *tlbe.Dict[*tlbe.Uint256, bool] `tlb:"."`
 }
 
 // --- Constants ---
@@ -453,18 +455,23 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorSelectorIsBlocked)
-		ecMax = int32(ErrorContractNotInitialized)
+		ecMax = int32(InsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	// Error codes
+	// Thrown when trying to schedule an operation which contains a blocked function selector.
 	ErrorSelectorIsBlocked ExitCode = iota + 19300
+	// Thrown when trying to execute an operation which is not ready yet.
 	ErrorOperationNotReady
+	// Thrown when an operation is missing a required dependency (predecessor not done).
 	ErrorOperationMissingDependency
+	// Thrown when trying to cancel a non-pending operation.
 	ErrorOperationCannotBeCancelled
+	// Thrown when trying to schedule an already scheduled operation.
 	ErrorOperationAlreadyScheduled
+	// Thrown when the provided delay is less than the minimum delay.
 	ErrorInsufficientDelay
 	// Thrown when trying to execute a pending operation while another pending operation is not yet final
 	ErrorPendingOperationNotFinal
@@ -476,4 +483,6 @@ const (
 	ErrorContractAlreadyInitialized
 	// Thrown when trying to call a function on an uninitialized contract.
 	ErrorContractNotInitialized
+	// Value attached to incoming message is not enough to pay for handler execution
+	InsufficientFee
 )

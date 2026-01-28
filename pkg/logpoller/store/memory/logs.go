@@ -24,12 +24,18 @@ import (
 
 var _ logpoller.LogStore = (*inMemoryLogs)(nil)
 
-// logKey represents a composite key for log deduplication
-// using address + event signature + TxLT
+// logKey uniquely identifies a log event by (TxHash, TxLT, MsgIndex).
 type logKey struct {
-	address  string // address string representation
-	eventSig uint32 // event signature
-	txLT     uint64 // transaction logical time
+	txHash   string
+	txLT     uint64
+	msgIndex int64
+}
+
+// storageKey identifies a stored log entry by (FilterID, logKey).
+// The same log event can be stored under multiple filters.
+type storageKey struct {
+	filterID int64
+	logKey
 }
 
 // inMemoryLogs is in-memory implementation of the LogStore interface.
@@ -38,7 +44,7 @@ type logKey struct {
 type inMemoryLogs struct {
 	mu      sync.Mutex
 	logs    []models.Log
-	logKeys map[logKey]bool // set of existing log keys for deduplication
+	logKeys map[storageKey]bool // tracks stored entries (simulates ON CONFLICT DO NOTHING)
 	lggr    logger.Logger
 	chainID string
 
@@ -51,7 +57,7 @@ func NewLogStore(chainID string, lggr logger.Logger) logpoller.LogStore {
 		chainID: chainID,
 
 		logs:    make([]models.Log, 0),
-		logKeys: make(map[logKey]bool),
+		logKeys: make(map[storageKey]bool),
 	}
 }
 
@@ -67,25 +73,30 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchIns
 	}
 
 	// Process logs (deduplication and storage)
+	var inserted int64
 	for _, log := range logs {
-		key := logKey{
-			address:  log.Address.String(),
-			eventSig: log.EventSig,
-			txLT:     log.TxLT,
+		key := storageKey{
+			filterID: log.FilterID,
+			logKey: logKey{
+				txHash:   string(log.TxHash[:]),
+				txLT:     log.TxLT,
+				msgIndex: log.MsgIndex,
+			},
 		}
 
 		if s.logKeys[key] {
-			continue
+			continue // Skip duplicate (same as ON CONFLICT DO NOTHING)
 		}
 		s.logs = append(s.logs, log)
 		s.logKeys[key] = true
+		inserted++
 
 		// update cached max
 		if log.MCBlockSeqno > s.maxMCBlockSeqno {
 			s.maxMCBlockSeqno = log.MCBlockSeqno
 		}
 	}
-	return int64(len(logs)), nil
+	return inserted, nil
 }
 
 // QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
@@ -113,6 +124,24 @@ func (s *inMemoryLogs) QueryLogs(
 	if logQuery.LimitAndSort.HasCursorLimit() {
 		filtered = s.applyCursorFilter(filtered, logQuery.LimitAndSort)
 	}
+
+	// Deduplicate logs by (TxHash, TxLT, MsgIndex).
+	// Multiple filters can track the same log events, resulting in duplicates in storage.
+	seen := make(map[logKey]struct{}, len(filtered))
+	deduped := make([]models.Log, 0, len(filtered))
+	for _, log := range filtered {
+		key := logKey{
+			txHash:   string(log.TxHash[:]),
+			txLT:     log.TxLT,
+			msgIndex: log.MsgIndex,
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, log)
+	}
+	filtered = deduped
 
 	// apply limit
 	requestedLimit := int(logQuery.LimitAndSort.Limit.Count) //nolint:gosec // limit values are reasonable for in-memory store

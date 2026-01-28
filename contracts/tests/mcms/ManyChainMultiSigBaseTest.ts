@@ -48,7 +48,7 @@ export class MCMSBaseTestSetup {
   static readonly GROUP2_PARENT = 0
   static readonly GROUP3_PARENT = 0
   static readonly TEST_CHAIN_ID = -239n // TODO: blockchain global chain ID (will need to be signed int)
-  static readonly TEST_VALID_UNTIL = 1000000
+  static readonly TEST_VALID_UNTIL = 1000000n
 
   static readonly OP_FINALIZATION_TIMEOUT_ZERO = 0
 
@@ -707,8 +707,9 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   }
 
   // Execute all operations up to the post-op count limit to simulate setOpCount
-  async executeOperationsUpTo(index: number) {
+  async executeOperationsUpTo(index: number, opFinalizationTimeout: number = 0): Promise<void> {
     for (let i = 0; i < index; i++) {
+      this.warpTime(opFinalizationTimeout)
       const executeBody = mcms.builder.message.in.execute
         .encode({
           queryId: BigInt(i + 1),
@@ -719,7 +720,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
 
       const result = await this.bind.mcms.sendInternal(
         this.acc.deployer.getSender(),
-        toNano('1'),
+        toNano('0.05'), // to cover execution fee
         executeBody,
       )
 

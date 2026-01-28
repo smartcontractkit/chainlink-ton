@@ -67,7 +67,7 @@ fun onInternalMessage(in: InMessage) {
         Router_CCIPReceiveConfirm => {
             // Check that the amount sent by the receiver is enough to cover confirmation trace costs. 
             // Approx 0.02 TON.
-            assert (in.valueCoins >= Router_Costs.receiveConfirm()) throw Router_Error.InsufficientFee;
+            assert(in.valueCoins >= Router_Costs.receiveConfirm()) throw Router_Error.InsufficientFee;
             onCCIPReceiveConfirm(msg, in.senderAddress);
         }
         // Sender must RMN remote admin

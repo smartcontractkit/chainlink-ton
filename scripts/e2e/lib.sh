@@ -14,14 +14,19 @@ fi
 ROOT_DIR=$(git rev-parse --show-toplevel)
 DEFAULT_CHAINLINK_CORE_DIR="${ROOT_DIR}/../chainlink"
 CORE_VERSION_FILE_PATH="${ROOT_DIR}/scripts/.core_version"
-CURRENT_TON_COMMIT=$(cd "$ROOT_DIR" && git rev-parse HEAD)
+CURRENT_COMMIT=$(cd "$ROOT_DIR" && git rev-parse HEAD)
+BLESSED_CHAINLINK_TON_REF=$(tr -d '[:space:]' <"${ROOT_DIR}/scripts/.chainlink-ton_version")
 BLESSED_CORE_REF=$(tr -d '[:space:]' <"${ROOT_DIR}/scripts/.core_version")
 
+MODULE_CT="github.com/smartcontractkit/chainlink-ton"
+MODULE_CT_DEPLOYMENT="github.com/smartcontractkit/chainlink-ton/deployment"
+MODULE_CT_INTEGRATION_TESTS="github.com/smartcontractkit/chainlink-ton/integration-tests"
+
 # ton modules that need to be replaced in core repository
-declare -A TON_MODULES=(
-  ["github.com/smartcontractkit/chainlink-ton"]="$ROOT_DIR"
-  ["github.com/smartcontractkit/chainlink-ton/deployment"]="$ROOT_DIR/deployment"
-  ["github.com/smartcontractkit/chainlink-ton/integration-tests"]="$ROOT_DIR/integration-tests"
+declare -A MODULES_TON=(
+  ["$MODULE_CT"]="$ROOT_DIR"
+  ["$MODULE_CT_DEPLOYMENT"]="$ROOT_DIR/deployment"
+  ["$MODULE_CT_INTEGRATION_TESTS"]="$ROOT_DIR/integration-tests"
 )
 
 # logging functions
@@ -32,6 +37,15 @@ log_info() {
 log_error() {
   echo "ERROR: $1" >&2
 }
+
+# use current commit if chainlink_ton version not pinned, otherwise set module with pinned ref
+if [ -z "$BLESSED_CHAINLINK_TON_REF" ]; then
+  BLESSED_CHAINLINK_TON_REF="$CURRENT_COMMIT"
+  log_info "Chainlink TON version file is empty: using commit (latest): $BLESSED_CHAINLINK_TON_REF"
+else
+  MODULES_TON["$MODULE_CT"]="$MODULE_CT@$BLESSED_CHAINLINK_TON_REF"
+  log_info "Chainlink TON version: using commit: $BLESSED_CHAINLINK_TON_REF"
+fi
 
 # validate that a project directory exists and contains go.mod
 validate_project_dir() {
@@ -101,7 +115,7 @@ validate_core_version() {
   fi
 }
 
-# verify that ton plugin gitref matches current chainlink-ton commit
+# verify that ton plugin gitref matches the configured chainlink-ton commit
 verify_plugin_config() {
   local chainlink_core_dir="$1"
   
@@ -122,12 +136,12 @@ verify_plugin_config() {
     exit 1
   fi
   
-  log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
+  log_info "Using chainlink-ton commit: $BLESSED_CHAINLINK_TON_REF"
   log_info "TON plugin gitRef in core: $PLUGIN_GIT_REF"
   
-  if [ "$CURRENT_TON_COMMIT" != "$PLUGIN_GIT_REF" ]; then
+  if [ "$BLESSED_CHAINLINK_TON_REF" != "$PLUGIN_GIT_REF" ]; then
     log_error "TON plugin gitRef mismatch!"
-    log_error "  Current chainlink-ton commit: $CURRENT_TON_COMMIT"
+    log_error "  Using chainlink-ton commit: $BLESSED_CHAINLINK_TON_REF"
     log_error "  Plugin gitRef in core: $PLUGIN_GIT_REF"
     log_error "  Please run setup-env.sh to update the plugin configuration."
     exit 1

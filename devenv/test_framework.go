@@ -57,7 +57,7 @@ type AnyMsgSentEvent struct {
 func (m *CCIP16TON) SendMessage(ctx context.Context, src, dest uint64, fields any, opts any) error {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
-	a := &tonseqs.TonAdapter{}
+	a := &tonseqs.TonLaneAdapter{}
 	routerAddr, err := a.GetRouterAddress(m.e.DataStore, src)
 	if err != nil {
 		return fmt.Errorf("failed to get router address: %w", err)
@@ -304,7 +304,7 @@ func waitForTONEvent[T any](
 func (m *CCIP16TON) WaitOneSentEventBySeqNo(ctx context.Context, from, to, seq uint64, timeout time.Duration) (any, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Waiting for one sent event for a sequence number")
-	a := &tonseqs.TonAdapter{}
+	a := &tonseqs.TonLaneAdapter{}
 	tonChain := m.e.BlockChains.TonChains()[to]
 	seqRange := ccipocr3common.SeqNumRange{ccipocr3common.SeqNum(seq), ccipocr3common.SeqNum(seq)}
 	tracker := NewCommitReportTracker(from, seqRange)
@@ -361,7 +361,7 @@ func (m *CCIP16TON) WaitOneSentEventBySeqNo(ctx context.Context, from, to, seq u
 func (m *CCIP16TON) WaitOneExecEventBySeqNo(ctx context.Context, from, to, seq uint64, timeout time.Duration) (any, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Waiting for one exec event for a sequence number")
-	a := &tonseqs.TonAdapter{}
+	a := &tonseqs.TonLaneAdapter{}
 	tonChain := m.e.BlockChains.TonChains()[to]
 	eventsProcessed := 0
 

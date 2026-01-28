@@ -167,7 +167,7 @@ export type InMessage =
 
 // RBACTimelock contract storage
 export type ContractData = {
-  /// ID allows multiple independent instances, since contract address depends on initial state.
+  // ID allows multiple independent instances, since contract address depends on initial state.
   id: number // uint32
 
   // Minimum delay for operations in seconds
@@ -199,7 +199,7 @@ export type Call = {
   data: Cell
 }
 
-/// Batch of transactions represented as a operation, which can be scheduled and executed.
+// Batch of transactions represented as a operation, which can be scheduled and executed.
 export type OperationBatch = {
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
@@ -209,18 +209,20 @@ export type OperationBatch = {
   salt: bigint
 }
 
-/// Information about the currently pending operation.
-///
-/// @dev TON-specific additional data required to support reliable execution in the async environment.
+// Information about the currently pending operation.
+//
+// @dev TON-specific additional data required to support reliable execution in the async environment.
 export type OpPendingInfo = {
-  /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
-  /// At this time the previous executed operation is considered optimistically final and successful,
-  /// meaning no bounce was received and we can continue executing.
-  validAfter: number
-  /// The timeout required to finalize the currently executing op
+  // The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
+  // At this time the previous executed operation is considered optimistically final and successful,
+  // meaning no bounce was received and we can continue executing.
+  validAfter: bigint
+  // The timeout required to finalize the currently executing op
   opFinalizationTimeout: number
-  /// The id of the currently pending operation (OperationBatch hash)
+  // The id of the currently pending operation (OperationBatch hash)
   opPendingId: bigint
+  // The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
+  opPendingCalls?: Dictionary<bigint, boolean>
 }
 
 export type ExecuteData = {
@@ -309,6 +311,7 @@ export const opcodes = {
     ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
     ErrorReportSubmitted: crc32('Timelock_ErrorReportSubmitted'),
     OpFinalizationTimeoutChange: crc32('Timelock_OpFinalizationTimeoutChange'),
+    BounceHandled: crc32('Timelock_BounceHandled'),
   },
 }
 
@@ -709,9 +712,10 @@ export const builder = {
               Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
           )
           .storeBit(data.executorRoleCheckEnabled)
-          .storeUint(data.opPendingInfo.validAfter, 32)
+          .storeUint(data.opPendingInfo.validAfter, 64)
           .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
           .storeUint(data.opPendingInfo.opPendingId, 256)
+          .storeDict(data.opPendingInfo.opPendingCalls)
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
@@ -774,22 +778,30 @@ export const DONE_TIMESTAMP = 1n
 export const ERROR_TIMESTAMP = 2n
 
 export enum Error {
+  // Thrown when trying to schedule an operation which contains a blocked function selector.
   SelectorIsBlocked = 19300,
+  // Thrown when trying to execute an operation which is not ready yet.
   OperationNotReady,
+  // Thrown when an operation is missing a required dependency (predecessor not done).
   OperationMissingDependency,
+  // Thrown when trying to cancel a non-pending operation.
   OperationCanNotBeCancelled,
+  // Thrown when trying to schedule an already scheduled operation.
   OperationAlreadyScheduled,
+  // Thrown when the provided delay is less than the minimum delay.
   InsufficientDelay,
-  /// Thrown when trying to execute a pending operation while another pending operation is not yet final
+  // Thrown when trying to execute a pending operation while another pending operation is not yet final
   PendingOperationNotFinal,
-  /// Thrown when the provided op.value is insufficient (min required value not met).
+  // Thrown when the provided op.value is insufficient (min required value not met).
   InsufficientValue,
-  /// Thrown when trying to submit an error report for an operation that is not done.
+  // Thrown when trying to submit an error report for an operation that is not done.
   OperationNotDone,
-  /// Thrown when trying to initialize the contract more than once.
+  // Thrown when trying to initialize the contract more than once.
   ContractAlreadyInitialized,
-  /// Thrown when trying to call a function on an uninitialized contract.
+  // Thrown when trying to call a function on an uninitialized contract.
   ContractNotInitialized,
+  // Value attached to incoming message is not enough to pay for handler execution
+  InsufficientFee,
 }
 
 export class ContractClient implements Contract {
@@ -1028,9 +1040,10 @@ export class ContractClient implements Contract {
     return p // break line
       .get('getOpPendingInfo', [])
       .then((result) => ({
-        validAfter: result.stack.readNumber(),
+        validAfter: result.stack.readBigNumber(),
         opFinalizationTimeout: result.stack.readNumber(),
         opPendingId: result.stack.readBigNumber(),
+        // TODO: read opPendingCalls dictionary
       }))
   }
 }

@@ -38,7 +38,7 @@ type SetRoot struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *tlbe.Uint256 `tlb:"."`     // The new expiring root.
-	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
+	ValidUntil uint64        `tlb:"## 64"` // The time by which the root is valid.
 
 	Metadata      RootMetadata                 `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
 	MetadataProof common.SnakedCell[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
@@ -168,7 +168,7 @@ type NewRoot struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *tlbe.Uint256 `tlb:"."`     // The new expiring root.
-	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
+	ValidUntil uint64        `tlb:"## 64"` // The time by which the root is valid.
 	Metadata   RootMetadata  `tlb:"."`     // The metadata about the root, which is stored as one of the leaves.
 }
 
@@ -382,7 +382,7 @@ type ExpiringRootAndOpCount struct {
 	/// root may target many chains. We assume that block.timestamp can
 	/// be manipulated by block producers but only within relatively tight
 	/// bounds (a few minutes at most).
-	ValidUntil uint32 `tlb:"## 32"`
+	ValidUntil uint64 `tlb:"## 64"`
 	/// each ManyChainMultiSig instance has it own independent opCount.
 	OpCount uint64 `tlb:"## 40"`
 	/// Information about the currently pending operation.
@@ -396,7 +396,7 @@ type OpPendingInfo struct {
 	// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
 	// At this time the previous executed operation is considered optimistically final and successful,
 	// meaning no bounce was received and we can continue executing.
-	ValidAfter uint32 `tlb:"## 32"`
+	ValidAfter uint64 `tlb:"## 64"`
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The address that the (pending) operation was sent to (and could bounce from).
@@ -452,7 +452,7 @@ type Op struct {
 // Data container used to derive the root ID (hash)
 type RootDescriptor struct {
 	Root       *tlbe.Uint256 `tlb:"."`     // The merkle tree root
-	ValidUntil uint32        `tlb:"## 32"` // The time until which root is valid
+	ValidUntil uint64        `tlb:"## 64"` // The time until which root is valid
 }
 
 // --- Data (storage & structures) - value wrapper types ---
@@ -479,9 +479,9 @@ type Root struct {
 	Val *tlbe.Uint256 `tlb:"."`
 }
 
-// ValidUntils as vec<uint32> value wrapper
+// ValidUntils as vec<uint64> value wrapper
 type ValidUntil struct {
-	Val uint32 `tlb:"## 32"`
+	Val uint64 `tlb:"## 64"`
 }
 
 // --- Constants ---
@@ -507,7 +507,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorOutOfBoundsNumSigners)
-		ecMax = int32(ErrorUnauthorizedOracle)
+		ecMax = int32(InsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -597,4 +597,7 @@ const (
 
 	// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
 	ErrorRootNotExpired
+
+	// Value attached to incomming message is not enough to pay for handler execution
+	InsufficientFee
 )

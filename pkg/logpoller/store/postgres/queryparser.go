@@ -36,26 +36,26 @@ func newQueryParser(chainID string) *queryParser {
 		chainID: chainID,
 	}
 
-	builder.query.WriteString(`SELECT 
-		id, 
-		filter_id, 
-		chain_id, 
-		address, 
-		event_sig, 
+	// Using DISTINCT to handle duplicate logs from multiple filters matching the same event.
+	// This is required because multiple filters can track the same log events.
+	// Deduplication is also done in-memory after query for additional safety.
+	builder.query.WriteString(`SELECT DISTINCT
+		chain_id,
+		address,
+		event_sig,
 		data_header,
 		data_payload,
-		tx_hash, 
-		tx_lt, 
-		msg_index, 
-		tx_timestamp, 
-		block_workchain, 
-		block_shard, 
-		block_seqno, 
-		block_root_hash, 
-		block_file_hash, 
-		master_block_seqno, 
-		msg_lt,
-		created_at
+		tx_hash,
+		tx_lt,
+		msg_index,
+		tx_timestamp,
+		block_workchain,
+		block_shard,
+		block_seqno,
+		block_root_hash,
+		block_file_hash,
+		master_block_seqno,
+		msg_lt
 	FROM ton.log_poller_logs`)
 	return builder
 }

@@ -11,7 +11,7 @@ export type OpProofs = bigint[][]
 
 export function build(
   signers: SigningKey[],
-  validUntil: number,
+  validUntil: bigint,
   metadata: mcms.RootMetadata,
   ops: mcms.Op[],
 ): [mcms.SetRoot, OpProofs] {
@@ -135,7 +135,7 @@ export function getLeafIndexOfOp(opIndex: number): number {
 
 export function constructAnsSignRootAndProof(
   leaves: bigint[],
-  validUntil: number,
+  validUntil: bigint,
   signers: SigningKey[],
 ): {
   root: bigint
@@ -157,7 +157,7 @@ export function computeRoot(leaves: bigint[]): bigint {
 }
 
 // Notice: constructs and signs an EIP191 message
-function fillSignatures(root: bigint, validUntil: number, signers: SigningKey[]): mcms.Signature[] {
+function fillSignatures(root: bigint, validUntil: bigint, signers: SigningKey[]): mcms.Signature[] {
   const signatures: mcms.Signature[] = []
   const data = beginCell()
     .storeUint(root, 256)
