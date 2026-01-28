@@ -65,8 +65,6 @@ fun onInternalMessage(in: InMessage) {
 
 fun prepareRegister(st: FiredrillEntrypoint_Storage) {
 	// Send message to OffRamp to emit SourceChainConfigSet event
-	val emitMsg = FiredrillOffRamp_EmitSourceChainConfigSet {};
-	
 	val firedrillContracts = st.firedrillContracts.load();
 	val msg = createMessage({
 		bounce: false,

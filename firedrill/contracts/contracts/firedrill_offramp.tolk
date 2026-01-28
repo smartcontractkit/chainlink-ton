@@ -12,7 +12,7 @@ struct FiredrillOffRamp_Storage {
 	id: uint32;
 	controlAddress: address;
 	chainSelector: uint64;
-	onRampAddress: address;
+	onRampAddress: CrossChainAddress;
 }
 
 fun FiredrillOffRamp_Storage.load(): FiredrillOffRamp_Storage {
@@ -42,17 +42,12 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun emitSourceChainConfigSet(st: FiredrillOffRamp_Storage) {
-	val onRampSlice = beginCell()
-		.storeAddress(st.onRampAddress)
-		.endCell()
-		.beginParse();
-	
 	val sourceConfig = SourceChainConfig {
 		router: st.controlAddress,
 		isEnabled: true,
 		minSeqNr: 0,
 		isRMNVerificationDisabled: false,
-		onRamp: onRampSlice
+		onRamp: st.onRampAddress
 	};
 	
 	emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
@@ -62,14 +57,9 @@ fun emitSourceChainConfigSet(st: FiredrillOffRamp_Storage) {
 }
 
 fun emitCommitReportAccepted(minSeqNr: uint64, maxSeqNr: uint64, st: FiredrillOffRamp_Storage) {
-	val onRampSlice = beginCell()
-		.storeAddress(st.onRampAddress)
-		.endCell()
-		.beginParse();
-	
 	// Create merkle root
 	val merkleRootHash = beginCell()
-		.storeAddress(st.onRampAddress)
+		.storeSlice(st.onRampAddress.toCell().beginParse())
 		.storeUint(minSeqNr, 64)
 		.storeUint(maxSeqNr, 64)
 		.endCell()
@@ -77,7 +67,7 @@ fun emitCommitReportAccepted(minSeqNr: uint64, maxSeqNr: uint64, st: FiredrillOf
 	
 	val merkleRoot = MerkleRoot {
 		sourceChainSelector: st.chainSelector,
-		onRampAddress: onRampSlice,
+		onRampAddress: st.onRampAddress,
 		minSeqNr: minSeqNr,
 		maxSeqNr: maxSeqNr,
 		merkleRoot: merkleRootHash
@@ -113,17 +103,14 @@ get fun dynamicConfig(): (address, uint32) {
 // Getter for source chain config
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 	val st = lazy FiredrillOffRamp_Storage.load();
-	val onRampSlice = beginCell()
-		.storeAddress(st.onRampAddress)
-		.endCell()
-		.beginParse();
 	
+	debug.print(st.onRampAddress);
 	return SourceChainConfig {
 		router: st.controlAddress,
 		isEnabled: true,
 		minSeqNr: 0,
 		isRMNVerificationDisabled: false,
-		onRamp: onRampSlice
+		onRamp: st.onRampAddress
 	};
 }
 
