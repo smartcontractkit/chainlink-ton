@@ -73,17 +73,10 @@ fun emitCommitReportAccepted(minSeqNr: uint64, maxSeqNr: uint64, st: FiredrillOf
 		merkleRoot: merkleRootHash
 	};
 	
-	// Create empty price updates
-	val emptyTokenUpdates = beginCell().storeUint(0, 32).endCell(); // empty vec
-	val emptyGasUpdates = beginCell().storeUint(0, 32).endCell(); // empty vec
-	val priceUpdates = PriceUpdates {
-		tokenPriceUpdates: emptyTokenUpdates,
-		gasPriceUpdates: emptyGasUpdates
-	};
-	
+	// Emit CommitReportAccepted with empty price updates
 	emit(TOPIC_COMMIT_REPORT_ACCEPTED, CommitReportAccepted {
 		merkleRoot: merkleRoot,
-		priceUpdates: priceUpdates.toCell()
+		priceUpdates: null
 	});
 }
 

@@ -11,34 +11,25 @@ import {
   Builder,
 } from '@ton/core'
 
-export type FiredrillOffRampConfig = {
-  id: bigint
-  controlAddress: Address
-  chainSelector: bigint
-  onRampAddress: Address
-}
+import {CrossChainAddress, SourceChainConfig} from '../../../contracts/wrappers/ccip/OffRamp'
+import { Source } from '@tact-lang/compiler'
 
 export type FiredrillOffRampStorage = {
   id: bigint
   controlAddress: Address
   chainSelector: bigint
-  onRampAddress: Address
+  onRampAddress: CrossChainAddress
 }
 
-export type SourceChainConfig = {
-  router: Address
-  isEnabled: boolean
-  minSeqNr: bigint
-  isRMNVerificationDisabled: boolean
-  onRamp: Buffer
-}
+const EVM_ADDRESS_BYTES_SIZE = 20
 
-export function firedrillOffRampConfigToCell(config: FiredrillOffRampConfig): Cell {
+export function firedrillOffRampStorageToCell(config: FiredrillOffRampStorage): Cell {
   return beginCell()
     .storeUint(config.id, 32)
     .storeAddress(config.controlAddress)
     .storeUint(config.chainSelector, 64)
-    .storeAddress(config.onRampAddress)
+    .storeUint(config.onRampAddress.byteLength, 8)
+    .storeBuffer(config.onRampAddress,  config.onRampAddress.byteLength)
     .endCell()
 }
 
@@ -57,8 +48,8 @@ export class FiredrillOffRamp implements Contract {
     return new FiredrillOffRamp(address)
   }
 
-  static createFromConfig(config: FiredrillOffRampConfig, code: Cell, workchain = 0) {
-    const data = firedrillOffRampConfigToCell(config)
+  static createFromConfig(config: FiredrillOffRampStorage, code: Cell, workchain = 0) {
+    const data = firedrillOffRampStorageToCell(config)
     const init = { code, data }
     return new FiredrillOffRamp(contractAddress(workchain, init), init)
   }
@@ -130,8 +121,10 @@ export class FiredrillOffRamp implements Contract {
     const isEnabled = result.stack.readBoolean()
     const minSeqNr = result.stack.readBigNumber()
     const isRMNVerificationDisabled = result.stack.readBoolean()
-    const onRamp = result.stack.readCell().beginParse().loadBuffer(result.stack.readCell().beginParse().remainingBits / 8)
-    
+    const onRampSlice = result.stack.readCell().beginParse()
+    const remaining = onRampSlice.remainingBits
+    const onRamp = onRampSlice.loadBuffer(remaining / 8)
+   
     return {
       router,
       isEnabled,
@@ -141,3 +134,4 @@ export class FiredrillOffRamp implements Contract {
     }
   }
 }
+

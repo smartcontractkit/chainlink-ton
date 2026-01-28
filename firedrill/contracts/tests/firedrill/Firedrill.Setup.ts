@@ -57,6 +57,8 @@ export async function deployFiredrillOffRamp(
   return { offramp, config }
 }
 
+export async function getFiredrillOnrampAddress() {} //TODO use this to set the ramp addresses on the entrypoint before deploying, should define the same function for entrypoint and offramp
+
 export async function deployFiredrillEntrypoint(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
