@@ -138,7 +138,7 @@ func TestBalanceMonitor_Polling(t *testing.T) {
 		},
 		Logger:   lggr,
 		Keystore: keystore,
-		NewClient: func(ctx context.Context) (*ton.APIClient, error) {
+		NewClient: func(ctx context.Context) (ton.APIClientWrapped, error) {
 			return tonChain.Client, nil
 		},
 	}

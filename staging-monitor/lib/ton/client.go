@@ -48,7 +48,7 @@ func init() {
 type Client struct {
 	chainSel uint64
 	lggr     logger.Logger
-	client   *ton.APIClient
+	client   ton.APIClientWrapped
 	wallet   *wallet.Wallet
 }
 

@@ -23,6 +23,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+const (
+	defaultTONClientRetryCount = 5
+)
+
 // Deprecated: use tvm.NewRandomTestWallet instead
 func CreateRandomWallet(client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) (*wallet.Wallet, error) {
 	return tvm.NewRandomTestWallet(client, version, option)
@@ -175,14 +179,14 @@ func StartChain(t *testing.T, chainID uint64, once *sync.Once) (cldf_ton.Chain, 
 	return tonChain, nil
 }
 
-func CreateClient(ctx context.Context, url string) (*ton.APIClient, error) {
-	var client *ton.APIClient
+func CreateClient(ctx context.Context, url string) (ton.APIClientWrapped, error) {
+	var client ton.APIClientWrapped
 	if strings.HasPrefix(url, "liteserver://") {
 		pool, err := tonchainpkg.CreateLiteserverConnectionPool(ctx, url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
 		}
-		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
 	} else {
 		// connect via config URL
 		cfg, err := liteclient.GetConfigFromUrl(ctx, url)
@@ -194,7 +198,7 @@ func CreateClient(ctx context.Context, url string) (*ton.APIClient, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect to TON: %w", err)
 		}
-		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast)
+		client = ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
 	}
 	return client, nil
 }
