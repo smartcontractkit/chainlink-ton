@@ -68,6 +68,8 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
   [CCIPLogs.LogTypes.Cursed]: CCIPLogs.Cursed
   [CCIPLogs.LogTypes.Uncursed]: CCIPLogs.Uncursed
+  [CCIPLogs.LogTypes.UsdPerTokenUpdated]: DeepPartial<CCIPLogs.UsdPerTokenUpdated>
+  [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>
 }
 
 // union of the keys of that map
@@ -128,6 +130,12 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
 
   [CCIPLogs.LogTypes.Uncursed]: (x, from, match) =>
     testLogRMNRemoteUncursed(x, from, match as CCIPLogs.Uncursed),
+
+  [CCIPLogs.LogTypes.UsdPerTokenUpdated]: (x, from, match) =>
+    testLogUsdPerTokenUpdated(x, from, match as DeepPartial<CCIPLogs.UsdPerTokenUpdated>),
+
+  [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: (x, from, match) =>
+    testLogUsdPerUnitGasUpdated(x, from, match as DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>),
 }
 
 // assertLog delegates via the handler table
@@ -447,7 +455,42 @@ export const testLogDestChainConfigUpdated = (
   })
 }
 
-function matchesObject(obj, match) {
+export const testLogUsdPerTokenUpdated = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.UsdPerTokenUpdated>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.UsdPerTokenUpdated, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      sourceToken: cs.loadAddress(),
+      usdPerToken: cs.loadUintBig(224),
+      timestamp: cs.loadUintBig(64),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+export const testLogUsdPerUnitGasUpdated = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.UsdPerUnitGasUpdated, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      destChainSelector: cs.loadUintBig(64),
+      executionGasPrice: cs.loadUintBig(112),
+      dataAvailabilityGasPrice: cs.loadUintBig(112),
+      timestamp: cs.loadUintBig(64),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+function matchesObject(obj: any, match: any) {
   expect(obj).toMatchObject(match)
 }
 
