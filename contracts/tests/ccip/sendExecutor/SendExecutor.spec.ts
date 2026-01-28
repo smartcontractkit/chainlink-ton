@@ -199,7 +199,7 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incomming value', async () => {
+  it('should exit successfully on message validated from feeQuoter after execute if fee is lower than incoming value', async () => {
     const { sendExecutor } = await afterExecute()
 
     const result = await sendExecutor.sendMessageValidated(
@@ -230,7 +230,7 @@ describe('SendExecutor - Unit tests', () => {
     })
   })
 
-  it('should exit with error on message validated from feeQuoter after execute if fee is higher than incomming value', async () => {
+  it('should exit with error on message validated from feeQuoter after execute if fee is higher than incoming value', async () => {
     const { sendExecutor } = await afterExecute()
 
     const result = await sendExecutor.sendMessageValidated(

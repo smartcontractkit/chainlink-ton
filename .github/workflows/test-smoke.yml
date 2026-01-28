@@ -18,7 +18,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v5
     - name: Set Chainlink version
-      id: set-version
+      id: set-version-chainlink
       run: |
         # Default to the pinned version for PRs
         CHAINLINK_VERSION=$(cat ./scripts/.core_version | tr -d '[:space:]')
@@ -29,6 +29,19 @@ jobs:
         fi
 
         echo "chainlink_version=$CHAINLINK_VERSION" >> "$GITHUB_OUTPUT"
+    - name: Set Chainlink TON version
+      id: set-version-chainlink-ton
+      run: |
+        # Default to the pinned version for PRs
+        CHAINLINK_TON_VERSION=$(cat ./scripts/.chainlink-ton_version | tr -d '[:space:]')
+
+        # If this is a scheduled (nightly) run, switch to develop OR if the CHAINLINK_TON_VERSION
+        # environment variable is empty/unset.
+        if [[ "${{ github.event_name }}" == "schedule" || -z "$CHAINLINK_TON_VERSION" ]]; then
+            CHAINLINK_TON_VERSION="${{ github.head_ref || github.sha }}"
+        fi
+
+        echo "chainlink-ton_version=$CHAINLINK_TON_VERSION" >> "$GITHUB_OUTPUT"
     - name: Setup GitHub Token
       id: setup-github-token
       uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
@@ -44,8 +57,8 @@ jobs:
         WORKFLOW_FILE: .github/workflows/test_smoke.yml
         TARGET_REPO: smartcontractkit/chainlink-ccip
         TARGET_BRANCH: main
-        TON_REF: ${{ github.head_ref || github.sha }}
-        CHAINLINK_VERSION: ${{steps.set-version.outputs.chainlink_version}}
+        TON_REF: ${{steps.set-version-chainlink-ton.outputs.chainlink-ton_version}}
+        CHAINLINK_VERSION: ${{steps.set-version-chainlink.outputs.chainlink_version}}
         # relative to chainlink-ccip/devenv. Assumes chainlink-ton is checked out to top level
         CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv/ton.toml
         CONTRACT_VERSION: local

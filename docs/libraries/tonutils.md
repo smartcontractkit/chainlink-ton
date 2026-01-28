@@ -32,12 +32,12 @@ In this example:
 
 ### Message lifecycle
 
-In TON, a message has two states: sent and received. The node is considered received when it is settle on a transaction. Each transaction have one incomming message that can be external or internal, and a list of outgoing messages. Each of this outgoing messages have not been processed until they are received in a different transaction.
+In TON, a message has two states: sent and received. The node is considered received when it is settle on a transaction. Each transaction have one incoming message that can be external or internal, and a list of outgoing messages. Each of this outgoing messages have not been processed until they are received in a different transaction.
 
 In this package, we will use three states for tracking message traces:
 
 - Sent: When it has just been queues from a different transaction.
-- Received: When they appear as an incomming mesage in a transaction, but none of its outgoing messages have been yet received.
+- Received: When they appear as an incoming mesage in a transaction, but none of its outgoing messages have been yet received.
 - Cascading: When one or more of its outgoing messages have been received, but there is at least one that has not.
 - Finalized: When it has no outgoing messages in the Sent state.
 

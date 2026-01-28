@@ -8,7 +8,7 @@ import "../utils.tolk";
  * and {access/extensions/AccessControlEnumerable.sol}, merged to allow enumerating role
  * members as TVM dictionaries are iterable.
  *
- * Roles are referred to by their `int` identifier. These should be exposed
+ * Roles are referred to by their `uint256` identifier. These should be exposed
  * in the external API and be unique. The best way to achieve this is by
  * using `const` hash digests (256 bit):
  *
@@ -108,7 +108,8 @@ struct (0x39452c46) AccessControl_RenounceRole {
 }
 
 /// @dev Union of all incoming messages.
-type AccessControl_InMessage = AccessControl_GrantRole
+type AccessControl_InMessage =
+    | AccessControl_GrantRole
     | AccessControl_RevokeRole
     | AccessControl_RenounceRole;
 
@@ -203,10 +204,10 @@ struct AccessControl_Hooks<T> {
     msgSender: ((T?, address, slice) -> address)?;
 
     /// Hook before granting a role.
-    shouldGrantRole: ((T?, uint64, int, address) -> void)?;
+    shouldGrantRole: ((T?, uint64, uint256, address) -> void)?;
 
     /// Hook before revoking a role.
-    shouldRevokeRole: ((T?, uint64, int, address) -> void)?;
+    shouldRevokeRole: ((T?, uint64, uint256, address) -> void)?;
 }
 
 // --- Constants ---
@@ -244,12 +245,12 @@ fun AccessControl<T>.msgSender(self, msgSender: address, msgBody: slice): addres
 ///
 /// Format of the revert message is described in {requireRole}.
 @inline
-fun AccessControl<T>.onlyRole(self, role: int, msgSender: address, msgBody: slice): void {
+fun AccessControl<T>.onlyRole(self, role: uint256, msgSender: address, msgBody: slice): void {
     self.requireRoleSender(role, msgSender, msgBody);
 }
 
 // @dev Returns `true` if `account` has been granted `role`.
-fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
+fun AccessControl<T>.hasRole(self, role: uint256, account: address): bool {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -276,7 +277,7 @@ fun AccessControl<T>.requireRoleSender(self, role: int, msgSender: address, msgB
 ///
 /// /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
 ///
-fun AccessControl<T>.requireRole(self, role: int, account: address): void {
+fun AccessControl<T>.requireRole(self, role: uint256, account: address): void {
     if (!self.hasRole(role, account)) {
         val arg = beginCell()
             .storeAddress(account)
@@ -290,7 +291,7 @@ fun AccessControl<T>.requireRole(self, role: int, account: address): void {
 /// @dev Returns the admin role that controls `role`. See {grantRole} and {revokeRole}.
 ///
 /// To change a role's admin, use {setRoleAdmin}.
-fun AccessControl<T>.getRoleAdmin(self, role: int): int {
+fun AccessControl<T>.getRoleAdmin(self, role: uint256): uint256 {
     val data = self.data.roles.get(role);
     if (!data.isFound) {
         return DEFAULT_ADMIN_ROLE;
@@ -311,7 +312,7 @@ fun AccessControl<T>.getRoleAdmin(self, role: int): int {
 ///
 /// Role bearers are not sorted in any particular way, and their ordering may change at any point.
 @inline
-fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address? {
+fun AccessControl<T>.getRoleMember(self, role: uint256, index: uint32): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -324,24 +325,23 @@ fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address? {
         return null; // index out of bounds
     }
 
-    // Notice: we need to iterate through the dictionary to get the account at the specified index.
-    // This is not efficient, but it is the only way to get an account at index without additional data structures.
+    // Notice: we need to iterate through the map to get the account at the specified index.
+    // This is not efficient, but it is a way to get an account at index without additional data structures.
     var i = 0;
-    while (i < index) {
-        val first = d.hasRole.findFirst(); // assume exists
-        d.hasRole.delete(first.getKey());
+    var rd = d.hasRole.findFirst(); // assumes <index> members exist
+    while (i < index && rd.isFound) {
+        rd = d.hasRole.iterateNext(rd);
         i += 1; // increment to next account
     }
 
     // Get the account at the specified index
-    var acc = d.hasRole.findFirst();
-    return acc.getKey();
+    return rd.isFound ? rd.getKey() : null;
 }
 
 /// @dev Returns the number of accounts that have `role`. Can be used
 /// together with {getRoleMember} to enumerate all bearers of a role.
 @inline
-fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
+fun AccessControl<T>.getRoleMemberCount(self, role: uint256): int {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -353,7 +353,7 @@ fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
 }
 
 @inline
-fun AccessControl<T>.getRoleMemberFirst(self, role: int): address? {
+fun AccessControl<T>.getRoleMemberFirst(self, role: uint256): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -371,7 +371,7 @@ fun AccessControl<T>.getRoleMemberFirst(self, role: int): address? {
 }
 
 @inline
-fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address? {
+fun AccessControl<T>.getRoleMemberNext(self, role: uint256, pivot: address): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -390,7 +390,7 @@ fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address
 
 /// @dev Return all accounts that have `role`.
 @inline
-fun AccessControl<T>.getRoleMembers(self, role: int): map<address, bool> {
+fun AccessControl<T>.getRoleMembers(self, role: uint256): map<address, bool> {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -413,7 +413,7 @@ fun AccessControl<T>.grantRole(
     mutate self,
     queryId: uint64,
     sender: address,
-    role: int,
+    role: uint256,
     account: address,
     returnExcess: bool = false
 ): bool {
@@ -431,7 +431,7 @@ fun AccessControl<T>.revokeRole(
     mutate self,
     queryId: uint64,
     sender: address,
-    role: int,
+    role: uint256,
     account: address,
     returnExcess: bool = false
 ): bool {
@@ -456,7 +456,7 @@ fun AccessControl<T>.renounceRole(
     mutate self,
     queryId: uint64,
     sender: address,
-    role: int,
+    role: uint256,
     callerConfirmation: address,
     returnExcess: bool = false
 ): bool {
@@ -477,8 +477,8 @@ fun AccessControl<T>._setRoleAdmin(
     mutate self,
     queryId: uint64,
     sender: address,
-    role: int,
-    adminRole: int,
+    role: uint256,
+    adminRole: uint256,
     returnExcess: bool = false
 ): void {
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
@@ -501,7 +501,7 @@ fun AccessControl<T>._grantRole(
     mutate self,
     queryId: uint64,
     sender: address,
-    role: int,
+    role: uint256,
     account: address,
     returnExcess: bool = false
 ): bool {
@@ -541,7 +541,7 @@ fun AccessControl<T>._revokeRole(
     mutate self,
     queryId: uint64,
     sender: address,
-    role: int,
+    role: uint256,
     account: address,
     returnExcess: bool = false
 ): bool {
@@ -576,7 +576,7 @@ fun AccessControl<T>._revokeRole(
 /// --- Helpers ---
 
 @inline
-fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessControl_RoleData {
+fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: uint256): AccessControl_RoleData {
     // Check if the role is valid
     val data = self.roles.get(role);
     if (data.isFound) {
@@ -633,13 +633,13 @@ fun AccessControl<T>.sendReply<B>(
 
 /// @dev getter to export by the contract
 @inline
-fun AccessControl<T>.get_hasRole(self, role: int, account: address): bool {
+fun AccessControl<T>.get_hasRole(self, role: uint256, account: address): bool {
    return self.hasRole(role, account)
 }
 
 /// @dev getter to export by the contract
 @inline
-fun AccessControl<T>.get_getRoleAdmin(self, role: int): int {
+fun AccessControl<T>.get_getRoleAdmin(self, role: uint256): uint256 {
    return self.getRoleAdmin(role)
 }
 
@@ -647,31 +647,31 @@ fun AccessControl<T>.get_getRoleAdmin(self, role: int): int {
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMember(self, role: int, index: uint32): address {
+fun AccessControl<T>.get_getRoleMember(self, role: uint256, index: uint32): address {
    return self.getRoleMember(role, index)
 }
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMemberCount(self, role: int): int {
+fun AccessControl<T>.get_getRoleMemberCount(self, role: uint256): int {
    return self.getRoleMemberCount(role)
 }
 
 // @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMemberFirst(self, role: int): address {
+fun AccessControl<T>.get_getRoleMemberFirst(self, role: uint256): address {
    return self.getRoleMemberFirst(role)
 }
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: address): address {
+fun AccessControl<T>.get_getRoleMemberNext(self, role: uint256, pivot: address): address {
    return self.getRoleMemberNext(role, pivot)
 }
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMembers(self, role: int): map<address, bool>  {
+fun AccessControl<T>.get_getRoleMembers(self, role: uint256): map<address, bool>  {
    return self.getRoleMembers(role)
 }
 
