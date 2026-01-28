@@ -868,8 +868,8 @@ export class OffRamp
     const minSeqNr = result.stack.readBigNumber()
     const isRMNVerificationDisabled = result.stack.readBoolean()
     const onRampSlice = result.stack.readCell().beginParse()
-    const onRampLength = onRampSlice.loadUint(8)
-    const onRamp = onRampSlice.loadBuffer(onRampLength)
+    const remainingBits = onRampSlice.remainingBits
+    const onRamp = onRampSlice.loadBuffer(remainingBits / 8)
 
     return {
       router,
