@@ -7,6 +7,7 @@ import * as coverage from '../../coverage/coverage'
 import { asSnakedCell, generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
+import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { CHAINSEL_EVM_TEST, CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
@@ -60,7 +61,6 @@ describe('OnRamp - generate message id', () => {
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
-    executorID = BigInt(generateRandomContractId())
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
@@ -68,7 +68,6 @@ describe('OnRamp - generate message id', () => {
       executor: {
         deployableCode: deployableCode,
         executorCode: await relay.ContractClient.code(),
-        currentID: executorID,
       },
     }))
 
@@ -125,6 +124,11 @@ describe('OnRamp - generate message id', () => {
       relay.ContractClient.createFromAddress(executorAddress),
     )
     executorSender = await relayContract.getSender(deployer.getSender())
+
+    const executorStorageCell = await relayContract.getStorage()
+    const storage = executor.builder.data.contractInitData.load(executorStorageCell.beginParse())
+    executorID = storage.id
+
   })
 
   it('should generate same message id with same message', async () => {

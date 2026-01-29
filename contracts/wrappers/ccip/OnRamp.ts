@@ -47,7 +47,6 @@ export type OnRampStorage = {
 export type ExecutorDeployment = {
   deployableCode: Cell
   executorCode: Cell
-  currentID: bigint
 }
 
 export type OnRampSend = {
@@ -212,13 +211,11 @@ export const builder = (() => {
         return beginCell()
           .storeRef(data.deployableCode)
           .storeRef(data.executorCode)
-          .storeUint(data.currentID, 224)
       },
       load: function (src: Slice): ExecutorDeployment {
         return {
           deployableCode: src.loadRef(),
           executorCode: src.loadRef(),
-          currentID: src.loadUintBig(224),
         }
       },
     }

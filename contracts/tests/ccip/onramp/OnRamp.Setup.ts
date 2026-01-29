@@ -38,7 +38,6 @@ export async function deployOnRampContract(
     executor: {
       deployableCode: beginCell().endCell(),
       executorCode: beginCell().endCell(),
-      currentID: 0n,
     },
   }
 

@@ -6,6 +6,7 @@ import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
+import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { CHAINSEL_EVM_TEST, deployOnRampContract, setup } from './OnRamp.Setup'
@@ -66,7 +67,6 @@ describe('OnRamp - executor exit', () => {
       executor: {
         deployableCode: deployableCode,
         executorCode: await relay.ContractClient.code(),
-        currentID: executorID,
       },
     }))
 
@@ -123,6 +123,10 @@ describe('OnRamp - executor exit', () => {
       relay.ContractClient.createFromAddress(executorAddress),
     )
     executorSender = await relayContract.getSender(deployer.getSender())
+
+    const executorStorageCell = await relayContract.getStorage()
+    const storage = executor.builder.data.contractInitData.load(executorStorageCell.beginParse())
+    executorID = storage.id
   })
 
   it('should return message sent to router', async () => {
@@ -191,31 +195,6 @@ describe('OnRamp - executor exit', () => {
       },
     })
     expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST)).toBe(nextSeqNum)
-  })
-
-  it('should fail to send message sent if executorID is incorrect', async () => {
-    const result = await onramp.sendExecutorFinishedSuccessfully(executorSender, {
-      value: toNano('0.5'),
-      body: {
-        executorID: executorID + 1n, // incorrect ID
-        fee: {
-          feeTokenAmount: 1n,
-          feeValueJuels: 1n,
-        },
-        msg: ccipSend,
-        metadata: {
-          sender: senderAddress,
-          value: 42n,
-        },
-      },
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: executorSender.address,
-      to: onramp.address,
-      success: false,
-      exitCode: or.Errors.Unauthorized,
-    })
   })
 
   it('should fail to send message sent if sender is not executor', async () => {

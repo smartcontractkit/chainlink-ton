@@ -127,7 +127,6 @@ describe('CCIP OnRamp Gas Estimation', () => {
       },
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       executor: {
-        currentID: 0n,
         executorCode: await compile('CCIPSendExecutor'),
         deployableCode: await compile('Deployable'),
       },
