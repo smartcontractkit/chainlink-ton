@@ -2,8 +2,9 @@ module github.com/smartcontractkit/chainlink-ton/integration-tests
 
 go 1.25.5
 
-// Use local chainlink-ton/deployment module,
-// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
+// Use local chainlink-ton modules for development/testing.
+replace github.com/smartcontractkit/chainlink-ton => ../
+
 replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 
 require (
