@@ -7,6 +7,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -88,3 +89,29 @@ var IsOperationError = tvm.Getter[*big.Int, bool]{
 	Name:    "isOperationError",
 	Decoder: BoolRes,
 }
+
+var GetOpPendingInfo = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OpPendingInfo]{
+	Name: "getOpPendingInfo",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (OpPendingInfo, error) {
+		validAfter, err := r.Int(0)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(0) - validAfter: %w", err)
+		}
+
+		opFinalizationTimeout, err := r.Int(1)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(1) - opFinalizationTimeout: %w", err)
+		}
+
+		opPendingID, err := r.Int(2)
+		if err != nil {
+			return OpPendingInfo{}, fmt.Errorf("error getting Int(2) - opPendingID: %w", err)
+		}
+
+		return OpPendingInfo{
+			ValidAfter:            validAfter.Uint64(),
+			OpFinalizationTimeout: uint32(opFinalizationTimeout.Uint64()),
+			OpPendingID:           tlbe.NewUint256(opPendingID),
+		}, nil
+	}),
+})
