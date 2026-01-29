@@ -219,10 +219,14 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
 
 fun generateRandomSendExecutorId(): CCIPSendExecutor_ID {
     random.initialize();
+/*
     val randomValueCell = beginCell()
         .storeUint(random.uint256(), 256)
         .endCell();
     return randomValueCell.beginParse().loadUint(224) as CCIPSendExecutor_ID;
+    */
+    val randomUint256 = random.uint256();
+    return (randomUint256 >> 32) as CCIPSendExecutor_ID;
 }
 
 /*
