@@ -3,13 +3,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { randomAddress } from '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 
-import { FiredrillOnRamp } from '../../wrappers/FiredrillOnRamp';
-import { FiredrillOffRamp } from '../../wrappers/FiredrillOffRamp';
-import { FiredrillEntrypoint } from '../../wrappers/FiredrillEntrypoint';
-import { CrossChainAddress } from '../../../../contracts/wrappers/ccip/OffRamp';
+import { FiredrillOnRamp } from '../../wrappers/firedrill/FiredrillOnRamp';
+import { FiredrillOffRamp } from '../../wrappers/firedrill/FiredrillOffRamp';
+import { FiredrillEntrypoint } from '../../wrappers/firedrill/FiredrillEntrypoint';
+import { CrossChainAddress } from '../../wrappers/ccip/OffRamp';
 
-import { generateRandomContractId } from '../../../../contracts/src/utils';
-import { generateKey } from 'crypto';
+import { generateRandomContractId } from '../../src/utils';
 
 export const CHAINSEL_TON_TEST = 13879075125137744094n;
 export const TOKEN_ADDRESS = randomAddress();

@@ -1,9 +1,11 @@
 import { toNano } from '@ton/core';
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 
-import { FiredrillOffRamp } from '../../wrappers/FiredrillOffRamp';
+import { FiredrillOffRamp } from '../../wrappers/firedrill/FiredrillOffRamp';
 import { deployFiredrillOffRamp, CHAINSEL_TON_TEST } from './Firedrill.Setup';
-import { assertLog, LogTypes } from '../utils/assertLog';
+import { assertLog} from '../Logs';
+import { LogTypes } from '../../wrappers/ccip/Logs';
+
 
 describe('FiredrillOffRamp - Unit Tests', () => {
     let blockchain: Blockchain;

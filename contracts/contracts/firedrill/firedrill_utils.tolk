@@ -1,4 +1,4 @@
-import "../../../contracts/contracts/ccip/common/types.tolk"
+import "../ccip/common/types.tolk"
 
 const EVM_ADDRESS_BYTES_SIZE: int = 20;
 fun getEvmSenderReceiverAddress(): CrossChainAddress {

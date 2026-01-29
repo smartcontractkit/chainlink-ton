@@ -1,5 +1,3 @@
-import "../../../contracts/contracts/lib/utils.tolk"
-
 type FiredrillEntrypoint_InMessage =
     | FiredrillEntrypoint_PrepareRegister
     | FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike

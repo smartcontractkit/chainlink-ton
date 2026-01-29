@@ -1,10 +1,10 @@
 tolk 1.2
 
-import "../../../contracts/contracts/lib/utils.tolk"
-import "../../../contracts/contracts/lib/access/ownable_2step.tolk"
-import "../../../contracts/contracts/ccip/router/types.tolk"
-import "../../../contracts/contracts/ccip/fee_quoter/types.tolk"
-import "../../../contracts/contracts/ccip/fee_quoter/events.tolk"
+import "../lib/utils.tolk"
+import "../lib/access/ownable_2step.tolk"
+import "../ccip/router/types.tolk"
+import "../ccip/fee_quoter/types.tolk"
+import "../ccip/fee_quoter/events.tolk"
 import "firedrill_entrypoint_messages.tolk"
 import "firedrill_onramp_messages.tolk"
 import "firedrill_offramp_messages.tolk"

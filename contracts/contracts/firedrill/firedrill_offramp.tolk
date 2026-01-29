@@ -1,12 +1,10 @@
 tolk 1.2
 
-import "../../../contracts/contracts/lib/utils.tolk"
-import "../../../contracts/contracts/ccip/offramp/events.tolk"
-import "../../../contracts/contracts/ccip/offramp/types.tolk"
-import "../../../contracts/contracts/ccip/common/types.tolk"
-import "../../../contracts/contracts/ccip/fee_quoter/types.tolk"
+import "../lib/utils.tolk"
+import "../ccip/offramp/events.tolk"
+import "../ccip/offramp/types.tolk"
+import "../ccip/common/types.tolk"
 import "firedrill_offramp_messages.tolk"
-import "firedrill_utils.tolk"
 
 struct FiredrillOffRamp_Storage {
 	id: uint32;

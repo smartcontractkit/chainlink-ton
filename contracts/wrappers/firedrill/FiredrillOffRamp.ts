@@ -7,12 +7,9 @@ import {
     ContractProvider,
     Sender,
     SendMode,
-    Slice,
-    Builder,
 } from '@ton/core';
 
-import { CrossChainAddress, SourceChainConfig } from '../../../contracts/wrappers/ccip/OffRamp';
-import { Source } from '@tact-lang/compiler';
+import { CrossChainAddress, SourceChainConfig } from '../ccip/OffRamp';
 
 export type FiredrillOffRampStorage = {
     id: bigint;

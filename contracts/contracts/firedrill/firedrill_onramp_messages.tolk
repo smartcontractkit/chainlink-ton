@@ -1,5 +1,3 @@
-import "../../../contracts/contracts/lib/utils.tolk"
-
 type FiredrillOnRamp_InMessage =
     | FiredrillOnRamp_EmitCCIPMessageSent
     ;

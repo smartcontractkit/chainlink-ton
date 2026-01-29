@@ -1,5 +1,3 @@
-import "../../../contracts/contracts/lib/utils.tolk"
-
 type FiredrillOffRamp_InMessage =
     | FiredrillOffRamp_EmitSourceChainConfigSet
     | FiredrillOffRamp_EmitCommitReportAccepted

@@ -1,9 +1,9 @@
 tolk 1.2
 
-import "../../../contracts/contracts/lib/utils.tolk"
-import "../../../contracts/contracts/ccip/onramp/events.tolk"
-import "../../../contracts/contracts/ccip/onramp/types.tolk"
-import "../../../contracts/contracts/ccip/common/types.tolk"
+import "../lib/utils.tolk"
+import "../ccip/onramp/events.tolk"
+import "../ccip/onramp/types.tolk"
+import "../ccip/common/types.tolk"
 import "firedrill_onramp_messages.tolk"
 import "firedrill_utils.tolk"
 
