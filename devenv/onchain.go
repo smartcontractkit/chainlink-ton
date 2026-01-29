@@ -28,39 +28,16 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 		return fmt.Errorf("failed to load CCIP state: %w", err)
 	}
 
-	// Token price constants
-	const TONtoUSD = 2                 // Example value (test/dev only)
-	const TONtoNanoTON = 1e9           // TON has 9 decimals
-	const TokenPriceBaseAmount = 1e18  // Base amount for TokenPrices
-	var USDDecimals = big.NewInt(1e18) // USD precision
-
-	// Token prices are normalized to account for token decimals.
-	// The formula is: (USD price in 1e18) * (1e18 / 10^tokenDecimals)
-	// For TON/LINK with 9 decimals: price * 1e18 * (1e18 / 1e9) = price * 1e27
-	// See: deployment/ccip/config/tokenPrice.go:CCIPTokenPrice
-
 	// Calculate TON token price: 2 USD with 9 decimals = 2e27
-	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
-	oldTonTokenPrice := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
-
-	// Calculate LINK token price: 20 USD with 9 decimals = 20e27
-	// LINK has 9 decimals on TON, same as TON
-	oldLinkTokenPrice := big.NewInt(0).Mul(big.NewInt(20), big.NewInt(1e18))
-	oldLinkTokenPrice = big.NewInt(0).Mul(oldLinkTokenPrice, big.NewInt(1e9)) // Scale from 1e18 to 1e27
-
 	tonTokenPrice, err := config.CCIPTokenPrice("2", 9)
 	if err != nil {
 		return fmt.Errorf("failed to calculate TON token price: %w", err)
 	}
+	// Calculate LINK token price: 20 USD with 9 decimals = 20e27
+	// LINK has 9 decimals on TON, same as TON
 	linkTokenPrice, err := config.CCIPTokenPrice("20", 9)
 	if err != nil {
 		return fmt.Errorf("failed to calculate LINK token price: %w", err)
-	}
-
-	if tonTokenPrice.Cmp(oldTonTokenPrice) != 0 || linkTokenPrice.Cmp(oldLinkTokenPrice) != 0 {
-		errorStr := fmt.Errorf("Token price calculations should match, but got:\nTON token price: expected %s, got %s\nLINK token price: expected %s, got %s\n", oldTonTokenPrice.String(), tonTokenPrice.String(), oldLinkTokenPrice.String(), linkTokenPrice.String())
-		env.Logger.Errorf(errorStr.Error())
-		return errorStr
 	}
 
 	updateConfig := operation.UpdateFeeQuoterPricesInput{
