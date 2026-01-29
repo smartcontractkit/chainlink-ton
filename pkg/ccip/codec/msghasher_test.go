@@ -108,7 +108,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		assert.Contains(t, err.Error(), "error convert receiver address")
 	})
 
-	t.Run("message with empty ", func(t *testing.T) {
+	t.Run("message with empty ExtraArgs", func(t *testing.T) {
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.ExtraArgs = nil
 
