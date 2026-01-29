@@ -663,6 +663,10 @@ get fun reserve(): coins {
     return RESERVE;
 }
 
+get fun softFreezeThreshold(): coins {
+    return SOFT_FREEZE_THRESHOLD;
+}
+
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
 

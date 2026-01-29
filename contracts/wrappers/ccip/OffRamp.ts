@@ -24,6 +24,7 @@ import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/Mult
 import { asSnakedCell, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
+import * as softFreeze from '../libraries/funding/SoftFreeze'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
@@ -944,6 +945,10 @@ export class OffRamp
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  async getSoftFreezeThreshold(provider: ContractProvider): Promise<bigint> {
+    return await softFreeze.getSoftFreezeThreshold(provider)
   }
 
   // Ownership methods

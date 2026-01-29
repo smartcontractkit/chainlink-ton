@@ -16,6 +16,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
+import * as softFreeze from '../libraries/funding/SoftFreeze'
 import { asSnakedCell, fromSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
@@ -983,6 +984,10 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  async getSoftFreezeThreshold(provider: ContractProvider): Promise<bigint> {
+    return await softFreeze.getSoftFreezeThreshold(provider)
   }
 
   // Ownership methods

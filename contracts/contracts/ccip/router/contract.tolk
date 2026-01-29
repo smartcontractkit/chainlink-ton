@@ -727,3 +727,7 @@ get fun destChainSelectors(): tuple {
 get fun reserve(): coins {
     return RESERVE;
 }
+
+get fun softFreezeThreshold(): coins {
+    return SOFT_FREEZE_THRESHOLD;
+}

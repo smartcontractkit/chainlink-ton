@@ -989,3 +989,7 @@ get fun errorCode(local: uint16): uint16 {
 get fun reserve(): coins {
     return RESERVE;
 }
+
+get fun softFreezeThreshold(): coins {
+    return SOFT_FREEZE_THRESHOLD;
+}

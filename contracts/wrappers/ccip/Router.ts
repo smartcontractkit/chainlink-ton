@@ -20,6 +20,7 @@ import { loadContractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
+import * as softFreeze from '../libraries/funding/SoftFreeze'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as or from '../ccip/OnRamp'
@@ -381,6 +382,10 @@ export class Router
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  async getSoftFreezeThreshold(provider: ContractProvider): Promise<bigint> {
+    return await softFreeze.getSoftFreezeThreshold(provider)
   }
 
   async sendRMNRemoteCurse(

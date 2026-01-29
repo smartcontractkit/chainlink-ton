@@ -94,7 +94,7 @@ interface TestSetup<TContract> {
  * })
  * ```
  */
-export function newSoftFreezeSpec<TContract extends Contract>(
+export function newSoftFreezeSpec<TContract extends softFreeze.Interface>(
   config: SoftFreezeTestConfig<TContract>,
 ) {
   async function setup(): Promise<TestSetup<TContract>> {
@@ -139,10 +139,21 @@ export function newSoftFreezeSpec<TContract extends Contract>(
        * Test that contract factory works correctly
        */
       it('should deploy contract with initial balance equal to expected', async () => {
-        const { blockchain, owner, nonOwner, deployContract } = suiteSetup
+        const { blockchain, owner, deployContract } = suiteSetup
         const initialBalance = config.softFreezeThreshold
         const contract = await deployContract(blockchain, owner, initialBalance)
         expect(await balance(blockchain, contract)).toBe(initialBalance)
+      })
+
+      /**
+       * Test that contract has expected softFreezeThreshold
+       */
+      it('should have expected softFreezeThreshold', async () => {
+        const { blockchain, owner, deployContract } = suiteSetup
+        const contract = await deployContract(blockchain, owner, config.softFreezeThreshold)
+        expect(
+          await (contract as SandboxContract<softFreeze.Interface>).getSoftFreezeThreshold(),
+        ).toBe(config.softFreezeThreshold)
       })
 
       /**

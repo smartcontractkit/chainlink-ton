@@ -19,6 +19,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
+import * as softFreeze from '../libraries/funding/SoftFreeze'
 import { CellCodec, StackCodec } from '../utils'
 import { asSnakedCell } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
@@ -807,6 +808,10 @@ export class FeeQuoter
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  async getSoftFreezeThreshold(provider: ContractProvider): Promise<bigint> {
+    return await softFreeze.getSoftFreezeThreshold(provider)
   }
 
   // Getter methods for price queries
