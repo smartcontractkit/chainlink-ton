@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -198,3 +200,27 @@ var GetRootMetadata = tvm.NewNoArgsGetter(tvm.NoArgsOpts[RootMetadata]{
 		}, nil
 	}),
 })
+
+var GetOracle = tvm.NewNoArgsGetter(tvm.NoArgsOpts[*address.Address]{
+	Name: "getOracle",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
+		sAddr, err := r.Slice(0)
+		if err != nil {
+			return nil, fmt.Errorf("error getting Slice(0) - oracle: %w", err)
+		}
+
+		oracle, err := sAddr.LoadAddr()
+		if err != nil {
+			return nil, fmt.Errorf("error decoding Slice(0) - oracle: %w", err)
+		}
+
+		return oracle, nil
+	}),
+})
+
+// --- Getters - Ownable2Step ---
+
+var (
+	GetOwner        = ownable2step.GetOwner
+	GetPendingOwner = ownable2step.GetPendingOwner
+)
