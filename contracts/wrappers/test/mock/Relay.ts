@@ -121,7 +121,7 @@ export class ContractClient {
   async getStorage(provider: SandboxContractProvider): Promise<Cell> {
     const state = await provider.getState()
     switch (state.state.type) {
-      case "active":
+      case 'active':
         return Cell.fromBoc(state.state.data!)[0]
       default:
         return Cell.EMPTY

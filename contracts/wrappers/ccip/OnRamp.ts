@@ -208,9 +208,7 @@ export const builder = (() => {
 
     const executor: CellCodec<ExecutorDeployment> = {
       encode: function (data: ExecutorDeployment): Builder {
-        return beginCell()
-          .storeRef(data.deployableCode)
-          .storeRef(data.executorCode)
+        return beginCell().storeRef(data.deployableCode).storeRef(data.executorCode)
       },
       load: function (src: Slice): ExecutorDeployment {
         return {

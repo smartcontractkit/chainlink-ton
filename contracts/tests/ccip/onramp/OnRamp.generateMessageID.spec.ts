@@ -60,7 +60,6 @@ describe('OnRamp - generate message id', () => {
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
-
     ;({ deployer, onramp } = await setup(blockchain, {
       config: {
         feeQuoter: mockFeeQuoter.address, // For now, fee quoter is global
@@ -128,7 +127,6 @@ describe('OnRamp - generate message id', () => {
     const executorStorageCell = await relayContract.getStorage()
     const storage = executor.builder.data.contractInitData.load(executorStorageCell.beginParse())
     executorID = storage.id
-
   })
 
   it('should generate same message id with same message', async () => {
