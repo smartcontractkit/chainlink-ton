@@ -10,7 +10,7 @@ struct FiredrillOffRamp_Storage {
 	id: uint32;
 	controlAddress: address;
 	chainSelector: uint64;
-	onRampAddress: CrossChainAddress;
+	onRampAddress: CrossChainAddress; // Should be the address of the firedrill onramp contract (TON address but in CrossChainAddress format)
 }
 
 fun FiredrillOffRamp_Storage.load(): FiredrillOffRamp_Storage {
@@ -95,7 +95,6 @@ get fun dynamicConfig(): (address, uint32) {
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 	val st = lazy FiredrillOffRamp_Storage.load();
 	
-	debug.print(st.onRampAddress);
 	return SourceChainConfig {
 		router: st.controlAddress,
 		isEnabled: true,

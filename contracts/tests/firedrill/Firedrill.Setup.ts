@@ -26,6 +26,7 @@ export async function deployFiredrillOnRamp(
         id: generateRandomContractId(),
         controlAddress: opts?.controlAddress ?? owner.address,
         chainSelector: opts?.chainSelector ?? CHAINSEL_TON_TEST,
+        tokenAddress: TOKEN_ADDRESS,
     };
 
     const onramp = blockchain.openContract(FiredrillOnRamp.createFromConfig(config, code));
@@ -56,8 +57,6 @@ export async function deployFiredrillOffRamp(
     await offramp.sendDeploy(deployer.getSender(), toNano('0.1'));
     return { offramp, config };
 }
-
-export async function getFiredrillOnrampAddress() {} //TODO use this to set the ramp addresses on the entrypoint before deploying, should define the same function for entrypoint and offramp
 
 export async function deployFiredrillEntrypoint(
     blockchain: Blockchain,
@@ -91,15 +90,9 @@ export async function deployFiredrillEntrypoint(
     return { entrypoint, config };
 }
 
-export const CROSS_CHAIN_ONRAMP_ADDRESS = Buffer.from('0xcafaae1bab0e7d637cba2f6a3b920185c93d95df', 'hex');
-
-export const CROSS_CHAIN_OFFRAMP_ADDRESS = Buffer.from('0x0ed77acda17beaff5e2a6b66eeeb791e8a1bc0a7', 'hex');
-
 export async function setupFiredrill(blockchain: Blockchain) {
     const deployer = await blockchain.treasury('deployer');
     const tokenAddress = TOKEN_ADDRESS;
-
-    const contractId = generateRandomContractId();
 
     // Deploy Entrypoint with references to OnRamp and OffRamp
     const { entrypoint, config } = await deployFiredrillEntrypoint(blockchain, deployer, {
@@ -113,7 +106,7 @@ export async function setupFiredrill(blockchain: Blockchain) {
 
     const { offramp } = await deployFiredrillOffRamp(blockchain, deployer, {
         controlAddress: entrypoint.address, // Will be updated to entrypoint later
-        onRampAddress: CROSS_CHAIN_ONRAMP_ADDRESS,
+        onRampAddress: tonAddressToCrossChainAddress(onramp.address),
     });
 
     await entrypoint.sendInitRamps(deployer.getSender(), toNano('0.05'), onramp.address, offramp.address);
@@ -126,4 +119,19 @@ export async function setupFiredrill(blockchain: Blockchain) {
         tokenAddress,
         config,
     };
+}
+
+// Should be used for offramp unit tests only
+export const CROSS_CHAIN_ONRAMP_ADDRESS = Buffer.from('0xcafaae1bab0e7d637cba2f6a3b920185c93d95df', 'hex');
+
+const TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE = 36;
+const TON_CROSS_CHAIN_ADDRESS_BIT_SIZE = TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE * 8;
+const TON_INTERNAL_ADDRESS_BIT_SIZE = 267;
+export function tonAddressToCrossChainAddress(address: Address): CrossChainAddress {
+	const slice = beginCell()
+		.storeUint(0, TON_CROSS_CHAIN_ADDRESS_BIT_SIZE - TON_INTERNAL_ADDRESS_BIT_SIZE) //21 bit padding to get to 36 bytes
+		.storeAddress(address)
+		.endCell()
+                .beginParse()
+        return slice.loadBuffer(TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE);
 }

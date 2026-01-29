@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { FiredrillEntrypoint } from '../../wrappers/firedrill/FiredrillEntrypoint';
 import { FiredrillOnRamp } from '../../wrappers/firedrill/FiredrillOnRamp';
 import { FiredrillOffRamp } from '../../wrappers/firedrill/FiredrillOffRamp';
-import { setupFiredrill, CHAINSEL_TON_TEST, CROSS_CHAIN_ONRAMP_ADDRESS } from './Firedrill.Setup';
+import { setupFiredrill, CHAINSEL_TON_TEST, tonAddressToCrossChainAddress } from './Firedrill.Setup';
 import { assertLog} from '../Logs';
 import { LogTypes } from '../../wrappers/ccip/Logs';
 
@@ -298,7 +298,7 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
                 isEnabled: true,
                 minSeqNr: 0n,
                 isRMNVerificationDisabled: false,
-                onRamp: CROSS_CHAIN_ONRAMP_ADDRESS,
+                onRamp: tonAddressToCrossChainAddress(onramp.address),
             },
         });
 

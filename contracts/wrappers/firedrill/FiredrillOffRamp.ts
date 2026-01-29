@@ -18,8 +18,6 @@ export type FiredrillOffRampStorage = {
     onRampAddress: CrossChainAddress;
 };
 
-const EVM_ADDRESS_BYTES_SIZE = 20;
-
 export function firedrillOffRampStorageToCell(config: FiredrillOffRampStorage): Cell {
     return beginCell()
         .storeUint(config.id, 32)

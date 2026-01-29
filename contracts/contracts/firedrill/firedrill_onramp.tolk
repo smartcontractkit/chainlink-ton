@@ -11,6 +11,7 @@ struct FiredrillOnRamp_Storage {
 	id: uint32;
 	controlAddress: address;
 	chainSelector: uint64;
+	tokenAddress: address;
 }
 
 fun FiredrillOnRamp_Storage.load(): FiredrillOnRamp_Storage {
@@ -29,12 +30,12 @@ fun onInternalMessage(in: InMessage) {
 		FiredrillOnRamp_EmitCCIPMessageSent => {
 			// Only control address can trigger emissions
 			assert(in.senderAddress == st.controlAddress, 100);
-			emitCCIPMessageSent(msg.sender, msg.sequenceNumber, st.chainSelector);
+			emitCCIPMessageSent(msg.sender, msg.sequenceNumber, st.chainSelector, st.tokenAddress);
 		}
 	}
 }
 
-fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: uint64) {
+fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: uint64, tokenAddress: address) {
 	// Create a mock message header
 	val messageId = beginCell()
 		.storeAddress(sender)
@@ -52,11 +53,11 @@ fun emitCCIPMessageSent(sender: address, sequenceNumber: uint64, chainSelector: 
 	
 	// Create mock message body
 	val messageBody = TVM2AnyRampMessageBody {
-		receiver: getEvmSenderReceiverAddress().toCell(),
+		receiver: tonAddressToCrossChainAddress(sender).toCell(),
 		data: beginCell().storeUint(123, 32).endCell(),
 		extraArgs: beginCell().endCell(),
 		tokenAmounts: beginCell().endCell(),
-		feeToken: sender,
+		feeToken: tokenAddress,
 		feeTokenAmount: 0
 	};
 	

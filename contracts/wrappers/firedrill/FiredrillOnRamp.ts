@@ -7,21 +7,14 @@ import {
     ContractProvider,
     Sender,
     SendMode,
-    Slice,
-    Builder,
     Dictionary,
 } from '@ton/core';
-
-export type FiredrillOnRampConfig = {
-    id: bigint;
-    controlAddress: Address;
-    chainSelector: bigint;
-};
 
 export type FiredrillOnRampStorage = {
     id: bigint;
     controlAddress: Address;
     chainSelector: bigint;
+    tokenAddress: Address
 };
 
 export type EmitCCIPMessageSent = {
@@ -43,11 +36,12 @@ export type DestChainConfig = {
     allowedSenders: Dictionary<Address, boolean>;
 };
 
-export function firedrillOnRampConfigToCell(config: FiredrillOnRampConfig): Cell {
+export function firedrillOnRampConfigToCell(config: FiredrillOnRampStorage): Cell {
     return beginCell()
         .storeUint(config.id, 32)
         .storeAddress(config.controlAddress)
         .storeUint(config.chainSelector, 64)
+        .storeAddress(config.tokenAddress)
         .endCell();
 }
 
@@ -65,7 +59,7 @@ export class FiredrillOnRamp implements Contract {
         return new FiredrillOnRamp(address);
     }
 
-    static createFromConfig(config: FiredrillOnRampConfig, code: Cell, workchain = 0) {
+    static createFromConfig(config: FiredrillOnRampStorage, code: Cell, workchain = 0) {
         const data = firedrillOnRampConfigToCell(config);
         const init = { code, data };
         return new FiredrillOnRamp(contractAddress(workchain, init), init);

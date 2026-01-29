@@ -494,8 +494,6 @@ export const testLogUsdPerTokenUpdated = (
     if (match.sourceToken && match.sourceToken instanceof Address) {
       modifiedMatch.sourceToken = match.sourceToken.toString()
     }
-    console.log(modifiedMatch)
-    console.log(msg)
 
     matchesObject(msg, modifiedMatch)
     return true

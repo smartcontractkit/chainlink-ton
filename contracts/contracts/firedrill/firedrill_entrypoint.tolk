@@ -185,7 +185,7 @@ get fun onRamps(): OnRamps {
 	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
 
-	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell();
+	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell() as SnakedCell<uint64>;
 
 	return OnRamps {
 		destChainSelectors: selectors,
@@ -198,7 +198,7 @@ get fun offRamps(): OffRamps {
 
 	assert(st.firedrillContracts != null, FiredrillEntrypoint_Error.RampsNotInitialized);
 	val firedrillContracts = st.firedrillContracts.load();
-	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell();
+	val selectors = beginCell().storeUint(st.chainSelector, 64).endCell() as SnakedCell<uint64>;
 	return OffRamps {
 		sourceChainSelectors: selectors,
 		offRamp: firedrillContracts.firedrillOffRamp
@@ -232,9 +232,7 @@ get fun destinationChainGasPrice(destChainSelector: uint64): cell {
 // ========== Common Getters ==========
 
 get fun chainSelector(): uint64 {
-	debug.print(1);
 	val st = lazy FiredrillEntrypoint_Storage.load();
-	debug.print(2);
 	return st.chainSelector;
 }
 
