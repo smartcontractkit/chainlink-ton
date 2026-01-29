@@ -89,7 +89,6 @@ type Log struct {
 	MsgLT        uint64           // Message logical time for ordering
 	MsgIndex     int64            // Index of the message within the transaction (0, 1, 2, ...)
 	ExpiresAt    *time.Time       // Pre-computed expiration time (tx_timestamp + retention). nil = no expiry.
-	Error        error            // Optional error associated with the log entry.
 }
 
 // TypedLog represents a log entry with its parsed data.

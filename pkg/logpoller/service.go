@@ -385,10 +385,6 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 	totalSaved := 0
 
 	for log := range logsCh {
-		if log.Error != nil {
-			lp.lggr.Errorw("discarding invalid log", "log", log, "error", log.Error)
-			continue
-		}
 		chunk = append(chunk, log)
 
 		// save chunk if it's full
