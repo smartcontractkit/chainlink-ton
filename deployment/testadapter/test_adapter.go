@@ -520,7 +520,7 @@ func confirmExecWithExpectedSeqNrsTON(
 	srcChainSelector uint64,
 	tonChain cldf_ton.Chain,
 	offRamp address.Address,
-	startBlock *uint64,
+	_startBlock *uint64,
 	expectedSeqNums []uint64,
 ) (map[uint64]int, error) {
 	if len(expectedSeqNums) == 0 {
