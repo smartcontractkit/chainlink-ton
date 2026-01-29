@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	tonrouter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -120,7 +121,16 @@ func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, 
 }
 
 func (a *TONAdapter) CCIPReceiver() []byte {
-	panic("unimplemented")
+	receiverAddr, err := a.getAddress("Receiver")
+	if err != nil {
+		panic(err)
+	}
+	ac := codec.NewAddressCodec()
+	receiver, err := ac.AddressStringToBytes(receiverAddr.String())
+	if err != nil {
+		panic(fmt.Sprintf("failed to convert TON address to bytes: %v", err))
+	}
+	return receiver
 }
 
 func (a *TONAdapter) NativeFeeToken() string {
@@ -131,7 +141,7 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
 		return ccipcommon.SerializeClientGenericExtraArgsV2(msg_hasher163.ClientGenericExtraArgsV2{
-			GasLimit:                 new(big.Int).SetUint64(100_000),
+			GasLimit:                 new(big.Int).SetUint64(100_000_000),
 			AllowOutOfOrderExecution: true,
 		})
 	case chain_selectors.FamilyTon:
