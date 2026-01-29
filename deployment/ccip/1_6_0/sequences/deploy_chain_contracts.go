@@ -32,11 +32,11 @@ import (
 
 // defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.
 // This value is chosen to cover contract initialization and storage costs on TON blockchain.
-const defaultCCIPContractCoin = "20"
+const defaultCCIPContractCoin = "30"
 
 // defaultReserveAmount is the default reserve amount allocated to the OnRamp contract.
 // This reserve ensures the contract has sufficient balance for operational transactions.
-const defaultReserveAmount = "5"
+const defaultReserveAmount = "10"
 
 func (a *TonAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
