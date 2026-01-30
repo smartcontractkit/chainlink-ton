@@ -50,7 +50,7 @@ func (m *CCIP16TON) SetCLDF(e *deployment.Environment) {
 	m.e = e
 	factory, found := testadapters.GetTestAdapterRegistry().GetTestAdapter(chain_selectors.FamilyTon, semver.MustParse("1.6.0"))
 	if !found {
-		panic(fmt.Sprintf("failed to find testadapter factory for %s", chain_selectors.FamilyTon))
+		panic("failed to find testadapter factory for " + chain_selectors.FamilyTon)
 	}
 	m.TestAdapter = factory(e, m.chainDetails.ChainSelector)
 }

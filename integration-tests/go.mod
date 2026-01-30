@@ -12,12 +12,12 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/smartcontractkit/chain-selectors v1.0.90
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260127052127-9e53e86176d3
-	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20251215214345-470a287a4b1f
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260127233442-2c5e9bb2d9a7
+	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20260129103204-4c8453dd8139
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260129103204-4c8453dd8139
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260129031639-d791b142161a
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
-	github.com/smartcontractkit/chainlink-deployments-framework v0.75.0
-	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20251222115927-36a18321243c
+	github.com/smartcontractkit/chainlink-deployments-framework v0.75.2-0.20260120092221-c83e6ba1e827
+	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260119171452-39c98c3b33cd
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20260127214148-d1bc1a4821a9
