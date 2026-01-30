@@ -33,7 +33,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
 
     const r = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.deployer.getSender(),
-      toNano('0.3'),
+      toNano('0.1'),
       body,
     )
 

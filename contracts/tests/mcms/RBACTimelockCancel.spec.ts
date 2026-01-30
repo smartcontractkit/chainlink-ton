@@ -90,7 +90,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
-        toNano('1'),
+        toNano('0.2'),
         executeBody,
       )
 
