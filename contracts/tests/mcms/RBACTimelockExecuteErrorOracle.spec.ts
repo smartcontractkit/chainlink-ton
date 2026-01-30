@@ -84,7 +84,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
 
     const r = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.deployer.getSender(),
-      toNano('1'),
+      toNano('0.12'),
       ac.builder.message.in.grantRole
         .encode({
           queryId: 1n,
@@ -146,7 +146,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
 
     const r = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.executorOne.getSender(), // External caller
-      toNano('1'),
+      toNano('0.2'),
       executeBody,
     )
 

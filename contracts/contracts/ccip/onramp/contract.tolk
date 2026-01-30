@@ -217,6 +217,11 @@ fun onMessageValidationFailed(msg: FeeQuoter_MessageValidationFailed<OnRamp_GetV
     rejection.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+fun generateRandomSendExecutorId(): CCIPSendExecutor_ID {
+    random.initialize();
+    return (random.uint256() >> 32) as CCIPSendExecutor_ID;
+}
+
 /*
 Handles CCIP send messages forwarded by the Router. Validates that the
 destination chain configuration is enabled, enforces the optional allowlist,
@@ -232,16 +237,17 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 
     val config = st.config.load();
 
+    val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
         bounce: true,
         value: 0,
-        dest: st.executor.autoDeployAddress(st.executor.currentID),
+        dest: st.executor.autoDeployAddress(executorId),
         body: Deployable_InitializeAndSend {
             stateInit: {
                 code: st.executor.executorCode,
                 data:  CCIPSendExecutor_InitialData {
                     onramp: contract.getAddress(),
-                    id: st.executor.currentID,
+                    id: executorId,
                 }.toCell(),
             },
             selfMessage: {
@@ -257,7 +263,6 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     });
 
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    st.executor.currentID += 1;
 
     st.store();
 }
