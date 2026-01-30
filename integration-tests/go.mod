@@ -2,9 +2,12 @@ module github.com/smartcontractkit/chainlink-ton/integration-tests
 
 go 1.25.5
 
-// Use local chainlink-ton/deployment module,
-// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
-replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+replace (
+	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
+	// Use local chainlink-ton/deployment module,
+	// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
+	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+)
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -16,7 +19,7 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251222203705-84e93cab86b5
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
-	github.com/smartcontractkit/chainlink-deployments-framework v0.78.1-0.20260130163202-ff9bb14c5ed3
+	github.com/smartcontractkit/chainlink-deployments-framework v0.78.1-0.20260130170219-7f3060452d15
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20251211123524-f0c4fe7cfc0a
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5
@@ -29,8 +32,6 @@ require (
 	github.com/xssnick/tonutils-go v1.14.1
 	google.golang.org/grpc v1.77.0
 )
-
-replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
 
 require (
 	cosmossdk.io/api v0.7.6 // indirect
