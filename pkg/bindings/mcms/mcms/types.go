@@ -38,11 +38,11 @@ type SetRoot struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *tlbe.Uint256 `tlb:"."`     // The new expiring root.
-	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
+	ValidUntil uint64        `tlb:"## 64"` // The time by which the root is valid.
 
-	Metadata      RootMetadata                `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
-	MetadataProof common.SnakeData[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
-	Signatures    common.SnakeData[Signature] `tlb:"^"` // The ECDSA signatures on (root, validUntil).
+	Metadata      RootMetadata                 `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
+	MetadataProof common.SnakedCell[Proof]     `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree.
+	Signatures    common.SnakedCell[Signature] `tlb:"^"` // The ECDSA signatures on (root, validUntil).
 }
 
 // Execute the received op after verifying the proof of its inclusion in the
@@ -64,8 +64,8 @@ type Execute struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
-	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
+	Op    Op                       `tlb:"^"` // The op to be executed. // Cell<Op>
+	Proof common.SnakedCell[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
 }
 
 // Sets a new data.config. If clearRoot is true, then it also invalidates
@@ -90,11 +90,11 @@ type SetConfig struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerAddresses common.SnakeData[SignerAddress] `tlb:"^"`
-	SignerGroups    common.SnakeData[SignerGroup]   `tlb:"^"`
-	GroupQuorums    *tlbe.Dict[uint8, uint8]        `tlb:"."` // indexed, iterable backwards
-	GroupParents    *tlbe.Dict[uint8, uint8]        `tlb:"."` // indexed, iterable backwards
-	ClearRoot       bool                            `tlb:"bool"`
+	SignerAddresses common.SnakedCell[SignerAddress] `tlb:"^"`
+	SignerGroups    common.SnakedCell[SignerGroup]   `tlb:"^"`
+	GroupQuorums    *tlbe.Dict[uint8, uint8]         `tlb:"."` // indexed, iterable backwards
+	GroupParents    *tlbe.Dict[uint8, uint8]         `tlb:"."` // indexed, iterable backwards
+	ClearRoot       bool                             `tlb:"bool"`
 }
 
 // Changes the timeout required to finalize the currently executing op
@@ -125,9 +125,9 @@ type SubmitErrorReport struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Op       Op                      `tlb:"^"` // The operation which produced the error.
-	Proof    common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
-	OpTxHash *tlbe.Uint256           `tlb:"."` // The hash of the execute transaction.
+	Op       Op                       `tlb:"^"` // The operation which produced the error.
+	Proof    common.SnakedCell[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree
+	OpTxHash *tlbe.Uint256            `tlb:"."` // The hash of the execute transaction.
 
 	ErrorTxHash *tlbe.Uint256 `tlb:"."`     // The hash of the transaction which errored (part of the tx trace).
 	ErrorCode   uint32        `tlb:"## 32"` // The error code.
@@ -155,7 +155,7 @@ type CleanExpiredRoots struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	/// The roots to clean up - RootDescriptor{root, validUntil}
-	Roots common.SnakeData[RootDescriptor] `tlb:"^"`
+	Roots common.SnakedCell[RootDescriptor] `tlb:"^"`
 }
 
 // --- Messages - outgoing ---
@@ -168,7 +168,7 @@ type NewRoot struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *tlbe.Uint256 `tlb:"."`     // The new expiring root.
-	ValidUntil uint32        `tlb:"## 32"` // The time by which the root is valid.
+	ValidUntil uint64        `tlb:"## 64"` // The time by which the root is valid.
 	Metadata   RootMetadata  `tlb:"."`     // The metadata about the root, which is stored as one of the leaves.
 }
 
@@ -240,8 +240,8 @@ type ExpiredRootsCleaned struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Roots       common.SnakeData[Root]       `tlb:"^"` // The cleaned up roots
-	ValidUntils common.SnakeData[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
+	Roots       common.SnakedCell[Root]       `tlb:"^"` // The cleaned up roots
+	ValidUntils common.SnakedCell[ValidUntil] `tlb:"^"` // The validUntil times for respective roots
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -382,7 +382,7 @@ type ExpiringRootAndOpCount struct {
 	/// root may target many chains. We assume that block.timestamp can
 	/// be manipulated by block producers but only within relatively tight
 	/// bounds (a few minutes at most).
-	ValidUntil uint32 `tlb:"## 32"`
+	ValidUntil uint64 `tlb:"## 64"`
 	/// each ManyChainMultiSig instance has it own independent opCount.
 	OpCount uint64 `tlb:"## 40"`
 	/// Information about the currently pending operation.
@@ -396,7 +396,7 @@ type OpPendingInfo struct {
 	// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
 	// At this time the previous executed operation is considered optimistically final and successful,
 	// meaning no bounce was received and we can continue executing.
-	ValidAfter uint32 `tlb:"## 32"`
+	ValidAfter uint64 `tlb:"## 64"`
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The address that the (pending) operation was sent to (and could bounce from).
@@ -452,7 +452,7 @@ type Op struct {
 // Data container used to derive the root ID (hash)
 type RootDescriptor struct {
 	Root       *tlbe.Uint256 `tlb:"."`     // The merkle tree root
-	ValidUntil uint32        `tlb:"## 32"` // The time until which root is valid
+	ValidUntil uint64        `tlb:"## 64"` // The time until which root is valid
 }
 
 // --- Data (storage & structures) - value wrapper types ---
@@ -479,9 +479,9 @@ type Root struct {
 	Val *tlbe.Uint256 `tlb:"."`
 }
 
-// ValidUntils as vec<uint32> value wrapper
+// ValidUntils as vec<uint64> value wrapper
 type ValidUntil struct {
-	Val uint32 `tlb:"## 32"`
+	Val uint64 `tlb:"## 64"`
 }
 
 // --- Constants ---
@@ -507,7 +507,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorOutOfBoundsNumSigners)
-		ecMax = int32(ErrorUnauthorizedOracle)
+		ecMax = int32(InsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -597,4 +597,7 @@ const (
 
 	// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
 	ErrorRootNotExpired
+
+	// Value attached to incomming message is not enough to pay for handler execution
+	InsufficientFee
 )

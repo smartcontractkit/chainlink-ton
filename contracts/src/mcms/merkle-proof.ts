@@ -1,7 +1,7 @@
 import { beginCell, Cell } from '@ton/core'
 import { getBytes, hashMessage, keccak256, SigningKey } from 'ethers'
 
-import { asSnakeData, uint8ArrayToBigInt } from '../utils'
+import { asSnakedCell, uint8ArrayToBigInt } from '../utils'
 
 import { mcms } from '../../wrappers/mcms'
 
@@ -11,7 +11,7 @@ export type OpProofs = bigint[][]
 
 export function build(
   signers: SigningKey[],
-  validUntil: number,
+  validUntil: bigint,
   metadata: mcms.RootMetadata,
   ops: mcms.Op[],
 ): [mcms.SetRoot, OpProofs] {
@@ -36,8 +36,8 @@ export function build(
       root,
       validUntil,
       metadata,
-      metadataProof: asSnakeData<bigint>(metadataProof, encodeProof),
-      signatures: asSnakeData<mcms.Signature>(signatures, encodeSignature),
+      metadataProof: asSnakedCell<bigint>(metadataProof, encodeProof),
+      signatures: asSnakedCell<mcms.Signature>(signatures, encodeSignature),
     },
     opProofs,
   ]
@@ -135,7 +135,7 @@ export function getLeafIndexOfOp(opIndex: number): number {
 
 export function constructAnsSignRootAndProof(
   leaves: bigint[],
-  validUntil: number,
+  validUntil: bigint,
   signers: SigningKey[],
 ): {
   root: bigint
@@ -157,7 +157,7 @@ export function computeRoot(leaves: bigint[]): bigint {
 }
 
 // Notice: constructs and signs an EIP191 message
-function fillSignatures(root: bigint, validUntil: number, signers: SigningKey[]): mcms.Signature[] {
+function fillSignatures(root: bigint, validUntil: bigint, signers: SigningKey[]): mcms.Signature[] {
   const signatures: mcms.Signature[] = []
   const data = beginCell()
     .storeUint(root, 256)

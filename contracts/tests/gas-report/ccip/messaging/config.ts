@@ -1,6 +1,6 @@
 import { Cell, beginCell } from '@ton/core'
 import * as rt from '../../../../wrappers/ccip/Router'
-import { asSnakeData } from '../../../../src/utils'
+import { asSnakedCell } from '../../../../src/utils'
 
 // Messaging-specific test parameters
 export const MAX_DATA_PAYLOAD_SIZE = 1232 // bytes (using Solana CCIP max size as reference for a reasonable limit)
@@ -26,7 +26,7 @@ export function createPayload(size: number): Cell {
     chunks.push(data.subarray(i, Math.min(i + MAX_BYTES_PER_CELL, data.length)))
   }
 
-  return asSnakeData(chunks, (chunk: Buffer) => beginCell().storeBuffer(chunk))
+  return asSnakedCell(chunks, (chunk: Buffer) => beginCell().storeBuffer(chunk))
 }
 
 export function createExtraArgs(): Cell {

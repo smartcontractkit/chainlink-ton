@@ -54,3 +54,13 @@ func (o *ObservedLogStore) QueryLogs(ctx context.Context, logQuery *query.LogQue
 
 	return logs, hasMore, nextCursor, err
 }
+
+// GetHighestMCBlockSeqno wraps the underlying GetHighestMCBlockSeqno with metrics
+func (o *ObservedLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, error) {
+	start := time.Now()
+	seqno, exists, err := o.LogStore.GetHighestMCBlockSeqno(ctx)
+
+	o.metrics.RecordQueryDuration(ctx, "GetHighestMCBlockSeqno", frameworkmetrics.Read, time.Since(start))
+
+	return seqno, exists, err
+}

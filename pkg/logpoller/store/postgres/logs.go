@@ -36,6 +36,13 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 		return 0, nil
 	}
 
+	// Validate logs before expensive conversion to fail fast
+	for i, log := range logs {
+		if err := log.Validate(s.chainID); err != nil {
+			return 0, fmt.Errorf("invalid log at index %d: %w", i, err)
+		}
+	}
+
 	dbLogs := make([]logModel, len(logs))
 	for i, log := range logs {
 		logModel := &logModel{}
@@ -58,10 +65,6 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 
 // insertLogsWithBatching handles batched log insertion with transaction support
 func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
-	if err := s.validateLogs(logs); err != nil {
-		return 0, err
-	}
-
 	var totalInserted int64
 	err := s.orm.Transact(ctx, func(orm *DSORM) error {
 		inserted, err := s.insertLogsWithinTx(ctx, orm, logs, batchInsertSize, minBatchSize)
@@ -112,7 +115,7 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 			:block_file_hash,
 			:master_block_seqno,
 			NOW()
-		) ON CONFLICT (tx_hash, tx_lt, msg_index) DO NOTHING
+		) ON CONFLICT DO NOTHING
 	`
 
 	var totalInserted int64
@@ -135,16 +138,6 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 		totalInserted += rowsInserted
 	}
 	return totalInserted, nil
-}
-
-// validateLogs ensures all logs have the correct chainID
-func (s *pgLogStore) validateLogs(logs []logModel) error {
-	for _, log := range logs {
-		if s.chainID != log.ChainID {
-			return fmt.Errorf("invalid chainID in log: got %v, want %v", log.ChainID, s.chainID)
-		}
-	}
-	return nil
 }
 
 // QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
@@ -178,13 +171,32 @@ func (s *pgLogStore) QueryLogs(
 		"resultCount", len(dbLogs),
 		"hasMore", hasMore)
 
-	// Convert ORM models to application models
-	logs = make([]models.Log, len(dbLogs))
+	// Deduplicate logs by (TxHash, TxLT, MsgIndex).
+	// Multiple filters can track the same log events, resulting in duplicates in storage.
+	type logKey struct {
+		txHash   string
+		txLT     string
+		msgIndex int64
+	}
+	seen := make(map[logKey]struct{}, len(dbLogs))
+	logs = make([]models.Log, 0, len(dbLogs))
+
 	for i := range dbLogs {
-		logs[i], err = dbLogs[i].ToLog()
+		key := logKey{
+			txHash:   string(dbLogs[i].TxHash),
+			txLT:     dbLogs[i].TxLT,
+			msgIndex: dbLogs[i].MsgIndex,
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+
+		log, err := dbLogs[i].ToLog()
 		if err != nil {
 			return nil, false, "", fmt.Errorf("failed to convert db log to model at index %d (id=%d): %w", i, dbLogs[i].ID, err)
 		}
+		logs = append(logs, log)
 	}
 
 	// generate next cursor if there are more results
@@ -194,4 +206,25 @@ func (s *pgLogStore) QueryLogs(
 	}
 
 	return logs, hasMore, nextCursor, nil
+}
+
+// GetHighestMCBlockSeqno retrieves the highest masterchain block sequence number
+// from stored logs for this chain. Returns (seqno, exists, err) where exists indicates
+// whether any logs are stored.
+func (s *pgLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, error) {
+	var result *int64
+
+	sql := `SELECT MAX(master_block_seqno) FROM ton.log_poller_logs WHERE chain_id = :chain_id`
+	err := s.orm.NamedGetContext(ctx, &result, sql, map[string]any{"chain_id": s.chainID})
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to query latest master block seqno: %w", err)
+	}
+
+	// MAX returns NULL if no rows exist
+	if result == nil {
+		return 0, false, nil
+	}
+
+	//nolint:gosec // G115: safe conversion - master_block_seqno is always positive and within uint32 range
+	return uint32(*result), true, nil
 }

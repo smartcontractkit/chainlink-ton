@@ -7,6 +7,10 @@ type ReceiveExecutor_InMessage =
 
 struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
     gasOverride: coins? = null;
+    root: address;
+    sequenceNumber: uint64;
+    sourceChainSelector: uint64;
+    messageId: uint256;
 }
 
 struct (0x00e5dd97) ReceiveExecutor_Confirm {

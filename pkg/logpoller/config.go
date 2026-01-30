@@ -17,16 +17,30 @@ const (
 // Config holds the configuration for the log poller.
 // NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
 // Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
+//
+// Performance Note: The service loop is synchronous - each tick blocks until processing completes,
+// so concurrent ticks cannot occur. However, if processing takes longer than PollPeriod, the poller
+// falls behind chain head (a warning is logged when this happens). Processing time is primarily
+// driven by PageSize and transaction volume. If processing consistently exceeds PollPeriod,
+// reduce PageSize or increase PollPeriod. Monitor ton_logpoller_poll_duration_seconds metric.
 type Config struct {
-	PollPeriod                *config.Duration
+	// PollPeriod is the target interval between tick starts.
+	PollPeriod *config.Duration
+	// PageSize is the number of transactions fetched per API call. Larger values increase
+	// throughput but also increase per-tick processing time. Tune based on expected volume.
 	PageSize                  uint32
 	LogPollerStartingLookback *config.Duration
 	BlockTime                 *config.Duration
+	MCBlockCacheSize          int // LRU cache maps shard block keys to masterchain seqno
 
 	// Database configuration - simple values with defaults
 	BatchInsertSize uint32
 	MinBatchSize    uint32
 	SaveThreshold   uint32 // Number of logs to buffer in memory before saving
+
+	// MC block resolution retry configuration
+	MCBlockResolveMaxRetries uint32           // Max retry attempts for masterchain block resolution
+	MCBlockResolveBaseDelay  *config.Duration // Base delay for exponential backoff
 }
 
 var DefaultConfigSet = Config{
@@ -42,6 +56,11 @@ var DefaultConfigSet = Config{
 	BatchInsertSize: 3500, // postgresql batch insert size
 	MinBatchSize:    500,  // Minimum batch size for timeout retry
 	SaveThreshold:   7000, // Memory buffer size before batch saving
+
+	MCBlockCacheSize: 1000, // ~100 bytes per entry, 1000 entries ≈ 100KB
+
+	MCBlockResolveMaxRetries: 3,
+	MCBlockResolveBaseDelay:  config.MustNewDuration(100 * time.Millisecond),
 }
 
 func (c *Config) ApplyDefaults() {
@@ -65,6 +84,15 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.SaveThreshold == 0 {
 		c.SaveThreshold = DefaultConfigSet.SaveThreshold
+	}
+	if c.MCBlockCacheSize <= 0 {
+		c.MCBlockCacheSize = DefaultConfigSet.MCBlockCacheSize
+	}
+	if c.MCBlockResolveMaxRetries == 0 {
+		c.MCBlockResolveMaxRetries = DefaultConfigSet.MCBlockResolveMaxRetries
+	}
+	if c.MCBlockResolveBaseDelay == nil {
+		c.MCBlockResolveBaseDelay = DefaultConfigSet.MCBlockResolveBaseDelay
 	}
 }
 

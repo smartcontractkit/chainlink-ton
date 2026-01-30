@@ -1,4 +1,4 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, prettyLogTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
@@ -1593,7 +1593,9 @@ describe('OffRamp - Unit Tests', () => {
     // Check that minSeqNr is now 11 (maxSeqNr + 1)
     const config2 = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
     expect(config2.minSeqNr).toBe(11n)
-    expect(uint8ArrayToBigInt(config2.onRamp).toString(16)).toBe(EVM_ONRAMP_ADDRESS_TEST.toString(16))
+    expect(uint8ArrayToBigInt(config2.onRamp).toString(16)).toBe(
+      EVM_ONRAMP_ADDRESS_TEST.toString(16),
+    )
   })
 
   it('Test commit with large sequence number gap', async () => {
@@ -2695,6 +2697,158 @@ describe('OffRamp - Unit Tests', () => {
       from: offRamp.address,
       to: feeQuoter.address,
       success: true,
+    })
+  })
+
+  describe('Bounced Message Handling Tests', () => {
+    it('should handle RouteMessage bounce from router and emit events', async () => {
+      // Create a mock router that will bounce messages
+      const wrongRouterAddress = generateMockTonAddress()
+
+      // Update source chain config to use a non-existent router
+      const configsWithWrongRouter = createDefaultUpdateSourceChainConfigs({
+        router: wrongRouterAddress,
+      })
+
+      await setupOCRConfigs()
+      await offRamp.sendUpdateSourceChainConfigs(deployer.getSender(), {
+        value: toNano('0.5'),
+        configs: configsWithWrongRouter,
+      })
+
+      // Create and commit a message to a valid receiver
+      const message = createTestMessage(1n, 1n, receiver.address)
+      const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+      const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+      const root = createMerkleRoot(1n, 1n, rootBytes)
+
+      await commitReport([root])
+
+      // Try to execute - the Router_RouteMessage should bounce
+      const report = createExecuteReport([message])
+      const result = await executeReport(report)
+
+      // The OffRamp should emit ExecutionStateChanged to IN_PROGRESS
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_IN_PROGRESS,
+      })
+
+      // Should bounce from the non-existent router
+      expect(result.transactions).toHaveTransaction({
+        from: offRamp.address,
+        to: wrongRouterAddress,
+        success: false,
+      })
+
+      // Should emit RouteMessageBounced event
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.RouteMessageBounced, {
+        router: wrongRouterAddress,
+        execId: expect.any(BigInt),
+      })
+
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_FAILURE,
+      })
+    })
+
+    it('should handle Deployable_Initialize bounce and emit events', async () => {
+      await setupOCRConfigs()
+
+      // Try committing the same root twice. This should normally never happen because the seqNr
+      // would not match, but we can intentionally build a commit report with correct seqNr
+      const message1 = createTestMessage(1n, 1n, receiver.address)
+      const rootBytes = uint8ArrayToBigInt(
+        generateMessageId(
+          message1,
+          uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001)),
+        ),
+      )
+      const root = createMerkleRoot(1n, 1n, rootBytes)
+
+      await commitReport([root])
+
+      const root2 = createMerkleRoot(2n, 2n, rootBytes)
+
+      const result = await commitReport([root2])
+
+      expect(result.transactions).toHaveTransaction({
+        from: offRamp.address,
+        success: false,
+        to: merkleRootAddress(root2),
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: merkleRootAddress(root2),
+        success: true,
+        to: offRamp.address,
+      })
+
+      assertLog(
+        result.transactions,
+        offRamp.address,
+        CCIPLogs.LogTypes.DeployableInitializeBounced,
+        {
+          deployableAddress: merkleRootAddress(root2),
+        },
+      )
+    })
+
+    it('should handle ReceiveExecutor_InitExecute bounce and emit events', async () => {
+      // First, commit report with a valid message
+      const message1 = createTestMessage(1n, 1n, receiver.address)
+      await setupAndCommitMessage(message1)
+
+      // Update receiveExecutorCode to bad code that will cause InitExecute to bounce
+      const badReceiveExecutorCode = beginCell().storeUint(0x88888888, 32).endCell()
+      await offRamp.sendUpdateDeployables(deployer.getSender(), {
+        value: toNano('0.1'),
+        receiveExecutorCode: badReceiveExecutorCode,
+        merkleRootCode: merkleRootCodeRaw,
+      })
+
+      const report = createExecuteReport([message1])
+      // Execute the second message
+      const result = await executeReport(report)
+
+      // Should emit IN_PROGRESS
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_IN_PROGRESS,
+      })
+
+      // InitExecute should fail
+      expect(result.transactions).toHaveTransaction({
+        from: offRamp.address,
+        success: false,
+      })
+
+      // Should emit ReceiveExecutorInitExecuteBounced
+      assertLog(
+        result.transactions,
+        offRamp.address,
+        CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced,
+        {
+          receiveExecutor: expect.any(Address),
+          root: expect.any(Address),
+          sequenceNumber: 1n,
+        },
+      )
+
+      // Should emit ExecutionStateChanged: FAILURE
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_FAILURE,
+      })
     })
   })
 

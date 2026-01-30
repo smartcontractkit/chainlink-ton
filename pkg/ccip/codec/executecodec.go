@@ -62,7 +62,6 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	}
 
 	msg := chainReport.Messages[0]
-	var offChainTokenData common.SnakeRef[common.SnakeBytes]
 	var rampMessage ocr.Any2TVMRampMessage
 	tokenAmounts := make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
 	for _, tokenAmount := range msg.TokenAmounts {
@@ -168,15 +167,9 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		TokenAmounts: tokenAmounts,
 	}
 
-	if len(chainReport.OffchainTokenData) > 0 {
-		tokenDataSlice := make([]common.SnakeBytes, len(chainReport.OffchainTokenData[0]))
-		for i, data := range chainReport.OffchainTokenData[0] {
-			tokenDataSlice[i] = data
-		}
-		offChainTokenData = tokenDataSlice
-	}
+	// Handle chainReport.OffchainTokenData here as needed in the future
 
-	proofs := make(common.SnakeData[common.Proof], 0, len(chainReport.Proofs))
+	proofs := make(common.SnakedCell[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
 		var p common.Proof
 		p.Value = new(big.Int).SetBytes(proof[:])
@@ -187,7 +180,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
 		Message:             rampMessage,
-		OffChainTokenData:   offChainTokenData,
+		OffChainTokenData:   cell.BeginCell().EndCell(), // default empty cell as on-chain, will be removed after token transfer is supported
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
 	}
@@ -290,13 +283,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		})
 
 		offchainTokenData := make([][][]byte, 0)
-		if len(tonReport.OffChainTokenData) > 0 {
-			tokenDataSlice := make([][]byte, len(tonReport.OffChainTokenData))
-			for i, snakeBytes := range tonReport.OffChainTokenData {
-				tokenDataSlice[i] = snakeBytes
-			}
-			offchainTokenData = append(offchainTokenData, tokenDataSlice)
-		}
+		// Currently offchain token data is not supported in TON execute reports, so we leave it empty
 
 		executeReport.ChainReports = append(executeReport.ChainReports, ccipocr3.ExecutePluginReportSingleChain{
 			SourceChainSelector: ccipocr3.ChainSelector(tonReport.SourceChainSelector),

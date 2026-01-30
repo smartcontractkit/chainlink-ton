@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, toNano } from '@ton/core'
 import { SigningKey, randomBytes, computeAddress } from 'ethers'
 
-import { asSnakeData, generateRandomContractId } from '../../src/utils'
+import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 import * as coverage from '../coverage/coverage'
 
 import { mcms } from '../../wrappers/mcms'
@@ -183,7 +183,7 @@ describe('MCMS - IntegrationTest', () => {
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
         opPendingInfo: {
-          validAfter: 0,
+          validAfter: 0n,
           opFinalizationTimeout: 0,
           opPendingId: 0n,
         },
@@ -493,7 +493,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // increment twice through regular flow
     {
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.counter.address,
@@ -517,7 +517,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -559,7 +559,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.15'), // need 0.1 TON extra to reserve for rent
+        toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -634,7 +634,7 @@ describe('MCMS - IntegrationTest', () => {
     //
     {
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -677,7 +677,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'), // has enough reserve, no need for +1 TON
+        toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -744,7 +744,7 @@ describe('MCMS - IntegrationTest', () => {
       // halve minDelay from bypasser
       //
       const newDelay = Math.floor(MIN_DELAY / 2)
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.timelock.address,
@@ -763,7 +763,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = signerKeyPairs
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsBypass.address,
@@ -800,7 +800,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.15'), // need 0.1 TON extra to reserve for rent
+        toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -854,7 +854,7 @@ describe('MCMS - IntegrationTest', () => {
         })
       }
 
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.timelock.address,
@@ -879,7 +879,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -922,7 +922,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.15'), // need 0.1 TON extra to reserve for rent
+        toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,
@@ -962,7 +962,7 @@ describe('MCMS - IntegrationTest', () => {
 
       {
         const signers = vetoKeyPairs()
-        const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+        const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
         const metadata = {
           chainId,
           multiSig: bind.mcmsVeto.address,
@@ -997,7 +997,7 @@ describe('MCMS - IntegrationTest', () => {
 
         const r1 = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
-          toNano('0.15'), // need 0.1 TON extra to reserve for rent
+          toNano('0.05'), // to cover execution fee
           mcms.builder.message.in.execute
             .encode({
               queryId: 1n,
@@ -1044,7 +1044,7 @@ describe('MCMS - IntegrationTest', () => {
       // decrease quorum for vetoers & proposers
       //
 
-      calls = asSnakeData<rbactl.Call>(
+      calls = asSnakedCell<rbactl.Call>(
         [
           {
             target: bind.mcmsPropose.address,
@@ -1090,7 +1090,7 @@ describe('MCMS - IntegrationTest', () => {
       callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs()
-      const validUntil = (blockchain.now || 0) + 2 * 60 * 60 // block.timestamp + 2 hours
+      const validUntil = BigInt((blockchain.now || 0) + 2 * 60 * 60) // block.timestamp + 2 hours
       const metadata = {
         chainId,
         multiSig: bind.mcmsPropose.address,
@@ -1133,7 +1133,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.05'), // to cover execution fee
         mcms.builder.message.in.execute
           .encode({
             queryId: 1n,

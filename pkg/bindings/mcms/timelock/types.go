@@ -37,10 +37,10 @@ type Init struct {
 	Admin *address.Address `tlb:"addr"`
 
 	// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-	Proposers  common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Executors  common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Cancellers common.SnakeData[common.AddressWrap] `tlb:"^"`
-	Bypassers  common.SnakeData[common.AddressWrap] `tlb:"^"`
+	Proposers  common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Executors  common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Cancellers common.SnakedCell[common.AddressWrap] `tlb:"^"`
+	Bypassers  common.SnakedCell[common.AddressWrap] `tlb:"^"`
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
@@ -61,10 +61,10 @@ type ScheduleBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeRef[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *tlbe.Uint256         `tlb:"."`     // Predecessor operation ID
-	Salt        *tlbe.Uint256         `tlb:"."`     // Salt used to derive the operation ID
-	Delay       uint32                `tlb:"## 32"` // Delay in seconds before the operation can be executed
+	Calls       common.SnakedCell[Call] `tlb:"^"`     // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *tlbe.Uint256           `tlb:"."`     // Predecessor operation ID
+	Salt        *tlbe.Uint256           `tlb:"."`     // Salt used to derive the operation ID
+	Delay       uint32                  `tlb:"## 32"` // Delay in seconds before the operation can be executed
 }
 
 // Cancel an operation.
@@ -93,9 +93,9 @@ type ExecuteBatch struct {
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       common.SnakeRef[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *tlbe.Uint256         `tlb:"."` // Predecessor operation ID
-	Salt        *tlbe.Uint256         `tlb:"."` // Salt used to derive the operation ID
+	Calls       common.SnakedCell[Call] `tlb:"^"` // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *tlbe.Uint256           `tlb:"."` // Predecessor operation ID
+	Salt        *tlbe.Uint256           `tlb:"."` // Salt used to derive the operation ID
 }
 
 // Changes the minimum timelock duration for future operations.
@@ -176,7 +176,7 @@ type BypasserExecuteBatch struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// Array of calls to be scheduled
-	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakedCell[Call] `tlb:"^"` // vec<Timelock_Call>
 }
 
 // Updates the executor role check (enabled/disabled) which guards the execution of operations.
@@ -377,7 +377,7 @@ type Call struct {
 // Batch of transactions represented as a operation, which can be scheduled and executed.
 type OperationBatch struct {
 	// Array of calls to be scheduled
-	Calls common.SnakeRef[Call] `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakedCell[Call] `tlb:"^"` // vec<Timelock_Call>
 	// Predecessor operation ID
 	Predecessor *tlbe.Uint256 `tlb:"."`
 	// Salt used to derive the operation ID
@@ -391,11 +391,13 @@ type OpPendingInfo struct {
 	// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
 	// At this time the previous executed operation is considered optimistically final and successful,
 	// meaning no bounce was received and we can continue executing.
-	ValidAfter uint32 `tlb:"## 32"`
+	ValidAfter uint64 `tlb:"## 64"`
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint32 `tlb:"## 32"`
 	// The id of the currently pending operation (OperationBatch hash)
 	OpPendingID *tlbe.Uint256 `tlb:"."`
+	// The ids (fingerprints) for calls awaiting finalization in the pending op (true = pending, false = finalized/bounced)
+	OpPendingCalls *tlbe.Dict[*tlbe.Uint256, bool] `tlb:"."`
 }
 
 // --- Constants ---
@@ -453,18 +455,23 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorSelectorIsBlocked)
-		ecMax = int32(ErrorContractNotInitialized)
+		ecMax = int32(InsufficientFee)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
-	// Error codes
+	// Thrown when trying to schedule an operation which contains a blocked function selector.
 	ErrorSelectorIsBlocked ExitCode = iota + 19300
+	// Thrown when trying to execute an operation which is not ready yet.
 	ErrorOperationNotReady
+	// Thrown when an operation is missing a required dependency (predecessor not done).
 	ErrorOperationMissingDependency
+	// Thrown when trying to cancel a non-pending operation.
 	ErrorOperationCannotBeCancelled
+	// Thrown when trying to schedule an already scheduled operation.
 	ErrorOperationAlreadyScheduled
+	// Thrown when the provided delay is less than the minimum delay.
 	ErrorInsufficientDelay
 	// Thrown when trying to execute a pending operation while another pending operation is not yet final
 	ErrorPendingOperationNotFinal
@@ -476,4 +483,6 @@ const (
 	ErrorContractAlreadyInitialized
 	// Thrown when trying to call a function on an uninitialized contract.
 	ErrorContractNotInitialized
+	// Value attached to incoming message is not enough to pay for handler execution
+	InsufficientFee
 )

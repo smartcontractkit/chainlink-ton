@@ -82,6 +82,7 @@ describe('MCMS', () => {
     expect(mcms.opcodes.out.ErrorReportedSubmitted).toBe(0xbbc4deb4)
     expect(mcms.opcodes.out.OracleRoleTransferred).toBe(0xff4176a3)
     expect(mcms.opcodes.out.ExpiredRootsCleaned).toBe(0xa86846d5)
+    expect(mcms.opcodes.out.BounceHandled).toBe(0xe695431e)
   })
 
   it('should correctly encode the EIP191 prefix to hex', () => {

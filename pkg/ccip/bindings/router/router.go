@@ -70,12 +70,12 @@ type RMNRemote struct {
 	ForwardUpdates *cell.Dictionary     `tlb:"dict 267"`
 }
 
-// ChainSelector is a wrapper uint64 to support SnakeData encoding.
+// ChainSelector is a wrapper uint64 to support SnakedCell encoding.
 type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
-// Subject is a wrapper for uint128 to support SnakeData encoding.
+// Subject is a wrapper for uint128 to support SnakedCell encoding.
 // Stored as *big.Int since Go doesn't have native uint128.
 type Subject struct {
 	Value *big.Int `tlb:"## 128"`
@@ -91,13 +91,13 @@ type ApplyRampUpdates struct {
 }
 
 type OnRamps struct {
-	DestChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
-	OnRamps            *address.Address                `tlb:"addr"`
+	DestChainSelectors common.SnakedCell[ChainSelector] `tlb:"^"`
+	OnRamps            *address.Address                 `tlb:"addr"`
 }
 
 type OffRamps struct {
-	SourceChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
-	OffRamp              *address.Address                `tlb:"addr"`
+	SourceChainSelectors common.SnakedCell[ChainSelector] `tlb:"^"`
+	OffRamp              *address.Address                 `tlb:"addr"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
@@ -107,14 +107,14 @@ type TokenAmount struct {
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                    `tlb:"#31768d95" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64                       `tlb:"## 64"`
-	DestChainSelector uint64                       `tlb:"## 64"`
-	Receiver          common.CrossChainAddress     `tlb:"."`
-	Data              common.SnakeBytes            `tlb:"^"`
-	TokenAmounts      common.SnakeRef[TokenAmount] `tlb:"^"`
-	FeeToken          *address.Address             `tlb:"addr"`
-	ExtraArgs         *cell.Cell                   `tlb:"^"`
+	_                 tlb.Magic                      `tlb:"#31768d95" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                         `tlb:"## 64"`
+	DestChainSelector uint64                         `tlb:"## 64"`
+	Receiver          common.CrossChainAddress       `tlb:"."`
+	Data              common.SnakeBytes              `tlb:"^"`
+	TokenAmounts      common.SnakedCell[TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address               `tlb:"addr"`
+	ExtraArgs         *cell.Cell                     `tlb:"^"`
 }
 
 type RouteMessage struct {
@@ -160,16 +160,16 @@ type CCIPSendNACK struct {
 
 // RMNRemoteCurse message type for cursing subjects on the router.
 type RMNRemoteCurse struct {
-	_        tlb.Magic                 `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID  uint64                    `tlb:"## 64"`
-	Subjects common.SnakeData[Subject] `tlb:"^"`
+	_        tlb.Magic                  `tlb:"#f3388046" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                     `tlb:"## 64"`
+	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
 // RMNRemoteUncurse message type for uncursing subjects on the router.
 type RMNRemoteUncurse struct {
-	_        tlb.Magic                 `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
-	QueryID  uint64                    `tlb:"## 64"`
-	Subjects common.SnakeData[Subject] `tlb:"^"`
+	_        tlb.Magic                  `tlb:"#3f153a31" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID  uint64                     `tlb:"## 64"`
+	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{

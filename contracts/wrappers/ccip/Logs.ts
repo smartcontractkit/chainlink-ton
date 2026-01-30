@@ -20,6 +20,10 @@ export const LogTypes = {
   Uncursed: 'Uncursed',
   UsdPerTokenUpdated: 'UsdPerTokenUpdated',
   UsdPerUnitGasUpdated: 'UsdPerUnitGasUpdated',
+  ReceiveExecutorInitExecuteBounced: 'ReceiveExecutorInitExecuteBounced',
+  DeployableInitializeBounced: 'DeployableInitializeBounced',
+  RouteMessageBounced: 'RouteMessageBounced',
+  MessageToOffRampBounced: 'MessageToOffRampBounced',
 } as const
 
 export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
@@ -41,6 +45,10 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   Uncursed: crc32('Uncursed'),
   UsdPerTokenUpdated: crc32('UsdPerTokenUpdated'),
   UsdPerUnitGasUpdated: crc32('UsdPerUnitGasUpdated'),
+  ReceiveExecutorInitExecuteBounced: crc32('ReceiveExecutorInitExecuteBounced'),
+  DeployableInitializeBounced: crc32('DeployableInitializeBounced'),
+  RouteMessageBounced: crc32('RouteMessageBounced'),
+  MessageToOffRampBounced: crc32('MessageToOffRampBounced'),
 }
 
 export type CommitReportAccepted = {
@@ -111,4 +119,24 @@ export type UsdPerUnitGasUpdated = {
   executionGasPrice: bigint // uint112
   dataAvailabilityGasPrice: bigint // uint112
   timestamp: bigint // uint64
+}
+
+export type ReceiveExecutorInitExecuteBounced = {
+  receiveExecutor: Address
+  root: Address
+  sequenceNumber: bigint
+}
+
+export type DeployableInitializeBounced = {
+  deployableAddress: Address
+}
+
+export type RouteMessageBounced = {
+  router: Address
+  execId: bigint
+}
+
+export type MessageToOffRampBounced = {
+  offRamp: Address
+  execId: bigint
 }

@@ -71,7 +71,7 @@ const (
 	ErrorDispatchNotFromMerkleRoot
 )
 
-// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
+// AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakedCell[] of addresses.
 type AddressWrap struct {
 	Val *address.Address `tlb:"addr"`
 }
@@ -282,11 +282,27 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	return result, nil
 }
 
-// packArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
-// Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
-// Cells are linked via references for arrays that span multiple cells.
-// note: T cannot be primitive types not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.); a wrapper type is needed, such as ChainSelector in router binding
-func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
+// packArrayToCell packs a slice of any serializable type T into a snake cell structure.
+// Each element is serialized via tlb.ToCell, storing its bits and refs into the current cell.
+// When an element doesn't fit (bits exhausted or only 1 ref left), a new cell is started.
+// The last ref in each cell is reserved for chaining to the next cell.
+//
+// Example for []T where each T has 555 bits + 2 refs:
+//
+//	Cell 0 (root)
+//	├── bits: [elem0: 555 bits]
+//	├── ref[0]: elem0.field1 (^)
+//	├── ref[1]: elem0.field2 (^)
+//	└── ref[2]: → Cell 1 (chain)
+//	                ├── bits: [elem1: 555 bits]
+//	                ├── ref[0]: elem1.field1 (^)
+//	                ├── ref[1]: elem1.field2 (^)
+//	                └── ref[2]: → Cell 2 (chain)
+//	                                └── ... (no chain ref on last cell)
+//
+// Note: T cannot be primitive types unsupported by tlb.ToCell (e.g., uint64, bool);
+// use wrapper types like ChainSelector in router binding.
+func packArrayToCell[T any](array []T) (*cell.Cell, error) {
 	if len(array) > MaxArrayLength {
 		return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(array), MaxArrayLength)
 	}
@@ -298,7 +314,16 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize element %d: %w", i, err)
 		}
-		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() <= 1 {
+		// Each element can have at most 3 refs; 1 ref must be reserved for chaining to next cell.
+		if c.RefsNum() > 3 {
+			return nil, errors.New("SnakedCell supports elements with at most 3 references (one ref is reserved for chaining cells); for values requiring more references, use a reference-snake encoding such as SnakeRef or a custom layout")
+		}
+		// Reject ref-only elements (no data bits) - unpacking loop requires bits to iterate.
+		if c.BitsSize() == 0 && c.RefsNum() > 0 {
+			return nil, errors.New("SnakedCell supports only elements that contain data bits; to encode ref-only values, use a reference-snake encoding such as SnakeRef or redesign the element type")
+		}
+		// Start new cell if: not enough bits, OR not enough refs for element + 1 chain ref
+		if c.BitsSize() > builder.BitsLeft() || c.RefsNum()+1 > builder.RefsLeft() {
 			cells = append(cells, builder)
 			builder = cell.BeginCell()
 		}
@@ -321,12 +346,35 @@ func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// unpackArrayWithStaticType unpacks a linked cell structure created by packArrayWithStaticType
-// into a slice of type T. Elements are read from the cell's bits, and the function follows references
-// to subsequent cells as needed.
-// Validates against TVM limits to document assumptions and prevent potential issues
-// if this code is extended to handle untrusted data sources.
-func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
+// loadChainRef returns the next cell in a snake chain, or nil if no more cells.
+// Returns error if more than 1 ref remains (malformed chain).
+func loadChainRef(s *cell.Slice) (*cell.Cell, error) {
+	refsNum := s.RefsNum()
+	if refsNum > 1 {
+		return nil, fmt.Errorf("invalid snake chain: expected at most 1 ref, got %d", refsNum)
+	}
+	if refsNum == 1 {
+		return s.LoadRefCell()
+	}
+	return nil, nil
+}
+
+// unpackArrayFromCell unpacks a snake cell structure into a slice of type T.
+// For each cell, it reads elements via tlb.LoadFromCell until bits are exhausted,
+// then follows the remaining chain ref to the next cell.
+//
+// Critical: tlb.LoadFromCell consumes both bits AND refs from the slice for elements
+// with ^ fields. After loading all elements, only the chain ref (if any) should remain.
+// This matches on-chain validation: assert(refs == 1) when following the chain.
+//
+// Example unpacking flow:
+//
+//	Cell 0: slice has 555 bits, 3 refs
+//	        → tlb.LoadFromCell consumes 555 bits + 2 refs (elem0's ^ fields)
+//	        → slice now has 0 bits, 1 ref (chain ref only)
+//	        → follow chain ref to Cell 1
+//	Cell 1: repeat until no chain ref remains
+func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
 	cellCount := 0
@@ -351,14 +399,12 @@ func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 				return nil, fmt.Errorf("array length %d exceeds maximum of %d", len(result), MaxArrayLength)
 			}
 		}
-		if curr.RefsNum() > 0 {
-			ref, err := curr.PeekRef(0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
-			}
-			curr = ref
-		} else {
-			curr = nil
+		// Use slice's remaining refs (after element refs are consumed), not cell's original refs.
+		// This correctly handles elements with ^ fields whose refs were consumed by tlb.LoadFromCell.
+		var err error
+		curr, err = loadChainRef(s)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return result, nil
@@ -454,14 +500,11 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 
 			result = append(result, part...)
 		}
-		if curr.RefsNum() > 0 {
-			ref, err := curr.PeekRef(0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
-			}
-			curr = ref
-		} else {
-			curr = nil
+
+		var err error
+		curr, err = loadChainRef(s)
+		if err != nil {
+			return nil, err
 		}
 	}
 	return result, nil
@@ -469,22 +512,22 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 
 // ----------- Below is wrapper types that implement the ToCell and LoadFromCell methods for packing and unpacking into cell structures. -----------
 
-// SnakeData is a generic type for packing and unpacking slices of any type T into a cell structure.
-type SnakeData[T any] []T
+// SnakedCell is a generic type for packing and unpacking slices of any type T into a cell structure.
+type SnakedCell[T any] []T
 
-// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+// ToCell packs the SnakedCell into a cell. It uses PackArray to serialize the data.
 // currently this function is not using pointer receiver, lack of support from tonutils-go library https://github.com/xssnick/tonutils-go/issues/340
-func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
-	return packArrayWithStaticType(s)
+func (s SnakedCell[T]) ToCell() (*cell.Cell, error) {
+	return packArrayToCell(s)
 }
 
-// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
-func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
+// LoadFromCell loads the SnakedCell from a cell slice. It uses UnpackArray to deserialize the data.
+func (s *SnakedCell[T]) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
 	}
-	arr, err := unpackArrayWithStaticType[T](cl)
+	arr, err := unpackArrayFromCell[T](cl)
 	if err != nil {
 		return err
 	}
@@ -547,7 +590,7 @@ func NewDummyCell() (*cell.Cell, error) {
 }
 
 // Proof represents a 32-byte (256 bits) proof used in merkle proofs.
-// This wrapper type allows [32]byte to be used with SnakeData by implementing
+// This wrapper type allows [32]byte to be used with SnakedCell by implementing
 // ToCell/LoadFromCell that directly store/load 256 bits inline, avoiding the
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
 type Proof struct {

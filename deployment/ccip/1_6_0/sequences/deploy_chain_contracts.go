@@ -38,7 +38,10 @@ const defaultCCIPContractCoin = "0.05"
 // This reserve ensures the contract has sufficient balance for operational transactions.
 const defaultReserveAmount = "0.5"
 
-func (a *TonAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
+// TonDeployAdapter implements the deploy.Deployer interface for TON chains.
+type TonDeployAdapter struct{}
+
+func (a *TonDeployAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
 }
 
@@ -121,7 +124,9 @@ var DeployChainContracts = cldf_ops.NewSequence(
 					tvm.TonTokenAddr.String(): {
 						PremiumMultiplierWeiPerEth: 1,
 					},
-					// TODO update link token dummy address here after https://smartcontract-it.atlassian.net/browse/NONEVM-3269
+					tvm.LinkTokenAddr.String(): {
+						PremiumMultiplierWeiPerEth: 1,
+					},
 				},
 			}
 			//nolint:govet // allow shadowing
@@ -255,3 +260,5 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		ChainSelector: cfg.ChainSelector,
 	}, nil
 }
+
+var _ deploy.Deployer = &TonDeployAdapter{}

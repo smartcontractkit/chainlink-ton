@@ -117,8 +117,8 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	report := ExecuteReport{
 		SourceChainSelector: 1,
 		Message:             rampMessageSlice,
-		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
-		Proofs:              common.SnakeData[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
+		OffChainTokenData:   cell.BeginCell().EndCell(),
+		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
 	}
 

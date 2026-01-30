@@ -22,8 +22,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/logutil"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
@@ -548,7 +548,7 @@ func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.T
 				PriceUpdates:         priceUpdates,
 			},
 			Timestamp: log.TxTimestamp,
-			BlockNum:  uint64(log.MasterBlockSeqno),
+			BlockNum:  uint64(log.MCBlockSeqno),
 		})
 	}
 	lggr.Debugw("decoded commit reports", "reports", reports)

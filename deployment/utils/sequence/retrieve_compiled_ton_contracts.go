@@ -26,7 +26,12 @@ const (
 	contractsGithubReleasePrefix = "ton-contracts-build-"
 	contractsGithubAssetPrefix   = "ton-contracts-build-"
 	contractsFileNameSuffix      = ".compiled.json"
-	ContractsLocalVersion        = "local"
+
+	// Contract version definitions
+	ContractsVersionLocal = "local"
+	// Notice: "local" should be used only for development,
+	// while a specific version should be pinned for releases (production deployments).
+	ContractsVersionLatestSupported = "4f7b7be09c30" // Jan 22, 2026
 )
 
 type ContractMappingMetadata struct {
@@ -117,7 +122,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, dp *dep.Dependenc
 		return output, err
 	}
 
-	if in.ContractsVersionSha != ContractsLocalVersion {
+	if in.ContractsVersionSha != ContractsVersionLocal {
 		// Download contracts
 		// TODO we could optimize this even more by passing the file names to extract from the release package
 		downloadArtifactsInput := operation.DownloadArtifactsInput{

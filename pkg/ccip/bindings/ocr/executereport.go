@@ -12,24 +12,24 @@ import (
 
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
 // Message: single message as cell reference
-// OffChainTokenData: vec<vec<u8>> - each token data as separate cell ref
-// Proofs: vec<bytes32> - inline 256-bit proofs using SnakeData with Proof wrapper (matches TypeScript asSnakeData)
+// OffChainTokenData: vec<vec<u8>> - currently unused cell reference as on-chain representation
+// Proofs: vec<bytes32> - inline 256-bit proofs using SnakedCell with Proof wrapper (matches TypeScript asSnakeData)
 type ExecuteReport struct {
-	SourceChainSelector uint64                             `tlb:"## 64"`
-	Message             Any2TVMRampMessage                 `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
-	OffChainTokenData   common.SnakeRef[common.SnakeBytes] `tlb:"^"` // vec<vec<u8>>
-	Proofs              common.SnakeData[common.Proof]     `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
-	ProofFlagBits       *big.Int                           `tlb:"## 256"`
+	SourceChainSelector uint64                          `tlb:"## 64"`
+	Message             Any2TVMRampMessage              `tlb:"^"` // val message = Any2TVMRampMessage.fromCell(report.messages);
+	OffChainTokenData   *cell.Cell                      `tlb:"^"` // vec<vec<u8>>
+	Proofs              common.SnakedCell[common.Proof] `tlb:"^"` // vec<bytes32> - inline 256-bit proofs
+	ProofFlagBits       *big.Int                        `tlb:"## 256"`
 }
 
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.
 type Any2TVMRampMessage struct {
-	Header       RampMessageHeader                     `tlb:"."`
-	Sender       common.CrossChainAddress              `tlb:"^"`
-	Data         common.SnakeBytes                     `tlb:"^"`
-	Receiver     *address.Address                      `tlb:"addr"`
-	GasLimit     tlb.Coins                             `tlb:"."`
-	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"maybe ^"`
+	Header       RampMessageHeader                       `tlb:"."`
+	Sender       common.CrossChainAddress                `tlb:"^"`
+	Data         common.SnakeBytes                       `tlb:"^"`
+	Receiver     *address.Address                        `tlb:"addr"`
+	GasLimit     tlb.Coins                               `tlb:"."`
+	TokenAmounts common.SnakedCell[Any2TVMTokenTransfer] `tlb:"maybe ^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.
