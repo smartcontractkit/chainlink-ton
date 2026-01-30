@@ -141,7 +141,7 @@ var GetOpPendingInfo = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OpPendingInfo]{
 		}
 
 		if !isNil {
-			sAddr, err := r.Slice(2)
+			sAddr, err := r.Slice(2) //nolint:govet // allow err shadowing
 			if err != nil {
 				return OpPendingInfo{}, fmt.Errorf("error getting Slice(2) - opPendingReceiver: %w", err)
 			}
