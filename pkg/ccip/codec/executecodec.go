@@ -63,6 +63,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 	msg := chainReport.Messages[0]
 	var rampMessage ocr.Any2TVMRampMessage
+	// IMPORTANT: tokenAmounts must be nil (not empty slice) when there are no tokens.
+	// This ensures correct serialization with tlb:"maybe ^" tag, which treats nil as
+	// Maybe 0 (absent) vs empty slice as Maybe 1 + empty cell (present but empty).
+	// The hash computed by msgHasher uses nil, so we must match that here.
 	var tokenAmounts []ocr.Any2TVMTokenTransfer
 	if len(msg.TokenAmounts) != 0 {
 		tokenAmounts = make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
@@ -229,7 +233,10 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		messages := make([]ccipocr3.Message, 0, 1)
 		msg := tonReport.Message
 
-		tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(msg.TokenAmounts))
+		// IMPORTANT: tokenAmounts must be nil (not empty slice) when there are no tokens.
+		// This ensures the decoded message produces the same hash as the original when re-hashed.
+		// nil serializes as Maybe 0 (absent), empty slice serializes as Maybe 1 + empty cell ref.
+		var tokenAmounts []ccipocr3.RampTokenAmount
 		for _, tokenAmount := range msg.TokenAmounts {
 			var extraData common.SnakeBytes
 			err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
