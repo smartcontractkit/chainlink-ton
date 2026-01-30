@@ -1,0 +1,18 @@
+{
+  "name": "ton-wallet-generator",
+  "version": "1.0.0",
+  "description": "Generate TON wallet addresses",
+  "main": "generate-wallet.ts",
+  "scripts": {
+    "generate": "npx ts-node generate-wallet.ts"
+  },
+  "dependencies": {
+    "@ton/crypto": "^3.3.0",
+    "@ton/ton": "^15.0.0",
+    "@orbs-network/ton-access": "^2.3.3"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
