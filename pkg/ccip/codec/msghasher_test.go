@@ -238,7 +238,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 		t.Logf("Original msg.TokenAmounts == nil: %v", msg.TokenAmounts == nil)
 		t.Logf("Decoded msg.TokenAmounts == nil: %v", decodedMsg.TokenAmounts == nil)
 
-		assert.True(t, decodedMsg.TokenAmounts == nil,
+		require.Nil(t, decodedMsg.TokenAmounts,
 			"TokenAmounts should be nil after decode, not an empty slice. "+
 				"This is critical for hash consistency: nil→Maybe 0, empty slice→Maybe 1+ref")
 	})
@@ -279,6 +279,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		var messageID [32]byte
 		binary.BigEndian.PutUint64(messageID[24:], 1) // This sets the last 8 bytes to 1
 
+		ta := make([]ccipocr3.RampTokenAmount, 0)
 		// Create exact same message as TypeScript test
 		msg := ccipocr3.Message{
 			Header: ccipocr3.RampMessageHeader{
@@ -293,7 +294,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 			Data:         []byte{}, // empty cell data
 			Receiver:     rawTonAddr[:],
 			ExtraArgs:    []byte{0x2}, // will be populated by mock
-			TokenAmounts: nil,         // no token amounts
+			TokenAmounts: ta,          // no token amounts
 		}
 
 		// Set messageID to 1
