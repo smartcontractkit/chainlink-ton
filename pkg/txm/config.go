@@ -53,5 +53,20 @@ func (c *Config) ValidateConfig() (err error) {
 	if c.BroadcastChanSize == 0 {
 		err = errors.Join(err, config.ErrInvalid{Name: "BroadcastChanSize", Msg: "must be greater than 0"})
 	}
+	if c.ConfirmPollInterval == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "ConfirmPollInterval", Msg: "must be set"})
+	}
+	if c.SendRetryDelay == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "SendRetryDelay", Msg: "must be set"})
+	}
+	if c.MaxSendRetryAttempts == 0 {
+		err = errors.Join(err, config.ErrInvalid{Name: "MaxSendRetryAttempts", Msg: "must be greater than 0"})
+	}
+	if c.TxExpiration == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "TxExpiration", Msg: "must be set"})
+	}
+	if c.CleanupInterval == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "CleanupInterval", Msg: "must be set"})
+	}
 	return err
 }
