@@ -345,9 +345,16 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Contex
 		sentMessage := m.OutgoingInternalSentMessages[0]
 		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		transactionsReceived := make(chan *tlb.Transaction)
-		go c.SubscribeOnTransactions(ctx, sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
 
-		receivedMessage, err := waitForMatchingMessage(ctx, transactionsReceived, sentMessage)
+		// Cancelable context per goroutine to prevent leaks from SubscribeOnTransactions
+		subCtx, cancel := context.WithCancel(ctx)
+		go c.SubscribeOnTransactions(subCtx, sentMessage.InternalMsg.DstAddr, m.LamportTime, transactionsReceived)
+
+		receivedMessage, err := waitForMatchingMessage(subCtx, transactionsReceived, sentMessage)
+
+		// Cancel context as soon as we have the result to prevent leaks
+		cancel()
+
 		if err != nil {
 			return err
 		}
