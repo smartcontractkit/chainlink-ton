@@ -83,4 +83,42 @@ func Test_decodeExtraArgs(t *testing.T) {
 		require.True(t, exist)
 		require.Equal(t, false, ooe)
 	})
+
+	t.Run("decode extra args into map sui", func(t *testing.T) {
+		gasLimit := big.NewInt(50000)
+		tokenReceiver := solana.SystemProgramID.Bytes() // 32 bytes, reusing for convenience
+		receiverObjectIds := common.SnakedCell[onramp.Account256]{
+			{Value: solana.SystemProgramID.Bytes()},
+			{Value: solana.SystemProgramID.Bytes()},
+		}
+		extraArgs := onramp.SuiExtraArgsV1{
+			GasLimit:                 gasLimit,
+			AllowOutOfOrderExecution: true,
+			TokenReceiver:            tokenReceiver,
+			ReceiverObjectIds:        receiverObjectIds,
+		}
+
+		c, err := tlb.ToCell(extraArgs)
+		require.NoError(t, err)
+
+		output, err := extraDataDecoder.DecodeExtraArgsToMap(c.ToBOC())
+		require.NoError(t, err)
+		require.Len(t, output, 4)
+
+		gl, exist := output["GasLimit"]
+		require.True(t, exist)
+		require.Equal(t, gasLimit, gl)
+
+		ooe, exist := output["AllowOutOfOrderExecution"]
+		require.True(t, exist)
+		require.Equal(t, true, ooe)
+
+		tr, exist := output["TokenReceiver"]
+		require.True(t, exist)
+		require.Equal(t, tokenReceiver, tr)
+
+		roids, exist := output["ReceiverObjectIds"]
+		require.True(t, exist)
+		require.Len(t, roids, 2)
+	})
 }

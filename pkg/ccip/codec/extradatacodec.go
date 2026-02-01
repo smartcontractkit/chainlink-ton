@@ -24,6 +24,9 @@ var (
 
 	// bytes4(keccak256("CCIP EVMExtraArgsV2"));
 	evmExtraArgsV2Tag = hexutil.MustDecode("0x181dcf10")
+
+	// bytes(keccak256("CCIP SuiExtraArgsV1"));
+	suiExtraArgsV1Tag = hexutil.MustDecode("0x21ea4ca9")
 )
 
 type extraDataDecoder struct{}
@@ -35,55 +38,48 @@ func NewExtraDataDecoder() ccipocr3.SourceChainExtraDataCodec {
 	return &extraDataDecoder{}
 }
 
+// extraArgsTypes maps tag hex strings to their corresponding struct types
+var extraArgsTypes = map[string]reflect.Type{
+	hexutil.Encode(evmExtraArgsV2Tag): reflect.TypeOf(onramp.GenericExtraArgsV2{}),
+	hexutil.Encode(svmExtraArgsV1Tag): reflect.TypeOf(onramp.SVMExtraArgsV1{}),
+	hexutil.Encode(suiExtraArgsV1Tag): reflect.TypeOf(onramp.SuiExtraArgsV1{}),
+}
+
 // DecodeExtraArgsToMap is a helper function for converting Borsh encoded extra args bytes into map[string]any
 func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[string]any, error) {
 	if len(extraArgs) < 4 {
 		return nil, fmt.Errorf("extra args too short: %d, should be at least 4 (i.e the extraArgs tag)", len(extraArgs))
 	}
 
-	var val reflect.Value
-	var typ reflect.Type
-
-	outputMap := make(map[string]any)
-
 	c, err := cell.FromBOC(extraArgs)
 	if err != nil {
-		return outputMap, fmt.Errorf("failed to decode BOC: %w", err)
+		return nil, fmt.Errorf("failed to decode BOC: %w", err)
 	}
 
 	tag, err := c.BeginParse().LoadSlice(32)
 	if err != nil {
-		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
+		return nil, fmt.Errorf("failed to load tag from cell: %w", err)
 	}
 
-	switch hexutil.Encode(tag) {
-	case hexutil.Encode(evmExtraArgsV2Tag):
-		var args onramp.GenericExtraArgsV2
-		if err = tlb.LoadFromCell(&args, c.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
-		}
-		val = reflect.ValueOf(args)
-		typ = reflect.TypeOf(args)
-
-	case hexutil.Encode(svmExtraArgsV1Tag):
-		var tlbArgs onramp.SVMExtraArgsV1
-		if err = tlb.LoadFromCell(&tlbArgs, c.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
-		}
-		val = reflect.ValueOf(tlbArgs)
-		typ = reflect.TypeOf(tlbArgs)
-
-	default:
+	tagHex := hexutil.Encode(tag)
+	argsType, ok := extraArgsTypes[tagHex]
+	if !ok {
 		return nil, fmt.Errorf("unknown extra args tag: %x", tag)
 	}
 
+	argsPtr := reflect.New(argsType)
+	if err = tlb.LoadFromCell(argsPtr.Interface(), c.BeginParse()); err != nil {
+		return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
+	}
+
+	val := argsPtr.Elem()
+	outputMap := make(map[string]any)
 	for i := 0; i < val.NumField(); i++ {
-		field := typ.Field(i)
+		field := argsType.Field(i)
 		if !field.IsExported() {
 			continue
 		}
-		fieldValue := val.Field(i).Interface()
-		outputMap[field.Name] = fieldValue
+		outputMap[field.Name] = val.Field(i).Interface()
 	}
 
 	return outputMap, nil

@@ -67,6 +67,42 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	}
 }
 
+func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
+	// Generate random 32-byte addresses for Sui object IDs
+	addr1, err := solana.NewRandomPrivateKey()
+	require.NoError(t, err)
+
+	addr2, err := solana.NewRandomPrivateKey()
+	require.NoError(t, err)
+
+	// Sui object IDs are 32 bytes, matching Account256's 256-bit expectation
+	receiverObjectIds := common.SnakedCell[Account256]{
+		{Value: addr1.PublicKey().Bytes()},
+		{Value: addr2.PublicKey().Bytes()},
+	}
+
+	orig := SuiExtraArgsV1{
+		GasLimit:                 big.NewInt(50000),
+		AllowOutOfOrderExecution: true,
+		TokenReceiver:            addr1.PublicKey().Bytes(),
+		ReceiverObjectIds:        receiverObjectIds,
+	}
+
+	cell, err := tlb.ToCell(orig)
+	require.NoError(t, err)
+
+	var decoded SuiExtraArgsV1
+	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
+	require.NoError(t, err)
+	require.Equal(t, orig.GasLimit, decoded.GasLimit)
+	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
+	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
+	require.Len(t, orig.ReceiverObjectIds, len(decoded.ReceiverObjectIds))
+	for i, objId := range orig.ReceiverObjectIds {
+		require.Equal(t, objId.Value, decoded.ReceiverObjectIds[i].Value)
+	}
+}
+
 func TestOwnable2Step(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
