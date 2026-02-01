@@ -583,7 +583,7 @@ func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
 func NewDummyCell() (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	payload := []byte("place holder")
-	if err := builder.StoreSlice(payload, uint(len(payload))); err != nil {
+	if err := builder.StoreSlice(payload, uint(len(payload)*8)); err != nil {
 		return nil, err
 	}
 	return builder.EndCell(), nil
