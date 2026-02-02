@@ -117,6 +117,16 @@ export class ContractClient {
   async getSender(provider: SandboxContractProvider, via: Sender): Promise<Sender> {
     return new RelaySender(this, provider, via)
   }
+
+  async getStorage(provider: SandboxContractProvider): Promise<Cell> {
+    const state = await provider.getState()
+    switch (state.state.type) {
+      case 'active':
+        return Cell.fromBoc(state.state.data!)[0]
+      default:
+        return Cell.EMPTY
+    }
+  }
 }
 
 // A sender that routes messages via Relay contract
