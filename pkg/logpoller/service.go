@@ -216,7 +216,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 	}
 
 	// Mark replay as complete if it was active
-	if lp.replay.status == models.ReplayStatusPending {
+	if lp.ReplayStatus() == models.ReplayStatusPending {
 		lp.replayComplete(blockRange.FromSeqNo(), blockRange.ToSeqNo())
 	}
 
