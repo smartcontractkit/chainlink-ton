@@ -104,6 +104,10 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 		return logModel{}, errors.New("log.Data is nil")
 	}
 
+	if err := lptypes.ValidateBlockIDExt(log.Block); err != nil {
+		return logModel{}, fmt.Errorf("invalid block data: %w", err)
+	}
+
 	bocData := log.Data.ToBOC()
 	headerLen, err := boc.HeaderLen(bocData)
 	if err != nil {
@@ -199,6 +203,10 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		SeqNo:     uint32(l.BlockSeqno), //nolint:gosec // TON seqno values fit in uint32
 		RootHash:  l.BlockRootHash,
 		FileHash:  l.BlockFileHash,
+	}
+
+	if err = lptypes.ValidateBlockIDExt(block); err != nil {
+		return lptypes.Log{}, fmt.Errorf("invalid block data: %w", err)
 	}
 
 	return lptypes.Log{
