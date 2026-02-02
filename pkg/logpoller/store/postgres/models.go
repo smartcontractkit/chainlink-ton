@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -89,18 +90,17 @@ type logModel struct {
 
 // FromLog converts a models.Log to logModel
 func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
-	var dataHeader, dataPayload []byte
-	if log.Data != nil {
-		bocData := log.Data.ToBOC()
-
-		headerLen, err := boc.HeaderLen(bocData)
-		if err != nil {
-			return logModel{}, fmt.Errorf("failed to calculate BOC header length: %w", err)
-		}
-
-		dataHeader = bocData[:headerLen]
-		dataPayload = bocData[headerLen:]
+	if log.Data == nil {
+		return logModel{}, errors.New("log.Data is nil")
 	}
+
+	bocData := log.Data.ToBOC()
+	headerLen, err := boc.HeaderLen(bocData)
+	if err != nil {
+		return logModel{}, fmt.Errorf("failed to calculate BOC header length: %w", err)
+	}
+	dataHeader := bocData[:headerLen]
+	dataPayload := bocData[headerLen:]
 
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, log.EventSig)
@@ -141,7 +141,18 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 
 	// Reconstruct full BOC from header + payload
 	var cellData *cell.Cell
-	if len(l.DataHeader) > 0 && len(l.DataPayload) > 0 {
+	hasHeader := len(l.DataHeader) > 0
+	hasPayload := len(l.DataPayload) > 0
+	if hasHeader != hasPayload {
+		// both must be present or both empty; partial data indicates corruption
+		return lptypes.Log{}, fmt.Errorf(
+			"inconsistent BOC data: header=%d bytes, payload=%d bytes",
+			len(l.DataHeader),
+			len(l.DataPayload),
+		)
+	}
+
+	if hasHeader {
 		fullBOC := make([]byte, 0, len(l.DataHeader)+len(l.DataPayload))
 		fullBOC = append(fullBOC, l.DataHeader...)
 		fullBOC = append(fullBOC, l.DataPayload...)
