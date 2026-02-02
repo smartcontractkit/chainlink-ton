@@ -202,7 +202,9 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 
 	var src, dest config.ChainDefinition
 
-	tonTokenPrice, err := config.CCIPTokenPrice("2", 9) // Example value
+	// TODO(@jadepark-dev): config.CCIPTokenPrice("2", 9) was causing fee quoter to return 572+ TON for sending a message.
+	// TODO: Investigate and fix the root cause.
+	tonTokenPrice, err := config.CCIPTokenPrice("2", 3) // Example value
 	if err != nil {
 		env.Logger.Fatalf("AddLaneTONChangesets: failed to get TON token price: %v", err)
 	}
@@ -331,7 +333,6 @@ func SendCCIPMessage(
 	if senderBalance.Cmp(value) < 0 {
 		return 0, nil, fmt.Errorf("insufficient balance: sender has %s nano TON but needs %s nano TON", senderBalance.String(), value.String())
 	}
-
 	walletMsg := &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
