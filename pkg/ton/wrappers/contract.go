@@ -239,8 +239,12 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	if receivedMessage.ExitCode != tvm.ExitCodeSuccess {
-		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
+	exitCode, err := receivedMessage.ExitCode()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get exit code: %w", err)
+	}
+	if exitCode != tvm.ExitCodeSuccess {
+		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", exitCode, exitCode.Describe())
 	}
 
 	if len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
@@ -248,8 +252,12 @@ func Deploy(ctx context.Context, client *tracetracking.SignedAPIClient, codeCell
 	}
 
 	// TODO: Temporarily allow ExitCodeTactInvalidIncomingMessage until Tact contract is fixed, jira ticket: NON-EVM-3080
-	if receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeSuccess && receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode != tvm.ExitCodeTactInvalidIncomingMessage {
-		return nil, nil, fmt.Errorf("contract deployment failed: error in deployment transaction: %s", receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode.Describe())
+	exitCode, err = receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get exit code of deployment transaction: %w", err)
+	}
+	if exitCode != tvm.ExitCodeSuccess && exitCode != tvm.ExitCodeTactInvalidIncomingMessage {
+		return nil, nil, fmt.Errorf("contract deployment failed: error in deployment transaction: %s", exitCode.Describe())
 	}
 
 	return &Contract{addr, client}, &receivedMessage, nil

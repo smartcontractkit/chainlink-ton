@@ -269,8 +269,13 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				"amount", tx.Amount.Nano().String())
 
 			// Transaction was broadcast successfully, but ultimately failed to execute due to ExitCode.
-			if receivedMessage.ExitCode != 0 {
-				t.logger.Errorw("transaction failed", "exitcode", receivedMessage.ExitCode, "description", receivedMessage.ExitCode.Describe())
+			var exitCode tvm.ExitCode
+			exitCode, err = receivedMessage.ExitCode()
+			if err != nil {
+				t.logger.Errorw("failed to get exit code", "error", err)
+			}
+			if exitCode != 0 {
+				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
 			}
 
 			// Wait for and gather full trace regardless of exit code for debugging purposes
@@ -412,7 +417,11 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				"LT", unconfirmedTx.LT,
 				"latency", finalizationLatency.String())
 
-			exitCode := receivedMessage.OutcomeExitCode()
+			exitCode, err := receivedMessage.TraceExitCode()
+			if err != nil {
+				t.logger.Errorw("failed to get outcome exit code", "LT", unconfirmedTx.LT, "error", err)
+				continue
+			}
 			traceSucceeded := receivedMessage.TraceSucceeded()
 
 			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
