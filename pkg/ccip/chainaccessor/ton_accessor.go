@@ -408,7 +408,12 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, err
 	}
-	return ccipocr3.SeqNum(value.Uint64()), nil
+
+	seqNum := value.Uint64()
+	if seqNum == 0 {
+		return 0, fmt.Errorf("invalid expected next sequence number: got 0, expected >= 1 for dest chain %d", dest)
+	}
+	return ccipocr3.SeqNum(seqNum), nil
 }
 
 // GetTokenPriceUSD returns price per TON, with 18 decimals
@@ -772,10 +777,19 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, err
 		}
 
+		execPrice := gasPrice.ExecutionGasPrice
+		if execPrice == nil {
+			execPrice = big.NewInt(0)
+		}
+		daPrice := gasPrice.DataAvailabilityGasPrice
+		if daPrice == nil {
+			daPrice = big.NewInt(0)
+		}
+
 		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
 		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
 		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
-		packedValue := feequoter.PackGasPrice(gasPrice.ExecutionGasPrice, gasPrice.DataAvailabilityGasPrice)
+		packedValue := feequoter.PackGasPrice(execPrice, daPrice)
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115

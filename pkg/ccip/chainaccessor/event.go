@@ -172,6 +172,16 @@ func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
 	if len(merkleRoot.OnRampAddress) == 0 {
 		return fmt.Errorf("invalid onramp address: %x", hex.EncodeToString(merkleRoot.OnRampAddress))
 	}
+	allZero := true
+	for _, b := range merkleRoot.OnRampAddress {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return errors.New("onramp address is all zeros")
+	}
 
 	return nil
 }
