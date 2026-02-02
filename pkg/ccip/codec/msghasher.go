@@ -67,13 +67,9 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 				return [32]byte{}, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			if len(tokenAmount.DestTokenAddress) < 36 {
-				return [32]byte{}, fmt.Errorf("invalid dest token address length: %d", len(tokenAmount.DestTokenAddress))
-			}
-
 			destTokenAddrStr, err := m.addrCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
 			if err != nil {
-				return [32]byte{}, err
+				return [32]byte{}, fmt.Errorf("convert dest token address: %w", err)
 			}
 
 			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
