@@ -27,10 +27,23 @@ var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 type RawAddr [tvm.AddressLength]byte
 
 // ToRawAddr converts an address.Address to a RawAddr.
-func ToRawAddr(addr *address.Address) (rawAddress RawAddr) {
+// Returns an error if the address is nil, not a standard address, or has invalid data length.
+func ToRawAddr(addr *address.Address) (RawAddr, error) {
+	var rawAddress RawAddr
+	if addr == nil {
+		return rawAddress, fmt.Errorf("cannot convert nil address to raw format")
+	}
+	if addr.IsAddrNone() {
+		return rawAddress, fmt.Errorf("cannot convert none address to raw format")
+	}
+	// Standard TON addresses have exactly 32 bytes of data
+	const expectedDataLen = 32
+	if len(addr.Data()) != expectedDataLen {
+		return rawAddress, fmt.Errorf("invalid address data length: expected %d bytes, got %d", expectedDataLen, len(addr.Data()))
+	}
 	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(rawAddress[4:], addr.Data())
-	return rawAddress
+	return rawAddress, nil
 }
 
 func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
@@ -58,7 +71,10 @@ func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode TVM address: %w", err)
 	}
 
-	rawAddr := ToRawAddr(addr)
+	rawAddr, err := ToRawAddr(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert address to raw format: %w", err)
+	}
 	return rawAddr[:], nil
 }
 
@@ -69,7 +85,10 @@ func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 	// write oracleID into addr in big endian
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
 	tonAddr := address.NewAddress(0, 0, addr)
-	rawAddr := ToRawAddr(tonAddr)
+	rawAddr, err := ToRawAddr(tonAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert oracle ID address to raw format: %w", err)
+	}
 	return rawAddr[:], nil
 }
 

@@ -29,9 +29,13 @@ var globalCurseSubject = func() *big.Int {
 
 // Note: This file contains contract configuration related methods for the TON accessor
 
-// addrToBytes converts a TON address to raw bytes format
+// addrToBytes converts a TON address to raw bytes format.
+// Returns nil if the address cannot be converted.
 func addrToBytes(addr *address.Address) []byte {
-	rawAddr := codec.ToRawAddr(addr)
+	rawAddr, err := codec.ToRawAddr(addr)
+	if err != nil {
+		return nil
+	}
 	return rawAddr[:]
 }
 

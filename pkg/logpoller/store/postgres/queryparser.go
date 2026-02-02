@@ -153,7 +153,10 @@ func (p *queryParser) addFieldFilter(f *query.FieldFilter) error {
 	// Special handling for address: convert to raw bytes for DB
 	if f.Field == "address" {
 		if addr, ok := f.Value.(*address.Address); ok {
-			rawAddr := codec.ToRawAddr(addr)
+			rawAddr, err := codec.ToRawAddr(addr)
+			if err != nil {
+				return fmt.Errorf("failed to convert address filter value: %w", err)
+			}
 			paramValue = rawAddr[:]
 		}
 	}
@@ -197,7 +200,10 @@ func (p *queryParser) addCursorFilter(limitAndSort commonquery.LimitAndSort) err
 		cursorOp = ">"
 	}
 
-	rawAddr := codec.ToRawAddr(addr)
+	rawAddr, err := codec.ToRawAddr(addr)
+	if err != nil {
+		return fmt.Errorf("failed to convert cursor address: %w", err)
+	}
 	p.params["cursor_address"] = rawAddr[:]
 	p.params["cursor_msg_lt"] = strconv.FormatUint(msgLT, 10)
 

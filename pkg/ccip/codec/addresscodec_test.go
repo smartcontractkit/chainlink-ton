@@ -166,6 +166,9 @@ func packOracleID(oracleID uint8) []byte {
 	addr := make([]byte, 32)
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
 	tonAddr := address.NewAddress(0, 0, addr)
-	rawAddr := ToRawAddr(tonAddr)
+	rawAddr, err := ToRawAddr(tonAddr)
+	if err != nil {
+		panic(err)
+	}
 	return rawAddr[:]
 }

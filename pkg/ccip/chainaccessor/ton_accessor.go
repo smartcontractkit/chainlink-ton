@@ -284,13 +284,21 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 	msgs := make([]ccipocr3.Message, 0)
 	for _, typedLog := range typedLogs {
-		genericEvent := a.convertCCIPMessageSent(&typedLog.TypedData)
+		genericEvent, err := a.convertCCIPMessageSent(&typedLog.TypedData)
+		if err != nil {
+			lggr.Errorw("convert CCIP message sent", "err", err)
+			continue
+		}
 
 		if err = chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, seqNumRange); err != nil {
 			lggr.Errorw("validate send requested event", "err", err, "message", genericEvent)
 			continue
 		}
-		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
+		rawOnrampAddr, err := codec.ToRawAddr(onrampAddr)
+		if err != nil {
+			lggr.Errorw("convert onramp address", "err", err)
+			continue
+		}
 		genericEvent.Message.Header.OnRamp = rawOnrampAddr[:]
 		genericEvent.Message.Header.TxHash = hex.EncodeToString(typedLog.TxHash[:])
 		msgs = append(msgs, genericEvent.Message)
@@ -360,7 +368,10 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("failed to decode log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), parseErr)
 	}
 
-	genericEvent := a.convertCCIPMessageSent(&event)
+	genericEvent, err := a.convertCCIPMessageSent(&event)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert CCIP message sent: %w", err)
+	}
 	if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, ccipocr3.NewSeqNumRange(genericEvent.Message.Header.SequenceNumber, genericEvent.Message.Header.SequenceNumber)); err != nil {
 		return 0, fmt.Errorf("message invalid msg %v: %w", genericEvent, err)
 	}

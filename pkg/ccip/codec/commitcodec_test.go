@@ -24,7 +24,7 @@ func RandomCommitReport() cciptypes.CommitPluginReport {
 	return cciptypes.CommitPluginReport{
 		UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
 			{
-				OnRampAddress: make(cciptypes.UnknownAddress, 64),
+				OnRampAddress: randomOnRampAddress(),
 				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
 				SeqNumsRange: cciptypes.NewSeqNumRange(
 					cciptypes.SeqNum(rand.Uint64()),
@@ -33,7 +33,7 @@ func RandomCommitReport() cciptypes.CommitPluginReport {
 				MerkleRoot: randomBytes32(),
 			},
 			{
-				OnRampAddress: make(cciptypes.UnknownAddress, 64),
+				OnRampAddress: randomOnRampAddress(),
 				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
 				SeqNumsRange: cciptypes.NewSeqNumRange(
 					cciptypes.SeqNum(rand.Uint64()),
@@ -56,6 +56,13 @@ func RandomCommitReport() cciptypes.CommitPluginReport {
 			},
 		},
 	}
+}
+
+// randomOnRampAddress generates a random non-zero OnRampAddress for testing.
+func randomOnRampAddress() cciptypes.UnknownAddress {
+	addr := make([]byte, 64)
+	_, _ = cryptorand.Read(addr)
+	return cciptypes.UnknownAddress(addr)
 }
 
 func TestCommitPluginCodecV1(t *testing.T) {
@@ -230,7 +237,7 @@ func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
 		report := cciptypes.CommitPluginReport{
 			UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
 				{
-					OnRampAddress: make(cciptypes.UnknownAddress, 64),
+					OnRampAddress: randomOnRampAddress(),
 					ChainSel:      cciptypes.ChainSelector(12345),
 					SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(1), cciptypes.SeqNum(10)),
 					MerkleRoot:    randomBytes32(),
@@ -262,7 +269,7 @@ func TestCommitPluginCodecV1_NilPriceUpdates(t *testing.T) {
 		report := cciptypes.CommitPluginReport{
 			UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
 				{
-					OnRampAddress: make(cciptypes.UnknownAddress, 64),
+					OnRampAddress: randomOnRampAddress(),
 					ChainSel:      cciptypes.ChainSelector(67890),
 					SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(5), cciptypes.SeqNum(15)),
 					MerkleRoot:    randomBytes32(),
