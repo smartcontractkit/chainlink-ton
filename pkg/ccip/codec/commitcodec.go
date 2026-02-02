@@ -29,15 +29,11 @@ func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
 }
 
 func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
-	// TON does not support RMN verification, so BlessedMerkleRoots should not be used.
-	if len(report.BlessedMerkleRoots) > 0 {
-		return nil, fmt.Errorf("TON does not support blessed merkle roots (RMN), got %d", len(report.BlessedMerkleRoots))
-	}
-
-	// TON on-chain OffRamp only supports at most one merkle root per commit report.
+	// TON does not support RMN verification, so BlessedMerkleRoots will be ignored.
+	// TON on-chain OffRamp requires exactly one merkle root per commit report.
 	// See Error.BatchingNotSupported in contracts/contracts/ccip/offramp/contract.tolk
-	if len(report.UnblessedMerkleRoots) > 1 {
-		return nil, fmt.Errorf("TON commit report supports at most 1 merkle root, got %d", len(report.UnblessedMerkleRoots))
+	if len(report.UnblessedMerkleRoots) != 1 {
+		return nil, fmt.Errorf("TON commit report requires exactly 1 merkle root, got %d", len(report.UnblessedMerkleRoots))
 	}
 
 	tpuSlice := make([]ocr.TokenPriceUpdate, len(report.PriceUpdates.TokenPriceUpdates))

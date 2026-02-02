@@ -21,7 +21,7 @@ func RandomCommitReport() cciptypes.CommitPluginReport {
 		panic(err)
 	}
 
-	// Note: TON on-chain OffRamp only supports at most 1 merkle root per commit report.
+	// Note: TON on-chain OffRamp requires exactly 1 merkle root per commit report.
 	// See Error.BatchingNotSupported in contracts/contracts/ccip/offramp/contract.tolk
 	return cciptypes.CommitPluginReport{
 		UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
@@ -69,6 +69,7 @@ func TestCommitPluginCodecV1(t *testing.T) {
 				report.UnblessedMerkleRoots = nil
 				return report
 			},
+			expErr: true,
 		},
 		{
 			name: "empty token address",
@@ -151,8 +152,9 @@ func TestCommitPluginCodecV1(t *testing.T) {
 			expErr: true,
 		},
 		{
-			name: "blessed merkle roots not supported",
+			name: "blessed merkle roots ignored, unblessed required",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				// BlessedMerkleRoots are ignored by TON, so this still requires UnblessedMerkleRoots
 				report.BlessedMerkleRoots = report.UnblessedMerkleRoots
 				report.UnblessedMerkleRoots = nil
 				return report
