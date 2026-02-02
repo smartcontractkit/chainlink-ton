@@ -4,6 +4,9 @@ go 1.25.5
 
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
+
+	// Use fix https://github.com/smartcontractkit/chainlink-testing-framework/pull/2371 (TODO: remove when merged and released)
+	github.com/smartcontractkit/chainlink-testing-framework/framework => github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.9-0.20260202201946-a462c36a3ff4
 	// Use local chainlink-ton/deployment module,
 	// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment

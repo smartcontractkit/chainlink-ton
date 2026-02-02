@@ -4,6 +4,9 @@ go 1.25.5
 
 // Notice: we pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
 
+// Use fix https://github.com/smartcontractkit/chainlink-testing-framework/pull/2371 (TODO: remove when merged and released)
+replace github.com/smartcontractkit/chainlink-testing-framework/framework => github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.9-0.20260202201946-a462c36a3ff4
+
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/rs/zerolog v1.34.0
