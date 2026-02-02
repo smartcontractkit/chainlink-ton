@@ -25,7 +25,7 @@ var (
 	// bytes4(keccak256("CCIP EVMExtraArgsV2"));
 	evmExtraArgsV2Tag = hexutil.MustDecode("0x181dcf10")
 
-	// bytes(keccak256("CCIP SuiExtraArgsV1"));
+	// bytes4(keccak256("CCIP SuiExtraArgsV1"));
 	suiExtraArgsV1Tag = hexutil.MustDecode("0x21ea4ca9")
 )
 
