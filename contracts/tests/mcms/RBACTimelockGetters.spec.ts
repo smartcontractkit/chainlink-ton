@@ -144,7 +144,7 @@ describe('MCMS - RBACTimelockGetters', () => {
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
-        toNano('1'),
+        toNano('0.1'),
         executeBody,
       )
 
@@ -323,7 +323,7 @@ describe('MCMS - RBACTimelockGetters', () => {
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
-        toNano('1'),
+        toNano('0.1'),
         executeBody,
       )
 
@@ -421,7 +421,7 @@ describe('MCMS - RBACTimelockGetters', () => {
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
-        toNano('1'),
+        toNano('0.1'),
         executeBody,
       )
 
@@ -521,7 +521,7 @@ describe('MCMS - RBACTimelockGetters', () => {
 
       const r = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
-        toNano('1'),
+        toNano('0.2'),
         executeBody,
       )
 

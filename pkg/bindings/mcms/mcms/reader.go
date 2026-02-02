@@ -133,14 +133,23 @@ var GetOpPendingInfo = tvm.NewNoArgsGetter(tvm.NoArgsOpts[OpPendingInfo]{
 			return OpPendingInfo{}, fmt.Errorf("error getting Int(1) - opFinalizationTimeout: %w", err)
 		}
 
-		sAddr, err := r.Slice(2)
+		// Check for maybe (nil) address
+		var opPendingReceiver *address.Address
+		isNil, err := r.IsNil(2)
 		if err != nil {
-			return OpPendingInfo{}, fmt.Errorf("error getting Slice(2) - opPendingReceiver: %w", err)
+			return OpPendingInfo{}, fmt.Errorf("error checking IsNil(2) - opPendingReceiver: %w", err)
 		}
 
-		opPendingReceiver, err := sAddr.LoadAddr()
-		if err != nil {
-			return OpPendingInfo{}, fmt.Errorf("error decoding Slice(2) - opPendingReceiver: %w", err)
+		if !isNil {
+			sAddr, err := r.Slice(2) //nolint:govet // allow err shadowing
+			if err != nil {
+				return OpPendingInfo{}, fmt.Errorf("error getting Slice(2) - opPendingReceiver: %w", err)
+			}
+
+			opPendingReceiver, err = sAddr.LoadAddr()
+			if err != nil {
+				return OpPendingInfo{}, fmt.Errorf("error decoding Slice(2) - opPendingReceiver: %w", err)
+			}
 		}
 
 		opPendingBodyTruncated, err := r.Int(3)

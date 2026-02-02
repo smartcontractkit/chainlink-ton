@@ -100,14 +100,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				return nil, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			if len(tokenAmount.DestTokenAddress) < 36 {
-				return nil, fmt.Errorf("invalid dest token address length: %d", len(tokenAmount.DestTokenAddress))
-			}
-
-			destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
-			if err != nil {
-				return nil, err
-			}
+		destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
+		if err != nil {
+			return nil, fmt.Errorf("convert dest token address: %w", err)
+		}
 
 			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
 			if err != nil {

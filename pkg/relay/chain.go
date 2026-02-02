@@ -43,7 +43,8 @@ import (
 )
 
 const (
-	balancePollPeriod = 1 * time.Minute
+	balancePollPeriod          = 1 * time.Minute
+	defaultTONClientRetryCount = 5
 )
 
 type Chain interface {
@@ -52,7 +53,7 @@ type Chain interface {
 	ID() string
 	TxManager() TxManager
 	LogPoller() logpoller.Service
-	GetClient(ctx context.Context) (*ton.APIClient, error)
+	GetClient(ctx context.Context) (ton.APIClientWrapped, error)
 	ContractTransmitterConfig() *ocr.Config
 }
 
@@ -65,7 +66,7 @@ type ChainOpts struct {
 var _ Chain = (*chain)(nil)
 
 type cachedClient struct {
-	client    *ton.APIClient
+	client    ton.APIClientWrapped
 	timestamp time.Time
 }
 
@@ -325,7 +326,7 @@ func (c *chain) ChainID() string {
 }
 
 // GetClient returns a client, randomly selecting one from available and valid nodes
-func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
+func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 	var lastErr error
 	nodes := c.cfg.Nodes
 	if len(nodes) == 0 {
@@ -361,7 +362,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			continue
 		}
 
-		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
+		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
 
 		blockID, err := client.CurrentMasterchainInfo(ctx)
 		if err != nil {
@@ -400,7 +401,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 	return nil, fmt.Errorf("no valid TON nodes available, last error: %w", lastErr)
 }
 
-func (c *chain) GetSignerWallet(ctx context.Context, client *ton.APIClient, loopKs loop.Keystore, accountIndex int) (*wallet.Wallet, error) {
+func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped, loopKs loop.Keystore, accountIndex int) (*wallet.Wallet, error) {
 	accounts, err := loopKs.Accounts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list accounts: %w", err)
