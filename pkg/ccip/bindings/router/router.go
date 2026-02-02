@@ -102,7 +102,7 @@ type OffRamps struct {
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
 type TokenAmount struct {
-	Amount *big.Int         `tlb:"## 256"`
+	Amount tlb.Coins        `tlb:"."`
 	Token  *address.Address `tlb:"addr"`
 }
 
@@ -113,7 +113,7 @@ type CCIPSend struct {
 	Receiver          common.CrossChainAddress       `tlb:"."`
 	Data              common.SnakeBytes              `tlb:"^"`
 	TokenAmounts      common.SnakedCell[TokenAmount] `tlb:"^"`
-	FeeToken          *address.Address               `tlb:"addr"`
+	FeeToken          *address.Address               `tlb:"maybe addr"`
 	ExtraArgs         *cell.Cell                     `tlb:"^"`
 }
 

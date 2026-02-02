@@ -84,19 +84,23 @@ const (
 )
 
 type Storage struct {
-	ID                           uint32               `tlb:"## 32"`
-	Ownable                      ownable2step.Storage `tlb:"."`
-	AllowedPriceUpdaters         *cell.Dictionary     `tlb:"dict 267"`
-	MaxFeeJuelsPerMsg            *big.Int             `tlb:"## 96"`
-	LinkToken                    *address.Address     `tlb:"addr"`
-	TokenPriceStalenessThreshold uint64               `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary     `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary     `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary     `tlb:"dict 64"`
+	ID                   uint32               `tlb:"## 32"`
+	Ownable              ownable2step.Storage `tlb:"."`
+	AllowedPriceUpdaters *cell.Dictionary     `tlb:"dict 267"`
+	MaxFeeJuelsPerMsg    *big.Int             `tlb:"## 96"`
+	LinkToken            *address.Address     `tlb:"addr"`
+	// TODO: Consider changing to uint32 for EVM compatibility. Currently uint64 on-chain.
+	TokenPriceStalenessThreshold uint64           `tlb:"## 64"`
+	UsdPerToken                  *cell.Dictionary `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary `tlb:"dict 64"`
 }
 
+// DestChainConfigs represents the full on-chain DestChainConfig struct from the FeeQuoter contract.
+// See contracts/contracts/ccip/fee_quoter/types.tolk for the on-chain definition.
+// Note the naming: this Go type uses plural "Configs" to distinguish from DestChainConfig above.
 type DestChainConfigs struct {
-	Config                  DestChainConfig  `tlb:"."`        // inline struct
+	Config                  DestChainConfig  `tlb:"."`        // inline struct (FeeQuoterDestChainConfig on-chain)
 	USDPerUnitGasRef        *cell.Cell       `tlb:"^"`        // ^Cell<GasPrice>
 	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 267"` // map<address, TokenTransferFeeConfig>
 }
@@ -122,6 +126,12 @@ func (u *USDPerUnitGas) GetterMethodName() string {
 	return destinationChainGasPriceGetter
 }
 
+// DestChainConfig represents the FeeQuoterDestChainConfig fields from the on-chain FeeQuoter contract.
+//
+// NOTE: This Go type is named "DestChainConfig" but corresponds to the on-chain "FeeQuoterDestChainConfig"
+// struct (see contracts/contracts/ccip/fee_quoter/types.tolk). The on-chain "DestChainConfig" is a larger
+// struct that wraps FeeQuoterDestChainConfig along with usdPerUnitGas and tokenTransferFeeConfigs fields.
+// The full on-chain struct is represented by DestChainConfigs (plural) in this package.
 type DestChainConfig struct {
 	IsEnabled                         bool   `tlb:"bool"`
 	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
@@ -205,18 +215,22 @@ type FeeToken struct {
 // Methods
 
 // Generic wrapper for fee quoter messages with context
+// NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
+// are written inline with no presence bit and no ref cell.
 type GetValidatedFee struct {
 	_       tlb.Magic  `tlb:"#7496FF56" json:"-"` //nolint:revive // Ignore opcode tag
 	Msg     *cell.Cell `tlb:"^"`                  // Cell containing the CCIPSend message
-	Context *cell.Cell `tlb:"maybe ^"`            // Cell containing context
+	Context *cell.Cell `tlb:"."`                  // Remaining bits/refs written inline
 }
 
 // --- Response from GetValidatedFee ---
+// NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
+// are written inline with no presence bit and no ref cell.
 type MessageValidated struct {
 	_       tlb.Magic  `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
 	Fee     Fee        `tlb:"."`
-	Msg     *cell.Cell `tlb:"^"`       // Original message
-	Context *cell.Cell `tlb:"maybe ^"` // Original context
+	Msg     *cell.Cell `tlb:"^"` // Original message
+	Context *cell.Cell `tlb:"."` // Remaining bits/refs written inline
 }
 
 type Fee struct {
@@ -224,11 +238,13 @@ type Fee struct {
 	FeeValueJuels  *big.Int   `tlb:"## 96"` // fee value in juels
 }
 
+// NOTE: Context is T=RemainingBitsAndRefs on-chain, meaning the remaining bits/refs
+// are written inline with no presence bit and no ref cell.
 type MessageValidationFailed struct {
 	_         tlb.Magic  `tlb:"#bcf0ab0f" json:"-"` //nolint:revive // Ignore opcode tag
 	ErrorCode *big.Int   `tlb:"## 256"`
-	Msg       *cell.Cell `tlb:"^"`       // Original message,
-	Context   *cell.Cell `tlb:"maybe ^"` // Original context
+	Msg       *cell.Cell `tlb:"^"` // Original message
+	Context   *cell.Cell `tlb:"."` // Remaining bits/refs written inline
 }
 
 type AddPriceUpdater struct {
@@ -254,13 +270,17 @@ type UpdateFeeTokens struct {
 	Remove common.SnakedCell[common.AddressWrap] `tlb:"^"`
 }
 
+// UpdateTokenTransferFeeConfig is a value type stored in a dictionary, NOT a message.
+// It represents per-destination-chain token transfer fee config updates.
 type UpdateTokenTransferFeeConfig struct {
-	_      tlb.Magic `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
-	Add    map[*address.Address]TokenTransferFeeConfig
-	Remove []*address.Address `tlb:"addr"`
+	Add    *cell.Dictionary                      `tlb:"dict 267"` // map<address, TokenTransferFeeConfig>
+	Remove common.SnakedCell[common.AddressWrap] `tlb:"^"`        // SnakedCell<address>
 }
+
+// UpdateTokenTransferFeeConfigs is the message type for updating token transfer fee configs.
 type UpdateTokenTransferFeeConfigs struct {
-	_ tlb.Magic `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic        `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
+	Updates *cell.Dictionary `tlb:"dict 64"`            // map<uint64, UpdateTokenTransferFeeConfig>
 }
 
 type UpdateDestChainConfig struct {
@@ -288,9 +308,10 @@ var TLBs = tvm.MustNewTLBMap([]any{
 // binding types that supports FetchResult interface with rpc client
 
 type StaticConfig struct {
-	MaxFeeJuelsPerMsg  *big.Int
-	LinkToken          *address.Address
-	StalenessThreshold uint32
+	MaxFeeJuelsPerMsg *big.Int
+	LinkToken         *address.Address
+	// TODO: Consider changing to uint32 for EVM compatibility once on-chain is updated.
+	StalenessThreshold uint64
 }
 
 // Deprecated: Use GetStaticConfig getter instead.

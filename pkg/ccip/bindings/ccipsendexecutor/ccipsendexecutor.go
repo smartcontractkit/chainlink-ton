@@ -50,15 +50,15 @@ type Execute struct {
 
 // FeeQuoter_MessageValidated message structure
 type MessageValidated struct {
-	_        tlb.Magic        `tlb:"#cbc4af76" json:"-"` //nolint:revive // Ignore opcode tag
-	Fee      *tlb.Coins       `tlb:"."`
-	Msg      *router.CCIPSend `tlb:"^"`
-	Metadata *cell.Cell       `tlb:"^"`
+	_       tlb.Magic        `tlb:"#1fa60374" json:"-"` //nolint:revive // Ignore opcode tag
+	Fee     *tlb.Coins       `tlb:"."`
+	Msg     *router.CCIPSend `tlb:"^"`
+	Context *cell.Cell       `tlb:"^"`
 }
 
 // FeeQuoter_MessageValidationFailed message structure
 type MessageValidationFailed struct {
-	_       tlb.Magic        `tlb:"#0f756150" json:"-"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic        `tlb:"#bcf0ab0f" json:"-"` //nolint:revive // Ignore opcode tag
 	Error   *big.Int         `tlb:"## 256"`
 	Msg     *router.CCIPSend `tlb:"^"`
 	Context *cell.Cell       `tlb:"^"`
@@ -104,6 +104,6 @@ type StateOnGoingFeeValidation struct {
 
 // TokenAmount structure (reused from router package concept)
 type TokenAmount struct {
-	Amount *big.Int         `tlb:"## 256"`
+	Amount *tlb.Coins       `tlb:"."`
 	Token  *address.Address `tlb:"addr"`
 }

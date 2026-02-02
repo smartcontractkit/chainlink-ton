@@ -268,7 +268,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorBatchingNotSupported)
+		ecMax = int32(ErrorMerkleRootCannotBeZero)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -280,10 +280,11 @@ const (
 	ErrorInvalidMessageDestChainSelector
 	ErrorSourceChainSelectorMismatch
 	ErrorInvalidOnRampUpdate
-	ErrorSenderIsNotRouter
+	ErrorInsufficientFee
 	ErrorSubjectCursed
 	ErrorUnauthorized
 	ErrorZeroAddressNotAllowed
+	ErrorTooManyMessagesInReport
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 	ErrorInvalidInterval
