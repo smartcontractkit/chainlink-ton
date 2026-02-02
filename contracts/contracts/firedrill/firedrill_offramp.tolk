@@ -104,3 +104,6 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 	};
 }
 
+get fun typeAndVersion(): (slice, slice) {
+	return ("com.chainlink.ton.ccip.firedrill.firedrillOffRamp", "1.6.0")
+}

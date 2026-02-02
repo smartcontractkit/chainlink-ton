@@ -266,3 +266,7 @@ get fun pendingOwner(): address? {
 	val st = lazy FiredrillEntrypoint_Storage.load();
 	return st.ownable.pendingOwner;
 }
+
+get fun typeAndVersion(): (slice, slice) {
+	return ("com.chainlink.ton.ccip.firedrill.firedrillEntrypoint", "1.6.0")
+}
