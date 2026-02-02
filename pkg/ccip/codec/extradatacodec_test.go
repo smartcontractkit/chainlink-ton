@@ -87,7 +87,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 	t.Run("decode extra args into map sui", func(t *testing.T) {
 		gasLimit := big.NewInt(50000)
 		tokenReceiver := solana.SystemProgramID.Bytes() // 32 bytes, reusing for convenience
-		receiverObjectIds := common.SnakedCell[onramp.Account256]{
+		receiverObjectIDs := common.SnakedCell[onramp.Account256]{
 			{Value: solana.SystemProgramID.Bytes()},
 			{Value: solana.SystemProgramID.Bytes()},
 		}
@@ -95,7 +95,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 			GasLimit:                 gasLimit,
 			AllowOutOfOrderExecution: true,
 			TokenReceiver:            tokenReceiver,
-			ReceiverObjectIds:        receiverObjectIds,
+			ReceiverObjectIDs:        receiverObjectIDs,
 		}
 
 		c, err := tlb.ToCell(extraArgs)
@@ -117,7 +117,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 		require.True(t, exist)
 		require.Equal(t, tokenReceiver, tr)
 
-		roids, exist := output["ReceiverObjectIds"]
+		roids, exist := output["ReceiverObjectIDs"]
 		require.True(t, exist)
 		require.Len(t, roids, 2)
 	})

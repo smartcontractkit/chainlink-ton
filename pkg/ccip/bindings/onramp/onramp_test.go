@@ -76,7 +76,7 @@ func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sui object IDs are 32 bytes, matching Account256's 256-bit expectation
-	receiverObjectIds := common.SnakedCell[Account256]{
+	receiverObjectIDs := common.SnakedCell[Account256]{
 		{Value: addr1.PublicKey().Bytes()},
 		{Value: addr2.PublicKey().Bytes()},
 	}
@@ -85,7 +85,7 @@ func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 		GasLimit:                 big.NewInt(50000),
 		AllowOutOfOrderExecution: true,
 		TokenReceiver:            addr1.PublicKey().Bytes(),
-		ReceiverObjectIds:        receiverObjectIds,
+		ReceiverObjectIDs:        receiverObjectIDs,
 	}
 
 	cell, err := tlb.ToCell(orig)
@@ -97,9 +97,9 @@ func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.Equal(t, orig.GasLimit, decoded.GasLimit)
 	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
 	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
-	require.Len(t, orig.ReceiverObjectIds, len(decoded.ReceiverObjectIds))
-	for i, objId := range orig.ReceiverObjectIds {
-		require.Equal(t, objId.Value, decoded.ReceiverObjectIds[i].Value)
+	require.Len(t, orig.ReceiverObjectIDs, len(decoded.ReceiverObjectIDs))
+	for i, objID := range orig.ReceiverObjectIDs {
+		require.Equal(t, objID.Value, decoded.ReceiverObjectIDs[i].Value)
 	}
 }
 

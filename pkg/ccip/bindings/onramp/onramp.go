@@ -83,7 +83,7 @@ type SuiExtraArgsV1 struct {
 	GasLimit                 *big.Int                      `tlb:"## 256"`
 	AllowOutOfOrderExecution bool                          `tlb:"bool"`
 	TokenReceiver            []byte                        `tlb:"bits 256"`
-	ReceiverObjectIds        common.SnakedCell[Account256] `tlb:"^"`
+	ReceiverObjectIDs        common.SnakedCell[Account256] `tlb:"^"`
 }
 
 // Storage represents the storage structure for the CCIP onramp contract.
