@@ -8,7 +8,7 @@ import (
 
 // TON Local Network Configuration
 //
-// This package centralizes the TON local network (MyLocalTon) configuration used for testing.
+// This package centralizes the TON local network (MyLocalTon-docker) configuration used for testing.
 // The versions here must be compatible with the current CCIP contract versions deployed in this repository.
 //
 // When to Update:
