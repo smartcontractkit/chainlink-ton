@@ -1,10 +1,9 @@
 package codec
 
 import (
-	"fmt"
-
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 
@@ -22,6 +21,7 @@ var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 //
 // For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
 // the same address with different flags.
+const tonAddressDataLen = 32
 
 // RawAddr is a fixed-size byte array representing a TON standard address
 type RawAddr [tvm.AddressLength]byte
@@ -37,9 +37,8 @@ func ToRawAddr(addr *address.Address) (RawAddr, error) {
 		return rawAddress, fmt.Errorf("cannot convert none address to raw format")
 	}
 	// Standard TON addresses have exactly 32 bytes of data
-	const expectedDataLen = 32
-	if len(addr.Data()) != expectedDataLen {
-		return rawAddress, fmt.Errorf("invalid address data length: expected %d bytes, got %d", expectedDataLen, len(addr.Data()))
+	if len(addr.Data()) != tonAddressDataLen {
+		return rawAddress, fmt.Errorf("invalid address data length: expected %d bytes, got %d", tonAddressDataLen, len(addr.Data()))
 	}
 	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(rawAddress[4:], addr.Data())
