@@ -5,8 +5,6 @@ go 1.25.5
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
 
-	// Use fix https://github.com/smartcontractkit/chainlink-testing-framework/pull/2371 (TODO: remove when merged and released)
-	github.com/smartcontractkit/chainlink-testing-framework/framework => github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.9-0.20260202201946-a462c36a3ff4
 	// Use local chainlink-ton/deployment module,
 	// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
@@ -370,7 +368,7 @@ require (
 	github.com/smartcontractkit/chainlink-solana v1.1.2-0.20260121103211-89fe83165431 // indirect
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20260124000807-bff5e296dfb7 // indirect
 	github.com/smartcontractkit/chainlink-sui/deployment v0.0.0-20260124000807-bff5e296dfb7 // indirect
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.9 // indirect
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.14-0.20260202230832-eb33f42188d1 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/parrot v0.6.2 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/seth v1.51.2 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20251014143056-a0c6328c91e9 // indirect
