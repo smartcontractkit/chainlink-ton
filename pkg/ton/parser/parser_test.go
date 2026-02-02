@@ -7,9 +7,10 @@ import (
 
 func TestParseLispTuple(t *testing.T) {
 	tests := []struct {
-		name   string
-		input  []any
-		expect []uint64
+		name      string
+		input     []any
+		expect    []uint64
+		expectErr bool
 	}{
 		{
 			name:   "nil input",
@@ -19,6 +20,11 @@ func TestParseLispTuple(t *testing.T) {
 		{
 			name:   "empty input",
 			input:  []any{},
+			expect: nil,
+		},
+		{
+			name:   "nil first element (empty list)",
+			input:  []any{nil},
 			expect: nil,
 		},
 		{
@@ -45,17 +51,41 @@ func TestParseLispTuple(t *testing.T) {
 			expect: []uint64{1, 2, 3},
 		},
 		{
-			name: "malformed input",
+			name: "malformed input - wrong value type",
 			input: []any{
-				[]any{42, nil},
+				[]any{42, nil}, // 42 instead of *big.Int
 			},
-			expect: []uint64{},
+			expectErr: true,
+		},
+		{
+			name: "malformed input - first element not a list",
+			input: []any{
+				"not a list",
+			},
+			expectErr: true,
+		},
+		{
+			name: "malformed input - wrong tail type",
+			input: []any{
+				[]any{big.NewInt(1), "not a list"},
+			},
+			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseLispTuple(tt.input)
+			got, err := ParseLispTuple(tt.input)
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 			if len(got) != len(tt.expect) {
 				t.Errorf("expected %v, got %v", tt.expect, got)
 				return
@@ -83,6 +113,7 @@ func TestParseLispTupleBigInt(t *testing.T) {
 		name      string
 		input     []any
 		expectHex []string // use hex strings so we create fresh big.Int for comparison
+		expectErr bool
 	}{
 		{
 			name:      "nil input",
@@ -92,6 +123,11 @@ func TestParseLispTupleBigInt(t *testing.T) {
 		{
 			name:      "empty input",
 			input:     []any{},
+			expectHex: nil,
+		},
+		{
+			name:      "nil first element (empty list)",
+			input:     []any{nil},
 			expectHex: nil,
 		},
 		{
@@ -158,20 +194,37 @@ func TestParseLispTupleBigInt(t *testing.T) {
 			input: []any{
 				[]any{42, nil},
 			},
-			expectHex: []string{},
+			expectErr: true,
 		},
 		{
-			name: "first element not a list",
+			name: "malformed input - first element not a list",
 			input: []any{
 				"not a list",
 			},
-			expectHex: []string{},
+			expectErr: true,
+		},
+		{
+			name: "malformed input - wrong tail type",
+			input: []any{
+				[]any{big.NewInt(1), "not a list"},
+			},
+			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseLispTupleBigInt(tt.input)
+			got, err := ParseLispTupleBigInt(tt.input)
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 			if len(got) != len(tt.expectHex) {
 				t.Errorf("expected length %d, got %d", len(tt.expectHex), len(got))
 				return

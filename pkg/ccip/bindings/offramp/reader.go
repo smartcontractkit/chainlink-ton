@@ -161,7 +161,7 @@ var GetSourceChainConfig = tvm.Getter[uint64, SourceChainConfig]{
 var GetSourceChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	Name: sourceChainSelectorsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
-		return parser.ParseLispTuple(r.AsTuple()), nil
+		return parser.ParseLispTuple(r.AsTuple())
 	}),
 })
 
@@ -169,6 +169,6 @@ var GetSourceChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 var GetCursedSubjects = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]*big.Int]{
 	Name: cursedSubjectsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]*big.Int, error) {
-		return parser.ParseLispTupleBigInt(r.AsTuple()), nil
+		return parser.ParseLispTupleBigInt(r.AsTuple())
 	}),
 })

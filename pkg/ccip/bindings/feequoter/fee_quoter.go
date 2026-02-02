@@ -319,7 +319,10 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 		return err
 	}
 
-	selectorSlice := parser.ParseLispTuple(result.AsTuple())
+	selectorSlice, err := parser.ParseLispTuple(result.AsTuple())
+	if err != nil {
+		return err
+	}
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	var lock sync.Mutex
