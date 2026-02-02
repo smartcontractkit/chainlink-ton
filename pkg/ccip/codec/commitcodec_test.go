@@ -21,17 +21,10 @@ func RandomCommitReport() cciptypes.CommitPluginReport {
 		panic(err)
 	}
 
+	// Note: TON on-chain OffRamp only supports at most 1 merkle root per commit report.
+	// See Error.BatchingNotSupported in contracts/contracts/ccip/offramp/contract.tolk
 	return cciptypes.CommitPluginReport{
 		UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
-			{
-				OnRampAddress: make(cciptypes.UnknownAddress, 64),
-				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
-				SeqNumsRange: cciptypes.NewSeqNumRange(
-					cciptypes.SeqNum(rand.Uint64()),
-					cciptypes.SeqNum(rand.Uint64()),
-				),
-				MerkleRoot: randomBytes32(),
-			},
 			{
 				OnRampAddress: make(cciptypes.UnknownAddress, 64),
 				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
@@ -65,17 +58,15 @@ func TestCommitPluginCodecV1(t *testing.T) {
 		expErr bool
 	}{
 		{
-			name: "base report blessed",
+			name: "base report with unblessed root",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
 				return report
 			},
 		},
 		{
-			name: "base report unblessed",
+			name: "report with no merkle roots",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
-				report.RMNSignatures = nil
-				report.UnblessedMerkleRoots = report.BlessedMerkleRoots
-				report.BlessedMerkleRoots = nil
+				report.UnblessedMerkleRoots = nil
 				return report
 			},
 		},
@@ -145,6 +136,28 @@ func TestCommitPluginCodecV1(t *testing.T) {
 				report.PriceUpdates.TokenPriceUpdates = nil
 				return report
 			},
+		},
+		{
+			name: "too many merkle roots",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.UnblessedMerkleRoots = append(report.UnblessedMerkleRoots, cciptypes.MerkleRootChain{
+					OnRampAddress: make(cciptypes.UnknownAddress, 64),
+					ChainSel:      cciptypes.ChainSelector(12345),
+					SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(1), cciptypes.SeqNum(10)),
+					MerkleRoot:    randomBytes32(),
+				})
+				return report
+			},
+			expErr: true,
+		},
+		{
+			name: "blessed merkle roots not supported",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.BlessedMerkleRoots = report.UnblessedMerkleRoots
+				report.UnblessedMerkleRoots = nil
+				return report
+			},
+			expErr: true,
 		},
 	}
 
