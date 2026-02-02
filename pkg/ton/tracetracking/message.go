@@ -466,7 +466,7 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 // the success exit code.
 func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
 	if m == nil {
-		return 0, errors.New("nil ReceivedMessage")
+		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
 	}
 
 	stack := []*ReceivedMessage{m}
@@ -508,7 +508,7 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 	}
 	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
 	if !ok {
-		return 0, errors.New("expected VM compute phase")
+		return 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
 	}
 	return tvm.ExitCode(computePhase.Details.ExitCode), nil
 }
