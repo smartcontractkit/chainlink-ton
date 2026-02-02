@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/gagliardetto/solana-go"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
@@ -68,23 +70,24 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 }
 
 func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
-	// Generate random 32-byte addresses for Sui object IDs
-	addr1, err := solana.NewRandomPrivateKey()
-	require.NoError(t, err)
-
-	addr2, err := solana.NewRandomPrivateKey()
-	require.NoError(t, err)
-
 	// Sui object IDs are 32 bytes, matching Account256's 256-bit expectation
+	suiAddr1 := models.SuiAddress("0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968")
+	suiAddr1Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr1)
+	require.NoError(t, err)
+
+	suiAddr2 := models.SuiAddress("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	suiAddr2Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr2)
+	require.NoError(t, err)
+
 	receiverObjectIDs := common.SnakedCell[Account256]{
-		{Value: addr1.PublicKey().Bytes()},
-		{Value: addr2.PublicKey().Bytes()},
+		{Value: suiAddr1Bytes[:]},
+		{Value: suiAddr2Bytes[:]},
 	}
 
 	orig := SuiExtraArgsV1{
 		GasLimit:                 big.NewInt(50000),
 		AllowOutOfOrderExecution: true,
-		TokenReceiver:            addr1.PublicKey().Bytes(),
+		TokenReceiver:            suiAddr1Bytes[:],
 		ReceiverObjectIDs:        receiverObjectIDs,
 	}
 
