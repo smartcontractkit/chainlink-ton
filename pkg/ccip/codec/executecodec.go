@@ -96,7 +96,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 		destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("convert dest token address: %w", err)
 		}
 
 		DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
