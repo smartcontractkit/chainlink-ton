@@ -153,7 +153,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		return nil, nil
 	}
 
-	if len(sourceChainConfigs) == 0 {
+	if len(sourceChainSelectors) == 0 {
 		// if no selectors specified, return all configs
 		for selector, config := range sourceConfigsGot {
 			sourceChainConfigs[ccipocr3.ChainSelector(selector)] = sourceChainConfigToGeneric(config)
