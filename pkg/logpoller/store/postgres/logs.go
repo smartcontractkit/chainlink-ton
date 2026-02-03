@@ -95,7 +95,8 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 			block_root_hash,
 			block_file_hash,
 			master_block_seqno,
-			created_at
+			created_at,
+			expires_at
 		) VALUES (
 			:filter_id,
 			:chain_id,
@@ -114,7 +115,8 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 			:block_root_hash,
 			:block_file_hash,
 			:master_block_seqno,
-			NOW()
+			NOW(),
+			:expires_at
 		) ON CONFLICT DO NOTHING
 	`
 
@@ -227,4 +229,92 @@ func (s *pgLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, bool, 
 
 	//nolint:gosec // G115: safe conversion - master_block_seqno is always positive and within uint32 range
 	return uint32(*result), true, nil
+}
+
+// DeleteExpiredLogs removes logs that have passed their pre-computed expiration time.
+func (s *pgLogStore) DeleteExpiredLogs(ctx context.Context, limit int64) (int64, error) {
+	query := `
+	WITH rows_to_delete AS (
+		SELECT id
+		FROM ton.log_poller_logs
+		WHERE chain_id = :chain_id
+		  AND expires_at IS NOT NULL
+		  AND expires_at <= NOW()
+		LIMIT :limit
+	)
+	DELETE FROM ton.log_poller_logs WHERE id IN (SELECT id FROM rows_to_delete)`
+
+	args := map[string]any{
+		"chain_id": s.chainID,
+		"limit":    limit,
+	}
+
+	rowsDeleted, err := s.orm.NamedExecContext(ctx, query, args)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete expired logs: %w", err)
+	}
+	return rowsDeleted, nil
+}
+
+// DeleteExcessLogs removes logs exceeding max_logs_kept for each filter.
+func (s *pgLogStore) DeleteExcessLogs(ctx context.Context, limit int64) (int64, error) {
+	// rank logs per filter, delete excess in batches
+	query := `
+	WITH ranked_logs AS (
+		SELECT l.id,
+		       ROW_NUMBER() OVER (
+		           PARTITION BY l.filter_id
+		           ORDER BY l.tx_lt DESC, l.msg_index DESC
+		       ) AS row_num,
+		       f.max_logs_kept
+		FROM ton.log_poller_logs l
+		JOIN ton.log_poller_filters f ON l.filter_id = f.id
+		WHERE l.chain_id = :chain_id
+		  AND f.max_logs_kept > 0
+	),
+	rows_to_delete AS (
+		SELECT id
+		FROM ranked_logs
+		WHERE row_num > max_logs_kept
+		LIMIT :limit
+	)
+	DELETE FROM ton.log_poller_logs WHERE id IN (SELECT id FROM rows_to_delete)`
+
+	args := map[string]any{
+		"chain_id": s.chainID,
+		"limit":    limit,
+	}
+
+	rowsDeleted, err := s.orm.NamedExecContext(ctx, query, args)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete excess logs: %w", err)
+	}
+	return rowsDeleted, nil
+}
+
+// DeleteLogsForDeletedFilters removes logs for filters marked is_deleted=true.
+// Note: soft-deleted filter row cleanup is handled separately by FilterStore.DeleteEmptyFilters.
+func (s *pgLogStore) DeleteLogsForDeletedFilters(ctx context.Context, limit int64) (int64, error) {
+	query := `
+	WITH rows_to_delete AS (
+		SELECT l.id
+		FROM ton.log_poller_logs l
+		JOIN ton.log_poller_filters f ON l.filter_id = f.id
+		WHERE l.chain_id = :chain_id
+		  AND f.is_deleted = true
+		LIMIT :limit
+	)
+	DELETE FROM ton.log_poller_logs WHERE id IN (SELECT id FROM rows_to_delete)`
+
+	args := map[string]any{
+		"chain_id": s.chainID,
+		"limit":    limit,
+	}
+
+	logsDeleted, err := s.orm.NamedExecContext(ctx, query, args)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete logs for deleted filters: %w", err)
+	}
+
+	return logsDeleted, nil
 }
