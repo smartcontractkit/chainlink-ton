@@ -23,6 +23,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+const defaultFundAmountTON = "1000"
+
 // Deprecated: use tvm.NewRandomTestWallet instead
 func CreateRandomWallet(client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) (*wallet.Wallet, error) {
 	return tvm.NewRandomTestWallet(client, version, option)
@@ -163,10 +165,25 @@ func StartChain(t *testing.T, chainID uint64, once *sync.Once) (cldf_ton.Chain, 
 		return cldf_ton.Chain{}, errors.New("expected chain to be cldf_ton.Chain")
 	}
 
+	// Fund the wallet from the localnet funder
+	funder, err := GetLocalnetFunderWallet(tonChain.Client)
+	if err != nil {
+		return cldf_ton.Chain{}, fmt.Errorf("failed to get funder wallet: %w", err)
+	}
+
+	fundAmount := tlb.MustFromTON(defaultFundAmountTON)
+	transfer, err := funder.BuildTransfer(tonChain.WalletAddress, fundAmount, false, "")
+	if err != nil {
+		return cldf_ton.Chain{}, fmt.Errorf("failed to build transfer: %w", err)
+	}
+
+	_, _, err = funder.SendManyWaitTransaction(ctx, []*wallet.Message{transfer})
+	if err != nil {
+		return cldf_ton.Chain{}, fmt.Errorf("failed to send airdrop: %w", err)
+	}
+
 	// Wait for wallet to be ready before returning
-	// CTFChainProvider funds the wallet but doesn't wait for confirmation,
-	// which can cause "cannot load block" errors when immediately using the wallet
-	err = waitForAirdropCompletion(ctx, tonChain.Client, []*address.Address{tonChain.WalletAddress}, []tlb.Coins{tlb.MustFromTON("1000")}, 120*time.Second)
+	err = waitForAirdropCompletion(ctx, tonChain.Client, []*address.Address{tonChain.WalletAddress}, []tlb.Coins{fundAmount}, 120*time.Second)
 	if err != nil {
 		return cldf_ton.Chain{}, fmt.Errorf("airdrop completion verification failed: %w", err)
 	}

@@ -88,6 +88,22 @@ var (
 		Name: "ton_logpoller_logs_matched_total",
 		Help: "Total number of logs matched by filters",
 	}, []string{"chainID", "msg_type", "opcode"})
+
+	// Pruning metrics
+	promTonLpLogsDeleted = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_logs_deleted_total",
+		Help: "Total number of logs deleted by pruning",
+	}, []string{"chainID"})
+
+	promTonLpPruningDuration = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "ton_logpoller_pruning_duration_seconds",
+		Help: "Duration of last pruning cycle",
+	}, []string{"chainID"})
+
+	promTonLpPruningErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "ton_logpoller_pruning_errors_total",
+		Help: "Total number of pruning errors",
+	}, []string{"chainID"})
 )
 
 // logPollerMetrics provides instrumentation for the TON LogPoller
@@ -114,6 +130,11 @@ type logPollerMetrics struct {
 	txsProcessed  metric.Int64Counter
 	msgsProcessed metric.Int64Counter
 	logsMatched   metric.Int64Counter
+
+	// pruning metrics (OTel)
+	logsDeleted     metric.Int64Counter
+	pruningDuration metric.Float64Gauge
+	pruningErrors   metric.Int64Counter
 }
 
 // newMetrics creates a new metrics instance for TON LogPoller
@@ -190,6 +211,21 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		return nil, fmt.Errorf("failed to register logs matched: %w", err)
 	}
 
+	logsDeleted, err := m.Int64Counter("ton_logpoller_logs_deleted_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register logs deleted: %w", err)
+	}
+
+	pruningDuration, err := m.Float64Gauge("ton_logpoller_pruning_duration_seconds")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register pruning duration: %w", err)
+	}
+
+	pruningErrors, err := m.Int64Counter("ton_logpoller_pruning_errors_total")
+	if err != nil {
+		return nil, fmt.Errorf("failed to register pruning errors: %w", err)
+	}
+
 	return &logPollerMetrics{
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
@@ -208,6 +244,9 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		msgsProcessed:           msgsProcessed,
 		logsMatched:             logsMatched,
 		lastProcessedBlockSeqNo: lastProcessedBlockSeqNo,
+		logsDeleted:             logsDeleted,
+		pruningDuration:         pruningDuration,
+		pruningErrors:           pruningErrors,
 	}, nil
 }
 
@@ -311,4 +350,23 @@ func (m *logPollerMetrics) AddLogsMatched(ctx context.Context, msgType, opcode s
 		attribute.String("opcode", opcode),
 	)
 	m.logsMatched.Add(ctx, count, metric.WithAttributes(attrs...))
+}
+
+// AddLogsDeleted increments the logs deleted counter
+func (m *logPollerMetrics) AddLogsDeleted(ctx context.Context, count int64) {
+	promTonLpLogsDeleted.WithLabelValues(m.chainID).Add(float64(count))
+	m.logsDeleted.Add(ctx, count, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+// SetPruningDuration sets the duration of the last pruning cycle
+func (m *logPollerMetrics) SetPruningDuration(ctx context.Context, duration time.Duration) {
+	seconds := duration.Seconds()
+	promTonLpPruningDuration.WithLabelValues(m.chainID).Set(seconds)
+	m.pruningDuration.Record(ctx, seconds, metric.WithAttributes(m.getOtelAttributes()...))
+}
+
+// IncrementPruningErrors increments the pruning error counter
+func (m *logPollerMetrics) IncrementPruningErrors(ctx context.Context) {
+	promTonLpPruningErrors.WithLabelValues(m.chainID).Inc()
+	m.pruningErrors.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
