@@ -22,7 +22,7 @@ var msgTypeLabels = map[tlb.MsgType]string{
 }
 
 // parseTransactions spawns goroutines to parse transactions in parallel.
-// TODO: consider worker pool if transaction volume becomes high (>1000/block)
+// Performance Note: consider worker pool if transaction volume becomes high (>1000/block)
 func (lp *service) parseTransactions(
 	ctx context.Context,
 	filterIndex models.FilterIndex,
@@ -104,7 +104,12 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 		return nil, errors.New("message or message content is nil")
 	}
 
-	// attempt to extract the event data
+	// Only process supported message types - silently skip others (e.g., ExternalIn)
+	if msg.MsgType != tlb.MsgTypeInternal && msg.MsgType != tlb.MsgTypeExternalOut {
+		return []models.Log{}, nil
+	}
+
+	// Extract event data - errors here indicate parse failures on supported types
 	eventSig, body, err := extractEventSigAndBody(msg)
 	if err != nil {
 		return nil, fmt.Errorf("event extraction failed: %w", err)
@@ -128,80 +133,93 @@ func (lp *service) parseMessage(ctx context.Context, msg *tlb.Message, msgIndex 
 		EventSig: eventSig,
 	}
 
-	filterIDs := filterIndex[filterKey.String()]
-	if len(filterIDs) == 0 {
+	filters := filterIndex[filterKey.String()]
+	if len(filters) == 0 {
 		return []models.Log{}, nil // no matching filters found
 	}
 
 	// record logs matched metric
-	lp.metrics.AddLogsMatched(ctx, msgTypeLabels[msg.MsgType], opcodeLabel, int64(len(filterIDs)))
+	lp.metrics.AddLogsMatched(ctx, msgTypeLabels[msg.MsgType], opcodeLabel, int64(len(filters)))
 
 	msgLT, err := extractMsgLT(msg)
 	if err != nil {
+		// This should never happen - msgLT is a protocol field that should always be available
+		// after successful event extraction. Treat as critical error.
 		return nil, fmt.Errorf("failed to extract msgLT: %w", err)
 	}
 
-	// create a log entry for each matching filter.
+	// create a log entry for each matching filter
 	// DB unique constraint (chain_id, filter_id, tx_hash, tx_lt, msg_index) allows multiple filters
 	// to store the same blockchain event. Query-time deduplication handles returning unique events.
-	logs := make([]models.Log, 0, len(filterIDs))
-	for _, filterID := range filterIDs {
-		log := models.Log{
-			ChainID:      chainID,
-			FilterID:     filterID,
-			EventSig:     eventSig,
-			Address:      msg.Msg.SenderAddr(),
-			Data:         body,
-			TxHash:       models.TxHash(tx.Transaction.Hash),
-			TxLT:         tx.Transaction.LT,
-			TxTimestamp:  time.Unix(int64(tx.Transaction.Now), 0).UTC(),
-			Block:        tx.Block,
-			MCBlockSeqno: tx.MCBlockSeqno,
-			MsgLT:        msgLT,
-			MsgIndex:     int64(msgIndex),
-
-			// TODO: populate Error field for failed message processing
-			// scope: structural validation errors (nil message/content)
-			// scope: event extraction errors (BOC decode failures, unsupported message types)
-			// currently handled by returning error from processMessage, but error logs not stored
-			Error: nil,
-		}
-		logs = append(logs, log)
+	logs := make([]models.Log, 0, len(filters))
+	for _, filter := range filters {
+		logs = append(logs, lp.newLog(chainID, filter, msg, msgIndex, tx, eventSig, body, msgLT))
 	}
 	return logs, nil
 }
 
+// newLog creates a models.Log with common field population.
+func (lp *service) newLog(
+	chainID string,
+	filter *models.Filter,
+	msg *tlb.Message,
+	msgIndex int,
+	tx models.Tx,
+	eventSig uint32,
+	body *cell.Cell,
+	msgLT uint64,
+) models.Log {
+	txTimestamp := time.Unix(int64(tx.Transaction.Now), 0).UTC()
+
+	var expiresAt *time.Time
+	if filter.LogRetention > 0 {
+		exp := txTimestamp.Add(filter.LogRetention)
+		expiresAt = &exp
+	}
+
+	return models.Log{
+		ChainID:      chainID,
+		FilterID:     filter.ID,
+		EventSig:     eventSig,
+		Address:      msg.Msg.SenderAddr(),
+		Data:         body,
+		TxHash:       models.TxHash(tx.Transaction.Hash),
+		TxLT:         tx.Transaction.LT,
+		TxTimestamp:  txTimestamp,
+		Block:        tx.Block,
+		MCBlockSeqno: tx.MCBlockSeqno,
+		MsgLT:        msgLT,
+		MsgIndex:     int64(msgIndex),
+		ExpiresAt:    expiresAt,
+	}
+}
+
 func extractEventSigAndBody(msg *tlb.Message) (eventSig uint32, body *cell.Cell, err error) {
 	switch msg.MsgType {
-	default:
-		return 0, nil, fmt.Errorf("unsupported message type: %v", msg.MsgType)
-	case tlb.MsgTypeExternalOut:
-		eventSig, body, err = message.ParseExtMsgOut(msg.AsExternalOut())
-		if err != nil {
-			return 0, nil, fmt.Errorf("failed to parse external out message: %w", err)
-		}
-		return eventSig, body, nil
 	case tlb.MsgTypeInternal:
-		eventSig, body, err = message.ParseInternalMsg(msg.AsInternal())
-		if err != nil {
-			return 0, nil, fmt.Errorf("failed to parse internal message: %w", err)
-		}
-		return eventSig, body, nil
+		return message.ParseInternalMsg(msg.AsInternal())
+	case tlb.MsgTypeExternalOut:
+		return message.ParseExtMsgOut(msg.AsExternalOut())
+	default:
+		// Caller should filter message types before calling
+		return 0, nil, fmt.Errorf("unexpected message type: %v", msg.MsgType)
 	}
 }
 
 func extractMsgLT(msg *tlb.Message) (uint64, error) {
 	switch msg.MsgType {
-	default:
-		return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
 	case tlb.MsgTypeInternal:
 		if internal := msg.AsInternal(); internal != nil {
 			return internal.CreatedLT, nil
 		}
+		return 0, errors.New("internal message is nil")
 	case tlb.MsgTypeExternalOut:
 		if extOut := msg.AsExternalOut(); extOut != nil {
 			return extOut.CreatedLT, nil
 		}
+		return 0, errors.New("external out message is nil")
+	default:
+		// Caller should filter message types before calling
+		return 0, fmt.Errorf("unexpected message type: %v", msg.MsgType)
 	}
-	return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
 }
