@@ -133,7 +133,7 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 				// In case of DB timeouts, try to insert again with a smaller batch up to a limit
 				newBatchSize := batchSize / 2
 				if newBatchSize < int(minBatchSize) {
-					s.lggr.Warnw("Batch size would fall below minimum after halving, using minBatchSize",
+					s.lggr.Warnw("Batch size would fall below minimum after halving, will use minBatchSize",
 						"currentBatchSize", batchSize,
 						"minBatchSize", minBatchSize,
 						"proposedBatchSize", newBatchSize)

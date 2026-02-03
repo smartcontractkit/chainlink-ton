@@ -158,10 +158,11 @@ type FilterKey struct {
 
 // String returns a canonical string representation for use as a map key.
 func (fk FilterKey) String() string {
-	if fk.Address == nil {
+	a := fk.Address
+	if a == nil {
 		return fmt.Sprintf("<nil>:%s:%08x", fk.MsgType, fk.EventSig)
 	}
-	return fmt.Sprintf("%s:%s:%08x", fk.Address.String(), fk.MsgType, fk.EventSig)
+	return fmt.Sprintf("%s:%s:%08x", a.String(), fk.MsgType, fk.EventSig)
 }
 
 // RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)

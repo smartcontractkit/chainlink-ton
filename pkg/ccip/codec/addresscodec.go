@@ -21,7 +21,6 @@ var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 //
 // For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
 // the same address with different flags.
-const tonAddressDataLen = 32
 
 // RawAddr is a fixed-size byte array representing a TON standard address
 type RawAddr [tvm.AddressLength]byte
@@ -29,17 +28,17 @@ type RawAddr [tvm.AddressLength]byte
 // ToRawAddr converts an address.Address to a RawAddr.
 // Returns an error if the address is nil, not a standard address, or has invalid data length.
 func ToRawAddr(addr *address.Address) (RawAddr, error) {
-	var rawAddress RawAddr
 	if addr == nil {
-		return rawAddress, fmt.Errorf("cannot convert nil address to raw format")
+		return RawAddr{}, fmt.Errorf("cannot convert nil address to raw format")
 	}
 	if addr.IsAddrNone() {
-		return rawAddress, fmt.Errorf("cannot convert none address to raw format")
+		return RawAddr{}, fmt.Errorf("cannot convert none address to raw format")
 	}
 	// Standard TON addresses have exactly 32 bytes of data
-	if len(addr.Data()) != tonAddressDataLen {
-		return rawAddress, fmt.Errorf("invalid address data length: expected %d bytes, got %d", tonAddressDataLen, len(addr.Data()))
+	if len(addr.Data()) != tvm.AddressDataLength {
+		return RawAddr{}, fmt.Errorf("invalid address data length: expected %d bytes, got %d", tvm.AddressDataLength, len(addr.Data()))
 	}
+	var rawAddress RawAddr
 	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(rawAddress[4:], addr.Data())
 	return rawAddress, nil
