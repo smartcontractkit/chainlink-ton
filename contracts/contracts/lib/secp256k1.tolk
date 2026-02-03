@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "./utils.tolk";
 
 /// Signature encoding (expected): 1 byte `v` || 32 bytes `r` || 32 bytes `s`.

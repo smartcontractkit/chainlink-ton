@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "./item_price.tact";
 import "./item_count.tact";
 import "./storage.tact";

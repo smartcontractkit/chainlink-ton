@@ -41,6 +41,11 @@ type FilterStore interface {
 	GetDistinctAddresses(ctx context.Context) ([]*address.Address, error)
 	// GetFiltersByAddress returns all filters for a specific address.
 	GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error)
+	// DeleteEmptyFilters removes filter rows that are marked is_deleted=true
+	// and have no remaining logs in the logs table.
+	// This is the final cleanup step after DeleteLogsForDeletedFilters has removed all logs.
+	// Returns number of filter rows deleted.
+	DeleteEmptyFilters(ctx context.Context) (int64, error)
 }
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
@@ -81,6 +86,23 @@ type LogStore interface {
 	// logs are stored. This is used for resuming processing from the last known state
 	// after a service restart.
 	GetHighestMCBlockSeqno(ctx context.Context) (seqno uint32, exists bool, err error)
+	// DeleteExpiredLogs removes logs that have passed their pre-computed expiration time.
+	// Uses the expires_at column (set at insert time as tx_timestamp + retention).
+	// Logs with expires_at = NULL (retention = 0, "keep forever") are never deleted.
+	// limit controls batch size per DELETE operation (use 0 for unlimited, not recommended).
+	// Returns total number of rows deleted across all batches.
+	DeleteExpiredLogs(ctx context.Context, limit int64) (int64, error)
+	// DeleteExcessLogs removes logs exceeding max_logs_kept for each filter.
+	// Uses tx_lt + msg_index ordering (descending) to keep newest logs.
+	// Only processes filters with max_logs_kept > 0 (0 = unlimited).
+	// limit controls batch size (use 0 for unlimited, not recommended).
+	// Returns number of rows deleted.
+	DeleteExcessLogs(ctx context.Context, limit int64) (int64, error)
+	// DeleteLogsForDeletedFilters removes logs for filters marked is_deleted=true.
+	// Uses batched deletion with LIMIT for safe removal without table locks.
+	// Note: Filter row cleanup is handled separately by FilterStore.DeleteEmptyFilters.
+	// Returns number of log rows deleted.
+	DeleteLogsForDeletedFilters(ctx context.Context, limit int64) (int64, error)
 }
 
 // RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)
