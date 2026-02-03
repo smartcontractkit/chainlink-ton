@@ -7,6 +7,7 @@ require github.com/hashicorp/go-plugin v1.7.0
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/TyphonHill/go-mermaid v1.0.0
+	github.com/block-vision/sui-go-sdk v1.1.4
 	github.com/ethereum/go-ethereum v1.16.8
 	github.com/gagliardetto/solana-go v1.13.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
