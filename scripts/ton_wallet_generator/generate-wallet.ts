@@ -1,7 +1,6 @@
 // generate-wallet.ts
 import { mnemonicNew, mnemonicToWalletKey } from "@ton/crypto";
-import { WalletContractV4, WalletContractV5R1, TonClient, Address } from "@ton/ton";
-import { getHttpEndpoint } from "@orbs-network/ton-access";
+import { WalletContractV4, WalletContractV5R1} from "@ton/ton";
 
 async function main() {
   const mnemonic = await mnemonicNew();
