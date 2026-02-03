@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -278,8 +279,8 @@ type UpdateTokenTransferFeeConfig struct {
 
 // UpdateTokenTransferFeeConfigs is the message type for updating token transfer fee configs.
 type UpdateTokenTransferFeeConfigs struct {
-	_       tlb.Magic        `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates *cell.Dictionary `tlb:"dict 64"`            // map<uint64, UpdateTokenTransferFeeConfig>
+	_       tlb.Magic                                       `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
+	Updates tlbe.Dict[uint64, UpdateTokenTransferFeeConfig] `tlb:"dict 64"`            // map<uint64, UpdateTokenTransferFeeConfig>
 }
 
 type UpdateDestChainConfig struct {
