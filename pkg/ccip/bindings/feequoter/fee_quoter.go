@@ -84,16 +84,15 @@ const (
 )
 
 type Storage struct {
-	ID                   uint32               `tlb:"## 32"`
-	Ownable              ownable2step.Storage `tlb:"."`
-	AllowedPriceUpdaters *cell.Dictionary     `tlb:"dict 267"`
-	MaxFeeJuelsPerMsg    *big.Int             `tlb:"## 96"`
-	LinkToken            *address.Address     `tlb:"addr"`
-	// TODO: Consider changing to uint32 for EVM compatibility. Currently uint64 on-chain.
-	TokenPriceStalenessThreshold uint64           `tlb:"## 64"`
-	UsdPerToken                  *cell.Dictionary `tlb:"dict 267"`
-	PremiumMultiplierWeiPerEth   *cell.Dictionary `tlb:"dict 267"`
-	DestChainConfigs             *cell.Dictionary `tlb:"dict 64"`
+	ID                           uint32               `tlb:"## 32"`
+	Ownable                      ownable2step.Storage `tlb:"."`
+	AllowedPriceUpdaters         *cell.Dictionary     `tlb:"dict 267"`
+	MaxFeeJuelsPerMsg            *big.Int             `tlb:"## 96"`
+	LinkToken                    *address.Address     `tlb:"addr"`
+	TokenPriceStalenessThreshold uint32               `tlb:"## 32"`
+	UsdPerToken                  *cell.Dictionary     `tlb:"dict 267"`
+	PremiumMultiplierWeiPerEth   *cell.Dictionary     `tlb:"dict 267"`
+	DestChainConfigs             *cell.Dictionary     `tlb:"dict 64"`
 }
 
 // DestChainConfigs represents the full on-chain DestChainConfig struct from the FeeQuoter contract.
@@ -308,10 +307,9 @@ var TLBs = tvm.MustNewTLBMap([]any{
 // binding types that supports FetchResult interface with rpc client
 
 type StaticConfig struct {
-	MaxFeeJuelsPerMsg *big.Int
-	LinkToken         *address.Address
-	// TODO: Consider changing to uint32 for EVM compatibility once on-chain is updated.
-	StalenessThreshold uint64
+	MaxFeeJuelsPerMsg  *big.Int
+	LinkToken          *address.Address
+	StalenessThreshold uint32
 }
 
 // Deprecated: Use GetStaticConfig getter instead.

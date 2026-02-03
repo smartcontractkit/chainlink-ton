@@ -197,7 +197,7 @@ var GetStaticConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[StaticConfig]{
 		return StaticConfig{
 			MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
 			LinkToken:          linkTokenAddress,
-			StalenessThreshold: tokenPriceStalenessThreshold.Uint64(),
+			StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()),
 		}, nil
 	}),
 })

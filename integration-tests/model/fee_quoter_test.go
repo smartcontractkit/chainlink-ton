@@ -48,7 +48,7 @@ func TestDecodeFeeQuoterData(t *testing.T) {
 		WithAllowedPriceUpdater(offRampAddress).
 		WithMaxFeeJuelsPerMsg(big.NewInt(1000)).
 		WithLinkToken(tvm.LinkTokenAddr).
-		WithTokenPriceStalenessThreshold(uint64(3600)).
+		WithTokenPriceStalenessThreshold(uint32(3600)).
 		// USDPerToken
 		WithUSDPerToken(tvm.TonTokenAddr, big.NewInt(1804194200000000000), mustTimestamp("2025-11-18T17:58:08Z")).
 		WithUSDPerToken(tvm.LinkTokenAddr, mustBigInt("13819996070000000000"), mustTimestamp("2025-11-18T17:58:08Z")).

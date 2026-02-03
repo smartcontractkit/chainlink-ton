@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -214,15 +213,10 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
-	// TODO: The on-chain stores tokenPriceStalenessThreshold as uint64, but ccipocr3.FeeQuoterStaticConfig
-	// expects uint32 for EVM compatibility. Consider changing on-chain to uint32.
-	if cfg.StalenessThreshold > math.MaxUint32 {
-		return ccipocr3.FeeQuoterStaticConfig{}, fmt.Errorf("staleness threshold %d overflows uint32", cfg.StalenessThreshold)
-	}
 	return ccipocr3.FeeQuoterStaticConfig{
 		MaxFeeJuelsPerMsg:  ccipocr3.NewBigInt(cfg.MaxFeeJuelsPerMsg),
 		LinkToken:          addrToBytes(cfg.LinkToken),
-		StalenessThreshold: uint32(cfg.StalenessThreshold),
+		StalenessThreshold: cfg.StalenessThreshold,
 	}, nil
 }
 
