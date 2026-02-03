@@ -10,9 +10,6 @@ replace (
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
-// TODO: remove on merge(TBD local package dependency management)
-replace github.com/smartcontractkit/chainlink-ton => ../
-
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/google/uuid v1.6.0
