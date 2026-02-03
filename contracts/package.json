@@ -14,7 +14,7 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "clean": "[ -d build ] && rm -rf build || true",
-    "build": "yarn clean && blueprint build --all",
+    "build": "yarn clean && blueprint build --all && cp contracts/deployable/Deployable.compiled.json build/Deployable.compiled.json",
     "test": "jest --verbose",
     "test-coverage": "COVERAGE=true jest",
     "generate-coverage-reports": "ts-node tests/coverage/scriptMergeCoverageIntoHtmlReports.ts",

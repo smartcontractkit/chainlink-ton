@@ -13,6 +13,7 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as of from '../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
@@ -279,7 +280,7 @@ async function deployOnRampInstance(
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
     executor: {
-      deployableCode: await compile('Deployable'),
+      deployableCode: await loadContractCode('Deployable'),
       executorCode: await compile('CCIPSendExecutor'),
     },
   }

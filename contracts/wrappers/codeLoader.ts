@@ -20,6 +20,9 @@ async function readContractCode(contractName: string): Promise<Cell> {
       console.log(`Compiled contract not found at '${filePath}', building from source...`)
       return compile(contractName)
     }
+    if (contractName === 'Deployable') {
+      throw new Error(`Failed to reading Deployable contract at '${filePath}': ${error}`)
+    }
     throw new Error(`Failed to read compiled contract ${contractName} at ${filePath}: ${error}`)
   }
 
@@ -46,6 +49,9 @@ async function readContractCode(contractName: string): Promise<Cell> {
 export function loadContractCode(contractName: string): Promise<Cell> {
   if (!codeCache.has(contractName)) {
     codeCache.set(contractName, readContractCode(contractName))
+  }
+  if(contractName === 'Deployable') {
+    console.log(codeCache.get(contractName))
   }
   return codeCache.get(contractName)!
 }
