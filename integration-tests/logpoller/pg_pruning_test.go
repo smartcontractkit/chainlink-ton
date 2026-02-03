@@ -11,7 +11,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -58,8 +57,8 @@ func createTestLogsForPruning(t *testing.T, addr *address.Address, filterID int6
 			TxLT:         uint64(1000 + i), //nolint:gosec // test code
 			MsgLT:        uint64(1000 + i), //nolint:gosec // test code
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + i)}, //nolint:gosec // test code
-			MCBlockSeqno: uint32(200 + i),                                                  //nolint:gosec // test code
+			Block:        testBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
+			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code
 			MsgIndex:     int64(i),
 		}
 
@@ -94,8 +93,8 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 			TxLT:         txLT,
 			MsgLT:        txLT,
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + i)}, //nolint:gosec // test code
-			MCBlockSeqno: uint32(200 + i),                                                  //nolint:gosec // test code
+			Block:        testBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
+			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code
 			MsgIndex:     0,
 		}
 	}
