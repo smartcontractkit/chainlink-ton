@@ -26,6 +26,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
 )
 
+// testBlockIDExt creates a valid BlockIDExt for testing with required hash fields
+func testBlockIDExt(seqNo uint32) *ton.BlockIDExt {
+	return &ton.BlockIDExt{
+		Workchain: 0,
+		Shard:     -1,
+		SeqNo:     seqNo,
+		RootHash:  make([]byte, 32),
+		FileHash:  make([]byte, 32),
+	}
+}
+
 // createTestLogs creates sample logs for testing with actual Counter events
 func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []models.Log {
 	t.Helper()
@@ -46,21 +57,17 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 			EndCell()
 
 		logs[i] = models.Log{
-			FilterID:    filterID,
-			ChainID:     "test-chain",
-			Address:     addr,
-			EventSig:    counter.TopicCountIncreased,
-			Data:        eventCell,
-			TxHash:      models.TxHash{byte(i + 1), 2, 3, 4, 5},
-			TxLT:        uint64(1000 + i), //nolint:gosec // test code with small values
-			MsgLT:       uint64(1000 + i), //nolint:gosec // test code with small values - same as TxLT for simplicity
-			TxTimestamp: time.Now().Add(time.Duration(i) * time.Minute),
-			Block: &ton.BlockIDExt{
-				Workchain: 0,
-				Shard:     -1,
-				SeqNo:     uint32(100 + i), //nolint:gosec // test code with small values
-			},
-			MCBlockSeqno: uint32(200 + i), //nolint:gosec // test code with small values
+			FilterID:     filterID,
+			ChainID:      "test-chain",
+			Address:      addr,
+			EventSig:     counter.TopicCountIncreased,
+			Data:         eventCell,
+			TxHash:       models.TxHash{byte(i + 1), 2, 3, 4, 5},
+			TxLT:         uint64(1000 + i), //nolint:gosec // test code with small values
+			MsgLT:        uint64(1000 + i), //nolint:gosec // test code with small values - same as TxLT for simplicity
+			TxTimestamp:  time.Now().Add(time.Duration(i) * time.Minute),
+			Block:        testBlockIDExt(uint32(100 + i)), //nolint:gosec // test code with small values
+			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code with small values
 			MsgIndex:     int64(i),
 		}
 	}
@@ -197,8 +204,8 @@ func TestPgLogStore(t *testing.T) {
 				TxLT:         uint64(5000 - i), //nolint:gosec // test code with small values
 				MsgLT:        uint64(5000 - i), //nolint:gosec // test code with small values
 				TxTimestamp:  sameTimestamp,
-				Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(500 + i)}, //nolint:gosec // test code
-				MCBlockSeqno: uint32(600 + i),                                                  //nolint:gosec // test code
+				Block:        testBlockIDExt(uint32(500 + i)), //nolint:gosec // test code
+				MCBlockSeqno: uint32(600 + i),                 //nolint:gosec // test code
 				MsgIndex:     int64(i),
 			}
 		}
@@ -354,7 +361,7 @@ func TestGetLatestBlock(t *testing.T) {
 			TxLT:         uint64(1000 + idx), //nolint:gosec // test code
 			MsgLT:        uint64(1000 + idx), //nolint:gosec // test code
 			TxTimestamp:  time.Now(),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + idx)}, //nolint:gosec // test code
+			Block:        testBlockIDExt(uint32(100 + idx)), //nolint:gosec // test code
 			MCBlockSeqno: mcSeqno,
 			MsgIndex:     int64(idx),
 		}
@@ -449,8 +456,8 @@ func TestMultiFilterDeduplication(t *testing.T) {
 				TxLT:         uint64(1000 + eventIdx), //nolint:gosec // test code
 				MsgLT:        uint64(1000 + eventIdx), //nolint:gosec // test code
 				TxTimestamp:  baseTime.Add(time.Duration(eventIdx) * time.Minute),
-				Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: uint32(100 + eventIdx)}, //nolint:gosec // test code
-				MCBlockSeqno: uint32(200 + eventIdx),                                                  //nolint:gosec // test code
+				Block:        testBlockIDExt(uint32(100 + eventIdx)), //nolint:gosec // test code
+				MCBlockSeqno: uint32(200 + eventIdx),                 //nolint:gosec // test code
 				MsgIndex:     int64(eventIdx),
 			}
 			inserted, ierr := logStore.SaveLogs(ctx, []models.Log{log}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
