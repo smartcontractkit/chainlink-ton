@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "../../deployable/types"
 
 const DeployableNamespace_CCIPSendExecutor: Namespace = 0;

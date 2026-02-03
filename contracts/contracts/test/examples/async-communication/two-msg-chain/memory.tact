@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /// Memory contract (two-msg-chain example)
 message(1) MemorySetValue {
     queryId: Int as uint64; // Standard query_id field

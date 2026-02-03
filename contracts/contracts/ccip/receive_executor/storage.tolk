@@ -1,5 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "../offramp/types"
-import "../common/types"
 import "types"
 
 struct ReceiveExecutor_Storage {

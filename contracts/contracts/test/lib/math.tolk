@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "../../lib/math.tolk"
 
 // Test wrapper for math library functions

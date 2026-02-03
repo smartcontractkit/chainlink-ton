@@ -62,7 +62,10 @@
 
       meta = with pkgs.lib; {
         inherit (package-info) description;
-        license = licenses.mit;
+
+        # TODO: update to MIT after March 12, 2029 as per LICENSE file
+        license = licenses.bsl11;
+
         # TODO: update to contracts project-specific tag
         changelog = "https://github.com/smartcontractkit/chainlink-ton/releases/tag/v${version}";
       };

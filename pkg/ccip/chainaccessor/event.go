@@ -22,6 +22,23 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
+// CCIP log retention defaults
+const (
+	// defaultCCIPLogsRetention defines the duration for which logs critical for Commit/Exec plugins processing are retained.
+	// Although Exec relies on permissionlessExecThreshold which is lower than 24hours for picking eligible CommitRoots,
+	// Commit still can reach to older logs because it filters them by sequence numbers. For instance, in case of RMN curse on chain,
+	// we might have logs waiting in OnRamp to be committed first. When outage takes days we still would
+	// be able to bring back processing without replaying any logs from chain. You can read that param as
+	// "how long CCIP can be down and still be able to process all the messages after getting back to life".
+	// Breaching this threshold would require replaying chain using LogPoller from the beginning of the outage.
+	// Using same default retention as v1.5 https://github.com/smartcontractkit/ccip/pull/530/files
+	defaultCCIPLogsRetention = 30 * 24 * time.Hour // 30 days
+
+	// defaultCCIPMaxLogsKept is the maximum number of logs to retain per filter.
+	// 0 = unlimited (no count-based pruning).
+	defaultCCIPMaxLogsKept = int64(0)
+)
+
 // bindContractEvent binds contract events to the logpoller for monitoring blockchain events.
 // This operation is idempotent - if the same address exists, it performs no operation;
 // if the address is changed, it updates to the new address, overwriting the existing one;
@@ -60,10 +77,12 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 // registerFilter registers a filter for the given event if it doesn't already exist.
 func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *address.Address) error {
 	filter := lptypes.Filter{
-		Name:     name,
-		Address:  address,
-		MsgType:  tlb.MsgTypeExternalOut,
-		EventSig: hash.CRC32(name),
+		Name:         name,
+		Address:      address,
+		MsgType:      tlb.MsgTypeExternalOut,
+		EventSig:     hash.CRC32(name),
+		LogRetention: defaultCCIPLogsRetention,
+		MaxLogsKept:  defaultCCIPMaxLogsKept, // 0 = unlimited
 	}
 
 	if _, err := a.logPoller.RegisterFilter(ctx, filter); err != nil {
