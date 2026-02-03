@@ -45,9 +45,6 @@ type Execute struct {
 	Config     *cell.Cell  `tlb:"^"`
 }
 
-// MessageValidated and MessageValidationFailed are reused from the feequoter package
-// to ensure schema consistency with the on-chain FeeQuoter contract responses.
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	Execute{},
 }).MustWithStorageType(InitialData{})
