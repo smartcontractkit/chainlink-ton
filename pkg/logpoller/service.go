@@ -80,7 +80,12 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) (Service, error) {
+func NewService(
+	lggr logger.Logger,
+	chainID string,
+	clientProvider func(context.Context) (ton.APIClientWrapped, error),
+	opts *ServiceOptions,
+) (Service, error) {
 	// init metrics
 	metrics, err := newMetrics(chainID)
 	if err != nil {
@@ -290,7 +295,12 @@ func (lp *service) run(ctx context.Context) (err error) {
 }
 
 // processBlockRange handles scanning a range of blocks for transactions
-func (lp *service) processBlockRange(ctx context.Context, blockRange *models.BlockRange, addresses []*address.Address, filterIndex models.FilterIndex) error {
+func (lp *service) processBlockRange(
+	ctx context.Context,
+	blockRange *models.BlockRange,
+	addresses []*address.Address,
+	filterIndex models.FilterIndex,
+) error {
 	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
@@ -324,7 +334,11 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 // between prevBlock(exclusive) and toBlock(inclusive).
 // Returns parallel slices of transactions and their corresponding blocks.
 // It resolves masterchain block seqno for each transaction inline before outputting(lru cached).
-func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (<-chan models.Tx, <-chan error) {
+func (lp *service) loadTxsForAddresses(
+	ctx context.Context,
+	blockRange *models.BlockRange,
+	srcAddrs []*address.Address,
+) (<-chan models.Tx, <-chan error) {
 	rawTxsCh := make(chan models.Tx, lp.pageSize)
 	txsOut := make(chan models.Tx, lp.pageSize)
 	errsOut := make(chan error, len(srcAddrs))
