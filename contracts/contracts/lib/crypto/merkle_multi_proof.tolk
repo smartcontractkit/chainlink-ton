@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "../utils.tolk"
 
 // getFacilityId(stringCrc32(com.chainlink.ton.lib.crypto.MerkleMultiProof))

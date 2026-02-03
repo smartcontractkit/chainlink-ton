@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
@@ -159,7 +160,6 @@ fun Iterator<T>.countBytesSafe(self): (int, int) {
     }
 }
 
-
 @inline
 fun Iterator<T>.size(self, elemSize: int): int {
     return self.countBytes() / elemSize
@@ -239,7 +239,6 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple? {
     } ;
     return list;
 }
-
 
 // This type works as a wrapper for RemainingBitsAndRefs that implements
 // automatic serialization/deserialization. It determines whether to store the

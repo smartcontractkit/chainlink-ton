@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/storage.tolk
 // SnakeString describes a (potentially long) string inside a cell;
 // short strings are stored as-is, like "my-picture.png";

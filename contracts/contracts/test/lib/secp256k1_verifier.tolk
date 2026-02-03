@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "./../../lib/secp256k1.tolk";
 
 // Test wrapper for secp256k1 verifier functions
