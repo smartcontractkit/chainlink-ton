@@ -63,54 +63,61 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 
 	msg := chainReport.Messages[0]
 	var rampMessage ocr.Any2TVMRampMessage
-	tokenAmounts := make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
-	for _, tokenAmount := range msg.TokenAmounts {
-		if tokenAmount.Amount.IsEmpty() {
-			return nil, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
+	// IMPORTANT: tokenAmounts must be nil (not empty slice) when there are no tokens.
+	// This ensures correct serialization with tlb:"maybe ^" tag, which treats nil as
+	// Maybe 0 (absent) vs empty slice as Maybe 1 + empty cell (present but empty).
+	// The hash computed by msgHasher uses nil, so we must match that here.
+	var tokenAmounts []ocr.Any2TVMTokenTransfer
+	if len(msg.TokenAmounts) != 0 {
+		tokenAmounts = make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
+		for _, tokenAmount := range msg.TokenAmounts {
+			if tokenAmount.Amount.IsEmpty() {
+				return nil, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
+			}
+
+			if tokenAmount.Amount.Sign() < 0 {
+				return nil, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
+			}
+
+			if len(tokenAmount.DestTokenAddress) != 36 {
+				return nil, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
+			}
+
+			destExecDataDecodedMap, err := e.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, chainReport.SourceChainSelector)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode dest exec data: %w", err)
+			}
+
+			destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
+			if err != nil {
+				return nil, fmt.Errorf("extract dest gas amount: %w", err)
+			}
+
+			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
+
+			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
+			if err != nil {
+				return nil, fmt.Errorf("pack extra data: %w", err)
+			}
+
+			destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
+			if err != nil {
+				return nil, fmt.Errorf("convert dest token address: %w", err)
+			}
+
+			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
+			}
+
+			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
+				SourcePoolAddress: poolAddrCell,
+				ExtraData:         extraData,
+				DestPoolAddress:   DestPoolTonAddr,
+				Amount:            tokenAmount.Amount.Int,
+				DestGasAmount:     destGasAmount,
+			})
 		}
-
-		if tokenAmount.Amount.Sign() < 0 {
-			return nil, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
-		}
-
-		if len(tokenAmount.DestTokenAddress) != 36 {
-			return nil, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
-		}
-
-		destExecDataDecodedMap, err := e.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, chainReport.SourceChainSelector)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode dest exec data: %w", err)
-		}
-
-		destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
-		if err != nil {
-			return nil, fmt.Errorf("extract dest gas amount: %w", err)
-		}
-
-		poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
-
-		extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-		if err != nil {
-			return nil, fmt.Errorf("pack extra data: %w", err)
-		}
-
-		destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
-		if err != nil {
-			return nil, fmt.Errorf("convert dest token address: %w", err)
-		}
-
-		DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
-		}
-
-		tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
-			SourcePoolAddress: poolAddrCell,
-			ExtraData:         extraData,
-			DestPoolAddress:   DestPoolTonAddr,
-			Amount:            tokenAmount.Amount.Int,
-			DestGasAmount:     destGasAmount,
-		})
 	}
 
 	tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)
@@ -222,7 +229,10 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		messages := make([]ccipocr3.Message, 0, 1)
 		msg := tonReport.Message
 
-		tokenAmounts := make([]ccipocr3.RampTokenAmount, 0, len(msg.TokenAmounts))
+		// IMPORTANT: tokenAmounts must be nil (not empty slice) when there are no tokens.
+		// This ensures the decoded message produces the same hash as the original when re-hashed.
+		// nil serializes as Maybe 0 (absent), empty slice serializes as Maybe 1 + empty cell ref.
+		var tokenAmounts []ccipocr3.RampTokenAmount
 		for _, tokenAmount := range msg.TokenAmounts {
 			var extraData common.SnakeBytes
 			err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())

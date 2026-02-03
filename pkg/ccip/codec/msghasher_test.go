@@ -108,16 +108,15 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		assert.Contains(t, err.Error(), "error convert receiver address")
 	})
 
-	// TODO: Re-enable when gasLimit is no longer hardcoded in the msgHasher and executecodec
-	// t.Run("message without extra args", func(t *testing.T) {
-	//	 msg := randomTONMessage(t, 5009297550715157269)
-	//	 msg.ExtraArgs = nil
-	//
-	//	 hash, err := hasher.Hash(ctx, msg)
-	//	 require.Error(t, err)
-	//	 assert.Contains(t, err.Error(), "cannot hash without extra args")
-	//	 assert.NotEqual(t, [32]byte{}, hash)
-	// })
+	t.Run("message with empty ExtraArgs", func(t *testing.T) {
+		msg := randomTONMessage(t, 5009297550715157269)
+		msg.ExtraArgs = nil
+
+		hash, err := hasher.Hash(ctx, msg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot hash without extra args")
+		assert.NotEqual(t, [32]byte{}, hash)
+	})
 
 	t.Run("message without token amounts", func(t *testing.T) {
 		msg := randomTONMessage(t, 5009297550715157269)
@@ -159,6 +158,92 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 	})
 }
 
+// TestMessageHasherV1_ExecuteCodecConsistency verifies that TokenAmounts is correctly
+// serialized as nil (Maybe 0) rather than empty slice (Maybe 1) when there are no tokens.
+// This is critical because the hash depends on how TokenAmounts is serialized.
+func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
+	ctx := context.Background()
+	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
+	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
+		chainsel.FamilyEVM: mockExtraDataCodec,
+	})
+
+	mockExtraDataCodec.On("DecodeDestExecDataToMap", mock.Anything).Return(map[string]any{
+		"destgasamount": uint32(1000),
+	}, nil)
+	mockExtraDataCodec.On("DecodeExtraArgsToMap", mock.Anything).Return(map[string]any{
+		"gasLimit": big.NewInt(100_000_000),
+	}, nil)
+
+	executeCodec := NewExecutePluginCodecV1(edc)
+
+	t.Run("tokenAmounts nil preserved through encode/decode", func(t *testing.T) {
+		// Create a message with NO token amounts
+		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+		require.NoError(t, err)
+
+		rawTonAddr := ToRawAddr(tonAddr)
+		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
+		require.NoError(t, err)
+
+		evmOnrampBytes, err := hex.DecodeString("111111c891c5d4e6ad68064ae45d43146d4f9f3a")
+		require.NoError(t, err)
+
+		var messageID [32]byte
+		binary.BigEndian.PutUint64(messageID[24:], 1)
+
+		// Message with NO token amounts - this MUST remain nil through encode/decode
+		msg := ccipocr3.Message{
+			Header: ccipocr3.RampMessageHeader{
+				MessageID:           messageID,
+				SourceChainSelector: ccipocr3.ChainSelector(909606746561742123),
+				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094),
+				SequenceNumber:      ccipocr3.SeqNum(1),
+				Nonce:               0,
+				OnRamp:              evmOnrampBytes,
+			},
+			Sender:       ccipocr3.UnknownAddress(evmSenderBytes),
+			Data:         []byte{},
+			Receiver:     rawTonAddr[:],
+			ExtraArgs:    []byte{0x2},
+			TokenAmounts: nil, // MUST stay nil, not become empty slice
+		}
+
+		// Encode the message
+		report := ccipocr3.ExecutePluginReport{
+			ChainReports: []ccipocr3.ExecutePluginReportSingleChain{
+				{
+					SourceChainSelector: msg.Header.SourceChainSelector,
+					Messages:            []ccipocr3.Message{msg},
+					OffchainTokenData:   [][][]byte{{}},
+					Proofs:              []ccipocr3.Bytes32{},
+					ProofFlagBits:       ccipocr3.BigInt{Int: big.NewInt(0)},
+				},
+			},
+		}
+
+		encoded, err := executeCodec.Encode(ctx, report)
+		require.NoError(t, err)
+
+		// Decode the message
+		decoded, err := executeCodec.Decode(ctx, encoded)
+		require.NoError(t, err)
+
+		decodedMsg := decoded.ChainReports[0].Messages[0]
+
+		// CRITICAL: TokenAmounts must be nil after decode, not an empty slice!
+		// If it's an empty slice instead of nil, the hash will be different because:
+		// - nil serializes as Maybe 0 (1 bit = 0)
+		// - empty slice serializes as Maybe 1 + empty cell reference
+		t.Logf("Original msg.TokenAmounts == nil: %v", msg.TokenAmounts == nil)
+		t.Logf("Decoded msg.TokenAmounts == nil: %v", decodedMsg.TokenAmounts == nil)
+
+		require.Nil(t, decodedMsg.TokenAmounts,
+			"TokenAmounts should be nil after decode, not an empty slice. "+
+				"This is critical for hash consistency: nil→Maybe 0, empty slice→Maybe 1+ref")
+	})
+}
+
 func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 	// Right now the hash from ts and gobinding Any2TVMRamp message generates different msg hash. Need to fix it before running this test
 	ctx := context.Background()
@@ -194,6 +279,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		var messageID [32]byte
 		binary.BigEndian.PutUint64(messageID[24:], 1) // This sets the last 8 bytes to 1
 
+		ta := make([]ccipocr3.RampTokenAmount, 0)
 		// Create exact same message as TypeScript test
 		msg := ccipocr3.Message{
 			Header: ccipocr3.RampMessageHeader{
@@ -208,7 +294,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 			Data:         []byte{}, // empty cell data
 			Receiver:     rawTonAddr[:],
 			ExtraArgs:    []byte{0x2}, // will be populated by mock
-			TokenAmounts: nil,         // no token amounts
+			TokenAmounts: ta,          // no token amounts
 		}
 
 		// Set messageID to 1
