@@ -33,22 +33,30 @@ func NewFilterStore(chainID string, orm *DSORM, lggr logger.Logger) logpoller.Fi
 // If a filter with the same name already exists (and not deleted), it updates the filter fields.
 // This ensures idempotent behavior - multiple calls with same filter won't fail.
 func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) (int64, error) {
+	// Validate log_retention configuration
+	if filter.LogRetention < 0 {
+		return 0, fmt.Errorf("log_retention cannot be negative: %v", filter.LogRetention)
+	}
+	if filter.MaxLogsKept < 0 {
+		return 0, fmt.Errorf("max_logs_kept cannot be negative: %d", filter.MaxLogsKept)
+	}
+
 	// convert application-level type to database-level type
 	filterModel := filterModel{}
 	dbF := filterModel.FromFilter(filter)
 	dbF.ChainID = s.chainID
 
-	// TODO: do we need in-memory cache index for the filters? Solana has one, but mostly for decoder
-
 	// Use INSERT ... ON CONFLICT to handle both new and existing filters
 	// This matches Solana's behavior and ensures idempotent filter registration
-	query := `INSERT INTO ton.log_poller_filters (chain_id, name, address, msg_type, event_sig, starting_seq_no)
-		VALUES (:chain_id, :name, :address, :msg_type, :event_sig, :starting_seq_no)
+	query := `INSERT INTO ton.log_poller_filters (chain_id, name, address, msg_type, event_sig, starting_seq_no, log_retention, max_logs_kept)
+		VALUES (:chain_id, :name, :address, :msg_type, :event_sig, :starting_seq_no, :log_retention, :max_logs_kept)
 		ON CONFLICT (chain_id, name) WHERE NOT is_deleted DO UPDATE SET
 			address = EXCLUDED.address,
 			msg_type = EXCLUDED.msg_type,
 			event_sig = EXCLUDED.event_sig,
-			starting_seq_no = EXCLUDED.starting_seq_no
+			starting_seq_no = EXCLUDED.starting_seq_no,
+			log_retention = EXCLUDED.log_retention,
+			max_logs_kept = EXCLUDED.max_logs_kept
 		RETURNING id
 	`
 	var id int64
@@ -125,8 +133,8 @@ func (s *filterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Addr
 
 // GetFiltersByAddress returns filters for a specific address and message type
 func (s *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error) {
-	query := `SELECT id, chain_id,name, address, msg_type, event_sig, starting_seq_no, created_at 
-		FROM ton.log_poller_filters 
+	query := `SELECT id, chain_id, name, address, msg_type, event_sig, starting_seq_no, log_retention, max_logs_kept, created_at
+		FROM ton.log_poller_filters
 		WHERE chain_id = :chain_id AND address = :address AND is_deleted = false
 	`
 	rawAddr := codec.ToRawAddr(addr)
@@ -149,4 +157,30 @@ func (s *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Add
 	}
 
 	return filters, nil
+}
+
+// DeleteEmptyFilters removes filter rows that are marked is_deleted=true
+// and have no remaining logs in the logs table.
+// This is the final cleanup step after LogStore.DeleteLogsForDeletedFilters has removed all logs.
+func (s *filterStore) DeleteEmptyFilters(ctx context.Context) (int64, error) {
+	query := `
+	DELETE FROM ton.log_poller_filters
+	WHERE chain_id = :chain_id
+	  AND is_deleted = true
+	  AND id NOT IN (
+	      SELECT DISTINCT filter_id
+	      FROM ton.log_poller_logs
+	      WHERE chain_id = :chain_id
+	  )`
+
+	filtersDeleted, err := s.orm.NamedExecContext(ctx, query, map[string]any{"chain_id": s.chainID})
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete empty filters: %w", err)
+	}
+
+	if filtersDeleted > 0 {
+		s.lggr.Infow("deleted empty filters", "count", filtersDeleted)
+	}
+
+	return filtersDeleted, nil
 }

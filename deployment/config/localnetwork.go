@@ -8,7 +8,7 @@ import (
 
 // TON Local Network Configuration
 //
-// This package centralizes the TON local network (MyLocalTon) configuration used for testing.
+// This package centralizes the TON local network (MyLocalTon-docker) configuration used for testing.
 // The versions here must be compatible with the current CCIP contract versions deployed in this repository.
 //
 // When to Update:
@@ -23,7 +23,7 @@ func LocalNetworkConfig(once *sync.Once) cldf_provider.CTFChainProviderConfig {
 		Once: once,
 		// LocalNetworkImage is the TON local network Docker image version compatible with current contracts.
 		// Source: https://github.com/neodix42/mylocalton-docker
-		Image: "ghcr.io/neodix42/mylocalton-docker:v3.96",
+		Image: "ghcr.io/neodix42/mylocalton-docker:v3.98",
 		CustomEnv: map[string]string{
 			"VERSION_CAPABILITIES":        "12",  // This controls which TVM features are enabled in the local network.
 			"NEXT_BLOCK_GENERATION_DELAY": "0.5", // This is the recommended block generation delay for faster testing.

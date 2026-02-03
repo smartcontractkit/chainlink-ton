@@ -34,6 +34,9 @@ PollPeriod = '10s'
 PageSize = 50
 LogPollerStartingLookback = '1h'
 BlockTime = '1200ms'
+PruningInterval = '5m'
+PruningBatchSize = 500
+PruningStartDelay = '2m'
 
 [ContractTransmitter]
 CommitPriceUpdateOnlyCostTON = 0.08
@@ -66,6 +69,9 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, 10*time.Second, cfg.LogPoller.PollPeriod.Duration())
 		assert.Equal(t, 1*time.Hour, cfg.LogPoller.LogPollerStartingLookback.Duration())
 		assert.Equal(t, 1200*time.Millisecond, cfg.LogPoller.BlockTime.Duration())
+		assert.Equal(t, 5*time.Minute, cfg.LogPoller.PruningInterval.Duration())
+		assert.Equal(t, int64(500), cfg.LogPoller.PruningBatchSize)
+		assert.Equal(t, 2*time.Minute, cfg.LogPoller.PruningStartDelay.Duration())
 
 		require.NotNil(t, cfg.ContractTransmitter)
 		assert.InEpsilon(t, 0.08, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
@@ -104,6 +110,9 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, logpoller.DefaultConfigSet.PageSize, cfg.LogPoller.PageSize)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningInterval, cfg.LogPoller.PruningInterval)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningBatchSize, cfg.LogPoller.PruningBatchSize)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningStartDelay, cfg.LogPoller.PruningStartDelay)
 
 		require.NotNil(t, cfg.ContractTransmitter)
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceUpdateOnlyCostTON, cfg.ContractTransmitter.CommitPriceUpdateOnlyCostTON, 0)
@@ -149,6 +158,9 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningInterval, cfg.LogPoller.PruningInterval)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningBatchSize, cfg.LogPoller.PruningBatchSize)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningStartDelay, cfg.LogPoller.PruningStartDelay)
 
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
 		assert.InEpsilon(t, ocr.DefaultConfigSet.ExecuteCostTON, cfg.ContractTransmitter.ExecuteCostTON, 0)
@@ -189,6 +201,9 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, logpoller.DefaultConfigSet.PageSize, cfg.LogPoller.PageSize)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
 		assert.Equal(t, logpoller.DefaultConfigSet.BlockTime, cfg.LogPoller.BlockTime)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningInterval, cfg.LogPoller.PruningInterval)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningBatchSize, cfg.LogPoller.PruningBatchSize)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningStartDelay, cfg.LogPoller.PruningStartDelay)
 
 		// Verify all ContractTransmitter fields got defaults
 		require.NotNil(t, cfg.ContractTransmitter)
@@ -241,6 +256,9 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningInterval, cfg.LogPoller.PruningInterval)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningBatchSize, cfg.LogPoller.PruningBatchSize)
+		assert.Equal(t, logpoller.DefaultConfigSet.PruningStartDelay, cfg.LogPoller.PruningStartDelay)
 
 		assert.InEpsilon(t, ocr.DefaultConfigSet.CommitPriceAndRootCostTON, cfg.ContractTransmitter.CommitPriceAndRootCostTON, 0)
 
