@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,6 +65,101 @@ func TestSQLFilterStore(t *testing.T) {
 		assert.Equal(t, filter.Name, filters[0].Name)
 		assert.Equal(t, filter.Address.String(), filters[0].Address.String())
 		assert.Equal(t, filter.EventSig, filters[0].EventSig)
+	})
+
+	t.Run("RegisterFilter with retention fields", func(t *testing.T) {
+		retentionFilter := models.Filter{
+			Name:          "retention-filter",
+			Address:       testAddr,
+			MsgType:       tlb.MsgTypeInternal,
+			EventSig:      counter.TopicCountIncreased,
+			StartingSeqNo: 100,
+			LogRetention:  24 * time.Hour, // 24 hours
+			MaxLogsKept:   10000,          // 10k logs
+		}
+
+		filterID, err := filterStore.RegisterFilter(ctx, retentionFilter)
+		require.NoError(t, err)
+		require.Positive(t, filterID)
+
+		// Verify fields persisted correctly
+		filters, err := filterStore.GetFiltersByAddress(ctx, testAddr)
+		require.NoError(t, err)
+
+		// Find our filter (may have existing test-filter)
+		var found *models.Filter
+		for i := range filters {
+			if filters[i].Name == "retention-filter" {
+				found = &filters[i]
+				break
+			}
+		}
+		require.NotNil(t, found, "retention-filter not found")
+		require.Equal(t, 24*time.Hour, found.LogRetention)
+		require.Equal(t, int64(10000), found.MaxLogsKept)
+	})
+
+	t.Run("RegisterFilter with zero retention (use default)", func(t *testing.T) {
+		defaultFilter := models.Filter{
+			Name:          "default-retention-filter",
+			Address:       testAddr,
+			MsgType:       tlb.MsgTypeInternal,
+			EventSig:      counter.TopicCountIncreased,
+			StartingSeqNo: 100,
+			LogRetention:  0, // 0 = keep forever
+			MaxLogsKept:   0, // 0 = unlimited
+		}
+
+		filterID, err := filterStore.RegisterFilter(ctx, defaultFilter)
+		require.NoError(t, err)
+		require.Positive(t, filterID)
+
+		// Verify zero values stored correctly
+		filters, err := filterStore.GetFiltersByAddress(ctx, testAddr)
+		require.NoError(t, err)
+
+		var found *models.Filter
+		for i := range filters {
+			if filters[i].Name == "default-retention-filter" {
+				found = &filters[i]
+				break
+			}
+		}
+		require.NotNil(t, found, "default-retention-filter not found")
+		require.Equal(t, time.Duration(0), found.LogRetention)
+		require.Equal(t, int64(0), found.MaxLogsKept)
+	})
+
+	t.Run("RegisterFilter rejects negative retention", func(t *testing.T) {
+		negativeFilter := models.Filter{
+			Name:          "invalid-negative-retention",
+			Address:       testAddr,
+			MsgType:       tlb.MsgTypeInternal,
+			EventSig:      counter.TopicCountIncreased,
+			StartingSeqNo: 100,
+			LogRetention:  -1 * time.Hour, // Invalid
+			MaxLogsKept:   10000,
+		}
+
+		_, err := filterStore.RegisterFilter(ctx, negativeFilter)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot be negative")
+	})
+
+	t.Run("RegisterFilter rejects negative max_logs_kept", func(t *testing.T) {
+		negativeFilter := models.Filter{
+			Name:          "invalid-negative-maxlogs",
+			Address:       testAddr,
+			MsgType:       tlb.MsgTypeInternal,
+			EventSig:      counter.TopicCountIncreased,
+			StartingSeqNo: 100,
+			LogRetention:  24 * time.Hour,
+			MaxLogsKept:   -1, // Invalid
+		}
+
+		_, err := filterStore.RegisterFilter(ctx, negativeFilter)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot be negative")
 	})
 
 	t.Run("UnregisterFilter", func(t *testing.T) {

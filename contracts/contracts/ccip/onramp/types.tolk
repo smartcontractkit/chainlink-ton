@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
 import "../../lib/utils"
 import "../ccipsend_executor/types"
@@ -32,7 +33,6 @@ struct OnRampUpdateDestChainConfig {
 struct ExecutorDeployment {
     deployableCode: cell;
     executorCode: cell; // code for SendExecutor
-    currentID: CCIPSendExecutor_ID;
 }
 
 @inline

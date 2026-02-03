@@ -70,6 +70,8 @@ type Filter struct {
 	MsgType       tlb.MsgType      // Message type to determine how to index
 	EventSig      uint32           // EventSig is a identifier for the event log(topic in external out messages, opcode in internal messages).
 	StartingSeqNo uint32           // StartingSeqNo defines the starting sequence number for log polling.
+	LogRetention  time.Duration    // LogRetention period for logs. 0 = keep forever.
+	MaxLogsKept   int64            // Maximum logs to retain per filter. 0 = unlimited.
 }
 
 type Log struct {
@@ -86,7 +88,7 @@ type Log struct {
 	MCBlockSeqno uint32           // Masterchain block sequence number
 	MsgLT        uint64           // Message logical time for ordering
 	MsgIndex     int64            // Index of the message within the transaction (0, 1, 2, ...)
-	Error        error            // Optional error associated with the log entry.
+	ExpiresAt    *time.Time       // Pre-computed expiration time (tx_timestamp + retention). nil = no expiry.
 }
 
 // TypedLog represents a log entry with its parsed data.
@@ -135,8 +137,10 @@ func (l Log) Validate(expectedChainID string) error {
 	return nil
 }
 
-// FilterIndex maps filter key strings to matching filter IDs for efficient O(1) lookup
-type FilterIndex map[string][]int64
+// FilterIndex maps filter key strings to matching Filter objects for efficient O(1) lookup.
+// This pattern matches Solana's filtersByID approach, enabling direct property access
+// (e.g., filter.LogRetention) without a separate retention map.
+type FilterIndex map[string][]*Filter
 
 // FilterKey uniquely identifies a filter by address, message type, and event signature
 type FilterKey struct {

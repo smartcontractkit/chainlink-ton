@@ -173,7 +173,7 @@ describe('RBACTimelock', () => {
       })
       .asCell()
 
-    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.3'), body)
+    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.2'), body)
 
     expect(r.transactions).toHaveTransaction({
       from: deployer.address,

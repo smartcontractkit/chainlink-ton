@@ -125,10 +125,6 @@ func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", len(c), CrossChainAddressMaxLength)
 	}
 
-	if addrLength == 0 {
-		return nil, errors.New("crosschain address is empty")
-	}
-
 	builder := cell.BeginCell()
 	err := builder.StoreSlice([]byte{uint8(addrLength)}, 8) // store the first byte as length
 	if err != nil {
@@ -583,7 +579,7 @@ func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
 func NewDummyCell() (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	payload := []byte("place holder")
-	if err := builder.StoreSlice(payload, uint(len(payload))); err != nil {
+	if err := builder.StoreSlice(payload, uint(len(payload)*8)); err != nil { //nolint:gosec // G115: payload is a small constant, no overflow possible
 		return nil, err
 	}
 	return builder.EndCell(), nil

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "@stdlib/common.tolk"
 
 // Jetton wallet utilities for Tolk
