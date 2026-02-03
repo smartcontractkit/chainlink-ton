@@ -20,11 +20,11 @@ var (
 	ErrNegativePackedPrice = errors.New("packed price cannot be negative")
 )
 
-// maxUint112 is 2^112 - 1, can also be used as a mask for lower 112 bits sets to 1
-var maxUint112 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 112), big.NewInt(1))
-
-// maxUint224 is 2^224 - 1
-var maxUint224 = new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 224), big.NewInt(1))
+// maxUint returns 2^bits - 1, which is the maximum value for an unsigned integer of the given bit length.
+// Can also be used as a bit mask with all bits set to 1.
+func maxUint(bits uint) *big.Int {
+	return new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits), big.NewInt(1))
+}
 
 // PackGasPrice packs execution and data availability gas prices into a single 224-bit value.
 // The packed format is: (dataAvailabilityGasPrice << 112) | executionGasPrice
@@ -43,10 +43,10 @@ func PackGasPrice(executionGasPrice, dataAvailabilityGasPrice *big.Int) (*big.In
 	if executionGasPrice.Sign() < 0 || dataAvailabilityGasPrice.Sign() < 0 {
 		return nil, ErrNegativeGasPrice
 	}
-	if executionGasPrice.Cmp(maxUint112) > 0 {
+	if executionGasPrice.Cmp(maxUint(112)) > 0 {
 		return nil, ErrGasPriceExceeds112Bits
 	}
-	if dataAvailabilityGasPrice.Cmp(maxUint112) > 0 {
+	if dataAvailabilityGasPrice.Cmp(maxUint(112)) > 0 {
 		return nil, ErrGasPriceExceeds112Bits
 	}
 
@@ -74,11 +74,11 @@ func UnpackGasPrice(packedPrice *big.Int) (executionGasPrice, dataAvailabilityGa
 	if packedPrice.Sign() < 0 {
 		return nil, nil, ErrNegativePackedPrice
 	}
-	if packedPrice.Cmp(maxUint224) > 0 {
+	if packedPrice.Cmp(maxUint(224)) > 0 {
 		return nil, nil, ErrPackedPriceExceeds224Bits
 	}
 
-	executionGasPrice = new(big.Int).And(packedPrice, maxUint112)
+	executionGasPrice = new(big.Int).And(packedPrice, maxUint(112))
 	dataAvailabilityGasPrice = new(big.Int).Rsh(packedPrice, 112)
 
 	return executionGasPrice, dataAvailabilityGasPrice, nil
