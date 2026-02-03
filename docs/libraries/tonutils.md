@@ -64,12 +64,14 @@ Sends a message to the specified address and waits for the entire trace of outgo
 ### `SubscribeToMessages`
 
 ```go
-func (ac *ApiClient) SubscribeToMessages(address address.Address, lt uint64) chan *ReceivedMessage
+func (ac *ApiClient) SubscribeToMessages(ctx context.Context, address address.Address, lt uint64) chan *ReceivedMessage
 ```
 
 **Description:**
 
 Returns a channel with all incoming messages for the specified address that occurred after the given Lamport Time (LT). Works retroactively, providing both historical and new messages.
+
+The caller must cancel the provided context when done reading from the channel to stop the subscription and prevent goroutine leaks.
 
 ### `MapToReceivedMessage`
 

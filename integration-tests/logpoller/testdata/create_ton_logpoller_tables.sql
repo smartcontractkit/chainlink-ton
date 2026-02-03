@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_filters (
 
   starting_seq_no BIGINT NOT NULL,
 
+  log_retention BIGINT NOT NULL DEFAULT 0,        -- nanoseconds (Go time.Duration). 0 = keep forever
+  max_logs_kept BIGINT NOT NULL DEFAULT 0,    -- max logs per filter. 0 = unlimited (keep all logs)
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -58,9 +61,13 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
   master_block_seqno BIGINT NOT NULL,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ,  -- Pre-computed expiration time. NULL = no expiry (log_retention=0)
 
   CONSTRAINT fk_logs_filter FOREIGN KEY (filter_id) REFERENCES ton.log_poller_filters(id) ON DELETE CASCADE
 );
+
+-- Pruning index: efficient lookup of expired logs
+CREATE INDEX IF NOT EXISTS idx_logs_expires ON ton.log_poller_logs(expires_at) WHERE expires_at IS NOT NULL;
 
 -- Unique constraint to prevent duplicate log entries
 -- Includes filter_id to allow multiple filters to store the same blockchain event

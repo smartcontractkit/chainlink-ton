@@ -69,6 +69,10 @@ func New(
 	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error),
 	config Config,
 ) (*Txm, error) {
+	if err := config.ValidateConfig(); err != nil {
+		return nil, fmt.Errorf("invalid txm config: %w", err)
+	}
+
 	metrics, err := newMetrics(chainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize metrics: %w", err)

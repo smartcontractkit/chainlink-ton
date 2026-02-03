@@ -58,6 +58,11 @@ type service struct {
 	mcBlockResolveMaxRetries uint32                     // Max retry attempts for MC block resolution
 	mcBlockResolveBaseDelay  time.Duration              // Base delay for exponential backoff
 
+	// pruning configuration
+	pruningInterval   time.Duration // How often to run pruning
+	pruningBatchSize  int64         // Max rows to delete per batch
+	pruningStartDelay time.Duration // Delay before first pruning cycle
+
 	// replay management
 	replay replayInfo // Tracks replay requests and status
 }
@@ -105,6 +110,9 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		mcBlockCache:             mcBlockCache,
 		mcBlockResolveMaxRetries: opts.Config.MCBlockResolveMaxRetries,
 		mcBlockResolveBaseDelay:  opts.Config.MCBlockResolveBaseDelay.Duration(),
+		pruningInterval:          opts.Config.PruningInterval.Duration(),
+		pruningBatchSize:         opts.Config.PruningBatchSize,
+		pruningStartDelay:        opts.Config.PruningStartDelay.Duration(),
 	}
 	lp.replay.status = models.ReplayStatusNoRequest
 	lp.Service, lp.eng = services.Config{
@@ -142,6 +150,8 @@ func NewServiceWith(
 // start initializes the log polling service and begins the polling loop
 func (lp *service) start(_ context.Context) error {
 	lp.lggr.Infof("starting TON logpoller")
+
+	// Main polling loop
 	lp.eng.GoTick(services.NewTicker(lp.pollPeriod), func(ctx context.Context) {
 		start := time.Now()
 		if err := lp.run(ctx); err != nil {
@@ -161,6 +171,21 @@ func (lp *service) start(_ context.Context) error {
 			)
 		}
 	})
+
+	// Background pruning worker with staggered startup
+	pruningTicker := services.TickerConfig{
+		Initial:   lp.pruningStartDelay,
+		JitterPct: services.DefaultJitter,
+	}.NewTicker(lp.pruningInterval)
+
+	lp.eng.GoTick(pruningTicker, lp.backgroundPruningRun)
+
+	lp.lggr.Infow("background pruning worker started",
+		"interval", lp.pruningInterval,
+		"startDelay", lp.pruningStartDelay,
+		"batchSize", lp.pruningBatchSize,
+	)
+
 	return nil
 }
 
@@ -229,7 +254,6 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 // processBlockRange handles scanning a range of blocks for transactions
 func (lp *service) processBlockRange(ctx context.Context, blockRange *models.BlockRange, addresses []*address.Address) error {
-	// build filter index for efficient lookup
 	filterIndex, err := lp.buildFilterIndex(ctx, addresses)
 	if err != nil {
 		return fmt.Errorf("failed to build filter index: %w", err)
@@ -361,10 +385,6 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 	totalSaved := 0
 
 	for log := range logsCh {
-		if log.Error != nil {
-			lp.lggr.Errorw("discarding invalid log", "log", log, "error", log.Error)
-			continue
-		}
 		chunk = append(chunk, log)
 
 		// save chunk if it's full
