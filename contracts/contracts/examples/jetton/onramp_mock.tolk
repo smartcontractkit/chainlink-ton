@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
 import "../../lib/jetton/messages.tolk"
