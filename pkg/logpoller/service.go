@@ -244,7 +244,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 	}
 
 	// apply replay override, must be called before checking blockRange == nil to support replay on idle state
-	blockRange = lp.applyReplayOverride(ctx, blockRange, currentMasterchainBlock)
+	blockRange, replayFromBlock := lp.applyReplayOverride(ctx, blockRange, currentMasterchainBlock)
 
 	if blockRange == nil {
 		// no new blocks to process and no replay pending
@@ -279,7 +279,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	// Mark replay as complete if it was active
 	if lp.ReplayStatus() == models.ReplayStatusPending {
-		lp.replayComplete(blockRange.FromSeqNo(), blockRange.ToSeqNo())
+		lp.replayComplete(replayFromBlock, blockRange.ToSeqNo())
 	}
 
 	lp.lastProcessedBlockSeqNo = blockRange.ToSeqNo()
