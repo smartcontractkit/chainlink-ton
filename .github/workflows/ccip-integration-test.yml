@@ -16,7 +16,7 @@ env:
   DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
   # mylocalton docker image / CCIP E2E test database image
   DOCKER_IMAGES: >-
-    ghcr.io/neodix42/mylocalton-docker:v3.7
+    ghcr.io/neodix42/mylocalton-docker:v3.98
     postgres:16-alpine
 jobs:
   prepare-images:
