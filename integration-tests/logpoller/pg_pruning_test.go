@@ -172,13 +172,13 @@ func TestPruning(t *testing.T) {
 	// Filter A: 3 expired + 2 valid logs
 	expiredLogsA := createTestLogsForPruning(t, testAddr, filterAID, 3, withExpiresAt(pastExpiry))
 	for i := range expiredLogsA {
-		expiredLogsA[i].TxLT = uint64(20000 + i) //nolint:gosec // test code - bounded loop index
+		expiredLogsA[i].TxLT = uint64(20000 + i)  //nolint:gosec // test code - bounded loop index
 		expiredLogsA[i].MsgLT = uint64(20000 + i) //nolint:gosec // test code - bounded loop index
 	}
 	validLogsA := createTestLogsForPruning(t, testAddr, filterAID, 2, withExpiresAt(futureExpiry))
 	for i := range validLogsA {
 		validLogsA[i].TxHash[0] = byte(200 + i)
-		validLogsA[i].TxLT = uint64(20100 + i) //nolint:gosec // test code - bounded loop index
+		validLogsA[i].TxLT = uint64(20100 + i)  //nolint:gosec // test code - bounded loop index
 		validLogsA[i].MsgLT = uint64(20100 + i) //nolint:gosec // test code - bounded loop index
 	}
 	_, err = logStore.SaveLogs(ctx, append(expiredLogsA, validLogsA...), logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
@@ -192,7 +192,7 @@ func TestPruning(t *testing.T) {
 	// Filter C: 4 logs
 	logsC := createTestLogsForPruning(t, testAddr, filterCID, 4)
 	for i := range logsC {
-		logsC[i].TxLT = uint64(22000 + i) //nolint:gosec // test code - bounded loop index
+		logsC[i].TxLT = uint64(22000 + i)  //nolint:gosec // test code - bounded loop index
 		logsC[i].MsgLT = uint64(22000 + i) //nolint:gosec // test code - bounded loop index
 	}
 	_, err = logStore.SaveLogs(ctx, logsC, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
