@@ -16,20 +16,15 @@ import (
 
 const (
 	tvmDestExecDataKey = "destGasAmount"
+
+	// string representation of bytes4(keccak256("CCIP SVMExtraArgsV1"));
 	svmExtraArgsTagStr = "0x1f3b3aba"
+
+	// string representation of bytes4(keccak256("CCIP EVMExtraArgsV2"));
 	evmExtraArgsTagStr = "0x181dcf10"
+
+	// string representation of bytes4(keccak256("CCIP SuiExtraArgsV1"));
 	suiExtraArgsTagStr = "0x21ea4ca9"
-)
-
-var (
-	// bytes4(keccak256("CCIP SVMExtraArgsV1"));
-	svmExtraArgsV1Tag = hexutil.MustDecode(svmExtraArgsTagStr)
-
-	// bytes4(keccak256("CCIP EVMExtraArgsV2"));
-	evmExtraArgsV2Tag = hexutil.MustDecode(evmExtraArgsTagStr)
-
-	// bytes4(keccak256("CCIP SuiExtraArgsV1"));
-	suiExtraArgsV1Tag = hexutil.MustDecode(suiExtraArgsTagStr)
 )
 
 type extraDataDecoder struct{}
