@@ -285,7 +285,6 @@ async function deployOnRampInstance(
     executor: {
       deployableCode: await compile('Deployable'),
       executorCode: await compile('CCIPSendExecutor'),
-      currentID: 0n,
     },
   }
 

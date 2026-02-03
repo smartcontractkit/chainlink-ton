@@ -23,7 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-func (a *TonAdapter) SetOCR3Config() *cldf_ops.Sequence[deployops.SetOCR3ConfigInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonDeployAdapter) SetOCR3Config() *cldf_ops.Sequence[deployops.SetOCR3ConfigInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return SetOCR3Config
 }
 
@@ -32,10 +32,9 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {
-		a := &TonAdapter{}
 		chainSelector := input.ChainSelector
 		chain := chains.TonChains()[chainSelector]
-		stateCCIP, err := extractCCIPChainStateFromOcrInput(a, input)
+		stateCCIP, err := extractCCIPChainStateFromOcrInput(input)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -81,20 +80,20 @@ var SetOCR3Config = cldf_ops.NewSequence(
 	},
 )
 
-func extractCCIPChainStateFromOcrInput(a *TonAdapter, input deployops.SetOCR3ConfigInput) (state.CCIPChainState, error) {
-	offRampAddr, err := a.GetOffRampAddress(input.Datastore, input.ChainSelector)
+func extractCCIPChainStateFromOcrInput(input deployops.SetOCR3ConfigInput) (state.CCIPChainState, error) {
+	offRampAddr, err := getOffRampAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
 		return state.CCIPChainState{}, err
 	}
-	onRampAddr, err := a.GetOnRampAddress(input.Datastore, input.ChainSelector)
+	onRampAddr, err := getOnRampAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
 		return state.CCIPChainState{}, err
 	}
-	routerAddr, err := a.GetRouterAddress(input.Datastore, input.ChainSelector)
+	routerAddr, err := getRouterAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
 		return state.CCIPChainState{}, err
 	}
-	feeQuoter, err := a.GetFQAddress(input.Datastore, input.ChainSelector)
+	feeQuoter, err := getFQAddress(input.Datastore, input.ChainSelector)
 	if err != nil {
 		return state.CCIPChainState{}, err
 	}

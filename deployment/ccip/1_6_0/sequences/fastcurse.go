@@ -32,10 +32,16 @@ import (
 	"github.com/smartcontractkit/mcms/types"
 )
 
+// TonCurseAdapter implements the fastcurse.CurseAdapter and fastcurse.CurseSubjectAdapter interfaces for TON chains.
+type TonCurseAdapter struct {
+	routerAddressCache map[uint64]address.Address
+	onRampAddressCache map[uint64]address.Address
+}
+
 // CurseAdapter interface implementation
 
 // Initialize is called once to set up the adapter. It loads necessary on-chain state (deployed onramp and router address).
-func (a *TonAdapter) Initialize(e cldf.Environment, selector uint64) error {
+func (a *TonCurseAdapter) Initialize(e cldf.Environment, selector uint64) error {
 	// Load chain state for selector
 	chainState, err := state.LoadOnchainState(e)
 	if err != nil {
@@ -71,7 +77,7 @@ func (a *TonAdapter) Initialize(e cldf.Environment, selector uint64) error {
 
 // IsSubjectCursedOnChain checks if a subject is cursed on a specific chain.
 // Returns true if subject is cursed OR if the chain is globally cursed.
-func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64, subject api.Subject) (bool, error) {
+func (a *TonCurseAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64, subject api.Subject) (bool, error) {
 	routerAddr, exist := a.routerAddressCache[selector]
 	if !exist {
 		return false, fmt.Errorf("router address not found in cache for selector %d", selector)
@@ -98,7 +104,7 @@ func (a *TonAdapter) IsSubjectCursedOnChain(e cldf.Environment, selector uint64,
 
 // IsChainConnectedToTargetChain returns true if the chain with selector can communicate with targetSel.
 // For TON, this checks if an onRamp exists for the target chain selector.
-func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector uint64, targetSel uint64) (bool, error) {
+func (a *TonCurseAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector uint64, targetSel uint64) (bool, error) {
 	// Load chain state to get router address
 	onramp, exist := a.onRampAddressCache[selector]
 	if !exist {
@@ -141,7 +147,7 @@ func (a *TonAdapter) IsChainConnectedToTargetChain(e cldf.Environment, selector 
 
 // IsCurseEnabledForChain returns true if the chain supports cursing subjects.
 // For TON, rmnRemote exists on router contract, so this function will verify if router contract is deployed.
-func (a *TonAdapter) IsCurseEnabledForChain(_ cldf.Environment, selector uint64) (bool, error) {
+func (a *TonCurseAdapter) IsCurseEnabledForChain(_ cldf.Environment, selector uint64) (bool, error) {
 	// Initialize() should have cached the router address
 	_, exist := a.routerAddressCache[selector]
 	if !exist {
@@ -152,7 +158,7 @@ func (a *TonAdapter) IsCurseEnabledForChain(_ cldf.Environment, selector uint64)
 }
 
 // ListConnectedChains returns all chain selectors that the given chain is connected to.
-func (a *TonAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([]uint64, error) {
+func (a *TonCurseAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([]uint64, error) {
 	router, exist := a.routerAddressCache[selector]
 	if !exist {
 		return nil, fmt.Errorf("router address not found in cache for selector %d", selector)
@@ -188,7 +194,7 @@ func (a *TonAdapter) ListConnectedChains(e cldf.Environment, selector uint64) ([
 
 // SubjectToSelector converts a Subject to a chain selector.
 // Returns 0 for GlobalCurseSubject.
-func (a *TonAdapter) SubjectToSelector(subject api.Subject) (uint64, error) {
+func (a *TonCurseAdapter) SubjectToSelector(subject api.Subject) (uint64, error) {
 	// Check for global curse subject
 	if subject == api.GlobalCurseSubject() {
 		return 0, nil
@@ -200,21 +206,21 @@ func (a *TonAdapter) SubjectToSelector(subject api.Subject) (uint64, error) {
 
 // SelectorToSubject converts a chain selector to a Subject.
 // Uses big-endian encoding (selector in bytes 8-15).
-func (a *TonAdapter) SelectorToSubject(selector uint64) api.Subject {
+func (a *TonCurseAdapter) SelectorToSubject(selector uint64) api.Subject {
 	// Use generic helper to encode selector as big-endian in bytes 8-15
 	return api.GenericSelectorToSubject(selector)
 }
 
 // DeriveCurseAdapterVersion returns the version of the curse adapter.
 // For TON, this is currently hardcoded to 1.6.0.
-func (a *TonAdapter) DeriveCurseAdapterVersion(e cldf.Environment, selector uint64) (*semver.Version, error) {
+func (a *TonCurseAdapter) DeriveCurseAdapterVersion(e cldf.Environment, selector uint64) (*semver.Version, error) {
 	return semver.MustParse("1.6.0"), nil
 }
 
 // Action methods
 
 // Curse returns the sequence to curse subjects on a chain.
-func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/curse",
 		semver.MustParse("1.6.0"),
@@ -307,7 +313,7 @@ func (a *TonAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChai
 }
 
 // Uncurse returns the sequence to lift the curse on subjects on a chain.
-func (a *TonAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
+func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/uncurse",
 		semver.MustParse("1.6.0"),
@@ -418,3 +424,5 @@ func validateSubjectFormat(subject api.Subject) error {
 
 	return nil
 }
+
+var _ api.CurseAdapter = &TonCurseAdapter{}

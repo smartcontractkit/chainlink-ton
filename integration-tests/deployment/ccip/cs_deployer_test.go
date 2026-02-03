@@ -18,8 +18,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -50,6 +48,7 @@ import (
 
 	mocks "github.com/smartcontractkit/chainlink-ton/deployment/mocks/client"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -70,6 +69,8 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("EVM Chain Selector:", evmSelector)
 	t.Log("TON Chain Selector:", tonSelector)
 
+	version := sequence.ContractsVersionLatestSupported
+
 	// Testing DeployContracts from Tooling API, and SetOCR3Config, without calling AddLane
 	dReg := deployops.GetRegistry()
 	output, err := deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
@@ -81,7 +82,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
-				ContractVersion:                         sequence.ContractsLocalVersion,
+				ContractVersion:                         version,
 			},
 		},
 	})
@@ -103,7 +104,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 				TokenPriceStalenessThreshold:            0,
 				LinkPremiumMultiplier:                   1,
 				PermissionLessExecutionThresholdSeconds: 0,
-				ContractVersion:                         sequence.ContractsLocalVersion,
+				ContractVersion:                         version,
 			},
 		},
 	})

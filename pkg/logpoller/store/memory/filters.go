@@ -111,3 +111,9 @@ func (f *inMemoryFilters) GetFiltersByAddress(_ context.Context, addr *address.A
 	}
 	return out, nil
 }
+
+// DeleteEmptyFilters is a no-op for the in-memory store.
+// In-memory store is for testing basic filter storage; pruning should be tested via PostgreSQL integration tests.
+func (f *inMemoryFilters) DeleteEmptyFilters(_ context.Context) (int64, error) {
+	return 0, nil
+}

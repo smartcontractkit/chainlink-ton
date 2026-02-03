@@ -50,7 +50,6 @@ export type OnRampStorage = {
 export type ExecutorDeployment = {
   deployableCode: Cell
   executorCode: Cell
-  currentID: bigint
 }
 
 export type OnRampSend = {
@@ -212,16 +211,12 @@ export const builder = (() => {
 
     const executor: CellCodec<ExecutorDeployment> = {
       encode: function (data: ExecutorDeployment): Builder {
-        return beginCell()
-          .storeRef(data.deployableCode)
-          .storeRef(data.executorCode)
-          .storeUint(data.currentID, 224)
+        return beginCell().storeRef(data.deployableCode).storeRef(data.executorCode)
       },
       load: function (src: Slice): ExecutorDeployment {
         return {
           deployableCode: src.loadRef(),
           executorCode: src.loadRef(),
-          currentID: src.loadUintBig(224),
         }
       },
     }

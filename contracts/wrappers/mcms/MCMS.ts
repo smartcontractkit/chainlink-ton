@@ -27,7 +27,7 @@ export type SetRoot = {
   // The new expiring root.
   root: bigint // uint256
   // The time by which the root is valid.
-  validUntil: number // uint32
+  validUntil: bigint // uint64
   // The metadata about the root, which is stored as one of the leaves.
   metadata: RootMetadata
   // The MerkleProof of inclusion of the metadata in the Merkle tree.
@@ -254,6 +254,9 @@ export enum Error {
 
   /// Thrown when attempt to cleanup a non-expired root (validUntil has not passed)
   RootNotExpired,
+
+  /// Value attached to incoming message is not enough to pay for handler execution
+  InsufficientFee,
 }
 
 // --- Data structures ---
@@ -355,7 +358,7 @@ export type ExpiringRootAndOpCount = {
   /// root may target many chains. We assume that block.timestamp can
   /// be manipulated by block producers but only within relatively tight
   /// bounds (a few minutes at most).
-  validUntil: bigint //uint32
+  validUntil: bigint //uint64
   /// each ManyChainMultiSig instance has it own independent opCount.
   opCount: bigint // uint40
   /// Information about the currently pending operation.
@@ -368,7 +371,7 @@ export type OpPendingInfo = {
   /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
   /// At this time the previous executed operation is considered optimistically final and successful,
   /// meaning no bounce was received and we can continue executing.
-  validAfter: bigint // uint32
+  validAfter: bigint // uint64
   /// The timeout required to finalize the currently executing op
   opFinalizationTimeout: number // uint32
   /// The address that the (pending) operation was sent to (and could bounce from).
@@ -434,9 +437,9 @@ export type Op = {
 // Data container used to derive the root ID (hash)
 export type RootDescriptor = {
   // The merkle tree root
-  root: bigint
+  root: bigint // uint256
   // The time until which root is valid
-  validUntil: number
+  validUntil: bigint // uint64
 }
 
 export const opcodes = {
@@ -457,6 +460,7 @@ export const opcodes = {
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
     OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
     ExpiredRootsCleaned: crc32('MCMS_ExpiredRootsCleaned'),
+    BounceHandled: crc32('MCMS_BounceHandled'),
   },
 }
 
@@ -490,7 +494,7 @@ export const builder = {
             .storeUint(opcodes.in.SetRoot, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.root, 256)
-            .storeUint(msg.validUntil, 32)
+            .storeUint(msg.validUntil, 64)
             .storeBuilder(rootMetadata.encode(msg.metadata))
             .storeRef(msg.metadataProof)
             .storeRef(msg.signatures)
@@ -500,7 +504,7 @@ export const builder = {
           return {
             queryId: src.loadUintBig(64),
             root: src.loadUintBig(256),
-            validUntil: src.loadUint(32),
+            validUntil: src.loadUintBig(64),
             metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: src.loadRef(),
             signatures: src.loadRef(),
@@ -627,7 +631,7 @@ export const builder = {
             .storeUint(msg.queryId, 64)
             .storeRef(
               asSnakedCell<RootDescriptor>(msg.roots, (v) =>
-                beginCell().storeUint(v.root, 256).storeUint(v.validUntil, 32),
+                beginCell().storeUint(v.root, 256).storeUint(v.validUntil, 64),
               ),
             )
         },
@@ -637,7 +641,7 @@ export const builder = {
             queryId: src.loadUintBig(64),
             roots: fromSnakeData(src.loadRef(), (a) => ({
               root: a.loadUintBig(256),
-              validUntil: a.loadUint(32),
+              validUntil: a.loadUintBig(64),
             })),
           }
         },
@@ -697,14 +701,14 @@ export const builder = {
     const opPendingInfo: CellCodec<OpPendingInfo> = {
       encode: (data: OpPendingInfo): Builder => {
         return beginCell()
-          .storeUint(data.validAfter, 32)
+          .storeUint(data.validAfter, 64)
           .storeUint(data.opFinalizationTimeout, 32)
           .storeAddress(data.opPendingReceiver)
           .storeUint(data.opPendingBodyTruncated, 256)
       },
       load: (src: Slice): OpPendingInfo => {
         return {
-          validAfter: src.loadUintBig(32),
+          validAfter: src.loadUintBig(64),
           opFinalizationTimeout: src.loadUint(32),
           opPendingReceiver: src.loadAddress(),
           opPendingBodyTruncated: src.loadUintBig(256),
@@ -716,14 +720,14 @@ export const builder = {
       encode: (data: ExpiringRootAndOpCount): Builder => {
         return beginCell()
           .storeUint(data.root, 256)
-          .storeUint(data.validUntil, 32)
+          .storeUint(data.validUntil, 64)
           .storeUint(data.opCount, 40)
           .storeRef(opPendingInfo.encode(data.opPendingInfo))
       },
       load: (src: Slice): ExpiringRootAndOpCount => {
         return {
           root: src.loadUintBig(256),
-          validUntil: src.loadUintBig(32),
+          validUntil: src.loadUintBig(64),
           opCount: src.loadUintBig(40),
           opPendingInfo: opPendingInfo.load(src.loadRef().beginParse()),
         }

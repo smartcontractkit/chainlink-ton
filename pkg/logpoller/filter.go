@@ -9,19 +9,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-// BuildFilterIndex creates a filter index for efficient lookup during processing.
-// This function consolidates filter queries and builds an in-memory index to avoid
-// repeated database calls during transaction processing.
+// buildFilterIndex creates a filter index for efficient lookup during processing.
+// Returns FilterIndex mapping filter keys to Filter objects, enabling direct property access.
 func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Address) (models.FilterIndex, error) {
 	filterIndex := make(models.FilterIndex)
+
 	for _, addr := range addresses {
-		// Get all filters for this address
 		filters, err := lp.filterStore.GetFiltersByAddress(ctx, addr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get filters for %s: %w", addr.String(), err)
 		}
 
-		// index filters by (address, msgType, eventSig) using string representation
 		for _, filter := range filters {
 			key := models.FilterKey{
 				Address:  addr,
@@ -29,14 +27,17 @@ func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Ad
 				EventSig: filter.EventSig,
 			}
 			keyStr := key.String()
-			filterIndex[keyStr] = append(filterIndex[keyStr], filter.ID)
+			filterIndex[keyStr] = append(filterIndex[keyStr], &filter)
 		}
 	}
 
 	return filterIndex, nil
 }
 
-// RegisterFilter adds a new filter to monitor specific address/event signature combinations
+// RegisterFilter adds a new filter to monitor specific address/event signature combinations.
+// Note: Filter changes take effect on the next LogPoller loop tick (up to pollPeriod delay)
+// If registration occurs before run() reads addresses, the change applies immediately.
+// Otherwise, it waits until the next tick.
 func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
 	id, err := lp.filterStore.RegisterFilter(ctx, flt)
 	if err != nil {
@@ -46,7 +47,9 @@ func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64
 	return id, nil
 }
 
-// UnregisterFilter removes a filter by name
+// UnregisterFilter removes a filter by name.
+// Note: Filter removal takes effect on the next LogPoller loop tick (up to pollPeriod delay)
+// If unregistration occurs during an active tick, the old filter continues processing for that tick.
 func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
 	return lp.filterStore.UnregisterFilter(ctx, name)
 }

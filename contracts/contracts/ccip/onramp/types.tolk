@@ -32,7 +32,6 @@ struct OnRampUpdateDestChainConfig {
 struct ExecutorDeployment {
     deployableCode: cell;
     executorCode: cell; // code for SendExecutor
-    currentID: CCIPSendExecutor_ID;
 }
 
 @inline

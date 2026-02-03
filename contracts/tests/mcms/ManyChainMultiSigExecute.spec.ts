@@ -189,7 +189,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
 
     // Test 4: Expired root (advance time past validUntil)
-    baseTest.warpTime(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1)
+    baseTest.warpTime(Number(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL) + 1)
 
     const executeBody4 = mcms.builder.message.in.execute
       .encode({
@@ -436,7 +436,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
-      toNano('1'),
+      toNano('0.05'), // to cover execution fee
       executeBody,
     )
 

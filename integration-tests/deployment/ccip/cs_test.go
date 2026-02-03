@@ -12,8 +12,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -27,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
@@ -58,7 +57,9 @@ func TestDeployCCIP(t *testing.T) {
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
+
+	version := sequence.ContractsVersionLatestSupported
+	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, chainSelector, version, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")

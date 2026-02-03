@@ -114,21 +114,28 @@ func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 // given address that came after lt (Lamport Time). It will work retroactively,
 // meaning that it will return all messages that are already in the blockchain
 // and all new ones.
-func (c *Contract) SubscribeToMessages(lt uint64) chan *tracetracking.ReceivedMessage {
+//
+// The caller must cancel the provided context when done reading from the
+// channel to stop the subscription and prevent goroutine leaks.
+func (c *Contract) SubscribeToMessages(ctx context.Context, lt uint64) chan *tracetracking.ReceivedMessage {
 	messagesReceived := make(chan *tracetracking.ReceivedMessage)
 	go func() {
+		defer close(messagesReceived)
 		transactionsReceived := make(chan *tlb.Transaction)
-		go c.Client.Client.SubscribeOnTransactions(context.Background(), c.Address, lt, transactionsReceived)
+		go c.Client.Client.SubscribeOnTransactions(ctx, c.Address, lt, transactionsReceived)
 
 		for rTX := range transactionsReceived {
 			if rTX.IO.In != nil {
-				var err error
 				receivedMessage, err := tracetracking.MapToReceivedMessage(rTX)
 				if err != nil {
 					fmt.Printf("failed to map received message: %v\n", err)
 					continue
 				}
-				messagesReceived <- &receivedMessage
+				select {
+				case messagesReceived <- &receivedMessage:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
