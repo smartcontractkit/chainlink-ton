@@ -5,8 +5,7 @@ go 1.25.5
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250528121202-292529af39df
 
-	// Use local chainlink-ton/deployment module,
-	// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
+	github.com/smartcontractkit/chainlink-ton => ../
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
