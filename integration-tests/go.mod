@@ -5,9 +5,9 @@ go 1.25.5
 replace (
 	github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20251014124537-af6b1684fe15
 
-	// Use local modules for development and testing
-	github.com/smartcontractkit/chainlink-ton => ../
-	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
+// Use local modules for development and testing
+// github.com/smartcontractkit/chainlink-ton => ../
+// github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
 require (
@@ -25,8 +25,8 @@ require (
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260127143834-21d7db9955ee
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260130141725-3430b5c9dad8
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260119210543-276a92092771
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260203154956-7c598cc0efb9
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260203154956-7c598cc0efb9
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260130084452-fe13ee916ee5
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260130084452-fe13ee916ee5
 	github.com/smartcontractkit/mcms v0.34.1-0.20260130153451-2cd7db171382

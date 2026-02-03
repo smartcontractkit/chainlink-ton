@@ -482,9 +482,7 @@ func TestJettonAll(t *testing.T) {
 		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
 		require.Len(t, mintMsg.OutgoingInternalReceivedMessages, 1, "Mint message should have 1 outgoing message")
 		msgToMinter = mintMsg.OutgoingInternalReceivedMessages[0]
-		exitCode, err := msgToMinter.ExitCode()
-		require.NoError(t, err, "failed to get exit code from msg to minter")
-		require.Equal(t, int(jetton_common.ErrorNotOwner), int(exitCode), "Msg to minter should have")
+		require.Equal(t, int(jetton_common.ErrorNotOwner), int(msgToMinter.ExitCode), "Msg to minter should have")
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data after admin change")
