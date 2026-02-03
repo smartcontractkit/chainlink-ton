@@ -125,10 +125,6 @@ func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", len(c), CrossChainAddressMaxLength)
 	}
 
-	if addrLength == 0 {
-		return nil, errors.New("crosschain address is empty")
-	}
-
 	builder := cell.BeginCell()
 	err := builder.StoreSlice([]byte{uint8(addrLength)}, 8) // store the first byte as length
 	if err != nil {
