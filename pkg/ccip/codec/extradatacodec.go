@@ -16,17 +16,20 @@ import (
 
 const (
 	tvmDestExecDataKey = "destGasAmount"
+	svmExtraArgsTagStr = "0x1f3b3aba"
+	evmExtraArgsTagStr = "0x181dcf10"
+	suiExtraArgsTagStr = "0x21ea4ca9"
 )
 
 var (
 	// bytes4(keccak256("CCIP SVMExtraArgsV1"));
-	svmExtraArgsV1Tag = hexutil.MustDecode("0x1f3b3aba")
+	svmExtraArgsV1Tag = hexutil.MustDecode(svmExtraArgsTagStr)
 
 	// bytes4(keccak256("CCIP EVMExtraArgsV2"));
-	evmExtraArgsV2Tag = hexutil.MustDecode("0x181dcf10")
+	evmExtraArgsV2Tag = hexutil.MustDecode(evmExtraArgsTagStr)
 
 	// bytes4(keccak256("CCIP SuiExtraArgsV1"));
-	suiExtraArgsV1Tag = hexutil.MustDecode("0x21ea4ca9")
+	suiExtraArgsV1Tag = hexutil.MustDecode(suiExtraArgsTagStr)
 )
 
 type extraDataDecoder struct{}
@@ -40,9 +43,9 @@ func NewExtraDataDecoder() ccipocr3.SourceChainExtraDataCodec {
 
 // extraArgsTypes maps tag hex strings to their corresponding struct types
 var extraArgsTypes = map[string]reflect.Type{
-	hexutil.Encode(evmExtraArgsV2Tag): reflect.TypeOf(onramp.GenericExtraArgsV2{}),
-	hexutil.Encode(svmExtraArgsV1Tag): reflect.TypeOf(onramp.SVMExtraArgsV1{}),
-	hexutil.Encode(suiExtraArgsV1Tag): reflect.TypeOf(onramp.SuiExtraArgsV1{}),
+	evmExtraArgsTagStr: reflect.TypeOf(onramp.GenericExtraArgsV2{}),
+	svmExtraArgsTagStr: reflect.TypeOf(onramp.SVMExtraArgsV1{}),
+	suiExtraArgsTagStr: reflect.TypeOf(onramp.SuiExtraArgsV1{}),
 }
 
 // DecodeExtraArgsToMap is a helper function for converting Borsh encoded extra args bytes into map[string]any

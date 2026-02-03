@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/gagliardetto/solana-go"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -86,15 +88,26 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 	t.Run("decode extra args into map sui", func(t *testing.T) {
 		gasLimit := big.NewInt(50000)
-		tokenReceiver := solana.SystemProgramID.Bytes() // 32 bytes, reusing for convenience
+		suiAddr1 := models.SuiAddress("0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968")
+		suiAddr1Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr1)
+		require.NoError(t, err)
+
+		suiAddr2 := models.SuiAddress("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+		suiAddr2Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr2)
+		require.NoError(t, err)
+
+		suiReceiver := models.SuiAddress("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+		suiReceiverBytes, err := transaction.ConvertSuiAddressStringToBytes(suiReceiver)
+		require.NoError(t, err)
+
 		receiverObjectIDs := common.SnakedCell[onramp.Account256]{
-			{Value: solana.SystemProgramID.Bytes()},
-			{Value: solana.SystemProgramID.Bytes()},
+			{Value: suiAddr1Bytes[:]},
+			{Value: suiAddr2Bytes[:]},
 		}
 		extraArgs := onramp.SuiExtraArgsV1{
 			GasLimit:                 gasLimit,
 			AllowOutOfOrderExecution: true,
-			TokenReceiver:            tokenReceiver,
+			TokenReceiver:            suiReceiverBytes[:],
 			ReceiverObjectIDs:        receiverObjectIDs,
 		}
 
@@ -115,7 +128,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 		tr, exist := output["TokenReceiver"]
 		require.True(t, exist)
-		require.Equal(t, tokenReceiver, tr)
+		require.Equal(t, suiReceiverBytes[:], tr)
 
 		roids, exist := output["ReceiverObjectIDs"]
 		require.True(t, exist)
