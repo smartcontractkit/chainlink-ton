@@ -461,7 +461,7 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 	return nil
 }
 
-// OutcomeExitCode returns the first non-success exit code found in this message
+// TraceExitCode returns the first non-success exit code found in this message
 // or any of its outgoing internal messages. If all messages succeeded, it returns
 // the success exit code.
 func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
