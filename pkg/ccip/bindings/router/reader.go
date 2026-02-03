@@ -38,7 +38,7 @@ var GetOnRamp = tvm.Getter[uint64, *address.Address]{
 var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	Name: "destChainSelectors",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
-		return parser.ParseLispTuple(r.AsTuple())
+		return parser.ParseLispTuple[uint64](r.AsTuple())
 	}),
 })
 

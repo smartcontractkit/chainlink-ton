@@ -185,7 +185,7 @@ func (a *TonCurseAdapter) ListConnectedChains(e cldf.Environment, selector uint6
 
 	// Parse result as lisp tuple
 	tuple := result.AsTuple()
-	connectedChains, err := parser.ParseLispTuple(tuple)
+	connectedChains, err := parser.ParseLispTuple[uint64](tuple)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse destChainSelectors result: %w", err)
 	}

@@ -75,7 +75,7 @@ func TestParseLispTuple(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseLispTuple(tt.input)
+			got, err := ParseLispTuple[uint64](tt.input)
 			if tt.expectErr {
 				if err == nil {
 					t.Errorf("expected error, got nil")
@@ -214,7 +214,7 @@ func TestParseLispTupleBigInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseLispTupleBigInt(tt.input)
+			got, err := ParseLispTuple[*big.Int](tt.input)
 			if tt.expectErr {
 				if err == nil {
 					t.Errorf("expected error, got nil")
