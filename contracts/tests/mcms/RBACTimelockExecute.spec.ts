@@ -523,7 +523,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
 
       const result = await baseTest.bind.timelock.sendInternal(
         executor.getSender(),
-        toNano('1'),
+        toNano('0.1'),
         executeBody,
       )
 
@@ -633,7 +633,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Execute via an account without the executor role
       const r = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(), // External caller
-        toNano('1'),
+        toNano('0.2'),
         executeBody,
       )
 

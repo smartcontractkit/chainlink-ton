@@ -171,7 +171,6 @@ describe('CCIP OffRamp Gas Estimation', () => {
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
         executor: {
-          currentID: 0n,
           executorCode: await CCIPSendExecutorContract.code(),
           deployableCode: await DeployableContract.code(),
         },

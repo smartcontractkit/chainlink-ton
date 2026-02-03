@@ -26,7 +26,7 @@ type BalanceMonitorOpts struct {
 	Config    balance.GenericBalanceConfig
 	Logger    logger.Logger
 	Keystore  core.Keystore
-	NewClient func(context.Context) (*ton.APIClient, error)
+	NewClient func(context.Context) (ton.APIClientWrapped, error)
 }
 
 // NewBalanceMonitor returns a balance monitoring services.Service which reports balance of all Keystore accounts.
@@ -54,11 +54,11 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 
 // TON balance reader client implementation
 type balanceClient struct {
-	client *ton.APIClient
+	client ton.APIClientWrapped
 }
 
 // NewBalanceClient creates a balance client for testing purposes.
-func NewBalanceClient(client *ton.APIClient) balance.GenericBalanceClient {
+func NewBalanceClient(client ton.APIClientWrapped) balance.GenericBalanceClient {
 	return balanceClient{client: client}
 }
 
