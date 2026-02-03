@@ -7,7 +7,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -51,8 +50,6 @@ type Execute struct {
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	Execute{},
-	feequoter.MessageValidated{},
-	feequoter.MessageValidationFailed{},
 }).MustWithStorageType(InitialData{})
 
 // Metadata structure
