@@ -112,6 +112,18 @@ func (f *inMemoryFilters) GetFiltersByAddress(_ context.Context, addr *address.A
 	return out, nil
 }
 
+// GetAllActiveFilters returns all filters (in-memory store doesn't have soft delete).
+func (f *inMemoryFilters) GetAllActiveFilters(_ context.Context) ([]models.Filter, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	filters := make([]models.Filter, 0, len(f.filtersByName))
+	for _, flt := range f.filtersByName {
+		filters = append(filters, flt)
+	}
+	return filters, nil
+}
+
 // DeleteEmptyFilters is a no-op for the in-memory store.
 // In-memory store is for testing basic filter storage; pruning should be tested via PostgreSQL integration tests.
 func (f *inMemoryFilters) DeleteEmptyFilters(_ context.Context) (int64, error) {
