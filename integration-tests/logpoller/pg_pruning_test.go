@@ -90,7 +90,7 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 			Address:      addr,
 			EventSig:     counter.TopicCountIncreased,
 			Data:         eventCell,
-			TxHash:       models.TxHash{byte(i + 1), byte(filterID), byte(txLT % 256), 4, 5}, //nolint:gosec // test code
+			TxHash:       models.TxHash{byte(i + 1), byte(filterID), byte(txLT % 256), 4, 5},
 			TxLT:         txLT,
 			MsgLT:        txLT,
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
@@ -103,7 +103,7 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 }
 
 // softDeleteFilter marks a filter as deleted using UnregisterFilter
-func softDeleteFilter(t *testing.T, ctx context.Context, filterStore logpoller.FilterStore, name string) {
+func softDeleteFilter(ctx context.Context, t *testing.T, filterStore logpoller.FilterStore, name string) {
 	t.Helper()
 	err := filterStore.UnregisterFilter(ctx, name)
 	require.NoError(t, err)
@@ -172,14 +172,14 @@ func TestPruning(t *testing.T) {
 	// Filter A: 3 expired + 2 valid logs
 	expiredLogsA := createTestLogsForPruning(t, testAddr, filterAID, 3, withExpiresAt(pastExpiry))
 	for i := range expiredLogsA {
-		expiredLogsA[i].TxLT = uint64(20000 + i)
-		expiredLogsA[i].MsgLT = uint64(20000 + i)
+		expiredLogsA[i].TxLT = uint64(20000 + i) //nolint:gosec // test code - bounded loop index
+		expiredLogsA[i].MsgLT = uint64(20000 + i) //nolint:gosec // test code - bounded loop index
 	}
 	validLogsA := createTestLogsForPruning(t, testAddr, filterAID, 2, withExpiresAt(futureExpiry))
 	for i := range validLogsA {
 		validLogsA[i].TxHash[0] = byte(200 + i)
-		validLogsA[i].TxLT = uint64(20100 + i)
-		validLogsA[i].MsgLT = uint64(20100 + i)
+		validLogsA[i].TxLT = uint64(20100 + i) //nolint:gosec // test code - bounded loop index
+		validLogsA[i].MsgLT = uint64(20100 + i) //nolint:gosec // test code - bounded loop index
 	}
 	_, err = logStore.SaveLogs(ctx, append(expiredLogsA, validLogsA...), logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, err)
@@ -192,14 +192,14 @@ func TestPruning(t *testing.T) {
 	// Filter C: 4 logs
 	logsC := createTestLogsForPruning(t, testAddr, filterCID, 4)
 	for i := range logsC {
-		logsC[i].TxLT = uint64(22000 + i)
-		logsC[i].MsgLT = uint64(22000 + i)
+		logsC[i].TxLT = uint64(22000 + i) //nolint:gosec // test code - bounded loop index
+		logsC[i].MsgLT = uint64(22000 + i) //nolint:gosec // test code - bounded loop index
 	}
 	_, err = logStore.SaveLogs(ctx, logsC, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, err)
 
 	// Soft-delete filter C
-	softDeleteFilter(t, ctx, filterStore, filterCName)
+	softDeleteFilter(ctx, t, filterStore, filterCName)
 
 	// Execute pruning sequence
 	expiredDeleted, err := logStore.DeleteExpiredLogs(ctx, 1000)
