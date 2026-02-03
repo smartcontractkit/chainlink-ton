@@ -91,6 +91,13 @@ const (
 	ExitCodeTactCodeOfAContractWasNotFound ExitCode = 135 // Tact compiler: Code of a contract was not found.
 	ExitCodeTactInvalidStandardAddress     ExitCode = 136 // Tact compiler: Invalid standard address.
 	ExitCodeTactNotABasechainAddress       ExitCode = 138 // Tact compiler: Not a basechain address. Available since Tact 1.6.3.
+
+	/// Custom exit codes for skipped compute phase
+
+	ExitCodeComputeSkipReasonNoState   ExitCode = -1 // This is not a real exit code. It is used to mark a tx where the ComputePhase was Skipped due to 'No State': The smart contract has no state.
+	ExitCodeComputeSkipReasonBadState  ExitCode = -2 // This is not a real exit code. It is used to mark a tx where the ComputePhase was Skipped due to 'Bad State': fixed_prefix_length field has an invalid value or the StateInit provided in the incoming message does not match account's address.
+	ExitCodeComputeSkipReasonNoGas     ExitCode = -3 // This is not a real exit code. It is used to mark a tx where the ComputePhase was Skipped due to 'No Gas': The incoming message did not provide enough TON to cover the gas required to execute the smart contract.
+	ExitCodeComputeSkipReasonSuspended ExitCode = -4 // This is not a real exit code. It is used to mark a tx where the ComputePhase was Skipped due to 'Suspended': The address is suspended; execution is disabled (used to limit early miner accounts).
 )
 
 // Describe provides human-readable descriptions for common TON Virtual Machine (TVM) exit codes.
@@ -170,6 +177,14 @@ func (c ExitCode) Describe() string {
 		return "Invalid standard address"
 	case ExitCodeTactNotABasechainAddress:
 		return "Not a basechain address"
+	case ExitCodeComputeSkipReasonNoState:
+		return "ComputePhase was Skipped: No State. The smart contract has no state."
+	case ExitCodeComputeSkipReasonBadState:
+		return "ComputePhase was Skipped: Bad State. fixed_prefix_length field has an invalid value or the StateInit provided in the incoming message does not match account's address."
+	case ExitCodeComputeSkipReasonNoGas:
+		return "ComputePhase was Skipped: No Gas. The incoming message did not provide enough TON to cover the gas required to execute the smart contract."
+	case ExitCodeComputeSkipReasonSuspended:
+		return "ComputePhase was Skipped: Suspended. The address is suspended; execution is disabled (used to limit early miner accounts)."
 	default:
 		return fmt.Sprintf("Non-standard exit code: %d", c)
 	}

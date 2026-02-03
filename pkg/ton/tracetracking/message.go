@@ -508,7 +508,20 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 	}
 	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
 	if !ok {
-		return 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
+		skipped, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseSkipped)
+		if !ok {
+			return 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
+		}
+		switch skipped.Reason.Type {
+		case tlb.ComputeSkipReasonNoState:
+			return tvm.ExitCodeComputeSkipReasonNoState, nil
+		case tlb.ComputeSkipReasonBadState:
+			return tvm.ExitCodeComputeSkipReasonBadState, nil
+		case tlb.ComputeSkipReasonNoGas:
+			return tvm.ExitCodeComputeSkipReasonNoGas, nil
+		case tlb.ComputeSkipReasonSuspended:
+			return tvm.ExitCodeComputeSkipReasonSuspended, nil
+		}
 	}
 	return tvm.ExitCode(computePhase.Details.ExitCode), nil
 }
