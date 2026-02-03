@@ -2,7 +2,7 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 
 go 1.25.5
 
-// Notice: we pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
+replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
