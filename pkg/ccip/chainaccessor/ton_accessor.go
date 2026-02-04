@@ -807,7 +807,10 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
 		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
 		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
-		packedValue := feequoter.PackGasPrice(execPrice, daPrice)
+		packedValue, err := feequoter.PackGasPrice(execPrice, daPrice)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pack gas price for chain %d: %w", selector, err)
+		}
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115
