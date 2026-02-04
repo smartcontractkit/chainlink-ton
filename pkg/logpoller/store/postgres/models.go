@@ -30,11 +30,14 @@ type filterModel struct {
 }
 
 // FromFilter converts a types.Filter to FilterModel
-func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
+func (f *filterModel) FromFilter(filter lptypes.Filter) (filterModel, error) {
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, filter.EventSig)
 
-	rawAddr := codec.ToRawAddr(filter.Address)
+	rawAddr, err := codec.ToRawAddr(filter.Address)
+	if err != nil {
+		return filterModel{}, fmt.Errorf("failed to convert filter address: %w", err)
+	}
 	return filterModel{
 		Name:          filter.Name,
 		Address:       rawAddr[:],
@@ -43,7 +46,7 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
 		StartingSeqNo: int64(filter.StartingSeqNo),
 		LogRetention:  filter.LogRetention,
 		MaxLogsKept:   filter.MaxLogsKept,
-	}
+	}, nil
 }
 
 // ToFilter converts a FilterModel to models.Filter
@@ -112,7 +115,10 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, log.EventSig)
 
-	rawAddr := codec.ToRawAddr(log.Address)
+	rawAddr, err := codec.ToRawAddr(log.Address)
+	if err != nil {
+		return logModel{}, fmt.Errorf("failed to convert log address: %w", err)
+	}
 	return logModel{
 		FilterID:       log.FilterID,
 		ChainID:        log.ChainID,

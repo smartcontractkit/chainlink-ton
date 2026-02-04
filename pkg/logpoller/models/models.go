@@ -59,6 +59,9 @@ func (br *BlockRange) FromSeqNo() uint32 {
 }
 
 func (br *BlockRange) ToSeqNo() uint32 {
+	if br.To == nil {
+		return 0
+	}
 	return br.To.SeqNo
 }
 
@@ -115,7 +118,11 @@ func (l Log) String() string {
 	} else {
 		sb.WriteString("  Data (BOC):   <nil>\n")
 	}
-	sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	if l.Block != nil {
+		sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	} else {
+		sb.WriteString("  Shard Block:  nil\n")
+	}
 	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MCBlockSeqno))
 	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
 
@@ -151,7 +158,11 @@ type FilterKey struct {
 
 // String returns a canonical string representation for use as a map key.
 func (fk FilterKey) String() string {
-	return fmt.Sprintf("%s:%s:%08x", fk.Address.String(), fk.MsgType, fk.EventSig)
+	a := fk.Address
+	if a == nil {
+		return fmt.Sprintf("<nil>:%s:%08x", fk.MsgType, fk.EventSig)
+	}
+	return fmt.Sprintf("%s:%s:%08x", a.String(), fk.MsgType, fk.EventSig)
 }
 
 // RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)

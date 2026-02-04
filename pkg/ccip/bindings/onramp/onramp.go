@@ -77,6 +77,15 @@ type SVMExtraArgsV1 struct {
 	Accounts                 common.SnakedCell[Account256] `tlb:"^"`
 }
 
+// SuiExtraArgsV1 represents extra arguments for Sui transactions.
+type SuiExtraArgsV1 struct {
+	_                        tlb.Magic                     `tlb:"#21ea4ca9" json:"-"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SuiExtraArgsV1")), can be verified with hexutil.MustDecode("0x21ea4ca9")
+	GasLimit                 *big.Int                      `tlb:"## 256"`
+	AllowOutOfOrderExecution bool                          `tlb:"bool"`
+	TokenReceiver            []byte                        `tlb:"bits 256"`
+	ReceiverObjectIDs        common.SnakedCell[Account256] `tlb:"^"`
+}
+
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
 	ID               uint32               `tlb:"## 32"`

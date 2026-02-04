@@ -18,6 +18,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -34,7 +35,7 @@ type DeployContractOutput struct {
 }
 
 var DeployTONContractOp = cldf_ops.NewOperation(
-	"deploy-ton-contract-op",
+	"ton/ops/deploy",
 	semver.MustParse("0.1.0"),
 	"Deploys a TON contract in a generic way",
 	deployTONContract,
@@ -78,7 +79,7 @@ func deployTONContract(b cldf_ops.Bundle, dp *dep.DependencyProvider, in DeployC
 	}
 	b.Logger.Infow("Setting initial storage for contract", "contract name", in.Name, "storage data hash", hex.EncodeToString(initData.Hash()), "storage bits size", initData.BitsSize())
 
-	bodyCell := cell.BeginCell().EndCell()
+	bodyCell := tvm.EmptyCell
 
 	if in.MessageBody != nil {
 		bodyCell, err = tlb.ToCell(in.MessageBody)

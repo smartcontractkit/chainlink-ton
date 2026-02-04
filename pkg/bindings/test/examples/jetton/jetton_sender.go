@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -40,7 +41,7 @@ func (p *SenderProvider) Deploy(ctx context.Context, initData SenderInitData) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	body := cell.BeginCell().EndCell()
+	body := tvm.EmptyCell
 	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return nil, err

@@ -91,6 +91,7 @@ func NewCCIPProvider(
 		ChainSpecificAddressCodec: addressCodec,
 		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),
 		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(cargs.ExtraDataCodecBundle),
+		MessageHasher:             codec.NewMessageHasherV1(lggr, cargs.ExtraDataCodecBundle),
 		TokenDataEncoder:          codec.NewTokenDataEncoder(),
 		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),
 	}

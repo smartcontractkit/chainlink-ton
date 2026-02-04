@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestTokenAmounts(t *testing.T) {
@@ -117,7 +118,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	report := ExecuteReport{
 		SourceChainSelector: 1,
 		Message:             rampMessageSlice,
-		OffChainTokenData:   cell.BeginCell().EndCell(),
+		OffChainTokenData:   tvm.EmptyCell,
 		Proofs:              common.SnakedCell[common.Proof]{{Value: big.NewInt(0)}, {Value: big.NewInt(0)}},
 		ProofFlagBits:       big.NewInt(0),
 	}

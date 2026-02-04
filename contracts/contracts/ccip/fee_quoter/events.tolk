@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 
 const USD_PER_TOKEN_UPDATED_TOPIC: int = stringCrc32("UsdPerTokenUpdated");
 struct UsdPerTokenUpdated {
