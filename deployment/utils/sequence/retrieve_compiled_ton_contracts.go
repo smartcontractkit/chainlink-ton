@@ -180,7 +180,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, dp *dep.Dependenc
 			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)
 		}
 
-		if (contractType == state.Deployer) {
+		if contractType == state.Deployer {
 			err = verifyDeployerCodeHash(contractCode)
 			if err != nil {
 				return output, fmt.Errorf("deployer code hash verification failed: %w", err)
@@ -199,7 +199,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, dp *dep.Dependenc
 }
 
 func verifyDeployerCodeHash(code *cell.Cell) error {
-	if (code == nil) {
+	if code == nil {
 		return errors.New("deployer code cell is nil")
 	}
 	computedHash := code.Hash()
