@@ -46,12 +46,14 @@ async function readContractCode(contractName: string): Promise<Cell> {
   return cells[0]
 }
 
-export function loadContractCode(contractName: string): Promise<Cell> {
+export async function loadContractCode(contractName: string): Promise<Cell> {
   if (!codeCache.has(contractName)) {
     codeCache.set(contractName, readContractCode(contractName))
   }
   if (contractName === 'Deployable') {
-    console.log(codeCache.get(contractName))
+    const code = await codeCache.get(contractName)!
+    const codeHash = code.hash()
+    expect(codeHash).toEqual(Buffer.from("0a848f11f0dd717b47a5f78e854fd764b0538f48bff808d07e6191f4abe1f2d3", "hex"))
   }
   return codeCache.get(contractName)!
 }
