@@ -12,7 +12,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -188,7 +187,7 @@ func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw
 func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.InternalMessage], meta []types.OperationMetadata) (types.BatchOperation, error) {
 	mcmsTxs := make([]types.Transaction, len(plans))
 	for i, p := range plans {
-		body := cell.BeginCell().EndCell() // empty body by default
+		body := tvm.EmptyCell // empty body by default
 
 		msg, err := p.ToValue()
 		if err != nil {

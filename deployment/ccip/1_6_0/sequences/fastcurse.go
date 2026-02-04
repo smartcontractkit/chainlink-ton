@@ -222,7 +222,7 @@ func (a *TonCurseAdapter) DeriveCurseAdapterVersion(e cldf.Environment, selector
 // Curse returns the sequence to curse subjects on a chain.
 func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton/sequences/ccip/curse",
+		"ton/sequences/ccip/tooling-api/curse",
 		semver.MustParse("1.6.0"),
 		"Curse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
@@ -315,7 +315,7 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 // Uncurse returns the sequence to lift the curse on subjects on a chain.
 func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton/sequences/ccip/uncurse",
+		"ton/sequences/ccip/tooling-api/uncurse",
 		semver.MustParse("1.6.0"),
 		"Uncurse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {

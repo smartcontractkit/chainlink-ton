@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
@@ -51,7 +50,7 @@ func (o DeployOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 
 var Deploy = operations.NewOperation(
 	"ton/ops/deploy",
-	semver.MustParse("0.1.0"),
+	semver.MustParse("0.2.0"),
 	"Deploys contracts by sending messages with code loaded from the provider",
 	func(b operations.Bundle, dp *dep.DependencyProvider, in DeployInput) (DeployOutput, error) {
 		// Load contracts and prepare the underlying []InternalMessage[any]
@@ -83,12 +82,7 @@ var Deploy = operations.NewOperation(
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
-				Body: codec.MessageEnvelope[any]{
-					Metadata: m.Body.Metadata,
-					Payload:  m.Body.Payload,
-					Cell:     m.Body.Cell,
-					Value:    m.Body.Value,
-				},
+				Body:    m.Body,
 				StateInit: &StateInit{
 					Code: c.Code,
 					Data: data,

@@ -87,7 +87,7 @@ var testMCMSExecuteCell = mustToCell(mcms.Execute{
 						QueryID:     0,
 						Amount:      tlb.MustFromTON("0.02"),
 						Destination: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-						// CustomPayload:    cell.BeginCell().EndCell(), // default for *cell.Cell
+						// CustomPayload:    tvm.EmptyCell, // default for *cell.Cell
 						ForwardPayload:   mustToCell(Foo{Any: mustToCell(Baz{Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")})}),
 						ForwardTonAmount: tlb.MustFromTON("0.01"),
 					}),
@@ -151,7 +151,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 		},
 		{
 			name:      "Empty cell",
-			cell:      cell.BeginCell().EndCell(),
+			cell:      tvm.EmptyCell,
 			wantType:  "Cell",
 			wantMap:   nil,
 			expectErr: false,
@@ -189,7 +189,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 		},
 		{
 			name:     "Decode Foo with empty cell in Any",
-			cell:     mustToCell(Foo{Any: cell.BeginCell().EndCell()}),
+			cell:     mustToCell(Foo{Any: tvm.EmptyCell}),
 			wantType: "Foo",
 			wantMap: map[string]any{
 				"Any": "te6cckEBAQEAAgAAAEysuc0=",
@@ -202,7 +202,7 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 				QueryID:     0,
 				Amount:      tlb.MustFromTON("0.02"),
 				Destination: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
-				// CustomPayload:    cell.BeginCell().EndCell(), // default for *cell.Cell
+				// CustomPayload:    tvm.EmptyCell, // default for *cell.Cell
 				ForwardPayload:   mustToCell(Foo{Any: mustToCell(Baz{Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")})}),
 				ForwardTonAmount: tlb.MustFromTON("0.01"),
 			}),

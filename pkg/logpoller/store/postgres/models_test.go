@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestFilterModel_Conversion(t *testing.T) {
@@ -149,7 +150,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 		{
 			name: "empty cell",
 			buildCell: func() *cell.Cell {
-				return cell.BeginCell().EndCell()
+				return tvm.EmptyCell
 			},
 		},
 		{
@@ -189,8 +190,8 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 						Body: ocr.TVM2AnyRampMessageBody{
 							Receiver:       common.CrossChainAddress{0x01, 0x02},
 							Data:           common.SnakeBytes{0xAA, 0xBB, 0xCC},
-							ExtraArgs:      cell.BeginCell().EndCell(),
-							TokenAmounts:   cell.BeginCell().EndCell(),
+							ExtraArgs:      tvm.EmptyCell,
+							TokenAmounts:   tvm.EmptyCell,
 							FeeToken:       feeToken,
 							FeeTokenAmount: big.NewInt(1000000),
 						},

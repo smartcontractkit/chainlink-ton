@@ -99,7 +99,7 @@ type RetrieveCompiledContractsSeqOutput struct {
 }
 
 var RetrieveContractsSequence = operations.NewSequence(
-	"retrieve-ton-contracts-seq",
+	"ton/sequences/retrieve-ton-contracts",
 	semver.MustParse("0.1.0"),
 	"Retrieves TON contracts from chainlink-ton repo given a release commit sha",
 	retrieveCompiledTONContractsSequence,
