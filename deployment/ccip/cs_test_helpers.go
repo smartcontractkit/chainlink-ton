@@ -33,7 +33,7 @@ const (
 	CalldataGasPerByteThreshold = 3000
 )
 
-// Deprecated: Use tvm.TonTokenAddr instead
+// Deprecated: Use tvm.TonTokenAddr instead.
 var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
