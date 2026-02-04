@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/address"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -31,6 +32,9 @@ const (
 	CalldataGasPerByteHigh      = 40
 	CalldataGasPerByteThreshold = 3000
 )
+
+// Deprecated: Use tvm.TonTokenAddr instead
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
 	// TODO Remove in favor of the canonical model
