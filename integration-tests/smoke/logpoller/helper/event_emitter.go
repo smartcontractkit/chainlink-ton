@@ -144,7 +144,7 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		codeCell,
 		data,
 		tlb.MustFromTON("0.1"),
-		cell.BeginCell().EndCell(),
+		tvm.EmptyCell,
 	)
 
 	if err != nil {

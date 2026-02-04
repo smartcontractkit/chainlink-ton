@@ -28,7 +28,7 @@ func (a *TonDeployAdapter) SetOCR3Config() *cldf_ops.Sequence[deployops.SetOCR3C
 }
 
 var SetOCR3Config = cldf_ops.NewSequence(
-	"ton/sequences/ccip/set-ocr3-config",
+	"ton/sequences/ccip/tooling-api/set-ocr3-config",
 	semver.MustParse("1.6.0"),
 	"Set OCR3 Config on Ton chains",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deployops.SetOCR3ConfigInput) (output sequences.OnChainOutput, err error) {

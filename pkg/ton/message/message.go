@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ParseExtMsgOut returns body and event signature(topic) for an external out message.
@@ -60,7 +61,7 @@ func extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cel
 	// create a new cell from the remaining data after opcode
 	if payloadSlice.BitsLeft() == 0 {
 		// no remaining bits, create empty cell
-		remainingBody = cell.BeginCell().EndCell()
+		remainingBody = tvm.EmptyCell
 	} else {
 		// convert remaining data to cell
 		remainingBody, err = payloadSlice.ToCell()

@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- Fee Quoter Model Struct Definitions ----------
@@ -323,7 +324,7 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 	for _, apu := range s.AllowedPriceUpdaters {
 		if err := st.AllowedPriceUpdaters.Set(
 			cell.BeginCell().MustStoreAddr(apu).EndCell(),
-			cell.BeginCell().EndCell(),
+			tvm.EmptyCell,
 		); err != nil {
 			return nil, fmt.Errorf("error while setting AllowedPriceUpdater: %w", err)
 		}

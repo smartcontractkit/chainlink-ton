@@ -46,7 +46,7 @@ func (a *TonDeployAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.Cont
 }
 
 var DeployChainContracts = cldf_ops.NewSequence(
-	"ton/sequences/ccip/deploy-chain-contracts",
+	"ton/sequences/ccip/tooling-api/deploy-chain-contracts",
 	semver.MustParse("1.6.0"),
 	"Deploys all required contracts for CCIP 1.6.0 to a TON chain",
 	func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, input deploy.ContractDeploymentConfigPerChainWithAddress) (sequences.OnChainOutput, error) {

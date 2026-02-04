@@ -75,8 +75,8 @@ github.com/bits-and-blooms/bitset v1.24.0 h1:H4x4TuulnokZKvHLfzVRTHJfFfnHEeSYJiz
 github.com/bits-and-blooms/bitset v1.24.0/go.mod h1:7hO7Gc7Pp1vODcmWvKMRA9BNmbv6a/7QIWpPxHddWR8=
 github.com/blendle/zapdriver v1.3.1 h1:C3dydBOWYRiOk+B8X9IVZ5IOe+7cl+tGOexN4QqHfpE=
 github.com/blendle/zapdriver v1.3.1/go.mod h1:mdXfREi6u5MArG4j9fewC+FGnXaBR+T4Ox4J2u4eHCc=
-github.com/block-vision/sui-go-sdk v1.1.2 h1:p9DPfb51mEcTmF0Lx9ORpH+Nh9Rzg4Sv3Pu5gsJZ2AA=
-github.com/block-vision/sui-go-sdk v1.1.2/go.mod h1:KlibJnwEpWt8qhQkIPxc/2ZE4kwh0Md6LvMHmW5kemA=
+github.com/block-vision/sui-go-sdk v1.1.4 h1:1PPgYxQjo1P9UCgFOPTvDCuGEglRL32NwjKPulR4FQk=
+github.com/block-vision/sui-go-sdk v1.1.4/go.mod h1:t8mWASwfyv+EyqHGO9ZrcDiCJWGOFEXqq50TMJ8GQco=
 github.com/btcsuite/btcd v0.20.1-beta/go.mod h1:wVuoA8VJLEcwgqHBwHmzLRazpKxTv13Px/pDuV7OomQ=
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=
 github.com/btcsuite/btcd v0.23.5-0.20231215221805-96c9fd8078fd/go.mod h1:nm3Bko6zh6bWP60UxwoT5LzdGJsQJaPo6HjduXq9p6A=

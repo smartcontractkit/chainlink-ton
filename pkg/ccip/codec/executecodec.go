@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
@@ -183,7 +184,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
 		Message:             rampMessage,
-		OffChainTokenData:   cell.BeginCell().EndCell(), // default empty cell as on-chain, will be removed after token transfer is supported
+		OffChainTokenData:   tvm.EmptyCell, // default empty cell as on-chain, will be removed after token transfer is supported
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
 	}

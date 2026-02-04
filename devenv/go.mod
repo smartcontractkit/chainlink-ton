@@ -18,8 +18,8 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
 	github.com/smartcontractkit/chainlink-deployments-framework v0.78.1-0.20260130170219-7f3060452d15
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.14-0.20260202230832-eb33f42188d1
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260130141725-3430b5c9dad8
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260120144738-c9d69aa78a47
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260204140636-bdb7490ffb1d
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260204140636-bdb7490ffb1d
 	github.com/xssnick/tonutils-go v1.14.1
 )
 
@@ -40,7 +40,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.24.0 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
-	github.com/block-vision/sui-go-sdk v1.1.2 // indirect
+	github.com/block-vision/sui-go-sdk v1.1.4 // indirect
 	github.com/btcsuite/btcd v0.24.2 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
