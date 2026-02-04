@@ -68,20 +68,26 @@ var Upgrade = operations.NewOperation(
 
 			// prepare message with loaded code
 			m := u.Message
-			val := m.Body.Value
-			val.Code = c.Code
-			valAny := any(val)
+
+			var body *codec.MessageEnvelope[any]
+			if m.Body != nil {
+				val := m.Body.Value
+				val.Code = c.Code
+				valAny := any(val)
+
+				body = &codec.MessageEnvelope[any]{
+					Metadata: m.Body.Metadata,
+					Payload:  m.Body.Payload,
+					Cell:     m.Body.Cell,
+					Value:    &valAny,
+				}
+			}
 
 			messages[i] = opston.InternalMessage[any]{
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
-				Body: codec.MessageEnvelope[any]{
-					Metadata: m.Body.Metadata,
-					Payload:  m.Body.Payload,
-					Cell:     m.Body.Cell,
-					Value:    &valAny,
-				},
+				Body:    body,
 			}
 		}
 

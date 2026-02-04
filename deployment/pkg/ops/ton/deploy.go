@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
 
@@ -83,12 +82,7 @@ var Deploy = operations.NewOperation(
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
-				Body: codec.MessageEnvelope[any]{
-					Metadata: m.Body.Metadata,
-					Payload:  m.Body.Payload,
-					Cell:     m.Body.Cell,
-					Value:    m.Body.Value,
-				},
+				Body:    m.Body,
 				StateInit: &StateInit{
 					Code: c.Code,
 					Data: data,

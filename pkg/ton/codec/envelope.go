@@ -113,19 +113,19 @@ type MessageEnvelope[T any] struct {
 }
 
 // WrapMessage prepares a type-safe envelope for the provided TL-B message.
-func WrapMessage[T any](contract string, val T) (MessageEnvelope[T], error) {
+func WrapMessage[T any](contract string, val T) (*MessageEnvelope[T], error) {
 	meta, err := NewMessageMetaFromValue(contract, val)
 	if err != nil {
-		return MessageEnvelope[T]{}, err
+		return nil, err
 	}
 
-	return MessageEnvelope[T]{
+	return &MessageEnvelope[T]{
 		Metadata: meta,
 		Value:    val,
 	}, nil
 }
 
-func MustWrapMessage[T any](contract string, val T) MessageEnvelope[T] {
+func MustWrapMessage[T any](contract string, val T) *MessageEnvelope[T] {
 	env, err := WrapMessage(contract, val)
 	if err != nil {
 		panic(fmt.Sprintf("failed to wrap message: %v", err))

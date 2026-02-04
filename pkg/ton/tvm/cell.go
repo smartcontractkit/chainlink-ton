@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -26,4 +27,17 @@ func ExtractOpcode(body *cell.Cell) (uint32, error) {
 	}
 
 	return uint32(opcode), nil //nolint:gosec // LoadUInt(32) fits in uint32
+}
+
+// CellEquals compares two cells for equality by comparing their hashes. It treats nil cells as equal.
+func CellEquals(a, b *cell.Cell) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	return new(big.Int).SetBytes(a.Hash()).Cmp(new(big.Int).SetBytes(b.Hash())) == 0
 }
