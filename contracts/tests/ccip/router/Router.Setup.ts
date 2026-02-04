@@ -347,7 +347,7 @@ async function deployOffRampInstance(
     },
     chainSelector: CHAINSEL_TON,
     deployables: {
-      deployerCode: await compile('Deployable'),
+      deployerCode: await loadContractCode('Deployable'),
       merkleRootCode: await compile('MerkleRoot'),
       receiveExecutorCode: await compile('ReceiveExecutor'),
     },
