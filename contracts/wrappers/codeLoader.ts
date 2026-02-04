@@ -53,7 +53,9 @@ export async function loadContractCode(contractName: string): Promise<Cell> {
   if (contractName === 'Deployable') {
     const code = await codeCache.get(contractName)!
     const codeHash = code.hash()
-    expect(codeHash).toEqual(Buffer.from("0a848f11f0dd717b47a5f78e854fd764b0538f48bff808d07e6191f4abe1f2d3", "hex"))
+    expect(codeHash).toEqual(
+      Buffer.from('0a848f11f0dd717b47a5f78e854fd764b0538f48bff808d07e6191f4abe1f2d3', 'hex'),
+    )
   }
   return codeCache.get(contractName)!
 }
