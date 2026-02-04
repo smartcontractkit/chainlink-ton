@@ -23,7 +23,7 @@ func LocalNetworkConfig(once *sync.Once) cldf_provider.CTFChainProviderConfig {
 		Once: once,
 		// LocalNetworkImage is the TON local network Docker image version compatible with current contracts.
 		// Source: https://github.com/neodix42/mylocalton-docker
-		Image: "ghcr.io/neodix42/mylocalton-docker:v3.98",
+		Image: "ghcr.io/neodix42/mylocalton-docker:v3.99",
 		CustomEnv: map[string]string{
 			"VERSION_CAPABILITIES":        "12",  // This controls which TVM features are enabled in the local network.
 			"NEXT_BLOCK_GENERATION_DELAY": "0.5", // This is the recommended block generation delay for faster testing.
