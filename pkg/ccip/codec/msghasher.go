@@ -120,7 +120,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
 	}
 
-	// use the reference from contracts/contracts/ccip/types.tolk generateMessageId()
+	// use the reference from contracts/contracts/ccip/offramp/types.tolk generateMessageId()
 	/* Top level cell contains:
 	 * - LEAF_DOMAIN_SEPARATOR 256 bits
 	 * - MsgHash 256 bits
@@ -128,6 +128,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		* - MessageID (256 bits)
 		* - Receiver (addr)
 		* - SequenceNumber (64 bits)
+		* - GasLimit (coins)
 		* - Nonce (64 bits)
 	 * - Sender (bytes with length prefix - crossChainAddress)
 	 * - Data (ref)
