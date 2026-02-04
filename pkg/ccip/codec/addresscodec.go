@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -12,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var ErrInvalidWorkchain = fmt.Errorf("workchain value outside valid int8 range [-128, 127]")
+var ErrInvalidWorkchain = errors.New("workchain value outside valid int8 range [-128, 127]")
 
 // validateWorkchain checks that a workchain value fits within the int8 range.
 // tonutils-go internally treats the workchain as int8, so values outside [-128, 127]
@@ -98,13 +99,13 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 // AddressBytesToAddress converts a byte slice representing a TON address into its ton address representation, only supporting standard TON addresses.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
 	if len(bytes) != tvm.AddressLength {
-		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
+		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
 	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
 	if err := validateWorkchain(workchain); err != nil {
-		return address.NewAddressNone(), err
+		return nil, err
 	}
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])

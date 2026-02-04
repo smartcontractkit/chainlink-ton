@@ -224,7 +224,7 @@ func TestValidateWorkchain(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create raw address with the specified workchain
 			rawBytes := make([]byte, 36)
-			binary.BigEndian.PutUint32(rawBytes[0:4], uint32(tc.workchain))
+			binary.BigEndian.PutUint32(rawBytes[0:4], uint32(tc.workchain)) //nolint:gosec // G115: intentional for testing edge cases
 			// Dummy address data
 			for i := 4; i < 36; i++ {
 				rawBytes[i] = byte(i)

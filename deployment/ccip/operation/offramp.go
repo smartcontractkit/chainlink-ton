@@ -6,6 +6,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -126,7 +127,8 @@ func setOCR3Config(b operations.Bundle, dp *dep.DependencyProvider, in OCR3Confi
 
 	transmitters := make([]common.AddressWrap, 0, len(in.Transmitters))
 	for _, transmitter := range in.Transmitters {
-		addr, err := codec.AddressBytesToTONAddress(transmitter)
+		var addr *address.Address
+		addr, err = codec.AddressBytesToTONAddress(transmitter)
 		if err != nil {
 			return nil, fmt.Errorf("invalid transmitter address: %w", err)
 		}
