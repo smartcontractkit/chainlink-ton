@@ -178,6 +178,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		}
 	}
 
+	lggr.Debugw("fetched source chain configs", "sourceChainConfigs", sourceChainConfigs)
 	return sourceChainConfigs, nil
 }
 
