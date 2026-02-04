@@ -21,6 +21,9 @@ import (
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
 var (
 	Version1_6_0 = *semver.MustParse("1.6.0")
+	// MCMS contract versions
+	TimelockVersion = *semver.MustParse("0.0.3")
+	MCMSVersion     = *semver.MustParse("0.0.4")
 	// Core contracts
 	LinkToken ds.ContractType = "LinkToken"
 	Router    ds.ContractType = "Router"
