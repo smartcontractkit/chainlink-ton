@@ -266,8 +266,12 @@ func SendCCIPMessage(
 		return 0, nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
 
-	if receivedMsg.ExitCode != 0 {
-		return 0, nil, fmt.Errorf("transaction failed: with exitcode %d: %s", receivedMsg.ExitCode, receivedMsg.ExitCode.Describe())
+	exitCode, err := receivedMsg.ExitCode()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to get exit code: %w", err)
+	}
+	if exitCode != tvm.ExitCodeSuccess {
+		return 0, nil, fmt.Errorf("transaction failed: with exitcode %d: %s", exitCode, exitCode.Describe())
 	}
 
 	l.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
@@ -321,13 +325,14 @@ func waitForReceivedMsgFlatten(ctx context.Context, l logger.Logger, clientConn 
 		l.Infof("Flattening %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
 
 		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
-			l.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-				i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+			outExitCode, outErr := outMsg.ExitCode()
+			l.Infof("Outgoing message %d: exit code %v (err=%v), succeeded: %v, bounced: %v, status: %v",
+				i, outExitCode, outErr, outMsg.Succeeded(), outMsg.EmittedBouncedMessage, outMsg.Status())
 
-			if outMsg.ExitCode != 0 {
-				l.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+			if outErr == nil && outExitCode != tvm.ExitCodeSuccess {
+				l.Errorf("Outgoing message %d failed with exit code %v", i, outExitCode)
 			}
-			if !outMsg.Success {
+			if !outMsg.Succeeded() {
 				l.Errorf("Outgoing message %d was not successful", i)
 			}
 			if outMsg.EmittedBouncedMessage {
