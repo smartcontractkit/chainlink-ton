@@ -97,6 +97,10 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 	URL = '%s'`,
 		bc.ChainID,
 		name,
+		// The base64 liteserver public key contains "/" which breaks URL parsing into "@/" — strip the extra "/".
+		// CTF returns the raw key in the URL (liteserver://key@host:port) which is correct for the TON client parser,
+		// but TOML config parsing interprets the "/" as a path separator. Fix it here rather than in CTF
+		// since URL-encoding the key would break the TON liteserver client that expects raw base64.
 		strings.ReplaceAll(bc.Out.Nodes[0].InternalHTTPUrl, "@/", "@"),
 	), nil
 }
