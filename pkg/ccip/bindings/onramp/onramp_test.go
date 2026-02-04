@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/block-vision/sui-go-sdk/models"
+	"github.com/block-vision/sui-go-sdk/transaction"
 	"github.com/gagliardetto/solana-go"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
@@ -64,6 +66,43 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.Len(t, orig.Accounts, len(decoded.Accounts))
 	for i, acc := range orig.Accounts {
 		require.Equal(t, acc.Value, decoded.Accounts[i].Value)
+	}
+}
+
+func TestSuiExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
+	// Sui object IDs are 32 bytes, matching Account256's 256-bit expectation
+	suiAddr1 := models.SuiAddress("0x8bc59c2842f436c1221691a359dc42941c1f25eca13f4bad79f7b00e8df4b968")
+	suiAddr1Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr1)
+	require.NoError(t, err)
+
+	suiAddr2 := models.SuiAddress("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
+	suiAddr2Bytes, err := transaction.ConvertSuiAddressStringToBytes(suiAddr2)
+	require.NoError(t, err)
+
+	receiverObjectIDs := common.SnakedCell[Account256]{
+		{Value: suiAddr1Bytes[:]},
+		{Value: suiAddr2Bytes[:]},
+	}
+
+	orig := SuiExtraArgsV1{
+		GasLimit:                 big.NewInt(50000),
+		AllowOutOfOrderExecution: true,
+		TokenReceiver:            suiAddr1Bytes[:],
+		ReceiverObjectIDs:        receiverObjectIDs,
+	}
+
+	cell, err := tlb.ToCell(orig)
+	require.NoError(t, err)
+
+	var decoded SuiExtraArgsV1
+	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
+	require.NoError(t, err)
+	require.Equal(t, orig.GasLimit, decoded.GasLimit)
+	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
+	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
+	require.Len(t, orig.ReceiverObjectIDs, len(decoded.ReceiverObjectIDs))
+	for i, objID := range orig.ReceiverObjectIDs {
+		require.Equal(t, objID.Value, decoded.ReceiverObjectIDs[i].Value)
 	}
 }
 
