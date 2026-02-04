@@ -45,29 +45,25 @@ const DRILL_MESSAGE_VALUE: coins = ton("0.007");
 
 fun onInternalMessage(in: InMessage) {
 	var st = lazy FiredrillEntrypoint_Storage.load();
+	st.ownable.requireOwner(in.senderAddress);
 	val msg = lazy FiredrillEntrypoint_InMessage.fromSlice(in.body);
 	val value = in.valueCoins;
 	
 	match (msg) {
 		FiredrillEntrypoint_PrepareRegister => {
-			st.ownable.requireOwner(in.senderAddress);
 			prepareRegister(st);
 		}
 		FiredrillEntrypoint_DrillPendingCommitPendingQueueTxSpike => {
-			st.ownable.requireOwner(in.senderAddress);
 			drillPendingCommitPendingQueueTxSpike(mutate st, msg, value);
 			st.store();
 		}
 		FiredrillEntrypoint_DrillPendingExecution => {
-			st.ownable.requireOwner(in.senderAddress);
 			drillPendingExecution(st, msg);
 		}
 		FiredrillEntrypoint_DrillPriceRegistries => {
-			st.ownable.requireOwner(in.senderAddress);
 			drillPriceRegistries(st);
 		}
 		FiredrillEntrypoint_InitRamps => {
-			st.ownable.requireOwner(in.senderAddress);
 			initRamps(mutate st, msg);
 			st.store();
 		}
