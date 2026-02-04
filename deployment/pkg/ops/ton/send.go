@@ -69,7 +69,7 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to extract opcode from message body: %w", err)
 			}
 
-			if _im.DstAddr == nil || _im.DstAddr.Equals(tvm.ZeroAddress) {
+			if _im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress) {
 				return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address", opcode)
 			}
 

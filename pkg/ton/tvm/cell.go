@@ -1,11 +1,14 @@
 package tvm
 
 import (
+	"bytes"
 	"fmt"
-	"math/big"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+// EmptyCell is an empty TVM cell - BOC: "te6cckEBAQEAAgAAAEysuc0="
+var EmptyCell = cell.BeginCell().EndCell()
 
 const BitLenOpcode = 32
 
@@ -39,5 +42,5 @@ func CellEquals(a, b *cell.Cell) bool {
 		return false
 	}
 
-	return new(big.Int).SetBytes(a.Hash()).Cmp(new(big.Int).SetBytes(b.Hash())) == 0
+	return bytes.Equal(a.ToBOC(), b.ToBOC())
 }

@@ -2,7 +2,6 @@ package tvm
 
 import (
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const (
@@ -18,6 +17,4 @@ var (
 
 	// Dummy address for LINK Jetton until we deploy real one
 	LinkTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000002")
-
-	EmptyCell = cell.BeginCell().EndCell()
 )

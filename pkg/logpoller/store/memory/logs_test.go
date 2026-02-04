@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestSaveLogs_Deduplication(t *testing.T) {
@@ -229,7 +230,7 @@ func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 				FilterID:     1,
 				Address:      testAddr,
 				EventSig:     0x12345678,
-				Data:         cell.BeginCell().EndCell(),
+				Data:         tvm.EmptyCell,
 				TxHash:       models.TxHash{1, 2, 3},
 				TxLT:         1000,
 				MsgLT:        1000,
@@ -243,7 +244,7 @@ func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 				FilterID:     1,
 				Address:      testAddr,
 				EventSig:     0x12345678,
-				Data:         cell.BeginCell().EndCell(),
+				Data:         tvm.EmptyCell,
 				TxHash:       models.TxHash{1, 2, 4},
 				TxLT:         1001,
 				MsgLT:        1001,
@@ -257,7 +258,7 @@ func TestInMemoryLogs_GetHighestMCBlockSeqno(t *testing.T) {
 				FilterID:     1,
 				Address:      testAddr,
 				EventSig:     0x12345678,
-				Data:         cell.BeginCell().EndCell(),
+				Data:         tvm.EmptyCell,
 				TxHash:       models.TxHash{1, 2, 5},
 				TxLT:         1002,
 				MsgLT:        1002,
