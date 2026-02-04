@@ -32,8 +32,7 @@ fun FiredrillEntrypoint_Storage.store(self) {
 }
 
 enum FiredrillEntrypoint_Error {
-	Unauthorized = 3000,
-	NothingToSend,
+	NothingToSend = 3001,
 	MessageAlreadySent,
 	NotYetSent,
 	RampsAlreadyInitialized,
@@ -67,6 +66,19 @@ fun onInternalMessage(in: InMessage) {
 			initRamps(mutate st, msg);
 			st.store();
 		}
+		else => {
+		    // attempt to handle Ownable messages
+		    var st = lazy FiredrillEntrypoint_Storage.load();
+		    val handled = st.ownable.onInternalMessage(in.senderAddress, in.body);
+		    if (handled) {
+			st.store();
+			return;
+		    }
+
+		    // ignore empty messages, "wrong opcode" for others
+		    assert (in.body.isEmpty()) throw 0xFFFF;
+		}
+
 	}
 }
 
