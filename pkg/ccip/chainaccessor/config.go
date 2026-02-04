@@ -167,7 +167,10 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		return nil, nil
 	}
 
-	sourceChainConfigs := filterSourceChainConfigs(sourceConfigsGot, sourceChainSelectors)
+	sourceChainConfigs, err := filterSourceChainConfigs(sourceConfigsGot, sourceChainSelectors)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter source chain configs: %w", err)
+	}
 	lggr.Debugw("GetOffRampSourceChainConfigs returning", "sourceChainConfigs", sourceChainConfigs)
 	return sourceChainConfigs, nil
 }
@@ -175,7 +178,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 // filterSourceChainConfigs filters the fetched source chain configs based on the requested selectors.
 // If sourceChainSelectors is empty, all configs are returned.
 // If sourceChainSelectors is provided, only matching configs are returned, non-existent selectors are skipped.
-func filterSourceChainConfigs(sourceConfigsGot offrampview.SourceChainConfigMap, sourceChainSelectors []ccipocr3.ChainSelector) map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig {
+func filterSourceChainConfigs(sourceConfigsGot offrampview.SourceChainConfigMap, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	sourceChainConfigs := make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 
 	if len(sourceChainSelectors) == 0 {
@@ -201,7 +204,7 @@ func filterSourceChainConfigs(sourceConfigsGot offrampview.SourceChainConfigMap,
 		}
 	}
 
-	return sourceChainConfigs
+	return sourceChainConfigs, nil
 }
 
 // GetOffRampSourceChainConfig retrieves a specific source chain configuration
