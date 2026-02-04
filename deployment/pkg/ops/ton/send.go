@@ -1,6 +1,7 @@
 package ton // alias: opston
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -63,14 +64,24 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to message: %w", err)
 			}
 
-			_imc, err := tlbe.NewCellFrom(*_im)
-			if err != nil {
-				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to cell: %w", err)
-			}
-
 			opcode, err := tvm.ExtractOpcode(_im.Body)
 			if err != nil {
 				return SendMessagesOutput{}, fmt.Errorf("failed to extract opcode from message body: %w", err)
+			}
+
+			if _im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress) {
+				return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address", opcode)
+			}
+
+			if _im.Body == nil || tvm.CellEquals(_im.Body, tvm.EmptyCell) {
+				if !m.Bounce {
+					return SendMessagesOutput{}, errors.New("empty body messages must have bounce enabled")
+				}
+			}
+
+			_imc, err := tlbe.NewCellFrom(*_im)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to cell: %w", err)
 			}
 
 			plan := MessagePlanRaw{

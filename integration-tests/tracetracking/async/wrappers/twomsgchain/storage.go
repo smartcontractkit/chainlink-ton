@@ -7,10 +7,10 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -40,7 +40,7 @@ func (p *StorageProvider) Deploy(ctx context.Context, initData StorageInitData) 
 	if err != nil {
 		return Storage{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	body := cell.BeginCell().EndCell()
+	body := tvm.EmptyCell
 	contract, _, err := wrappers.Deploy(ctx, &p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Storage{}, err

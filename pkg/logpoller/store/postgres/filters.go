@@ -43,7 +43,10 @@ func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) 
 
 	// convert application-level type to database-level type
 	filterModel := filterModel{}
-	dbF := filterModel.FromFilter(filter)
+	dbF, err := filterModel.FromFilter(filter)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert filter: %w", err)
+	}
 	dbF.ChainID = s.chainID
 
 	// Use INSERT ... ON CONFLICT to handle both new and existing filters
@@ -60,7 +63,7 @@ func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) 
 		RETURNING id
 	`
 	var id int64
-	err := s.orm.NamedGetContext(ctx, &id, query, &dbF)
+	err = s.orm.NamedGetContext(ctx, &id, query, &dbF)
 	if err != nil {
 		s.lggr.Errorw("DB insert/update failed",
 			"chainID", dbF.ChainID,
@@ -137,9 +140,12 @@ func (s *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Add
 		FROM ton.log_poller_filters
 		WHERE chain_id = :chain_id AND address = :address AND is_deleted = false
 	`
-	rawAddr := codec.ToRawAddr(addr)
+	rawAddr, err := codec.ToRawAddr(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert address: %w", err)
+	}
 	var dbFilters []filterModel
-	err := s.orm.NamedSelectContext(ctx, &dbFilters, query, map[string]any{
+	err = s.orm.NamedSelectContext(ctx, &dbFilters, query, map[string]any{
 		"chain_id": s.chainID,
 		"address":  rawAddr[:],
 	})

@@ -11,6 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // BOC Header Structure Reference (from tonutils-go/tvm/cell/parse.go:32-65)
@@ -87,7 +88,7 @@ func TestHeaderLenSimple(t *testing.T) {
 	}{
 		{
 			name:           "empty_cell",
-			createCell:     func() *cell.Cell { return cell.BeginCell().EndCell() },
+			createCell:     func() *cell.Cell { return tvm.EmptyCell },
 			withCRC:        true,
 			expectedHeader: 11,
 		},

@@ -21,7 +21,10 @@ func WaitForTrace(ctx context.Context, c ton.APIClientWrapped, tx *tlb.Transacti
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	ec := r.OutcomeExitCode()
+	ec, err := r.TraceExitCode()
+	if err != nil {
+		return fmt.Errorf("failed to get outcome exit code: %w", err)
+	}
 	if ec != tvm.ExitCodeSuccess {
 		return fmt.Errorf("transaction failed with exit code: %d", ec)
 	}

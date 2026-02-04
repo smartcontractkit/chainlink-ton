@@ -91,7 +91,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Bounce:  false,
 						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
 						Amount:  tlb.MustFromTON("0"),
-						Body: codec.MessageEnvelope[any]{
+						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: "com.chainlink.ton.lib.access.Ownable",
 								Opcode:   0xf21b7da1,
@@ -155,7 +155,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Bounce:  false,
 						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
 						Amount:  tlb.MustFromTON("0"),
-						Body: codec.MessageEnvelope[any]{
+						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: "com.chainlink.ton.lib.access.Ownable",
 								Opcode:   0xf21b7da1,
@@ -172,7 +172,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Bounce:  false,
 						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000002"),
 						Amount:  tlb.MustFromTON("0"),
-						Body: codec.MessageEnvelope[any]{
+						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: "com.chainlink.ton.lib.access.Ownable",
 								Opcode:   0xf21b7da1,
@@ -249,7 +249,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Bounce:  false,
 						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
 						Amount:  tlb.MustFromTON("0"),
-						Body: codec.MessageEnvelope[any]{
+						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: "com.chainlink.ton.lib.access.Ownable",
 								Opcode:   0xf21b7da1,
@@ -354,7 +354,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Bounce:  false,
 						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
 						Amount:  tlb.MustFromTON("0"),
-						Body: codec.MessageEnvelope[any]{
+						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
 								Contract: "com.chainlink.ton.mcms.MCMS",
 								Opcode:   0x9b9ce96a,
@@ -422,8 +422,8 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 				// Notice: we do this b/c slight mismatch in Cell serialization refs: ([]*cell.Cell) <nil> vs {}
 				require.Equal(t, must(tc.want.Messages[i].Body.ToCell()).Hash(), must(actual.Messages[i].Body.ToCell()).Hash(), "message body cell hash mismatch")
 				// zero out Body for comparison
-				tc.want.Messages[i].Body = codec.MessageEnvelope[any]{}
-				actual.Messages[i].Body = codec.MessageEnvelope[any]{}
+				tc.want.Messages[i].Body = &codec.MessageEnvelope[any]{}
+				actual.Messages[i].Body = &codec.MessageEnvelope[any]{}
 
 				// compare state init hashes (if present) to avoid comparing cell objects directly
 				if tc.want.Messages[i].StateInit != nil {
