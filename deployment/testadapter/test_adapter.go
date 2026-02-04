@@ -83,7 +83,10 @@ func (a *TONAdapter) getAddress(ty datastore.ContractType) (address.Address, err
 
 func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (any, error) {
 	var feeToken *address.Address
-	if len(components.FeeToken) > 0 {
+	// default to native TON token when fee token is empty
+	if len(components.FeeToken) == 0 {
+		feeToken = tvm.TonTokenAddr
+	} else {
 		var err error
 		feeToken, err = address.ParseAddr(components.FeeToken)
 		if err != nil {
