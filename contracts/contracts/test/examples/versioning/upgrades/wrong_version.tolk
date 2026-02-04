@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * This contract is used to test version mismatch during upgrade.
 */

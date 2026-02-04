@@ -18,7 +18,13 @@
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       # Import nixpkgs with specific configuration
-      pkgsUnstable = import nixpkgs {inherit system;};
+      pkgsUnstable = import nixpkgs {
+        inherit system;
+        config.allowUnfreePredicate = pkg:
+          builtins.elem (nixpkgs.lib.getName pkg) [
+            "chainlink-contracts-ton" # BUSL-1.1 license
+          ];
+      };
       pkgsBackport = import nixpkgs-release-25-05 {inherit system;};
 
       # Replace selected Go packages with latest from backport release (go1.25.3 support)
@@ -43,10 +49,9 @@
       chainlink-ton-extras = pkgs.callPackage ./cmd/chainlink-ton-extras commonArgs;
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
-      oplint =
-        (pkgs.callPackage ./scripts/oplint commonArgs).overrideAttrs (_old: {
-          GOFLAGS = [ "-mod=mod" "-trimpath" ];
-        });
+      oplint = (pkgs.callPackage ./scripts/oplint commonArgs).overrideAttrs (_old: {
+        GOFLAGS = ["-mod=mod" "-trimpath"];
+      });
 
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts {

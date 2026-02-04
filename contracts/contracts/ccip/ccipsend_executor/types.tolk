@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "../onramp/messages.tolk";
 
 const CCIPSendExecutor_FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";

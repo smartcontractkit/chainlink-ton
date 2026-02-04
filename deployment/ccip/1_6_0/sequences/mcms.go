@@ -115,17 +115,13 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 		}
 	}
 
-	// Set contract versions to match expected MCMS deployment versions
-	timelockSemver := semver.MustParse("0.0.3")
-	mcmsSemver := semver.MustParse("0.0.4")
-
 	return mcmsSeq.DeployMCMSSeqInput{
 		ContractsVersionSha: cfg.ContractVersion,
 		ContractsParams: mcmsConfig.ChainContractParams{
 			Timelock: mcmsConfig.TimelockParams{
 				ID:              contractID,
 				Coin:            defaultMCMSContractCoin,
-				ContractsSemver: timelockSemver,
+				ContractsSemver: &state.TimelockVersion,
 				InitMessage: timelock.Init{
 					MinDelay: minDelay,
 					Admin:    deployer,
@@ -134,7 +130,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 			MCMS: mcmsConfig.MCMSParams{
 				ID:              contractID,
 				Coin:            defaultMCMSContractCoin,
-				ContractsSemver: mcmsSemver,
+				ContractsSemver: &state.MCMSVersion,
 			},
 		},
 		ChainSelector: cfg.ChainSelector,

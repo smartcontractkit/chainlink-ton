@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 tolk 1.2
 
 import "../utils.tolk";
