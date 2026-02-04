@@ -50,7 +50,7 @@ export function loadContractCode(contractName: string): Promise<Cell> {
   if (!codeCache.has(contractName)) {
     codeCache.set(contractName, readContractCode(contractName))
   }
-  if(contractName === 'Deployable') {
+  if (contractName === 'Deployable') {
     console.log(codeCache.get(contractName))
   }
   return codeCache.get(contractName)!
