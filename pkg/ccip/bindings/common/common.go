@@ -410,7 +410,7 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 	if len(data) == 0 {
 		// Return an empty cell instead of nil for empty arrays
-		return cell.BeginCell().EndCell(), nil
+		return tvm.EmptyCell, nil
 	}
 
 	if len(data) > MaxCellChainBytes {
