@@ -18,6 +18,10 @@ var (
 	ErrNilPackedPrice = errors.New("packed price cannot be nil")
 	// ErrNegativePackedPrice is returned when a negative packed price is passed to UnpackGasPrice.
 	ErrNegativePackedPrice = errors.New("packed price cannot be negative")
+
+	// Pre-computed bit masks for gas price packing/unpacking
+	mask112 = maxUint(112) // 2^112 - 1, used for 112-bit values
+	mask224 = maxUint(224) // 2^224 - 1, used for 224-bit packed values
 )
 
 // maxUint returns 2^bits - 1, which is the maximum value for an unsigned integer of the given bit length.
@@ -43,10 +47,10 @@ func PackGasPrice(executionGasPrice, dataAvailabilityGasPrice *big.Int) (*big.In
 	if executionGasPrice.Sign() < 0 || dataAvailabilityGasPrice.Sign() < 0 {
 		return nil, ErrNegativeGasPrice
 	}
-	if executionGasPrice.Cmp(maxUint(112)) > 0 {
+	if executionGasPrice.Cmp(mask112) > 0 {
 		return nil, ErrGasPriceExceeds112Bits
 	}
-	if dataAvailabilityGasPrice.Cmp(maxUint(112)) > 0 {
+	if dataAvailabilityGasPrice.Cmp(mask112) > 0 {
 		return nil, ErrGasPriceExceeds112Bits
 	}
 
@@ -74,11 +78,11 @@ func UnpackGasPrice(packedPrice *big.Int) (executionGasPrice, dataAvailabilityGa
 	if packedPrice.Sign() < 0 {
 		return nil, nil, ErrNegativePackedPrice
 	}
-	if packedPrice.Cmp(maxUint(224)) > 0 {
+	if packedPrice.Cmp(mask224) > 0 {
 		return nil, nil, ErrPackedPriceExceeds224Bits
 	}
 
-	executionGasPrice = new(big.Int).And(packedPrice, maxUint(112))
+	executionGasPrice = new(big.Int).And(packedPrice, mask112)
 	dataAvailabilityGasPrice = new(big.Int).Rsh(packedPrice, 112)
 
 	return executionGasPrice, dataAvailabilityGasPrice, nil

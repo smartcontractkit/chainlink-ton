@@ -274,8 +274,8 @@ type UpdateFeeTokens struct {
 // UpdateTokenTransferFeeConfig is a value type stored in a dictionary, NOT a message.
 // It represents per-destination-chain token transfer fee config updates.
 type UpdateTokenTransferFeeConfig struct {
-	Add    *tlbe.Dict[uint64, TokenTransferFeeConfig] `tlb:"."` // map<address, TokenTransferFeeConfig>
-	Remove common.SnakedCell[common.AddressWrap]      `tlb:"^"` // SnakedCell<address>
+	Add    *tlbe.Dict[uint64, TokenTransferFeeConfig] `tlb:"."`
+	Remove common.SnakedCell[common.AddressWrap]      `tlb:"^"`
 }
 
 // UpdateTokenTransferFeeConfigs is the message type for updating token transfer fee configs.
