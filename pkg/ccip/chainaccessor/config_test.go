@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -187,7 +188,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 			1003: makeConfig(300, false),
 		}
 
-		result := filterSourceChainConfigs(sourceConfigsGot, []ccipocr3.ChainSelector{})
+		result, err := filterSourceChainConfigs(sourceConfigsGot, []ccipocr3.ChainSelector{})
+		require.NoError(t, err)
 
 		assert.Len(t, result, 3, "should return all 3 configs")
 		assert.Equal(t, uint64(100), result[ccipocr3.ChainSelector(1001)].MinSeqNr)
@@ -201,7 +203,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 			2002: makeConfig(600, true),
 		}
 
-		result := filterSourceChainConfigs(sourceConfigsGot, nil)
+		result, err := filterSourceChainConfigs(sourceConfigsGot, nil)
+		require.NoError(t, err)
 
 		assert.Len(t, result, 2, "should return all 2 configs")
 		assert.Equal(t, uint64(500), result[ccipocr3.ChainSelector(2001)].MinSeqNr)
@@ -216,7 +219,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 		}
 
 		selectors := []ccipocr3.ChainSelector{3001, 3003}
-		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		result, err := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		require.NoError(t, err)
 
 		assert.Len(t, result, 2, "should return only 2 matching configs")
 		assert.Equal(t, uint64(100), result[ccipocr3.ChainSelector(3001)].MinSeqNr)
@@ -233,7 +237,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 
 		// Request selectors that don't all exist
 		selectors := []ccipocr3.ChainSelector{4001, 9999, 8888}
-		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		result, err := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		require.NoError(t, err)
 
 		assert.Len(t, result, 1, "should return only 1 existing config")
 		assert.Equal(t, uint64(100), result[ccipocr3.ChainSelector(4001)].MinSeqNr)
@@ -245,7 +250,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 		}
 
 		selectors := []ccipocr3.ChainSelector{9999, 8888, 7777}
-		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		result, err := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		require.NoError(t, err)
 
 		assert.Empty(t, result, "should return empty map when no selectors match")
 	})
@@ -254,7 +260,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 		sourceConfigsGot := offrampview.SourceChainConfigMap{}
 
 		selectors := []ccipocr3.ChainSelector{1001, 1002}
-		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		result, err := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		require.NoError(t, err)
 
 		assert.Empty(t, result, "should return empty map")
 	})
@@ -272,7 +279,8 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 		}
 
 		selectors := []ccipocr3.ChainSelector{6001}
-		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		result, err := filterSourceChainConfigs(sourceConfigsGot, selectors)
+		require.NoError(t, err)
 
 		assert.Len(t, result, 1)
 		config := result[ccipocr3.ChainSelector(6001)]
