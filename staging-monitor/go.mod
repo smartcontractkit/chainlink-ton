@@ -14,8 +14,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260129103204-4c8453dd8139
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
 	github.com/smartcontractkit/chainlink-deployments-framework v0.78.1-0.20260130170219-7f3060452d15
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260204092716-fbb6c7ad386f
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260120144738-c9d69aa78a47
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260204140636-bdb7490ffb1d
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260204140636-bdb7490ffb1d
 	github.com/xssnick/tonutils-go v1.14.1
 )
 
