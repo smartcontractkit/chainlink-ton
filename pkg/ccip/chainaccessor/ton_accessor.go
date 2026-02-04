@@ -116,7 +116,7 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addrToBytes(addr), nil
+	return addrToBytes(addr)
 }
 
 func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
@@ -192,9 +192,13 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// Router
+		wrappedNativeBytes, err := addrToBytes(tvm.TonTokenAddr)
+		if err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("convert wrapped native address: %w", err)
+		}
 		config.Router = ccipocr3.RouterConfig{
 			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
-			WrappedNativeAddress: addrToBytes(tvm.TonTokenAddr),
+			WrappedNativeAddress: wrappedNativeBytes,
 		}
 
 		// sourceChainConfigs represents sources on the *destination chain* contract, since this is the source chain
