@@ -54,7 +54,7 @@ export function firedrillEntrypointConfigToCell(config: FiredrillEntrypointStora
 
   let firedrillContractsCell: Cell | undefined = undefined
   if (config.firedrillContracts) {
-    const firedrillContractsCell = beginCell()
+    firedrillContractsCell = beginCell()
       .storeAddress(config.firedrillContracts.firedrillOnRamp)
       .storeAddress(config.firedrillContracts.firedrillOffRamp)
       .endCell()
