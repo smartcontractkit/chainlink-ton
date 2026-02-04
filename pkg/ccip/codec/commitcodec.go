@@ -3,6 +3,7 @@ package codec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -202,7 +203,7 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 // validateNonEmptyAddress checks that the address is not empty or all zeros.
 func validateNonEmptyAddress(addr []byte) error {
 	if len(addr) == 0 {
-		return fmt.Errorf("empty address")
+		return errors.New("empty address")
 	}
 	// Check if all bytes are zero
 	allZero := true
@@ -213,7 +214,7 @@ func validateNonEmptyAddress(addr []byte) error {
 		}
 	}
 	if allZero {
-		return fmt.Errorf("address is all zeros")
+		return errors.New("address is all zeros")
 	}
 	return nil
 }

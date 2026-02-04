@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -29,10 +30,10 @@ type RawAddr [tvm.AddressLength]byte
 // Returns an error if the address is nil, not a standard address, or has invalid data length.
 func ToRawAddr(addr *address.Address) (RawAddr, error) {
 	if addr == nil {
-		return RawAddr{}, fmt.Errorf("cannot convert nil address to raw format")
+		return RawAddr{}, errors.New("cannot convert nil address to raw format")
 	}
 	if addr.IsAddrNone() {
-		return RawAddr{}, fmt.Errorf("cannot convert none address to raw format")
+		return RawAddr{}, errors.New("cannot convert none address to raw format")
 	}
 	// Standard TON addresses have exactly 32 bytes of data
 	if len(addr.Data()) != tvm.AddressDataLength {
