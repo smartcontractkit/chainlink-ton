@@ -3,7 +3,7 @@ import { compile, NetworkProvider } from '@ton/blueprint'
 import { FiredrillEntrypoint } from '../wrappers/firedrill/FiredrillEntrypoint'
 import { FiredrillOnRamp } from '../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
-import { generateRandomContractId } from '../src/utils'
+import { generateRandomContractId, LINK_TOKEN } from '../src/utils'
 import {
   CHAINSEL_TON_TEST,
   tonAddressToCrossChainAddress,
@@ -36,16 +36,14 @@ export async function run(provider: NetworkProvider) {
     tokenAddress = Address.parse(tokenAddressStr.trim())
   } else {
     // Use a default test token address
-    tokenAddress = Address.parse(
-      '0:0000000000000000000000000000000000000000000000000000000000000002',
-    )
+    tokenAddress = LINK_TOKEN;
     console.log(`Using default token address: ${tokenAddress.toString()}`)
   }
 
   console.log('\n🚀 Starting deployment...\n')
 
   // Step 1: Deploy Entrypoint first with random ramp addresses
-  console.log('1️⃣  Deploying FiredrillEntrypoint...')
+  console.log('1  Deploying FiredrillEntrypoint...')
   const entrypointConfig = {
     id: generateRandomContractId(),
     ownable: {
@@ -75,7 +73,7 @@ export async function run(provider: NetworkProvider) {
   console.log(`✅ Entrypoint deployed at: ${entrypoint.address.toString()}\n`)
 
   // Step 2: Deploy OnRamp with entrypoint as control address
-  console.log('2️⃣  Deploying FiredrillOnRamp...')
+  console.log('2  Deploying FiredrillOnRamp...')
   const onRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
@@ -89,14 +87,15 @@ export async function run(provider: NetworkProvider) {
   await provider.waitForDeploy(onramp.address)
 
   // Verify onramp deployed correctly by checking static config
-  const onrampStaticConfig = await onramp.getStaticConfig()
-  if (onrampStaticConfig === undefined) {
-    throw new Error('OnRamp deployment verification failed: could not read static config')
+  try {
+    const onrampStaticConfig = await onramp.getStaticConfig()
+  } catch (e) {
+    throw new Error('OnRamp deployment verification failed: could not read static config', e)
   }
   console.log(`✅ OnRamp deployed at: ${onramp.address.toString()}\n`)
 
   // Step 3: Deploy OffRamp with entrypoint as control address and OnRamp cross-chain address
-  console.log('3️⃣  Deploying FiredrillOffRamp...')
+  console.log('3  Deploying FiredrillOffRamp...')
   const offRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
@@ -110,18 +109,16 @@ export async function run(provider: NetworkProvider) {
   await provider.waitForDeploy(offramp.address)
 
   // Verify offramp deployed correctly by checking static config
-  const offrampStaticConfig = await offramp.getStaticConfig()
-  if (offrampStaticConfig === undefined) {
-    throw new Error('OffRamp deployment verification failed: could not read static config')
+  try {
+    const offrampStaticConfig = await offramp.getStaticConfig()
+  } catch (e) {
+    throw new Error('OffRamp deployment verification failed: could not read static config', e)
   }
   console.log(`✅ OffRamp deployed at: ${offramp.address.toString()}\n`)
 
   // Step 4: Update ramp addresses in entrypoint
-  console.log('4️⃣  Updating ramp addresses in Entrypoint...')
+  console.log('4  Updating ramp addresses in Entrypoint...')
   await entrypoint.sendInitRamps(sender, toNano('0.05'), onramp.address, offramp.address)
-
-  // Wait a bit for the transaction to be processed
-  await new Promise((resolve) => setTimeout(resolve, 2000))
 
   // Verify ramps were set correctly
   const setOnRampAddress = await entrypoint.getOnRampAddress()
