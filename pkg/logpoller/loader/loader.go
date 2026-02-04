@@ -182,6 +182,7 @@ func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.B
 	// Load transactions
 	err := l.LoadTxsForAddress(ctx, blockRange, addr, pageSize, txOut, errOut)
 	close(txOut)
+	close(errOut)
 
 	// Wait for collection to complete
 	<-done

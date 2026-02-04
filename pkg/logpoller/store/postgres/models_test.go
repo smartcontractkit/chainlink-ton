@@ -37,7 +37,8 @@ func TestFilterModel_Conversion(t *testing.T) {
 
 	// Convert to database model and back
 	dbFilterModel := filterModel{}
-	dbFilter := dbFilterModel.FromFilter(originalFilter)
+	dbFilter, err := dbFilterModel.FromFilter(originalFilter)
+	require.NoError(t, err)
 	convertedFilter, err := dbFilter.ToFilter()
 	require.NoError(t, err)
 

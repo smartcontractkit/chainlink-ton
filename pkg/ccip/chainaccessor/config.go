@@ -30,10 +30,13 @@ var globalCurseSubject = func() *big.Int {
 
 // Note: This file contains contract configuration related methods for the TON accessor
 
-// addrToBytes converts a TON address to raw bytes format
-func addrToBytes(addr *address.Address) []byte {
-	rawAddr := codec.ToRawAddr(addr)
-	return rawAddr[:]
+// addrToBytes converts a TON address to raw bytes format.
+func addrToBytes(addr *address.Address) ([]byte, error) {
+	rawAddr, err := codec.ToRawAddr(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert address to raw bytes: %w", err)
+	}
+	return rawAddr[:], nil
 }
 
 func parseOCR3Config(config *offramp.OCR3Config) (ccipocr3.OCRConfig, error) {
@@ -68,7 +71,11 @@ func parseOCR3Config(config *offramp.OCR3Config) (ccipocr3.OCRConfig, error) {
 		if err1 != nil {
 			return ccipocr3.OCRConfig{}, fmt.Errorf("decode transmitter addr: %w", err1)
 		}
-		transmitters = append(transmitters, addrToBytes(transmitter))
+		transmitterBytes, err1 := addrToBytes(transmitter)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, fmt.Errorf("convert transmitter to bytes: %w", err1)
+		}
+		transmitters = append(transmitters, transmitterBytes)
 	}
 
 	return ccipocr3.OCRConfig{
@@ -117,6 +124,11 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		return ccipocr3.OfframpConfig{}, err
 	}
 
+	feeQuoterBytes, err := addrToBytes(config.FeeQuoterAddress)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, fmt.Errorf("convert fee quoter address: %w", err)
+	}
+
 	return ccipocr3.OfframpConfig{
 		CommitLatestOCRConfig: ccipocr3.OCRConfigResponse{OCRConfig: commitConfig},
 		ExecLatestOCRConfig:   ccipocr3.OCRConfigResponse{OCRConfig: execConfig},
@@ -128,7 +140,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 			NonceManager:         nil,
 		},
 		DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
-			FeeQuoter:                               addrToBytes(config.FeeQuoterAddress),
+			FeeQuoter:                               feeQuoterBytes,
 			PermissionLessExecutionThresholdSeconds: config.PermissionlessExecutionThresholdSeconds,
 			IsRMNVerificationDisabled:               true,
 			MessageInterceptor:                      nil,
@@ -169,7 +181,11 @@ func filterSourceChainConfigs(sourceConfigsGot offrampview.SourceChainConfigMap,
 	if len(sourceChainSelectors) == 0 {
 		// if no selectors specified, return all configs
 		for selector, config := range sourceConfigsGot {
-			sourceChainConfigs[ccipocr3.ChainSelector(selector)] = sourceChainConfigToGeneric(config)
+			genericConfig, err := sourceChainConfigToGeneric(config)
+			if err != nil {
+				return nil, fmt.Errorf("convert source chain config for selector %d: %w", selector, err)
+			}
+			sourceChainConfigs[ccipocr3.ChainSelector(selector)] = genericConfig
 		}
 	} else {
 		for _, selector := range sourceChainSelectors {
@@ -177,7 +193,11 @@ func filterSourceChainConfigs(sourceConfigsGot offrampview.SourceChainConfigMap,
 			if !ok {
 				continue
 			}
-			sourceChainConfigs[selector] = sourceChainConfigToGeneric(config)
+			genericConfig, err := sourceChainConfigToGeneric(config)
+			if err != nil {
+				return nil, fmt.Errorf("convert source chain config for selector %d: %w", selector, err)
+			}
+			sourceChainConfigs[selector] = genericConfig
 		}
 	}
 
@@ -202,18 +222,22 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 		return ccipocr3.SourceChainConfig{}, err
 	}
 
-	return sourceChainConfigToGeneric(config), nil
+	return sourceChainConfigToGeneric(config)
 }
 
 // sourceChainConfigToGeneric converts from offramp.SourceChainConfig to ccipocr3.SourceChainConfig
-func sourceChainConfigToGeneric(config offramp.SourceChainConfig) ccipocr3.SourceChainConfig {
+func sourceChainConfigToGeneric(config offramp.SourceChainConfig) (ccipocr3.SourceChainConfig, error) {
+	routerBytes, err := addrToBytes(config.Router)
+	if err != nil {
+		return ccipocr3.SourceChainConfig{}, fmt.Errorf("convert router address: %w", err)
+	}
 	return ccipocr3.SourceChainConfig{
-		Router:                    addrToBytes(config.Router),
+		Router:                    routerBytes,
 		IsEnabled:                 config.IsEnabled,
 		IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
 		MinSeqNr:                  config.MinSeqNr,
 		OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
-	}
+	}, nil
 }
 
 // GetFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
@@ -226,9 +250,13 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
+	linkTokenBytes, err := addrToBytes(cfg.LinkToken)
+	if err != nil {
+		return ccipocr3.FeeQuoterStaticConfig{}, fmt.Errorf("convert link token address: %w", err)
+	}
 	return ccipocr3.FeeQuoterStaticConfig{
 		MaxFeeJuelsPerMsg:  ccipocr3.NewBigInt(cfg.MaxFeeJuelsPerMsg),
-		LinkToken:          addrToBytes(cfg.LinkToken),
+		LinkToken:          linkTokenBytes,
 		StalenessThreshold: cfg.StalenessThreshold,
 	}, nil
 }
@@ -243,12 +271,24 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
+	feeQuoterBytes, err := addrToBytes(cfg.FeeQuoter)
+	if err != nil {
+		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("convert fee quoter address: %w", err)
+	}
+	feeAggregatorBytes, err := addrToBytes(cfg.FeeAggregator)
+	if err != nil {
+		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("convert fee aggregator address: %w", err)
+	}
+	allowListAdminBytes, err := addrToBytes(cfg.AllowListAdmin)
+	if err != nil {
+		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("convert allow list admin address: %w", err)
+	}
 	return ccipocr3.OnRampDynamicConfig{
-		FeeQuoter:              addrToBytes(cfg.FeeQuoter),
+		FeeQuoter:              feeQuoterBytes,
 		ReentrancyGuardEntered: false,
 		MessageInterceptor:     []byte{}, // unimplemented on TON
-		FeeAggregator:          addrToBytes(cfg.FeeAggregator),
-		AllowListAdmin:         addrToBytes(cfg.AllowListAdmin),
+		FeeAggregator:          feeAggregatorBytes,
+		AllowListAdmin:         allowListAdminBytes,
 	}, nil
 }
 
@@ -264,10 +304,15 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
+	routerBytes, err := addrToBytes(cfg.Router)
+	if err != nil {
+		return ccipocr3.OnRampDestChainConfig{}, fmt.Errorf("convert router address: %w", err)
+	}
+
 	return ccipocr3.OnRampDestChainConfig{
 		SequenceNumber:   cfg.SequenceNumber,
 		AllowListEnabled: cfg.AllowListEnabled,
-		Router:           addrToBytes(cfg.Router),
+		Router:           routerBytes,
 	}, nil
 }
 

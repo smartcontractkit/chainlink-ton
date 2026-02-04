@@ -35,7 +35,8 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 			evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
 			require.NoError(t, err)
 
-			receiverAddr := ToRawAddr(addr)
+			receiverAddr, err := ToRawAddr(addr)
+			require.NoError(t, err)
 
 			tokenAmounts := make([]ccipocr3.RampTokenAmount, numTokensPerMsg)
 			for z := 0; z < numTokensPerMsg; z++ {
