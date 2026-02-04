@@ -19,7 +19,7 @@ func TestCrossChainAddress_ToCell(t *testing.T) {
 		addr      CrossChainAddress
 		expectErr bool
 	}{
-		{"empty address", CrossChainAddress{}, true},
+		{"empty address", CrossChainAddress{}, false},
 		{"too short", CrossChainAddress{0x05}, false},
 		{"valid address", CrossChainAddress{0x01, 0xFF}, false},
 		{"too long", CrossChainAddress(make([]byte, 66)), true},

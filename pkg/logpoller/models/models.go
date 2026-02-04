@@ -59,6 +59,9 @@ func (br *BlockRange) FromSeqNo() uint32 {
 }
 
 func (br *BlockRange) ToSeqNo() uint32 {
+	if br.To == nil {
+		return 0
+	}
 	return br.To.SeqNo
 }
 
@@ -70,6 +73,8 @@ type Filter struct {
 	MsgType       tlb.MsgType      // Message type to determine how to index
 	EventSig      uint32           // EventSig is a identifier for the event log(topic in external out messages, opcode in internal messages).
 	StartingSeqNo uint32           // StartingSeqNo defines the starting sequence number for log polling.
+	LogRetention  time.Duration    // LogRetention period for logs. 0 = keep forever.
+	MaxLogsKept   int64            // Maximum logs to retain per filter. 0 = unlimited.
 }
 
 type Log struct {
@@ -86,7 +91,7 @@ type Log struct {
 	MCBlockSeqno uint32           // Masterchain block sequence number
 	MsgLT        uint64           // Message logical time for ordering
 	MsgIndex     int64            // Index of the message within the transaction (0, 1, 2, ...)
-	Error        error            // Optional error associated with the log entry.
+	ExpiresAt    *time.Time       // Pre-computed expiration time (tx_timestamp + retention). nil = no expiry.
 }
 
 // TypedLog represents a log entry with its parsed data.
@@ -113,7 +118,11 @@ func (l Log) String() string {
 	} else {
 		sb.WriteString("  Data (BOC):   <nil>\n")
 	}
-	sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	if l.Block != nil {
+		sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	} else {
+		sb.WriteString("  Shard Block:  nil\n")
+	}
 	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MCBlockSeqno))
 	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
 
@@ -135,8 +144,10 @@ func (l Log) Validate(expectedChainID string) error {
 	return nil
 }
 
-// FilterIndex maps filter key strings to matching filter IDs for efficient O(1) lookup
-type FilterIndex map[string][]int64
+// FilterIndex maps filter key strings to matching Filter objects for efficient O(1) lookup.
+// This pattern matches Solana's filtersByID approach, enabling direct property access
+// (e.g., filter.LogRetention) without a separate retention map.
+type FilterIndex map[string][]*Filter
 
 // FilterKey uniquely identifies a filter by address, message type, and event signature
 type FilterKey struct {
@@ -147,7 +158,11 @@ type FilterKey struct {
 
 // String returns a canonical string representation for use as a map key.
 func (fk FilterKey) String() string {
-	return fmt.Sprintf("%s:%s:%08x", fk.Address.String(), fk.MsgType, fk.EventSig)
+	a := fk.Address
+	if a == nil {
+		return fmt.Sprintf("<nil>:%s:%08x", fk.MsgType, fk.EventSig)
+	}
+	return fmt.Sprintf("%s:%s:%08x", a.String(), fk.MsgType, fk.EventSig)
 }
 
 // RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)

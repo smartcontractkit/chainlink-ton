@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- Router Model Struct Definitions ----------
@@ -277,7 +278,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	for _, fu := range s.RMNRemote.ForwardUpdates {
 		if err := st.RMNRemote.ForwardUpdates.Set(
 			cell.BeginCell().MustStoreAddr(fu).EndCell(),
-			cell.BeginCell().EndCell(),
+			tvm.EmptyCell,
 		); err != nil {
 			return nil, fmt.Errorf("error while setting ForwardUpdates: %w", err)
 		}
@@ -288,7 +289,7 @@ func (s *RouterStorage) ToBinding() (*router.Storage, error) {
 	for _, co := range s.RMNRemote.CursedSubjects {
 		if err := st.RMNRemote.CursedSubjects.Set(
 			cell.BeginCell().MustStoreBigUInt(co, 128).EndCell(),
-			cell.BeginCell().EndCell(),
+			tvm.EmptyCell,
 		); err != nil {
 			return nil, fmt.Errorf("error while setting CursedSubjects: %w", err)
 		}

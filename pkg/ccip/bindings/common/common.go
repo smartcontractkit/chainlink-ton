@@ -125,10 +125,6 @@ func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
 		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of %d bytes", len(c), CrossChainAddressMaxLength)
 	}
 
-	if addrLength == 0 {
-		return nil, errors.New("crosschain address is empty")
-	}
-
 	builder := cell.BeginCell()
 	err := builder.StoreSlice([]byte{uint8(addrLength)}, 8) // store the first byte as length
 	if err != nil {
@@ -414,7 +410,7 @@ func unpackArrayFromCell[T any](root *cell.Cell) ([]T, error) {
 func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 	if len(data) == 0 {
 		// Return an empty cell instead of nil for empty arrays
-		return cell.BeginCell().EndCell(), nil
+		return tvm.EmptyCell, nil
 	}
 
 	if len(data) > MaxCellChainBytes {

@@ -40,7 +40,7 @@ type storageKey struct {
 
 // inMemoryLogs is in-memory implementation of the LogStore interface.
 // This provides basic log storage and querying capabilities without database persistence.
-// For production use, this proper database-backed storage should be used.
+// For production use, proper database-backed storage should be used.
 type inMemoryLogs struct {
 	mu      sync.Mutex
 	logs    []models.Log
@@ -493,4 +493,22 @@ func (s *inMemoryLogs) GetHighestMCBlockSeqno(_ context.Context) (uint32, bool, 
 	defer s.mu.Unlock()
 
 	return s.maxMCBlockSeqno, len(s.logs) > 0, nil
+}
+
+// DeleteExpiredLogs is a no-op for the in-memory store.
+// In-memory store is for testing basic log storage; pruning should be tested via PostgreSQL integration tests.
+func (s *inMemoryLogs) DeleteExpiredLogs(_ context.Context, _ int64) (int64, error) {
+	return 0, nil
+}
+
+// DeleteExcessLogs is a no-op for the in-memory store.
+// In-memory store is for testing basic log storage; pruning should be tested via PostgreSQL integration tests.
+func (s *inMemoryLogs) DeleteExcessLogs(_ context.Context, _ int64) (int64, error) {
+	return 0, nil
+}
+
+// DeleteLogsForDeletedFilters is a no-op for the in-memory store.
+// In-memory store is for testing basic log storage; pruning should be tested via PostgreSQL integration tests.
+func (s *inMemoryLogs) DeleteLogsForDeletedFilters(_ context.Context, _ int64) (int64, error) {
+	return 0, nil
 }

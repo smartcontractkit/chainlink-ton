@@ -31,7 +31,7 @@ const (
 	ContractsVersionLocal = "local"
 	// Notice: "local" should be used only for development,
 	// while a specific version should be pinned for releases (production deployments).
-	ContractsVersionLatestSupported = "4f7b7be09c30" // Jan 22, 2026
+	ContractsVersionLatestSupported = "8ebf4f73b668" // Jan 30, 2026
 )
 
 type ContractMappingMetadata struct {
@@ -99,7 +99,7 @@ type RetrieveCompiledContractsSeqOutput struct {
 }
 
 var RetrieveContractsSequence = operations.NewSequence(
-	"retrieve-ton-contracts-seq",
+	"ton/sequences/retrieve-ton-contracts",
 	semver.MustParse("0.1.0"),
 	"Retrieves TON contracts from chainlink-ton repo given a release commit sha",
 	retrieveCompiledTONContractsSequence,

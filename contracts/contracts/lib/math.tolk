@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: MIT
 /*
  * Safe Math Library for Tolk
  * 

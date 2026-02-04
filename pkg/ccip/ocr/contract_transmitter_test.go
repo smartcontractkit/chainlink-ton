@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestGetReportTxInfo(t *testing.T) {
@@ -41,7 +41,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				GasLimit:     gasLimit,
 				TokenAmounts: nil,
 			},
-			OffChainTokenData: cell.BeginCell().EndCell(),
+			OffChainTokenData: tvm.EmptyCell,
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}
@@ -89,7 +89,7 @@ func TestGetReportTxInfo(t *testing.T) {
 				GasLimit:     gasLimit,
 				TokenAmounts: nil,
 			},
-			OffChainTokenData: cell.BeginCell().EndCell(),
+			OffChainTokenData: tvm.EmptyCell,
 			Proofs:            common.SnakedCell[common.Proof]{},
 			ProofFlagBits:     big.NewInt(0),
 		}

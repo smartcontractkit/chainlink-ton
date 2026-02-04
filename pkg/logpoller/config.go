@@ -14,6 +14,19 @@ const (
 	maxPollPeriod = 10 * time.Minute
 )
 
+// Pruning operational bounds
+const (
+	minPruningInterval     = 1 * time.Minute
+	maxPruningInterval     = 1 * time.Hour
+	defaultPruningInterval = 10 * time.Minute
+
+	minPruningBatchSize     = 100
+	maxPruningBatchSize     = 10000
+	defaultPruningBatchSize = 1000
+
+	defaultPruningStartDelay = 5 * time.Minute
+)
+
 // Config holds the configuration for the log poller.
 // NOTE: when adding new fields, please update ApplyDefaults, DefaultConfigSet, and ValidateConfig accordingly.
 // Also check toml_test.go TestNewDecodedTOMLConfig() to ensure new fields are tested there.
@@ -41,6 +54,11 @@ type Config struct {
 	// MC block resolution retry configuration
 	MCBlockResolveMaxRetries uint32           // Max retry attempts for masterchain block resolution
 	MCBlockResolveBaseDelay  *config.Duration // Base delay for exponential backoff
+
+	// Pruning configuration
+	PruningInterval   *config.Duration // How often to run pruning (default 10 minutes)
+	PruningBatchSize  int64            // Max rows to delete per batch (default 1000)
+	PruningStartDelay *config.Duration // Delay before first pruning cycle (default 5 minutes)
 }
 
 var DefaultConfigSet = Config{
@@ -61,6 +79,11 @@ var DefaultConfigSet = Config{
 
 	MCBlockResolveMaxRetries: 3,
 	MCBlockResolveBaseDelay:  config.MustNewDuration(100 * time.Millisecond),
+
+	// Pruning defaults
+	PruningInterval:   config.MustNewDuration(defaultPruningInterval),
+	PruningBatchSize:  defaultPruningBatchSize,
+	PruningStartDelay: config.MustNewDuration(defaultPruningStartDelay),
 }
 
 func (c *Config) ApplyDefaults() {
@@ -93,6 +116,15 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.MCBlockResolveBaseDelay == nil {
 		c.MCBlockResolveBaseDelay = DefaultConfigSet.MCBlockResolveBaseDelay
+	}
+	if c.PruningInterval == nil {
+		c.PruningInterval = DefaultConfigSet.PruningInterval
+	}
+	if c.PruningBatchSize == 0 {
+		c.PruningBatchSize = DefaultConfigSet.PruningBatchSize
+	}
+	if c.PruningStartDelay == nil {
+		c.PruningStartDelay = DefaultConfigSet.PruningStartDelay
 	}
 }
 
@@ -133,5 +165,25 @@ func (c *Config) ValidateConfig() (err error) {
 		return fmt.Errorf("poll_period %v is too large (maximum: %v)", pollDuration, maxPollPeriod)
 	}
 
+	// Validate pruning configuration
+	if c.PruningInterval == nil {
+		return errors.New("pruning_interval must be set")
+	}
+	pruningDuration := c.PruningInterval.Duration()
+	if pruningDuration < minPruningInterval {
+		return fmt.Errorf("pruning_interval %v is too small (minimum: %v)", pruningDuration, minPruningInterval)
+	}
+	if pruningDuration > maxPruningInterval {
+		return fmt.Errorf("pruning_interval %v is too large (maximum: %v)", pruningDuration, maxPruningInterval)
+	}
+
+	if c.PruningBatchSize < minPruningBatchSize {
+		return fmt.Errorf("pruning_batch_size %d is too small (minimum: %d)", c.PruningBatchSize, minPruningBatchSize)
+	}
+	if c.PruningBatchSize > maxPruningBatchSize {
+		return fmt.Errorf("pruning_batch_size %d is too large (maximum: %d)", c.PruningBatchSize, maxPruningBatchSize)
+	}
+
+	// Note: PruningStartDelay allows 0 for testing. Negative values are rejected by config.Duration.
 	return nil
 }
