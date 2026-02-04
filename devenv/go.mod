@@ -7,7 +7,7 @@ replace (
 
 	// Use local chainlink-ton/deployment module,
 	// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
-	// github.com/smartcontractkit/chainlink-ton => ../
+	github.com/smartcontractkit/chainlink-ton => ../
 	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
