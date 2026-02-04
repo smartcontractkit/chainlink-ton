@@ -247,7 +247,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 		selectors := []ccipocr3.ChainSelector{9999, 8888, 7777}
 		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
 
-		assert.Len(t, result, 0, "should return empty map when no selectors match")
+		assert.Empty(t, result, "should return empty map when no selectors match")
 	})
 
 	t.Run("empty sourceConfigsGot with selectors returns empty map", func(t *testing.T) {
@@ -256,7 +256,7 @@ func TestFilterSourceChainConfigs(t *testing.T) {
 		selectors := []ccipocr3.ChainSelector{1001, 1002}
 		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
 
-		assert.Len(t, result, 0, "should return empty map")
+		assert.Empty(t, result, "should return empty map")
 	})
 
 	t.Run("config fields are correctly converted", func(t *testing.T) {
