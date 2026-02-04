@@ -93,6 +93,22 @@ func NewTONAccessor(
 	}, nil
 }
 
+// getCurrentMasterchainBlock retrieves and validates the current masterchain block.
+// It ensures the returned block belongs to the masterchain (workchain -1) to prevent
+// a compromised TON node from injecting base workchain data.
+func (a *TONAccessor) getCurrentMasterchainBlock(ctx context.Context) (*ton.BlockIDExt, error) {
+	block, err := a.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	if block.Workchain != address.MasterchainID {
+		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, block.Workchain)
+	}
+
+	return block, nil
+}
+
 // Common Accessor methods
 func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	addr, err := a.getBinding(contractName)
@@ -112,7 +128,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 	var config ccipocr3.ChainConfigSnapshot
 	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
 
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if !errors.Is(err, ErrNoBindings) && err != nil {
 		return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -385,7 +401,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, err
 	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -417,7 +433,7 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
 	}
 
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -437,7 +453,7 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -741,7 +757,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	if err != nil {
 		return nil, err
 	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -779,7 +795,7 @@ func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (ccipocr3.SeqNum,
 	if err != nil {
 		return 0, err
 	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -822,7 +838,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	if err != nil {
 		return nil, err
 	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	block, err := a.getCurrentMasterchainBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}

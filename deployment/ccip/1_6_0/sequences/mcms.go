@@ -34,7 +34,7 @@ func (a *TonDeployAdapter) DeployMCMS() *operations.Sequence[deploy.MCMSDeployme
 }
 
 var DeployMCMSContracts = operations.NewSequence(
-	"ton/sequences/ccip/deploy-mcms-suite",
+	"ton/sequences/ccip/tooling-api/deploy-mcms",
 	semver.MustParse("0.0.4"), // TODO mcms and timelock has different versions, can we pick mcms version here?
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -115,17 +115,13 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 		}
 	}
 
-	// Set contract versions to match expected MCMS deployment versions
-	timelockSemver := semver.MustParse("0.0.3")
-	mcmsSemver := semver.MustParse("0.0.4")
-
 	return mcmsSeq.DeployMCMSSeqInput{
 		ContractsVersionSha: cfg.ContractVersion,
 		ContractsParams: mcmsConfig.ChainContractParams{
 			Timelock: mcmsConfig.TimelockParams{
 				ID:              contractID,
 				Coin:            defaultMCMSContractCoin,
-				ContractsSemver: timelockSemver,
+				ContractsSemver: &state.TimelockVersion,
 				InitMessage: timelock.Init{
 					MinDelay: minDelay,
 					Admin:    deployer,
@@ -134,7 +130,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 			MCMS: mcmsConfig.MCMSParams{
 				ID:              contractID,
 				Coin:            defaultMCMSContractCoin,
-				ContractsSemver: mcmsSemver,
+				ContractsSemver: &state.MCMSVersion,
 			},
 		},
 		ChainSelector: cfg.ChainSelector,
@@ -143,7 +139,7 @@ func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, 
 
 func (a *TonDeployAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMSDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
-		"ton/sequences/ccip/deploy-mcms-suite-finalize",
+		"ton/sequences/ccip/tooling-api/finalize-deploy-mcms",
 		semver.MustParse("1.0.0"),
 		"On TON, finalizing MCM deployment is a no-op",
 		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
@@ -153,7 +149,7 @@ func (a *TonDeployAdapter) FinalizeDeployMCMS() *operations.Sequence[deploy.MCMS
 
 func (a *TonDeployAdapter) GrantAdminRoleToTimelock() *operations.Sequence[deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return operations.NewSequence(
-		"ton/sequences/ccip/grant-admin-role-to-timelock",
+		"ton/sequences/ccip/tooling-api/grant-admin-role-to-timelock",
 		semver.MustParse("1.0.0"),
 		"On TON, GrantAdminRoleToTimelock is a no-op",
 		func(b operations.Bundle, chains cldf_chain.BlockChains, in deploy.GrantAdminRoleToTimelockConfigPerChainWithSelector) (output sequences.OnChainOutput, err error) {

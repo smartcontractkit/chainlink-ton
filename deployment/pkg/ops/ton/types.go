@@ -49,11 +49,11 @@ type MessageSender interface {
 
 // &tlb.InternalMessage representation
 type InternalMessage[T any] struct {
-	Bounce    bool                     `json:"bounce"`
-	DstAddr   *address.Address         `json:"dstAddr"`
-	Amount    tlb.Coins                `json:"amount"`
-	Body      codec.MessageEnvelope[T] `json:"body"`
-	StateInit *StateInit               `json:"stateInit,omitempty"`
+	Bounce    bool                      `json:"bounce"`
+	DstAddr   *address.Address          `json:"dstAddr"`
+	Amount    tlb.Coins                 `json:"amount"`
+	Body      *codec.MessageEnvelope[T] `json:"body,omitempty"`
+	StateInit *StateInit                `json:"stateInit,omitempty"`
 }
 
 func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
@@ -82,11 +82,14 @@ func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 		msg.DstAddr = address.NewAddress(0, byte(wc), stateCell.Hash())
 	}
 
-	bodyCell, err := im.Body.ToCell()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert message body to cell: %w", err)
+	// Notice: nil Body is allowed (empty message)
+	if im.Body != nil {
+		bodyCell, err := im.Body.ToCell()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert message body to cell: %w", err)
+		}
+		msg.Body = bodyCell
 	}
-	msg.Body = bodyCell
 
 	return msg, nil
 }

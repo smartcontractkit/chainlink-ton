@@ -8,6 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/versioning/upgradeable"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
@@ -68,20 +69,34 @@ var Upgrade = operations.NewOperation(
 
 			// prepare message with loaded code
 			m := u.Message
-			val := m.Body.Value
+
+			body := m.Body
+			// Create a new upgrade message (default) if none provided
+			if body == nil {
+				contractType := bindings.PkgLib + ".versioning.Upgradeable"
+				body, err = codec.WrapMessage(contractType, upgradeable.Upgrade{QueryID: 0, Code: c.Code})
+				if err != nil {
+					return UpgradeOutput{}, fmt.Errorf("failed to wrap upgrade message: %w", err)
+				}
+			}
+
+			// Map to MessageEnvelope[any]
+			val := body.Value
 			val.Code = c.Code
 			valAny := any(val)
+
+			bodyAny := &codec.MessageEnvelope[any]{
+				Metadata: body.Metadata,
+				Payload:  body.Payload,
+				Cell:     body.Cell,
+				Value:    &valAny,
+			}
 
 			messages[i] = opston.InternalMessage[any]{
 				Bounce:  m.Bounce,
 				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
-				Body: codec.MessageEnvelope[any]{
-					Metadata: m.Body.Metadata,
-					Payload:  m.Body.Payload,
-					Cell:     m.Body.Cell,
-					Value:    &valAny,
-				},
+				Body:    bodyAny,
 			}
 		}
 
