@@ -35,7 +35,7 @@ type DeployContractOutput struct {
 }
 
 var DeployTONContractOp = cldf_ops.NewOperation(
-	"deploy-ton-contract-op",
+	"ton/ops/deploy",
 	semver.MustParse("0.1.0"),
 	"Deploys a TON contract in a generic way",
 	deployTONContract,

@@ -57,7 +57,7 @@ func (a *TonLaneAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.Updat
 }
 
 var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
-	"ConfigureLaneLegAsSource",
+	"ton/sequences/ccip/tooling-api/configure-lane-leg-as-source",
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as source on CCIP 1.6.0",
 	func(b cldf_ops.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
@@ -248,7 +248,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 )
 
 var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
-	"ConfigureLaneLegAsDest",
+	"ton/sequences/ccip/tooling-api/configure-lane-leg-as-dest",
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as dest on CCIP 1.6.0",
 	func(b cldf_ops.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {

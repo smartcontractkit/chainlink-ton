@@ -50,7 +50,7 @@ func (o DeployOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
 
 var Deploy = operations.NewOperation(
 	"ton/ops/deploy",
-	semver.MustParse("0.1.0"),
+	semver.MustParse("0.2.0"),
 	"Deploys contracts by sending messages with code loaded from the provider",
 	func(b operations.Bundle, dp *dep.DependencyProvider, in DeployInput) (DeployOutput, error) {
 		// Load contracts and prepare the underlying []InternalMessage[any]
