@@ -21,7 +21,7 @@ async function readContractCode(contractName: string): Promise<Cell> {
       return compile(contractName)
     }
     if (contractName === 'Deployable') {
-      throw new Error(`Failed to reading Deployable contract at '${filePath}': ${error}`)
+      throw new Error(`Failed to read Deployable contract at '${filePath}': ${error}`)
     }
     throw new Error(`Failed to read compiled contract ${contractName} at ${filePath}: ${error}`)
   }
