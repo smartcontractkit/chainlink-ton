@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/access/ownable_2step"
 import "types"
@@ -30,5 +31,3 @@ fun Storage.load(): Storage {
 fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
-
-

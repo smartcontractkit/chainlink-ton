@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "../../lib/utils"
 
 const Router_FACILITY_NAME = "com.chainlink.ton.ccip.Router";
