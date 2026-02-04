@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -137,6 +138,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 
 // GetOffRampSourceChainConfigs retrieves multiple source chain configurations from the off-ramp contract
 func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
+	lggr := logger.With(a.lggr, "sourceChainSelectors", sourceChainSelectors)
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return nil, err
@@ -152,6 +154,11 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	if len(sourceConfigsGot) == 0 {
 		return nil, nil
 	}
+
+	a.lggr.Debugw("fetched source chain configs",
+		"sourceChainConfigs", sourceChainConfigs,
+		"sourceConfigsGot", sourceConfigsGot,
+	)
 
 	if len(sourceChainSelectors) == 0 {
 		// if no selectors specified, return all configs
