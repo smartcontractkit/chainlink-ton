@@ -141,21 +141,24 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	lggr := logger.With(a.lggr, "sourceChainSelectors", sourceChainSelectors)
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
+		lggr.Errorf("failed to get binding for OffRamp: %v", err)
 		return nil, err
 	}
 
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 	var sourceConfigsGot offrampview.SourceChainConfigMap
 	if err = sourceConfigsGot.Fetch(ctx, a.client, block, addr); err != nil {
+		lggr.Errorf("failed to fetch source chain configs: %v", err)
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
 	// if the dictionary is empty, we get back nil
 	if len(sourceConfigsGot) == 0 {
+		lggr.Debugw("no source chain configs found, nothing to do")
 		return nil, nil
 	}
 
-	a.lggr.Debugw("fetched source chain configs",
+	lggr.Debugw("fetched source chain configs",
 		"sourceChainConfigs", sourceChainConfigs,
 		"sourceConfigsGot", sourceConfigsGot,
 	)
