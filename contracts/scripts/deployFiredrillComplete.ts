@@ -36,7 +36,7 @@ export async function run(provider: NetworkProvider) {
     tokenAddress = Address.parse(tokenAddressStr.trim())
   } else {
     // Use a default test token address
-    tokenAddress = LINK_TOKEN;
+    tokenAddress = LINK_TOKEN
     console.log(`Using default token address: ${tokenAddress.toString()}`)
   }
 
