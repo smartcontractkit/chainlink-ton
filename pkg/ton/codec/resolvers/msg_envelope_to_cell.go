@@ -17,7 +17,7 @@ var (
 
 // msgEnvelopeToCellResolver resolves a message envelope map data to *cell.Cell
 type msgEnvelopeToCellResolver struct {
-	msgEnvelopeResolver codec.Resolver[map[string]any, codec.MessageEnvelope[any]]
+	msgEnvelopeResolver codec.Resolver[map[string]any, *codec.MessageEnvelope[any]]
 }
 
 func NewMsgEnvelopeToCellResolver(registry tvm.ContractTLBRegistry) codec.Resolver[map[string]any, *cell.Cell] {
@@ -37,6 +37,10 @@ func (r *msgEnvelopeToCellResolver) Resolve(input map[string]any) (*cell.Cell, e
 		}
 
 		return nil, fmt.Errorf("failed to resolve message envelope: %w", err)
+	}
+
+	if e == nil {
+		return nil, nil
 	}
 
 	return e.ToCell()

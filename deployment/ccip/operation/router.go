@@ -26,7 +26,7 @@ type ApplyRampUpdatesInput struct {
 }
 
 var ApplyRampUpdatesOp = operations.NewOperation(
-	"apply-ramp-updates-op",
+	"ton/ops/ccip/apply-ramp-updates",
 	semver.MustParse("0.1.0"),
 	"Apply Ramp Updates operations including OnRampUpdates, OffRampAdds and/or OffRampRemoves",
 	applyRampUpdates,
