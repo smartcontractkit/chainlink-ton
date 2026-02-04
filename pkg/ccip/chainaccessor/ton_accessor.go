@@ -563,6 +563,11 @@ func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.T
 			}
 		}
 
+		if log.MCBlockSeqno == 0 {
+			lggr.Errorw("skipping commit report with zero MC block seqno", "txHash", log.TxHash, "report", ev)
+			continue
+		}
+
 		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
 			Report: ccipocr3.CommitPluginReport{
 				BlessedMerkleRoots:   []ccipocr3.MerkleRootChain{mrc},
