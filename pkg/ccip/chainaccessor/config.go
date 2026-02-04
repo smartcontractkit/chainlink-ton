@@ -141,14 +141,11 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	lggr := logger.With(a.lggr, "sourceChainSelectors", sourceChainSelectors)
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
-		lggr.Errorf("failed to get binding for OffRamp: %v", err)
 		return nil, err
 	}
 
-	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 	var sourceConfigsGot offrampview.SourceChainConfigMap
 	if err = sourceConfigsGot.Fetch(ctx, a.client, block, addr); err != nil {
-		lggr.Errorf("failed to fetch source chain configs: %v", err)
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
@@ -158,10 +155,16 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		return nil, nil
 	}
 
-	lggr.Debugw("fetched source chain configs",
-		"sourceChainConfigs", sourceChainConfigs,
-		"sourceConfigsGot", sourceConfigsGot,
-	)
+	sourceChainConfigs := filterSourceChainConfigs(sourceConfigsGot, sourceChainSelectors)
+	lggr.Debugw("GetOffRampSourceChainConfigs returning", "sourceChainConfigs", sourceChainConfigs)
+	return sourceChainConfigs, nil
+}
+
+// filterSourceChainConfigs filters the fetched source chain configs based on the requested selectors.
+// If sourceChainSelectors is empty, all configs are returned.
+// If sourceChainSelectors is provided, only matching configs are returned, non-existent selectors are skipped.
+func filterSourceChainConfigs(sourceConfigsGot offrampview.SourceChainConfigMap, sourceChainSelectors []ccipocr3.ChainSelector) map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig {
+	sourceChainConfigs := make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 
 	if len(sourceChainSelectors) == 0 {
 		// if no selectors specified, return all configs
@@ -172,14 +175,13 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		for _, selector := range sourceChainSelectors {
 			config, ok := sourceConfigsGot[uint64(selector)]
 			if !ok {
-				return nil, fmt.Errorf("source chain selector '%d' not found in off-ramp source chain configs, got %v", selector, sourceConfigsGot)
+				continue
 			}
 			sourceChainConfigs[selector] = sourceChainConfigToGeneric(config)
 		}
 	}
 
-	lggr.Debugw("fetched source chain configs", "sourceChainConfigs", sourceChainConfigs)
-	return sourceChainConfigs, nil
+	return sourceChainConfigs
 }
 
 // GetOffRampSourceChainConfig retrieves a specific source chain configuration
