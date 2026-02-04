@@ -126,6 +126,7 @@ func (t *Txm) InflightCount() (int, int) {
 func (t *Txm) Close() error {
 	return t.starter.StopOnce("Txm", func() error {
 		close(t.stop)
+		close(t.broadcastChan)
 		t.done.Wait()
 		return nil
 	})
@@ -133,6 +134,11 @@ func (t *Txm) Close() error {
 
 // Enqueues a transaction for broadcasting.
 func (t *Txm) Enqueue(request Request) error {
+	// Check if service is shutting down
+	if err := t.starter.Ready(); err != nil {
+		return fmt.Errorf("txm not ready: %w", err)
+	}
+
 	// NOTE: this will fail because the wallet is initialized with a signer and has no private key
 	// we should be validating this in chain.go/API client, not per enqueue since it's wasted signatures
 	// Ensure we can sign with the requested address
@@ -179,7 +185,12 @@ func (t *Txm) broadcastLoop() {
 
 	for {
 		select {
-		case tx := <-t.broadcastChan:
+		case tx, ok := <-t.broadcastChan:
+			if !ok {
+				t.logger.Infow("broadcast channel closed, exiting broadcastLoop")
+				return
+			}
+
 			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
 			var st tlb.StateInit

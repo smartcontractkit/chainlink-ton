@@ -82,8 +82,9 @@ func NewTONAccessor(
 	logPoller logpoller.Service,
 	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
+	sLggr := logger.Sugared(lggr).Named("TONAccessor").Named(chainSelector.String())
 	return &TONAccessor{
-		lggr:          lggr,
+		lggr:          sLggr,
 		chainSelector: chainSelector,
 		client:        client,
 		logPoller:     logPoller,
@@ -115,16 +116,16 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addrToBytes(addr), nil
+	return addrToBytes(addr)
 }
 
 func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
-	lggr := logutil.WithContextValues(ctx, a.lggr)
+	lggr := logger.With(logutil.WithContextValues(ctx, a.lggr), "destChainSelector", destChainSelector, "sourceChainSelectors", sourceChainSelectors)
+
 	// Match old behaviour: if a contract isn't bound, we return an empty value so the nodes can achieve consensus on partial config
 	// https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
 
 	// TODO: pass in addresses we fetched so subsequent fetches don't fail (offramp->feeQuoter etc)
-	lggr.Debug("GetAllConfigsLegacy")
 	var config ccipocr3.ChainConfigSnapshot
 	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
 
@@ -191,15 +192,20 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// Router
+		wrappedNativeBytes, err := addrToBytes(tvm.TonTokenAddr)
+		if err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("convert wrapped native address: %w", err)
+		}
 		config.Router = ccipocr3.RouterConfig{
 			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
-			WrappedNativeAddress: addrToBytes(tvm.TonTokenAddr),
+			WrappedNativeAddress: wrappedNativeBytes,
 		}
 
 		// sourceChainConfigs represents sources on the *destination chain* contract, since this is the source chain
 		// we'll return an empty map
 		sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, 0)
 	}
+	lggr.Debugw("TONAccessor.GetAllConfigs", "config", config, "sourceChainConfigs", sourceChainConfigs)
 	return config, sourceChainConfigs, nil
 }
 
@@ -255,7 +261,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, fmt.Errorf("invalid sequence range: Start (%d) > End (%d)", seqNumRange.Start(), seqNumRange.End())
 	}
 
-	lggr := logutil.WithContextValues(ctx, a.lggr)
+	lggr := logger.With(logutil.WithContextValues(ctx, a.lggr), "seqNumRange", seqNumRange.String())
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
@@ -286,11 +292,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	if err != nil {
 		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
-	lggr.Infow("queried messages between sequence numbers",
-		"numMsgs", len(logs),
-		"sourceChainSelector", a.chainSelector,
-		"seqNumRange", seqNumRange.String(),
-	)
+	lggr.Infow("queried messages between sequence numbers", "numMsgs", len(logs))
 
 	// Decode raw logs into typed events
 	typedLogs, err := query.DecodedLogs[onramp.CCIPMessageSent](logs)
@@ -300,13 +302,21 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 	msgs := make([]ccipocr3.Message, 0)
 	for _, typedLog := range typedLogs {
-		genericEvent := a.convertCCIPMessageSent(&typedLog.TypedData)
+		genericEvent, err := a.convertCCIPMessageSent(&typedLog.TypedData)
+		if err != nil {
+			lggr.Errorw("convert CCIP message sent", "txHash", typedLog.TxHash, "err", err)
+			continue
+		}
 
 		if err = chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, seqNumRange); err != nil {
 			lggr.Errorw("validate send requested event", "err", err, "message", genericEvent)
 			continue
 		}
-		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
+		rawOnrampAddr, err := codec.ToRawAddr(onrampAddr)
+		if err != nil {
+			lggr.Errorw("convert onramp address", "err", err)
+			continue
+		}
 		genericEvent.Message.Header.OnRamp = rawOnrampAddr[:]
 		genericEvent.Message.Header.TxHash = hex.EncodeToString(typedLog.TxHash[:])
 		msgs = append(msgs, genericEvent.Message)
@@ -317,17 +327,12 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		msgsWithoutDataField[i] = msg.CopyWithoutData()
 	}
 
-	lggr.Debugw("decoded messages between sequence numbers",
-		"msgsWithoutDataField", msgsWithoutDataField,
-		"sourceChainSelector", a.chainSelector,
-		"seqNumRange", seqNumRange.String(),
-	)
-
+	lggr.Debugw("decoded messages between sequence numbers", "msgsWithoutDataField", msgsWithoutDataField)
 	return msgs, nil
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	lggr := logutil.WithContextValues(ctx, a.lggr)
+	lggr := logger.With(logutil.WithContextValues(ctx, a.lggr), "destChainSelector", dest)
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
@@ -357,10 +362,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
 
-	lggr.Debugw("queried latest message from source",
-		"numMsgs", len(logs),
-		"sourceChainSelector", a.chainSelector,
-	)
+	lggr.Debugw("queried latest message from source", "numMsgs", len(logs))
 
 	if len(logs) > 1 {
 		return 0, fmt.Errorf("more than one message found for the latest message query, found: %d", len(logs))
@@ -376,11 +378,15 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("failed to decode log at tx %s: %w", hex.EncodeToString(log.TxHash[:]), parseErr)
 	}
 
-	genericEvent := a.convertCCIPMessageSent(&event)
+	genericEvent, err := a.convertCCIPMessageSent(&event)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert CCIP message sent: %w", err)
+	}
 	if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, ccipocr3.NewSeqNumRange(genericEvent.Message.Header.SequenceNumber, genericEvent.Message.Header.SequenceNumber)); err != nil {
 		return 0, fmt.Errorf("message invalid msg %v: %w", genericEvent, err)
 	}
 
+	lggr.Debugw("LatestMessageTo result", "genericEvent", genericEvent)
 	return genericEvent.SequenceNumber, nil
 }
 
@@ -413,7 +419,12 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, err
 	}
-	return ccipocr3.SeqNum(value.Uint64()), nil
+
+	seqNum := value.Uint64()
+	if seqNum == 0 {
+		return 0, fmt.Errorf("invalid expected next sequence number: got 0, expected >= 1 for dest chain %v", dest)
+	}
+	return ccipocr3.SeqNum(seqNum), nil
 }
 
 // GetTokenPriceUSD returns price per TON, with 18 decimals
@@ -524,7 +535,6 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	}
 
 	lggr.Debugw("queried commit reports", "numReports", len(typedLogs),
-		"destChain", a.chainSelector,
 		"ts", ts,
 		"limit", limit,
 	)
@@ -555,6 +565,11 @@ func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.T
 				lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
 				continue
 			}
+		}
+
+		if log.MCBlockSeqno == 0 {
+			lggr.Errorw("skipping commit report with zero MC block seqno", "txHash", log.TxHash, "report", ev)
+			continue
 		}
 
 		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
@@ -777,10 +792,19 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, err
 		}
 
+		execPrice := gasPrice.ExecutionGasPrice
+		if execPrice == nil {
+			execPrice = big.NewInt(0)
+		}
+		daPrice := gasPrice.DataAvailabilityGasPrice
+		if daPrice == nil {
+			daPrice = big.NewInt(0)
+		}
+
 		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
 		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
 		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
-		packedValue := feequoter.PackGasPrice(gasPrice.ExecutionGasPrice, gasPrice.DataAvailabilityGasPrice)
+		packedValue := feequoter.PackGasPrice(execPrice, daPrice)
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115
