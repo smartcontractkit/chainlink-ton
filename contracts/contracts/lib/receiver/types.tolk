@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "../../ccip/common/types"
 
 /// @notice Family-agnostic message routed to a Receiver.

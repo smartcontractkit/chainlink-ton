@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 // NOTE: This test receiver is located in contracts/ccip/test/ 
 // because it needs to be included in GitHub release artifacts for integration tests.
 // Contracts with the "examples.*" prefix are excluded from published releases.
