@@ -3,6 +3,7 @@ module github.com/smartcontractkit/chainlink-ton/staging-monitor
 go 1.25.5
 
 replace github.com/smartcontractkit/chainlink-ton => ../
+
 replace github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 
 require (
