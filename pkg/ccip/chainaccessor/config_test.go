@@ -5,8 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	offrampview "github.com/smartcontractkit/chainlink-ton/pkg/ccip/view/offramp"
 )
 
 func bigIntFromHex(s string) *big.Int {
@@ -160,5 +165,120 @@ func TestParseCurseInfo(t *testing.T) {
 
 		assert.Len(t, result.CursedSourceChains, 1, "duplicates should result in single entry")
 		assert.True(t, result.CursedSourceChains[ccipocr3.ChainSelector(111111)])
+	})
+}
+
+func TestFilterSourceChainConfigs(t *testing.T) {
+	testAddr := address.MustParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	makeConfig := func(minSeqNr uint64, isEnabled bool) offramp.SourceChainConfig {
+		return offramp.SourceChainConfig{
+			Router:                    testAddr,
+			IsEnabled:                 isEnabled,
+			MinSeqNr:                  minSeqNr,
+			IsRMNVerificationDisabled: false,
+			OnRamp:                    common.CrossChainAddress{1, 2, 3},
+		}
+	}
+
+	t.Run("empty sourceChainSelectors returns all configs", func(t *testing.T) {
+		sourceConfigsGot := offrampview.SourceChainConfigMap{
+			1001: makeConfig(100, true),
+			1002: makeConfig(200, true),
+			1003: makeConfig(300, false),
+		}
+
+		result := filterSourceChainConfigs(sourceConfigsGot, []ccipocr3.ChainSelector{})
+
+		assert.Len(t, result, 3, "should return all 3 configs")
+		assert.Equal(t, uint64(100), result[ccipocr3.ChainSelector(1001)].MinSeqNr)
+		assert.Equal(t, uint64(200), result[ccipocr3.ChainSelector(1002)].MinSeqNr)
+		assert.Equal(t, uint64(300), result[ccipocr3.ChainSelector(1003)].MinSeqNr)
+	})
+
+	t.Run("nil sourceChainSelectors returns all configs", func(t *testing.T) {
+		sourceConfigsGot := offrampview.SourceChainConfigMap{
+			2001: makeConfig(500, true),
+			2002: makeConfig(600, true),
+		}
+
+		result := filterSourceChainConfigs(sourceConfigsGot, nil)
+
+		assert.Len(t, result, 2, "should return all 2 configs")
+		assert.Equal(t, uint64(500), result[ccipocr3.ChainSelector(2001)].MinSeqNr)
+		assert.Equal(t, uint64(600), result[ccipocr3.ChainSelector(2002)].MinSeqNr)
+	})
+
+	t.Run("specific selectors return only matching configs", func(t *testing.T) {
+		sourceConfigsGot := offrampview.SourceChainConfigMap{
+			3001: makeConfig(100, true),
+			3002: makeConfig(200, true),
+			3003: makeConfig(300, true),
+		}
+
+		selectors := []ccipocr3.ChainSelector{3001, 3003}
+		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+
+		assert.Len(t, result, 2, "should return only 2 matching configs")
+		assert.Equal(t, uint64(100), result[ccipocr3.ChainSelector(3001)].MinSeqNr)
+		assert.Equal(t, uint64(300), result[ccipocr3.ChainSelector(3003)].MinSeqNr)
+		_, exists := result[ccipocr3.ChainSelector(3002)]
+		assert.False(t, exists, "selector 3002 should not be in result")
+	})
+
+	t.Run("non-existent selectors are skipped", func(t *testing.T) {
+		sourceConfigsGot := offrampview.SourceChainConfigMap{
+			4001: makeConfig(100, true),
+			4002: makeConfig(200, true),
+		}
+
+		// Request selectors that don't all exist
+		selectors := []ccipocr3.ChainSelector{4001, 9999, 8888}
+		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+
+		assert.Len(t, result, 1, "should return only 1 existing config")
+		assert.Equal(t, uint64(100), result[ccipocr3.ChainSelector(4001)].MinSeqNr)
+	})
+
+	t.Run("all requested selectors non-existent returns empty map", func(t *testing.T) {
+		sourceConfigsGot := offrampview.SourceChainConfigMap{
+			5001: makeConfig(100, true),
+		}
+
+		selectors := []ccipocr3.ChainSelector{9999, 8888, 7777}
+		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+
+		assert.Empty(t, result, "should return empty map when no selectors match")
+	})
+
+	t.Run("empty sourceConfigsGot with selectors returns empty map", func(t *testing.T) {
+		sourceConfigsGot := offrampview.SourceChainConfigMap{}
+
+		selectors := []ccipocr3.ChainSelector{1001, 1002}
+		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+
+		assert.Empty(t, result, "should return empty map")
+	})
+
+	t.Run("config fields are correctly converted", func(t *testing.T) {
+		onRampAddr := common.CrossChainAddress{0xAA, 0xBB, 0xCC}
+		sourceConfigsGot := offrampview.SourceChainConfigMap{
+			6001: {
+				Router:                    testAddr,
+				IsEnabled:                 true,
+				MinSeqNr:                  42,
+				IsRMNVerificationDisabled: true,
+				OnRamp:                    onRampAddr,
+			},
+		}
+
+		selectors := []ccipocr3.ChainSelector{6001}
+		result := filterSourceChainConfigs(sourceConfigsGot, selectors)
+
+		assert.Len(t, result, 1)
+		config := result[ccipocr3.ChainSelector(6001)]
+		assert.True(t, config.IsEnabled)
+		assert.Equal(t, uint64(42), config.MinSeqNr)
+		assert.True(t, config.IsRMNVerificationDisabled)
+		assert.Equal(t, ccipocr3.UnknownAddress(onRampAddr), config.OnRamp)
 	})
 }

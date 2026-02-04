@@ -169,3 +169,82 @@ func packOracleID(oracleID uint8) []byte {
 	rawAddr := ToRawAddr(tonAddr)
 	return rawAddr[:]
 }
+
+func TestValidateWorkchain(t *testing.T) {
+	codec := addressCodec{}
+
+	tests := []struct {
+		name        string
+		workchain   int32
+		expectError bool
+	}{
+		{
+			name:        "valid workchain 0 (basechain)",
+			workchain:   0,
+			expectError: false,
+		},
+		{
+			name:        "valid workchain -1 (masterchain)",
+			workchain:   -1,
+			expectError: false,
+		},
+		{
+			name:        "valid workchain 127 (max int8)",
+			workchain:   127,
+			expectError: false,
+		},
+		{
+			name:        "valid workchain -128 (min int8)",
+			workchain:   -128,
+			expectError: false,
+		},
+		{
+			name:        "invalid workchain 128 (overflow)",
+			workchain:   128,
+			expectError: true,
+		},
+		{
+			name:        "invalid workchain -129 (underflow)",
+			workchain:   -129,
+			expectError: true,
+		},
+		{
+			name:        "invalid workchain 256",
+			workchain:   256,
+			expectError: true,
+		},
+		{
+			name:        "invalid workchain 1000000",
+			workchain:   1000000,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create raw address with the specified workchain
+			rawBytes := make([]byte, 36)
+			binary.BigEndian.PutUint32(rawBytes[0:4], uint32(tc.workchain)) //nolint:gosec // G115: intentional for testing edge cases
+			// Dummy address data
+			for i := 4; i < 36; i++ {
+				rawBytes[i] = byte(i)
+			}
+
+			_, err := codec.AddressBytesToString(rawBytes)
+			if tc.expectError {
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidWorkchain)
+			} else {
+				require.NoError(t, err)
+			}
+
+			_, err = AddressBytesToTONAddress(rawBytes)
+			if tc.expectError {
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidWorkchain)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

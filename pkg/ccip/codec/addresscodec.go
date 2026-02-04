@@ -1,10 +1,10 @@
 package codec
 
 import (
-	"fmt"
-
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 
@@ -12,6 +12,18 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
+
+var ErrInvalidWorkchain = errors.New("workchain value outside valid int8 range [-128, 127]")
+
+// validateWorkchain checks that a workchain value fits within the int8 range.
+// tonutils-go internally treats the workchain as int8, so values outside [-128, 127]
+// would silently wrap, potentially targeting the wrong contract.
+func validateWorkchain(workchain int32) error {
+	if workchain < -128 || workchain > 127 {
+		return fmt.Errorf("%w: got %d", ErrInvalidWorkchain, workchain)
+	}
+	return nil
+}
 
 type addressCodec struct{}
 
@@ -45,6 +57,9 @@ func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
 	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+	if err := validateWorkchain(workchain); err != nil {
+		return "", err
+	}
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
 	return addr.String(), nil
@@ -84,11 +99,14 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 // AddressBytesToAddress converts a byte slice representing a TON address into its ton address representation, only supporting standard TON addresses.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
 	if len(bytes) != tvm.AddressLength {
-		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
+		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
 	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+	if err := validateWorkchain(workchain); err != nil {
+		return nil, err
+	}
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
 	return addr, nil
