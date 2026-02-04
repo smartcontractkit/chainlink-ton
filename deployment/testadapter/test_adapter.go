@@ -11,17 +11,33 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/require"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-common/pkg/utils/tests"
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
+	msg_hasher163 "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher"
+	ccipcommon "github.com/smartcontractkit/chainlink-ccip/deployment/common"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	tonrouter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
@@ -34,21 +50,6 @@ import (
 	tonlptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonlpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-
-	"github.com/Masterminds/semver/v3"
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	msg_hasher163 "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher"
-	ccipcommon "github.com/smartcontractkit/chainlink-ccip/deployment/common"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/chainlink-common/pkg/utils/tests"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -100,7 +101,7 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 	}
 
 	// TODO: add TokenAmounts support for TON token transfers
-	return tonrouter.CCIPSend{
+	return router.CCIPSend{
 		QueryID:           rand.Uint64(),
 		DestChainSelector: components.DestChainSelector,
 		Data:              components.Data,
@@ -114,9 +115,9 @@ func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, 
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
-	msg, ok := m.(tonrouter.CCIPSend)
+	msg, ok := m.(router.CCIPSend)
 	if !ok {
-		return 0, errors.New("expected tonrouter.CCIPSend")
+		return 0, errors.New("expected router.CCIPSend")
 	}
 
 	seq, _, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
@@ -389,20 +390,20 @@ func setupLogPoller(
 	}
 
 	// Create logpoller with in-memory stores for testing
-	service, err := tonlogpoller.NewService(lggr, chainID, clientProvider, &tonlogpoller.ServiceOptions{
-		Config:      tonlogpoller.DefaultConfigSet,
-		FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
-		TxLoader:    tonlploader.New(lggr, clientProvider),
-		LogStore:    tonlpstore.NewLogStore(chainID, lggr),
-	})
-	require.NoError(t, err)
-
-	_, err = service.RegisterFilter(ctx, tonlptypes.Filter{
-		Name:     fmt.Sprintf("%s-%s", contract.String(), eventName),
-		Address:  contract,
-		EventSig: hash.CRC32(eventName),
-		MsgType:  tlb.MsgTypeExternalOut,
-	})
+	service, err := tonlogpoller.NewServiceWith(ctx, lggr, chainID, clientProvider,
+		&tonlogpoller.ServiceOptions{
+			Config:      tonlogpoller.DefaultConfigSet,
+			FilterStore: tonlpstore.NewFilterStore(chainID, lggr),
+			TxLoader:    tonlploader.New(lggr, clientProvider),
+			LogStore:    tonlpstore.NewLogStore(chainID, lggr),
+		},
+		[]tonlptypes.Filter{{
+			Name:     fmt.Sprintf("%s-%s", contract.String(), eventName),
+			Address:  contract,
+			EventSig: hash.CRC32(eventName),
+			MsgType:  tlb.MsgTypeExternalOut,
+		}},
+	)
 	require.NoError(t, err)
 	require.NoError(t, service.Start(ctx))
 
