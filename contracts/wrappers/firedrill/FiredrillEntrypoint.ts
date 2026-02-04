@@ -10,11 +10,7 @@ import {
   Dictionary,
   Builder,
 } from '@ton/core'
-
-export type Ownable2Step = {
-  owner: Address
-  pendingOwner: Address | null
-}
+import * as ownable2Step from '../libraries/access/Ownable2Step'
 
 export type FiredrillContracts = {
   firedrillOnRamp: Address
@@ -23,7 +19,7 @@ export type FiredrillContracts = {
 
 export type FiredrillEntrypointStorage = {
   id: bigint
-  ownable: Ownable2Step
+  ownable: ownable2Step.Data
   chainSelector: bigint
   tokenAddress: Address
   firedrillContracts?: FiredrillContracts
