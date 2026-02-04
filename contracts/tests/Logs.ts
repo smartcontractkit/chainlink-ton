@@ -70,7 +70,8 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.Uncursed]: CCIPLogs.Uncursed
   [CCIPLogs.LogTypes.UsdPerTokenUpdated]: DeepPartial<CCIPLogs.UsdPerTokenUpdated>
   [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>
-  [CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced]: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>
+  [CCIPLogs.LogTypes
+    .ReceiveExecutorInitExecuteBounced]: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>
   [CCIPLogs.LogTypes.DeployableInitializeBounced]: DeepPartial<CCIPLogs.DeployableInitializeBounced>
   [CCIPLogs.LogTypes.RouteMessageBounced]: DeepPartial<CCIPLogs.RouteMessageBounced>
   [CCIPLogs.LogTypes.MessageToOffRampBounced]: DeepPartial<CCIPLogs.MessageToOffRampBounced>
@@ -450,7 +451,7 @@ export const testLogSourceChainConfigUpdated = (
         minSeqNr: msg.config.minSeqNr,
         isRMNVerificationDisabled: msg.config.isRMNVerificationDisabled,
         onRamp: msg.config.onRamp,
-      }
+      },
     }
 
     const modifiedMatch = {
@@ -461,7 +462,7 @@ export const testLogSourceChainConfigUpdated = (
         minSeqNr: match.config.minSeqNr,
         isRMNVerificationDisabled: match.config.isRMNVerificationDisabled,
         onRamp: match.config.onRamp,
-      }
+      },
     }
 
     equalsObject(modifiedMsg, modifiedMatch)
@@ -513,7 +514,7 @@ export const testLogUsdPerTokenUpdated = (
       timestamp: cs.loadUintBig(64),
     }
 
-    const modifiedMatch = {...match}
+    const modifiedMatch = { ...match }
     if (match.sourceToken && match.sourceToken instanceof Address) {
       modifiedMatch.sourceToken = match.sourceToken.toString()
     }
@@ -539,7 +540,6 @@ export const testLogUsdPerUnitGasUpdated = (
     matchesObject(msg, match)
     return true
   })
-
 }
 
 export const testLogReceiveExecutorInitExecuteBounced = (
@@ -613,4 +613,3 @@ function matchesObject(obj, match) {
 function equalsObject(obj1: any, obj2: any) {
   expect(obj1).toEqual(obj2)
 }
-
