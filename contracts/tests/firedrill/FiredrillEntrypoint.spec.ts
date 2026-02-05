@@ -46,11 +46,15 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
 
   it('getOnRampAddress should return onramp address', async () => {
     const result = await entrypoint.getOnRampAddress()
+    console.log(result)
+    console.log(onramp.address)
     expect(result.equals(onramp.address)).toBe(true)
   })
 
   it('getOffRampAddress should return offramp address', async () => {
     const result = await entrypoint.getOffRampAddress()
+    console.log(result)
+    console.log(offramp.address)
     expect(result.equals(offramp.address)).toBe(true)
   })
 

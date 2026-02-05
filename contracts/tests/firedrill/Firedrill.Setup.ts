@@ -64,8 +64,6 @@ export async function deployFiredrillEntrypoint(
   opts?: {
     chainSelector?: bigint
     tokenAddress?: Address
-    firedrillOnRamp?: Address
-    firedrillOffRamp?: Address
   },
 ) {
   const code = await compile('firedrill.entrypoint')
@@ -77,10 +75,7 @@ export async function deployFiredrillEntrypoint(
     },
     chainSelector: opts?.chainSelector ?? CHAINSEL_TON_TEST,
     tokenAddress: opts?.tokenAddress ?? TOKEN_ADDRESS,
-    firedrillContracts: {
-      firedrillOnRamp: opts?.firedrillOnRamp ?? randomAddress(),
-      firedrillOffRamp: opts?.firedrillOffRamp ?? randomAddress(),
-    },
+    firedrillContracts: undefined,
     sSendLast: 0n,
   }
 
@@ -109,12 +104,17 @@ export async function setupFiredrill(blockchain: Blockchain) {
     onRampAddress: tonAddressToCrossChainAddress(onramp.address),
   })
 
-  await entrypoint.sendInitRamps(
+  const initRampsResult = await entrypoint.sendInitRamps(
     deployer.getSender(),
     toNano('0.05'),
     onramp.address,
     offramp.address,
   )
+  expect(initRampsResult.transactions).toHaveTransaction({
+    from: deployer.address,
+    to: entrypoint.address,
+    success: true,
+  })
 
   return {
     deployer,
