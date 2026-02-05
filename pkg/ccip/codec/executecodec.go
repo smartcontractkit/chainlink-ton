@@ -250,11 +250,16 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			destGasAmount := make([]byte, 4)
 			binary.BigEndian.PutUint32(destGasAmount, tokenAmount.DestGasAmount)
 
+			// Defensive check
+			if tokenAmount.Amount.Sign() < 0 {
+				return executeReport, fmt.Errorf("negative token amount decoded: %s", tokenAmount.Amount.String())
+			}
+
 			tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 				SourcePoolAddress: ccipocr3.UnknownAddress(tokenAmount.SourcePoolAddress),
 				DestTokenAddress:  destTokenAddr,
 				ExtraData:         ccipocr3.Bytes(extraData),
-				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount), // TODO double check if we need to add range check for BigInt, since TON use 256 bits
+				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount),
 				DestExecData:      destGasAmount,
 			})
 		}
