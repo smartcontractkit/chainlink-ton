@@ -18,7 +18,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260129103204-4c8453dd8139
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260114142648-bd9e1b483e96
-	github.com/smartcontractkit/chainlink-deployments-framework v0.79.1-0.20260205010748-a3a6bf303667
+	github.com/smartcontractkit/chainlink-deployments-framework v0.79.1-0.20260205111428-2025383dd871
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.13.14-0.20260202230832-eb33f42188d1
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20260204145422-3bf2084e39e7
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260204140636-bdb7490ffb1d
