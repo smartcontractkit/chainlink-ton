@@ -323,6 +323,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		}
 	}
 
+	// If err is still set here, all retries have been exhausted. Log and return the error.
 	if err != nil {
 		t.metrics.IncrementFailedToBroadcastTxs(ctx)
 		t.logger.Errorw("failed to broadcast tx after retries",
@@ -332,7 +333,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return err
 	}
 
-	// Record broadcast timestamp and latency
+	// Otherwise, tx was broadcast successfully. Record broadcast time and save to unconfirmed store.
 	tx.BroadcastAt = time.Now()
 	broadcastLatency := tx.BroadcastAt.Sub(tx.CreatedAt)
 	t.metrics.RecordBroadcastLatency(ctx, broadcastLatency)
