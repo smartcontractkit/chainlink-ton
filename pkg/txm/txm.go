@@ -272,39 +272,61 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"amount", tx.Amount.Nano().String(),
 			"bounce", msg.InternalMessage.Bounce,
 			"hasBody", msg.InternalMessage.Body != nil)
-		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
+
+		// Create timeout context to prevent SendWaitTransaction from hanging indefinitely
+		sendCtx, sendCancel := context.WithTimeout(ctx, t.config.SendTimeout.Duration())
+		receivedMessage, _, err = client.SendWaitTransaction(sendCtx, tx.To, msg)
+		sendCancel()
 		if err == nil {
 			t.logger.Infow("transaction broadcasted",
 				"txID", txID,
 				"to", tx.To.String(),
 				"amount", tx.Amount.Nano().String())
 
-			// Transaction was broadcast successfully, but ultimately failed to execute due to ExitCode.
-			var exitCode tvm.ExitCode
-			exitCode, err = receivedMessage.ExitCode()
-			if err != nil {
-				t.logger.Errorw("failed to get exit code", "error", err)
+			// Transaction was broadcast successfully, but may have failed to execute due to ExitCode.
+			// Use separate error variable since this doesn't affect broadcast success.
+			exitCode, exitCodeErr := receivedMessage.ExitCode()
+			if exitCodeErr != nil {
+				t.logger.Errorw("failed to get exit code", "error", exitCodeErr)
 			}
 			if exitCode != 0 {
 				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
 			}
 
-			// Wait for and gather full trace regardless of exit code for debugging purposes
-			err = receivedMessage.WaitForTrace(ctx, client.Client)
-			if err != nil {
-				t.logger.Errorw("failed to wait for trace", "error", err)
+			// Wait for and gather full trace regardless of exit code for debugging purposes.
+			// Use separate error variable since trace gathering is non-fatal.
+			traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
+			traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
+			traceCancel()
+			if traceErr != nil {
+				if errors.Is(traceErr, context.DeadlineExceeded) {
+					t.logger.Warnw("trace gathering timed out (non-fatal)",
+						"txID", txID,
+						"timeout", t.config.TraceTimeout.Duration())
+				} else {
+					t.logger.Warnw("failed to wait for trace (non-fatal)", "error", traceErr)
+				}
+			} else {
+				t.logger.Debugf("Msg tree trace :\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
+				t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 			}
-			t.logger.Debugf("Msg tree trace :\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
-			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 			break
 		}
 
 		// Transaction failed to broadcast. Log error as a warning for now and fall through to retry delay below.
-		t.logger.Warnw("failed to broadcast tx, will retry",
-			"txID", txID,
-			"attempt", attempt,
-			"to", tx.To.String(),
-			"err", err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.logger.Warnw("broadcast timed out, will retry",
+				"txID", txID,
+				"attempt", attempt,
+				"to", tx.To.String(),
+				"timeout", t.config.SendTimeout.Duration())
+		} else {
+			t.logger.Warnw("failed to broadcast tx, will retry",
+				"txID", txID,
+				"attempt", attempt,
+				"to", tx.To.String(),
+				"err", err)
+		}
 
 		select {
 		case <-time.After(t.config.SendRetryDelay.Duration()):
@@ -354,9 +376,6 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 func (t *Txm) confirmLoop() {
 	defer t.done.Done()
 
-	_, cancel := commonutils.ContextFromChan(t.stop)
-	defer cancel()
-
 	pollDuration := t.config.ConfirmPollInterval.Duration()
 	tick := time.After(pollDuration)
 
@@ -403,9 +422,17 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Errorw("failed to get client", "error", err)
 				continue
 			}
-			err = receivedMessage.WaitForTrace(ctx, client.Client)
-			if err != nil {
-				t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
+			traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
+			traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
+			traceCancel()
+			if traceErr != nil {
+				if errors.Is(traceErr, context.DeadlineExceeded) {
+					t.logger.Warnw("trace gathering timed out, will retry next poll",
+						"LT", unconfirmedTx.LT,
+						"timeout", t.config.TraceTimeout.Duration())
+				} else {
+					t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", traceErr)
+				}
 				continue
 			}
 

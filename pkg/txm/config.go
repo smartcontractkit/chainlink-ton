@@ -17,6 +17,8 @@ type Config struct {
 	MaxSendRetryAttempts uint             // Max retries before giving up broadcasting
 	TxExpiration         *config.Duration // Time after which an unconfirmed transaction is considered expired
 	CleanupInterval      *config.Duration // Interval to clean up finalized and expired transactions
+	SendTimeout          *config.Duration // Timeout for each SendWaitTransaction call to prevent hanging
+	TraceTimeout         *config.Duration // Timeout for each WaitForTrace call to prevent hanging
 }
 
 var DefaultConfigSet = Config{
@@ -26,6 +28,8 @@ var DefaultConfigSet = Config{
 	MaxSendRetryAttempts: 5,
 	TxExpiration:         config.MustNewDuration(5 * time.Minute),
 	CleanupInterval:      config.MustNewDuration(60 * time.Minute),
+	SendTimeout:          config.MustNewDuration(30 * time.Second),
+	TraceTimeout:         config.MustNewDuration(60 * time.Second),
 }
 
 func (c *Config) ApplyDefaults() {
@@ -47,6 +51,12 @@ func (c *Config) ApplyDefaults() {
 	if c.CleanupInterval == nil {
 		c.CleanupInterval = DefaultConfigSet.CleanupInterval
 	}
+	if c.SendTimeout == nil {
+		c.SendTimeout = DefaultConfigSet.SendTimeout
+	}
+	if c.TraceTimeout == nil {
+		c.TraceTimeout = DefaultConfigSet.TraceTimeout
+	}
 }
 
 func (c *Config) ValidateConfig() (err error) {
@@ -67,6 +77,12 @@ func (c *Config) ValidateConfig() (err error) {
 	}
 	if c.CleanupInterval == nil {
 		err = errors.Join(err, config.ErrMissing{Name: "CleanupInterval", Msg: "must be set"})
+	}
+	if c.SendTimeout == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "SendTimeout", Msg: "must be set"})
+	}
+	if c.TraceTimeout == nil {
+		err = errors.Join(err, config.ErrMissing{Name: "TraceTimeout", Msg: "must be set"})
 	}
 	return err
 }

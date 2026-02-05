@@ -28,6 +28,8 @@ SendRetryDelay = '8s'
 MaxSendRetryAttempts = 7
 TxExpiration = '6h'
 CleanupInterval = '15m'
+SendTimeout = '45s'
+TraceTimeout = '90s'
 
 [LogPoller]
 PollPeriod = '10s'
@@ -63,6 +65,8 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, uint(7), cfg.TransactionManager.MaxSendRetryAttempts)
 		assert.Equal(t, 6*time.Hour, cfg.TransactionManager.TxExpiration.Duration())
 		assert.Equal(t, 15*time.Minute, cfg.TransactionManager.CleanupInterval.Duration())
+		assert.Equal(t, 45*time.Second, cfg.TransactionManager.SendTimeout.Duration())
+		assert.Equal(t, 90*time.Second, cfg.TransactionManager.TraceTimeout.Duration())
 
 		require.NotNil(t, cfg.LogPoller)
 		assert.Equal(t, uint32(50), cfg.LogPoller.PageSize)
@@ -104,6 +108,8 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
+		assert.Equal(t, txm.DefaultConfigSet.TraceTimeout, cfg.TransactionManager.TraceTimeout)
 
 		require.NotNil(t, cfg.LogPoller)
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
@@ -154,6 +160,8 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
+		assert.Equal(t, txm.DefaultConfigSet.TraceTimeout, cfg.TransactionManager.TraceTimeout)
 
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
@@ -194,6 +202,8 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
+		assert.Equal(t, txm.DefaultConfigSet.TraceTimeout, cfg.TransactionManager.TraceTimeout)
 
 		// Verify all LogPoller fields got defaults
 		require.NotNil(t, cfg.LogPoller)
@@ -253,6 +263,8 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
+		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
+		assert.Equal(t, txm.DefaultConfigSet.TraceTimeout, cfg.TransactionManager.TraceTimeout)
 
 		assert.Equal(t, logpoller.DefaultConfigSet.PollPeriod, cfg.LogPoller.PollPeriod)
 		assert.Equal(t, logpoller.DefaultConfigSet.LogPollerStartingLookback, cfg.LogPoller.LogPollerStartingLookback)
