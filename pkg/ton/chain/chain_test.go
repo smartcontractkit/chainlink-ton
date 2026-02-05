@@ -1,7 +1,11 @@
 package chain
 
 import (
+	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseLiteserverURL(t *testing.T) {
@@ -86,6 +90,29 @@ func TestParseLiteserverURL(t *testing.T) {
 			if hostPort != tt.expectedHost {
 				t.Errorf("expected host:port %q, got %q", tt.expectedHost, hostPort)
 			}
+		})
+	}
+}
+
+// TestCreateMultiLiteserverConnectionPool_Validation verifies that the function
+// rejects invalid inputs before attempting any network connections.
+func TestCreateMultiLiteserverConnectionPool_Validation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		urls []string
+	}{
+		{name: "empty URL list", urls: []string{}},
+		{name: "nil URL list", urls: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			pool, err := CreateMultiLiteserverConnectionPool(context.Background(), tt.urls)
+			require.Error(t, err)
+			assert.Nil(t, pool)
 		})
 	}
 }
