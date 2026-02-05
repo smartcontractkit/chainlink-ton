@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"math/rand/v2"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -67,6 +68,7 @@ var _ Chain = (*chain)(nil)
 
 type cachedClient struct {
 	client    ton.APIClientWrapped
+	pool      *liteclient.ConnectionPool
 	timestamp time.Time
 }
 
@@ -83,8 +85,8 @@ type chain struct {
 	lp  logpoller.Service
 	bm  services.Service
 
-	clientCache map[int]*cachedClient
-	cacheMu     sync.RWMutex
+	sharedClient *cachedClient
+	cacheMu      sync.RWMutex
 }
 
 func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
@@ -108,7 +110,6 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		cfg:         cfg,
 		lggr:        logger.Named(lggr, "Chain"),
 		ds:          ds,
-		clientCache: make(map[int]*cachedClient),
 	}
 
 	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
@@ -207,7 +208,15 @@ func (c *chain) Start(ctx context.Context) error {
 
 func (c *chain) Close() error {
 	return c.starter.StopOnce("Chain", func() error {
-		c.lggr.Debug("Stopping txm, log poller, and balance monitor")
+		c.lggr.Debug("Stopping txm, log poller, balance monitor, and shared connection pool")
+
+		c.cacheMu.Lock()
+		if c.sharedClient != nil {
+			c.sharedClient.pool.Stop()
+			c.sharedClient = nil
+		}
+		c.cacheMu.Unlock()
+
 		return services.CloseAll(c.txm, c.lp, c.bm)
 	})
 }
@@ -325,80 +334,88 @@ func (c *chain) ChainID() string {
 	return c.id
 }
 
-// GetClient returns a client, randomly selecting one from available and valid nodes
+// GetClient returns a TON API client backed by a shared connection pool containing all
+// configured liteserver nodes. The pool handles load balancing, failover, and health
+// monitoring internally. The client is cached with a TTL to periodically refresh the
+// trusted block and re-validate the chain ID.
 func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
-	var lastErr error
 	nodes := c.cfg.Nodes
 	if len(nodes) == 0 {
 		return nil, errors.New("no nodes available")
 	}
 
-	indexes := rand.Perm(len(nodes))
-
-	for _, i := range indexes {
-		node := nodes[i]
-
-		// Check cache
-		c.cacheMu.RLock()
-		entry, ok := c.clientCache[i]
+	// Fast path: return cached client if TTL is still valid
+	c.cacheMu.RLock()
+	if c.sharedClient != nil && time.Since(c.sharedClient.timestamp) < c.cfg.ClientTTL {
+		client := c.sharedClient.client
 		c.cacheMu.RUnlock()
-
-		if ok && time.Since(entry.timestamp) < c.cfg.ClientTTL {
-			c.lggr.Debugw("Using cached client", "name", node.Name)
-			return entry.client, nil
-		} else if ok {
-			// TTL expired — evict
-			c.lggr.Debugw("Evicting expired client", "name", node.Name)
-			c.cacheMu.Lock()
-			delete(c.clientCache, i)
-			c.cacheMu.Unlock()
-		}
-
-		// Build new client, expected URL format: liteserver://publickey@host:port
-		liteServerURL := node.URL.String()
-		connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
-		if cerr != nil {
-			c.lggr.Warnw("failed to get connection pool", "name", node.Name, "ton-url", node.URL, "err", cerr)
-			continue
-		}
-
-		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
-
-		blockID, err := client.CurrentMasterchainInfo(ctx)
-		if err != nil {
-			lastErr = err
-			c.evictClient(i, *node.Name, "CurrentMasterchainInfo failed")
-			continue
-		}
-		// set starting point to verify master block proofs chain
-		client.SetTrustedBlock(blockID)
-
-		block, err := client.GetBlockData(ctx, blockID)
-		if err != nil {
-			lastErr = err
-			c.evictClient(i, *node.Name, "GetBlockData failed")
-			continue
-		}
-
-		chainID := block.GlobalID
-		if strconv.FormatInt(int64(chainID), 10) != c.id {
-			c.lggr.Errorw("unexpected chain id", "name", node.Name, "localChainId", c.id, "remoteChainId", chainID)
-			continue
-		}
-
-		// Cache the fresh client
-		c.cacheMu.Lock()
-		c.clientCache[i] = &cachedClient{
-			client:    client,
-			timestamp: time.Now(),
-		}
-		c.cacheMu.Unlock()
-
-		c.lggr.Debugw("Created and cached client", "name", node.Name)
 		return client, nil
 	}
+	c.cacheMu.RUnlock()
 
-	return nil, fmt.Errorf("no valid TON nodes available, last error: %w", lastErr)
+	// Slow path: create or refresh the shared client
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+
+	// Double-check after acquiring write lock
+	if c.sharedClient != nil && time.Since(c.sharedClient.timestamp) < c.cfg.ClientTTL {
+		return c.sharedClient.client, nil
+	}
+
+	// Stop the old pool if TTL expired
+	if c.sharedClient != nil {
+		c.lggr.Debugw("Stopping expired shared connection pool")
+		c.sharedClient.pool.Stop()
+		c.sharedClient = nil
+	}
+
+	// Collect all node URLs
+	urls := make([]string, len(nodes))
+	for i, node := range nodes {
+		urls[i] = node.URL.String()
+	}
+
+	// Create a single pool with all nodes
+	pool, err := tonchain.CreateMultiLiteserverConnectionPool(ctx, urls)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create shared connection pool: %w", err)
+	}
+
+	client := ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry(defaultTONClientRetryCount)
+
+	// Validate: get current masterchain info and set trusted block
+	blockID, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		pool.Stop()
+		return nil, fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+	if blockID.Workchain != address.MasterchainID {
+		pool.Stop()
+		return nil, fmt.Errorf("expected masterchain block (workchain %d), got workchain %d", address.MasterchainID, blockID.Workchain)
+	}
+	client.SetTrustedBlock(blockID)
+
+	// Validate chain ID
+	block, err := client.GetBlockData(ctx, blockID)
+	if err != nil {
+		pool.Stop()
+		return nil, fmt.Errorf("failed to get block data: %w", err)
+	}
+
+	chainID := block.GlobalID
+	if strconv.FormatInt(int64(chainID), 10) != c.id {
+		pool.Stop()
+		return nil, fmt.Errorf("unexpected chain id: expected %s, got %d", c.id, chainID)
+	}
+
+	c.sharedClient = &cachedClient{
+		client:    client,
+		pool:      pool,
+		timestamp: time.Now(),
+	}
+
+	c.lggr.Infow("Created shared connection pool", "nodeCount", len(nodes))
+	return client, nil
 }
 
 func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped, loopKs loop.Keystore, accountIndex int) (*wallet.Wallet, error) {
@@ -438,13 +455,6 @@ func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped
 	}
 
 	return w, nil
-}
-
-func (c *chain) evictClient(index int, name string, reason string) {
-	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
-	delete(c.clientCache, index)
-	c.lggr.Warnw("evicted client due to error", "name", name, "reason", reason)
 }
 
 func (c *chain) listNodeStatuses(start, end int) ([]commontypes.NodeStatus, int, error) {
