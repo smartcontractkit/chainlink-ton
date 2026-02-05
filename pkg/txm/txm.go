@@ -305,7 +305,8 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				"txID", txID,
 				"attempt", attempt,
 				"to", tx.To.String(),
-				"timeout", t.config.SendTimeout.Duration())
+				"timeout", t.config.SendTimeout.Duration(),
+				"err", err)
 		} else {
 			t.logger.Warnw("failed to broadcast tx, will retry",
 				"txID", txID,
