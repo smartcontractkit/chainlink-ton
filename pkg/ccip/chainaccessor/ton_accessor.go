@@ -365,7 +365,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	lggr.Debugw("queried latest message from source", "numMsgs", len(logs))
 
 	if len(logs) > 1 {
-		return 0, fmt.Errorf("more than one message found for the latest message query, found: %d", len(logs))
+		return 0, fmt.Errorf("more than one message found for the latest message query - found: %d", len(logs))
 	}
 	if len(logs) == 0 {
 		return 0, nil
