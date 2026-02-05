@@ -29,7 +29,7 @@ require (
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260204140636-bdb7490ffb1d
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260130084452-fe13ee916ee5
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260130084452-fe13ee916ee5
-	github.com/smartcontractkit/mcms v0.34.1-0.20260205003719-6d186884f196
+	github.com/smartcontractkit/mcms v0.34.1-0.20260205030257-a65d2a08f867
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	google.golang.org/grpc v1.78.0
