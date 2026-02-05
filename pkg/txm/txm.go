@@ -293,22 +293,8 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
 			}
 
-			// Wait for and gather full trace regardless of exit code for debugging purposes.
-			// Use separate error variable since trace gathering is non-fatal.
-			traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
-			traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
-			traceCancel()
-			if traceErr != nil {
-				if errors.Is(traceErr, context.DeadlineExceeded) {
-					t.logger.Warnw("trace gathering timed out (non-fatal)",
-						"txID", txID,
-						"timeout", t.config.TraceTimeout.Duration())
-				} else {
-					t.logger.Warnw("failed to wait for trace (non-fatal)", "error", traceErr)
-				}
-			} else {
-				t.logger.Debugf("Msg tree trace :\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
-				t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
+			if *t.config.EnableTraceLogging {
+				t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
 			}
 			break
 		}
@@ -370,6 +356,28 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	}
 
 	return nil
+}
+
+// gatherAndLogTrace waits for transaction trace data and logs it for debugging purposes.
+// This is a non-fatal operation - trace gathering failures are logged but don't affect transaction success.
+func (t *Txm) gatherAndLogTrace(ctx context.Context, client tracetracking.SignedAPIClient, receivedMessage *tracetracking.ReceivedMessage, txID string) {
+	traceCtx, traceCancel := context.WithTimeout(ctx, t.config.TraceTimeout.Duration())
+	traceErr := receivedMessage.WaitForTrace(traceCtx, client.Client)
+	traceCancel()
+
+	if traceErr != nil {
+		if errors.Is(traceErr, context.DeadlineExceeded) {
+			t.logger.Warnw("trace gathering timed out (non-fatal)",
+				"txID", txID,
+				"timeout", t.config.TraceTimeout.Duration())
+		} else {
+			t.logger.Warnw("failed to wait for trace (non-fatal)", "error", traceErr)
+		}
+		return
+	}
+
+	t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(receivedMessage))
+	t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(receivedMessage))
 }
 
 // Periodically checks unconfirmed transactions for finality.
