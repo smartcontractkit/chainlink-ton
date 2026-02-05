@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -101,7 +100,7 @@ type logModel struct {
 // FromLog converts a models.Log to logModel
 func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 	if log.Data == nil {
-		return logModel{}, errors.New("log.Data is nil")
+		return logModel{}, fmt.Errorf("log.Data is nil (address=%s, eventSig=0x%08x, txHash=%x)", log.Address, log.EventSig, log.TxHash)
 	}
 
 	if err := lptypes.ValidateBlockIDExt(log.Block); err != nil {
