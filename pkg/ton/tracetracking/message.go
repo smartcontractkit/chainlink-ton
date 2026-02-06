@@ -461,10 +461,29 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 	return nil
 }
 
+// BoundCondition is a function type that defines a condition to determine when to stop
+// traversing the message trace. It takes a ReceivedMessage as input and returns
+// a boolean indicating whether the boundary condition has been met. This is used in
+// functions like TraceExitCodeWith and TraceSucceededWith to limit the scope of the
+// trace analysis based on custom criteria.
+type BoundCondition func(*ReceivedMessage) bool
+
+// NoBound is a default BoundCondition that never returns true, meaning that trace
+// analysis will continue through the entire message trace.
+var NoBound BoundCondition = func(_ *ReceivedMessage) bool { return false }
+
 // TraceExitCode returns the first non-success exit code found in this message
 // or any of its outgoing internal messages. If all messages succeeded, it returns
 // the success exit code.
 func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
+	return m.TraceExitCodeWith(NoBound)
+}
+
+// TraceExitCodeWith returns the first non-success exit code found in this message
+// or any of its outgoing internal messages, stopping the search when the provided
+// boundary condition is met. If all messages within the boundary succeeded,
+// it returns the success exit code.
+func (m *ReceivedMessage) TraceExitCodeWith(boundary BoundCondition) (tvm.ExitCode, error) {
 	if m == nil {
 		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
 	}
@@ -484,7 +503,13 @@ func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
 		}
 
 		for i := len(curr.OutgoingInternalReceivedMessages) - 1; i >= 0; i-- {
-			stack = append(stack, curr.OutgoingInternalReceivedMessages[i])
+			msg := curr.OutgoingInternalReceivedMessages[i]
+
+			if boundary(msg) {
+				continue // Skip messages after the trace bound condition met
+			}
+
+			stack = append(stack, msg)
 		}
 	}
 
@@ -526,14 +551,23 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 	return tvm.ExitCode(computePhase.Details.ExitCode), nil
 }
 
-// TraceSucceeded recursively checks if this message
-// and all its OutgoingInternalMessagesReceived succeeded.
+// TraceSucceeded recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded.
 func (m *ReceivedMessage) TraceSucceeded() bool {
+	return m.TraceSucceededWith(NoBound)
+}
+
+// TraceSucceededWith recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded,
+// stopping the check when the provided boundary condition is met.
+func (m *ReceivedMessage) TraceSucceededWith(boundary BoundCondition) bool {
 	if !m.Succeeded() {
 		return false
 	}
 	for _, msg := range m.OutgoingInternalReceivedMessages {
-		if !msg.TraceSucceeded() {
+		if boundary(msg) {
+			continue // Skip messages after the trace bound condition met
+		}
+
+		if !msg.TraceSucceededWith(boundary) {
 			return false
 		}
 	}
