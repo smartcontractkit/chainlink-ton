@@ -11,6 +11,7 @@ import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as deployable from '../../../wrappers/libraries/Deployable'
 import { CHAINSEL_EVM_TEST, CHAINSEL_TON, deployOnRampContract, setup } from './OnRamp.Setup'
 import { WRAPPED_NATIVE } from '../../../src/utils'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -55,7 +56,7 @@ describe('OnRamp - Send', () => {
   })
 
   beforeEach(async () => {
-    deployableCode = await compile('Deployable')
+    deployableCode = await loadContractCode('Deployable')
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')
 
