@@ -50,7 +50,7 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) (filterModel, error) {
 }
 
 // ToFilter converts a FilterModel to models.Filter
-func (f filterModel) ToFilter() (lptypes.Filter, error) {
+func (f *filterModel) ToFilter() (lptypes.Filter, error) {
 	if len(f.EventSig) != 4 {
 		return lptypes.Filter{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(f.EventSig))
 	}
@@ -145,7 +145,7 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 }
 
 // ToLog converts a logModel to models.Log
-func (l logModel) ToLog() (lptypes.Log, error) {
+func (l *logModel) ToLog() (lptypes.Log, error) {
 	if len(l.EventSig) != 4 {
 		return lptypes.Log{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(l.EventSig))
 	}
