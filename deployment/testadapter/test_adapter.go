@@ -33,6 +33,7 @@ import (
 	msg_hasher163 "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher"
 	ccipcommon "github.com/smartcontractkit/chainlink-ccip/deployment/common"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
+	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -188,6 +189,26 @@ func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBloc
 	)
 	require.NoError(t, err)
 	return executionStates
+}
+
+func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
+	// TODO: implement when TON token transfer support is added
+	return errors.ErrUnsupported
+}
+
+func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, ownerAddress []byte) (*big.Int, error) {
+	// TODO: implement when TON token transfer support is added
+	return nil, errors.ErrUnsupported
+}
+
+func (a *TONAdapter) GetTokenExpansionConfig() tokensapi.TokenExpansionInputPerChain {
+	// TODO: implement when TON token transfer support is added
+	return tokensapi.TokenExpansionInputPerChain{}
+}
+
+func (a *TONAdapter) GetRegistryAddress() (string, error) {
+	// TODO: implement when TON token transfer support is added
+	return "", errors.ErrUnsupported
 }
 
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
