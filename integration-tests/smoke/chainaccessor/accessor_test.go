@@ -42,7 +42,6 @@ const (
 	MockOffRampAddr  = "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF"
 )
 
-
 // BOC (Bag of Cells) data captured from TypeScript tests.
 //
 // IMPORTANT: These BOCs are captured from contracts/tests/ccip/CCIPRouter.spec.ts

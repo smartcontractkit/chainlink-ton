@@ -26,7 +26,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
 )
 
-
 // createTestLogs creates sample logs for testing with actual Counter events
 func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []models.Log {
 	t.Helper()
@@ -57,7 +56,7 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 			MsgLT:        uint64(1000 + i), //nolint:gosec // test code with small values - same as TxLT for simplicity
 			TxTimestamp:  time.Now().Add(time.Duration(i) * time.Minute),
 			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code with small values
-			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code with small values
+			MCBlockSeqno: uint32(200 + i),                         //nolint:gosec // test code with small values
 			MsgIndex:     int64(i),
 		}
 	}
@@ -195,7 +194,7 @@ func TestPgLogStore(t *testing.T) {
 				MsgLT:        uint64(5000 - i), //nolint:gosec // test code with small values
 				TxTimestamp:  sameTimestamp,
 				Block:        tontest.TestBlockIDExt(uint32(500 + i)), //nolint:gosec // test code
-				MCBlockSeqno: uint32(600 + i),                 //nolint:gosec // test code
+				MCBlockSeqno: uint32(600 + i),                         //nolint:gosec // test code
 				MsgIndex:     int64(i),
 			}
 		}
@@ -447,7 +446,7 @@ func TestMultiFilterDeduplication(t *testing.T) {
 				MsgLT:        uint64(1000 + eventIdx), //nolint:gosec // test code
 				TxTimestamp:  baseTime.Add(time.Duration(eventIdx) * time.Minute),
 				Block:        tontest.TestBlockIDExt(uint32(100 + eventIdx)), //nolint:gosec // test code
-				MCBlockSeqno: uint32(200 + eventIdx),                 //nolint:gosec // test code
+				MCBlockSeqno: uint32(200 + eventIdx),                         //nolint:gosec // test code
 				MsgIndex:     int64(eventIdx),
 			}
 			inserted, ierr := logStore.SaveLogs(ctx, []models.Log{log}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)

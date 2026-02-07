@@ -59,7 +59,7 @@ func createTestLogsForPruning(t *testing.T, addr *address.Address, filterID int6
 			MsgLT:        uint64(1000 + i), //nolint:gosec // test code
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
 			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
-			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code
+			MCBlockSeqno: uint32(200 + i),                         //nolint:gosec // test code
 			MsgIndex:     int64(i),
 		}
 
@@ -95,7 +95,7 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 			MsgLT:        txLT,
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
 			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
-			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code
+			MCBlockSeqno: uint32(200 + i),                         //nolint:gosec // test code
 			MsgIndex:     0,
 		}
 	}
