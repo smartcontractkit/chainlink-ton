@@ -461,16 +461,16 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 	return nil
 }
 
-// BoundCondition is a function type that defines a condition to determine when to stop
-// traversing the message trace. It takes a ReceivedMessage as input and returns
-// a boolean indicating whether the boundary condition has been met. This is used in
-// functions like TraceExitCodeWith and TraceSucceededWith to limit the scope of the
-// trace analysis based on custom criteria.
-type BoundCondition func(*ReceivedMessage) bool
+// StopCondition is a function type that defines a condition to determine when to stop
+// traversing the message trace. It takes a parent and current ReceivedMessage as input
+// and returns a boolean indicating whether the stop condition has been met. This
+// is used in functions like TraceExitCodeWith and TraceSucceededWith to limit the scope
+// of the trace analysis based on custom criteria.
+type StopCondition func(parent, current *ReceivedMessage) (bool, error)
 
-// NoBound is a default BoundCondition that never returns true, meaning that trace
+// NoBound is a default StopCondition that never returns true, meaning that trace
 // analysis will continue through the entire message trace.
-var NoBound BoundCondition = func(_ *ReceivedMessage) bool { return false }
+var NoBound StopCondition = func(_, _ *ReceivedMessage) (bool, error) { return false, nil } // Don't stop, no bound condition
 
 // TraceExitCode returns the first non-success exit code found in this message
 // or any of its outgoing internal messages. If all messages succeeded, it returns
@@ -481,9 +481,9 @@ func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
 
 // TraceExitCodeWith returns the first non-success exit code found in this message
 // or any of its outgoing internal messages, stopping the search when the provided
-// boundary condition is met. If all messages within the boundary succeeded,
+// stop condition is met. If all messages within the boundary succeeded,
 // it returns the success exit code.
-func (m *ReceivedMessage) TraceExitCodeWith(boundary BoundCondition) (tvm.ExitCode, error) {
+func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCode, error) {
 	if m == nil {
 		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
 	}
@@ -505,8 +505,12 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary BoundCondition) (tvm.ExitCo
 		for i := len(curr.OutgoingInternalReceivedMessages) - 1; i >= 0; i-- {
 			msg := curr.OutgoingInternalReceivedMessages[i]
 
-			if boundary(msg) {
-				continue // Skip messages after the trace bound condition met
+			stop, err := boundary(curr, msg)
+			if err != nil {
+				return 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
+			}
+			if stop {
+				continue // Skip messages after the trace stop condition is met
 			}
 
 			stack = append(stack, msg)
@@ -553,23 +557,33 @@ func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
 
 // TraceSucceeded recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded.
 func (m *ReceivedMessage) TraceSucceeded() bool {
-	return m.TraceSucceededWith(NoBound)
+	succeeded, _ := m.TraceSucceededWith(NoBound) // ok to ignore error
+	return succeeded
 }
 
 // TraceSucceededWith recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded,
 // stopping the check when the provided boundary condition is met.
-func (m *ReceivedMessage) TraceSucceededWith(boundary BoundCondition) bool {
+func (m *ReceivedMessage) TraceSucceededWith(boundary StopCondition) (bool, error) {
 	if !m.Succeeded() {
-		return false
+		return false, nil
 	}
+
 	for _, msg := range m.OutgoingInternalReceivedMessages {
-		if boundary(msg) {
+		stop, err := boundary(m, msg)
+		if err != nil {
+			return false, fmt.Errorf("failed to evaluate stop condition: %w", err)
+		}
+		if stop {
 			continue // Skip messages after the trace bound condition met
 		}
 
-		if !msg.TraceSucceededWith(boundary) {
-			return false
+		succeeded, err := msg.TraceSucceededWith(boundary)
+		if err != nil {
+			return false, fmt.Errorf("failed to check if trace succeeded: %w", err)
+		}
+		if !succeeded {
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }

@@ -2,6 +2,7 @@ package router
 
 import (
 	"math/big"
+	"reflect"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -13,15 +14,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-const (
-	OpcodeApplyRampUpdates   = 0x7db6745d
-	OpcodeCCIPSend           = 0x31768d95
-	OpcodeRouteMessage       = 0xfc69c50b
-	OpcodeCCIPReceiveConfirm = 0x1e55bbf6
-	OpcodeMessageSent        = 0x6513f8e1
-	OpcodeMessageRejected    = 0x8ae25114
-	OpcodeRMNRemoteCurse     = 0xf3388046
-	OpcodeRMNRemoteUncurse   = 0x3f153a31
+var (
+	OpcodeApplyRampUpdates   = tvm.MustExtractMagic(reflect.TypeOf(ApplyRampUpdates{}))
+	OpcodeCCIPSend           = tvm.MustExtractMagic(reflect.TypeOf(CCIPSend{}))
+	OpcodeRouteMessage       = tvm.MustExtractMagic(reflect.TypeOf(RouteMessage{}))
+	OpcodeCCIPReceiveConfirm = tvm.MustExtractMagic(reflect.TypeOf(CCIPReceiveConfirm{}))
+	OpcodeMessageSent        = tvm.MustExtractMagic(reflect.TypeOf(MessageSent{}))
+	OpcodeMessageRejected    = tvm.MustExtractMagic(reflect.TypeOf(MessageRejected{}))
+	OpcodeRMNRemoteCurse     = tvm.MustExtractMagic(reflect.TypeOf(RMNRemoteCurse{}))
+	OpcodeRMNRemoteUncurse   = tvm.MustExtractMagic(reflect.TypeOf(RMNRemoteUncurse{}))
 )
 
 const (
@@ -172,6 +173,11 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
+type RMNOwnableMessage[T ownable2step.InMessage] struct {
+	_       tlb.Magic `tlb:"#af7a9ac6"` //nolint:revive // Ignore opcode tag
+	Content T         `tlb:"."`
+}
+
 var TLBs = tvm.MustNewTLBMap([]any{
 	ApplyRampUpdates{},
 	CCIPSend{},
@@ -183,9 +189,5 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
+	RMNOwnableMessage[ownable2step.TransferOwnership]{Content: ownable2step.TransferOwnership{}},
 }).MustWithStorageType(Storage{})
-
-type RMNOwnableMessage[T ownable2step.InMessage] struct {
-	_       tlb.Magic `tlb:"#af7a9ac6"` //nolint:revive // Ignore opcode tag
-	Content T         `tlb:"."`
-}

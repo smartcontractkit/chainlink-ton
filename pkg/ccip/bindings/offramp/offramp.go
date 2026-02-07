@@ -1,6 +1,8 @@
 package offramp
 
 import (
+	"reflect"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -101,8 +103,6 @@ type ConfigInfo struct {
 
 // Methods
 
-const CCIPReceiveOpCode = 0xb3126df1
-
 // CCIPReceive represents the CCIP message received on TON
 type CCIPReceive struct {
 	_       tlb.Magic      `tlb:"#b3126df1" json:"-"` //nolint:revive // Ignore opcode tag
@@ -189,6 +189,10 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	SetDynamicConfig{},
 	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
+
+var (
+	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeOf(CCIPReceive{}))
+)
 
 // Config types that implements getter fetching interface with rpc client
 
