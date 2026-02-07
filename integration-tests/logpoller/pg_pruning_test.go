@@ -17,6 +17,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
 	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"
+	tontest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
@@ -57,7 +58,7 @@ func createTestLogsForPruning(t *testing.T, addr *address.Address, filterID int6
 			TxLT:         uint64(1000 + i), //nolint:gosec // test code
 			MsgLT:        uint64(1000 + i), //nolint:gosec // test code
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
-			Block:        testBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
+			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
 			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code
 			MsgIndex:     int64(i),
 		}
@@ -93,7 +94,7 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 			TxLT:         txLT,
 			MsgLT:        txLT,
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
-			Block:        testBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
+			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
 			MCBlockSeqno: uint32(200 + i),                 //nolint:gosec // test code
 			MsgIndex:     0,
 		}
