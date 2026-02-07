@@ -23,7 +23,7 @@ func WaitForTrace(ctx context.Context, c ton.APIClientWrapped, tx *tlb.Transacti
 	}
 
 	boundaryFunc := NoBound // default to no boundary (check entire trace)
-	if len(boundary) > 0 {
+	if len(boundary) > 0 && boundary[0] != nil {
 		boundaryFunc = boundary[0]
 	}
 

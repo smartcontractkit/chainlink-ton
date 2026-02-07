@@ -479,13 +479,18 @@ func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
 	return m.TraceExitCodeWith(NoBound)
 }
 
-// TraceExitCodeWith returns the first non-success exit code found in this message
-// or any of its outgoing internal messages, stopping the search when the provided
-// stop condition is met. If all messages within the boundary succeeded,
-// it returns the success exit code.
+// TraceExitCodeWith returns the first non-success exit code found in this message or any of its
+// outgoing internal messages, stopping the search to progress in trace branches where the provided
+// boundary condition is met (continues searching other branches).
+//
+// If all messages within the boundary succeeded, it returns the success exit code.
 func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCode, error) {
 	if m == nil {
 		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
+	}
+
+	if boundary == nil {
+		boundary = NoBound // default to no boundary if nil is provided
 	}
 
 	stack := []*ReceivedMessage{m}
@@ -510,7 +515,7 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 				return 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
 			}
 			if stop {
-				continue // Skip messages after the trace stop condition is met
+				continue // Skip traversing further in this branch if the stop condition is met
 			}
 
 			stack = append(stack, msg)
@@ -568,13 +573,17 @@ func (m *ReceivedMessage) TraceSucceededWith(boundary StopCondition) (bool, erro
 		return false, nil
 	}
 
+	if boundary == nil {
+		boundary = NoBound // default to no boundary if nil is provided
+	}
+
 	for _, msg := range m.OutgoingInternalReceivedMessages {
 		stop, err := boundary(m, msg)
 		if err != nil {
 			return false, fmt.Errorf("failed to evaluate stop condition: %w", err)
 		}
 		if stop {
-			continue // Skip messages after the trace bound condition met
+			continue // Skip traversing further in this branch if the stop condition is met
 		}
 
 		succeeded, err := msg.TraceSucceededWith(boundary)

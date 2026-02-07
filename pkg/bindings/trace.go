@@ -18,6 +18,11 @@ import (
 //   - we don't track fwd notifications to uninitialized accounts, bounce = false
 //   - we don't track outgoing msgs/notifications from third-party CCIP receiver contracts (except for router.CCIPReceiveConfirm)
 var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current *tracetracking.ReceivedMessage) (bool, error) {
+	// Check if internal messages exist, or continue (e.g., for external messages)
+	if parent.InternalMsg == nil || current.InternalMsg == nil {
+		return false, nil
+	}
+
 	ec, err := current.ExitCode()
 	if err != nil {
 		return false, fmt.Errorf("failed to get exit code: %w", err)
@@ -28,6 +33,7 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 		return true, nil // stop tracing
 	}
 
+	// Check specific opcodes for MCMS/CCIP messages to determine trace boundaries
 	opcodeParent, err := tvm.ExtractOpcode(parent.InternalMsg.Body)
 	if err != nil {
 		return false, fmt.Errorf("failed to extract opcode from parent message: %w", err)
