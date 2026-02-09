@@ -10,6 +10,7 @@ import * as executor from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as relay from '../../../wrappers/test/mock/Relay'
 import { CHAINSEL_EVM_TEST, deployOnRampContract, setup } from './OnRamp.Setup'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -55,7 +56,7 @@ describe('OnRamp - executor exit', () => {
   })
 
   beforeEach(async () => {
-    deployableCode = await compile('Deployable')
+    deployableCode = await loadContractCode('Deployable')
     senderAddress = (await blockchain.treasury('sender')).address
     mockRouter = await blockchain.treasury('mockRouter')
     mockFeeQuoter = await blockchain.treasury('mockFeeQuoter')

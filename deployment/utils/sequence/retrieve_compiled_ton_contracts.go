@@ -1,6 +1,8 @@
 package sequence
 
 import (
+	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
@@ -9,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -176,6 +180,13 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, dp *dep.Dependenc
 			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)
 		}
 
+		if contractType == state.Deployer {
+			err = verifyDeployerCodeHash(contractCode)
+			if err != nil {
+				return output, fmt.Errorf("deployer code hash verification failed: %w", err)
+			}
+		}
+
 		output.CompiledContracts[contractType] = utils.CompiledContractData{
 			Code:               contractCode,
 			ContractVersionSha: in.ContractsVersionSha,
@@ -185,4 +196,22 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, dp *dep.Dependenc
 	}
 
 	return output, nil
+}
+
+func verifyDeployerCodeHash(code *cell.Cell) error {
+	if code == nil {
+		return errors.New("deployer code cell is nil")
+	}
+	computedHash := code.Hash()
+	expectedHash, err := hex.DecodeString(
+		"0a848f11f0dd717b47a5f78e854fd764b0538f48bff808d07e6191f4abe1f2d3",
+	)
+	if err != nil {
+		return fmt.Errorf("invalid expected hash: %w", err)
+	}
+
+	if !bytes.Equal(computedHash, expectedHash) {
+		return fmt.Errorf("code hash mismatch: got %x, expected %x", computedHash, expectedHash)
+	}
+	return nil
 }
