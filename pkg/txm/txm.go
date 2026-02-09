@@ -373,7 +373,11 @@ func (t *Txm) gatherAndLogTrace(ctx context.Context, client tracetracking.Signed
 				"txID", txID,
 				"timeout", t.config.TraceTimeout.Duration())
 		} else {
-			t.logger.Warnw("failed to wait for trace (non-fatal)", "error", traceErr)
+			t.logger.Warnw("failed to wait for trace (non-fatal)",
+				"txID", txID,
+				"timeout", t.config.TraceTimeout.Duration(),
+				"error", traceErr,
+			)
 		}
 		return
 	}
