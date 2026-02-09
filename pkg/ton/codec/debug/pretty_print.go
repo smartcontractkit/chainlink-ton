@@ -217,11 +217,17 @@ func (d DebuggerEnvironment) describeReceivedMessage(m *tt.ReceivedMessage, verb
 			}
 		}
 		if exitCodeDescription == nil {
-			newVar, err := contract.ExitCodeInfo(m.ExitCode)
-			if err == nil {
-				exitCodeDescription = &newVar
-			} else if !errors.Is(err, codec.ErrUnknownMessage) {
-				return nil, err
+			exitCode, err := m.ExitCode()
+			if err != nil {
+				errStr := err.Error()
+				exitCodeDescription = &errStr
+			} else {
+				newVar, err := contract.ExitCodeInfo(exitCode)
+				if err == nil {
+					exitCodeDescription = &newVar
+				} else if !errors.Is(err, codec.ErrUnknownMessage) {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -235,8 +241,14 @@ func (d DebuggerEnvironment) describeReceivedMessage(m *tt.ReceivedMessage, verb
 		}
 	}
 	if exitCodeDescription == nil {
-		newVar := describeExitCode(&m.ExitCode)
-		exitCodeDescription = &newVar
+		exitCode, err := m.ExitCode()
+		if err != nil {
+			errStr := err.Error()
+			exitCodeDescription = &errStr
+		} else {
+			newVar := describeExitCode(&exitCode)
+			exitCodeDescription = &newVar
+		}
 	}
 	return &lib.TxInfo{
 		Msg:      *msgInfo,

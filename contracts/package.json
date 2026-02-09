@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "description": "Chainlink TON smart contracts",
   "author": "Chainlink Labs",
-  "license": "BUSL-1.1",
+  "license": "see LICENSE in LICENSE",
   "files": [
     "build",
     "contracts",
@@ -14,7 +14,7 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "clean": "[ -d build ] && rm -rf build || true",
-    "build": "yarn clean && blueprint build --all",
+    "build": "yarn clean && blueprint build --all && cp contracts/deployable/Deployable.compiled.json build/Deployable.compiled.json",
     "test": "jest --verbose",
     "test-coverage": "COVERAGE=true jest",
     "generate-coverage-reports": "ts-node tests/coverage/scriptMergeCoverageIntoHtmlReports.ts",

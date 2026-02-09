@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,26 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+const (
+	// int256Len is the byte length of int256 fields in TON TL schema (256 bits = 32 bytes).
+	// Used for RootHash and FileHash validation in BlockIDExt.
+	int256Len = 32
+)
+
+// ValidateBlockIDExt validates that BlockIDExt hashes have the expected length.
+func ValidateBlockIDExt(block *ton.BlockIDExt) error {
+	if block == nil {
+		return errors.New("block is nil")
+	}
+	if len(block.RootHash) != int256Len {
+		return fmt.Errorf("invalid RootHash length: expected %d bytes, got %d", int256Len, len(block.RootHash))
+	}
+	if len(block.FileHash) != int256Len {
+		return fmt.Errorf("invalid FileHash length: expected %d bytes, got %d", int256Len, len(block.FileHash))
+	}
+	return nil
+}
 
 // ReplayStatus represents the current state of a replay operation
 type ReplayStatus int
@@ -59,6 +80,9 @@ func (br *BlockRange) FromSeqNo() uint32 {
 }
 
 func (br *BlockRange) ToSeqNo() uint32 {
+	if br.To == nil {
+		return 0
+	}
 	return br.To.SeqNo
 }
 
@@ -115,7 +139,11 @@ func (l Log) String() string {
 	} else {
 		sb.WriteString("  Data (BOC):   <nil>\n")
 	}
-	sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	if l.Block != nil {
+		sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	} else {
+		sb.WriteString("  Shard Block:  nil\n")
+	}
 	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MCBlockSeqno))
 	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
 
@@ -151,7 +179,11 @@ type FilterKey struct {
 
 // String returns a canonical string representation for use as a map key.
 func (fk FilterKey) String() string {
-	return fmt.Sprintf("%s:%s:%08x", fk.Address.String(), fk.MsgType, fk.EventSig)
+	a := fk.Address
+	if a == nil {
+		return fmt.Sprintf("<nil>:%s:%08x", fk.MsgType, fk.EventSig)
+	}
+	return fmt.Sprintf("%s:%s:%08x", a.String(), fk.MsgType, fk.EventSig)
 }
 
 // RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)

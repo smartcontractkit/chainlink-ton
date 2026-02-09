@@ -349,9 +349,12 @@ func SendCCIPMessage(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
-
-	if receivedMsg.ExitCode != 0 {
-		return 0, nil, fmt.Errorf("transaction failed: with exitcode %d: %s", receivedMsg.ExitCode, receivedMsg.ExitCode.Describe())
+	exitCode, err := receivedMsg.ExitCode()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to get exit code: %w", err)
+	}
+	if exitCode != 0 {
+		return 0, nil, fmt.Errorf("transaction failed: with exitcode %d: %s", exitCode, exitCode.Describe())
 	}
 
 	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
@@ -405,13 +408,22 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn ton.APIClientWrapp
 		e.Logger.Infof("Flattening %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
 
 		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
-			e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-				i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+			exitCode, exitCodeStr := func() (*tvm.ExitCode, string) {
+				exitCode, err := outMsg.ExitCode()
+				exitCodeStr := fmt.Sprintf("%d", exitCode)
+				if err != nil {
+					e.Logger.Errorf("failed to get exit code for outgoing message %d: %v", i, err)
+					exitCodeStr = "unknown"
+				}
+				return &exitCode, exitCodeStr
+			}()
+			e.Logger.Infof("Outgoing message %d: exit code %s, success: %v, bounced: %v, status: %v",
+				i, exitCodeStr, outMsg.Succeeded(), outMsg.EmittedBouncedMessage, outMsg.Status())
 
-			if outMsg.ExitCode != 0 {
-				e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+			if exitCode != nil && *exitCode != tvm.ExitCodeSuccess {
+				e.Logger.Errorf("Outgoing message %d failed with exit code %v: %s", i, exitCode, exitCode.Describe())
 			}
-			if !outMsg.Success {
+			if !outMsg.Succeeded() {
 				e.Logger.Errorf("Outgoing message %d was not successful", i)
 			}
 			if outMsg.EmittedBouncedMessage {

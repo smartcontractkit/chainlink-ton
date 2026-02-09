@@ -125,7 +125,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	gen := NewGenerator(WithRand(randSource))
 
 	for contract, tlbMap := range getRegistry() {
-		toSequence := make([]codec.MessageEnvelope[any], 0)
+		toSequence := make([]*codec.MessageEnvelope[any], 0)
 		for opcode, proto := range tlbMap {
 			if slices.Contains(unsupported, opcode) {
 				t.Logf("skip serializability check for unsupported %s opcode=0x%08x (%T)", contract, opcode, proto)
@@ -156,7 +156,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 					builder.WriteString(",\n")
 				}
 
-				var decoded codec.MessageEnvelope[any]
+				var decoded *codec.MessageEnvelope[any]
 				require.NoError(t, json.Unmarshal(raw, &decoded))
 				err = decoded.LoadDecoded(bindings.Registry)
 				require.NoError(t, err)
@@ -209,7 +209,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 	}
 }
 
-func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded codec.MessageEnvelope[any]) operations.Report[ton.SendMessagesInput, ton.SendMessagesOutput] {
+func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded *codec.MessageEnvelope[any]) operations.Report[ton.SendMessagesInput, ton.SendMessagesOutput] {
 	t.Helper()
 
 	// Setup execution environment
@@ -242,7 +242,7 @@ func testMakeExecuteOp(t *testing.T, contract string, opcode uint64, decoded cod
 	return r
 }
 
-func testMakeExecuteSeq(t *testing.T, contract string, envelopes []codec.MessageEnvelope[any]) {
+func testMakeExecuteSeq(t *testing.T, contract string, envelopes []*codec.MessageEnvelope[any]) {
 	t.Helper()
 
 	n := len(envelopes)

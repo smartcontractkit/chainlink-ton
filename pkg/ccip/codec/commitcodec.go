@@ -3,6 +3,7 @@ package codec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -119,6 +120,9 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	if priceUpdate != nil && len(priceUpdate.TokenPriceUpdates) > 0 {
 		tpuSlice = make([]cciptypes.TokenPrice, len(priceUpdate.TokenPriceUpdates))
 		for i, update := range priceUpdate.TokenPriceUpdates {
+			if update.SourceToken == nil || update.SourceToken.IsAddrNone() {
+				return cciptypes.CommitPluginReport{}, fmt.Errorf("nil or none source token address at index %d", i)
+			}
 			var tokenPrice *big.Int
 			if update.UsdPerToken != nil && update.UsdPerToken.Sign() != 0 {
 				tokenPrice = update.UsdPerToken
@@ -184,4 +188,23 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		UnblessedMerkleRoots: merkleRoots,
 		RMNSignatures:        nil,
 	}, nil
+}
+
+// validateNonEmptyAddress checks that the address is not empty or all zeros.
+func validateNonEmptyAddress(addr []byte) error {
+	if len(addr) == 0 {
+		return errors.New("empty address")
+	}
+	// Check if all bytes are zero
+	allZero := true
+	for _, b := range addr {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return errors.New("address is all zeros")
+	}
+	return nil
 }

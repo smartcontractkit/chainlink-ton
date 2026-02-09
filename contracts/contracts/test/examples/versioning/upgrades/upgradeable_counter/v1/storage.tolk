@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "../../../../../../lib/access/ownable_2step.tolk";
 
 struct StorageV1 {

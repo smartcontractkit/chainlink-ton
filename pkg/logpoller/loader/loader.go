@@ -182,6 +182,7 @@ func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.B
 	// Load transactions
 	err := l.LoadTxsForAddress(ctx, blockRange, addr, pageSize, txOut, errOut)
 	close(txOut)
+	close(errOut)
 
 	// Wait for collection to complete
 	<-done
@@ -280,6 +281,11 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 			}
 			// update txHash for next iteration's validation
 			txHash = tx.PrevTxHash
+
+			// validate block hash lengths
+			if err = models.ValidateBlockIDExt(t.IDs[i]); err != nil {
+				return nil, nil, fmt.Errorf("invalid block ID at index %d: %w", i, err)
+			}
 
 			reversedIdx := (len(txList) - 1) - i
 			resTxs[reversedIdx] = &tx

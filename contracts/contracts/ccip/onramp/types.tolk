@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
 import "../../lib/utils"
 import "../ccipsend_executor/types"
@@ -89,5 +90,4 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .endCell()
         .hash()
 }
-
 

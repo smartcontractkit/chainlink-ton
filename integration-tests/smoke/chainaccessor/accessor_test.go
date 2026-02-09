@@ -30,6 +30,7 @@ import (
 
 	logpoller_testdata "github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
 	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"
+	tontest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton"
 )
 
 const (
@@ -484,7 +485,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{1, 2, 3, 4, 5},
 			TxLT:         1000,
 			TxTimestamp:  baseTimestamp.Add(1 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			Block:        tontest.TestBlockIDExt(100),
 			MCBlockSeqno: 200,
 			MsgIndex:     0,
 		},
@@ -498,7 +499,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{2, 3, 4, 5, 6},
 			TxLT:         1001,
 			TxTimestamp:  baseTimestamp.Add(2 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			Block:        tontest.TestBlockIDExt(101),
 			MCBlockSeqno: 201,
 			MsgIndex:     1,
 		},
@@ -512,7 +513,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{3, 4, 5, 6, 7},
 			TxLT:         1002,
 			TxTimestamp:  baseTimestamp.Add(3 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			Block:        tontest.TestBlockIDExt(102),
 			MCBlockSeqno: 202,
 			MsgIndex:     2,
 		},
@@ -526,7 +527,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{4, 5, 6, 7, 8},
 			TxLT:         1003,
 			TxTimestamp:  baseTimestamp.Add(4 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 103},
+			Block:        tontest.TestBlockIDExt(103),
 			MCBlockSeqno: 203,
 			MsgIndex:     3,
 		},
@@ -540,7 +541,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{5, 6, 7, 8, 9},
 			TxLT:         1004,
 			TxTimestamp:  baseTimestamp.Add(5 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 104},
+			Block:        tontest.TestBlockIDExt(104),
 			MCBlockSeqno: 204,
 			MsgIndex:     4,
 		},
@@ -609,7 +610,7 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 		TxHash:       lptypes.TxHash{1, 2, 3, 4, 5},
 		TxLT:         1000,
 		TxTimestamp:  logTimestamp,
-		Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+		Block:        tontest.TestBlockIDExt(100),
 		MCBlockSeqno: 200,
 		MsgIndex:     0,
 	}}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
@@ -870,7 +871,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxHash:       lptypes.TxHash{1, 2, 3, 4, 5},
 			TxLT:         1000,
 			TxTimestamp:  baseTimestamp.Add(1 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			Block:        tontest.TestBlockIDExt(100),
 			MCBlockSeqno: 200,
 			MsgLT:        1000,
 			MsgIndex:     0,
@@ -884,7 +885,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxHash:       lptypes.TxHash{2, 3, 4, 5, 6},
 			TxLT:         1001,
 			TxTimestamp:  baseTimestamp.Add(2 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			Block:        tontest.TestBlockIDExt(101),
 			MCBlockSeqno: 201,
 			MsgLT:        1001,
 			MsgIndex:     1,
@@ -898,7 +899,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxHash:       lptypes.TxHash{3, 4, 5, 6, 7},
 			TxLT:         1002,
 			TxTimestamp:  baseTimestamp.Add(3 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			Block:        tontest.TestBlockIDExt(102),
 			MCBlockSeqno: 202,
 			MsgLT:        1002,
 			MsgIndex:     2,

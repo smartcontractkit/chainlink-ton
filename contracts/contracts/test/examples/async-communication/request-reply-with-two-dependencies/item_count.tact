@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "./inventory.tact";
 
 /// Memory contract (two-msg-chain example)

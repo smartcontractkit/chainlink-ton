@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import "../lib/utils"
 
 const Deployable_FACILITY_NAME = "com.chainlink.ton.ccip.Deployable";

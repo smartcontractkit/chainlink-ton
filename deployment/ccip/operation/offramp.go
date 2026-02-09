@@ -1,7 +1,6 @@
 package operation
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
@@ -127,11 +127,11 @@ func setOCR3Config(b operations.Bundle, dp *dep.DependencyProvider, in OCR3Confi
 
 	transmitters := make([]common.AddressWrap, 0, len(in.Transmitters))
 	for _, transmitter := range in.Transmitters {
-		if len(transmitter) != 36 {
-			return nil, fmt.Errorf("invalid transmitter address, expected 36 bytes, got %d", len(transmitter))
+		var addr *address.Address
+		addr, err = codec.AddressBytesToTONAddress(transmitter)
+		if err != nil {
+			return nil, fmt.Errorf("invalid transmitter address: %w", err)
 		}
-		workchain := int32(binary.BigEndian.Uint32(transmitter[0:4])) //nolint:gosec // G115
-		addr := address.NewAddress(0, byte(workchain), transmitter[4:])
 		transmitters = append(transmitters, common.AddressWrap{Val: addr})
 	}
 
