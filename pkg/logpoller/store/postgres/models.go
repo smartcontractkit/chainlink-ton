@@ -50,7 +50,7 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) (filterModel, error) {
 }
 
 // ToFilter converts a FilterModel to models.Filter
-func (f filterModel) ToFilter() (lptypes.Filter, error) {
+func (f *filterModel) ToFilter() (lptypes.Filter, error) {
 	if len(f.EventSig) != 4 {
 		return lptypes.Filter{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(f.EventSig))
 	}
@@ -99,18 +99,21 @@ type logModel struct {
 
 // FromLog converts a models.Log to logModel
 func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
-	var dataHeader, dataPayload []byte
-	if log.Data != nil {
-		bocData := log.Data.ToBOC()
-
-		headerLen, err := boc.HeaderLen(bocData)
-		if err != nil {
-			return logModel{}, fmt.Errorf("failed to calculate BOC header length: %w", err)
-		}
-
-		dataHeader = bocData[:headerLen]
-		dataPayload = bocData[headerLen:]
+	if log.Data == nil {
+		return logModel{}, fmt.Errorf("log.Data is nil (address=%s, eventSig=0x%08x, txHash=%x)", log.Address, log.EventSig, log.TxHash)
 	}
+
+	if err := lptypes.ValidateBlockIDExt(log.Block); err != nil {
+		return logModel{}, fmt.Errorf("invalid block data: %w", err)
+	}
+
+	bocData := log.Data.ToBOC()
+	headerLen, err := boc.HeaderLen(bocData)
+	if err != nil {
+		return logModel{}, fmt.Errorf("failed to calculate BOC header length: %w", err)
+	}
+	dataHeader := bocData[:headerLen]
+	dataPayload := bocData[headerLen:]
 
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, log.EventSig)
@@ -142,7 +145,7 @@ func (l *logModel) FromLog(log lptypes.Log) (logModel, error) {
 }
 
 // ToLog converts a logModel to models.Log
-func (l logModel) ToLog() (lptypes.Log, error) {
+func (l *logModel) ToLog() (lptypes.Log, error) {
 	if len(l.EventSig) != 4 {
 		return lptypes.Log{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(l.EventSig))
 	}
@@ -155,7 +158,18 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 
 	// Reconstruct full BOC from header + payload
 	var cellData *cell.Cell
-	if len(l.DataHeader) > 0 && len(l.DataPayload) > 0 {
+	hasHeader := len(l.DataHeader) > 0
+	hasPayload := len(l.DataPayload) > 0
+	if hasHeader != hasPayload {
+		// both must be present or both empty; partial data indicates corruption
+		return lptypes.Log{}, fmt.Errorf(
+			"inconsistent BOC data: header=%d bytes, payload=%d bytes",
+			len(l.DataHeader),
+			len(l.DataPayload),
+		)
+	}
+
+	if hasHeader {
 		fullBOC := make([]byte, 0, len(l.DataHeader)+len(l.DataPayload))
 		fullBOC = append(fullBOC, l.DataHeader...)
 		fullBOC = append(fullBOC, l.DataPayload...)
@@ -188,6 +202,10 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		SeqNo:     uint32(l.BlockSeqno), //nolint:gosec // TON seqno values fit in uint32
 		RootHash:  l.BlockRootHash,
 		FileHash:  l.BlockFileHash,
+	}
+
+	if err = lptypes.ValidateBlockIDExt(block); err != nil {
+		return lptypes.Log{}, fmt.Errorf("invalid block data: %w", err)
 	}
 
 	return lptypes.Log{
