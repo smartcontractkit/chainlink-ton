@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -85,4 +86,41 @@ func MyLocalTONWalletDefault(client ton.APIClientWrapped) (*wallet.Wallet, error
 		return nil, errors.New("funder address mismatch")
 	}
 	return funder, nil
+}
+
+// NewInitializedWallet creates and initializes (deploys) a new wallet by funding it and sending an state init (empty) message.
+func NewInitializedWallet(ctx context.Context, client *ton.APIClient, funder *wallet.Wallet, w *wallet.Wallet, amount tlb.Coins) error {
+	// Fund wallet
+	_, _, err := funder.SendWaitTransaction(ctx,
+		&wallet.Message{
+			Mode: wallet.PayGasSeparately,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      false,
+				DstAddr:     w.WalletAddress(),
+				Amount:      amount,
+				Body:        nil,
+			},
+		})
+	if err != nil {
+		return fmt.Errorf("failed to fund wallet: %w", err)
+	}
+
+	// Init wallet
+	_, _, err = w.SendWaitTransaction(ctx,
+		&wallet.Message{
+			Mode: wallet.PayGasSeparately,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      false,
+				DstAddr:     w.WalletAddress(),
+				Amount:      amount,
+				Body:        nil,
+			},
+		})
+	if err != nil {
+		return fmt.Errorf("failed to initialize wallet: %w", err)
+	}
+
+	return nil
 }

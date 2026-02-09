@@ -11,7 +11,9 @@ import (
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"google.golang.org/grpc"
 
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
@@ -23,6 +25,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ccip/chainconfig"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/rmn_home"
@@ -53,6 +57,62 @@ import (
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
+
+func TestWalletInit(t *testing.T) {
+	t.Parallel()
+	lggr := logger.Test(t)
+
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().Build(t)
+	require.NoError(t, err)
+
+	tonSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))[0]
+	tonChain := env.BlockChains.TonChains()[tonSelector]
+
+	w, err := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
+	require.NoError(t, err)
+
+	// Notice: send message before init, trace uninitalized
+	amount := tlb.MustFromTON("0.1")
+
+	client := tracetracking.NewSignedAPIClient(tonChain.Client, *tonChain.Wallet)
+	m, err := client.SendAndWaitForTrace(t.Context(), *w.WalletAddress(),
+		&wallet.Message{
+			Mode: wallet.PayGasSeparately,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      false,
+				DstAddr:     w.WalletAddress(),
+				Amount:      amount,
+				Body:        nil,
+			},
+		})
+	require.Error(t, err)
+
+	ec, err := m.ExitCode()
+	require.NoError(t, err)
+	require.Equal(t, ec, tvm.ExitCodeComputeSkipReasonNoState) // Uninitialized wallet should reject message with -1 exit code
+
+	err = tvm.NewInitializedWallet(context.Background(), tonChain.Client, tonChain.Wallet, w, amount)
+	require.NoError(t, err)
+
+	// Notice: send message post init, trace success
+	m, err = client.SendAndWaitForTrace(t.Context(), *w.WalletAddress(),
+		&wallet.Message{
+			Mode: wallet.PayGasSeparately,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      false,
+				DstAddr:     w.WalletAddress(),
+				Amount:      amount,
+				Body:        nil,
+			},
+		})
+	require.NoError(t, err)
+
+	ec, err = m.ExitCode()
+	require.NoError(t, err)
+	require.Equal(t, ec, tvm.ExitCodeSuccess) // Initialized wallet should accept message with success (0) exit code
+}
 
 func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Parallel()
