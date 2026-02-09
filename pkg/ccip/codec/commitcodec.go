@@ -72,6 +72,9 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 	mkSlice := make([]ocr.MerkleRoot, len(report.UnblessedMerkleRoots))
 	for i, mr := range report.UnblessedMerkleRoots {
+		if err := validateNonEmptyAddress(mr.OnRampAddress); err != nil {
+			return nil, fmt.Errorf("invalid unblessed merkle root[%d]: %w", i, err)
+		}
 		mkSlice[i] = ocr.MerkleRoot{
 			SourceChainSelector: uint64(mr.ChainSel),
 			OnRampAddress:       common.CrossChainAddress(mr.OnRampAddress),
