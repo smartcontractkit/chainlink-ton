@@ -68,7 +68,7 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, 15*time.Minute, cfg.TransactionManager.CleanupInterval.Duration())
 		assert.Equal(t, 45*time.Second, cfg.TransactionManager.SendTimeout.Duration())
 		assert.Equal(t, 90*time.Second, cfg.TransactionManager.TraceTimeout.Duration())
-		assert.Equal(t, false, *cfg.TransactionManager.EnableTraceLogging)
+		assert.False(t, *cfg.TransactionManager.EnableTraceLogging)
 
 		require.NotNil(t, cfg.LogPoller)
 		assert.Equal(t, uint32(50), cfg.LogPoller.PageSize)
