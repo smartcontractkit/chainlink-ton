@@ -677,16 +677,16 @@ func TestJettonAll(t *testing.T) {
 			msgToSendersJettonWallet := msgToSender.OutgoingInternalReceivedMessages[0]
 			require.NotEmpty(t, msgToSendersJettonWallet.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
 			msgToOnrampMockJettonWallet := msgToSendersJettonWallet.OutgoingInternalReceivedMessages[0]
-			exitCode, err := msgToOnrampMockJettonWallet.ExitCode()
-			require.NoError(t, err)
+			exitCode, err2 := msgToOnrampMockJettonWallet.ExitCode()
+			require.NoError(t, err2)
 			assert.Zero(t, exitCode, "Onramp mock jetton wallet message should have exit code 0")
 			msgWithExcessesIdx := slices.IndexFunc(msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages, func(m *tracetracking.ReceivedMessage) bool {
 				return m.InternalMsg.DstAddr.Equals(setup.Sender.Contract.Address)
 			})
 			require.Greater(t, msgWithExcessesIdx, -1, "Excesses message should be present in outgoing messages")
 			msgWithExcesses := msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages[msgWithExcessesIdx]
-			exitCode, err = msgWithExcesses.ExitCode()
-			require.NoError(t, err)
+			exitCode, err2 = msgWithExcesses.ExitCode()
+			require.NoError(t, err2)
 			assert.Zero(t, exitCode, "Excesses message should have exit code 0")
 
 			onrampMockCallIdx := slices.IndexFunc(msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages, func(m *tracetracking.ReceivedMessage) bool {
@@ -694,8 +694,8 @@ func TestJettonAll(t *testing.T) {
 			})
 			require.Greater(t, onrampMockCallIdx, -1, "Onramp mock call message should be present in outgoing messages")
 			onrampMockCall := msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages[onrampMockCallIdx]
-			exitCode, err = onrampMockCall.ExitCode()
-			require.NoError(t, err)
+			exitCode, err2 = onrampMockCall.ExitCode()
+			require.NoError(t, err2)
 			require.Zero(t, exitCode, "Onramp mock call should have exit code 0")
 			require.NotEmpty(t, onrampMockCall.OutgoingExternalMessages, "Outgoing external messages should not be empty")
 			eventLog := onrampMockCall.OutgoingExternalMessages[0]

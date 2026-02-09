@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,6 +12,26 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+const (
+	// int256Len is the byte length of int256 fields in TON TL schema (256 bits = 32 bytes).
+	// Used for RootHash and FileHash validation in BlockIDExt.
+	int256Len = 32
+)
+
+// ValidateBlockIDExt validates that BlockIDExt hashes have the expected length.
+func ValidateBlockIDExt(block *ton.BlockIDExt) error {
+	if block == nil {
+		return errors.New("block is nil")
+	}
+	if len(block.RootHash) != int256Len {
+		return fmt.Errorf("invalid RootHash length: expected %d bytes, got %d", int256Len, len(block.RootHash))
+	}
+	if len(block.FileHash) != int256Len {
+		return fmt.Errorf("invalid FileHash length: expected %d bytes, got %d", int256Len, len(block.FileHash))
+	}
+	return nil
+}
 
 // ReplayStatus represents the current state of a replay operation
 type ReplayStatus int

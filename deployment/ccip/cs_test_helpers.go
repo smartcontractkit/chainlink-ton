@@ -349,7 +349,6 @@ func SendCCIPMessage(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
-
 	exitCode, err := receivedMsg.ExitCode()
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get exit code: %w", err)

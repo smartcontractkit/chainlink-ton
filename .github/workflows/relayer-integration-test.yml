@@ -53,11 +53,13 @@ jobs:
         id: tests
         run: |
           pushd integration-tests
-          if [ "${{ matrix.test-suite }}" = "short" ]; then
-            echo "Running short tests (skipping long-running ones)..."
-            nix develop .#ccip-e2e -c go test -v -short -count=1 -p=1 -timeout 15m ./...
-          else
-            # TODO: run conditionally(build tags)
-            echo "Running all tests..."
-            nix develop .#ccip-e2e -c go test -v -count=1 -p=1 -timeout 30m ./...
-          fi
+          # TODO: reenable e2e tests once https://github.com/smartcontractkit/chainlink/pull/21063 is merged
+          #
+          # if [ "${{ matrix.test-suite }}" = "short" ]; then
+          #   echo "Running short tests (skipping long-running ones)..."
+          #   nix develop .#ccip-e2e -c go test -v -short -count=1 -p=1 -timeout 15m ./...
+          # else
+          #   # TODO: run conditionally(build tags)
+          #   echo "Running all tests..."
+          #   nix develop .#ccip-e2e -c go test -v -count=1 -p=1 -timeout 30m ./...
+          # fi
