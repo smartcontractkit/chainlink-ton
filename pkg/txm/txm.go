@@ -441,6 +441,9 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			traceCancel()
 			if traceErr != nil {
 				if errors.Is(traceErr, context.DeadlineExceeded) {
+					// We still store the mutated receivedMessage back even on timeout since as it
+					// could have partial trace data
+					tx.ReceivedMessage = receivedMessage
 					t.logger.Warnw("trace gathering timed out, will retry next poll",
 						"LT", unconfirmedTx.LT,
 						"timeout", t.config.TraceTimeout.Duration())
@@ -450,12 +453,17 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				continue
 			}
 
-			// zeroVersion := *semver.MustParse("0.0.0")
-			knownAddresses := map[string]debug.TypeAndVersion{
-				// senderAddress.String():             {Type: "SenderWallet", Version: zeroVersion},
+			// Update tx with potentially mutated receivedMessage containing newly found trace data
+			tx.ReceivedMessage = receivedMessage
+
+			if *t.config.EnableTraceLogging {
+				// zeroVersion := *semver.MustParse("0.0.0")
+				knownAddresses := map[string]debug.TypeAndVersion{
+					// senderAddress.String():             {Type: "SenderWallet", Version: zeroVersion},
+				}
+				t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(&receivedMessage))
+				t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 			}
-			t.logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(knownAddresses).DumpReceived(&receivedMessage))
-			t.logger.Debugf("Msg sequence diagram:\n%s\n", debug.NewDebuggerSequenceTrace(knownAddresses, sequenceDiagram.OutputFmtURL).DumpReceived(&receivedMessage))
 
 			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
