@@ -7,6 +7,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
@@ -23,22 +24,26 @@ type FundContractInput struct {
 	ChainSelector uint64 `json:"chainSelector"`
 }
 
-func FundContractChangeset(env deployment.Environment, input FundContractInput) (deployment.ChangesetOutput, error) {
-	dest, err := address.ParseAddr(input.DestinationAddress)
-	if err != nil {
-		return deployment.ChangesetOutput{}, fmt.Errorf("failed to parse destination address: %w", err)
-	}
+func FundContractChangeset() cldf.ChangeSetV2[FundContractInput] {
+	return cldf.CreateChangeSet(applyFundContract, verifyFundContractInput)
+}
+
+func verifyFundContractInput(env cldf.Environment, input FundContractInput) error {
 	switch input.ChainSelector {
 	case chainsel.TON_TESTNET.Selector, chainsel.TON_MAINNET.Selector, chainsel.TON_LOCALNET.Selector:
 		// valid selectors
 	default:
-		return deployment.ChangesetOutput{}, fmt.Errorf("unsupported chain selector for TON chain: %d", input.ChainSelector)
+		return fmt.Errorf("unsupported chain selector for TON chain: %d", input.ChainSelector)
 	}
-	amount, err := tlb.FromTON(input.Amount)
+	_, err := tlb.FromTON(input.Amount)
 	if err != nil {
-		return deployment.ChangesetOutput{}, fmt.Errorf("failed to parse amount: %w", err)
+		return fmt.Errorf("failed to parse amount: %w", err)
 	}
-	// TODO: We could get contract balance and transfer the difference instead of the full amount
+	dest, err := address.ParseAddr(input.DestinationAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse destination address: %w", err)
+	}
+
 	tonContracts := env.DataStore.Addresses().Filter(func(ar []datastore.AddressRef) []datastore.AddressRef {
 		tonContracts := make([]datastore.AddressRef, 0)
 		for _, a := range ar {
@@ -68,11 +73,21 @@ func FundContractChangeset(env deployment.Environment, input FundContractInput) 
 		return false, nil
 	}()
 	if err != nil {
-		return deployment.ChangesetOutput{}, err
+		return fmt.Errorf("error checking destination address in datastore: %w", err)
 	}
 	if !found {
-		return deployment.ChangesetOutput{}, fmt.Errorf("destination address %s not found in datastore for chain selector %d", dest.String(), input.ChainSelector)
+		return fmt.Errorf("destination address %s not found in datastore for chain selector %d. Transfer not allowed", dest.String(), input.ChainSelector)
 	}
+
+	return nil
+}
+
+func applyFundContract(env deployment.Environment, input FundContractInput) (deployment.ChangesetOutput, error) {
+	// Input has already been validated by verifyFundContractInput
+	dest := address.MustParseAddr(input.DestinationAddress)
+	amount := tlb.MustFromTON(input.Amount)
+
+	// TODO: We could get contract balance and transfer the difference instead of the full amount
 
 	// Transfer funds from deployer wallet
 	// Get the TON chain
