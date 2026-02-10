@@ -515,12 +515,14 @@ func (t *Txm) cleanupLoop() {
 		select {
 		case <-ticker.C:
 			currentTimeMs := uint64(time.Now().UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
-			finalized, expired := t.accountStore.CleanupAll(currentTimeMs)
+			finalizedLTs, expiredLTs := t.accountStore.CleanupAll(currentTimeMs)
 
-			if finalized > 0 || expired > 0 {
+			if len(finalizedLTs) > 0 || len(expiredLTs) > 0 {
 				t.logger.Infow("cleaned up transactions",
-					"finalized", finalized,
-					"expired", expired,
+					"finalized", len(finalizedLTs),
+					"finalizedLTs", finalizedLTs,
+					"expired", len(expiredLTs),
+					"expiredLTs", expiredLTs,
 					"currentTimeMs", currentTimeMs)
 			} else {
 				t.logger.Debugw("cleanup completed, no transactions removed")
