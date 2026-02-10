@@ -19,15 +19,15 @@ require (
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260203202624-5101f4d33736
 	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20260129103204-4c8453dd8139
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260129103204-4c8453dd8139
-	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260206011444-ed1fb0284e5d
+	github.com/smartcontractkit/chainlink-common v0.9.6-0.20260206035200-f68f1905d71d
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
 	github.com/smartcontractkit/chainlink-deployments-framework v0.80.1-0.20260209182815-b296b7df28a6
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260127143834-21d7db9955ee
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260207143954-35df3d7576da
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260207143954-35df3d7576da
-	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260206204204-c45c36fd99c4
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260209205928-e7e034ed7976
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260209205928-e7e034ed7976
+	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260210143555-306cebe99224
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260130084452-fe13ee916ee5
 	github.com/smartcontractkit/mcms v0.35.1-0.20260209175626-b68b54b6e8d0
 	github.com/stretchr/testify v1.11.1
