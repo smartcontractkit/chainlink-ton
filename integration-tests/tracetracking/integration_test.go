@@ -28,6 +28,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
+func must[E any](out E, err error) E {
+	if err != nil {
+		panic(err)
+	}
+
+	return out
+}
+
 func TestIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping long-running test in short mode")
@@ -128,10 +136,10 @@ func TestIntegration(t *testing.T) {
 		msgReceived, err := counterContract.CallWaitRecursively(msg, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to send SetCount request: %w", err)
 
-		require.Equal(t, tvm.ExitCodeSuccess, msgReceived.ExitCode, "Expected exit code 0, got %d", msgReceived.ExitCode)
+		require.Equal(t, tvm.ExitCodeSuccess, must(msgReceived.ExitCode()), "Expected exit code 0, got %d", must(msgReceived.ExitCode()))
 		outgoingCount := len(msgReceived.OutgoingInternalReceivedMessages)
 		require.Equal(t, 1, outgoingCount, "Expected 1 outgoing internal received message, got %d", outgoingCount)
-		internalExitCode := msgReceived.OutgoingInternalReceivedMessages[0].ExitCode
+		internalExitCode := must(msgReceived.OutgoingInternalReceivedMessages[0].ExitCode())
 		require.Equal(t, tvm.ExitCodeSuccess, internalExitCode, "Expected exit code 0, got %d", internalExitCode)
 		t.Logf("msgReceived: %+v\n", msgReceived)
 		t.Logf("SetCount request sent\n")
