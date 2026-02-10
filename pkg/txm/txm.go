@@ -442,7 +442,7 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			if traceErr != nil {
 				if errors.Is(traceErr, context.DeadlineExceeded) {
 					// We still store the mutated receivedMessage back even on timeout since as it
-					// could have partial trace data
+					// could have partial trace data. This updates the underlying copy in the txStore.
 					tx.ReceivedMessage = receivedMessage
 					t.logger.Warnw("trace gathering timed out, will retry next poll",
 						"LT", unconfirmedTx.LT,
@@ -453,7 +453,8 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				continue
 			}
 
-			// Update tx with potentially mutated receivedMessage containing newly found trace data
+			// Update tx with potentially mutated receivedMessage containing newly found trace data.
+			// This updates the underlying copy in the txStore.
 			tx.ReceivedMessage = receivedMessage
 
 			if *t.config.EnableTraceLogging {
