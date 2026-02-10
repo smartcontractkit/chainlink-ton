@@ -71,7 +71,7 @@ func TestWalletInit(t *testing.T) {
 	w, err := tvm.NewRandomHighloadV3TestWallet(tonChain.Client)
 	require.NoError(t, err)
 
-	// Notice: send message before init, trace uninitalized
+	// Notice: send message before init, trace uninitialized
 	amount := tlb.MustFromTON("0.1")
 
 	client := tracetracking.NewSignedAPIClient(tonChain.Client, *tonChain.Wallet)
@@ -90,9 +90,9 @@ func TestWalletInit(t *testing.T) {
 
 	ec, err := m.ExitCode()
 	require.NoError(t, err)
-	require.Equal(t, ec, tvm.ExitCodeComputeSkipReasonNoState) // Uninitialized wallet should reject message with -1 exit code
+	require.Equal(t, tvm.ExitCodeComputeSkipReasonNoState, ec) // Uninitialized wallet should reject message with -1 exit code
 
-	err = tvm.NewInitializedWallet(context.Background(), tonChain.Client, tonChain.Wallet, w, amount)
+	err = tvm.NewInitializedWallet(t.Context(), tonChain.Wallet, w, amount)
 	require.NoError(t, err)
 
 	// Notice: send message post init, trace success
@@ -111,7 +111,7 @@ func TestWalletInit(t *testing.T) {
 
 	ec, err = m.ExitCode()
 	require.NoError(t, err)
-	require.Equal(t, ec, tvm.ExitCodeSuccess) // Initialized wallet should accept message with success (0) exit code
+	require.Equal(t, tvm.ExitCodeSuccess, ec) // Initialized wallet should accept message with success (0) exit code
 }
 
 func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {

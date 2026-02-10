@@ -89,7 +89,7 @@ func MyLocalTONWalletDefault(client ton.APIClientWrapped) (*wallet.Wallet, error
 }
 
 // NewInitializedWallet creates and initializes (deploys) a new wallet by funding it and sending an state init (empty) message.
-func NewInitializedWallet(ctx context.Context, client *ton.APIClient, funder *wallet.Wallet, w *wallet.Wallet, amount tlb.Coins) error {
+func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.Wallet, amount tlb.Coins) error {
 	// Fund wallet
 	_, _, err := funder.SendWaitTransaction(ctx,
 		&wallet.Message{
