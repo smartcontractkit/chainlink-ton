@@ -11,12 +11,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	mocks "github.com/smartcontractkit/chainlink-ton/mocks/ccipocr3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.ExecutePluginReport {
@@ -152,5 +156,60 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		// Note: We can't easily inject this into a valid BOC without manually crafting the cell structure,
 		// but we verify the check exists and would trigger an error if such data were encountered
 		// In practice, this protects against corrupted BOC data or future encoding bugs
+	})
+
+	t.Run("negative token amount validation", func(t *testing.T) {
+		// Construct an ExecuteReport directly with a negative token amount
+		// This bypasses Encode validation to test the Decode defensive check
+		addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+		require.NoError(t, err)
+
+		extraDataCell, err := tlb.ToCell(common.SnakeBytes{})
+		require.NoError(t, err)
+
+		// Create a negative amount (simulates what would happen if bit 255 is set
+		// and tlb.LoadBigInt interprets it as signed two's complement)
+		negativeAmount := big.NewInt(-1)
+
+		tokenTransfer := ocr.Any2TVMTokenTransfer{
+			SourcePoolAddress: common.CrossChainAddress("test-pool"),
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         extraDataCell,
+			Amount:            negativeAmount,
+		}
+
+		rampMessage := ocr.Any2TVMRampMessage{
+			Header: ocr.RampMessageHeader{
+				MessageID:           make([]byte, 32),
+				SourceChainSelector: 5009297550715157269,
+				DestChainSelector:   1,
+				SequenceNumber:      1,
+				Nonce:               1,
+			},
+			Sender:       common.CrossChainAddress("sender"),
+			Data:         common.SnakeBytes{},
+			Receiver:     addr,
+			GasLimit:     tlb.Coins{},
+			TokenAmounts: common.SnakedCell[ocr.Any2TVMTokenTransfer]{tokenTransfer},
+		}
+
+		executeReport := ocr.ExecuteReport{
+			SourceChainSelector: 5009297550715157269,
+			Message:             rampMessage,
+			OffChainTokenData:   tvm.EmptyCell,
+			Proofs:              common.SnakedCell[common.Proof]{},
+			ProofFlagBits:       big.NewInt(0),
+		}
+
+		reportCell, err := tlb.ToCell(executeReport)
+		require.NoError(t, err)
+
+		boc := reportCell.ToBOC()
+
+		// Decode should fail with negative token amount error
+		_, err = codec.Decode(ctx, boc)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "negative token amount decoded")
 	})
 }

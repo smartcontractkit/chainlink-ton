@@ -212,8 +212,9 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // //msg)
 // require.NoError(t, err, "failed to deploy JettonWallet contract")
 //
-// deployExitCode := deployMsg.OutgoingInternalReceivedMessages[0].ExitCode
+// deployExitCode, err := deployMsg.OutgoingInternalReceivedMessages[0].ExitCode()
 //
+// require.NoError(t, err, "failed to get deploy exit code")
 // require.Zero(t, deployExitCode, "contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
 //
 // ```
