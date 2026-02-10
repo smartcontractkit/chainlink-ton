@@ -20,8 +20,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	ccip_receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
@@ -33,9 +32,8 @@ import (
 	tonlpstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	tonhash "github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
-	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
@@ -138,8 +136,8 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		ExtraArgs:         extraArgsCell,
 	}
 
-	// Build minimal Environment
-	tonProvider := &cldfton.Chain{
+	// Build TON chain
+	tonChain := cldfton.Chain{
 		ChainMetadata: cldfton.ChainMetadata{
 			Selector: c.chainSel,
 		},
@@ -148,22 +146,16 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		WalletAddress: c.wallet.WalletAddress(),
 	}
 
-	blockchains := cldfchain.NewBlockChainsFromSlice([]cldfchain.BlockChain{tonProvider})
-
-	env := cldf.Environment{
-		GetContext:  func() context.Context { return ctx },
-		Logger:      lggr,
-		BlockChains: blockchains,
+	// Build state provider with Router and FeeQuoter addresses
+	stateProvider := &mapStateProvider{
+		addresses: map[datastore.ContractType]string{
+			"Router":    routerAddr.String(),
+			"FeeQuoter": fqAddr.String(),
+		},
 	}
 
-	// Build CCIPChainState
-	chainState := state.CCIPChainState{
-		Router:    *routerAddr,
-		FeeQuoter: *fqAddr,
-	}
-
-	// Call SendCCIPMessage from deployment/ccip
-	seqNum, event, err := ops.SendCCIPMessage(env, chainState, c.chainSel, ccipSend)
+	// Call SendCCIPMessage from deployment/testadapter
+	seqNum, event, err := testadapter.SendCCIPMessage(ctx, tonChain, stateProvider, c.chainSel, ccipSend)
 	if err != nil {
 		return nil, err
 	}
@@ -341,4 +333,17 @@ func (c *Client) GetWalletAddress() (string, error) {
 		return "", errors.New("wallet not initialized")
 	}
 	return c.wallet.Address().String(), nil
+}
+
+// mapStateProvider implements testadapters.StateProvider using a simple address map.
+type mapStateProvider struct {
+	addresses map[datastore.ContractType]string
+}
+
+func (p *mapStateProvider) GetAddress(ty datastore.ContractType) (string, error) {
+	addr, ok := p.addresses[ty]
+	if !ok {
+		return "", fmt.Errorf("address not found for contract type: %s", ty)
+	}
+	return addr, nil
 }
