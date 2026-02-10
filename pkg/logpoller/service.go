@@ -175,8 +175,7 @@ func (lp *service) loadFilters(ctx context.Context) error {
 	}
 
 	for i := range filters {
-		f := filters[i]
-		lp.filtersByName[f.Name] = &f
+		lp.filtersByName[filters[i].Name] = &filters[i]
 	}
 
 	lp.filtersLoaded = true
