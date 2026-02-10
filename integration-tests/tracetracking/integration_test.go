@@ -1,10 +1,14 @@
 package tracetracking
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -12,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreply"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
@@ -22,6 +28,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/ticker"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -620,4 +627,74 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Test completed successfully\n")
 	})
+
+	t.Run("Ticker Delay", func(t *testing.T) {
+		const startingNumberOfTicks uint32 = 0
+		const maxNumberOfTicks uint32 = 200
+		const step uint32 = 50
+
+		t.Parallel()
+
+		deployer := getAccount()
+		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
+		t.Logf("Deploying Ticker contract\n")
+		storage, err := tlb.ToCell(ticker.Storage{
+			ID: getNextID(),
+		})
+		require.NoError(t, err, "failed to serialize storage: %w", err)
+		buildPath := bindings.GetBuildDir("examples.Ticker.compiled.json")
+		compiledContract, err := wrappers.ParseCompiledContract(buildPath)
+		require.NoError(t, err, "failed to parse compiled contract: %w", err)
+		tickerContract, _, err := wrappers.Deploy(t.Context(), &deployer, compiledContract, storage, tlb.MustFromTON("0.05"), tvm.EmptyCell)
+		require.NoError(t, err, "failed to deploy Ticker contract: %w", err)
+		t.Logf("Ticker contract deployed at %s\n", tickerContract.Address.String())
+
+		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
+		// for different number of ticks, measure the delay
+
+		type measurement struct {
+			duration time.Duration
+			cost     *tlb.Coins
+		}
+		measurements := make(map[uint32]measurement)
+		for numberOfTicks := startingNumberOfTicks; numberOfTicks <= maxNumberOfTicks; numberOfTicks += step {
+			t.Logf("Setting number of ticks to %d\n", numberOfTicks)
+			statingBalance := getBalance(t.Context(), t, deployer.Client, *tickerContract.Address)
+			amountToSend := tlb.MustFromTON("1.0")
+			startTime := time.Now()
+			trace, err := deployer.SendAndWaitForTrace(t.Context(), *tickerContract.Address, &wallet.Message{
+				Mode: wallet.PayGasSeparately,
+				InternalMessage: &tlb.InternalMessage{
+					DstAddr: tickerContract.Address,
+					Amount:  amountToSend,
+					Body: must(tlb.ToCell(ticker.Tick{
+						QueryID: uint64(numberOfTicks),
+						Times:   numberOfTicks,
+					})),
+				},
+			})
+			duration := time.Since(startTime)
+			require.NoError(t, err, "failed to send Tick message: %w", err)
+			ec, err := trace.TraceExitCode()
+			require.NoError(t, err, "failed to get exit code from trace: %w", err)
+			require.Equal(t, tvm.ExitCodeSuccess, ec, "expected exit code 0, got %d", ec)
+			endBalance := getBalance(t.Context(), t, deployer.Client, *tickerContract.Address)
+			cost := must(must(endBalance.Sub(&statingBalance)).Sub(&amountToSend))
+			measurements[numberOfTicks] = measurement{duration, cost}
+		}
+		var measurementsCSV strings.Builder
+		measurementsCSV.WriteString("number_of_ticks,duration_ms,cost\n")
+		for numberOfTicks, measurement := range measurements {
+			fmt.Fprintf(&measurementsCSV, "%d,%f,%s\n", numberOfTicks, measurement.duration.Seconds(), measurement.cost.String())
+		}
+		t.Logf("Measurements:\n%s", measurementsCSV.String())
+	})
+}
+
+func getBalance(ctx context.Context, t *testing.T, client ton.APIClientWrapped, addr address.Address) tlb.Coins {
+	block, err := client.CurrentMasterchainInfo(ctx)
+	require.NoError(t, err, "failed to get masterchain info: %w", err)
+	account, err := client.GetAccount(ctx, block, &addr)
+	require.NoError(t, err, "failed to get account: %w", err)
+	return account.State.Balance
 }
