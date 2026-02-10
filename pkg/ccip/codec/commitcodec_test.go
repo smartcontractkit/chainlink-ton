@@ -159,8 +159,7 @@ func TestCommitPluginCodecV1(t *testing.T) {
 		{
 			name: "blessed merkle roots ignored, unblessed not required if token/price updates exists",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
-				// BlessedMerkleRoots are ignored by TON, gasPrice and tokenPrice update still exists so UnblessedMerkleRoots is not required
-				report.BlessedMerkleRoots = report.UnblessedMerkleRoots
+				// gasPrice and tokenPrice update still exists so UnblessedMerkleRoots is not required
 				report.UnblessedMerkleRoots = nil
 				return report
 			},
