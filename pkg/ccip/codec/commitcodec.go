@@ -30,6 +30,18 @@ func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
 }
 
 func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
+	// TON does not support RMN verification, so BlessedMerkleRoots will be ignored.
+	// TON on-chain OffRamp requires no more one merkle root per commit report. (zero is allowed for purely price update reports)
+	// See Error.BatchingNotSupported in contracts/contracts/ccip/offramp/contract.tolk
+	if len(report.UnblessedMerkleRoots) > 1 {
+		return nil, fmt.Errorf("TON commit report requires no more than 1 merkle root, got %d", len(report.UnblessedMerkleRoots))
+	}
+
+	if len(report.UnblessedMerkleRoots) == 0 &&
+		(len(report.PriceUpdates.GasPriceUpdates) == 0 && len(report.PriceUpdates.TokenPriceUpdates) == 0) {
+		return nil, errors.New("commit report must contain at least one price update or one merkle root")
+	}
+
 	tpuSlice := make([]ocr.TokenPriceUpdate, len(report.PriceUpdates.TokenPriceUpdates))
 	for i, tpu := range report.PriceUpdates.TokenPriceUpdates {
 		addr, err := address.ParseAddr(string(tpu.TokenID))
@@ -63,26 +75,12 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		}
 	}
 
-	mkSlice := make([]ocr.MerkleRoot, len(report.BlessedMerkleRoots))
-	for i, mr := range report.BlessedMerkleRoots {
-		if err := validateNonEmptyAddress(mr.OnRampAddress); err != nil {
-			return nil, fmt.Errorf("invalid blessed merkle root[%d]: %w", i, err)
-		}
-		mkSlice[i] = ocr.MerkleRoot{
-			SourceChainSelector: uint64(mr.ChainSel),
-			OnRampAddress:       common.CrossChainAddress(mr.OnRampAddress),
-			MinSeqNr:            uint64(mr.SeqNumsRange.Start()),
-			MaxSeqNr:            uint64(mr.SeqNumsRange.End()),
-			MerkleRoot:          bytes.Clone(mr.MerkleRoot[:]),
-		}
-	}
-
-	unblessedMkSlice := make([]ocr.MerkleRoot, len(report.UnblessedMerkleRoots))
+	mkSlice := make([]ocr.MerkleRoot, len(report.UnblessedMerkleRoots))
 	for i, mr := range report.UnblessedMerkleRoots {
 		if err := validateNonEmptyAddress(mr.OnRampAddress); err != nil {
 			return nil, fmt.Errorf("invalid unblessed merkle root[%d]: %w", i, err)
 		}
-		unblessedMkSlice[i] = ocr.MerkleRoot{
+		mkSlice[i] = ocr.MerkleRoot{
 			SourceChainSelector: uint64(mr.ChainSel),
 			OnRampAddress:       common.CrossChainAddress(mr.OnRampAddress),
 			MinSeqNr:            uint64(mr.SeqNumsRange.Start()),
@@ -102,7 +100,7 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 	cellReport := ocr.CommitReport{
 		PriceUpdates: priceUpdates,
-		MerkleRoots:  append(mkSlice, unblessedMkSlice...),
+		MerkleRoots:  mkSlice,
 	}
 
 	c, err := tlb.ToCell(cellReport)

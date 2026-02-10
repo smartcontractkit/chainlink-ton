@@ -574,8 +574,8 @@ func (a *TONAccessor) processCommitReports(ctx context.Context, logs []lptypes.T
 
 		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
 			Report: ccipocr3.CommitPluginReport{
-				BlessedMerkleRoots:   []ccipocr3.MerkleRootChain{mrc},
-				UnblessedMerkleRoots: []ccipocr3.MerkleRootChain{}, // empty
+				BlessedMerkleRoots:   nil, // TON does not support RMN
+				UnblessedMerkleRoots: []ccipocr3.MerkleRootChain{mrc},
 				PriceUpdates:         priceUpdates,
 			},
 			Timestamp: log.TxTimestamp,
