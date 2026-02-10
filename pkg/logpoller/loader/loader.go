@@ -167,6 +167,7 @@ func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *mo
 func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) ([]models.Tx, error) {
 	txOut := make(chan models.Tx)
 	errOut := make(chan error, 1)
+	defer close(errOut)
 
 	var txs []models.Tx
 	done := make(chan struct{})
@@ -182,7 +183,6 @@ func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.B
 	// Load transactions
 	err := l.LoadTxsForAddress(ctx, blockRange, addr, pageSize, txOut, errOut)
 	close(txOut)
-	close(errOut)
 
 	// Wait for collection to complete
 	<-done
