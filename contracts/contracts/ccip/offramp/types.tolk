@@ -133,5 +133,5 @@ enum ExecutionState: uint8 {
     Failure = 3
 }
 
-const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.02");
+const AMOUNT_FOR_MERKLE_ROOT_DEPLOYMENT = ton("0.01");
 const AMOUNT_FOR_RECEIVE_EXECUTOR_DEPLOYMENT = ton("0.01");

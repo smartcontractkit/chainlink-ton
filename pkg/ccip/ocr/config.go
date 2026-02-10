@@ -16,7 +16,7 @@ type Config struct {
 }
 
 var DefaultConfigSet = Config{
-	CommitPriceUpdateOnlyCostTON: 0.03,
+	CommitPriceUpdateOnlyCostTON: 0.04,
 	CommitPriceAndRootCostTON:    0.05,
 	ExecuteCostTON:               0.085,
 }
