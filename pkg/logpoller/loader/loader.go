@@ -282,6 +282,11 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 			// update txHash for next iteration's validation
 			txHash = tx.PrevTxHash
 
+			// validate block hash lengths
+			if err = models.ValidateBlockIDExt(t.IDs[i]); err != nil {
+				return nil, nil, fmt.Errorf("invalid block ID at index %d: %w", i, err)
+			}
+
 			reversedIdx := (len(txList) - 1) - i
 			resTxs[reversedIdx] = &tx
 			resBlocks[reversedIdx] = t.IDs[i]

@@ -92,6 +92,8 @@ func TestLogModel_Conversion(t *testing.T) {
 			Workchain: 0,
 			Shard:     -1,
 			SeqNo:     100,
+			RootHash:  make([]byte, 32),
+			FileHash:  make([]byte, 32),
 		},
 		MCBlockSeqno: 200,
 		MsgIndex:     0,
