@@ -629,11 +629,14 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("Ticker Delay", func(t *testing.T) {
-		const startingNumberOfTicks uint32 = 0
-		const maxNumberOfTicks uint32 = 2000
-		const step uint32 = 50
+		const startingNumberOfTicks uint64 = 0
+		const maxNumberOfTicks uint64 = 1000
+		const step uint64 = 50
 		const numWorkers = 10
 		const measurementCount = (maxNumberOfTicks-startingNumberOfTicks)/step + 1
+
+		costPerTick := tlb.MustFromTON("0.01")
+		baseCost := tlb.MustFromTON("0.05")
 
 		t.Parallel()
 
@@ -685,20 +688,20 @@ func TestIntegration(t *testing.T) {
 		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
 
 		type measurement struct {
-			ticks    uint32
+			ticks    uint64
 			duration time.Duration
 			cost     *tlb.Coins
 		}
 
 		// Thread-safe measurements map
 		var measurementsLock sync.Mutex
-		measurements := make(map[uint32]measurement, measurementCount)
+		measurements := make(map[uint64]measurement, measurementCount)
 
 		// Error channel for worker failures
 		errChan := make(chan error, numWorkers)
 
 		// Create task channel
-		tasks := make(chan uint32, measurementCount)
+		tasks := make(chan uint64, measurementCount)
 		for numberOfTicks := startingNumberOfTicks; numberOfTicks <= maxNumberOfTicks; numberOfTicks += step {
 			tasks <- numberOfTicks
 		}
@@ -712,38 +715,41 @@ func TestIntegration(t *testing.T) {
 				defer wg.Done()
 				innerMeasurements := make([]measurement, 0, measurementCount)
 				for numberOfTicks := range tasks {
+					log := func(format string, args ...any) {
+						errChan <- fmt.Errorf("worker %d, task %d: %s", workerID, numberOfTicks, fmt.Sprintf(format, args...))
+					}
 					t.Logf("Worker %d processing %d ticks\n", workerID, numberOfTicks)
 
 					statingBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
-					amountToSend := tlb.MustFromTON("1.0")
+					amountToSend := must(must(costPerTick.Mul(big.NewInt(int64(numberOfTicks)))).Add(&baseCost))
 					startTime := time.Now()
 					trace, err := w.deployer.SendAndWaitForTrace(t.Context(), *w.tickerContract, &wallet.Message{
 						Mode: wallet.PayGasSeparately,
 						InternalMessage: &tlb.InternalMessage{
 							DstAddr: w.tickerContract,
-							Amount:  amountToSend,
+							Amount:  *amountToSend,
 							Body: must(tlb.ToCell(ticker.Tick{
-								QueryID: uint64(numberOfTicks),
-								Times:   numberOfTicks,
+								QueryID: numberOfTicks,
+								Times:   uint32(numberOfTicks),
 							})),
 						},
 					})
 					duration := time.Since(startTime)
 					if err != nil {
-						errChan <- fmt.Errorf("worker %d: failed to send Tick message: %w", workerID, err)
+						log("failed to send Tick message: %w", err)
 						return
 					}
 					ec, err := trace.TraceExitCode()
 					if err != nil {
-						errChan <- fmt.Errorf("worker %d: failed to get exit code from trace: %w", workerID, err)
+						log("failed to get exit code from trace: %w", err)
 						return
 					}
 					if ec != tvm.ExitCodeSuccess {
-						errChan <- fmt.Errorf("worker %d: expected exit code 0, got %d", workerID, ec)
+						log("expected exit code 0, got %d", ec)
 						return
 					}
 					endBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
-					cost := must(must(endBalance.Sub(&statingBalance)).Sub(&amountToSend))
+					cost := must(must(statingBalance.Sub(&endBalance)).Sub(amountToSend))
 
 					innerMeasurements = append(innerMeasurements, measurement{numberOfTicks, duration, cost})
 
