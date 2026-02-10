@@ -630,62 +630,148 @@ func TestIntegration(t *testing.T) {
 
 	t.Run("Ticker Delay", func(t *testing.T) {
 		const startingNumberOfTicks uint32 = 0
-		const maxNumberOfTicks uint32 = 200
+		const maxNumberOfTicks uint32 = 2000
 		const step uint32 = 50
+		const numWorkers = 10
+		const measurementCount = (maxNumberOfTicks-startingNumberOfTicks)/step + 1
 
 		t.Parallel()
 
-		deployer := getAccount()
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
-		t.Logf("Deploying Ticker contract\n")
-		storage, err := tlb.ToCell(ticker.Storage{
-			ID: getNextID(),
-		})
-		require.NoError(t, err, "failed to serialize storage: %w", err)
+
+		// Deploy pool of ticker contracts, each with its own deployer account
 		buildPath := bindings.GetBuildDir("examples.Ticker.compiled.json")
 		compiledContract, err := wrappers.ParseCompiledContract(buildPath)
 		require.NoError(t, err, "failed to parse compiled contract: %w", err)
-		tickerContract, _, err := wrappers.Deploy(t.Context(), &deployer, compiledContract, storage, tlb.MustFromTON("0.05"), tvm.EmptyCell)
-		require.NoError(t, err, "failed to deploy Ticker contract: %w", err)
-		t.Logf("Ticker contract deployed at %s\n", tickerContract.Address.String())
+
+		type worker struct {
+			deployer       tracetracking.SignedAPIClient
+			tickerContract *address.Address
+		}
+
+		deployers := make([]tracetracking.SignedAPIClient, numWorkers)
+		for i := range numWorkers {
+			deployer := getAccount()
+			deployers[i] = deployer
+		}
+
+		workersCollector := make(chan worker, numWorkers)
+		var initWg sync.WaitGroup
+		for i, deployer := range deployers {
+			initWg.Add(1)
+			go func(i int) {
+				defer initWg.Done()
+				storage, err := tlb.ToCell(ticker.Storage{
+					ID: getNextID(),
+				})
+				require.NoError(t, err, "failed to serialize storage: %w", err)
+				tickerContract, _, err := wrappers.Deploy(t.Context(), &deployer, compiledContract, storage, tlb.MustFromTON("0.05"), tvm.EmptyCell)
+				require.NoError(t, err, "failed to deploy Ticker contract: %w", err)
+				workersCollector <- worker{
+					deployer:       deployer,
+					tickerContract: tickerContract.Address,
+				}
+				t.Logf("Ticker contract %d deployed at %s\n", i, tickerContract.Address.String())
+			}(i)
+		}
+
+		initWg.Wait()
+		close(workersCollector)
+		workers := make([]worker, 0, numWorkers)
+		for worker := range workersCollector {
+			workers = append(workers, worker)
+		}
 
 		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
-		// for different number of ticks, measure the delay
 
 		type measurement struct {
+			ticks    uint32
 			duration time.Duration
 			cost     *tlb.Coins
 		}
-		measurements := make(map[uint32]measurement)
+
+		// Thread-safe measurements map
+		var measurementsLock sync.Mutex
+		measurements := make(map[uint32]measurement, measurementCount)
+
+		// Error channel for worker failures
+		errChan := make(chan error, numWorkers)
+
+		// Create task channel
+		tasks := make(chan uint32, measurementCount)
 		for numberOfTicks := startingNumberOfTicks; numberOfTicks <= maxNumberOfTicks; numberOfTicks += step {
-			t.Logf("Setting number of ticks to %d\n", numberOfTicks)
-			statingBalance := getBalance(t.Context(), t, deployer.Client, *tickerContract.Address)
-			amountToSend := tlb.MustFromTON("1.0")
-			startTime := time.Now()
-			trace, err := deployer.SendAndWaitForTrace(t.Context(), *tickerContract.Address, &wallet.Message{
-				Mode: wallet.PayGasSeparately,
-				InternalMessage: &tlb.InternalMessage{
-					DstAddr: tickerContract.Address,
-					Amount:  amountToSend,
-					Body: must(tlb.ToCell(ticker.Tick{
-						QueryID: uint64(numberOfTicks),
-						Times:   numberOfTicks,
-					})),
-				},
-			})
-			duration := time.Since(startTime)
-			require.NoError(t, err, "failed to send Tick message: %w", err)
-			ec, err := trace.TraceExitCode()
-			require.NoError(t, err, "failed to get exit code from trace: %w", err)
-			require.Equal(t, tvm.ExitCodeSuccess, ec, "expected exit code 0, got %d", ec)
-			endBalance := getBalance(t.Context(), t, deployer.Client, *tickerContract.Address)
-			cost := must(must(endBalance.Sub(&statingBalance)).Sub(&amountToSend))
-			measurements[numberOfTicks] = measurement{duration, cost}
+			tasks <- numberOfTicks
 		}
+		close(tasks)
+
+		// Worker pool
+		var wg sync.WaitGroup
+		for workerID, w := range workers {
+			wg.Add(1)
+			go func(workerID int, w worker) {
+				defer wg.Done()
+				innerMeasurements := make([]measurement, 0, measurementCount)
+				for numberOfTicks := range tasks {
+					t.Logf("Worker %d processing %d ticks\n", workerID, numberOfTicks)
+
+					statingBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
+					amountToSend := tlb.MustFromTON("1.0")
+					startTime := time.Now()
+					trace, err := w.deployer.SendAndWaitForTrace(t.Context(), *w.tickerContract, &wallet.Message{
+						Mode: wallet.PayGasSeparately,
+						InternalMessage: &tlb.InternalMessage{
+							DstAddr: w.tickerContract,
+							Amount:  amountToSend,
+							Body: must(tlb.ToCell(ticker.Tick{
+								QueryID: uint64(numberOfTicks),
+								Times:   numberOfTicks,
+							})),
+						},
+					})
+					duration := time.Since(startTime)
+					if err != nil {
+						errChan <- fmt.Errorf("worker %d: failed to send Tick message: %w", workerID, err)
+						return
+					}
+					ec, err := trace.TraceExitCode()
+					if err != nil {
+						errChan <- fmt.Errorf("worker %d: failed to get exit code from trace: %w", workerID, err)
+						return
+					}
+					if ec != tvm.ExitCodeSuccess {
+						errChan <- fmt.Errorf("worker %d: expected exit code 0, got %d", workerID, ec)
+						return
+					}
+					endBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
+					cost := must(must(endBalance.Sub(&statingBalance)).Sub(&amountToSend))
+
+					innerMeasurements = append(innerMeasurements, measurement{numberOfTicks, duration, cost})
+
+					t.Logf("Worker %d completed %d ticks in %v\n", workerID, numberOfTicks, duration)
+				}
+				t.Logf("Worker %d finished processing\n", workerID)
+
+				measurementsLock.Lock()
+				for _, measurement := range innerMeasurements {
+					measurements[measurement.ticks] = measurement
+				}
+				measurementsLock.Unlock()
+				t.Logf("Worker %d merged measurements\n", workerID)
+			}(workerID, w)
+		}
+
+		wg.Wait()
+		close(errChan)
+
+		// Check for any errors from workers
+		for err := range errChan {
+			require.NoError(t, err)
+		}
+
 		var measurementsCSV strings.Builder
 		measurementsCSV.WriteString("number_of_ticks,duration_ms,cost\n")
 		for numberOfTicks, measurement := range measurements {
-			fmt.Fprintf(&measurementsCSV, "%d,%f,%s\n", numberOfTicks, measurement.duration.Seconds(), measurement.cost.String())
+			fmt.Fprintf(&measurementsCSV, "%d,%.3f,%s\n", numberOfTicks, measurement.duration.Seconds(), measurement.cost.String())
 		}
 		t.Logf("Measurements:\n%s", measurementsCSV.String())
 	})
