@@ -1,13 +1,13 @@
 package changesets
 
 import (
+	"errors"
 	"fmt"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
@@ -24,11 +24,11 @@ type FundContractInput struct {
 	ChainSelector uint64 `json:"chainSelector"`
 }
 
-func FundContractChangeset() cldf.ChangeSetV2[FundContractInput] {
-	return cldf.CreateChangeSet(applyFundContract, verifyFundContractInput)
+func FundContractChangeset() deployment.ChangeSetV2[FundContractInput] {
+	return deployment.CreateChangeSet(applyFundContract, verifyFundContractInput)
 }
 
-func verifyFundContractInput(env cldf.Environment, input FundContractInput) error {
+func verifyFundContractInput(env deployment.Environment, input FundContractInput) error {
 	switch input.ChainSelector {
 	case chainsel.TON_TESTNET.Selector, chainsel.TON_MAINNET.Selector, chainsel.TON_LOCALNET.Selector:
 		// valid selectors
@@ -60,11 +60,10 @@ func verifyFundContractInput(env cldf.Environment, input FundContractInput) erro
 	})
 	// check if input.DestinationAddress is in tonContracts
 	found, err := func() (bool, error) {
-
 		for _, a := range tonContracts {
-			addr, err := address.ParseAddr(a.Address)
-			if err != nil {
-				return false, fmt.Errorf("failed to parse address from datastore: %w", err)
+			addr, errAddr := address.ParseAddr(a.Address)
+			if errAddr != nil {
+				return false, fmt.Errorf("failed to parse address from datastore: %w", errAddr)
 			}
 			if addr.Equals(dest) {
 				return true, nil
@@ -92,7 +91,7 @@ func applyFundContract(env deployment.Environment, input FundContractInput) (dep
 	// Transfer funds from deployer wallet
 	// Get the TON chain
 	tonChains := env.BlockChains.TonChains()
-	chain, ok := tonChains[uint64(input.ChainSelector)]
+	chain, ok := tonChains[input.ChainSelector]
 	if !ok {
 		return deployment.ChangesetOutput{}, fmt.Errorf("TON chain not found for selector %d", input.ChainSelector)
 	}
@@ -112,7 +111,7 @@ func applyFundContract(env deployment.Environment, input FundContractInput) (dep
 	}
 
 	if msg.ExternalMsg == nil {
-		return deployment.ChangesetOutput{}, fmt.Errorf("no external message found in the transaction trace")
+		return deployment.ChangesetOutput{}, errors.New("no external message found in the transaction trace")
 	}
 	if !msg.ExternalMsg.DstAddr.Equals(c.Wallet.WalletAddress()) {
 		return deployment.ChangesetOutput{}, fmt.Errorf("transaction destination mismatch: expected %s, got %s", dest.String(), msg.ExternalMsg.DstAddr.String())
@@ -125,17 +124,17 @@ func applyFundContract(env deployment.Environment, input FundContractInput) (dep
 		return deployment.ChangesetOutput{}, fmt.Errorf("transaction execution failed with exit code %d", ec)
 	}
 	if len(msg.OutgoingInternalReceivedMessages) == 0 || msg.OutgoingInternalReceivedMessages[0] == nil {
-		return deployment.ChangesetOutput{}, fmt.Errorf("no outgoing internal messages found in the transaction trace")
+		return deployment.ChangesetOutput{}, errors.New("no outgoing internal messages found in the transaction trace")
 	}
 	inMsg := msg.OutgoingInternalReceivedMessages[0]
 	if inMsg.InternalMsg == nil {
-		return deployment.ChangesetOutput{}, fmt.Errorf("no internal message found in the transaction trace")
+		return deployment.ChangesetOutput{}, errors.New("no internal message found in the transaction trace")
 	}
 	if !inMsg.InternalMsg.DstAddr.Equals(dest) {
 		return deployment.ChangesetOutput{}, fmt.Errorf("transaction destination mismatch: expected %s, got %s", dest.String(), inMsg.InternalMsg.DstAddr.String())
 	}
 	if inMsg.InternalMsg.Bounced {
-		return deployment.ChangesetOutput{}, fmt.Errorf("transaction bounced back to sender")
+		return deployment.ChangesetOutput{}, errors.New("transaction bounced back to sender")
 	}
 
 	env.Logger.Infow("Funds transferred successfully",
