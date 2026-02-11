@@ -81,10 +81,12 @@ func TestWalletInit(t *testing.T) {
 	client := tracetracking.NewSignedAPIClient(tonChain.Client, *tonChain.Wallet)
 
 	// Notice: send message before init, trace uninitialized
-	amount := tlb.MustFromTON("0.2")
+	amount := tlb.MustFromTON("0.05")
+
+	// Notice: first we try to send without wallet.IgnoreErrors (exit code 137 for W.V5R1)
 	m, err := client.SendAndWaitForTrace(t.Context(), *w.WalletAddress(),
 		&wallet.Message{
-			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+			Mode: wallet.PayGasSeparately,
 			InternalMessage: &tlb.InternalMessage{
 				IHRDisabled: true,
 				Bounce:      false,
@@ -97,44 +99,19 @@ func TestWalletInit(t *testing.T) {
 
 	ec, err := m.ExitCode()
 	require.NoError(t, err)
-	require.Equal(t, tvm.ExitCodeSuccess, ec) // Uninitialized acc, action phase would fail but we use wallet.IgnoreErrors
-
-	ect, err := m.TraceExitCode()
-	require.NoError(t, err)
-	require.Equal(t, tvm.ExitCodeComputeSkipReasonNoState, ect) // Uninitialized acc should skip compute phase with no state
+	require.Equal(t, tvm.ExitCode(137), ec) // Send fails with 137 exit code without using wallet.IgnoreErrors
 
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
 
-	acc, err := tonChain.Client.GetAccount(t.Context(), block, w.Address())
-	require.NoError(t, err)
-	require.Nil(t, acc.Code) // Wallet should not be initialized, code is nil
-
 	balance, err = w.GetBalance(t.Context(), block)
 	require.NoError(t, err)
-	// require.Equal(t, tlb.MustFromTON("0"), balance, "Balance should be 0 before wallet initialization")
-	t.Logf("Other wallet balance after funding: %s", balance.String())
+	t.Logf("Target wallet balance after initial funding attempt: %s", balance.String())
+	require.Equal(t, "0", balance.String(), "Balance should be 0 since the message should not go through without wallet.IgnoreErrors")
 
-	// Fund wallet with amount and deploy
-	err = tvm.NewInitializedWallet(t.Context(), tonChain.Wallet, w, amount)
-	require.NoError(t, err)
-
-	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
-	require.NoError(t, err)
-
-	acc, err = tonChain.Client.GetAccount(t.Context(), block, w.Address())
-	require.NoError(t, err)
-	require.NotNil(t, acc.Code) // Wallet should be initialized, code is not nil
-
-	balance, err = w.GetBalance(t.Context(), block)
-	require.NoError(t, err)
-	t.Logf("Other wallet balance after funding: %s", balance.String())
-
-	// Notice: send message post init, trace success
+	// Notice: using wallet.IgnoreErrors will send the message to the target (DstAddr)
 	m, err = client.SendAndWaitForTrace(t.Context(), *w.WalletAddress(),
 		&wallet.Message{
-			// TODO: why is wallet.IgnoreErrors needed here?
-			// Shouldn't the wallet be fully initialized and able to process messages successfully without ignoring errors?
 			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 			InternalMessage: &tlb.InternalMessage{
 				IHRDisabled: true,
@@ -148,11 +125,61 @@ func TestWalletInit(t *testing.T) {
 
 	ec, err = m.ExitCode()
 	require.NoError(t, err)
-	require.Equal(t, tvm.ExitCodeSuccess, ec) // Initialized wallet should accept message with success (0) exit code
+	require.Equal(t, tvm.ExitCodeSuccess, ec) // Uninitialized acc, action phase would fail but we use wallet.IgnoreErrors
+
+	ect, err := m.TraceExitCode()
+	require.NoError(t, err)
+	require.Equal(t, tvm.ExitCodeComputeSkipReasonNoState, ect) // Uninitialized acc should skip compute phase with no state
+
+	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
+	require.NoError(t, err)
+
+	acc, err := tonChain.Client.GetAccount(t.Context(), block, w.Address())
+	require.NoError(t, err)
+	require.Nil(t, acc.Code, "Code should be nil for uninitialized wallet")
+
+	balance, err = w.GetBalance(t.Context(), block)
+	require.NoError(t, err)
+	t.Logf("Target wallet balance after second funding attempt (wallet.IgnoreErrors): %s", balance.String())
+	require.Equal(t, -1, tlb.ZeroCoins.Compare(&balance), "Balance should be greater than 0 after funding")
+
+	// Fund wallet with amount and deploy
+	err = tvm.NewInitializedWallet(t.Context(), tonChain.Wallet, w, amount)
+	require.NoError(t, err)
+
+	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
+	require.NoError(t, err)
+
+	acc, err = tonChain.Client.GetAccount(t.Context(), block, w.Address())
+	require.NoError(t, err)
+	require.NotNil(t, acc.Code, "Code should not be nil after wallet initialization")
+
+	balance, err = w.GetBalance(t.Context(), block)
+	require.NoError(t, err)
+	t.Logf("Target wallet balance after deployment: %s", balance.String())
+
+	// Notice: send message post init, trace success
+	m, err = client.SendAndWaitForTrace(t.Context(), *w.WalletAddress(),
+		&wallet.Message{
+			// Notice: wallet.IgnoreErrors is required by W.V5R1
+			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+			InternalMessage: &tlb.InternalMessage{
+				IHRDisabled: true,
+				Bounce:      false,
+				DstAddr:     w.WalletAddress(),
+				Amount:      amount,
+				Body:        nil,
+			},
+		})
+	require.NoError(t, err)
+
+	ec, err = m.ExitCode()
+	require.NoError(t, err)
+	require.Equal(t, tvm.ExitCodeSuccess, ec) // Initialized wallet should accept message
 
 	ect, err = m.TraceExitCode()
 	require.NoError(t, err)
-	require.Equal(t, tvm.ExitCodeSuccess, ect) // Initialized wallet should accept message with success (0) exit code
+	require.Equal(t, tvm.ExitCodeSuccess, ect) // Initialized wallet should accept message
 }
 
 func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
