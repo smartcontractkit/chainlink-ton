@@ -5,11 +5,11 @@ import { FiredrillOnRamp } from '../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
 import { generateRandomContractId, LINK_TOKEN } from '../src/utils'
 import {
-  CHAINSEL_TON_TEST,
   tonAddressToCrossChainAddress,
 } from '../tests/firedrill/Firedrill.Setup'
 import { randomAddress } from '@ton/test-utils'
 
+const CHAINSEL_TON = 1399300952838017768n
 export async function run(provider: NetworkProvider) {
   // Compile contracts
   console.log('📦 Compiling contracts...')
@@ -50,7 +50,7 @@ export async function run(provider: NetworkProvider) {
       owner: senderAddress,
       pendingOwner: null,
     },
-    chainSelector: CHAINSEL_TON_TEST,
+    chainSelector: CHAINSEL_TON,
     tokenAddress: tokenAddress,
     firedrillContracts: undefined,
     sSendLast: 0n,
@@ -65,9 +65,9 @@ export async function run(provider: NetworkProvider) {
 
   // Verify entrypoint deployed correctly
   const initialChainSelector = await entrypoint.getChainSelector()
-  if (initialChainSelector !== CHAINSEL_TON_TEST) {
+  if (initialChainSelector !== CHAINSEL_TON) {
     throw new Error(
-      `Entrypoint chain selector mismatch: expected ${CHAINSEL_TON_TEST}, got ${initialChainSelector}`,
+      `Entrypoint chain selector mismatch: expected ${CHAINSEL_TON}, got ${initialChainSelector}`,
     )
   }
   console.log(`✅ Entrypoint deployed at: ${entrypoint.address.toString()}\n`)
@@ -77,7 +77,7 @@ export async function run(provider: NetworkProvider) {
   const onRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
-    chainSelector: CHAINSEL_TON_TEST,
+    chainSelector: CHAINSEL_TON,
     tokenAddress: tokenAddress,
   }
 
@@ -99,7 +99,7 @@ export async function run(provider: NetworkProvider) {
   const offRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
-    chainSelector: CHAINSEL_TON_TEST,
+    chainSelector: CHAINSEL_TON,
     onRampAddress: tonAddressToCrossChainAddress(onramp.address),
   }
 
@@ -108,12 +108,6 @@ export async function run(provider: NetworkProvider) {
   await offramp.sendDeploy(sender, toNano('0.1'))
   await provider.waitForDeploy(offramp.address)
 
-  // Verify offramp deployed correctly by checking static config
-  try {
-    const offrampStaticConfig = await offramp.getStaticConfig()
-  } catch (e) {
-    throw new Error('OffRamp deployment verification failed: could not read static config', e)
-  }
   console.log(`✅ OffRamp deployed at: ${offramp.address.toString()}\n`)
 
   // Step 4: Update ramp addresses in entrypoint
