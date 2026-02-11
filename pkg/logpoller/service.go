@@ -65,6 +65,11 @@ type service struct {
 
 	// replay management
 	replay replayInfo // Tracks replay requests and status
+
+	// Filter cache - eliminates redundant DB queries
+	filtersByName map[string]*models.Filter // name → filter for cache lookups
+	filtersMu     sync.RWMutex              // protects filter cache
+	filtersLoaded bool                      // true after initial load from DB
 }
 
 type ServiceOptions struct {
@@ -75,7 +80,12 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) (Service, error) {
+func NewService(
+	lggr logger.Logger,
+	chainID string,
+	clientProvider func(context.Context) (ton.APIClientWrapped, error),
+	opts *ServiceOptions,
+) (Service, error) {
 	// init metrics
 	metrics, err := newMetrics(chainID)
 	if err != nil {
@@ -115,6 +125,8 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		pruningStartDelay:        opts.Config.PruningStartDelay.Duration(),
 	}
 	lp.replay.status = models.ReplayStatusNoRequest
+	// Initialize filter cache
+	lp.filtersByName = make(map[string]*models.Filter)
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
 		Start: lp.start,
@@ -145,6 +157,29 @@ func NewServiceWith(
 	}
 
 	return svc, nil
+}
+
+// loadFilters populates the filter cache from database on first use.
+// Subsequent calls are no-op. Thread-safe via filtersMu.
+func (lp *service) loadFilters(ctx context.Context) error {
+	lp.filtersMu.Lock()
+	defer lp.filtersMu.Unlock()
+
+	if lp.filtersLoaded {
+		return nil
+	}
+
+	filters, err := lp.filterStore.GetAllActiveFilters(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load filters: %w", err)
+	}
+
+	for i := range filters {
+		lp.filtersByName[filters[i].Name] = &filters[i]
+	}
+
+	lp.filtersLoaded = true
+	return nil
 }
 
 // start initializes the log polling service and begins the polling loop
@@ -225,17 +260,23 @@ func (lp *service) run(ctx context.Context) (err error) {
 	// Note: during replay this will show larger values, which is expected
 	lp.metrics.SetBlocksBehind(ctx, blockRange.ToSeqNo(), blockRange.FromSeqNo())
 
-	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
+	addresses, err := lp.getDistinctAddresses(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to read distinct addresses from filter store: %w", err)
+		return fmt.Errorf("failed to get addresses: %w", err)
 	}
 	if len(addresses) == 0 {
+		// No filters registered - nothing to poll
 		return nil
+	}
+
+	filterIndex, err := lp.buildFilterIndex(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to build filter index: %w", err)
 	}
 
 	lp.lggr.Tracew("processing block range", "fromSeq", blockRange.FromSeqNo(), "toSeq", blockRange.ToSeqNo())
 
-	err = lp.processBlockRange(ctx, blockRange, addresses)
+	err = lp.processBlockRange(ctx, blockRange, addresses, filterIndex)
 	if err != nil {
 		return fmt.Errorf("failed to process block range: %w", err)
 	}
@@ -253,12 +294,12 @@ func (lp *service) run(ctx context.Context) (err error) {
 }
 
 // processBlockRange handles scanning a range of blocks for transactions
-func (lp *service) processBlockRange(ctx context.Context, blockRange *models.BlockRange, addresses []*address.Address) error {
-	filterIndex, err := lp.buildFilterIndex(ctx, addresses)
-	if err != nil {
-		return fmt.Errorf("failed to build filter index: %w", err)
-	}
-
+func (lp *service) processBlockRange(
+	ctx context.Context,
+	blockRange *models.BlockRange,
+	addresses []*address.Address,
+	filterIndex models.FilterIndex,
+) error {
 	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
@@ -292,7 +333,11 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 // between prevBlock(exclusive) and toBlock(inclusive).
 // Returns parallel slices of transactions and their corresponding blocks.
 // It resolves masterchain block seqno for each transaction inline before outputting(lru cached).
-func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (<-chan models.Tx, <-chan error) {
+func (lp *service) loadTxsForAddresses(
+	ctx context.Context,
+	blockRange *models.BlockRange,
+	srcAddrs []*address.Address,
+) (<-chan models.Tx, <-chan error) {
 	rawTxsCh := make(chan models.Tx, lp.pageSize)
 	txsOut := make(chan models.Tx, lp.pageSize)
 	errsOut := make(chan error, len(srcAddrs))

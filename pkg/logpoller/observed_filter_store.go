@@ -85,3 +85,16 @@ func (o *ObservedFilterStore) GetFiltersByAddress(ctx context.Context, addr *add
 
 	return filters, err
 }
+
+// GetAllActiveFilters wraps the underlying GetAllActiveFilters with metrics
+func (o *ObservedFilterStore) GetAllActiveFilters(ctx context.Context) ([]models.Filter, error) {
+	start := time.Now()
+	filters, err := o.FilterStore.GetAllActiveFilters(ctx)
+
+	o.metrics.RecordQueryDuration(ctx, "GetAllActiveFilters", frameworkmetrics.Read, time.Since(start))
+	if err == nil {
+		o.metrics.SetQueryResultSize(ctx, "GetAllActiveFilters", len(filters))
+	}
+
+	return filters, err
+}
