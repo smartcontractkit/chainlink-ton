@@ -28,13 +28,9 @@ describe('FiredrillOffRamp - Unit Tests', () => {
     expect(offramp.address).toBeDefined()
   })
 
-  it('getStaticConfig should return chain selector', async () => {
-    const result = await offramp.getStaticConfig()
-    expect(result).toBe(CHAINSEL_TON_TEST)
-  })
-
-  it('getDynamicConfig should return configuration', async () => {
-    const result = await offramp.getDynamicConfig()
+  it('getConfig should return configuration', async () => {
+    const result = await offramp.getConfig()
+    expect(result.chainSelector).toEqual(CHAINSEL_TON_TEST)
     expect(result.feeQuoter.equals(deployer.address)).toBe(true)
     expect(result.permissionlessExecutionThresholdSeconds).toBe(10)
   })

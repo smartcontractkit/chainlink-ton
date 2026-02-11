@@ -9,7 +9,8 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { CrossChainAddress, SourceChainConfig } from '../ccip/OffRamp'
+import { Config, CrossChainAddress, SourceChainConfig } from '../ccip/OffRamp'
+import { OCR3Config } from '../libraries/ocr/MultiOCR3Base'
 
 export type FiredrillOffRampStorage = {
   id: bigint
@@ -85,17 +86,10 @@ export class FiredrillOffRamp implements Contract {
     })
   }
 
-  async getStaticConfig(provider: ContractProvider): Promise<bigint> {
-    const result = await provider.get('staticConfig', [])
-    return result.stack.readBigNumber()
-  }
-
-  async getDynamicConfig(provider: ContractProvider): Promise<{
-    feeQuoter: Address
-    permissionlessExecutionThresholdSeconds: number
-  }> {
-    const result = await provider.get('dynamicConfig', [])
+  async getConfig(provider: ContractProvider): Promise<Config> {
+    const result = await provider.get('config', [])
     return {
+      chainSelector: result.stack.readBigNumber(),
       feeQuoter: result.stack.readAddress(),
       permissionlessExecutionThresholdSeconds: result.stack.readNumber(),
     }

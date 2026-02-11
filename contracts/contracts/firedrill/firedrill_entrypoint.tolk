@@ -237,6 +237,38 @@ get fun destinationChainGasPrice(destChainSelector: uint64): cell {
 	return gasPrice.toCell();
 }
 
+get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
+  val destChainConfig: DestChainConfig = {
+    config: {// minimal valid config for EVM destination
+	isEnabled: true,
+	maxNumberOfTokensPerMsg: 0,
+	maxDataBytes: 300,
+	maxPerMsgGasLimit: 4000000,
+	destGasOverhead: 300000,
+	destGasPerPayloadByteBase: 16,
+	destGasPerPayloadByteHigh: 40,
+	destGasPerPayloadByteThreshold: 100,
+	destDataAvailabilityOverheadGas:300 ,
+	destGasPerDataAvailabilityByte: 300,
+	destDataAvailabilityMultiplierBps: 6840,
+	chainFamilySelector: 0x647e2ba9, //TVM
+	defaultTokenFeeUsdCents: 50,
+	defaultTokenDestGasOverhead: 90000,
+	defaultTxGasLimit: 1000000,
+	gasMultiplierWeiPerEth: 1000000000000000000,
+	gasPriceStalenessThreshold: 12 * 60 * 60,
+	networkFeeUsdCents: 100,
+    },
+    usdPerUnitGas: GasPrice {
+	executionGasPrice: 1000000,
+	dataAvailabilityGasPrice: 1000000000,
+	timestamp: blockchain.now()
+    }.toCell(),
+    tokenTransferFeeConfigs: createEmptyMap(),
+  };
+  return destChainConfig;
+}
+
 // ========== Common Getters ==========
 
 get fun chainSelector(): uint64 {

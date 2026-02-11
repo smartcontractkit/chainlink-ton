@@ -4,6 +4,7 @@ import "../lib/utils.tolk"
 import "../ccip/offramp/events.tolk"
 import "../ccip/offramp/types.tolk"
 import "../ccip/common/types.tolk"
+import "../lib/ocr/multi_ocr3_base"
 import "firedrill_offramp_messages.tolk"
 
 struct FiredrillOffRamp_Storage {
@@ -47,6 +48,10 @@ fun emitSourceChainConfigSet(st: FiredrillOffRamp_Storage) {
 		isRMNVerificationDisabled: false,
 		onRamp: st.onRampAddress
 	};
+
+	emit(SOURCE_CHAIN_SELECTOR_ADDED_TOPIC, SourceChainSelectorAdded {
+		sourceChainSelector: st.chainSelector,
+	});
 	
 	emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
 		sourceChainSelector: st.chainSelector,
@@ -78,17 +83,23 @@ fun emitCommitReportAccepted(minSeqNr: uint64, maxSeqNr: uint64, st: FiredrillOf
 	});
 }
 
-// Getter for static config
-get fun staticConfig(): uint64 {
-	val st = lazy FiredrillOffRamp_Storage.load();
-	return st.chainSelector;
+// Getter for ocr config
+get fun ocr3Config(): OCR3Base {
+	return {
+		chainId: 0,
+		commit: null,
+		execute: null,
+	}
 }
 
 // Getter for dynamic config
-get fun dynamicConfig(): (address, uint32) {
+get fun config(): Config {
 	val st = lazy FiredrillOffRamp_Storage.load();
-	// Returns (feeQuoter, permissionlessExecutionThresholdSeconds)
-	return (st.controlAddress, 10);
+	return {
+		chainSelector: st.chainSelector,
+		feeQuoter: st.controlAddress,
+		permissionlessExecutionThresholdSeconds: 10,
+	};
 }
 
 // Getter for source chain config
@@ -102,6 +113,17 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 		isRMNVerificationDisabled: false,
 		onRamp: st.onRampAddress
 	};
+}
+
+get fun sourceChainSelectors(): tuple? {
+    val st = lazy FiredrillOffRamp_Storage.load();
+    var res = createEmptyTuple();
+    res.push(st.chainSelector);
+    return res ;
+}
+
+get fun cursedSubjects(): tuple? {
+	return null;
 }
 
 get fun typeAndVersion(): (slice, slice) {
