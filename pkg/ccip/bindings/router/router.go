@@ -113,7 +113,7 @@ type CCIPSend struct {
 	Receiver          common.CrossChainAddress       `tlb:"."`
 	Data              common.SnakeBytes              `tlb:"^"`
 	TokenAmounts      common.SnakedCell[TokenAmount] `tlb:"^"`
-	FeeToken          *address.Address               `tlb:"maybe addr"`
+	FeeToken          *address.Address               `tlb:"addr"`
 	ExtraArgs         *cell.Cell                     `tlb:"^"`
 }
 
