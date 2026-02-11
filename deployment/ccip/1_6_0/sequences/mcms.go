@@ -68,8 +68,8 @@ var DeployMCMSContracts = operations.NewSequence(
 		}
 
 		// Attach the qualifier to the output (to be stored in DS)
-		for _, addr := range r.Output.Addresses {
-			addr.Qualifier = qualifier
+		for i := range r.Output.Addresses {
+			r.Output.Addresses[i].Qualifier = qualifier
 		}
 
 		return sequences.OnChainOutput{
@@ -93,7 +93,7 @@ func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []da
 			return nil, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
 		}
 
-		if e.Qualifier != *qualifier {
+		if e.Qualifier != qualifier {
 			continue // skip addresses that don't match the qualifier for this deployment
 		}
 
