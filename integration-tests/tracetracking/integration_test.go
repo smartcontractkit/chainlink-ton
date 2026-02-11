@@ -749,7 +749,7 @@ func TestIntegration(t *testing.T) {
 						return
 					}
 					endBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
-					cost := must(must(statingBalance.Sub(&endBalance)).Sub(amountToSend))
+					cost := must(must(statingBalance.Add(amountToSend)).Sub(&endBalance))
 
 					innerMeasurements = append(innerMeasurements, measurement{numberOfTicks, duration, cost})
 
