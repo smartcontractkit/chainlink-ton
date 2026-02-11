@@ -36,7 +36,7 @@ const (
 	TargetMcms
 )
 
-var TargetDefault Target = TargetAll
+var TargetDefault = TargetAll
 
 type FundContractsInput struct {
 	Mode FundMode
