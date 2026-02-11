@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -88,7 +89,8 @@ func MyLocalTONWalletDefault(client ton.APIClientWrapped) (*wallet.Wallet, error
 	return funder, nil
 }
 
-// NewInitializedWallet creates and initializes (deploys) a new wallet by funding it and sending an state init (empty) message.
+// NewInitializedWallet creates and deploys a new wallet by first funding it from funder and then sending a self-transfer
+// internal message with a non-zero amount to trigger the wallet's state initialization.
 func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.Wallet, amount tlb.Coins) error {
 	// Fund wallet
 	_, _, err := funder.SendWaitTransaction(ctx,
@@ -114,8 +116,9 @@ func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.
 				IHRDisabled: true,
 				Bounce:      false,
 				DstAddr:     w.WalletAddress(),
-				Amount:      amount,
-				Body:        nil,
+				// Send some non-zero amount to self to trigger wallet initialization
+				Amount: *amount.MustDiv(big.NewInt(2)),
+				Body:   nil,
 			},
 		})
 	if err != nil {

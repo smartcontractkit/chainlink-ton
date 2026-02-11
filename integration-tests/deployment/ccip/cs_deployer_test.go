@@ -86,7 +86,7 @@ func TestWalletInit(t *testing.T) {
 				Body:        nil,
 			},
 		})
-	require.Error(t, err)
+	require.NoError(t, err)
 
 	ec, err := m.ExitCode()
 	require.NoError(t, err)
