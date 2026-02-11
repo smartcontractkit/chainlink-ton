@@ -1,4 +1,4 @@
-package operation
+package ton
 
 import (
 	"context"
@@ -50,7 +50,7 @@ type FundContractsInput struct {
 }
 
 var FundContractsOp = operations.NewOperation(
-	"ton/ops/ccip/funding/fund-contracts",
+	"ton/ops/fund-contracts",
 	semver.MustParse("0.1.0"),
 	"Funds CCIP/MCMS contracts with the specified amounts",
 	fundContracts,
