@@ -127,9 +127,9 @@ func TestWalletInit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, tvm.ExitCodeSuccess, ec) // Uninitialized acc, action phase would fail but we use wallet.IgnoreErrors
 
-	ect, err := m.TraceExitCode()
+	ectrace, err := m.TraceExitCode()
 	require.NoError(t, err)
-	require.Equal(t, tvm.ExitCodeComputeSkipReasonNoState, ect) // Uninitialized acc should skip compute phase with no state
+	require.Equal(t, tvm.ExitCodeComputeSkipReasonNoState, ectrace) // Uninitialized acc should skip compute phase with no state
 
 	block, err = tonChain.Client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
@@ -177,9 +177,9 @@ func TestWalletInit(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, tvm.ExitCodeSuccess, ec) // Initialized wallet should accept message
 
-	ect, err = m.TraceExitCode()
+	ectrace, err = m.TraceExitCode()
 	require.NoError(t, err)
-	require.Equal(t, tvm.ExitCodeSuccess, ect) // Initialized wallet should accept message
+	require.Equal(t, tvm.ExitCodeSuccess, ectrace) // Initialized wallet should accept message
 }
 
 func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
