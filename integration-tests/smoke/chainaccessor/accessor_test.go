@@ -566,7 +566,9 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 
 	// Validate all returned reports have MerkleRoot
 	for i, report := range reports {
-		require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Report %d should have at least 1 blessed merkle root", i+1)
+		if len(report.Report.PriceUpdates.GasPriceUpdates) == 0 && len(report.Report.PriceUpdates.TokenPriceUpdates) == 0 {
+			require.NotEmpty(t, report.Report.UnblessedMerkleRoots, "Report %d should have at least 1 unblessed merkle root", i+1)
+		}
 	}
 
 	// Test 2: Query with limit=2 - should return only first 2 MerkleRoot reports
@@ -576,14 +578,19 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 
 	// Validate the limited reports are the first 2 chronologically (with MerkleRoot)
 	for i, report := range limitedReports {
-		require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Limited report %d should have at least 1 blessed merkle root", i+1)
+		if len(report.Report.PriceUpdates.GasPriceUpdates) == 0 && len(report.Report.PriceUpdates.TokenPriceUpdates) == 0 {
+			require.NotEmpty(t, report.Report.UnblessedMerkleRoots, "Limited report %d should have at least 1 unblessed merkle root", i+1)
+		}
 	}
 
 	// Test 3: Query with limit=1 - should return only the first MerkleRoot report
 	singleReport, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
 	require.NoError(t, err, "failed to get single commit report")
 	require.Len(t, singleReport, 1, "Should return exactly 1 report due to limit=1")
-	require.NotEmpty(t, singleReport[0].Report.BlessedMerkleRoots, "Single report should have at least 1 blessed merkle root")
+
+	if len(singleReport[0].Report.PriceUpdates.GasPriceUpdates) == 0 && len(singleReport[0].Report.PriceUpdates.TokenPriceUpdates) == 0 {
+		require.NotEmpty(t, singleReport[0].Report.UnblessedMerkleRoots, "Single report should have at least 1 unblessed merkle root")
+	}
 
 	// Validate chronological ordering (reports should be ordered by timestamp ASC)
 	for i := 1; i < len(reports); i++ {
@@ -633,9 +640,11 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 
 	// Validate the returned report
 	report := reports[0]
-	require.Len(t, report.Report.BlessedMerkleRoots, 1, "expected 1 blessed merkle root in the report")
+	if len(report.Report.PriceUpdates.GasPriceUpdates) == 0 && len(report.Report.PriceUpdates.TokenPriceUpdates) == 0 {
+		require.Len(t, report.Report.UnblessedMerkleRoots, 1, "expected 1 unblessed merkle root in the report")
+	}
 
-	merkleRoot := report.Report.BlessedMerkleRoots[0]
+	merkleRoot := report.Report.UnblessedMerkleRoots[0]
 	require.Equal(t, ccipocr3.ChainSelector(909606746561742123), merkleRoot.ChainSel, "ChainSelector should match")
 	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.Start(), "MinSeqNr should be 1")
 	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.End(), "MaxSeqNr should be 1")

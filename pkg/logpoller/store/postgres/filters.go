@@ -165,6 +165,32 @@ func (s *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Add
 	return filters, nil
 }
 
+// GetAllActiveFilters returns all active (non-deleted) filters for the chain.
+func (s *filterStore) GetAllActiveFilters(ctx context.Context) ([]models.Filter, error) {
+	query := `SELECT id, chain_id, name, address, msg_type, event_sig, starting_seq_no, log_retention, max_logs_kept, created_at
+		FROM ton.log_poller_filters
+		WHERE chain_id = :chain_id AND is_deleted = false`
+
+	var dbFilters []filterModel
+	err := s.orm.NamedSelectContext(ctx, &dbFilters, query, map[string]any{
+		"chain_id": s.chainID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all active filters: %w", err)
+	}
+
+	filters := make([]models.Filter, 0, len(dbFilters))
+	for _, dbF := range dbFilters {
+		filter, err := dbF.ToFilter()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert filter: %w", err)
+		}
+		filters = append(filters, filter)
+	}
+
+	return filters, nil
+}
+
 // DeleteEmptyFilters removes filter rows that are marked is_deleted=true
 // and have no remaining logs in the logs table.
 // This is the final cleanup step after LogStore.DeleteLogsForDeletedFilters has removed all logs.
