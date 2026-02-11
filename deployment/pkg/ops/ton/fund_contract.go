@@ -8,7 +8,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -47,6 +46,22 @@ type FundContractsInput struct {
 	Amount string
 	// Target specifies which contracts to fund. If TARGET_ALL, both CCIP and MCMS contracts will be funded. If TARGET_CCIP, only CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter) will be funded. If TARGET_MCMS, only MCMS contracts (Owner MCMS, RMN MCMS) will be funded. If nil, defaults to TARGET_ALL.
 	Target *Target
+
+	Plan bool `json:"plan"`
+}
+
+func (in FundContractsInput) IsPlan() bool {
+	return in.Plan
+}
+
+type FundContractsOutput SendMessagesOutput
+
+func (o FundContractsOutput) GetPlans() []MessagePlanRaw {
+	return o.Plans
+}
+
+func (o FundContractsOutput) GetTransaction() *tlbe.Cell[tlb.Transaction] {
+	return o.Transaction
 }
 
 var FundContractsOp = operations.NewOperation(
@@ -56,24 +71,26 @@ var FundContractsOp = operations.NewOperation(
 	fundContracts,
 )
 
-func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) ([]*tlbe.Cell[tlb.InternalMessage], error) {
+type FundingMessage struct{} // Empty message
+
+func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) (FundContractsOutput, error) {
 	if in.Target == nil {
 		in.Target = &TARGET_DEFAULT
 	}
 
 	// TODO: MCMS contracts not found in state, need to be added when MCMS is deployed
 	if *in.Target == TARGET_MCMS {
-		return nil, fmt.Errorf("funding MCMS contracts is not supported yet as MCMS contracts are not in state")
+		return FundContractsOutput{}, fmt.Errorf("funding MCMS contracts is not supported yet as MCMS contracts are not in state")
 	}
 
 	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
 
 	tonChain, err := dep.Resolve[cldf_ton.Chain](dp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve ton chain: %w", err)
+		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
 	}
 
 	ccipContracts := []targetContract{
@@ -98,24 +115,34 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	case TARGET_MCMS:
 		targetContracts = append(targetContracts, mcmsContracts...)
 	default:
-		return nil, fmt.Errorf("invalid target: %d", *in.Target)
+		return FundContractsOutput{}, fmt.Errorf("invalid target: %d", *in.Target)
 	}
 
 	amount, err := tlb.FromTON(in.Amount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse amount: %w", err)
+		return FundContractsOutput{}, fmt.Errorf("failed to parse amount: %w", err)
 	}
-	fundingRequests, err := func() ([]tlb.InternalMessage, error) {
+	messages, err := func() ([]InternalMessage[any], error) {
 		if in.Mode == FUND_MODE_EXACT_AMOUNT {
 			return prepareTransfers(targetContracts, amount)
 		}
 		return prepareTopUps(context.TODO(), amount, targetContracts, tonChain)
 	}()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate funding requests: %w", err)
+		return FundContractsOutput{}, fmt.Errorf("failed to generate funding requests: %w", err)
 	}
 
-	return tlbe.ManyCellsFrom(fundingRequests)
+	_in := SendMessagesInput{
+		Messages: messages,
+		Plan:     in.Plan,
+	}
+
+	r, err := operations.ExecuteOperation(b, SendMessages, dp, _in)
+	if err != nil {
+		return FundContractsOutput{}, fmt.Errorf("failed to execute send messages operation: %w", err)
+	}
+
+	return FundContractsOutput(r.Output), nil
 }
 
 type targetContract struct {
@@ -123,25 +150,20 @@ type targetContract struct {
 	addr address.Address
 }
 
-func prepareTransfers(targetContracts []targetContract, amount tlb.Coins) ([]tlb.InternalMessage, error) {
-	requests := make([]tlb.InternalMessage, 0, len(targetContracts))
+func prepareTransfers(targetContracts []targetContract, amount tlb.Coins) ([]InternalMessage[any], error) {
+	requests := make([]InternalMessage[any], 0, len(targetContracts))
 	for _, contract := range targetContracts {
 		if contract.addr.IsAddrNone() {
 			continue
 		}
 
-		requests = append(requests, tlb.InternalMessage{
-			Bounce:  true,
-			Amount:  amount,
-			DstAddr: &contract.addr,
-			Body:    &cell.Cell{},
-		})
+		requests = append(requests, fundingMessage(contract.addr, amount))
 	}
 	return requests, nil
 }
 
-func prepareTopUps(ctx context.Context, targetAmount tlb.Coins, targetContracts []targetContract, tonChain cldf_ton.Chain) ([]tlb.InternalMessage, error) {
-	requests := make([]tlb.InternalMessage, 0, len(targetContracts))
+func prepareTopUps(ctx context.Context, targetAmount tlb.Coins, targetContracts []targetContract, tonChain cldf_ton.Chain) ([]InternalMessage[any], error) {
+	requests := make([]InternalMessage[any], 0, len(targetContracts))
 	for _, contract := range targetContracts {
 		if contract.addr.IsAddrNone() {
 			continue
@@ -165,12 +187,16 @@ func prepareTopUps(ctx context.Context, targetAmount tlb.Coins, targetContracts 
 			return nil, fmt.Errorf("failed to calculate top-up amount for contract %s: %w", contract.name, err)
 		}
 
-		requests = append(requests, tlb.InternalMessage{
-			Bounce:  true,
-			Amount:  *amount,
-			DstAddr: &contract.addr,
-			Body:    &cell.Cell{},
-		})
+		requests = append(requests, fundingMessage(contract.addr, *amount))
 	}
 	return requests, nil
+}
+
+func fundingMessage(addr address.Address, amount tlb.Coins) InternalMessage[any] {
+	return InternalMessage[any]{
+		Bounce:  true, // bouncing is enabled to avoid losing funds in case of incorrect addresses or other issues. All CCIP/MCMS contracts should accept empty message.
+		DstAddr: &addr,
+		Amount:  amount,
+		Body:    nil, // empty message
+	}
 }
