@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -775,8 +776,17 @@ func TestIntegration(t *testing.T) {
 		}
 
 		var measurementsCSV strings.Builder
-		measurementsCSV.WriteString("number_of_ticks,duration_ms,cost\n")
-		for numberOfTicks, measurement := range measurements {
+		measurementsCSV.WriteString("number_of_ticks,duration_s,cost\n")
+
+		// Sort measurements by number of ticks
+		sortedTicks := make([]uint64, 0, len(measurements))
+		for numberOfTicks := range measurements {
+			sortedTicks = append(sortedTicks, numberOfTicks)
+		}
+		slices.Sort(sortedTicks)
+
+		for _, numberOfTicks := range sortedTicks {
+			measurement := measurements[numberOfTicks]
 			fmt.Fprintf(&measurementsCSV, "%d,%.3f,%s\n", numberOfTicks, measurement.duration.Seconds(), measurement.cost.String())
 		}
 		t.Logf("Measurements:\n%s", measurementsCSV.String())
