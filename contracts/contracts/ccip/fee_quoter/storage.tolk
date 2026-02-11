@@ -8,7 +8,7 @@ struct Storage {
 
     maxFeeJuelsPerMsg: uint96;
     linkToken: address;
-    tokenPriceStalenessThreshold: uint64;
+    tokenPriceStalenessThreshold: uint32;
 
     // NOTE: usdPerUnitGasByDestChain is on DestChainConfig instead (same as Solana)
     usdPerToken: map<address, TimestampedPrice>;
