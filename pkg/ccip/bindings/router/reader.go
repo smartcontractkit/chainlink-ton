@@ -1,15 +1,15 @@
 package router
 
 import (
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
-
 	"fmt"
 	"math/big"
 
+	"github.com/samber/lo"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/ton"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/parser"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -38,7 +38,11 @@ var GetOnRamp = tvm.Getter[uint64, *address.Address]{
 var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	Name: "destChainSelectors",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
-		return parser.ParseLispTuple(r.AsTuple()), nil
+		selectors, err := parser.ParseLispTuple[*big.Int](r.AsTuple())
+		if err != nil {
+			return nil, err
+		}
+		return lo.Map(selectors, func(x *big.Int, _ int) uint64 { return x.Uint64() }), nil
 	}),
 })
 

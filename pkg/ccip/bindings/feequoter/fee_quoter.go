@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/samber/lo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -319,7 +320,11 @@ func (d *DestChainConfigMap) Fetch(ctx context.Context, client ton.APIClientWrap
 		return err
 	}
 
-	selectorSlice := parser.ParseLispTuple(result.AsTuple())
+	selectorsBigInt, err := parser.ParseLispTuple[*big.Int](result.AsTuple())
+	if err != nil {
+		return err
+	}
+	selectorSlice := lo.Map(selectorsBigInt, func(x *big.Int, _ int) uint64 { return x.Uint64() })
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	var lock sync.Mutex
