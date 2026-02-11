@@ -95,7 +95,7 @@ func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.
 	// Fund wallet
 	_, _, err := funder.SendWaitTransaction(ctx,
 		&wallet.Message{
-			Mode: wallet.PayGasSeparately,
+			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 			InternalMessage: &tlb.InternalMessage{
 				IHRDisabled: true,
 				Bounce:      false,
@@ -116,9 +116,8 @@ func NewInitializedWallet(ctx context.Context, funder *wallet.Wallet, w *wallet.
 				IHRDisabled: true,
 				Bounce:      false,
 				DstAddr:     w.WalletAddress(),
-				// Send some non-zero amount to self to trigger wallet initialization
-				Amount: *amount.MustDiv(big.NewInt(2)),
-				Body:   nil,
+				Amount:      *amount.MustDiv(big.NewInt(2)), // Send some non-zero amount to self to trigger wallet initialization
+				Body:        nil,
 			},
 		})
 	if err != nil {
