@@ -2,6 +2,7 @@ package ton
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -21,30 +22,30 @@ import (
 type FundMode uint8
 
 const (
-	// FUND_MODE_EXACT_AMOUNT means the specified amount will be transferred to the contract, regardless of its current balance.
-	FUND_MODE_EXACT_AMOUNT FundMode = 1 + iota
-	// FUND_MODE_TOP_UP means the current balance of the contract will be topped up to reach the specified amount (i.e. if the contract already has some balance, only the difference between the current balance and the target amount will be transferred). If the current balance is greater than or equal to the target amount, no transfer will be made.
-	FUND_MODE_TOP_UP
+	// FundModeExactAmount means the specified amount will be transferred to the contract, regardless of its current balance.
+	FundModeExactAmount FundMode = 1 + iota
+	// FundModeTopUp means the current balance of the contract will be topped up to reach the specified amount (i.e. if the contract already has some balance, only the difference between the current balance and the target amount will be transferred). If the current balance is greater than or equal to the target amount, no transfer will be made.
+	FundModeTopUp
 )
 
 type Target uint8
 
 const (
-	TARGET_ALL Target = 1 + iota
-	TARGET_CCIP
-	TARGET_MCMS
+	TargetAll Target = 1 + iota
+	TargetCcip
+	TargetMcms
 )
 
-var TARGET_DEFAULT Target = TARGET_ALL
+var TargetDefault Target = TargetAll
 
 type FundContractsInput struct {
 	Mode FundMode
 	// Decimal string representing the amount in TON (e.g. "1.5" for 1.5 TON or 1_500_000_000 nanoton)
 	//
-	// If Mode is FUND_MODE_EXACT_AMOUNT, this is the exact amount to transfer to the contract.
-	// If Mode is FUND_MODE_TOP_UP, this is the target balance for the contract after funding (i.e. current balance will be topped up to reach this amount).
+	// If Mode is FundModeExactAmount, this is the exact amount to transfer to the contract.
+	// If Mode is FundModeTopUp, this is the target balance for the contract after funding (i.e. current balance will be topped up to reach this amount).
 	Amount string
-	// Target specifies which contracts to fund. If TARGET_ALL, both CCIP and MCMS contracts will be funded. If TARGET_CCIP, only CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter) will be funded. If TARGET_MCMS, only MCMS contracts (Owner MCMS, RMN MCMS) will be funded. If nil, defaults to TARGET_ALL.
+	// Target specifies which contracts to fund. If TargetAll, both CCIP and MCMS contracts will be funded. If TargetCcip, only CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter) will be funded. If TargetMcms, only MCMS contracts (Owner MCMS, RMN MCMS) will be funded. If nil, defaults to TargetAll.
 	Target *Target
 
 	Plan bool `json:"plan"`
@@ -75,12 +76,12 @@ type FundingMessage struct{} // Empty message
 
 func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) (FundContractsOutput, error) {
 	if in.Target == nil {
-		in.Target = &TARGET_DEFAULT
+		in.Target = &TargetDefault
 	}
 
 	// TODO: MCMS contracts not found in state, need to be added when MCMS is deployed
-	if *in.Target == TARGET_MCMS {
-		return FundContractsOutput{}, fmt.Errorf("funding MCMS contracts is not supported yet as MCMS contracts are not in state")
+	if *in.Target == TargetMcms {
+		return FundContractsOutput{}, errors.New("funding MCMS contracts is not supported yet as MCMS contracts are not in state")
 	}
 
 	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
@@ -107,12 +108,12 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	targetContracts := make([]targetContract, 0, len(ccipContracts)+len(mcmsContracts))
 
 	switch *in.Target {
-	case TARGET_ALL:
+	case TargetAll:
 		targetContracts = append(targetContracts, ccipContracts...)
 		targetContracts = append(targetContracts, mcmsContracts...)
-	case TARGET_CCIP:
+	case TargetCcip:
 		targetContracts = append(targetContracts, ccipContracts...)
-	case TARGET_MCMS:
+	case TargetMcms:
 		targetContracts = append(targetContracts, mcmsContracts...)
 	default:
 		return FundContractsOutput{}, fmt.Errorf("invalid target: %d", *in.Target)
@@ -123,7 +124,7 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		return FundContractsOutput{}, fmt.Errorf("failed to parse amount: %w", err)
 	}
 	messages, err := func() ([]InternalMessage[any], error) {
-		if in.Mode == FUND_MODE_EXACT_AMOUNT {
+		if in.Mode == FundModeExactAmount {
 			return prepareTransfers(targetContracts, amount)
 		}
 		return prepareTopUps(context.TODO(), amount, targetContracts, tonChain)
