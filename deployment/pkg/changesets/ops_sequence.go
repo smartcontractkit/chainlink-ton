@@ -24,7 +24,8 @@ import (
 var _ cldf.ChangeSetV2[OpsAnySequence] = opsAnySequence{}
 
 type OpsAnySequence struct {
-	TimelockAnySequenceIn opsmcms.TimelockAnySequenceInput `json:"timelockAnySequenceIn"`
+	AnySequenceIn opston.AnySequenceInput `json:"anySequenceIn"`
+	Options       opsmcms.TimelockOpts    `json:"options"`
 
 	// MCMS input configuration required to create proposals
 	MCMS utilsmcms.Input `json:"mcms"`
@@ -50,7 +51,7 @@ func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ OpsAnySequenc
 }
 
 func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.ChangesetOutput, error) {
-	selector := in.TimelockAnySequenceIn.Options.ChainSelector
+	selector := in.Options.ChainSelector
 
 	stateCCIP, err := state.LoadOnchainState(env)
 	if err != nil {
@@ -79,14 +80,18 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 	//
 	// Notice: we try to resolve the the underlying operation inputs using the registered resolvers.
 	// For example, this allows resolving extended high-level input (any) before unmarshaling into (raw) op.IN types.
-	resolvedInputs, err := cs.rregistry.Resolve(in.TimelockAnySequenceIn.AnySequenceIn.Inputs)
+	resolvedInputs, err := cs.rregistry.Resolve(in.AnySequenceIn.Inputs)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to resolve input: %w", err)
 	}
-	in.TimelockAnySequenceIn.AnySequenceIn.Inputs = resolvedInputs.([]any)
+	in.AnySequenceIn.Inputs = resolvedInputs.([]any)
 
 	// Execute the (any) sequence based on the provided input
-	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, dp, in.TimelockAnySequenceIn)
+	b := env.OperationsBundle
+	r, err := operations.ExecuteSequence(b, opsmcms.TimelockAnySequence, dp, opsmcms.TimelockAnySequenceInput{
+		AnySequenceIn: in.AnySequenceIn,
+		Options:       in.Options,
+	})
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute %s on %d: %w", opsmcms.TimelockAnySequence.ID(), selector, err)
 	}
