@@ -11,7 +11,7 @@ function loadEnv() {
   const envPath = path.join(__dirname, '..', '.env')
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, 'utf8')
-    envContent.split('\n').forEach(line => {
+    envContent.split('\n').forEach((line) => {
       const match = line.match(/^([^=:#]+)=(.*)$/)
       if (match) {
         const key = match[1].trim()
@@ -43,24 +43,24 @@ function promptConfirmation(question: string): Promise<boolean> {
 
 /**
  * Script to call sendWithdrawFeeTokens on OnRamp contracts
- * 
+ *
  * Usage: yarn blueprint run sendWithdrawOnRamp --<network> --mnemonic <onRampAddress1> [onRampAddress2...]
- * 
+ *
  * Or with private key: WALLET_PK=<hex_private_key> yarn blueprint run sendWithdrawOnRamp --<network> <onRampAddress1> [onRampAddress2...]
- * 
+ *
  * Arguments:
  *   onRampAddresses: One or more OnRamp contract addresses to withdraw from (space-separated)
- * 
+ *
  * Environment Variables:
  *   WALLET_PK: (Optional) Hex-encoded key pair (64 bytes / 128 hex chars). Format: 32 bytes private key + 32 bytes public key. If set, uses this instead of mnemonic.
- * 
+ *
  * Examples:
  *   # Withdraw fee tokens from OnRamp contracts (using mnemonic)
  *   yarn blueprint run sendWithdrawOnRamp --testnet --mnemonic EQAbc... EQDef...
- * 
+ *
  *   # Withdraw using private key
  *   WALLET_PK=abc123... yarn blueprint run sendWithdrawOnRamp --testnet EQAbc... EQDef...
- * 
+ *
  * Note: This withdraws all accumulated fees to the feeAggregator address configured in the OnRamp.
  *       The contract will maintain its reserve amount as configured.
  *       You will be prompted to confirm the destination address before each withdrawal.
@@ -75,37 +75,39 @@ export async function run(provider: NetworkProvider, args: string[]) {
   // Check if WALLET_PK environment variable is set
   let sender
   let senderAddress: Address
-  
+
   if (process.env.WALLET_PK) {
     // Use private key from environment variable (64 bytes: 32 bytes private key + 32 bytes public key)
     const fullKeyHex = process.env.WALLET_PK
     const fullKey = Buffer.from(fullKeyHex, 'hex')
-    
+
     if (fullKey.length !== 64) {
-      throw new Error(`Invalid key length: expected 64 bytes (128 hex chars), got ${fullKey.length}. Format: 32 bytes private key + 32 bytes public key`)
+      throw new Error(
+        `Invalid key length: expected 64 bytes (128 hex chars), got ${fullKey.length}. Format: 32 bytes private key + 32 bytes public key`,
+      )
     }
-    
+
     // Extract private key (first 32 bytes) and public key (last 32 bytes)
     const privateKey = fullKey.subarray(0, 32)
     const publicKey = fullKey.subarray(32, 64)
-    
+
     // Create secret key for signing (64 bytes: private + public)
     const secretKey = Buffer.concat([privateKey, publicKey])
-    
+
     // Create wallet from public key
     const wallet = WalletContractV5R1.create({ workchain: 0, publicKey: publicKey })
     const contract = provider.open(wallet)
-    
+
     sender = contract.sender(secretKey)
     senderAddress = wallet.address
-    
+
     console.log('Using wallet from WALLET_PK environment variable')
     console.log('Wallet address:', senderAddress.toString())
   } else {
     // Use provider's sender (mnemonic-based)
     sender = provider.sender()
     senderAddress = sender.address
-    
+
     if (!senderAddress) {
       throw new Error('Sender address not available')
     }
@@ -143,7 +145,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     } catch (error) {
       console.error(`   ❌ Failed: ${error}`)
     }
-    
+
     // Add separator between contracts
     if (idx < onRampAddresses.length - 1) {
       console.log('')
@@ -153,11 +155,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
   console.log('\n✅ All withdrawals processed!')
 }
 
-async function withdrawFromOnRamp(
-  provider: NetworkProvider,
-  sender: any,
-  onRampAddress: Address,
-) {
+async function withdrawFromOnRamp(provider: NetworkProvider, sender: any, onRampAddress: Address) {
   // Open OnRamp contract
   const onRamp = provider.open(OnRamp.createFromAddress(onRampAddress))
 
@@ -165,11 +163,11 @@ async function withdrawFromOnRamp(
   let config
   let reserve
   let balance
-  
+
   try {
     config = await onRamp.getDynamicConfig()
     reserve = await onRamp.getReserve()
-    
+
     // Try to get current balance
     try {
       const account = await provider.provider(onRampAddress).getState()
@@ -177,7 +175,7 @@ async function withdrawFromOnRamp(
     } catch {
       balance = null
     }
-    
+
     console.log('')
     console.log('   ⚠️  WITHDRAWAL DETAILS:')
     console.log(`   Fee Aggregator (destination): ${config.feeAggregator.toString()}`)
@@ -185,7 +183,9 @@ async function withdrawFromOnRamp(
     if (balance !== null) {
       const withdrawAmount = balance > reserve ? balance - reserve : 0n
       console.log(`   Current Balance: ${balance} nanoTON (${Number(balance) / 1e9} TON)`)
-      console.log(`   Amount to withdraw: ~${withdrawAmount} nanoTON (~${Number(withdrawAmount) / 1e9} TON)`)
+      console.log(
+        `   Amount to withdraw: ~${withdrawAmount} nanoTON (~${Number(withdrawAmount) / 1e9} TON)`,
+      )
     }
     console.log('')
   } catch (error) {
@@ -196,7 +196,7 @@ async function withdrawFromOnRamp(
 
   // Prompt for confirmation
   const confirmed = await promptConfirmation(
-    `   Do you want to proceed with withdrawal to ${config.feeAggregator.toString()}?`
+    `   Do you want to proceed with withdrawal to ${config.feeAggregator.toString()}?`,
   )
 
   if (!confirmed) {
