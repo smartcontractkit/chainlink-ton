@@ -20,34 +20,35 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
-type FundMode uint8
+type FundMode string
 
 const (
 	// FundModeExactAmount means the specified amount will be transferred to the contract, regardless of its current balance.
-	FundModeExactAmount FundMode = 1 + iota
+	FundModeExactAmount FundMode = "exact_amount"
 	// FundModeTopUp means the current balance of the contract will be topped up to reach the specified amount (i.e. if the contract already has some balance, only the difference between the current balance and the target amount will be transferred). If the current balance is greater than or equal to the target amount, no transfer will be made.
-	FundModeTopUp
+	FundModeTopUp FundMode = "top_up"
 )
 
-type Target uint8
+type Target string
 
 const (
-	TargetAll Target = 1 + iota
-	TargetCcip
-	TargetMcms
+	TargetAll  Target = "all"
+	TargetCcip Target = "ccip"
+	TargetMcms Target = "mcms"
 )
 
 var TargetDefault = TargetAll
 
 type FundContractsInput struct {
-	Mode FundMode
+	// Funding mode, either "exact_amount" or "top_up" to target amount
+	Mode FundMode `json:"mode"`
 	// Decimal string representing the amount in TON (e.g. "1.5" for 1.5 TON or 1_500_000_000 nanoton)
 	//
 	// If Mode is FundModeExactAmount, this is the exact amount to transfer to the contract.
 	// If Mode is FundModeTopUp, this is the target balance for the contract after funding (i.e. current balance will be topped up to reach this amount).
-	Amount string
+	Amount string `json:"amount"`
 	// Target specifies which contracts to fund. If TargetAll, both CCIP and MCMS contracts will be funded. If TargetCcip, only CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter) will be funded. If TargetMcms, only MCMS contracts (Owner MCMS, RMN MCMS) will be funded. If nil, defaults to TargetAll.
-	Target *Target
+	Target *Target `json:"target"`
 
 	Plan bool `json:"plan"`
 }
@@ -117,7 +118,7 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	case TargetMcms:
 		targetContracts = append(targetContracts, mcmsContracts...)
 	default:
-		return FundContractsOutput{}, fmt.Errorf("invalid target: %d", *in.Target)
+		return FundContractsOutput{}, fmt.Errorf("invalid target: %s", *in.Target)
 	}
 
 	amount, err := tlb.FromTON(in.Amount)
