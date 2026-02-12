@@ -24,6 +24,7 @@ import (
 var _ cldf.ChangeSetV2[OpsAnySequence] = opsAnySequence{}
 
 type OpsAnySequence struct {
+	// Together form underlying opsmcms.TimelockAnySequenceInput
 	AnySequenceIn opston.AnySequenceInput `json:"anySequenceIn"`
 	Options       opsmcms.TimelockOpts    `json:"options"`
 

@@ -1,10 +1,7 @@
 package sequences
 
 import (
-	"encoding/json"
 	"fmt"
-
-	"github.com/xssnick/tonutils-go/tlb"
 
 	mcms_ton "github.com/smartcontractkit/mcms/sdk/ton"
 	"github.com/smartcontractkit/mcms/types"
@@ -39,13 +36,10 @@ func (r *MCMSReaderAdapter) GetChainMetadata(e deployment.Environment, chainSele
 		return types.ChainMetadata{}, fmt.Errorf("failed to get opCount for MCMS at address %s on chain %d: %w", mcmsAddr.Address, chainSelector, err)
 	}
 
-	// Notice: static value for now, not configurable
-	value := tlb.MustFromTON("0.1").Nano().Uint64()
-
 	return types.ChainMetadata{
-		StartingOpCount:  counts,
-		MCMAddress:       mcmsAddr.Address,
-		AdditionalFields: json.RawMessage(fmt.Sprintf(`{"value": %d}`, value)), // TODO: is this even used right now?
+		StartingOpCount: counts,
+		MCMAddress:      mcmsAddr.Address,
+		// Notice: AdditionalFields not used for TON right now
 	}, nil
 }
 
