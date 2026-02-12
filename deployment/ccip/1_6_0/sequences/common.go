@@ -30,8 +30,6 @@ func init() {
 	deploy.GetRegistry().RegisterDeployer(chainsel.FamilyTon, v, &TonDeployAdapter{})
 	lanes.GetLaneAdapterRegistry().RegisterLaneAdapter(chainsel.FamilyTon, v, &TonLaneAdapter{})
 	deploy.GetTransferOwnershipRegistry().RegisterAdapter(chainsel.FamilyTon, v, &TonTransferOwnershipAdapter{})
-	changesets.GetRegistry().RegisterMCMSReader(chainsel.FamilyTon, &MCMSReaderAdapter{})
-
 	curseAdapter := &TonCurseAdapter{}
 	fastcurse.GetCurseRegistry().RegisterNewCurse(
 		fastcurse.CurseRegistryInput{
@@ -41,6 +39,7 @@ func init() {
 			CurseSubjectAdapter: curseAdapter,
 		},
 	)
+	changesets.GetRegistry().RegisterMCMSReader(chainsel.FamilyTon, &MCMSReaderAdapter{})
 }
 
 // Standalone functions - can be used by any adapter without coupling
