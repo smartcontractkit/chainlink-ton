@@ -11,6 +11,8 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/mcms/changesets"
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
@@ -86,25 +88,27 @@ func TestDeployMCMS(t *testing.T) {
 	mc, err := chain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
 
+	qualifier := cciputils.CLLQualifier // default
+
 	// <Verify timelock address>
-	timelockAddr := mcmsState[chainSelector].Timelock
+	timelockAddr := mcmsState[chainSelector].ByQualifier[qualifier].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
-	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
 	require.NoError(t, err)
 	isInitialized := rawIsInitialized.Sign() != 0
 	require.True(t, isInitialized)
-	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
 	require.NoError(t, err)
-	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
 	require.NoError(t, err)
-	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
 	require.NoError(t, err)
-	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
+	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
 	require.NoError(t, err)
-	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
 	require.NoError(t, err)
 	shouldBeDeployer1 := getProposerResponse.MustSlice(0).MustLoadAddr()
 	shouldBeDeployer2 := getExecutorResponse.MustSlice(0).MustLoadAddr()
@@ -119,8 +123,8 @@ func TestDeployMCMS(t *testing.T) {
 	// </Verify timelock address>
 
 	// <Verify MCMS address>
-	mcmsAddr := mcmsState[chainSelector].MCMS
-	tv, err := tvm.CallGetter(ctx, chain.Client, mc, &mcmsAddr, common.GetTypeAndVersion)
+	mcmsAddr := mcmsState[chainSelector].ByQualifier[qualifier].MCMS
+	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type)
 	// </Verify MCMS address>

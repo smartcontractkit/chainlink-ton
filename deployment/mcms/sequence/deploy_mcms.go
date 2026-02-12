@@ -13,6 +13,8 @@ import (
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+
 	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -23,9 +25,10 @@ import (
 )
 
 type DeployMCMSSeqInput struct {
-	ContractsVersionSha string
-	ContractsParams     mcmsConfig.ChainContractParams
-	ChainSelector       uint64
+	ContractsVersionSha string                         `json:"contractsVersionSha"`
+	ContractsParams     mcmsConfig.ChainContractParams `json:"contractsParams"`
+	ChainSelector       uint64                         `json:"chainSelector"`
+	Qualifier           *string                        `json:"qualifier,omitempty"`
 }
 
 var DeployMCMSSequence = cldf_ops.NewSequence(
@@ -64,8 +67,16 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 	tonCompiledContracts := tonCompiledContractsSeqOutput.Output.CompiledContracts
 	var outputAddr *ds.AddressRef
 
+	qualifier := cciputils.CLLQualifier // default
+	if in.Qualifier != nil {
+		qualifier = *in.Qualifier
+	}
+
+	// Get MCMS state by qualifier to check if any of the contracts are already deployed (and avoid redeploying them)
+	stateMCMSSuite := stateMCMS.ByQualifier[qualifier]
+
 	// Invoke deploy Timelock changeset operation
-	if stateMCMS.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
+	if stateMCMSSuite == nil || stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
 		storage := timelock.EmptyDataFrom(in.ContractsParams.Timelock.ID)
 		body := in.ContractsParams.Timelock.InitMessage
 
@@ -77,7 +88,7 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 	}
 
 	// Invoke deploy MCMS changeset operation
-	if stateMCMS.MCMS.IsAddrNone() { // Deploy MCMS only if not deployed yet
+	if stateMCMSSuite == nil || stateMCMSSuite.MCMS.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		var chainIDStr string
 		chainSelector := chain.ChainSelector()
 		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
@@ -96,6 +107,11 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 			return sequences.OnChainOutput{}, err
 		}
 		addresses = append(addresses, *outputAddr)
+	}
+
+	// Attach the qualifier to the output (to be stored in DS)
+	for i := range addresses {
+		addresses[i].Qualifier = qualifier
 	}
 
 	return sequences.OnChainOutput{
