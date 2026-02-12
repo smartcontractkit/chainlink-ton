@@ -54,7 +54,7 @@ type FundContractsInput struct {
 	// If Mode is FundModeTopUp, this is the target balance for the contract after funding (i.e. current balance will be topped up to reach this amount).
 	Amount string `json:"amount"`
 	// Target specifies which contracts to fund. If TargetAll, both CCIP and MCMS contracts will be funded. If TargetCcip, only CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter) will be funded. If TargetMcms, only MCMS contracts (Owner MCMS, RMN MCMS) will be funded. If nil, defaults to TargetAll.
-	Target *Target `json:"target"`
+	Target *Target `json:"target,omitempty"`
 
 	Plan bool `json:"plan"`
 }
