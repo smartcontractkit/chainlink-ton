@@ -243,7 +243,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 				ChainSelector:   cfg.ChainSelector,
-				FeeAggregator:   tvm.ZeroAddress, // default to zero address
+				FeeAggregator:   deployer, // defaults to deployer, can be updated later via SetDynamicConfig
 				Reserve:         defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{
