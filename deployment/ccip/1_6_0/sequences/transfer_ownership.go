@@ -24,7 +24,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -62,7 +61,7 @@ func (a *TonTransferOwnershipAdapter) InitializeTimelockAddress(e cldf.Environme
 func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_ops.Sequence[deploy.TransferOwnershipPerChainInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/transfer-ownership-via-mcms",
-		semver.MustParse("1.0.0"),
+		semver.MustParse("0.1.0"),
 		"Transfers ownership of TON contracts via MCMS",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in deploy.TransferOwnershipPerChainInput) (output sequences.OnChainOutput, err error) {
 			chain, ok := chains.TonChains()[in.ChainSelector]
@@ -85,21 +84,22 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 			deployerAddr := chain.Wallet.WalletAddress()
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
-			for _, contractRef := range in.ContractRef {
-				var contractAddr *address.Address
-				contractAddr, err = address.ParseAddr(contractRef.Address)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
-				}
+			var currentOwner *address.Address
+			currentOwner, err = address.ParseAddr(in.CurrentOwner)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse current owner address: %w", err)
+			}
 
+			for _, contractRef := range in.ContractRef {
 				if _, exist := a.timelockAddrs[in.ChainSelector]; !exist && !proposedOwner.Equals(deployerAddr) {
 					return sequences.OnChainOutput{}, fmt.Errorf("timelock address not initialized for chain %d, cannot plan transfer ownership to non-deployer", in.ChainSelector)
 				}
 
-				var contractType string
-				contractType, err = datastoreTypeToCodecType(string(contractRef.Type))
+				ownableType := bindings.PkgLib + ".access.Ownable"
+				var contractAddr *address.Address
+				contractAddr, err = address.ParseAddr(contractRef.Address)
 				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("unsupported contract type %s for ownership transfer: %w", contractRef.Type, err)
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
 				}
 
 				// Read the actual on-chain owner
@@ -107,12 +107,6 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				onChainOwner, err = tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get owner of %s: %w", contractRef.Address, err)
-				}
-
-				var currentOwner *address.Address
-				currentOwner, err = address.ParseAddr(in.CurrentOwner)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse current owner address: %w", err)
 				}
 
 				if !currentOwner.Equals(onChainOwner) {
@@ -136,7 +130,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 							Bounce:  true,
 							DstAddr: contractAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body:    codec.MustWrapMessage[any](contractType, body),
+							Body:    codec.MustWrapMessage[any](ownableType, body),
 						},
 					},
 					Plan: true,
@@ -149,7 +143,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				plan := !deployerAddr.Equals(currentOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
+						ContractType: ownableType,
 						Tags:         []string{},
 					},
 				})
@@ -168,7 +162,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequence[deploy.TransferOwnershipPerChainInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
 		"ton/sequences/ccip/tooling-api/accept-ownership",
-		semver.MustParse("1.0.0"),
+		semver.MustParse("0.1.0"),
 		"Accepts ownership of TON contracts",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in deploy.TransferOwnershipPerChainInput) (output sequences.OnChainOutput, err error) {
 			chain, ok := chains.TonChains()[in.ChainSelector]
@@ -198,12 +192,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
 				}
 
-				var contractType string
-				contractType, err = datastoreTypeToCodecType(string(contractRef.Type))
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("unsupported contract type %s for accept ownership: %w", contractRef.Type, err)
-				}
-
+				ownableType := bindings.PkgLib + ".access.Ownable"
 				queryID, errQ := tvm.RandomQueryID()
 				if errQ != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query ID: %w", errQ)
@@ -220,7 +209,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 							Bounce:  true,
 							DstAddr: contractAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body:    codec.MustWrapMessage[any](contractType, body),
+							Body:    codec.MustWrapMessage[any](ownableType, body),
 						},
 					},
 					Plan: true,
@@ -234,7 +223,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 				plan := !sender.Equals(proposedOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
+						ContractType: ownableType,
 						Tags:         []string{},
 					},
 				})
@@ -265,23 +254,4 @@ func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership
 	}
 
 	return false, nil
-}
-
-// datastoreTypeToCodecType maps datastore contract types to codec contract type strings
-// used for message envelope encoding.
-func datastoreTypeToCodecType(dsType string) (string, error) {
-	switch dsType {
-	case string(state.Router):
-		return bindings.PkgCCIP + ".Router", nil
-	case string(state.OnRamp):
-		return bindings.PkgCCIP + ".OnRamp", nil
-	case string(state.OffRamp):
-		return bindings.PkgCCIP + ".OffRamp", nil
-	case string(state.FeeQuoter):
-		return bindings.PkgCCIP + ".FeeQuoter", nil
-	case string(state.MCMS):
-		return bindings.PkgMCMS + ".MCMS", nil
-	default:
-		return "", fmt.Errorf("unknown contract type: %s", dsType)
-	}
 }
