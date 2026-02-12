@@ -2,8 +2,10 @@ package sequences
 
 import (
 	"fmt"
+	"math/rand/v2"
 
 	"github.com/Masterminds/semver/v3"
+	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -18,6 +20,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
+	ton_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -28,13 +32,31 @@ import (
 )
 
 // TonTransferOwnershipAdapter implements the deploy.TransferOwnershipAdapter interface for TON chains.
-type TonTransferOwnershipAdapter struct{}
+type TonTransferOwnershipAdapter struct {
+	timelockAddrs map[uint64]*address.Address
+}
 
 var _ deploy.TransferOwnershipAdapter = &TonTransferOwnershipAdapter{}
 
 // InitializeTimelockAddress is a no-op for TON. Unlike EVM which caches the timelock address
 // for its operation inputs, TON resolves plan/send by comparing the on-chain owner against the deployer.
-func (a *TonTransferOwnershipAdapter) InitializeTimelockAddress(_ cldf.Environment, _ mcms.Input) error {
+func (a *TonTransferOwnershipAdapter) InitializeTimelockAddress(e cldf.Environment, input mcms.Input) error {
+	tonChains := e.BlockChains.TonChains()
+	timelockAddrs := make(map[uint64]*address.Address)
+	for sel := range tonChains {
+		reader := &MCMSReaderAdapter{}
+		timelockRef, err := reader.GetTimelockRef(e, sel, input)
+		if err != nil {
+			return fmt.Errorf("failed to get timelock ref for chain %d: %w", sel, err)
+		}
+		addr, err := datastore_utils.FindAndFormatRef(e.DataStore, timelockRef, sel, ton_utils.ToTONAddress)
+		if err != nil {
+			return fmt.Errorf("failed to find timelock address for chain %d: %w", sel, err)
+		}
+		timelockAddrs[sel] = addr
+	}
+
+	a.timelockAddrs = timelockAddrs
 	return nil
 }
 
@@ -61,7 +83,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			sender := chain.Wallet.WalletAddress()
+			deployerAddr := chain.Wallet.WalletAddress()
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
 			for _, contractRef := range in.ContractRef {
@@ -69,6 +91,10 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				contractAddr, err = address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
+				}
+
+				if _, exist := a.timelockAddrs[in.ChainSelector]; !exist && !proposedOwner.Equals(deployerAddr) {
+					return sequences.OnChainOutput{}, fmt.Errorf("timelock address not initialized for chain %d, cannot plan transfer ownership to non-deployer", in.ChainSelector)
 				}
 
 				var contractType string
@@ -95,6 +121,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				}
 
 				body := ownable2step.TransferOwnership{
+					QueryID:  rand.Uint64(),
 					NewOwner: proposedOwner,
 				}
 
@@ -115,7 +142,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				}
 
 				// Send directly if deployer is the current owner, otherwise plan through MCMS
-				plan := !sender.Equals(currentOwner)
+				plan := !deployerAddr.Equals(currentOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: contractType,
@@ -173,7 +200,9 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 					return sequences.OnChainOutput{}, fmt.Errorf("unsupported contract type %s for accept ownership: %w", contractRef.Type, err)
 				}
 
-				body := ownable2step.AcceptOwnership{}
+				body := ownable2step.AcceptOwnership{
+					QueryID: rand.Uint64(),
+				}
 
 				var r cldf_ops.Report[opston.SendMessagesInput, opston.SendMessagesOutput]
 				r, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
@@ -213,22 +242,20 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 }
 
 // ShouldAcceptOwnershipWithTransferOwnership determines whether to accept ownership in the same changeset as transfer ownership.
-// Returns true only when the proposed owner is the deployer, since AcceptOwnership must be called by the proposed owner
-// and can only be sent directly (plan=false) when the proposed owner matches the chain's wallet.
-// When transferring to a different wallet (e.g., timelock), accept requires a separate MCMS proposal
-// via AcceptOwnershipChangeset.
-func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership(e cldf.Environment, in deploy.TransferOwnershipPerChainInput) (bool, error) {
-	chain, ok := e.BlockChains.TonChains()[in.ChainSelector]
-	if !ok {
-		return false, fmt.Errorf("TON chain with selector %d not found in environment", in.ChainSelector)
-	}
-
+// Returns true when the proposed owner is the timelock (deployer transfers then timelock accepts in one changeset).
+// Returns false when the proposed owner is the deployer (timelock transfers via deferred execution, can't accept in same changeset).
+// Returns false when the proposed owner is unknown
+func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership(_ cldf.Environment, in deploy.TransferOwnershipPerChainInput) (bool, error) {
 	proposedOwner, err := address.ParseAddr(in.ProposedOwner)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse proposed owner address: %w", err)
 	}
 
-	return proposedOwner.Equals(chain.Wallet.WalletAddress()), nil
+	if timelockAddr, exist := a.timelockAddrs[in.ChainSelector]; exist && proposedOwner.Equals(timelockAddr) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // datastoreTypeToCodecType maps datastore contract types to codec contract type strings

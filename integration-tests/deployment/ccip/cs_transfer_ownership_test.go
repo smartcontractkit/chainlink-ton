@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
@@ -14,11 +15,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	mcms_types "github.com/smartcontractkit/mcms/types"
 
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
-	mcms_types "github.com/smartcontractkit/mcms/types"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
@@ -58,6 +59,28 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "Failed to deploy TON chain contracts")
+
+	require.NoError(t, output.DataStore.Merge(env.DataStore))
+	env.DataStore = output.DataStore.Seal()
+
+	// Step 1.5: Deploy MCMS contracts (needed for transfer ownership timelock reference)
+	mcmsRegistry := cs_ccip.GetRegistry()
+	adapterVersion := semver.MustParse("1.6.0")
+	dReg = deployops.GetRegistry()
+	output, err = deployops.DeployMCMS(dReg, mcmsRegistry).Apply(env, deployops.MCMSDeploymentConfig{
+		Chains: map[uint64]deployops.MCMSDeploymentConfigPerChain{
+			tonSelector: {
+				Canceller:        mcms_types.Config{},
+				Bypasser:         mcms_types.Config{},
+				Proposer:         mcms_types.Config{},
+				TimelockMinDelay: big.NewInt(0),
+				ContractVersion:  version,
+			},
+		},
+		AdapterVersion: adapterVersion,
+	})
+	require.NoError(t, err, "Failed to deploy MCMS contracts")
+	t.Log("Successfully deployed MCMS contracts")
 
 	require.NoError(t, output.DataStore.Merge(env.DataStore))
 	env.DataStore = output.DataStore.Seal()
@@ -112,7 +135,6 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	// false because the proposed owner is the new wallet (not the deployer), so the
 	// changeset only performs the transfer step — accept is handled separately below.
 	toRegistry := deployops.GetTransferOwnershipRegistry()
-	mcmsRegistry := cs_ccip.GetRegistry()
 
 	transferInput := deployops.TransferOwnershipInput{
 		ChainInputs: []deployops.TransferOwnershipPerChainInput{
