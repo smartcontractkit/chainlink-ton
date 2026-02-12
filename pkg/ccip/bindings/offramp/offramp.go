@@ -1,6 +1,8 @@
 package offramp
 
 import (
+	"reflect"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -101,8 +103,6 @@ type ConfigInfo struct {
 
 // Methods
 
-const CCIPReceiveOpCode = 0xb3126df1
-
 // CCIPReceive represents the CCIP message received on TON
 type CCIPReceive struct {
 	_       tlb.Magic      `tlb:"#b3126df1" json:"-"` //nolint:revive // Ignore opcode tag
@@ -190,6 +190,10 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
 
+var (
+	OpcodeCCIPReceive = tvm.MustExtractMagic(reflect.TypeOf(CCIPReceive{}))
+)
+
 // Config types that implements getter fetching interface with rpc client
 
 // OCR3Base represents the OCR3 base configuration stored on-chain
@@ -268,7 +272,7 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
 		ecMin = int32(ErrorMessageNotFromOwnedContract)
-		ecMax = int32(ErrorBatchingNotSupported)
+		ecMax = int32(ErrorMerkleRootCannotBeZero)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
@@ -280,10 +284,11 @@ const (
 	ErrorInvalidMessageDestChainSelector
 	ErrorSourceChainSelectorMismatch
 	ErrorInvalidOnRampUpdate
-	ErrorSenderIsNotRouter
+	ErrorInsufficientFee
 	ErrorSubjectCursed
 	ErrorUnauthorized
 	ErrorZeroAddressNotAllowed
+	ErrorTooManyMessagesInReport
 	ErrorSignatureVerificationRequiredInCommitPlugin
 	ErrorSignatureVerificationNotAllowedInExecutionPlugin
 	ErrorInvalidInterval

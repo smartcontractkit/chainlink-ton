@@ -14,22 +14,23 @@ func _() {
 	_ = x[ErrorInvalidMessageDestChainSelector-8403]
 	_ = x[ErrorSourceChainSelectorMismatch-8404]
 	_ = x[ErrorInvalidOnRampUpdate-8405]
-	_ = x[ErrorSenderIsNotRouter-8406]
+	_ = x[ErrorInsufficientFee-8406]
 	_ = x[ErrorSubjectCursed-8407]
 	_ = x[ErrorUnauthorized-8408]
 	_ = x[ErrorZeroAddressNotAllowed-8409]
-	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-8410]
-	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-8411]
-	_ = x[ErrorInvalidInterval-8412]
-	_ = x[ErrorBatchingNotSupported-8413]
-	_ = x[ErrorOnRampAddressMismatch-8414]
-	_ = x[ErrorEmptyCommitReport-8415]
-	_ = x[ErrorMerkleRootCannotBeZero-8416]
+	_ = x[ErrorTooManyMessagesInReport-8410]
+	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-8411]
+	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-8412]
+	_ = x[ErrorInvalidInterval-8413]
+	_ = x[ErrorBatchingNotSupported-8414]
+	_ = x[ErrorOnRampAddressMismatch-8415]
+	_ = x[ErrorEmptyCommitReport-8416]
+	_ = x[ErrorMerkleRootCannotBeZero-8417]
 }
 
-const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorSenderIsNotRouterErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZero"
+const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZero"
 
-var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 197, 215, 232, 258, 306, 359, 379, 404, 430, 452, 479}
+var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 8400

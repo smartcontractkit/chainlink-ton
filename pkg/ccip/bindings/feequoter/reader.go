@@ -20,7 +20,19 @@ var GetOwner = ownable2step.GetOwner
 // GetPendingOwner gets the pending owner of the FeeQuoter contract
 var GetPendingOwner = ownable2step.GetPendingOwner
 
-// GetDestChainConfig gets the destination chain configuration for a given chain selector
+// GetDestChainConfig gets the destination chain configuration for a given chain selector.
+//
+// NOTE: The on-chain getter "destChainConfig" returns a full DestChainConfig struct which contains:
+//   - config: FeeQuoterDestChainConfig (18 primitive fields)
+//   - usdPerUnitGas: Cell<GasPrice>
+//   - tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>
+//
+// However, this decoder only parses the first 18 values (the FeeQuoterDestChainConfig fields)
+// and ignores the remaining cell/dictionary fields. This works because TVM unpacks primitive
+// struct fields onto the stack as individual values. We intentionally reuse the on-chain getter
+// while only extracting the fields we need off-chain.
+//
+// See on-chain types in: contracts/contracts/ccip/fee_quoter/types.tolk (DestChainConfig, FeeQuoterDestChainConfig)
 var GetDestChainConfig = tvm.Getter[uint64, DestChainConfig]{
 	Name: destChainConfigGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (DestChainConfig, error) {

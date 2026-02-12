@@ -569,6 +569,32 @@ func TestUnloadCellToByteArray_Validation(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testData, result)
 	})
+
+	t.Run("rejects cell with multiple refs (hidden data attack)", func(t *testing.T) {
+		// Create a cell with data and multiple refs - this is a malformed snake cell
+		// that could contain hidden data in the extra refs
+		builder := cell.BeginCell()
+		_ = builder.StoreSlice([]byte("visible data"), 96) // 12 bytes = 96 bits
+
+		// Add multiple refs (hidden data that canonical snake encoding doesn't allow)
+		hiddenData1 := cell.BeginCell()
+		_ = hiddenData1.StoreSlice([]byte("hidden1"), 56)
+		hiddenData2 := cell.BeginCell()
+		_ = hiddenData2.StoreSlice([]byte("hidden2"), 56)
+
+		_ = builder.StoreRef(hiddenData1.EndCell())
+		_ = builder.StoreRef(hiddenData2.EndCell())
+
+		malformedCell := builder.EndCell()
+
+		// Verify the cell actually has 2 refs
+		require.Equal(t, uint(2), malformedCell.RefsNum())
+
+		// unloadCellToByteArray should reject this malformed cell
+		_, err := unloadCellToByteArray(malformedCell)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "expected at most 1 ref")
+	})
 }
 
 // Test validation for unpackArrayWithRefChaining

@@ -616,10 +616,13 @@ func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipo
 		// The plugin still expects the prices to be packed into the single 224 bit value since the EVM contracts
 		// don't store split prices the way the TON contracts do so we need to re-pack the prices here again:
 		// (DA << 112) | Exec
-		packedPrice := feequoter.PackGasPrice(
+		packedPrice, err := feequoter.PackGasPrice(
 			gasPriceUpdate.ExecutionGasPrice,
 			gasPriceUpdate.DataAvailabilityGasPrice,
 		)
+		if err != nil {
+			return ccipocr3.PriceUpdates{}, fmt.Errorf("failed to pack gas price for chain %d: %w", gasPriceUpdate.DestChainSelector, err)
+		}
 
 		updates.GasPriceUpdates = append(updates.GasPriceUpdates, ccipocr3.GasPriceChain{
 			ChainSel: ccipocr3.ChainSelector(gasPriceUpdate.DestChainSelector),
@@ -804,7 +807,10 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		// The plugin expects ExecutionGasPrice and DataAvailabilityGasPrice to be packed into a single big.Int
 		// value where DataAvailabilityGasPrice occupies the higher 112 bits and ExecutionGasPrice occupies the
 		// lower 112 bits. This allows DA and exec gas prices to be represented in a single value for L2 rollups.
-		packedValue := feequoter.PackGasPrice(execPrice, daPrice)
+		packedValue, err := feequoter.PackGasPrice(execPrice, daPrice)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pack gas price for chain %d: %w", selector, err)
+		}
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(gasPrice.Timestamp), //nolint:gosec // G115

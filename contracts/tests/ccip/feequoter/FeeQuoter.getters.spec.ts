@@ -167,7 +167,7 @@ describe('FeeQuoter Getters', () => {
 
       expect(config.maxFeeJuelsPerMsg).toBe(FeeQuoterSetup.MAX_MSG_FEES_JUELS)
       expect(config.linkToken.toString()).toBe(FeeQuoterSetup.SOURCE_LINK.token.toString())
-      expect(config.tokenPriceStalenessThreshold).toBe(BigInt(FeeQuoterSetup.TWELVE_HOURS))
+      expect(config.tokenPriceStalenessThreshold).toBe(FeeQuoterSetup.TWELVE_HOURS)
     })
   })
 

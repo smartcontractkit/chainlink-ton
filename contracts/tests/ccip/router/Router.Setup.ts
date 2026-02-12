@@ -157,7 +157,7 @@ async function deployFeeQuoterInstance(
     allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
     maxFeeJuelsPerMsg: 100000000n,
     linkToken: LINK_TOKEN,
-    tokenPriceStalenessThreshold: 1000n,
+    tokenPriceStalenessThreshold: 1000,
     usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
     premiumMultiplierWeiPerEth: Dictionary.empty(
       Dictionary.Keys.Address(),
