@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
@@ -183,7 +184,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	executeReport := ocr.ExecuteReport{
 		SourceChainSelector: uint64(chainReport.SourceChainSelector),
 		Message:             rampMessage,
-		OffChainTokenData:   cell.BeginCell().EndCell(), // default empty cell as on-chain, will be removed after token transfer is supported
+		OffChainTokenData:   tvm.EmptyCell, // default empty cell as on-chain, will be removed after token transfer is supported
 		Proofs:              proofs,
 		ProofFlagBits:       chainReport.ProofFlagBits.Int,
 	}
@@ -249,11 +250,16 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			destGasAmount := make([]byte, 4)
 			binary.BigEndian.PutUint32(destGasAmount, tokenAmount.DestGasAmount)
 
+			// Defensive check
+			if tokenAmount.Amount.Sign() < 0 {
+				return executeReport, fmt.Errorf("negative token amount decoded: %s", tokenAmount.Amount.String())
+			}
+
 			tokenAmounts = append(tokenAmounts, ccipocr3.RampTokenAmount{
 				SourcePoolAddress: ccipocr3.UnknownAddress(tokenAmount.SourcePoolAddress),
 				DestTokenAddress:  destTokenAddr,
 				ExtraData:         ccipocr3.Bytes(extraData),
-				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount), // TODO double check if we need to add range check for BigInt, since TON use 256 bits
+				Amount:            ccipocr3.NewBigInt(tokenAmount.Amount),
 				DestExecData:      destGasAmount,
 			})
 		}

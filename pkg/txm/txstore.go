@@ -134,36 +134,39 @@ func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.Exit
 }
 
 // cleanupFinalized removes all finalized transactions.
-// Returns the count of finalized transactions that were removed.
-func (s *TxStore) cleanupFinalized() int {
+// Returns the LTs of finalized transactions that were removed.
+func (s *TxStore) cleanupFinalized() []uint64 {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	// Remove all finalized transactions
 	// TODO: consider selectively removing txs based on exit codes
-	finalizedCount := len(s.finalizedTxs)
+	finalizedLTs := make([]uint64, 0, len(s.finalizedTxs))
+	for lt := range s.finalizedTxs {
+		finalizedLTs = append(finalizedLTs, lt)
+	}
 	s.finalizedTxs = map[uint64]*FinalizedTx{}
 
-	return finalizedCount
+	return finalizedLTs
 }
 
 // cleanupExpired removes expired unconfirmed transactions.
-// Returns the count of expired transactions that were removed. currentTimeMs is a Unix
+// Returns the LTs of expired transactions that were removed. currentTimeMs is a Unix
 // timestamp in milliseconds.
-func (s *TxStore) cleanupExpired(currentTimeMs uint64) int {
+func (s *TxStore) cleanupExpired(currentTimeMs uint64) []uint64 {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	// Remove expired unconfirmed transactions
-	expiredCount := 0
+	expiredLTs := []uint64{}
 	for lt, unconfirmedTx := range s.unconfirmedTxs {
 		if unconfirmedTx.ExpirationMs <= currentTimeMs {
 			delete(s.unconfirmedTxs, lt)
-			expiredCount++
+			expiredLTs = append(expiredLTs, lt)
 		}
 	}
 
-	return expiredCount
+	return expiredLTs
 }
 
 type AccountStore struct {
@@ -215,16 +218,16 @@ func (c *AccountStore) GetAllUnconfirmed() map[string][]*UnconfirmedTx {
 }
 
 // CleanupAll removes finalized and expired transactions from all TxStores.
-// Returns the total count of finalized and expired transactions that were removed.
-func (c *AccountStore) CleanupAll(currentTimeMs uint64) (finalized, expired int) {
+// Returns the LTs of finalized and expired transactions that were removed.
+func (c *AccountStore) CleanupAll(currentTimeMs uint64) (finalizedLTs []uint64, expiredLTs []uint64) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	totalFinalized := 0
-	totalExpired := 0
+	allFinalizedLTs := []uint64{}
+	allExpiredLTs := []uint64{}
 	for _, txStore := range c.store {
-		totalFinalized += txStore.cleanupFinalized()
-		totalExpired += txStore.cleanupExpired(currentTimeMs)
+		allFinalizedLTs = append(allFinalizedLTs, txStore.cleanupFinalized()...)
+		allExpiredLTs = append(allExpiredLTs, txStore.cleanupExpired(currentTimeMs)...)
 	}
-	return totalFinalized, totalExpired
+	return allFinalizedLTs, allExpiredLTs
 }

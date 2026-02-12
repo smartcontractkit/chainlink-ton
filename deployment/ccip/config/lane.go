@@ -1,5 +1,9 @@
 package config
 
+import (
+	utilsmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+)
+
 type LaneConfig struct {
 	Source        ChainDefinition
 	Dest          ChainDefinition
@@ -15,4 +19,7 @@ type UpdateTonLanesConfig struct {
 	Lanes []LaneConfig
 	// TestRouter indicates if we want to enable these lanes on the test router.
 	TestRouter bool
+
+	// MCMS input configuration required to create proposals
+	MCMS utilsmcms.Input
 }

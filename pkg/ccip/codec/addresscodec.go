@@ -1,10 +1,10 @@
 package codec
 
 import (
-	"fmt"
-
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 
@@ -12,6 +12,18 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
+
+var ErrInvalidWorkchain = errors.New("workchain value outside valid int8 range [-128, 127]")
+
+// validateWorkchain checks that a workchain value fits within the int8 range.
+// tonutils-go internally treats the workchain as int8, so values outside [-128, 127]
+// would silently wrap, potentially targeting the wrong contract.
+func validateWorkchain(workchain int32) error {
+	if workchain < -128 || workchain > 127 {
+		return fmt.Errorf("%w: got %d", ErrInvalidWorkchain, workchain)
+	}
+	return nil
+}
 
 type addressCodec struct{}
 
@@ -27,10 +39,22 @@ var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 type RawAddr [tvm.AddressLength]byte
 
 // ToRawAddr converts an address.Address to a RawAddr.
-func ToRawAddr(addr *address.Address) (rawAddress RawAddr) {
+// Returns an error if the address is nil, not a standard address, or has invalid data length.
+func ToRawAddr(addr *address.Address) (RawAddr, error) {
+	if addr == nil {
+		return RawAddr{}, errors.New("cannot convert nil address to raw format")
+	}
+	if addr.IsAddrNone() {
+		return RawAddr{}, errors.New("cannot convert none address to raw format")
+	}
+	// Standard TON addresses have exactly 32 bytes of data
+	if len(addr.Data()) != tvm.AddressDataLength {
+		return RawAddr{}, fmt.Errorf("invalid address data length: expected %d bytes, got %d", tvm.AddressDataLength, len(addr.Data()))
+	}
+	var rawAddress RawAddr
 	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(rawAddress[4:], addr.Data())
-	return rawAddress
+	return rawAddress, nil
 }
 
 func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
@@ -45,6 +69,9 @@ func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
 	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+	if err := validateWorkchain(workchain); err != nil {
+		return "", err
+	}
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
 	return addr.String(), nil
@@ -58,7 +85,10 @@ func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode TVM address: %w", err)
 	}
 
-	rawAddr := ToRawAddr(addr)
+	rawAddr, err := ToRawAddr(addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert address to raw format: %w", err)
+	}
 	return rawAddr[:], nil
 }
 
@@ -69,7 +99,10 @@ func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 	// write oracleID into addr in big endian
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
 	tonAddr := address.NewAddress(0, 0, addr)
-	rawAddr := ToRawAddr(tonAddr)
+	rawAddr, err := ToRawAddr(tonAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert oracle ID address to raw format: %w", err)
+	}
 	return rawAddr[:], nil
 }
 
@@ -84,11 +117,14 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 // AddressBytesToAddress converts a byte slice representing a TON address into its ton address representation, only supporting standard TON addresses.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
 	if len(bytes) != tvm.AddressLength {
-		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
+		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
 	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+	if err := validateWorkchain(workchain); err != nil {
+		return nil, err
+	}
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
 	return addr, nil

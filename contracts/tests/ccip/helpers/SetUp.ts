@@ -26,7 +26,7 @@ export const setupTestFeeQuoter = async (
     allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
     maxFeeJuelsPerMsg: 1000000n,
     linkToken: LINK_TOKEN,
-    tokenPriceStalenessThreshold: 1000n,
+    tokenPriceStalenessThreshold: 1000,
     usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
     premiumMultiplierWeiPerEth: Dictionary.empty(
       Dictionary.Keys.Address(),

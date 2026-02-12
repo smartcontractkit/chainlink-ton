@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreply"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
@@ -28,6 +27,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
+
+func must[E any](out E, err error) E {
+	if err != nil {
+		panic(err)
+	}
+
+	return out
+}
 
 func TestIntegration(t *testing.T) {
 	if testing.Short() {
@@ -106,7 +113,7 @@ func TestIntegration(t *testing.T) {
 		code, err := wrappers.ParseCompiledContract(path)
 		require.NoError(t, err)
 
-		body := cell.BeginCell().EndCell()
+		body := tvm.EmptyCell
 		counterContract, _, err := wrappers.Deploy(t.Context(), &alice, code, dataCell, tlb.MustFromTON("0.05"), body)
 		require.NoError(t, err, "failed to deploy Counter contract: %w", err)
 
@@ -129,10 +136,10 @@ func TestIntegration(t *testing.T) {
 		msgReceived, err := counterContract.CallWaitRecursively(msg, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to send SetCount request: %w", err)
 
-		require.Equal(t, tvm.ExitCodeSuccess, msgReceived.ExitCode, "Expected exit code 0, got %d", msgReceived.ExitCode)
+		require.Equal(t, tvm.ExitCodeSuccess, must(msgReceived.ExitCode()), "Expected exit code 0, got %d", must(msgReceived.ExitCode()))
 		outgoingCount := len(msgReceived.OutgoingInternalReceivedMessages)
 		require.Equal(t, 1, outgoingCount, "Expected 1 outgoing internal received message, got %d", outgoingCount)
-		internalExitCode := msgReceived.OutgoingInternalReceivedMessages[0].ExitCode
+		internalExitCode := must(msgReceived.OutgoingInternalReceivedMessages[0].ExitCode())
 		require.Equal(t, tvm.ExitCodeSuccess, internalExitCode, "Expected exit code 0, got %d", internalExitCode)
 		t.Logf("msgReceived: %+v\n", msgReceived)
 		t.Logf("SetCount request sent\n")

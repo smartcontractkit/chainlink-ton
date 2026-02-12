@@ -3,6 +3,7 @@ package codec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -29,6 +30,18 @@ func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
 }
 
 func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
+	// TON does not support RMN verification, so BlessedMerkleRoots will be ignored.
+	// TON on-chain OffRamp requires no more one merkle root per commit report. (zero is allowed for purely price update reports)
+	// See Error.BatchingNotSupported in contracts/contracts/ccip/offramp/contract.tolk
+	if len(report.UnblessedMerkleRoots) > 1 {
+		return nil, fmt.Errorf("TON commit report requires no more than 1 merkle root, got %d", len(report.UnblessedMerkleRoots))
+	}
+
+	if len(report.UnblessedMerkleRoots) == 0 &&
+		(len(report.PriceUpdates.GasPriceUpdates) == 0 && len(report.PriceUpdates.TokenPriceUpdates) == 0) {
+		return nil, errors.New("commit report must contain at least one price update or one merkle root")
+	}
+
 	tpuSlice := make([]ocr.TokenPriceUpdate, len(report.PriceUpdates.TokenPriceUpdates))
 	for i, tpu := range report.PriceUpdates.TokenPriceUpdates {
 		addr, err := address.ParseAddr(string(tpu.TokenID))
@@ -53,7 +66,10 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 		// The GasPrice is packed as: (DA << 112) | Exec by the plugin.
 		// We need to unpack it into two separate 112-bit fields for the TON onchain struct.
-		execFee, daFee := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
+		execFee, daFee, err := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unpack gas price for chain selector %d: %w", gpu.ChainSel, err)
+		}
 
 		gpuSlice[i] = ocr.GasPriceUpdate{
 			DestChainSelector:        uint64(gpu.ChainSel),
@@ -62,20 +78,12 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		}
 	}
 
-	mkSlice := make([]ocr.MerkleRoot, len(report.BlessedMerkleRoots))
-	for i, mr := range report.BlessedMerkleRoots {
-		mkSlice[i] = ocr.MerkleRoot{
-			SourceChainSelector: uint64(mr.ChainSel),
-			OnRampAddress:       common.CrossChainAddress(mr.OnRampAddress),
-			MinSeqNr:            uint64(mr.SeqNumsRange.Start()),
-			MaxSeqNr:            uint64(mr.SeqNumsRange.End()),
-			MerkleRoot:          bytes.Clone(mr.MerkleRoot[:]),
-		}
-	}
-
-	unblessedMkSlice := make([]ocr.MerkleRoot, len(report.UnblessedMerkleRoots))
+	mkSlice := make([]ocr.MerkleRoot, len(report.UnblessedMerkleRoots))
 	for i, mr := range report.UnblessedMerkleRoots {
-		unblessedMkSlice[i] = ocr.MerkleRoot{
+		if err := validateNonEmptyAddress(mr.OnRampAddress); err != nil {
+			return nil, fmt.Errorf("invalid unblessed merkle root[%d]: %w", i, err)
+		}
+		mkSlice[i] = ocr.MerkleRoot{
 			SourceChainSelector: uint64(mr.ChainSel),
 			OnRampAddress:       common.CrossChainAddress(mr.OnRampAddress),
 			MinSeqNr:            uint64(mr.SeqNumsRange.Start()),
@@ -95,7 +103,7 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 	cellReport := ocr.CommitReport{
 		PriceUpdates: priceUpdates,
-		MerkleRoots:  append(mkSlice, unblessedMkSlice...),
+		MerkleRoots:  mkSlice,
 	}
 
 	c, err := tlb.ToCell(cellReport)
@@ -123,6 +131,9 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 	if priceUpdate != nil && len(priceUpdate.TokenPriceUpdates) > 0 {
 		tpuSlice = make([]cciptypes.TokenPrice, len(priceUpdate.TokenPriceUpdates))
 		for i, update := range priceUpdate.TokenPriceUpdates {
+			if update.SourceToken == nil || update.SourceToken.IsAddrNone() {
+				return cciptypes.CommitPluginReport{}, fmt.Errorf("nil or none source token address at index %d", i)
+			}
 			var tokenPrice *big.Int
 			if update.UsdPerToken != nil && update.UsdPerToken.Sign() != 0 {
 				tokenPrice = update.UsdPerToken
@@ -142,20 +153,17 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		for i, update := range priceUpdate.GasPriceUpdates {
 			// Pack the two 112-bit fields back into a single 224-bit value
 			// Packed format: (DA << 112) | Exec
-			var packedPrice *big.Int
-			if (update.ExecutionGasPrice != nil && update.ExecutionGasPrice.Sign() != 0) ||
-				(update.DataAvailabilityGasPrice != nil && update.DataAvailabilityGasPrice.Sign() != 0) {
-				execFee := update.ExecutionGasPrice
-				if execFee == nil {
-					execFee = big.NewInt(0)
-				}
-				daFee := update.DataAvailabilityGasPrice
-				if daFee == nil {
-					daFee = big.NewInt(0)
-				}
-				packedPrice = feequoter.PackGasPrice(execFee, daFee)
-			} else {
-				packedPrice = big.NewInt(0)
+			execFee := update.ExecutionGasPrice
+			if execFee == nil {
+				execFee = big.NewInt(0)
+			}
+			daFee := update.DataAvailabilityGasPrice
+			if daFee == nil {
+				daFee = big.NewInt(0)
+			}
+			packedPrice, err := feequoter.PackGasPrice(execFee, daFee)
+			if err != nil {
+				return cciptypes.CommitPluginReport{}, fmt.Errorf("cannot pack gas price for chain selector %d: %w", update.DestChainSelector, err)
 			}
 
 			gpuSlice[i] = cciptypes.GasPriceChain{
@@ -188,4 +196,23 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		UnblessedMerkleRoots: merkleRoots,
 		RMNSignatures:        nil,
 	}, nil
+}
+
+// validateNonEmptyAddress checks that the address is not empty or all zeros.
+func validateNonEmptyAddress(addr []byte) error {
+	if len(addr) == 0 {
+		return errors.New("empty address")
+	}
+	// Check if all bytes are zero
+	allZero := true
+	for _, b := range addr {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return errors.New("address is all zeros")
+	}
+	return nil
 }

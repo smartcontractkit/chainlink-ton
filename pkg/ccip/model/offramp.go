@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- OffRamp Model Struct Definitions ----------
@@ -363,7 +364,7 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 
 			if err := signers.Set(
 				cell.BeginCell().MustStoreBigUInt(signer, 256).EndCell(),
-				cell.BeginCell().EndCell(),
+				tvm.EmptyCell,
 			); err != nil {
 				return nil, fmt.Errorf("error while setting signers: %w", err)
 			}
@@ -374,7 +375,7 @@ func ocr3ConfigToBinding(config *OCR3Config) (*offramp.OCR3Config, error) {
 		for _, transmitter := range config.Transmitters {
 			if err := transmitters.Set(
 				cell.BeginCell().MustStoreAddr(transmitter).EndCell(),
-				cell.BeginCell().EndCell(),
+				tvm.EmptyCell,
 			); err != nil {
 				return nil, fmt.Errorf("error while setting transmitters: %w", err)
 			}
@@ -445,7 +446,7 @@ func (s *OffRampStorage) ToBinding() (*offramp.Storage, error) {
 	for _, co := range s.CursedSubjects {
 		if err := cursedSubjects.Set(
 			cell.BeginCell().MustStoreBigUInt(co, 128).EndCell(),
-			cell.BeginCell().EndCell(),
+			tvm.EmptyCell,
 		); err != nil {
 			return nil, fmt.Errorf("error while setting CursedSubjects: %w", err)
 		}

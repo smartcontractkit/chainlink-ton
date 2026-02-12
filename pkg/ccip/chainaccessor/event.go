@@ -97,9 +97,15 @@ func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *
 // one-to-one mapping of event fields from the TON format to the standard CCIP format.
 func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
-) *ccipocr3.SendRequestedEvent {
-	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
-	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
+) (*ccipocr3.SendRequestedEvent, error) {
+	senderAddr, err := codec.ToRawAddr(tonEvent.Message.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert sender address: %w", err)
+	}
+	feeTokenAddr, err := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert fee token address: %w", err)
+	}
 
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
@@ -123,7 +129,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		SequenceNumber:    msg.Header.SequenceNumber,
 		Message:           msg,
 	}
-	return genericEvent
+	return genericEvent, nil
 }
 
 func (a *TONAccessor) validateCommitReportAcceptedEvent(
@@ -184,6 +190,16 @@ func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
 	}
 	if len(merkleRoot.OnRampAddress) == 0 {
 		return fmt.Errorf("invalid onramp address: %x", hex.EncodeToString(merkleRoot.OnRampAddress))
+	}
+	allZero := true
+	for _, b := range merkleRoot.OnRampAddress {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		return errors.New("onramp address is all zeros")
 	}
 
 	return nil

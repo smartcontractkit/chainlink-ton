@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
@@ -80,7 +80,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	require.NoError(t, err)
 
 	// 2. Send deploy tx
-	body := cell.BeginCell().EndCell()
+	body := tvm.EmptyCell
 	counterAddr, _, _, err := tonChain.Wallet.DeployContractWaitTransaction(t.Context(), tlb.MustFromTON("0.05"), body, code, dataCell)
 	require.NoError(t, err)
 

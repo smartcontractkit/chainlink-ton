@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // ---------- Fee Quoter Model Struct Definitions ----------
@@ -23,7 +24,7 @@ type FeeQuoterStorage struct {
 	AllowedPriceUpdaters              []*address.Address          `json:"allowedPriceUpdaters"`
 	MaxFeeJuelsPerMsg                 *big.Int                    `json:"maxFeeJuelsPerMsg"`
 	LinkToken                         *address.Address            `json:"linkToken"`
-	TokenPriceStalenessThreshold      uint64                      `json:"tokenPriceStalenessThreshold"`
+	TokenPriceStalenessThreshold      uint32                      `json:"tokenPriceStalenessThreshold"`
 	USDPerToken                       map[string]TimestampedPrice `json:"usdPerToken"`
 	PremiumMultiplierWeiPerEthByToken map[string]uint64           `json:"premiumMultiplierWeiPerEthByToken"`
 	DestChainConfigsByChainSelector   map[uint64]DestChainConfigs `json:"destChainConfigsByChainSelector"`
@@ -128,7 +129,7 @@ func (b *FeeQuoterStorageBuilder) WithLinkToken(linkToken *address.Address) *Fee
 	return b
 }
 
-func (b *FeeQuoterStorageBuilder) WithTokenPriceStalenessThreshold(tokenPriceStalenessThreshold uint64) *FeeQuoterStorageBuilder {
+func (b *FeeQuoterStorageBuilder) WithTokenPriceStalenessThreshold(tokenPriceStalenessThreshold uint32) *FeeQuoterStorageBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -323,7 +324,7 @@ func (s *FeeQuoterStorage) ToBinding() (*feequoter.Storage, error) {
 	for _, apu := range s.AllowedPriceUpdaters {
 		if err := st.AllowedPriceUpdaters.Set(
 			cell.BeginCell().MustStoreAddr(apu).EndCell(),
-			cell.BeginCell().EndCell(),
+			tvm.EmptyCell,
 		); err != nil {
 			return nil, fmt.Errorf("error while setting AllowedPriceUpdater: %w", err)
 		}

@@ -225,7 +225,7 @@ export class FeeQuoterSetup {
       allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
       maxFeeJuelsPerMsg: FeeQuoterSetup.MAX_MSG_FEES_JUELS,
       linkToken: FeeQuoterSetup.SOURCE_LINK.token,
-      tokenPriceStalenessThreshold: BigInt(FeeQuoterSetup.TWELVE_HOURS),
+      tokenPriceStalenessThreshold: FeeQuoterSetup.TWELVE_HOURS,
       usdPerToken: Dictionary.empty(
         Dictionary.Keys.Address(),
         feeQuoter.createTimestampedPriceValue(),

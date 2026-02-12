@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/boc"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestFilterModel_Conversion(t *testing.T) {
@@ -36,7 +37,8 @@ func TestFilterModel_Conversion(t *testing.T) {
 
 	// Convert to database model and back
 	dbFilterModel := filterModel{}
-	dbFilter := dbFilterModel.FromFilter(originalFilter)
+	dbFilter, err := dbFilterModel.FromFilter(originalFilter)
+	require.NoError(t, err)
 	convertedFilter, err := dbFilter.ToFilter()
 	require.NoError(t, err)
 
@@ -90,6 +92,8 @@ func TestLogModel_Conversion(t *testing.T) {
 			Workchain: 0,
 			Shard:     -1,
 			SeqNo:     100,
+			RootHash:  make([]byte, 32),
+			FileHash:  make([]byte, 32),
 		},
 		MCBlockSeqno: 200,
 		MsgIndex:     0,
@@ -149,7 +153,7 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 		{
 			name: "empty cell",
 			buildCell: func() *cell.Cell {
-				return cell.BeginCell().EndCell()
+				return tvm.EmptyCell
 			},
 		},
 		{
@@ -189,8 +193,8 @@ func TestCalculateBOCHeaderLen(t *testing.T) {
 						Body: ocr.TVM2AnyRampMessageBody{
 							Receiver:       common.CrossChainAddress{0x01, 0x02},
 							Data:           common.SnakeBytes{0xAA, 0xBB, 0xCC},
-							ExtraArgs:      cell.BeginCell().EndCell(),
-							TokenAmounts:   cell.BeginCell().EndCell(),
+							ExtraArgs:      tvm.EmptyCell,
+							TokenAmounts:   tvm.EmptyCell,
 							FeeToken:       feeToken,
 							FeeTokenAmount: big.NewInt(1000000),
 						},

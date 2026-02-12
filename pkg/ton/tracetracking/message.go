@@ -71,16 +71,15 @@ type ReceivedMessage struct {
 
 	// Received step
 
-	StorageFeeCharged                *big.Int           // Rent due at the moment of sending the message (charged to receiver)
-	MsgFeesChargedToSender           *big.Int           // Forward fees
-	TotalActionFees                  *big.Int           // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
-	GasFee                           *big.Int           // Fees charged to the receiver for processing the message.
-	MagicFee                         *big.Int           // Unknown origin fee
-	EmittedBouncedMessage            bool               // Indicates if the transaction was bounced
-	Success                          bool               // Indicates if the transaction was successful
-	ExitCode                         tvm.ExitCode       // Exit code of the transaction execution
-	OutgoingInternalSentMessages     []*SentMessage     // Internal messages sent as a result of this message
-	OutgoingInternalReceivedMessages []*ReceivedMessage // Internal messages that have been received by their recipients
+	StorageFeeCharged                *big.Int                            // Rent due at the moment of sending the message (charged to receiver)
+	MsgFeesChargedToSender           *big.Int                            // Forward fees
+	TotalActionFees                  *big.Int                            // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
+	GasFee                           *big.Int                            // Fees charged to the receiver for processing the message.
+	MagicFee                         *big.Int                            // Unknown origin fee
+	EmittedBouncedMessage            bool                                // Indicates if the transaction was bounced
+	Description                      *tlb.TransactionDescriptionOrdinary // Description of the transaction (if ordinary)
+	OutgoingInternalSentMessages     []*SentMessage                      // Internal messages sent as a result of this message
+	OutgoingInternalReceivedMessages []*ReceivedMessage                  // Internal messages that have been received by their recipients
 	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
@@ -221,8 +220,6 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		GasFee:                           big.NewInt(0),
 		MagicFee:                         big.NewInt(0).Sub(newVar, importFee),
 		EmittedBouncedMessage:            false,
-		Success:                          false,
-		ExitCode:                         0,
 		TotalActionFees:                  big.NewInt(0),
 		OutgoingInternalSentMessages:     make([]*SentMessage, 0),
 		OutgoingInternalReceivedMessages: make([]*ReceivedMessage, 0),
@@ -253,6 +250,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 	// the msg is malformed, which wont happen using Tact.
 
 	if dsc, ok := txOnReceived.Description.(tlb.TransactionDescriptionOrdinary); ok {
+		res.Description = &dsc
 		if dsc.BouncePhase != nil {
 			if _, ok = dsc.BouncePhase.Phase.(tlb.BouncePhaseOk); ok {
 				// transaction was bounced, and coins were returned to sender
@@ -262,8 +260,6 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		}
 		computePhase, ok := dsc.ComputePhase.Phase.(tlb.ComputePhaseVM)
 		if ok {
-			res.Success = computePhase.Success
-			res.ExitCode = tvm.ExitCode(computePhase.Details.ExitCode)
 			res.GasFee = computePhase.GasFees.Nano()
 			res.MagicFee.Sub(res.MagicFee, res.GasFee)
 		}
@@ -465,12 +461,36 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 	return nil
 }
 
-// OutcomeExitCode returns the first non-success exit code found in this message
+// StopCondition is a function type that defines a condition to determine when to stop
+// traversing the message trace. It takes a parent and current ReceivedMessage as input
+// and returns a boolean indicating whether the stop condition has been met. This
+// is used in functions like TraceExitCodeWith and TraceSucceededWith to limit the scope
+// of the trace analysis based on custom criteria.
+type StopCondition func(parent, current *ReceivedMessage) (bool, error)
+
+// NoBound is a default StopCondition that never returns true, meaning that trace
+// analysis will continue through the entire message trace.
+var NoBound StopCondition = func(_, _ *ReceivedMessage) (bool, error) { return false, nil } // Don't stop, no bound condition
+
+// TraceExitCode returns the first non-success exit code found in this message
 // or any of its outgoing internal messages. If all messages succeeded, it returns
 // the success exit code.
-func (m *ReceivedMessage) OutcomeExitCode() tvm.ExitCode {
+func (m *ReceivedMessage) TraceExitCode() (tvm.ExitCode, error) {
+	return m.TraceExitCodeWith(NoBound)
+}
+
+// TraceExitCodeWith returns the first non-success exit code found in this message or any of its
+// outgoing internal messages, stopping the search to progress in trace branches where the provided
+// boundary condition is met (continues searching other branches).
+//
+// If all messages within the boundary succeeded, it returns the success exit code.
+func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCode, error) {
 	if m == nil {
-		return tvm.ExitCodeSuccess
+		return 0, errors.New("cannot get trace exit code from nil ReceivedMessage")
+	}
+
+	if boundary == nil {
+		boundary = NoBound // default to no boundary if nil is provided
 	}
 
 	stack := []*ReceivedMessage{m}
@@ -479,29 +499,100 @@ func (m *ReceivedMessage) OutcomeExitCode() tvm.ExitCode {
 		n := len(stack) - 1
 		curr := stack[n]
 		stack = stack[:n]
-
-		if !curr.Success {
-			return curr.ExitCode
+		exitCode, err := curr.ExitCode()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get exit code: %w", err)
+		}
+		if exitCode != tvm.ExitCodeSuccess {
+			return exitCode, nil
 		}
 
 		for i := len(curr.OutgoingInternalReceivedMessages) - 1; i >= 0; i-- {
-			stack = append(stack, curr.OutgoingInternalReceivedMessages[i])
+			msg := curr.OutgoingInternalReceivedMessages[i]
+
+			stop, err := boundary(curr, msg)
+			if err != nil {
+				return 0, fmt.Errorf("failed to evaluate stop condition: %w", err)
+			}
+			if stop {
+				continue // Skip traversing further in this branch if the stop condition is met
+			}
+
+			stack = append(stack, msg)
 		}
 	}
 
-	return tvm.ExitCodeSuccess
+	return tvm.ExitCodeSuccess, nil
 }
 
-// TraceSucceeded recursively checks if this message
-// and all its OutgoingInternalMessagesReceived succeeded.
-func (m *ReceivedMessage) TraceSucceeded() bool {
-	if !m.Success {
-		return false
+func (m *ReceivedMessage) Succeeded() bool {
+	if m.Description == nil {
+		return false // Expected compute phase
 	}
-	for _, msg := range m.OutgoingInternalReceivedMessages {
-		if !msg.TraceSucceeded() {
-			return false
+	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
+	if !ok {
+		return false // Expected VM compute phase
+	}
+	return computePhase.Success
+}
+
+func (m *ReceivedMessage) ExitCode() (tvm.ExitCode, error) {
+	if m.Description == nil {
+		return 0, errors.New("no description in transaction")
+	}
+	computePhase, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseVM)
+	if !ok {
+		skipped, ok := m.Description.ComputePhase.Phase.(tlb.ComputePhaseSkipped)
+		if !ok {
+			return 0, fmt.Errorf("compute phase is %T, not a VM phase; cannot extract exit code", m.Description.ComputePhase.Phase)
+		}
+		switch skipped.Reason.Type {
+		case tlb.ComputeSkipReasonNoState:
+			return tvm.ExitCodeComputeSkipReasonNoState, nil
+		case tlb.ComputeSkipReasonBadState:
+			return tvm.ExitCodeComputeSkipReasonBadState, nil
+		case tlb.ComputeSkipReasonNoGas:
+			return tvm.ExitCodeComputeSkipReasonNoGas, nil
+		case tlb.ComputeSkipReasonSuspended:
+			return tvm.ExitCodeComputeSkipReasonSuspended, nil
 		}
 	}
-	return true
+	return tvm.ExitCode(computePhase.Details.ExitCode), nil
+}
+
+// TraceSucceeded recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded.
+func (m *ReceivedMessage) TraceSucceeded() bool {
+	succeeded, _ := m.TraceSucceededWith(NoBound) // ok to ignore error
+	return succeeded
+}
+
+// TraceSucceededWith recursively checks if this message and all its OutgoingInternalMessagesReceived succeeded,
+// stopping the check when the provided boundary condition is met.
+func (m *ReceivedMessage) TraceSucceededWith(boundary StopCondition) (bool, error) {
+	if !m.Succeeded() {
+		return false, nil
+	}
+
+	if boundary == nil {
+		boundary = NoBound // default to no boundary if nil is provided
+	}
+
+	for _, msg := range m.OutgoingInternalReceivedMessages {
+		stop, err := boundary(m, msg)
+		if err != nil {
+			return false, fmt.Errorf("failed to evaluate stop condition: %w", err)
+		}
+		if stop {
+			continue // Skip traversing further in this branch if the stop condition is met
+		}
+
+		succeeded, err := msg.TraceSucceededWith(boundary)
+		if err != nil {
+			return false, fmt.Errorf("failed to check if trace succeeded: %w", err)
+		}
+		if !succeeded {
+			return false, nil
+		}
+	}
+	return true, nil
 }

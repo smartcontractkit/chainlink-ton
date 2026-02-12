@@ -67,7 +67,10 @@ func (c *ccipTransmitter) FromAccount(ctx context.Context) (ocrtypes.Account, er
 		return "", fmt.Errorf("failed to get client: %w", err)
 	}
 	w := client.Wallet
-	rawAddr := codec.ToRawAddr(w.WalletAddress())
+	rawAddr, err := codec.ToRawAddr(w.WalletAddress())
+	if err != nil {
+		return "", fmt.Errorf("failed to convert wallet address: %w", err)
+	}
 	return ocrtypes.Account(hex.EncodeToString(rawAddr[:])), nil
 }
 

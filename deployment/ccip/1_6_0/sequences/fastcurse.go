@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/samber/lo"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -185,7 +186,11 @@ func (a *TonCurseAdapter) ListConnectedChains(e cldf.Environment, selector uint6
 
 	// Parse result as lisp tuple
 	tuple := result.AsTuple()
-	connectedChains := parser.ParseLispTuple(tuple)
+	selectorsBigInt, err := parser.ParseLispTuple[*big.Int](tuple)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse destChainSelectors result: %w", err)
+	}
+	connectedChains := lo.Map(selectorsBigInt, func(x *big.Int, _ int) uint64 { return x.Uint64() })
 
 	return connectedChains, nil
 }
@@ -222,7 +227,7 @@ func (a *TonCurseAdapter) DeriveCurseAdapterVersion(e cldf.Environment, selector
 // Curse returns the sequence to curse subjects on a chain.
 func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton/sequences/ccip/curse",
+		"ton/sequences/ccip/tooling-api/curse",
 		semver.MustParse("1.6.0"),
 		"Curse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
@@ -315,7 +320,7 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 // Uncurse returns the sequence to lift the curse on subjects on a chain.
 func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return cldf_ops.NewSequence(
-		"ton/sequences/ccip/uncurse",
+		"ton/sequences/ccip/tooling-api/uncurse",
 		semver.MustParse("1.6.0"),
 		"Uncurse subjects on TON Router via RMN Remote",
 		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in api.CurseInput) (sequences.OnChainOutput, error) {
