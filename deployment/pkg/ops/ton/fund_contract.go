@@ -2,7 +2,6 @@ package ton
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -17,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -79,12 +79,7 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		in.Target = &TargetDefault
 	}
 
-	// TODO: MCMS contracts not found in state, need to be added when MCMS is deployed
-	if *in.Target == TargetMcms {
-		return FundContractsOutput{}, errors.New("funding MCMS contracts is not supported yet as MCMS contracts are not in state")
-	}
-
-	stateCCIP, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	ccipState, err := dep.Resolve[tonstate.CCIPChainState](dp)
 	if err != nil {
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
@@ -94,16 +89,20 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
 	}
 
+	mcmsState, err := dep.Resolve[state.MCMSChainState](dp)
+	if err != nil {
+		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
+	}
+
 	ccipContracts := []targetContract{
-		{name: "Router", addr: stateCCIP.Router},
-		{name: "OnRamp", addr: stateCCIP.OnRamp},
-		{name: "OffRamp", addr: stateCCIP.OffRamp},
-		{name: "FeeQuoter", addr: stateCCIP.FeeQuoter},
+		{name: "Router", addr: ccipState.Router},
+		{name: "OnRamp", addr: ccipState.OnRamp},
+		{name: "OffRamp", addr: ccipState.OffRamp},
+		{name: "FeeQuoter", addr: ccipState.FeeQuoter},
 	}
 	mcmsContracts := []targetContract{
-		// TODO: MCMS contracts not found in state, need to be added when MCMS is deployed
-		// {name: "OwnerMCMS", addr: stateCCIP.OwnerMCMS},
-		// {name: "RMNMCMS", addr: stateCCIP.RMNMCMS},
+		{name: "MCMS", addr: mcmsState.MCMS},
+		{name: "Timelock", addr: mcmsState.Timelock},
 	}
 	targetContracts := make([]targetContract, 0, len(ccipContracts)+len(mcmsContracts))
 
