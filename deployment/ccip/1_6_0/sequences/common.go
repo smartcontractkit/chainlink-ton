@@ -28,6 +28,7 @@ func init() {
 	// Register separate adapters for each interface
 	deploy.GetRegistry().RegisterDeployer(chainsel.FamilyTon, v, &TonDeployAdapter{})
 	lanes.GetLaneAdapterRegistry().RegisterLaneAdapter(chainsel.FamilyTon, v, &TonLaneAdapter{})
+	deploy.GetTransferOwnershipRegistry().RegisterAdapter(chainsel.FamilyTon, v, &TonTransferOwnershipAdapter{})
 
 	curseAdapter := &TonCurseAdapter{}
 	fastcurse.GetCurseRegistry().RegisterNewCurse(
