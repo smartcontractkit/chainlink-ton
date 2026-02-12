@@ -32,6 +32,10 @@ fun onInternalMessage(in: InMessage) {
 			assert(in.senderAddress == st.controlAddress, 100);
 			emitCCIPMessageSent(msg.sender, msg.sequenceNumber, st.chainSelector, st.tokenAddress);
 		}
+		else => {
+		    // ignore empty messages, "wrong opcode" for others
+		    assert (in.body.isEmpty()) throw 0xFFFF;
+		}
 	}
 }
 

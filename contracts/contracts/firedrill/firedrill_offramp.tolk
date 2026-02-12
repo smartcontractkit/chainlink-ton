@@ -37,6 +37,10 @@ fun onInternalMessage(in: InMessage) {
 			assert(in.senderAddress == st.controlAddress, 100);
 			emitCommitReportAccepted(msg.minSeqNr, msg.maxSeqNr, st);
 		}
+		else => {
+		    // ignore empty messages, "wrong opcode" for others
+		    assert (in.body.isEmpty()) throw 0xFFFF;
+		}
 	}
 }
 
