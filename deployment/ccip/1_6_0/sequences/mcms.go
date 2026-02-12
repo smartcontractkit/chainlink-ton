@@ -79,6 +79,7 @@ var DeployMCMSContracts = operations.NewSequence(
 	},
 )
 
+// TODO: unify and deduplicate with state.LoadMCMSOnChainState
 func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
 	noneAddr := address.NewAddressNone()
 	s := state.MCMSChainState{

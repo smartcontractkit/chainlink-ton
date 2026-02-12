@@ -72,8 +72,11 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 		qualifier = *in.Qualifier
 	}
 
+	// Get MCMS state by qualifier to check if any of the contracts are already deployed (and avoid redeploying them)
+	stateMCMSSuite := stateMCMS.ByQualifier[qualifier]
+
 	// Invoke deploy Timelock changeset operation
-	if stateMCMS.ByQualifier[qualifier].Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
+	if stateMCMSSuite != nil && stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
 		storage := timelock.EmptyDataFrom(in.ContractsParams.Timelock.ID)
 		body := in.ContractsParams.Timelock.InitMessage
 
@@ -85,7 +88,7 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 	}
 
 	// Invoke deploy MCMS changeset operation
-	if stateMCMS.ByQualifier[qualifier].MCMS.IsAddrNone() { // Deploy MCMS only if not deployed yet
+	if stateMCMSSuite != nil && stateMCMSSuite.MCMS.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		var chainIDStr string
 		chainSelector := chain.ChainSelector()
 		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
