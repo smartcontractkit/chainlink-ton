@@ -4,9 +4,7 @@ import { FiredrillEntrypoint } from '../wrappers/firedrill/FiredrillEntrypoint'
 import { FiredrillOnRamp } from '../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
 import { generateRandomContractId, LINK_TOKEN } from '../src/utils'
-import {
-  tonAddressToCrossChainAddress,
-} from '../tests/firedrill/Firedrill.Setup'
+import { tonAddressToCrossChainAddress } from '../tests/firedrill/Firedrill.Setup'
 import { randomAddress } from '@ton/test-utils'
 
 const CHAINSEL_TON = 1399300952838017768n

@@ -132,13 +132,13 @@ export const CROSS_CHAIN_ONRAMP_ADDRESS = Buffer.from(
   'hex',
 )
 
-const TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE= 36;
+const TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE = 36
 export function tonAddressToCrossChainAddress(addr: Address): CrossChainAddress {
-	const hash = addr.hash;
-	const slice = beginCell()
-		.storeUint(0, 32) // basechain prefix
-		.storeBuffer(hash, 32) // accountId (hash)
-		.endCell()
-		.beginParse();
-        return slice.loadBuffer(TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE);
+  const hash = addr.hash
+  const slice = beginCell()
+    .storeUint(0, 32) // basechain prefix
+    .storeBuffer(hash, 32) // accountId (hash)
+    .endCell()
+    .beginParse()
+  return slice.loadBuffer(TON_CROSS_CHAIN_ADDRESS_BYTES_SIZE)
 }
