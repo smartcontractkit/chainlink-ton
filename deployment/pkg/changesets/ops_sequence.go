@@ -41,28 +41,35 @@ func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ opsmcms.Timel
 }
 
 func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySequenceInput) (cldf.ChangesetOutput, error) {
+	stateCCIP, err := state.LoadOnchainState(env)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
 	// Address resolution: load existing MCMS and Timelock addresses if not provided
-	mcmsStates, err := state.LoadMCMSOnChainState(env)
+	stateMCMS, err := state.LoadMCMSOnChainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
 
-	opts := in.Options
-	mcmsState, ok := mcmsStates[uint64(opts.ChainSelector)]
+	stateMCMSChain, ok := stateMCMS[uint64(in.Options.ChainSelector)]
 	if ok {
-		if opts.MCMSAddr == nil {
-			opts.MCMSAddr = &mcmsState.MCMS
+		if in.Options.MCMSAddr == nil {
+			in.Options.MCMSAddr = &stateMCMSChain.MCMS
 		}
-		if opts.TimelockAddr == nil {
-			opts.TimelockAddr = &mcmsState.Timelock
+		if in.Options.TimelockAddr == nil {
+			in.Options.TimelockAddr = &stateMCMSChain.Timelock
 		}
 	}
 
-	tonChains := env.BlockChains.TonChains()
-	chain := tonChains[uint64(opts.ChainSelector)]
+	chain := env.BlockChains.TonChains()[uint64(in.Options.ChainSelector)]
 
 	// Create the dependencies provider - supplies chain and other dependencies to ops/sequences
-	dp, err := dep.NewDependencyProvider(dep.Provide(chain))
+	dp, err := dep.NewDependencyProvider(
+		dep.Provide(chain),
+		dep.Provide(stateCCIP[uint64(in.Options.ChainSelector)]),
+		dep.Provide(stateMCMSChain),
+	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 	}
@@ -80,7 +87,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in opsmcms.TimelockAnySeque
 	// Execute the (any) sequence based on the provided input
 	r, err := operations.ExecuteSequence(env.OperationsBundle, opsmcms.TimelockAnySequence, dp, in)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", opts.ChainSelector, err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to execute %s on %d: %w", opsmcms.TimelockAnySequence.ID(), in.Options.ChainSelector, err)
 	}
 
 	// TODO (ops/deploy): check outputs for deployed addresses and update dataStore.Addresses()
