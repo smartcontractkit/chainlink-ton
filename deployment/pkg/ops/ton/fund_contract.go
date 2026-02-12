@@ -17,25 +17,30 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
-type FundMode string
+// FundMode can be parsed from string in the input JSON, ("ExactAmount", "TopUp").
+//
+//go:generate go run github.com/dmarkham/enumer@v1.6.3 -type=FundMode -json -text -trimprefix=FundMode
+type FundMode uint8
 
 const (
 	// FundModeExactAmount means the specified amount will be transferred to the contract, regardless of its current balance.
-	FundModeExactAmount FundMode = "exact_amount"
+	FundModeExactAmount FundMode = iota
 	// FundModeTopUp means the current balance of the contract will be topped up to reach the specified amount (i.e. if the contract already has some balance, only the difference between the current balance and the target amount will be transferred). If the current balance is greater than or equal to the target amount, no transfer will be made.
-	FundModeTopUp FundMode = "top_up"
+	FundModeTopUp
 )
 
-type Target string
+// Target can be parsed from string in the input JSON, ("All", "CCIP", "MCMS").
+//
+//go:generate go run github.com/dmarkham/enumer@v1.6.3 -type=Target -json -text -trimprefix=FundMode
+type Target uint8
 
 const (
-	TargetAll  Target = "all"
-	TargetCcip Target = "ccip"
-	TargetMcms Target = "mcms"
+	TargetAll Target = iota
+	TargetCCIP
+	TargetMCMS
 )
 
 var TargetDefault = TargetAll
@@ -90,7 +95,7 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
 	}
 
-	mcmsState, err := dep.Resolve[state.MCMSChainState](dp)
+	mcmsState, err := dep.Resolve[tonstate.MCMSChainState](dp)
 	if err != nil {
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
 	}
@@ -111,9 +116,9 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	case TargetAll:
 		targetContracts = append(targetContracts, ccipContracts...)
 		targetContracts = append(targetContracts, mcmsContracts...)
-	case TargetCcip:
+	case TargetCCIP:
 		targetContracts = append(targetContracts, ccipContracts...)
-	case TargetMcms:
+	case TargetMCMS:
 		targetContracts = append(targetContracts, mcmsContracts...)
 	default:
 		return FundContractsOutput{}, fmt.Errorf("invalid target: %s", *in.Target)
