@@ -2,7 +2,6 @@ package sequences
 
 import (
 	"fmt"
-	"math/rand/v2"
 
 	"github.com/Masterminds/semver/v3"
 	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
@@ -120,8 +119,13 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 					return sequences.OnChainOutput{}, fmt.Errorf("current owner mismatch for %s: expected %s, got %s", contractRef.Address, currentOwner.String(), onChainOwner.String())
 				}
 
+				queryID, errQ := tvm.RandomQueryID()
+				if errQ != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query ID: %w", errQ)
+				}
+
 				body := ownable2step.TransferOwnership{
-					QueryID:  rand.Uint64(),
+					QueryID:  queryID,
 					NewOwner: proposedOwner,
 				}
 
@@ -200,8 +204,13 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 					return sequences.OnChainOutput{}, fmt.Errorf("unsupported contract type %s for accept ownership: %w", contractRef.Type, err)
 				}
 
+				queryID, errQ := tvm.RandomQueryID()
+				if errQ != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query ID: %w", errQ)
+				}
+
 				body := ownable2step.AcceptOwnership{
-					QueryID: rand.Uint64(),
+					QueryID: queryID,
 				}
 
 				var r cldf_ops.Report[opston.SendMessagesInput, opston.SendMessagesOutput]
