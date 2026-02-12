@@ -74,8 +74,6 @@ var FundContractsOp = operations.NewOperation(
 	fundContracts,
 )
 
-type FundingMessage struct{} // Empty message
-
 func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) (FundContractsOutput, error) {
 	if in.Target == nil {
 		in.Target = &TargetDefault
