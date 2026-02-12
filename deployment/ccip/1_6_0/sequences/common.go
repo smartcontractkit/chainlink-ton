@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/fastcurse"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+	utilscs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
@@ -38,6 +39,8 @@ func init() {
 			CurseSubjectAdapter: curseAdapter,
 		},
 	)
+
+	utilscs.GetRegistry().RegisterMCMSReader(chainsel.FamilyTon, &MCMSReaderAdapter{})
 }
 
 // Standalone functions - can be used by any adapter without coupling

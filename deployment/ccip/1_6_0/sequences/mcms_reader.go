@@ -1,15 +1,20 @@
 package sequences
 
 import (
+	"encoding/json"
 	"fmt"
+
+	"github.com/xssnick/tonutils-go/tlb"
+
+	mcms_ton "github.com/smartcontractkit/mcms/sdk/ton"
+	"github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	mcms_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	mcms_ton "github.com/smartcontractkit/mcms/sdk/ton"
-	"github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
@@ -34,9 +39,13 @@ func (r *MCMSReaderAdapter) GetChainMetadata(e deployment.Environment, chainSele
 		return types.ChainMetadata{}, fmt.Errorf("failed to get opCount for MCMS at address %s on chain %d: %w", mcmsAddr.Address, chainSelector, err)
 	}
 
+	// Notice: static value for now, not configurable
+	value := tlb.MustFromTON("0.1").Nano().Uint64()
+
 	return types.ChainMetadata{
-		StartingOpCount: counts,
-		MCMAddress:      mcmsAddr.Address,
+		StartingOpCount:  counts,
+		MCMAddress:       mcmsAddr.Address,
+		AdditionalFields: json.RawMessage(fmt.Sprintf(`{"value": %d}`, value)), // TODO: is this even used right now?
 	}, nil
 }
 

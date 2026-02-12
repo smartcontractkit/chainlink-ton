@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
@@ -41,7 +41,7 @@ var DeployMCMSContracts = operations.NewSequence(
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
 		chain := chains.TonChains()[input.ChainSelector]
 
-		qualifier := utils.CLLQualifier // default
+		qualifier := cciputils.CLLQualifier // default
 		if input.Qualifier != nil {
 			qualifier = *input.Qualifier
 		}
@@ -82,8 +82,9 @@ var DeployMCMSContracts = operations.NewSequence(
 func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
 	noneAddr := address.NewAddressNone()
 	s := state.MCMSChainState{
-		Timelock: *noneAddr,
-		MCMS:     *noneAddr,
+		ByQualifier: map[string]*state.MCMSSuiteState{
+			qualifier: {Timelock: noneAddr, MCMS: noneAddr},
+		},
 	}
 
 	// fill in existing addresses
@@ -99,9 +100,9 @@ func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []da
 
 		switch e.Type {
 		case state.Timelock:
-			s.Timelock = *tonAddr
+			s.ByQualifier[qualifier].Timelock = tonAddr
 		case state.MCMS:
-			s.MCMS = *tonAddr
+			s.ByQualifier[qualifier].MCMS = tonAddr
 		default:
 			// ignore unknown types
 		}

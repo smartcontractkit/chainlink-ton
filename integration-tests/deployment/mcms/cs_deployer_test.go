@@ -5,22 +5,29 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
-	chainselectors "github.com/smartcontractkit/chain-selectors"
-	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/stretchr/testify/require"
 
-	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	chainselectors "github.com/smartcontractkit/chain-selectors"
+
+	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+
+	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
 
 func TestDeployMCMSWithDeployerAPI(t *testing.T) {
@@ -78,13 +85,15 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mc, err := chain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
 
+	qualifier := cciputils.CLLQualifier // default
+
 	// Verify timelock address
-	timelockAddr := mcmsState[chainSelector].Timelock
+	timelockAddr := mcmsState[chainSelector].ByQualifier[qualifier].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
 
 	// Verify timelock is initialized
-	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	isInitializedResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
 	require.NoError(t, err)
@@ -92,15 +101,15 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.True(t, isInitialized, "Timelock should be initialized")
 
 	// Verify timelock roles (all should be the deployer)
-	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
 	require.NoError(t, err)
-	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
 	require.NoError(t, err)
-	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
 	require.NoError(t, err)
-	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
+	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
 	require.NoError(t, err)
-	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
 	require.NoError(t, err)
 
 	require.True(t, getProposerResponse.MustIsNil(0), "Proposer should be empty")
@@ -114,8 +123,8 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	t.Log("Verified all timelock admin is set to deployer, while other roles are empty")
 
 	// Verify MCMS contract
-	mcmsAddr := mcmsState[chainSelector].MCMS
-	tv, err := tvm.CallGetter(ctx, chain.Client, mc, &mcmsAddr, common.GetTypeAndVersion)
+	mcmsAddr := mcmsState[chainSelector].ByQualifier[qualifier].MCMS
+	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
@@ -146,18 +155,18 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsState, err = tonstate.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
 
-	mcmsAddr = mcmsState[chainSelector].MCMS
-	tv, err = tvm.CallGetter(ctx, chain.Client, mc, &mcmsAddr, common.GetTypeAndVersion)
+	mcmsAddr = mcmsState[chainSelector].ByQualifier[qualifier].MCMS
+	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
 
-	timelockAddr = mcmsState[chainSelector].Timelock
+	timelockAddr = mcmsState[chainSelector].ByQualifier[qualifier].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
 
 	// Verify timelock is still initialized
-	isInitializedResponse, err = chain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	isInitializedResponse, err = chain.Client.RunGetMethod(ctx, mc, timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err = isInitializedResponse.Int(0)
 	require.NoError(t, err)
