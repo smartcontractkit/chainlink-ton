@@ -3,79 +3,16 @@ package parser
 import (
 	"math/big"
 	"testing"
+
+	"github.com/samber/lo"
 )
-
-func TestParseLispTuple(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  []any
-		expect []uint64
-	}{
-		{
-			name:   "nil input",
-			input:  nil,
-			expect: nil,
-		},
-		{
-			name:   "empty input",
-			input:  []any{},
-			expect: nil,
-		},
-		{
-			name: "single element",
-			input: []any{
-				[]any{big.NewInt(42), nil},
-			},
-			expect: []uint64{42},
-		},
-		{
-			name: "multiple elements",
-			input: []any{
-				[]any{
-					big.NewInt(1),
-					[]any{
-						big.NewInt(2),
-						[]any{
-							big.NewInt(3),
-							nil,
-						},
-					},
-				},
-			},
-			expect: []uint64{1, 2, 3},
-		},
-		{
-			name: "malformed input",
-			input: []any{
-				[]any{42, nil},
-			},
-			expect: []uint64{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseLispTuple(tt.input)
-			if len(got) != len(tt.expect) {
-				t.Errorf("expected %v, got %v", tt.expect, got)
-				return
-			}
-			for i := range got {
-				if got[i] != tt.expect[i] {
-					t.Errorf("expected %v, got %v", tt.expect, got)
-					break
-				}
-			}
-		})
-	}
-}
 
 func bigIntFromHex(s string) *big.Int {
 	bi, _ := new(big.Int).SetString(s, 16)
 	return bi
 }
 
-func TestParseLispTupleBigInt(t *testing.T) {
+func TestParseLispTuple(t *testing.T) {
 	// Global curse subject hex from contracts/ccip/rmn_remote/lib.tolk
 	const globalCurseHex = "01000000000000000000000000000001"
 
@@ -83,6 +20,7 @@ func TestParseLispTupleBigInt(t *testing.T) {
 		name      string
 		input     []any
 		expectHex []string // use hex strings so we create fresh big.Int for comparison
+		expectErr bool
 	}{
 		{
 			name:      "nil input",
@@ -92,6 +30,11 @@ func TestParseLispTupleBigInt(t *testing.T) {
 		{
 			name:      "empty input",
 			input:     []any{},
+			expectHex: nil,
+		},
+		{
+			name:      "nil first element (empty list)",
+			input:     []any{nil},
 			expectHex: nil,
 		},
 		{
@@ -158,20 +101,37 @@ func TestParseLispTupleBigInt(t *testing.T) {
 			input: []any{
 				[]any{42, nil},
 			},
-			expectHex: []string{},
+			expectErr: true,
 		},
 		{
-			name: "first element not a list",
+			name: "malformed input - first element not a list",
 			input: []any{
 				"not a list",
 			},
-			expectHex: []string{},
+			expectErr: true,
+		},
+		{
+			name: "malformed input - wrong tail type",
+			input: []any{
+				[]any{big.NewInt(1), "not a list"},
+			},
+			expectErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ParseLispTupleBigInt(tt.input)
+			got, err := ParseLispTuple[*big.Int](tt.input)
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
 			if len(got) != len(tt.expectHex) {
 				t.Errorf("expected length %d, got %d", len(tt.expectHex), len(got))
 				return
@@ -181,6 +141,96 @@ func TestParseLispTupleBigInt(t *testing.T) {
 				expected := bigIntFromHex(tt.expectHex[i])
 				if got[i].Cmp(expected) != 0 {
 					t.Errorf("at index %d: expected %s, got %s", i, expected.Text(16), got[i].Text(16))
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestParseLispTupleToUint64(t *testing.T) {
+	// This test demonstrates the recommended pattern for converting to uint64
+	tests := []struct {
+		name      string
+		input     []any
+		expect    []uint64
+		expectErr bool
+	}{
+		{
+			name:   "nil input",
+			input:  nil,
+			expect: nil,
+		},
+		{
+			name:   "empty input",
+			input:  []any{},
+			expect: nil,
+		},
+		{
+			name:   "nil first element (empty list)",
+			input:  []any{nil},
+			expect: nil,
+		},
+		{
+			name: "single element",
+			input: []any{
+				[]any{big.NewInt(42), nil},
+			},
+			expect: []uint64{42},
+		},
+		{
+			name: "multiple elements",
+			input: []any{
+				[]any{
+					big.NewInt(1),
+					[]any{
+						big.NewInt(2),
+						[]any{
+							big.NewInt(3),
+							nil,
+						},
+					},
+				},
+			},
+			expect: []uint64{1, 2, 3},
+		},
+		{
+			name: "malformed input - wrong value type",
+			input: []any{
+				[]any{42, nil}, // 42 instead of *big.Int
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Parse as *big.Int first
+			bigInts, err := ParseLispTuple[*big.Int](tt.input)
+			if tt.expectErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			// Convert to uint64 using lo.Map
+			var got []uint64
+			if bigInts != nil {
+				got = lo.Map(bigInts, func(x *big.Int, _ int) uint64 { return x.Uint64() })
+			}
+
+			if len(got) != len(tt.expect) {
+				t.Errorf("expected %v, got %v", tt.expect, got)
+				return
+			}
+			for i := range got {
+				if got[i] != tt.expect[i] {
+					t.Errorf("expected %v, got %v", tt.expect, got)
 					break
 				}
 			}

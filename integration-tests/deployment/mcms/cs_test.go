@@ -45,7 +45,7 @@ func TestDeployMCMS(t *testing.T) {
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
 
-	version := sequence.ContractsVersionLatestSupported
+	version := sequence.ContractsVersionLocal
 
 	timelockContractSemver := semver.MustParse("0.0.3")
 	mcmsContractSemver := semver.MustParse("0.0.4")

@@ -78,7 +78,7 @@ func TestFastCurseTON(t *testing.T) {
 	contractID, err := ops.RandomUint32()
 	require.NoError(t, err)
 
-	version := sequence.ContractsVersionLatestSupported
+	version := sequence.ContractsVersionLocal
 	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, version, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})

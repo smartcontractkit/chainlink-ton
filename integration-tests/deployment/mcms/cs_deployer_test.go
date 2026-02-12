@@ -44,7 +44,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	dReg := deployops.GetRegistry()
 	mcmsRegistry := cs_ccip.GetRegistry()
 
-	version := sequence.ContractsVersionLatestSupported
+	version := sequence.ContractsVersionLocal
 
 	// Note: The MCMSDeploymentConfigPerChain uses EVM-specific types (common.Address),
 	// but the TON adapter ignores these and uses the deployer address for all roles.

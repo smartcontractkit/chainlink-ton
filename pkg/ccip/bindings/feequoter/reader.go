@@ -3,6 +3,7 @@ package feequoter
 import (
 	"math/big"
 
+	"github.com/samber/lo"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -19,7 +20,19 @@ var GetOwner = ownable2step.GetOwner
 // GetPendingOwner gets the pending owner of the FeeQuoter contract
 var GetPendingOwner = ownable2step.GetPendingOwner
 
-// GetDestChainConfig gets the destination chain configuration for a given chain selector
+// GetDestChainConfig gets the destination chain configuration for a given chain selector.
+//
+// NOTE: The on-chain getter "destChainConfig" returns a full DestChainConfig struct which contains:
+//   - config: FeeQuoterDestChainConfig (18 primitive fields)
+//   - usdPerUnitGas: Cell<GasPrice>
+//   - tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>
+//
+// However, this decoder only parses the first 18 values (the FeeQuoterDestChainConfig fields)
+// and ignores the remaining cell/dictionary fields. This works because TVM unpacks primitive
+// struct fields onto the stack as individual values. We intentionally reuse the on-chain getter
+// while only extracting the fields we need off-chain.
+//
+// See on-chain types in: contracts/contracts/ccip/fee_quoter/types.tolk (DestChainConfig, FeeQuoterDestChainConfig)
 var GetDestChainConfig = tvm.Getter[uint64, DestChainConfig]{
 	Name: destChainConfigGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (DestChainConfig, error) {
@@ -194,6 +207,10 @@ var GetStaticConfig = tvm.NewNoArgsGetter(tvm.NoArgsOpts[StaticConfig]{
 var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	Name: DestChainsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
-		return parser.ParseLispTuple(r.AsTuple()), nil
+		selectors, err := parser.ParseLispTuple[*big.Int](r.AsTuple())
+		if err != nil {
+			return nil, err
+		}
+		return lo.Map(selectors, func(x *big.Int, _ int) uint64 { return x.Uint64() }), nil
 	}),
 })

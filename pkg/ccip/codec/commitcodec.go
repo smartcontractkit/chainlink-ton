@@ -66,7 +66,10 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 
 		// The GasPrice is packed as: (DA << 112) | Exec by the plugin.
 		// We need to unpack it into two separate 112-bit fields for the TON onchain struct.
-		execFee, daFee := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
+		execFee, daFee, err := feequoter.UnpackGasPrice(gpu.GasPrice.Int)
+		if err != nil {
+			return nil, fmt.Errorf("cannot unpack gas price for chain selector %d: %w", gpu.ChainSel, err)
+		}
 
 		gpuSlice[i] = ocr.GasPriceUpdate{
 			DestChainSelector:        uint64(gpu.ChainSel),
@@ -150,20 +153,17 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		for i, update := range priceUpdate.GasPriceUpdates {
 			// Pack the two 112-bit fields back into a single 224-bit value
 			// Packed format: (DA << 112) | Exec
-			var packedPrice *big.Int
-			if (update.ExecutionGasPrice != nil && update.ExecutionGasPrice.Sign() != 0) ||
-				(update.DataAvailabilityGasPrice != nil && update.DataAvailabilityGasPrice.Sign() != 0) {
-				execFee := update.ExecutionGasPrice
-				if execFee == nil {
-					execFee = big.NewInt(0)
-				}
-				daFee := update.DataAvailabilityGasPrice
-				if daFee == nil {
-					daFee = big.NewInt(0)
-				}
-				packedPrice = feequoter.PackGasPrice(execFee, daFee)
-			} else {
-				packedPrice = big.NewInt(0)
+			execFee := update.ExecutionGasPrice
+			if execFee == nil {
+				execFee = big.NewInt(0)
+			}
+			daFee := update.DataAvailabilityGasPrice
+			if daFee == nil {
+				daFee = big.NewInt(0)
+			}
+			packedPrice, err := feequoter.PackGasPrice(execFee, daFee)
+			if err != nil {
+				return cciptypes.CommitPluginReport{}, fmt.Errorf("cannot pack gas price for chain selector %d: %w", update.DestChainSelector, err)
 			}
 
 			gpuSlice[i] = cciptypes.GasPriceChain{

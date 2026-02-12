@@ -47,26 +47,29 @@ func TestPackUnpackGasPrice(t *testing.T) {
 		},
 		{
 			name:      "max 112-bit values",
-			execPrice: maxUint112(),
-			daPrice:   maxUint112(),
+			execPrice: testMaxUint112(),
+			daPrice:   testMaxUint112(),
 			// (2^112-1 << 112) | (2^112-1)
-			expectedPacked: new(big.Int).Or(new(big.Int).Lsh(maxUint112(), 112), maxUint112()),
+			expectedPacked: new(big.Int).Or(new(big.Int).Lsh(testMaxUint112(), 112), testMaxUint112()),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test packing
-			packed := PackGasPrice(tt.execPrice, tt.daPrice)
+			packed, err := PackGasPrice(tt.execPrice, tt.daPrice)
+			require.NoError(t, err)
 			require.Equal(t, tt.expectedPacked, packed, "packed value should match expected")
 
 			// Test unpacking
-			unpackedExec, unpackedDA := UnpackGasPrice(packed)
+			unpackedExec, unpackedDA, err := UnpackGasPrice(packed)
+			require.NoError(t, err)
 			require.True(t, tt.execPrice.Cmp(unpackedExec) == 0, "unpacked exec price should match original: expected %s, got %s", tt.execPrice, unpackedExec) //nolint:testifylint // big.Int requires value comparison not struct comparison
 			require.True(t, tt.daPrice.Cmp(unpackedDA) == 0, "unpacked DA price should match original: expected %s, got %s", tt.daPrice, unpackedDA)           //nolint:testifylint // big.Int requires value comparison not struct comparison
 
 			// Verify round-trip
-			repacked := PackGasPrice(unpackedExec, unpackedDA)
+			repacked, err := PackGasPrice(unpackedExec, unpackedDA)
+			require.NoError(t, err)
 			require.Equal(t, packed, repacked, "repacked value should match original packed value")
 		})
 	}
@@ -76,7 +79,8 @@ func TestUnpackGasPrice_Examples(t *testing.T) {
 	t.Run("unpack 5192296858534827628530496329220097", func(t *testing.T) {
 		// This is the value (1 << 112) | 1
 		packed := mustParseBigInt("5192296858534827628530496329220097")
-		exec, da := UnpackGasPrice(packed)
+		exec, da, err := UnpackGasPrice(packed)
+		require.NoError(t, err)
 
 		require.Equal(t, big.NewInt(1), exec, "exec should be 1")
 		require.Equal(t, big.NewInt(1), da, "DA should be 1")
@@ -84,10 +88,65 @@ func TestUnpackGasPrice_Examples(t *testing.T) {
 
 	t.Run("unpack 4919992000 (exec only)", func(t *testing.T) {
 		packed := big.NewInt(4919992000)
-		exec, da := UnpackGasPrice(packed)
+		exec, da, err := UnpackGasPrice(packed)
+		require.NoError(t, err)
 
 		require.Equal(t, big.NewInt(4919992000), exec, "exec should be 4919992000")
 		require.Equal(t, big.NewInt(0), da, "DA should be 0")
+	})
+}
+
+func TestPackGasPrice_Errors(t *testing.T) {
+	t.Run("nil execution gas price", func(t *testing.T) {
+		_, err := PackGasPrice(nil, big.NewInt(0))
+		require.ErrorIs(t, err, ErrNilGasPrice)
+	})
+
+	t.Run("nil data availability gas price", func(t *testing.T) {
+		_, err := PackGasPrice(big.NewInt(0), nil)
+		require.ErrorIs(t, err, ErrNilGasPrice)
+	})
+
+	t.Run("negative execution gas price", func(t *testing.T) {
+		_, err := PackGasPrice(big.NewInt(-1), big.NewInt(0))
+		require.ErrorIs(t, err, ErrNegativeGasPrice)
+	})
+
+	t.Run("negative data availability gas price", func(t *testing.T) {
+		_, err := PackGasPrice(big.NewInt(0), big.NewInt(-1))
+		require.ErrorIs(t, err, ErrNegativeGasPrice)
+	})
+
+	t.Run("execution gas price exceeds 112 bits", func(t *testing.T) {
+		// 2^112 exceeds 112 bits
+		tooBig := new(big.Int).Lsh(big.NewInt(1), 112)
+		_, err := PackGasPrice(tooBig, big.NewInt(0))
+		require.ErrorIs(t, err, ErrGasPriceExceeds112Bits)
+	})
+
+	t.Run("data availability gas price exceeds 112 bits", func(t *testing.T) {
+		tooBig := new(big.Int).Lsh(big.NewInt(1), 112)
+		_, err := PackGasPrice(big.NewInt(0), tooBig)
+		require.ErrorIs(t, err, ErrGasPriceExceeds112Bits)
+	})
+}
+
+func TestUnpackGasPrice_Errors(t *testing.T) {
+	t.Run("nil packed price", func(t *testing.T) {
+		_, _, err := UnpackGasPrice(nil)
+		require.ErrorIs(t, err, ErrNilPackedPrice)
+	})
+
+	t.Run("negative packed price", func(t *testing.T) {
+		_, _, err := UnpackGasPrice(big.NewInt(-1))
+		require.ErrorIs(t, err, ErrNegativePackedPrice)
+	})
+
+	t.Run("packed price exceeds 224 bits", func(t *testing.T) {
+		// 2^224 exceeds 224 bits
+		tooBig := new(big.Int).Lsh(big.NewInt(1), 224)
+		_, _, err := UnpackGasPrice(tooBig)
+		require.ErrorIs(t, err, ErrPackedPriceExceeds224Bits)
 	})
 }
 
@@ -100,7 +159,7 @@ func mustParseBigInt(s string) *big.Int {
 	return n
 }
 
-func maxUint112() *big.Int {
+func testMaxUint112() *big.Int {
 	// 2^112 - 1
 	return new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 112), big.NewInt(1))
 }
