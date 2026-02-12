@@ -80,14 +80,17 @@ var FundContractsOp = operations.NewOperation(
 	fundContracts,
 )
 
-func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) (FundContractsOutput, error) {
-	if in.Target == nil {
-		in.Target = &TargetDefault
-	}
+type parsedFundContractsInput struct {
+	Mode   FundMode
+	Amount tlb.Coins
+	Target Target
+	Plan   bool
+}
 
-	ccipState, err := dep.Resolve[tonstate.CCIPChainState](dp)
+func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) (FundContractsOutput, error) {
+	parsedInput, err := parseFundContractsInput(in)
 	if err != nil {
-		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+		return FundContractsOutput{}, fmt.Errorf("failed to parse input: %w", err)
 	}
 
 	tonChain, err := dep.Resolve[cldf_ton.Chain](dp)
@@ -95,9 +98,67 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
 	}
 
+	targetContracts, err := resolveTargetContracts(dp, parsedInput)
+	if err != nil {
+		return FundContractsOutput{}, fmt.Errorf("failed to resolve target contracts: %w", err)
+	}
+
+	messages, err := func() ([]InternalMessage[any], error) {
+		if parsedInput.Mode == FundModeExactAmount {
+			return prepareTransfers(parsedInput.Amount, targetContracts)
+		}
+		return prepareTopUps(b.GetContext(), b.Logger, parsedInput.Amount, targetContracts, tonChain)
+	}()
+	if err != nil {
+		return FundContractsOutput{}, fmt.Errorf("failed to generate funding requests: %w", err)
+	}
+
+	_in := SendMessagesInput{
+		Messages: messages,
+		Plan:     parsedInput.Plan,
+	}
+
+	r, err := operations.ExecuteOperation(b, SendMessages, dp, _in)
+	if err != nil {
+		return FundContractsOutput{}, fmt.Errorf("failed to execute send messages operation: %w", err)
+	}
+
+	return FundContractsOutput(r.Output), nil
+}
+
+func parseFundContractsInput(in FundContractsInput) (parsedFundContractsInput, error) {
+	amount, err := tlb.FromTON(in.Amount)
+	if err != nil {
+		return parsedFundContractsInput{}, fmt.Errorf("failed to parse amount: %w", err)
+	}
+
+	target := TargetDefault
+	if in.Target != nil {
+		target = *in.Target
+	}
+
+	return parsedFundContractsInput{
+		Mode:   in.Mode,
+		Amount: amount,
+		Target: target,
+		Plan:   in.Plan,
+	}, nil
+}
+
+type targetContract struct {
+	name string
+	addr address.Address
+}
+
+func resolveTargetContracts(dp *dep.DependencyProvider, parsedInput parsedFundContractsInput) ([]targetContract, error) {
+	ccipState, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
+
 	mcmsState, err := dep.Resolve[tonstate.MCMSChainState](dp)
 	if err != nil {
-		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
+		return nil, fmt.Errorf("failed to resolve ton mcms state: %w", err)
 	}
 
 	ccipContracts := []targetContract{
@@ -112,7 +173,7 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	}
 	targetContracts := make([]targetContract, 0, len(ccipContracts)+len(mcmsContracts))
 
-	switch *in.Target {
+	switch parsedInput.Target {
 	case TargetAll:
 		targetContracts = append(targetContracts, ccipContracts...)
 		targetContracts = append(targetContracts, mcmsContracts...)
@@ -121,39 +182,9 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	case TargetMCMS:
 		targetContracts = append(targetContracts, mcmsContracts...)
 	default:
-		return FundContractsOutput{}, fmt.Errorf("invalid target: %s", *in.Target)
+		return nil, fmt.Errorf("invalid target: %s", parsedInput.Target)
 	}
-
-	amount, err := tlb.FromTON(in.Amount)
-	if err != nil {
-		return FundContractsOutput{}, fmt.Errorf("failed to parse amount: %w", err)
-	}
-	messages, err := func() ([]InternalMessage[any], error) {
-		if in.Mode == FundModeExactAmount {
-			return prepareTransfers(amount, targetContracts)
-		}
-		return prepareTopUps(b.GetContext(), b.Logger, amount, targetContracts, tonChain)
-	}()
-	if err != nil {
-		return FundContractsOutput{}, fmt.Errorf("failed to generate funding requests: %w", err)
-	}
-
-	_in := SendMessagesInput{
-		Messages: messages,
-		Plan:     in.Plan,
-	}
-
-	r, err := operations.ExecuteOperation(b, SendMessages, dp, _in)
-	if err != nil {
-		return FundContractsOutput{}, fmt.Errorf("failed to execute send messages operation: %w", err)
-	}
-
-	return FundContractsOutput(r.Output), nil
-}
-
-type targetContract struct {
-	name string
-	addr address.Address
+	return targetContracts, nil
 }
 
 func prepareTransfers(amount tlb.Coins, targetContracts []targetContract) ([]InternalMessage[any], error) {
