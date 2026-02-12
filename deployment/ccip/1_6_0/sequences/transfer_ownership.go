@@ -36,8 +36,7 @@ type TonTransferOwnershipAdapter struct {
 
 var _ deploy.TransferOwnershipAdapter = &TonTransferOwnershipAdapter{}
 
-// InitializeTimelockAddress is a no-op for TON. Unlike EVM which caches the timelock address
-// for its operation inputs, TON resolves plan/send by comparing the on-chain owner against the deployer.
+// InitializeTimelockAddress reads the timelock address for each TON chain from the datastore and stores it in the adapter for later use.
 func (a *TonTransferOwnershipAdapter) InitializeTimelockAddress(e cldf.Environment, input mcms.Input) error {
 	tonChains := e.BlockChains.TonChains()
 	timelockAddrs := make(map[uint64]*address.Address)
