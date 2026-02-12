@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -124,9 +125,9 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 	}
 	messages, err := func() ([]InternalMessage[any], error) {
 		if in.Mode == FundModeExactAmount {
-			return prepareTransfers(targetContracts, amount)
+			return prepareTransfers(amount, targetContracts)
 		}
-		return prepareTopUps(context.TODO(), amount, targetContracts, tonChain)
+		return prepareTopUps(b.GetContext(), b.Logger, amount, targetContracts, tonChain)
 	}()
 	if err != nil {
 		return FundContractsOutput{}, fmt.Errorf("failed to generate funding requests: %w", err)
@@ -150,7 +151,7 @@ type targetContract struct {
 	addr address.Address
 }
 
-func prepareTransfers(targetContracts []targetContract, amount tlb.Coins) ([]InternalMessage[any], error) {
+func prepareTransfers(amount tlb.Coins, targetContracts []targetContract) ([]InternalMessage[any], error) {
 	requests := make([]InternalMessage[any], 0, len(targetContracts))
 	for _, contract := range targetContracts {
 		if contract.addr.IsAddrNone() {
@@ -162,7 +163,7 @@ func prepareTransfers(targetContracts []targetContract, amount tlb.Coins) ([]Int
 	return requests, nil
 }
 
-func prepareTopUps(ctx context.Context, targetAmount tlb.Coins, targetContracts []targetContract, tonChain cldf_ton.Chain) ([]InternalMessage[any], error) {
+func prepareTopUps(ctx context.Context, logger logger.Logger, targetAmount tlb.Coins, targetContracts []targetContract, tonChain cldf_ton.Chain) ([]InternalMessage[any], error) {
 	requests := make([]InternalMessage[any], 0, len(targetContracts))
 	for _, contract := range targetContracts {
 		if contract.addr.IsAddrNone() {
@@ -179,7 +180,7 @@ func prepareTopUps(ctx context.Context, targetAmount tlb.Coins, targetContracts 
 		}
 		contractBalance := contractState.State.Balance
 		if contractBalance.GreaterOrEqual(&targetAmount) {
-			fmt.Printf("Contract %s (%s) already has balance %s greater than or equal to target amount %s, skipping funding\n", contract.name, contract.addr.String(), contractBalance.String(), targetAmount.String())
+			logger.Infof("Contract %s (%s) already has balance %s greater than or equal to target amount %s, skipping funding\n", contract.name, contract.addr.String(), contractBalance.String(), targetAmount.String())
 			continue
 		}
 		amount, err := targetAmount.Sub(&contractBalance)
