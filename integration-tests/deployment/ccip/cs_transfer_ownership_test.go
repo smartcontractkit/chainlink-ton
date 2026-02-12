@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -81,7 +82,8 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 
 	// Step 2: Verify deployer is the initial owner of all contracts
 	for _, c := range contracts {
-		owner, err := tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetOwner)
+		var owner *address.Address
+		owner, err = tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetOwner)
 		require.NoError(t, err, "failed to get owner for %s", c.name)
 		require.True(t, deployerAddr.Equals(owner), "%s should be owned by deployer, got %s", c.name, owner.String())
 		t.Logf("%s at %s is owned by deployer %s", c.name, c.addr.String(), owner.String())
@@ -133,7 +135,8 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 
 	// Step 6: Verify pending owner is set for all contracts
 	for _, c := range contracts {
-		pendingOwner, err := tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetPendingOwner)
+		var pendingOwner *address.Address
+		pendingOwner, err = tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetPendingOwner)
 		require.NoError(t, err, "failed to get pending owner for %s", c.name)
 		require.True(t, newOwnerWallet.WalletAddress().Equals(pendingOwner),
 			"%s pending owner should be new wallet %s, got %s", c.name, newOwnerWallet.WalletAddress().String(), pendingOwner.String())
@@ -142,7 +145,8 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 
 	// Step 7: Verify current owner is still the deployer (transfer only sets pending, not actual)
 	for _, c := range contracts {
-		owner, err := tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetOwner)
+		var owner *address.Address
+		owner, err = tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetOwner)
 		require.NoError(t, err, "failed to get owner for %s", c.name)
 		require.True(t, deployerAddr.Equals(owner),
 			"%s should still be owned by deployer after transfer (before accept), got %s", c.name, owner.String())
@@ -154,10 +158,12 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	// AcceptOwnership message directly from the new owner wallet.
 	for _, c := range contracts {
 		body := ownable2step.AcceptOwnership{}
-		bodyCell, err := tlb.ToCell(body)
+		var bodyCell *cell.Cell
+		bodyCell, err = tlb.ToCell(body)
 		require.NoError(t, err, "failed to encode AcceptOwnership for %s", c.name)
 
-		tx, _, err := newOwnerWallet.SendWaitTransaction(t.Context(), &wallet.Message{
+		var tx *tlb.Transaction
+		tx, _, err = newOwnerWallet.SendWaitTransaction(t.Context(), &wallet.Message{
 			Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 			InternalMessage: &tlb.InternalMessage{
 				IHRDisabled: true,
@@ -177,7 +183,8 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 
 	// Step 9: Verify new owner is now the actual owner of all contracts
 	for _, c := range contracts {
-		owner, err := tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetOwner)
+		var owner *address.Address
+		owner, err = tvm.CallGetterLatest(t.Context(), tonChain.Client, c.addr, ownable2step.GetOwner)
 		require.NoError(t, err, "failed to get owner for %s", c.name)
 		require.True(t, newOwnerWallet.WalletAddress().Equals(owner),
 			"%s should be owned by new wallet %s, got %s", c.name, newOwnerWallet.WalletAddress().String(), owner.String())

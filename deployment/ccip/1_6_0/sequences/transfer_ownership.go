@@ -65,23 +65,27 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
 			for _, contractRef := range in.ContractRef {
-				contractAddr, err := address.ParseAddr(contractRef.Address)
+				var contractAddr *address.Address
+				contractAddr, err = address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
 				}
 
-				contractType, err := datastoreTypeToCodecType(string(contractRef.Type))
+				var contractType string
+				contractType, err = datastoreTypeToCodecType(string(contractRef.Type))
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("unsupported contract type %s for ownership transfer: %w", contractRef.Type, err)
 				}
 
 				// Read the actual on-chain owner
-				onChainOwner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, ownable2step.GetOwner)
+				var onChainOwner *address.Address
+				onChainOwner, err = tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get owner of %s: %w", contractRef.Address, err)
 				}
 
-				currentOwner, err := address.ParseAddr(in.CurrentOwner)
+				var currentOwner *address.Address
+				currentOwner, err = address.ParseAddr(in.CurrentOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse current owner address: %w", err)
 				}
@@ -94,7 +98,8 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 					NewOwner: proposedOwner,
 				}
 
-				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				var r cldf_ops.Report[opston.SendMessagesInput, opston.SendMessagesOutput]
+				r, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
@@ -156,19 +161,22 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
 			for _, contractRef := range in.ContractRef {
-				contractAddr, err := address.ParseAddr(contractRef.Address)
+				var contractAddr *address.Address
+				contractAddr, err = address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
 				}
 
-				contractType, err := datastoreTypeToCodecType(string(contractRef.Type))
+				var contractType string
+				contractType, err = datastoreTypeToCodecType(string(contractRef.Type))
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("unsupported contract type %s for accept ownership: %w", contractRef.Type, err)
 				}
 
 				body := ownable2step.AcceptOwnership{}
 
-				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				var r cldf_ops.Report[opston.SendMessagesInput, opston.SendMessagesOutput]
+				r, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
