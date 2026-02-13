@@ -160,9 +160,10 @@ fun drillPriceRegistries(st: FiredrillEntrypoint_Storage) {
 	// Emit UsdPerTokenUpdated event
 	val timestamp = blockchain.now();
 	
-	emit(USD_PER_TOKEN_UPDATED_TOPIC, UsdPerTokenUpdated {
-		sourceToken: st.tokenAddress,
-		usdPerToken: 1,
+	emit(USD_PER_UNIT_GAS_UPDATED, UsdPerUnitGasUpdated {
+		destChainSelector: st.chainSelector,
+		executionGasPrice: 1,
+		dataAvailabilityGasPrice: 1,
 		timestamp: timestamp
 	});
 }
@@ -308,5 +309,5 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("com.chainlink.ton.ccip.firedrill.firedrillEntrypoint", "1.6.0")
+	return ("com.chainlink.ton.ccip.firedrill.firedrillEntrypointFeeQuoter", "1.6.0")
 }
