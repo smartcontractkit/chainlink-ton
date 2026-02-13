@@ -21,17 +21,10 @@ func RandomCommitReport() cciptypes.CommitPluginReport {
 		panic(err)
 	}
 
+	// Note: TON on-chain OffRamp requires no more than 1 merkle root per commit report.
+	// See Error.BatchingNotSupported in contracts/contracts/ccip/offramp/contract.tolk
 	return cciptypes.CommitPluginReport{
 		UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
-			{
-				OnRampAddress: randomUnknownAddress(),
-				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
-				SeqNumsRange: cciptypes.NewSeqNumRange(
-					cciptypes.SeqNum(rand.Uint64()),
-					cciptypes.SeqNum(rand.Uint64()),
-				),
-				MerkleRoot: randomBytes32(),
-			},
 			{
 				OnRampAddress: randomUnknownAddress(),
 				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
@@ -71,17 +64,15 @@ func TestCommitPluginCodecV1(t *testing.T) {
 		expErr bool
 	}{
 		{
-			name: "base report blessed",
+			name: "base report with unblessed root",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
 				return report
 			},
 		},
 		{
-			name: "base report unblessed",
+			name: "report with no merkle roots",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
-				report.RMNSignatures = nil
-				report.UnblessedMerkleRoots = report.BlessedMerkleRoots
-				report.BlessedMerkleRoots = nil
+				report.UnblessedMerkleRoots = nil
 				return report
 			},
 		},
@@ -151,6 +142,39 @@ func TestCommitPluginCodecV1(t *testing.T) {
 				report.PriceUpdates.TokenPriceUpdates = nil
 				return report
 			},
+		},
+		{
+			name: "too many merkle roots",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				report.UnblessedMerkleRoots = append(report.UnblessedMerkleRoots, cciptypes.MerkleRootChain{
+					OnRampAddress: make(cciptypes.UnknownAddress, 64),
+					ChainSel:      cciptypes.ChainSelector(12345),
+					SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(1), cciptypes.SeqNum(10)),
+					MerkleRoot:    randomBytes32(),
+				})
+				return report
+			},
+			expErr: true,
+		},
+		{
+			name: "blessed merkle roots ignored, unblessed not required if token/price updates exists",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				// gasPrice and tokenPrice update still exists so UnblessedMerkleRoots is not required
+				report.UnblessedMerkleRoots = nil
+				return report
+			},
+		},
+		{
+			name: "blessed merkle roots ignored, unblessed required if not token updates",
+			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
+				// BlessedMerkleRoots are ignored by TON, so this still requires UnblessedMerkleRoots as there are no price/token updates
+				report.BlessedMerkleRoots = report.UnblessedMerkleRoots
+				report.UnblessedMerkleRoots = nil
+				report.PriceUpdates.GasPriceUpdates = nil
+				report.PriceUpdates.TokenPriceUpdates = nil
+				return report
+			},
+			expErr: true,
 		},
 	}
 

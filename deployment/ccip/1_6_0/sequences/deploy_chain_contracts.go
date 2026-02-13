@@ -222,7 +222,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ContractsSemver:              cfg.Version,
 				Coin:                         defaultCCIPContractCoin,
 				MaxFeeJuelsPerMsg:            cfg.MaxFeeJuelsPerMsg,
-				TokenPriceStalenessThreshold: uint64(cfg.TokenPriceStalenessThreshold),
+				TokenPriceStalenessThreshold: cfg.TokenPriceStalenessThreshold,
 				FeeTokens: map[ccipConfig.TokenSymbol]ccipConfig.FeeToken{
 					"TON": {
 						Address:                    tvm.TonTokenAddr,
@@ -243,7 +243,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				ContractsSemver: cfg.Version,
 				Coin:            defaultCCIPContractCoin,
 				ChainSelector:   cfg.ChainSelector,
-				FeeAggregator:   tvm.ZeroAddress, // default to zero address
+				FeeAggregator:   deployer, // defaults to deployer, can be updated later via SetDynamicConfig
 				Reserve:         defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{

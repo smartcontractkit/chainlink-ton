@@ -18,18 +18,21 @@ import (
 // OnRamp opcodes
 const (
 	OpcodeOnRampSend                         = 0xdcf993c2
-	OpcodeOnRampWithdrawJettons              = 0x266AEACF
 	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
 	OpcodeOnRampExecutorFinishedWithError    = 0xC4068E21
 	OpcodeSetDynamicConfig                   = 0xa178c62e
 	OpcodeUpdateDestChainConfigs             = 0x1a246b6c
 	OpcodeUpdateAllowlists                   = 0x9dc06185
 	OpcodeUpdateSendExecutor                 = 0x82901c45
+	OpcodeWithdrawFeeTokens                  = 0x7052dc75
 )
 
 // Topics
 const (
-	TopicCCIPMessageSent = 0xA45D293C // CRC32("CCIPMessageSent")
+	TopicCCIPMessageSent        = 0xA45D293C // CRC32("CCIPMessageSent")
+	TopicDestChainSelectorAdded = 0xD3D104FF // CRC32("DestChainSelectorAdded")
+	TopicDestChainConfigUpdated = 0x3AA25CF1 // CRC32("DestChainConfigUpdated")
+	TopicConfigSet              = 0x1E32222C // CRC32("ConfigSet")
 )
 
 // Registry method names
@@ -49,9 +52,15 @@ type DestChainSelectorAdded struct {
 	DestChainSelector uint64 `tlb:"## 64"`
 }
 
-type DestChainSelectorUpdated struct {
+type DestChainConfigUpdated struct {
 	DestChainSelector uint64          `tlb:"## 64"`
 	Config            DestChainConfig `tlb:"."`
+}
+
+// ConfigSet event emitted when the OnRamp config is set.
+type ConfigSet struct {
+	ChainSelector uint64        `tlb:"## 64"`
+	DynamicConfig DynamicConfig `tlb:"."`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
@@ -128,7 +137,7 @@ type UpdateAllowlists struct {
 
 type WithdrawFeeTokens struct {
 	_         tlb.Magic                             `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
-	FeeTokens common.SnakedCell[common.AddressWrap] `tlb:"."`
+	FeeTokens common.SnakedCell[common.AddressWrap] `tlb:"^"`
 }
 
 // Message structures that map to the existing types in onramp.go
@@ -141,13 +150,6 @@ type Send struct {
 type Metadata struct {
 	Sender *address.Address `tlb:"addr"`
 	Value  *tlb.Coins       `tlb:"."`
-}
-
-type WithdrawJettons struct {
-	_                  tlb.Magic        `tlb:"#266AEACF" json:"-"` //nolint:revive // Ignore opcode tag
-	MsgId              *big.Int         `tlb:"## 224"`             // Message ID
-	Tokens             *cell.Cell       `tlb:"^"`                  // Token amounts
-	OnrampJettonWallet *address.Address `tlb:"addr"`               // Onramp jetton wallet address
 }
 
 type ExecutorFinishedSuccessfully struct {
@@ -184,13 +186,13 @@ type UpdateSendExecutorMessage struct {
 var TLBs = tvm.MustNewTLBMap([]any{
 	UpdateAllowlists{},
 	Send{},
-	WithdrawJettons{},
 	ExecutorFinishedSuccessfully{},
 	ExecutorFinishedWithError{},
 	SetDynamicConfigMessage{},
 	UpdateDestChainConfigsMessage{},
 	UpdateAllowlistsMessage{},
 	UpdateSendExecutorMessage{},
+	WithdrawFeeTokens{},
 }).MustWithStorageType(Storage{})
 
 // binding types that supports FetchResult interface with rpc client

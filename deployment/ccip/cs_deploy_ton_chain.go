@@ -5,8 +5,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/mcms"
-
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -58,7 +56,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	chain := tonChains[selector]
 
 	reports := make([]operations.Report[any, any], 0)
-	proposals := make([]mcms.TimelockProposal, 0)
 
 	states, err := state.LoadOnchainState(env)
 	if err != nil {
@@ -209,9 +206,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
-		MCMSTimelockProposals: proposals,
-		Reports:               reports,
-		DataStore:             dataStore,
-		AddressBook:           ab,
+		Reports:     reports,
+		DataStore:   dataStore,
+		AddressBook: ab,
 	}, nil
 }

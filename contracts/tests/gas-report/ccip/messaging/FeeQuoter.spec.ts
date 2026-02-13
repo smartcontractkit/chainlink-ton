@@ -24,6 +24,7 @@ import * as path from 'path'
 import * as fs from 'fs'
 import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
 import { opMapFunc } from './opMapFunc'
+import { loadContractCode } from '../../../../wrappers/codeLoader'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -129,7 +130,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       executor: {
         executorCode: await compile('CCIPSendExecutor'),
-        deployableCode: await compile('Deployable'),
+        deployableCode: await loadContractCode('Deployable'),
       },
     }
     onRamp = blockchain.openContract(or.OnRamp.createFromConfig(onRampData, code))

@@ -3,11 +3,11 @@ package ops
 import (
 	"fmt"
 
-	"github.com/xssnick/tonutils-go/tlb"
-
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 
-	"github.com/smartcontractkit/mcms"
+	utilscs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	utilsmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+
 	"github.com/smartcontractkit/mcms/types"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -28,6 +28,9 @@ var _ cldf.ChangeSetV2[SetOCR3OffRampConfig] = SetOCR3Config{}
 type SetOCR3OffRampConfig struct {
 	RemoteChainSels []uint64 // TODO (ops): unused currently
 	Configs         map[operation.PluginType]operation.OCR3ConfigArgs
+
+	// MCMS input configuration required to create proposals
+	MCMS utilsmcms.Input
 }
 
 // SetOCR3Config updates OCR3 Offramp configurations
@@ -48,17 +51,12 @@ func (cs SetOCR3Config) VerifyPreconditions(env cldf.Environment, cfg SetOCR3Off
 }
 
 func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (cldf.ChangesetOutput, error) {
-	proposals := make([]mcms.TimelockProposal, 0)
 	reports := make([]operations.Report[any, any], 0)
+	batchOps := make([]types.BatchOperation, 0)
 
 	stateCCIP, err := state.LoadOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
-	}
-
-	stateMCMS, err := state.LoadMCMSOnChainState(env)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
 
 	for _, remoteSelector := range cfg.RemoteChainSels {
@@ -69,7 +67,6 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 		dp, err := dep.NewDependencyProvider(
 			dep.Provide(chain),
 			dep.Provide(stateCCIP[remoteSelector]),
-			dep.Provide(stateMCMS[remoteSelector]),
 		)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
@@ -105,27 +102,14 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send or plan messages: %w", err)
 		}
 		reports = append(reports, r.ToGenericReport())
-		stateMCMSChain := stateMCMS[remoteSelector]
 
 		if len(r.Output.BatchOps) > 0 {
-			opts := opsmcms.TimelockOpts{
-				ChainSelector: types.ChainSelector(remoteSelector),
-				MCMSAddr:      &stateMCMSChain.MCMS,
-				TimelockAddr:  &stateMCMSChain.Timelock,
-				Description:   fmt.Sprintf("Set OCR3 Offramp Config on chain %d", remoteSelector),
-				Action:        types.TimelockActionSchedule,
-				Value:         tlb.MustFromTON("0.1"),
-			}
-			p, err := opsmcms.BuildTimelockProposal(env.GetContext(), chain.Client, r.Output.BatchOps, opts)
-			if err != nil {
-				return cldf.ChangesetOutput{}, fmt.Errorf("failed to build timelock proposal: %w", err)
-			}
-			proposals = append(proposals, p)
+			batchOps = append(batchOps, r.Output.BatchOps...)
 		}
 	}
 
-	return cldf.ChangesetOutput{
-		MCMSTimelockProposals: proposals,
-		Reports:               reports,
-	}, nil
+	return utilscs.NewOutputBuilder(env, utilscs.GetRegistry()).
+		WithReports(reports).
+		WithBatchOps(batchOps).
+		Build(cfg.MCMS)
 }

@@ -1,6 +1,8 @@
 package rbac
 
 import (
+	"reflect"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -153,6 +155,11 @@ type RoleData struct {
 
 const (
 	DefaultAdminRole = 0x00
+)
+
+var (
+	OpcodeRoleGranted = tvm.MustExtractMagic(reflect.TypeOf(RoleGranted{}))
+	OpcodeRoleRevoked = tvm.MustExtractMagic(reflect.TypeOf(RoleRevoked{}))
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode

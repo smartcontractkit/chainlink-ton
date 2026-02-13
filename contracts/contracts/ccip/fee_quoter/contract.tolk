@@ -603,7 +603,7 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     return st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
 }
 
-get fun staticConfig(): (uint96, address, uint64) {
+get fun staticConfig(): (uint96, address, uint32) {
     val st = lazy Storage.load();
     return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
 }

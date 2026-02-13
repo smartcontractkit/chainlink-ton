@@ -1,26 +1,17 @@
 package mcms // alias: opsmcms
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/mcms"
 	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
 	"github.com/smartcontractkit/mcms/types"
 
-	bindmcms "github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -29,7 +20,7 @@ import (
 )
 
 var (
-	_ opston.Planner[mcms.TimelockProposal] = TimelockAnySequenceOutput{}
+	_ opston.Planner[types.BatchOperation] = TimelockAnySequenceOutput{}
 )
 
 const (
@@ -50,30 +41,20 @@ type TimelockAnySequenceInput struct {
 }
 
 type TimelockOpts struct {
-	ChainSelector types.ChainSelector `json:"chainSelector"`
-	MCMSAddr      *address.Address    `json:"mcmsAddr"`
-	TimelockAddr  *address.Address    `json:"timelockAddr"`
-
-	OpsMetadata []types.OperationMetadata
-
-	Description string               `json:"description"`
-	Action      types.TimelockAction `json:"action"`
-	Value       tlb.Coins            `json:"value"`
-	Delay       *types.Duration      `json:"delay,omitempty"`
+	ChainSelector types.ChainSelector       `json:"chainSelector"`
+	OpsMetadata   []types.OperationMetadata `json:"opsMetadata"`
 }
 
 type TimelockAnySequenceOutput struct {
-	Proposals    []mcms.TimelockProposal
+	BatchOps     []types.BatchOperation
 	Transactions []*tlbe.Cell[tlb.Transaction]
 }
 
-func (o TimelockAnySequenceOutput) GetPlans() []mcms.TimelockProposal {
-	return o.Proposals
+func (o TimelockAnySequenceOutput) GetPlans() []types.BatchOperation {
+	return o.BatchOps
 }
 
 func timelockAnySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in TimelockAnySequenceInput) (TimelockAnySequenceOutput, error) {
-	ctx := b.GetContext()
-
 	// Check if any of the inputs requests planning only (this requires MCMS state)
 	plannerOptionSet := false
 	for _, input := range in.AnySequenceIn.Inputs {
@@ -82,11 +63,6 @@ func timelockAnySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in T
 			plannerOptionSet = true
 			break
 		}
-	}
-
-	opts := in.Options
-	if plannerOptionSet && (opts.MCMSAddr == nil || opts.TimelockAddr == nil) {
-		return TimelockAnySequenceOutput{}, errors.New("MCMS and Timelock addresses are required to plan Timelock proposals")
 	}
 
 	// Execute the (any) sequence based on the provided input
@@ -98,80 +74,21 @@ func timelockAnySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in T
 	// Return early if no planning requested
 	if !plannerOptionSet {
 		return TimelockAnySequenceOutput{
-			Proposals:    []mcms.TimelockProposal{},
+			BatchOps:     []types.BatchOperation{},
 			Transactions: r.Output.Transactions,
 		}, nil
 	}
 
-	chain, err := dep.Resolve[cldf_ton.Chain](dp)
-	if err != nil {
-		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to resolve chain dependency: %w", err)
-	}
-
 	msgs := opston.AsCells(r.Output.GetPlans())
-	batchOp, err := RawPlanCellsToBatch(opts.ChainSelector, msgs, opts.OpsMetadata)
+	batchOp, err := RawPlanCellsToBatch(in.Options.ChainSelector, msgs, in.Options.OpsMetadata)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
 	}
 
-	proposal, err := BuildTimelockProposal(ctx, chain.Client, []types.BatchOperation{batchOp}, opts)
-	if err != nil {
-		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to build timelock proposal: %w", err)
-	}
-
 	return TimelockAnySequenceOutput{
-		Proposals:    []mcms.TimelockProposal{proposal},
+		BatchOps:     []types.BatchOperation{batchOp},
 		Transactions: nil,
 	}, nil
-}
-
-func BuildTimelockProposal(ctx context.Context, client ton.APIClientWrapped, batchOps []types.BatchOperation, opts TimelockOpts) (mcms.TimelockProposal, error) {
-	if len(batchOps) == 0 {
-		return mcms.TimelockProposal{}, errors.New("no batch operations provided to build timelock proposal")
-	}
-
-	// Inspect the latest MCMS on-chain state to get the current op count
-	opCount, err := tvm.CallGetterLatest(ctx, client, opts.MCMSAddr, bindmcms.GetOpCount)
-	if err != nil {
-		return mcms.TimelockProposal{}, fmt.Errorf("failed to get op count from MCMS state: %w", err)
-	}
-
-	value := opts.Value.Nano().Uint64()
-	metadata := types.ChainMetadata{
-		StartingOpCount:  opCount,
-		MCMAddress:       opts.MCMSAddr.String(),
-		AdditionalFields: json.RawMessage(fmt.Sprintf(`{"value": %d}`, value)),
-	}
-
-	// Build a proposal
-	//nolint:gosec // G115: safe to convert to uint32
-	validUntilMs := uint32(time.Now().Add(time.Duration(DefaultValidUntilHours) * time.Hour).Unix())
-	builder := mcms.NewTimelockProposalBuilder().
-		SetVersion("v1").
-		SetValidUntil(validUntilMs).
-		SetDescription(opts.Description).
-		AddTimelockAddress(opts.ChainSelector, opts.TimelockAddr.String()).
-		AddChainMetadata(opts.ChainSelector, metadata).
-		SetAction(opts.Action)
-
-	// Add all batch operations
-	for _, bop := range batchOps {
-		builder.AddOperation(bop)
-	}
-
-	// Set delay if provided, otherwise use default
-	delay := types.NewDuration(DefaultMinDelayHours * time.Hour)
-	if opts.Delay != nil {
-		delay = *opts.Delay
-	}
-	builder.SetDelay(delay)
-
-	proposal, err := builder.Build()
-	if err != nil {
-		return mcms.TimelockProposal{}, fmt.Errorf("failed to build timelock proposal: %w", err)
-	}
-
-	return *proposal, nil
 }
 
 // RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.

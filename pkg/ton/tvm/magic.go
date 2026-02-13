@@ -35,6 +35,14 @@ func ExtractMagic(rt reflect.Type) (uint64, error) {
 	return magic, nil
 }
 
+func MustExtractMagic(rt reflect.Type) uint64 {
+	magic, err := ExtractMagic(rt)
+	if err != nil {
+		panic(fmt.Sprintf("failed to extract magic from type %s: %v", rt.Name(), err))
+	}
+	return magic
+}
+
 // Notice: vendoring github:xssnick/tonutils-go tlb package
 func LoadMagic(tag string) (uint64, error) {
 	tag = strings.TrimSpace(tag)

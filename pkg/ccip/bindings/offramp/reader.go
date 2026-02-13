@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/samber/lo"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
@@ -161,7 +162,11 @@ var GetSourceChainConfig = tvm.Getter[uint64, SourceChainConfig]{
 var GetSourceChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 	Name: sourceChainSelectorsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]uint64, error) {
-		return parser.ParseLispTuple(r.AsTuple()), nil
+		selectors, err := parser.ParseLispTuple[*big.Int](r.AsTuple())
+		if err != nil {
+			return nil, err
+		}
+		return lo.Map(selectors, func(x *big.Int, _ int) uint64 { return x.Uint64() }), nil
 	}),
 })
 
@@ -169,6 +174,6 @@ var GetSourceChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 var GetCursedSubjects = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]*big.Int]{
 	Name: cursedSubjectsGetter,
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]*big.Int, error) {
-		return parser.ParseLispTupleBigInt(r.AsTuple()), nil
+		return parser.ParseLispTuple[*big.Int](r.AsTuple())
 	}),
 })
