@@ -2,6 +2,7 @@ package ton
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -17,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -34,18 +36,15 @@ const (
 
 var ModeDefault = FundModeTopUp
 
-// Target can be parsed from string in the input JSON, ("All", "CCIP", "MCMS").
+// TargetProtocol can be parsed from string in the input JSON, ( "CCIP", "MCMS").
 //
-//go:generate go run github.com/dmarkham/enumer@v1.6.3 -type=Target -json -text -trimprefix=Target
-type Target uint8
+//go:generate go run github.com/dmarkham/enumer@v1.6.3 -type=TargetProtocol -json -text -trimprefix=TargetProtocol
+type TargetProtocol uint8
 
 const (
-	TargetAll Target = iota
-	TargetCCIP
-	TargetMCMS
+	TargetProtocolCCIP TargetProtocol = iota
+	TargetProtocolMCMS
 )
-
-var TargetDefault = TargetAll
 
 type FundContractsInput struct {
 	// Funding mode, either "ExactAmount" or "TopUp" to target amount. Defaults to TopUp.
@@ -55,8 +54,18 @@ type FundContractsInput struct {
 	// If Mode is FundModeExactAmount, this is the exact amount to transfer to the contract.
 	// If Mode is FundModeTopUp, this is the target balance for the contract after funding (i.e. current balance will be topped up to reach this amount).
 	Amount string `json:"amount"`
-	// Target specifies which contracts to fund. If TargetAll, both CCIP and MCMS contracts will be funded. If TargetCcip, only CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter) will be funded. If TargetMcms, only MCMS contracts (Owner MCMS, RMN MCMS) will be funded. If nil, defaults to TargetAll.
-	Target *Target `json:"target,omitempty"`
+	// Targets specifies which contracts to fund.
+	// Can be a list of strings and/or objects:
+	//   - "CCIP" (string): Fund all CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter)
+	//   - "MCMS" (string): Fund all MCMS contracts (all qualifiers)
+	//   - {MCMS: ["qualifier1", "qualifier2"]} (object): Fund specific MCMS qualifiers
+	// If omitted, defaults to funding all contracts (both CCIP and MCMS).
+	// Examples:
+	//   targets: ["CCIP"]                           # CCIP only
+	//   targets: ["MCMS"]                           # All MCMS
+	//   targets: [{MCMS: ["CLLCCIP", "RMNMCMS"]}]      # Specific MCMS qualifiers
+	//   targets: ["CCIP", {MCMS: ["CLLCCIP", "RMNMCMS"]}]      # CCIP + specific MCMS
+	Targets []interface{} `json:"targets,omitempty"`
 
 	Plan bool `json:"plan"`
 }
@@ -83,10 +92,82 @@ var FundContractsOp = operations.NewOperation(
 )
 
 type parsedFundContractsInput struct {
-	Mode   FundMode
-	Amount tlb.Coins
-	Target Target
-	Plan   bool
+	Mode    FundMode
+	Amount  tlb.Coins
+	Targets parsedTarget
+	Plan    bool
+}
+
+// ProtocolResolvers resolves contracts for a specific protocol
+type ProtocolResolvers interface {
+	Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]targetContract, error)
+}
+
+// CCIPTarget resolves CCIP contracts (Router, OnRamp, OffRamp, FeeQuoter)
+type CCIPTarget struct{}
+
+func (t CCIPTarget) Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]targetContract, error) {
+	ccipState, err := dep.Resolve[tonstate.CCIPChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+	}
+	return []targetContract{
+		{name: "Router", addr: ccipState.Router},
+		{name: "OnRamp", addr: ccipState.OnRamp},
+		{name: "OffRamp", addr: ccipState.OffRamp},
+		{name: "FeeQuoter", addr: ccipState.FeeQuoter},
+	}, nil
+}
+
+// MCMSTarget resolves MCMS contracts (MCMS and Timelock) for specified qualifiers
+type MCMSTarget struct {
+	Qualifiers []string // empty = all qualifiers, non-empty = specific qualifiers
+}
+
+func (t MCMSTarget) Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]targetContract, error) {
+	mcmsState, err := dep.Resolve[tonstate.MCMSChainState](dp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ton mcms state: %w", err)
+	}
+
+	var contracts []targetContract
+	appendMCMSState := func(qualifier string, state *state.MCMSSuiteState) {
+		// TBD: Can these be nil? Should we error if they are?
+		if state.MCMS != nil {
+			contracts = append(contracts, targetContract{
+				name: fmt.Sprintf("%s/MCMS", qualifier),
+				addr: *state.MCMS,
+			})
+		}
+		if state.Timelock != nil {
+			contracts = append(contracts, targetContract{
+				name: fmt.Sprintf("%s/Timelock", qualifier),
+				addr: *state.Timelock,
+			})
+		}
+	}
+
+	if len(t.Qualifiers) == 0 {
+		// Fund all MCMS qualifiers
+		for qualifier, state := range mcmsState.ByQualifier {
+			appendMCMSState(qualifier, state)
+		}
+	} else {
+		// Fund specific qualifiers
+		for _, qualifier := range t.Qualifiers {
+			state, ok := mcmsState.ByQualifier[qualifier]
+			if !ok {
+				return nil, fmt.Errorf("no MCMS suite found for qualifier %s", qualifier)
+			}
+			appendMCMSState(qualifier, state)
+		}
+	}
+
+	return contracts, nil
+}
+
+type parsedTarget struct {
+	Protocols []ProtocolResolvers
 }
 
 func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContractsInput) (FundContractsOutput, error) {
@@ -100,7 +181,7 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve ton chain: %w", err)
 	}
 
-	targetContracts, err := resolveTargetContracts(dp, parsedInput)
+	targetContracts, err := resolveTargetContracts(b, dp, parsedInput.Targets)
 	if err != nil {
 		return FundContractsOutput{}, fmt.Errorf("failed to resolve target contracts: %w", err)
 	}
@@ -139,17 +220,93 @@ func parseFundContractsInput(in FundContractsInput) (parsedFundContractsInput, e
 		mode = *in.Mode
 	}
 
-	target := TargetDefault
-	if in.Target != nil {
-		target = *in.Target
+	targets, err := parseTargets(in.Targets)
+	if err != nil {
+		return parsedFundContractsInput{}, fmt.Errorf("failed to parse targets: %w", err)
 	}
 
 	return parsedFundContractsInput{
-		Mode:   mode,
-		Amount: amount,
-		Target: target,
-		Plan:   in.Plan,
+		Mode:    mode,
+		Amount:  amount,
+		Targets: *targets,
+		Plan:    in.Plan,
 	}, nil
+}
+
+func parseTargets(targets []interface{}) (*parsedTarget, error) {
+	// If no targets specified, fund everything
+	if len(targets) == 0 {
+		return &parsedTarget{
+			Protocols: []ProtocolResolvers{
+				CCIPTarget{},
+				MCMSTarget{Qualifiers: nil}, // empty = all qualifiers
+			},
+		}, nil
+	}
+
+	var resolvers []ProtocolResolvers
+
+	for _, item := range targets {
+		switch v := item.(type) {
+		case string:
+			// Simple string: parse using enumer-generated function
+			protocol, err := TargetProtocolString(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid target string: %s (expected \"CCIP\" or \"MCMS\")", v)
+			}
+			switch protocol {
+			case TargetProtocolCCIP:
+				resolvers = append(resolvers, CCIPTarget{})
+			case TargetProtocolMCMS:
+				resolvers = append(resolvers, MCMSTarget{Qualifiers: nil}) // empty = all qualifiers
+			}
+		case map[string]interface{}:
+			// Object: { MCMS: [qualifiers] }
+			// Try to find the protocol key
+			var protocol TargetProtocol
+			var qualifiersRaw interface{}
+
+			if len(v) != 1 {
+				return nil, errors.New("invalid target object: must have exactly one key (\"CCIP\" or \"MCMS\")")
+			}
+			protocolString, qualifiersRaw := func() (string, interface{}) {
+				for k, val := range v {
+					return k, val
+				}
+				panic("unreachable")
+			}()
+			protocol, err := TargetProtocolString(protocolString)
+			if err != nil {
+				return nil, fmt.Errorf("invalid target object key: %s (expected \"CCIP\" or \"MCMS\")", protocolString)
+			}
+
+			switch protocol {
+			case TargetProtocolMCMS:
+				qualifiersList, ok := qualifiersRaw.([]interface{})
+				if !ok {
+					return nil, errors.New("MCMS qualifiers must be a list")
+				}
+				qualifiers := make([]string, len(qualifiersList))
+				for i, q := range qualifiersList {
+					qStr, ok := q.(string)
+					if !ok {
+						return nil, errors.New("MCMS qualifier must be a string")
+					}
+					if qStr == "" {
+						return nil, errors.New("MCMS qualifier cannot be empty")
+					}
+					qualifiers[i] = qStr
+				}
+				resolvers = append(resolvers, MCMSTarget{Qualifiers: qualifiers})
+			case TargetProtocolCCIP:
+				return nil, errors.New("CCIP does not support qualifier syntax, use simple string \"CCIP\" instead")
+			}
+		default:
+			return nil, errors.New("invalid target type: must be string or object")
+		}
+	}
+
+	return &parsedTarget{Protocols: resolvers}, nil
 }
 
 type targetContract struct {
@@ -157,41 +314,17 @@ type targetContract struct {
 	addr address.Address
 }
 
-func resolveTargetContracts(dp *dep.DependencyProvider, parsedInput parsedFundContractsInput) ([]targetContract, error) {
-	ccipState, err := dep.Resolve[tonstate.CCIPChainState](dp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve ton ccip state: %w", err)
+func resolveTargetContracts(b operations.Bundle, dp *dep.DependencyProvider, targets parsedTarget) ([]targetContract, error) {
+	var targetContracts []targetContract
+
+	for _, resolver := range targets.Protocols {
+		contracts, err := resolver.Resolve(b, dp)
+		if err != nil {
+			return nil, err
+		}
+		targetContracts = append(targetContracts, contracts...)
 	}
 
-	mcmsState, err := dep.Resolve[tonstate.MCMSChainState](dp)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve ton mcms state: %w", err)
-	}
-	_ = mcmsState
-
-	ccipContracts := []targetContract{
-		{name: "Router", addr: ccipState.Router},
-		{name: "OnRamp", addr: ccipState.OnRamp},
-		{name: "OffRamp", addr: ccipState.OffRamp},
-		{name: "FeeQuoter", addr: ccipState.FeeQuoter},
-	}
-	mcmsContracts := []targetContract{
-		// {name: "MCMS", addr: mcmsState.ByQualifier("default")},
-		// {name: "Timelock", addr: mcmsState.Timelock},
-	}
-	targetContracts := make([]targetContract, 0, len(ccipContracts)+len(mcmsContracts))
-
-	switch parsedInput.Target {
-	case TargetAll:
-		targetContracts = append(targetContracts, ccipContracts...)
-		targetContracts = append(targetContracts, mcmsContracts...)
-	case TargetCCIP:
-		targetContracts = append(targetContracts, ccipContracts...)
-	case TargetMCMS:
-		targetContracts = append(targetContracts, mcmsContracts...)
-	default:
-		return nil, fmt.Errorf("invalid target: %s", parsedInput.Target)
-	}
 	return targetContracts, nil
 }
 
