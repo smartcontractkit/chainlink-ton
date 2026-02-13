@@ -26,11 +26,13 @@ import (
 type FundMode uint8
 
 const (
-	// FundModeExactAmount means the specified amount will be transferred to the contract, regardless of its current balance.
-	FundModeExactAmount FundMode = iota
 	// FundModeTopUp means the current balance of the contract will be topped up to reach the specified amount (i.e. if the contract already has some balance, only the difference between the current balance and the target amount will be transferred). If the current balance is greater than or equal to the target amount, no transfer will be made.
-	FundModeTopUp
+	FundModeTopUp FundMode = iota
+	// FundModeExactAmount means the specified amount will be transferred to the contract, regardless of its current balance.
+	FundModeExactAmount
 )
+
+var ModeDefault = FundModeTopUp
 
 // Target can be parsed from string in the input JSON, ("All", "CCIP", "MCMS").
 //
@@ -46,8 +48,8 @@ const (
 var TargetDefault = TargetAll
 
 type FundContractsInput struct {
-	// Funding mode, either "exact_amount" or "top_up" to target amount
-	Mode FundMode `json:"mode"`
+	// Funding mode, either "ExactAmount" or "TopUp" to target amount. Defaults to TopUp.
+	Mode *FundMode `json:"mode"`
 	// Decimal string representing the amount in TON (e.g. "1.5" for 1.5 TON or 1_500_000_000 nanoton)
 	//
 	// If Mode is FundModeExactAmount, this is the exact amount to transfer to the contract.
@@ -132,13 +134,18 @@ func parseFundContractsInput(in FundContractsInput) (parsedFundContractsInput, e
 		return parsedFundContractsInput{}, fmt.Errorf("failed to parse amount: %w", err)
 	}
 
+	mode := ModeDefault
+	if in.Mode != nil {
+		mode = *in.Mode
+	}
+
 	target := TargetDefault
 	if in.Target != nil {
 		target = *in.Target
 	}
 
 	return parsedFundContractsInput{
-		Mode:   in.Mode,
+		Mode:   mode,
 		Amount: amount,
 		Target: target,
 		Plan:   in.Plan,

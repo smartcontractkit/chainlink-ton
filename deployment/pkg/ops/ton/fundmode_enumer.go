@@ -8,11 +8,11 @@ import (
 	"strings"
 )
 
-const _FundModeName = "ExactAmountTopUp"
+const _FundModeName = "TopUpExactAmount"
 
-var _FundModeIndex = [...]uint8{0, 11, 16}
+var _FundModeIndex = [...]uint8{0, 5, 16}
 
-const _FundModeLowerName = "exactamounttopup"
+const _FundModeLowerName = "topupexactamount"
 
 func (i FundMode) String() string {
 	if i >= FundMode(len(_FundModeIndex)-1) {
@@ -25,22 +25,22 @@ func (i FundMode) String() string {
 // Re-run the stringer command to generate them again.
 func _FundModeNoOp() {
 	var x [1]struct{}
-	_ = x[FundModeExactAmount-(0)]
-	_ = x[FundModeTopUp-(1)]
+	_ = x[FundModeTopUp-(0)]
+	_ = x[FundModeExactAmount-(1)]
 }
 
-var _FundModeValues = []FundMode{FundModeExactAmount, FundModeTopUp}
+var _FundModeValues = []FundMode{FundModeTopUp, FundModeExactAmount}
 
 var _FundModeNameToValueMap = map[string]FundMode{
-	_FundModeName[0:11]:       FundModeExactAmount,
-	_FundModeLowerName[0:11]:  FundModeExactAmount,
-	_FundModeName[11:16]:      FundModeTopUp,
-	_FundModeLowerName[11:16]: FundModeTopUp,
+	_FundModeName[0:5]:       FundModeTopUp,
+	_FundModeLowerName[0:5]:  FundModeTopUp,
+	_FundModeName[5:16]:      FundModeExactAmount,
+	_FundModeLowerName[5:16]: FundModeExactAmount,
 }
 
 var _FundModeNames = []string{
-	_FundModeName[0:11],
-	_FundModeName[11:16],
+	_FundModeName[0:5],
+	_FundModeName[5:16],
 }
 
 // FundModeString retrieves an enum value from the enum constants string name.
