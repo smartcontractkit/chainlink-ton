@@ -55,7 +55,7 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 		ContractsVersionSha: in.ContractsVersionSha,
 		Contracts: []ds.ContractType{
 			state.Timelock,
-			state.MCMS,
+			state.MCMS, // Notice: this is the type we use to load contract code, vs. deployment types
 		},
 	}
 
@@ -87,8 +87,9 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 		addresses = append(addresses, *outputAddr)
 	}
 
-	// Invoke deploy MCMS changeset operation
-	if stateMCMSSuite == nil || stateMCMSSuite.MCMS.IsAddrNone() { // Deploy MCMS only if not deployed yet
+	// TODO: deduplicate 3x deployments
+	// #1 - deploy MCMS - proposer role
+	if stateMCMSSuite == nil || stateMCMSSuite.Proposer.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		var chainIDStr string
 		chainSelector := chain.ChainSelector()
 		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
@@ -101,11 +102,72 @@ func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in Deploy
 			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
 		}
 
+		// TODO: use input params
 		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, chain.WalletAddress, chainIDInt)
 		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
+
+		// TODO (fix, improve deployment op): notice, we update the type here to the specific deployment type
+		outputAddr.Type = ds.ContractType(cciputils.ProposerManyChainMultisig) // override type for MCMS to load code correctly in future ops
+
+		addresses = append(addresses, *outputAddr)
+	}
+
+	// #2 - deploy MCMS - canceller role
+	if stateMCMSSuite == nil || stateMCMSSuite.Canceller.IsAddrNone() { // Deploy MCMS only if not deployed yet
+		var chainIDStr string
+		chainSelector := chain.ChainSelector()
+		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+		}
+
+		chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
+		}
+
+		// TODO: use input params
+		// TODO: ID should be unique
+		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, chain.WalletAddress, chainIDInt)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
+
+		// TODO (fix, improve deployment op): notice, we update the type here to the specific deployment type
+		outputAddr.Type = ds.ContractType(cciputils.CancellerManyChainMultisig) // override type for MCMS to load code correctly in future ops
+
+		addresses = append(addresses, *outputAddr)
+	}
+
+	// #3 - deploy MCMS - bypasser role
+	if stateMCMSSuite == nil || stateMCMSSuite.Bypasser.IsAddrNone() { // Deploy MCMS only if not deployed yet
+		var chainIDStr string
+		chainSelector := chain.ChainSelector()
+		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+		}
+
+		chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
+		}
+
+		// TODO: use input params
+		// TODO: ID should be unique
+		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, chain.WalletAddress, chainIDInt)
+		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
+
+		// TODO (fix, improve deployment op): notice, we update the type here to the specific deployment type
+		outputAddr.Type = ds.ContractType(cciputils.BypasserManyChainMultisig) // override type for MCMS to load code correctly in future ops
+
 		addresses = append(addresses, *outputAddr)
 	}
 

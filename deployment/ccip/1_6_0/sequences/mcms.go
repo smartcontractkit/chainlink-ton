@@ -10,10 +10,11 @@ import (
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
@@ -80,11 +81,15 @@ var DeployMCMSContracts = operations.NewSequence(
 )
 
 // TODO: unify and deduplicate with state.LoadMCMSOnChainState
-func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
-	noneAddr := address.NewAddressNone()
+func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []ds.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
 	s := state.MCMSChainState{
 		ByQualifier: map[string]*state.MCMSSuiteState{
-			qualifier: {Timelock: noneAddr, MCMS: noneAddr},
+			qualifier: {
+				Proposer:  address.NewAddressNone(),
+				Bypasser:  address.NewAddressNone(),
+				Canceller: address.NewAddressNone(),
+				Timelock:  address.NewAddressNone(),
+			},
 		},
 	}
 
@@ -100,10 +105,14 @@ func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []da
 		}
 
 		switch e.Type {
-		case state.Timelock:
+		case ds.ContractType(utils.RBACTimelock):
 			s.ByQualifier[qualifier].Timelock = tonAddr
-		case state.MCMS:
-			s.ByQualifier[qualifier].MCMS = tonAddr
+		case ds.ContractType(utils.ProposerManyChainMultisig):
+			s.ByQualifier[qualifier].Proposer = tonAddr
+		case ds.ContractType(utils.BypasserManyChainMultisig):
+			s.ByQualifier[qualifier].Bypasser = tonAddr
+		case ds.ContractType(utils.CancellerManyChainMultisig):
+			s.ByQualifier[qualifier].Canceller = tonAddr
 		default:
 			// ignore unknown types
 		}

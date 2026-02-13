@@ -42,7 +42,7 @@ func InvokeDeployContractOperation(b operations.Bundle, dp *dep.DependencyProvid
 	return &ds.AddressRef{
 		Address:       contractAddress.String(),
 		ChainSelector: chainSelector,
-		Type:          compiledContract.Type,
+		Type:          compiledContract.Type, // TODO: type mismatch for MCMS deployment (updated upstream, needs fix here)
 		Version:       semver,
 		Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
 	}, nil
