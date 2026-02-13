@@ -127,6 +127,7 @@ export async function run(provider: NetworkProvider) {
   }
   console.log('✅ Ramp addresses updated in Entrypoint\n')
 
+  await delay(10000)
   // Verify deployment
   console.log('🔍 Verifying deployment...')
   const chainSelector = await entrypoint.getChainSelector()
@@ -154,4 +155,7 @@ export async function run(provider: NetworkProvider) {
     console.log(`   Expected OffRamp: ${offramp.address.toString()}`)
     console.log(`   Actual OffRamp:   ${offRampAddress.toString()}`)
   }
+}
+function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
