@@ -2,8 +2,10 @@ package ton
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -46,6 +48,148 @@ const (
 	TargetProtocolMCMS
 )
 
+// OneOf represents a configuration value that can be either:
+//   - A simple string: "key"
+//   - An object with items: {key: [item1, item2]}
+//
+// This provides a generic, reusable structure for parsing flexible YAML/JSON
+// configurations where entries can be simple identifiers or include nested lists.
+//
+// Type parameter I is the item type (typically string or an enum).
+// Examples:
+//   - OneOf[string]:     Parse "MCMS" or {MCMS: ["CLLCCIP", "RMNMCMS"]}
+//   - OneOf[TypeEnum]:   Parse "v1.6.0" or {v1.6.0: [Router, OnRamp]}
+type OneOf[I any] struct {
+	Key   string // The discriminator/identifier (e.g., protocol, qualifier, version)
+	Items []I    // Optional list of sub-items; nil/empty for simple string form
+}
+
+// UnmarshalYAML implements custom YAML unmarshaling to handle both string and object formats
+func (o *OneOf[I]) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Try parsing as a simple string first
+	var str string
+	if err := unmarshal(&str); err == nil {
+		o.Key = str
+		o.Items = nil
+		return nil
+	}
+
+	// Try parsing as an object with items: {key: [items]}
+	var obj map[string][]I
+	if err := unmarshal(&obj); err != nil {
+		return fmt.Errorf("value must be a string or object with items: %w", err)
+	}
+
+	if len(obj) != 1 {
+		return errors.New("object must have exactly one key")
+	}
+
+	for key, items := range obj {
+		o.Key = key
+		o.Items = items
+		return nil
+	}
+
+	return errors.New("invalid format")
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling (same logic as YAML)
+func (o *OneOf[I]) UnmarshalJSON(data []byte) error {
+	// Try parsing as a simple string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		o.Key = str
+		o.Items = nil
+		return nil
+	}
+
+	// Try parsing as an object with items: {key: [items]}
+	var obj map[string][]I
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return fmt.Errorf("value must be a string or object with items: %w", err)
+	}
+
+	if len(obj) != 1 {
+		return errors.New("object must have exactly one key")
+	}
+
+	for key, items := range obj {
+		o.Key = key
+		o.Items = items
+		return nil
+	}
+
+	return errors.New("invalid format")
+}
+
+// TargetSpec represents a target configuration parsed from OneOf format,
+// with validation and conversion to typed enum.
+type TargetSpec struct {
+	Protocol   TargetProtocol
+	Qualifiers []string
+}
+
+// UnmarshalYAML implements custom YAML unmarshaling with validation
+func (t *TargetSpec) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw OneOf[string]
+	if err := raw.UnmarshalYAML(unmarshal); err != nil {
+		return err
+	}
+
+	// Validate and convert key to typed enum
+	protocol, err := TargetProtocolString(raw.Key)
+	if err != nil {
+		return fmt.Errorf("invalid target protocol %q: %w", raw.Key, err)
+	}
+
+	// Validate items (qualifiers) are non-empty
+	if slices.Contains(raw.Items, "") {
+		return errors.New("qualifier cannot be empty")
+	}
+
+	t.Protocol = protocol
+	t.Qualifiers = raw.Items
+	return nil
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling with validation
+func (t *TargetSpec) UnmarshalJSON(data []byte) error {
+	var raw OneOf[string]
+	if err := raw.UnmarshalJSON(data); err != nil {
+		return err
+	}
+
+	// Validate and convert key to typed enum
+	protocol, err := TargetProtocolString(raw.Key)
+	if err != nil {
+		return fmt.Errorf("invalid target protocol %q: %w", raw.Key, err)
+	}
+
+	// Validate items (qualifiers) are non-empty
+	if slices.Contains(raw.Items, "") {
+		return errors.New("qualifier cannot be empty")
+	}
+
+	t.Protocol = protocol
+	t.Qualifiers = raw.Items
+	return nil
+}
+
+// ToResolver converts the TargetSpec to the appropriate ProtocolResolvers implementation
+func (t TargetSpec) ToResolver() (ProtocolResolvers, error) {
+	switch t.Protocol {
+	case TargetProtocolCCIP:
+		if len(t.Qualifiers) > 0 {
+			return nil, errors.New("CCIP does not support qualifiers yet")
+		}
+		return CCIPTarget{}, nil
+	case TargetProtocolMCMS:
+		return MCMSTarget{Qualifiers: t.Qualifiers}, nil
+	default:
+		return nil, fmt.Errorf("unknown protocol: %v", t.Protocol)
+	}
+}
+
 type FundContractsInput struct {
 	// Funding mode, either "ExactAmount" or "TopUp" to target amount. Defaults to TopUp.
 	Mode *FundMode `json:"mode"`
@@ -65,7 +209,7 @@ type FundContractsInput struct {
 	//   targets: ["MCMS"]                           # All MCMS
 	//   targets: [{MCMS: ["CLLCCIP", "RMNMCMS"]}]      # Specific MCMS qualifiers
 	//   targets: ["CCIP", {MCMS: ["CLLCCIP", "RMNMCMS"]}]      # CCIP + specific MCMS
-	Targets []interface{} `json:"targets,omitempty"`
+	Targets []TargetSpec `json:"targets,omitempty"`
 
 	Plan bool `json:"plan"`
 }
@@ -233,7 +377,7 @@ func parseFundContractsInput(in FundContractsInput) (parsedFundContractsInput, e
 	}, nil
 }
 
-func parseTargets(targets []interface{}) (*parsedTarget, error) {
+func parseTargets(targets []TargetSpec) (*parsedTarget, error) {
 	// If no targets specified, fund everything
 	if len(targets) == 0 {
 		return &parsedTarget{
@@ -244,66 +388,13 @@ func parseTargets(targets []interface{}) (*parsedTarget, error) {
 		}, nil
 	}
 
-	var resolvers []ProtocolResolvers
-
-	for _, item := range targets {
-		switch v := item.(type) {
-		case string:
-			// Simple string: parse using enumer-generated function
-			protocol, err := TargetProtocolString(v)
-			if err != nil {
-				return nil, fmt.Errorf("invalid target string: %s (expected \"CCIP\" or \"MCMS\")", v)
-			}
-			switch protocol {
-			case TargetProtocolCCIP:
-				resolvers = append(resolvers, CCIPTarget{})
-			case TargetProtocolMCMS:
-				resolvers = append(resolvers, MCMSTarget{Qualifiers: nil}) // empty = all qualifiers
-			}
-		case map[string]interface{}:
-			// Object: { MCMS: [qualifiers] }
-			// Try to find the protocol key
-			var protocol TargetProtocol
-			var qualifiersRaw interface{}
-
-			if len(v) != 1 {
-				return nil, errors.New("invalid target object: must have exactly one key (\"CCIP\" or \"MCMS\")")
-			}
-			protocolString, qualifiersRaw := func() (string, interface{}) {
-				for k, val := range v {
-					return k, val
-				}
-				panic("unreachable")
-			}()
-			protocol, err := TargetProtocolString(protocolString)
-			if err != nil {
-				return nil, fmt.Errorf("invalid target object key: %s (expected \"CCIP\" or \"MCMS\")", protocolString)
-			}
-
-			switch protocol {
-			case TargetProtocolMCMS:
-				qualifiersList, ok := qualifiersRaw.([]interface{})
-				if !ok {
-					return nil, errors.New("MCMS qualifiers must be a list")
-				}
-				qualifiers := make([]string, len(qualifiersList))
-				for i, q := range qualifiersList {
-					qStr, ok := q.(string)
-					if !ok {
-						return nil, errors.New("MCMS qualifier must be a string")
-					}
-					if qStr == "" {
-						return nil, errors.New("MCMS qualifier cannot be empty")
-					}
-					qualifiers[i] = qStr
-				}
-				resolvers = append(resolvers, MCMSTarget{Qualifiers: qualifiers})
-			case TargetProtocolCCIP:
-				return nil, errors.New("CCIP does not support qualifier syntax, use simple string \"CCIP\" instead")
-			}
-		default:
-			return nil, errors.New("invalid target type: must be string or object")
+	resolvers := make([]ProtocolResolvers, 0, len(targets))
+	for i, targetSpec := range targets {
+		resolver, err := targetSpec.ToResolver()
+		if err != nil {
+			return nil, fmt.Errorf("invalid target at index %d: %w", i, err)
 		}
+		resolvers = append(resolvers, resolver)
 	}
 
 	return &parsedTarget{Protocols: resolvers}, nil

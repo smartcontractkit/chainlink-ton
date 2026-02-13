@@ -199,7 +199,18 @@ inputs:
 				Inputs []FundContractsInput `yaml:"inputs"`
 			}
 			err := yaml.Unmarshal([]byte(tc.input), &opInput)
-			require.NoError(t, err, "failed to unmarshal input")
+
+			// For error cases, accept error at unmarshal or parse time
+			if tc.shouldError {
+				if err != nil {
+					// Error during unmarshal (caught by TargetSpec.UnmarshalYAML) - this is fine
+					return
+				}
+				// Otherwise continue and expect error during parsing
+			} else {
+				require.NoError(t, err, "failed to unmarshal input")
+			}
+
 			require.Len(t, opInput.Inputs, 1, "expected exactly 1 input")
 
 			actual := opInput.Inputs[0]
