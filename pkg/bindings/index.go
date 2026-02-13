@@ -1,6 +1,7 @@
 package bindings
 
 import (
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/ticker"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
@@ -50,4 +51,7 @@ var Registry = tvm.ContractTLBRegistry{
 	PkgLib + ".access.RBAC":            rbac.TLBs,
 	PkgLib + ".funding.Withdrawable":   withdrawable.TLBs,
 	PkgLib + ".versioning.Upgradeable": upgradeable.TLBs,
+
+	// Examples
+	PkgLib + ".examples.Ticker": ticker.TLBs, // Not sure if this should be here
 }

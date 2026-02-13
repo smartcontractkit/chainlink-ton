@@ -1,10 +1,15 @@
 package tracetracking
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"slices"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -12,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreply"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
@@ -22,6 +29,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/ticker"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -620,4 +628,175 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Test completed successfully\n")
 	})
+
+	t.Run("Ticker Delay", func(t *testing.T) {
+		const startingNumberOfTicks uint64 = 0
+		const maxNumberOfTicks uint64 = 1000
+		const step uint64 = 50
+		const numWorkers = 10
+		const measurementCount = (maxNumberOfTicks-startingNumberOfTicks)/step + 1
+
+		costPerTick := tlb.MustFromTON("0.01")
+		baseCost := tlb.MustFromTON("0.05")
+
+		t.Parallel()
+
+		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
+
+		// Deploy pool of ticker contracts, each with its own deployer account
+		buildPath := bindings.GetBuildDir("examples.Ticker.compiled.json")
+		compiledContract, err := wrappers.ParseCompiledContract(buildPath)
+		require.NoError(t, err, "failed to parse compiled contract: %w", err)
+
+		type worker struct {
+			deployer       tracetracking.SignedAPIClient
+			tickerContract *address.Address
+		}
+
+		deployers := make([]tracetracking.SignedAPIClient, numWorkers)
+		for i := range numWorkers {
+			deployer := getAccount()
+			deployers[i] = deployer
+		}
+
+		workersCollector := make(chan worker, numWorkers)
+		var initWg sync.WaitGroup
+		for i, deployer := range deployers {
+			initWg.Add(1)
+			go func(i int) {
+				defer initWg.Done()
+				storage, err := tlb.ToCell(ticker.Storage{
+					ID: getNextID(),
+				})
+				require.NoError(t, err, "failed to serialize storage: %w", err)
+				tickerContract, _, err := wrappers.Deploy(t.Context(), &deployer, compiledContract, storage, tlb.MustFromTON("0.05"), tvm.EmptyCell)
+				require.NoError(t, err, "failed to deploy Ticker contract: %w", err)
+				workersCollector <- worker{
+					deployer:       deployer,
+					tickerContract: tickerContract.Address,
+				}
+				t.Logf("Ticker contract %d deployed at %s\n", i, tickerContract.Address.String())
+			}(i)
+		}
+
+		initWg.Wait()
+		close(workersCollector)
+		workers := make([]worker, 0, numWorkers)
+		for worker := range workersCollector {
+			workers = append(workers, worker)
+		}
+
+		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
+
+		type measurement struct {
+			ticks    uint64
+			duration time.Duration
+			cost     *tlb.Coins
+		}
+
+		// Thread-safe measurements map
+		var measurementsLock sync.Mutex
+		measurements := make(map[uint64]measurement, measurementCount)
+
+		// Error channel for worker failures
+		errChan := make(chan error, numWorkers)
+
+		// Create task channel
+		tasks := make(chan uint64, measurementCount)
+		for numberOfTicks := startingNumberOfTicks; numberOfTicks <= maxNumberOfTicks; numberOfTicks += step {
+			tasks <- numberOfTicks
+		}
+		close(tasks)
+
+		// Worker pool
+		var wg sync.WaitGroup
+		for workerID, w := range workers {
+			wg.Add(1)
+			go func(workerID int, w worker) {
+				defer wg.Done()
+				innerMeasurements := make([]measurement, 0, measurementCount)
+				for numberOfTicks := range tasks {
+					log := func(format string, args ...any) {
+						errChan <- fmt.Errorf("worker %d, task %d: %s", workerID, numberOfTicks, fmt.Sprintf(format, args...))
+					}
+					t.Logf("Worker %d processing %d ticks\n", workerID, numberOfTicks)
+
+					statingBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
+					amountToSend := must(must(costPerTick.Mul(big.NewInt(int64(numberOfTicks)))).Add(&baseCost))
+					startTime := time.Now()
+					trace, err := w.deployer.SendAndWaitForTrace(t.Context(), *w.tickerContract, &wallet.Message{
+						Mode: wallet.PayGasSeparately,
+						InternalMessage: &tlb.InternalMessage{
+							DstAddr: w.tickerContract,
+							Amount:  *amountToSend,
+							Body: must(tlb.ToCell(ticker.Tick{
+								QueryID: numberOfTicks,
+								Times:   uint32(numberOfTicks),
+							})),
+						},
+					})
+					duration := time.Since(startTime)
+					if err != nil {
+						log("failed to send Tick message: %w", err)
+						return
+					}
+					ec, err := trace.TraceExitCode()
+					if err != nil {
+						log("failed to get exit code from trace: %w", err)
+						return
+					}
+					if ec != tvm.ExitCodeSuccess {
+						log("expected exit code 0, got %d", ec)
+						return
+					}
+					endBalance := getBalance(t.Context(), t, w.deployer.Client, *w.tickerContract)
+					cost := must(must(statingBalance.Add(amountToSend)).Sub(&endBalance))
+
+					innerMeasurements = append(innerMeasurements, measurement{numberOfTicks, duration, cost})
+
+					t.Logf("Worker %d completed %d ticks in %v\n", workerID, numberOfTicks, duration)
+				}
+				t.Logf("Worker %d finished processing\n", workerID)
+
+				measurementsLock.Lock()
+				for _, measurement := range innerMeasurements {
+					measurements[measurement.ticks] = measurement
+				}
+				measurementsLock.Unlock()
+				t.Logf("Worker %d merged measurements\n", workerID)
+			}(workerID, w)
+		}
+
+		wg.Wait()
+		close(errChan)
+
+		// Check for any errors from workers
+		for err := range errChan {
+			require.NoError(t, err)
+		}
+
+		var measurementsCSV strings.Builder
+		measurementsCSV.WriteString("number_of_ticks,duration_s,cost\n")
+
+		// Sort measurements by number of ticks
+		sortedTicks := make([]uint64, 0, len(measurements))
+		for numberOfTicks := range measurements {
+			sortedTicks = append(sortedTicks, numberOfTicks)
+		}
+		slices.Sort(sortedTicks)
+
+		for _, numberOfTicks := range sortedTicks {
+			measurement := measurements[numberOfTicks]
+			fmt.Fprintf(&measurementsCSV, "%d,%.3f,%s\n", numberOfTicks, measurement.duration.Seconds(), measurement.cost.String())
+		}
+		t.Logf("Measurements:\n%s", measurementsCSV.String())
+	})
+}
+
+func getBalance(ctx context.Context, t *testing.T, client ton.APIClientWrapped, addr address.Address) tlb.Coins {
+	block, err := client.CurrentMasterchainInfo(ctx)
+	require.NoError(t, err, "failed to get masterchain info: %w", err)
+	account, err := client.GetAccount(ctx, block, &addr)
+	require.NoError(t, err, "failed to get account: %w", err)
+	return account.State.Balance
 }
