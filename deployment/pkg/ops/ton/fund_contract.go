@@ -34,7 +34,7 @@ const (
 
 // Target can be parsed from string in the input JSON, ("All", "CCIP", "MCMS").
 //
-//go:generate go run github.com/dmarkham/enumer@v1.6.3 -type=Target -json -text -trimprefix=FundMode
+//go:generate go run github.com/dmarkham/enumer@v1.6.3 -type=Target -json -text -trimprefix=Target
 type Target uint8
 
 const (
@@ -160,6 +160,7 @@ func resolveTargetContracts(dp *dep.DependencyProvider, parsedInput parsedFundCo
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ton mcms state: %w", err)
 	}
+	_ = mcmsState
 
 	ccipContracts := []targetContract{
 		{name: "Router", addr: ccipState.Router},
@@ -168,8 +169,8 @@ func resolveTargetContracts(dp *dep.DependencyProvider, parsedInput parsedFundCo
 		{name: "FeeQuoter", addr: ccipState.FeeQuoter},
 	}
 	mcmsContracts := []targetContract{
-		{name: "MCMS", addr: mcmsState.MCMS},
-		{name: "Timelock", addr: mcmsState.Timelock},
+		// {name: "MCMS", addr: mcmsState.ByQualifier("default")},
+		// {name: "Timelock", addr: mcmsState.Timelock},
 	}
 	targetContracts := make([]targetContract, 0, len(ccipContracts)+len(mcmsContracts))
 
