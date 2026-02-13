@@ -2,9 +2,10 @@ package ton
 
 import (
 	"context"
-	"encoding/json"
+
 	"errors"
 	"fmt"
+
 	"slices"
 
 	"github.com/Masterminds/semver/v3"
@@ -48,80 +49,6 @@ const (
 	TargetProtocolMCMS
 )
 
-// OneOf represents a configuration value that can be either:
-//   - A simple string: "key"
-//   - An object with items: {key: [item1, item2]}
-//
-// This provides a generic, reusable structure for parsing flexible YAML/JSON
-// configurations where entries can be simple identifiers or include nested lists.
-//
-// Type parameter I is the item type (typically string or an enum).
-// Examples:
-//   - OneOf[string]:     Parse "MCMS" or {MCMS: ["CLLCCIP", "RMNMCMS"]}
-//   - OneOf[TypeEnum]:   Parse "v1.6.0" or {v1.6.0: [Router, OnRamp]}
-type OneOf[I any] struct {
-	Key   string // The discriminator/identifier (e.g., protocol, qualifier, version)
-	Items []I    // Optional list of sub-items; nil/empty for simple string form
-}
-
-// UnmarshalYAML implements custom YAML unmarshaling to handle both string and object formats
-func (o *OneOf[I]) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Try parsing as a simple string first
-	var str string
-	if err := unmarshal(&str); err == nil {
-		o.Key = str
-		o.Items = nil
-		return nil
-	}
-
-	// Try parsing as an object with items: {key: [items]}
-	var obj map[string][]I
-	if err := unmarshal(&obj); err != nil {
-		return fmt.Errorf("value must be a string or object with items: %w", err)
-	}
-
-	if len(obj) != 1 {
-		return errors.New("object must have exactly one key")
-	}
-
-	for key, items := range obj {
-		o.Key = key
-		o.Items = items
-		return nil
-	}
-
-	return errors.New("invalid format")
-}
-
-// UnmarshalJSON implements custom JSON unmarshaling (same logic as YAML)
-func (o *OneOf[I]) UnmarshalJSON(data []byte) error {
-	// Try parsing as a simple string first
-	var str string
-	if err := json.Unmarshal(data, &str); err == nil {
-		o.Key = str
-		o.Items = nil
-		return nil
-	}
-
-	// Try parsing as an object with items: {key: [items]}
-	var obj map[string][]I
-	if err := json.Unmarshal(data, &obj); err != nil {
-		return fmt.Errorf("value must be a string or object with items: %w", err)
-	}
-
-	if len(obj) != 1 {
-		return errors.New("object must have exactly one key")
-	}
-
-	for key, items := range obj {
-		o.Key = key
-		o.Items = items
-		return nil
-	}
-
-	return errors.New("invalid format")
-}
-
 // TargetSpec represents a target configuration parsed from OneOf format,
 // with validation and conversion to typed enum.
 type TargetSpec struct {
@@ -129,50 +56,46 @@ type TargetSpec struct {
 	Qualifiers []string
 }
 
-// UnmarshalYAML implements custom YAML unmarshaling with validation
-func (t *TargetSpec) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var raw OneOf[string]
-	if err := raw.UnmarshalYAML(unmarshal); err != nil {
-		return err
-	}
+// Unmarshal implements the required method for TargetSpec to be used with OneOf[TargetSpec].
+// This method is called via reflection by OneOf's unmarshalers.
+func (t *TargetSpec) Unmarshal(key string, items []interface{}) error {
 
 	// Validate and convert key to typed enum
-	protocol, err := TargetProtocolString(raw.Key)
+	protocol, err := TargetProtocolString(key)
 	if err != nil {
-		return fmt.Errorf("invalid target protocol %q: %w", raw.Key, err)
+		return fmt.Errorf("invalid target protocol %q: %w", key, err)
+	}
+
+	// Convert []interface{} to []string with type assertion
+	itemsStr, err := cast[string](items)
+	if err != nil {
+		return fmt.Errorf("failed to parse qualifiers for protocol %s: %w", key, err)
 	}
 
 	// Validate items (qualifiers) are non-empty
-	if slices.Contains(raw.Items, "") {
+	if slices.Contains(itemsStr, "") {
 		return errors.New("qualifier cannot be empty")
 	}
 
 	t.Protocol = protocol
-	t.Qualifiers = raw.Items
+	t.Qualifiers = itemsStr
 	return nil
 }
 
-// UnmarshalJSON implements custom JSON unmarshaling with validation
-func (t *TargetSpec) UnmarshalJSON(data []byte) error {
-	var raw OneOf[string]
-	if err := raw.UnmarshalJSON(data); err != nil {
-		return err
+// cast is a helper function to convert []interface{} to []T with type assertion, returning an error if any item cannot be casted to T.
+func cast[T any](v []interface{}) ([]T, error) {
+	if v == nil {
+		return nil, nil
 	}
-
-	// Validate and convert key to typed enum
-	protocol, err := TargetProtocolString(raw.Key)
-	if err != nil {
-		return fmt.Errorf("invalid target protocol %q: %w", raw.Key, err)
+	result := make([]T, len(v))
+	for i, item := range v {
+		casted, ok := item.(T)
+		if !ok {
+			return nil, fmt.Errorf("item at index %d is not of type %T", i, *new(T))
+		}
+		result[i] = casted
 	}
-
-	// Validate items (qualifiers) are non-empty
-	if slices.Contains(raw.Items, "") {
-		return errors.New("qualifier cannot be empty")
-	}
-
-	t.Protocol = protocol
-	t.Qualifiers = raw.Items
-	return nil
+	return result, nil
 }
 
 // ToResolver converts the TargetSpec to the appropriate ProtocolResolvers implementation
@@ -205,11 +128,11 @@ type FundContractsInput struct {
 	//   - {MCMS: ["qualifier1", "qualifier2"]} (object): Fund specific MCMS qualifiers
 	// If omitted, defaults to funding all contracts (both CCIP and MCMS).
 	// Examples:
-	//   targets: ["CCIP"]                           # CCIP only
-	//   targets: ["MCMS"]                           # All MCMS
-	//   targets: [{MCMS: ["CLLCCIP", "RMNMCMS"]}]      # Specific MCMS qualifiers
-	//   targets: ["CCIP", {MCMS: ["CLLCCIP", "RMNMCMS"]}]      # CCIP + specific MCMS
-	Targets []TargetSpec `json:"targets,omitempty"`
+	//   targets: ["CCIP"]                                   # CCIP only
+	//   targets: ["MCMS"]                                   # All MCMS
+	//   targets: [{MCMS: ["CLLCCIP", "RMNMCMS"]}]           # Specific MCMS qualifiers
+	//   targets: ["CCIP", {MCMS: ["CLLCCIP", "RMNMCMS"]}]   # CCIP + specific MCMS
+	Targets []OneOf[TargetSpec] `json:"targets,omitempty"`
 
 	Plan bool `json:"plan"`
 }
@@ -364,7 +287,9 @@ func parseFundContractsInput(in FundContractsInput) (parsedFundContractsInput, e
 		mode = *in.Mode
 	}
 
-	targets, err := parseTargets(in.Targets)
+	targetsa := ResultingValues(in.Targets)
+
+	targets, err := parseTargets(targetsa)
 	if err != nil {
 		return parsedFundContractsInput{}, fmt.Errorf("failed to parse targets: %w", err)
 	}
@@ -375,6 +300,14 @@ func parseFundContractsInput(in FundContractsInput) (parsedFundContractsInput, e
 		Targets: *targets,
 		Plan:    in.Plan,
 	}, nil
+}
+
+func ResultingValues[T any](input []OneOf[T]) []T {
+	targetsa := make([]T, len(input))
+	for i, target := range input {
+		targetsa[i] = target.ResultingValue
+	}
+	return targetsa
 }
 
 func parseTargets(targets []TargetSpec) (*parsedTarget, error) {
