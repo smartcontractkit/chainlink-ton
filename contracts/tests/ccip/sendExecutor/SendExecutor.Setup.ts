@@ -7,12 +7,13 @@ import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 
 export async function setup(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
 ): Promise<SandboxContract<dep.ContractClient>> {
-  let code = await compile('Deployable')
+  let code = await loadContractCode('Deployable')
 
   let data: dep.DeployableStorage = {
     owner: deployer.address,

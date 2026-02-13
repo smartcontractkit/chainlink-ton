@@ -41,6 +41,9 @@ type FilterStore interface {
 	GetDistinctAddresses(ctx context.Context) ([]*address.Address, error)
 	// GetFiltersByAddress returns all filters for a specific address.
 	GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error)
+	// GetAllActiveFilters returns all non-deleted filters for the chain.
+	// Used to populate filter cache on startup.
+	GetAllActiveFilters(ctx context.Context) ([]models.Filter, error)
 	// DeleteEmptyFilters removes filter rows that are marked is_deleted=true
 	// and have no remaining logs in the logs table.
 	// This is the final cleanup step after DeleteLogsForDeletedFilters has removed all logs.

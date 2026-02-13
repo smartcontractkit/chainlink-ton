@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/samber/lo"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -185,7 +186,11 @@ func (a *TonCurseAdapter) ListConnectedChains(e cldf.Environment, selector uint6
 
 	// Parse result as lisp tuple
 	tuple := result.AsTuple()
-	connectedChains := parser.ParseLispTuple(tuple)
+	selectorsBigInt, err := parser.ParseLispTuple[*big.Int](tuple)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse destChainSelectors result: %w", err)
+	}
+	connectedChains := lo.Map(selectorsBigInt, func(x *big.Int, _ int) uint64 { return x.Uint64() })
 
 	return connectedChains, nil
 }

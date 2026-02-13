@@ -88,7 +88,7 @@ func TestAddLanes(t *testing.T) {
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsVersionLatestSupported, contractID))
+	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, tonChainSelector, sequence.ContractsVersionLocal, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")

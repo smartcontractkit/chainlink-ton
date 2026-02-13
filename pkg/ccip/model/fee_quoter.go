@@ -24,7 +24,7 @@ type FeeQuoterStorage struct {
 	AllowedPriceUpdaters              []*address.Address          `json:"allowedPriceUpdaters"`
 	MaxFeeJuelsPerMsg                 *big.Int                    `json:"maxFeeJuelsPerMsg"`
 	LinkToken                         *address.Address            `json:"linkToken"`
-	TokenPriceStalenessThreshold      uint64                      `json:"tokenPriceStalenessThreshold"`
+	TokenPriceStalenessThreshold      uint32                      `json:"tokenPriceStalenessThreshold"`
 	USDPerToken                       map[string]TimestampedPrice `json:"usdPerToken"`
 	PremiumMultiplierWeiPerEthByToken map[string]uint64           `json:"premiumMultiplierWeiPerEthByToken"`
 	DestChainConfigsByChainSelector   map[uint64]DestChainConfigs `json:"destChainConfigsByChainSelector"`
@@ -129,7 +129,7 @@ func (b *FeeQuoterStorageBuilder) WithLinkToken(linkToken *address.Address) *Fee
 	return b
 }
 
-func (b *FeeQuoterStorageBuilder) WithTokenPriceStalenessThreshold(tokenPriceStalenessThreshold uint64) *FeeQuoterStorageBuilder {
+func (b *FeeQuoterStorageBuilder) WithTokenPriceStalenessThreshold(tokenPriceStalenessThreshold uint32) *FeeQuoterStorageBuilder {
 	if b.err != nil {
 		return b
 	}
