@@ -119,6 +119,23 @@ inputs:
 			},
 		},
 		{
+			name: "MCMS target with multiple qualifiers as list items",
+			input: `
+inputs:
+  -
+    amount: "10"
+    targets:
+      - MCMS:
+        - CLLCCIP
+        - RMNMCMS
+`,
+			expectedMode:   FundModeTopUp,
+			expectedAmount: tlb.MustFromTON("10"),
+			expectedTargets: []expectedResolver{
+				{Type: TargetProtocolMCMS, Qualifiers: []string{"CLLCCIP", "RMNMCMS"}},
+			},
+		},
+		{
 			name: "CCIP and MCMS with qualifiers",
 			input: `
 inputs:
