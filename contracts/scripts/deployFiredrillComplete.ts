@@ -157,5 +157,5 @@ export async function run(provider: NetworkProvider) {
   }
 }
 function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

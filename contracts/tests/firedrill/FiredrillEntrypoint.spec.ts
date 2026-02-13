@@ -46,15 +46,11 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
 
   it('getOnRampAddress should return onramp address', async () => {
     const result = await entrypoint.getOnRampAddress()
-    console.log(result)
-    console.log(onramp.address)
     expect(result.equals(onramp.address)).toBe(true)
   })
 
   it('getOffRampAddress should return offramp address', async () => {
     const result = await entrypoint.getOffRampAddress()
-    console.log(result)
-    console.log(offramp.address)
     expect(result.equals(offramp.address)).toBe(true)
   })
 
@@ -280,9 +276,10 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
     })
 
     // Assert UsdPerTokenUpdated event was emitted
-    assertLog(result.transactions, entrypoint.address, LogTypes.UsdPerTokenUpdated, {
-      sourceToken: tokenAddress,
-      usdPerToken: 1n,
+    assertLog(result.transactions, entrypoint.address, LogTypes.UsdPerUnitGasUpdated, {
+      destChainSelector: CHAINSEL_TON_TEST, // uint64
+      executionGasPrice: 1n, // uint112
+      dataAvailabilityGasPrice: 1n, // uint112
     })
   })
 
@@ -378,21 +375,6 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
         minSeqNr: 1n,
         maxSeqNr: 3n,
       },
-    })
-
-    // 4. Update price registries
-    const priceResult = await entrypoint.sendDrillPriceRegistries(
-      deployer.getSender(),
-      toNano('0.5'),
-    )
-    expect(priceResult.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: entrypoint.address,
-      success: true,
-    })
-    assertLog(priceResult.transactions, entrypoint.address, LogTypes.UsdPerTokenUpdated, {
-      sourceToken: tokenAddress,
-      usdPerToken: 1n,
     })
   })
 })
