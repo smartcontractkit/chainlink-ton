@@ -112,10 +112,10 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
 	require.NoError(t, err)
 
-	require.True(t, getProposerResponse.MustIsNil(0), "Proposer should be empty")
+	require.False(t, getProposerResponse.MustIsNil(0), "Proposer should not be empty")
+	require.False(t, getCancellerResponse.MustIsNil(0), "Canceller should not be empty")
+	require.False(t, getBypasserResponse.MustIsNil(0), "Bypasser should not be empty")
 	require.True(t, getExecutorResponse.MustIsNil(0), "Executor should be empty")
-	require.True(t, getCancellerResponse.MustIsNil(0), "Canceller should be empty")
-	require.True(t, getBypasserResponse.MustIsNil(0), "Bypasser should be empty")
 	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
 
 	expectedDeployerAddr := deployer.WalletAddress().Bounce(true).String()
@@ -123,7 +123,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	t.Log("Verified all timelock admin is set to deployer, while other roles are empty")
 
 	// Verify MCMS contract
-	mcmsAddr := mcmsState[chainSelector].ByQualifier[qualifier].MCMS
+	mcmsAddr := mcmsState[chainSelector].ByQualifier[qualifier].Proposer
 	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
@@ -155,7 +155,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsState, err = tonstate.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
 
-	mcmsAddr = mcmsState[chainSelector].ByQualifier[qualifier].MCMS
+	mcmsAddr = mcmsState[chainSelector].ByQualifier[qualifier].Proposer
 	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
