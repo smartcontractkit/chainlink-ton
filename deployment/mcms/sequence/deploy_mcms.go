@@ -1,182 +1,296 @@
 package sequence
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	ccipdseq "github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	mcmsConfig "github.com/smartcontractkit/chainlink-ton/deployment/mcms/config"
+	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+)
+
+const (
+	DefaultMinDelay              = 1 * 60 * 60 // 1 hour in seconds
+	DefaultOpFinalizationTimeout = 10          // 10 seconds
+
+	// DefaultDeployValueTON is the default amount of TON coins to allocate for MCMS/Timelock contract deployment.
+	// MCMS contracts require more storage and operational capacity, hence the higher allocation compared to CCIP contracts.
+	DefaultDeployValueTON = "1.5" // TON
 )
 
 type DeployMCMSSeqInput struct {
-	ContractsVersionSha string                         `json:"contractsVersionSha"`
-	ContractsParams     mcmsConfig.ChainContractParams `json:"contractsParams"`
-	ChainSelector       uint64                         `json:"chainSelector"`
-	Qualifier           *string                        `json:"qualifier,omitempty"`
+	Config ccipddeploy.MCMSDeploymentConfigPerChain `json:"config"`
+
+	// Extra TON specific params
+	Value                 *tlb.Coins `json:"value"`                 // value to send with deployment, optional, if not provided, defaults to 1.5 TON
+	ContractID            uint32     `json:"contractID"`            // ID (storage data) to use for the deployed contracts, can be used to derive the address pre-deployment.
+	OpFinalizationTimeout uint32     `json:"opFinalizationTimeout"` // optional, if not provided, defaults to 10 seconds
+	// Extra Timelock params
+	// Notice: in.Config.TimelockAdmin is of EVM type common.Address (20 bytes),
+	// which is not compatible with TON address, so we have a separate field for TON address type.
+	TimelockAdmin                    *address.Address `json:"timelockAdmin"`                    // optional, if not provided, deployer address will be used as initial admin
+	TimelockExecutorRoleCheckEnabled bool             `json:"timelockExecutorRoleCheckEnabled"` // optional, if not provided, defaults to false (TON does not have a CallProxy, so we disable executor role check by default)
+
+	// Deployment metadata
+	ContractsSemverMCMS     *semver.Version `json:"contractsSemverMCMS"`     // used as DS addr version metadata for the deployed MCMS contracts
+	ContractsSemverTimelock *semver.Version `json:"contractsSemverTimelock"` // used as DS addr version metadata for the deployed Timelock contracts
 }
 
-var DeployMCMSSequence = cldf_ops.NewSequence(
+// TODO: implement SetConfig operation with common MCMS config struct as input,
+// which can be used for post-deployment config updates
+var DeployMCMSSequence = cldfops.NewSequence(
 	"ton/sequences/mcms/deploy-mcms-suite",
 	semver.MustParse("0.1.0"),
-	"Deploys contracts and sets initial MCMS configuration",
+	"Deploys MCMS suite (MCMS/Proposer, MCMS/Canceller, MCMS/Bypasser, Timelock) with the provided config",
 	deployMCMSSequence,
 )
 
-func deployMCMSSequence(b cldf_ops.Bundle, dp *dep.DependencyProvider, in DeployMCMSSeqInput) (sequences.OnChainOutput, error) {
-	chain, err := dep.Resolve[cldf_ton.Chain](dp)
+func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployMCMSSeqInput) (ccipdseq.OnChainOutput, error) {
+	chain, err := dep.Resolve[cldfton.Chain](dp)
 	if err != nil {
-		return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve chain: %w", err)
+		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve chain: %w", err)
+	}
+
+	selector := chain.ChainSelector()
+	chainIDStr, err := chainsel.GetChainIDFromSelector(selector)
+	if err != nil {
+		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", selector, err)
+	}
+
+	chainID, err := strconv.ParseInt(chainIDStr, 10, 64)
+	if err != nil {
+		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to parse chainID: %w", err)
+	}
+
+	qualifier := ccipdutils.CLLQualifier // default
+	if in.Config.Qualifier != nil {
+		qualifier = *in.Config.Qualifier
 	}
 
 	stateMCMS, err := dep.Resolve[state.MCMSChainState](dp)
 	if err != nil {
-		return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve ton mcms state: %w", err)
+		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve ton mcms state: %w", err)
 	}
+	// Get MCMS state by qualifier to check if any of the contracts are already deployed (and avoid redeploying them)
+	stateMCMSSuite := stateMCMS.ByQualifier[qualifier]
 
-	addresses := make([]ds.AddressRef, 0)
+	addresses := make([]cldfds.AddressRef, 0)
 
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
-		ContractsVersionSha: in.ContractsVersionSha,
-		Contracts: []ds.ContractType{
+		ContractsVersionSha: in.Config.ContractVersion,
+		Contracts: []cldfds.ContractType{
 			state.Timelock,
 			state.MCMS, // Notice: this is the type we use to load contract code, vs. deployment types
 		},
 	}
 
-	tonCompiledContractsSeqOutput, err := cldf_ops.ExecuteSequence(b, sequence.RetrieveContractsSequence, dp, retrieveContractsInput)
+	r, err := cldfops.ExecuteSequence(b, sequence.RetrieveContractsSequence, dp, retrieveContractsInput)
 	if err != nil {
-		return sequences.OnChainOutput{}, err
+		return ccipdseq.OnChainOutput{}, err
+	}
+	compiledContracts := r.Output.CompiledContracts
+
+	// TODO: fix type as tlb.Coins vs. string
+	value := tlb.MustFromTON(DefaultDeployValueTON).String()
+	if in.Value != nil {
+		value = in.Value.String()
 	}
 
-	tonCompiledContracts := tonCompiledContractsSeqOutput.Output.CompiledContracts
-	var outputAddr *ds.AddressRef
+	// Notice: we increment the id for each deployment to avoid address collision
+	id := in.ContractID
 
-	qualifier := cciputils.CLLQualifier // default
-	if in.Qualifier != nil {
-		qualifier = *in.Qualifier
+	opFinalizationTimeout := uint32(DefaultOpFinalizationTimeout) // default to 10 seconds
+	if in.OpFinalizationTimeout != 0 {
+		opFinalizationTimeout = in.OpFinalizationTimeout
 	}
 
-	// Get MCMS state by qualifier to check if any of the contracts are already deployed (and avoid redeploying them)
-	stateMCMSSuite := stateMCMS.ByQualifier[qualifier]
+	// Helper function to deploy a MCMS contract with the given config and return the deployed address
+	deployAndSetConfig := func(ctx context.Context, config *mcmstypes.Config, contractType cldfds.ContractType) (*cldfds.AddressRef, error) {
+		storage := mcms.EmptyDataFrom(id, chain.WalletAddress, chainID)
+		storage.RootInfo.ExpiringRootAndOpCount.OpPendingInfo.OpFinalizationTimeout = opFinalizationTimeout
 
-	// Invoke deploy Timelock changeset operation
-	if stateMCMSSuite == nil || stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
-		storage := timelock.EmptyDataFrom(in.ContractsParams.Timelock.ID)
-		body := in.ContractsParams.Timelock.InitMessage
-
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.Timelock], storage, body, in.ContractsParams.Timelock.Coin, in.ContractsParams.Timelock.ContractsSemver)
+		// Plan a setConfig message
+		// TODO: check is ConfigTransformer.ToChainConfig can be used? Is it used anywhere else for any chain?
+		// TODO: extract into a setConfig operation
+		configurer, err := mcmston.NewConfigurer(chain.Wallet, tlb.MustFromTON("0"), mcmston.WithDoNotSendInstructionsOnChain())
 		if err != nil {
-			return sequences.OnChainOutput{}, err
+			return nil, fmt.Errorf("failed to transform MCMS config to chain format: %w", err)
 		}
-		addresses = append(addresses, *outputAddr)
+
+		target := tvm.ZeroAddress
+		clearRoot := false
+		r, err := configurer.SetConfig(ctx, target.String(), config, clearRoot)
+		if err != nil {
+			return nil, fmt.Errorf("failed to transform MCMS config to chain format: %w", err)
+		}
+
+		tx, ok := r.RawData.(mcmstypes.Transaction)
+		if !ok {
+			return nil, fmt.Errorf("unexpected type for configurer output: %T", r.RawData)
+		}
+
+		body, err := cell.FromBOC(tx.Data) // extract the planned body
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse MCMS setC BOC: %w", err)
+		}
+
+		version := in.ContractsSemverMCMS
+		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value, version)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO (fix, improve above deployment op):
+		// Override (output) addr type with specific MCMS deployment type
+		outputAddr.Type = contractType
+		b.Logger.Infof("Deployed MCMS type %s at address %s on chain %s", outputAddr.Type, outputAddr.Address, chain.Name)
+
+		return outputAddr, nil
 	}
 
-	// TODO: deduplicate 3x deployments
-	// #1 - deploy MCMS - proposer role
+	// #0 - deploy MCMS - proposer role
 	if stateMCMSSuite == nil || stateMCMSSuite.Proposer.IsAddrNone() { // Deploy MCMS only if not deployed yet
-		var chainIDStr string
-		chainSelector := chain.ChainSelector()
-		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
+		t := cldfds.ContractType(ccipdutils.ProposerManyChainMultisig)
+		addr, err := deployAndSetConfig(b.GetContext(), &in.Config.Proposer, t)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy proposer MCMS: %w", err)
 		}
 
-		chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
-		}
-
-		// TODO: use input params
-		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, chain.WalletAddress, chainIDInt)
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
-		}
-
-		// TODO (fix, improve deployment op): notice, we update the type here to the specific deployment type
-		outputAddr.Type = ds.ContractType(cciputils.ProposerManyChainMultisig) // override type for MCMS to load code correctly in future ops
-
-		addresses = append(addresses, *outputAddr)
+		addresses = append(addresses, *addr)
+		id += 1 // increment ID for the next contract to avoid address collision
 	}
 
-	// #2 - deploy MCMS - canceller role
+	// #1 - deploy MCMS - canceller role
 	if stateMCMSSuite == nil || stateMCMSSuite.Canceller.IsAddrNone() { // Deploy MCMS only if not deployed yet
-		var chainIDStr string
-		chainSelector := chain.ChainSelector()
-		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
+		t := cldfds.ContractType(ccipdutils.CancellerManyChainMultisig)
+		addr, err := deployAndSetConfig(b.GetContext(), &in.Config.Canceller, t)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy canceller MCMS: %w", err)
 		}
 
-		chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
-		}
-
-		// TODO: use input params
-		// TODO: ID should be unique
-		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, chain.WalletAddress, chainIDInt)
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
-		}
-
-		// TODO (fix, improve deployment op): notice, we update the type here to the specific deployment type
-		outputAddr.Type = ds.ContractType(cciputils.CancellerManyChainMultisig) // override type for MCMS to load code correctly in future ops
-
-		addresses = append(addresses, *outputAddr)
+		addresses = append(addresses, *addr)
+		id += 1 // increment ID for the next contract to avoid address collision
 	}
 
-	// #3 - deploy MCMS - bypasser role
+	// #2 - deploy MCMS - bypasser role
 	if stateMCMSSuite == nil || stateMCMSSuite.Bypasser.IsAddrNone() { // Deploy MCMS only if not deployed yet
-		var chainIDStr string
-		chainSelector := chain.ChainSelector()
-		chainIDStr, err = chainsel.GetChainIDFromSelector(chainSelector)
+		t := cldfds.ContractType(ccipdutils.BypasserManyChainMultisig)
+		addr, err := deployAndSetConfig(b.GetContext(), &in.Config.Bypasser, t)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get chainID from selector %d: %w", chainSelector, err)
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy bypasser MCMS: %w", err)
 		}
 
-		chainIDInt, err := strconv.ParseInt(chainIDStr, 10, 64)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("invalid ChainID: %w", err)
-		}
-
-		// TODO: use input params
-		// TODO: ID should be unique
-		initStorage := mcms.EmptyDataFrom(in.ContractsParams.MCMS.ID, chain.WalletAddress, chainIDInt)
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.MCMS], initStorage, nil, in.ContractsParams.MCMS.Coin, in.ContractsParams.MCMS.ContractsSemver)
-		if err != nil {
-			return sequences.OnChainOutput{}, err
-		}
-
-		// TODO (fix, improve deployment op): notice, we update the type here to the specific deployment type
-		outputAddr.Type = ds.ContractType(cciputils.BypasserManyChainMultisig) // override type for MCMS to load code correctly in future ops
-
-		addresses = append(addresses, *outputAddr)
+		addresses = append(addresses, *addr)
+		id += 1 // increment ID for the next contract to avoid address collision
 	}
 
-	// Attach the qualifier to the output (to be stored in DS)
+	// #3 - deploy Timelock
+	if stateMCMSSuite == nil || stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
+		storage := timelock.EmptyDataFrom(id)
+
+		// MinDelay from cfg.TimelockMinDelay (big.Int) to uint32 safely
+		minDelay := uint32(DefaultMinDelay)
+		if in.Config.TimelockMinDelay != nil && in.Config.TimelockMinDelay.IsUint64() {
+			val := in.Config.TimelockMinDelay.Uint64()
+			if val <= math.MaxUint32 {
+				minDelay = uint32(val)
+			} else {
+				// overflow, set to max
+				minDelay = math.MaxUint32
+			}
+		}
+
+		// Set deployer as default admin, unless TimelockAdmin is provided in input
+		admin := chain.WalletAddress
+		if in.TimelockAdmin != nil {
+			admin = in.TimelockAdmin
+		}
+
+		proposerAddr, err := utils.ToTONAddress(addresses[0])
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert proposer address: %w", err)
+		}
+
+		cancellerAddr, err := utils.ToTONAddress(addresses[1])
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert canceller address: %w", err)
+		}
+
+		bypasserAddr, err := utils.ToTONAddress(addresses[2])
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert bypasser address: %w", err)
+		}
+
+		// TODO: move to cs
+		// b.Logger.Infof("Skipping in.TimelockAdmin (not compatible with TON address format), using deployer address %s as initial admin", chain.WalletAddress)
+
+		qID, err := tvm.RandomQueryID()
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to generate random query ID: %w", err)
+		}
+
+		body := timelock.Init{
+			QueryID:  qID,
+			MinDelay: minDelay,
+			Admin:    admin,
+
+			Proposers:  []common.AddressWrap{{Val: proposerAddr}},
+			Cancellers: []common.AddressWrap{{Val: cancellerAddr}},
+			Bypassers:  []common.AddressWrap{{Val: bypasserAddr}},
+			// Notice: no executors set, executor role check disabled
+
+			// disable executor role check to allow anyone to execute (TON does not have a CallProxy)
+			ExecutorRoleCheckEnabled: in.TimelockExecutorRoleCheckEnabled,
+			OpFinalizationTimeout:    opFinalizationTimeout, // 10 seconds default, can be updated later
+		}
+
+		version := in.ContractsSemverTimelock
+		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.Timelock], storage, body, value, version)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, err
+		}
+		addresses = append(addresses, *outputAddr)
+		id += 1 // increment ID for the next contract to avoid address collision
+		b.Logger.Infof("Deployed Timelock at address %s on chain %s", outputAddr.Address, chain.Name)
+	}
+
+	// Attach the metadata (qualifier and labels) to the output (to be stored in DS)
 	for i := range addresses {
 		addresses[i].Qualifier = qualifier
+
+		labels := []string{fmt.Sprintf("sha:%v", in.Config.ContractVersion)}
+		if in.Config.Label != nil {
+			labels = append(labels, *in.Config.Label)
+		}
+		addresses[i].Labels = cldfds.NewLabelSet(labels...)
 	}
 
-	return sequences.OnChainOutput{
+	return ccipdseq.OnChainOutput{
 		Addresses: addresses,
 	}, nil
 }
