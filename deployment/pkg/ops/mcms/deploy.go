@@ -1,7 +1,6 @@
-package sequence
+package mcms // alias: opsmcms
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"strconv"
@@ -9,7 +8,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -21,13 +19,13 @@ import (
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdseq "github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -130,34 +128,26 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	}
 
 	// Helper function to deploy a MCMS contract with the given config and return the deployed address
-	deployAndSetConfig := func(ctx context.Context, config *mcmstypes.Config, contractType cldfds.ContractType) (*cldfds.AddressRef, error) {
+	deployAndSetConfig := func(config *mcmstypes.Config, contractType cldfds.ContractType) (*cldfds.AddressRef, error) {
 		storage := mcms.EmptyDataFrom(id, chain.WalletAddress, chainID)
 		storage.RootInfo.ExpiringRootAndOpCount.OpPendingInfo.OpFinalizationTimeout = opFinalizationTimeout
 
-		// Plan a setConfig message
-		// TODO: check is ConfigTransformer.ToChainConfig can be used? Is it used anywhere else for any chain?
-		// TODO: extract into a setConfig operation
-		configurer, err := mcmston.NewConfigurer(chain.Wallet, tlb.MustFromTON("0"), mcmston.WithDoNotSendInstructionsOnChain())
+		out, err := cldfops.ExecuteOperation(b, SetConfig, dp, SetConfigInput{
+			Bounce:  false,
+			DstAddr: tvm.ZeroAddress,      // placeholder, actual address is determined by the deployment and not known at this point
+			Amount:  tlb.MustFromTON("0"), // placeholder, we just plan here
+
+			// Params for setConfig message body
+			Config:    config,
+			ClearRoot: false,
+
+			Plan: true, // we just want to plan the setConfig message to get the body for deployment
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to transform MCMS config to chain format: %w", err)
+			return nil, fmt.Errorf("failed to send messages: %w", err)
 		}
 
-		target := tvm.ZeroAddress
-		clearRoot := false
-		r, err := configurer.SetConfig(ctx, target.String(), config, clearRoot)
-		if err != nil {
-			return nil, fmt.Errorf("failed to transform MCMS config to chain format: %w", err)
-		}
-
-		tx, ok := r.RawData.(mcmstypes.Transaction)
-		if !ok {
-			return nil, fmt.Errorf("unexpected type for configurer output: %T", r.RawData)
-		}
-
-		body, err := cell.FromBOC(tx.Data) // extract the planned body
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse MCMS setC BOC: %w", err)
-		}
+		body := out.Output.Plans[0].Cell
 
 		version := in.ContractsSemverMCMS
 		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value, version)
@@ -176,7 +166,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	// #0 - deploy MCMS - proposer role
 	if stateMCMSSuite == nil || stateMCMSSuite.Proposer.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		t := cldfds.ContractType(ccipdutils.ProposerManyChainMultisig)
-		addr, err := deployAndSetConfig(b.GetContext(), &in.Config.Proposer, t)
+		addr, err := deployAndSetConfig(&in.Config.Proposer, t)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy proposer MCMS: %w", err)
 		}
@@ -188,7 +178,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	// #1 - deploy MCMS - canceller role
 	if stateMCMSSuite == nil || stateMCMSSuite.Canceller.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		t := cldfds.ContractType(ccipdutils.CancellerManyChainMultisig)
-		addr, err := deployAndSetConfig(b.GetContext(), &in.Config.Canceller, t)
+		addr, err := deployAndSetConfig(&in.Config.Canceller, t)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy canceller MCMS: %w", err)
 		}
@@ -200,7 +190,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	// #2 - deploy MCMS - bypasser role
 	if stateMCMSSuite == nil || stateMCMSSuite.Bypasser.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		t := cldfds.ContractType(ccipdutils.BypasserManyChainMultisig)
-		addr, err := deployAndSetConfig(b.GetContext(), &in.Config.Bypasser, t)
+		addr, err := deployAndSetConfig(&in.Config.Bypasser, t)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy bypasser MCMS: %w", err)
 		}

@@ -15,9 +15,10 @@ import (
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdseq "github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	mcmsseq "github.com/smartcontractkit/chainlink-ton/deployment/mcms/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -56,7 +57,7 @@ var DeployMCMSContracts = cldfops.NewSequence(
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 		}
 
-		r, err := cldfops.ExecuteSequence(b, mcmsseq.DeployMCMSSequence, dp, mcmsseq.DeployMCMSSeqInput{
+		r, err := cldfops.ExecuteSequence(b, opsmcms.DeployMCMSSequence, dp, opsmcms.DeployMCMSSeqInput{
 			Config:                  input.MCMSDeploymentConfigPerChain,
 			ContractID:              uint32(contractID),
 			ContractsSemverMCMS:     &state.MCMSVersion,

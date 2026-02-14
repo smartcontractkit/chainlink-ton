@@ -1,4 +1,4 @@
-package mcms
+package mcms // alias: opsmcms
 
 import (
 	"fmt"
