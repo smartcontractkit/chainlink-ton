@@ -76,13 +76,14 @@ var DeployMCMSContracts = cldfops.NewSequence(
 
 // TODO: unify and deduplicate with state.LoadMCMSOnChainState
 func extractMCMSChainStateFromMCMSDeploymentInput(chain cldfton.Chain, existing []cldfds.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
+	none := address.NewAddressNone()
 	s := state.MCMSChainState{
 		ByQualifier: map[string]*state.MCMSSuiteState{
 			qualifier: {
-				Proposer:  address.NewAddressNone(),
-				Bypasser:  address.NewAddressNone(),
-				Canceller: address.NewAddressNone(),
-				Timelock:  address.NewAddressNone(),
+				Proposer:  none,
+				Bypasser:  none,
+				Canceller: none,
+				Timelock:  none,
 			},
 		},
 	}

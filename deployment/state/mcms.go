@@ -17,7 +17,7 @@ var (
 )
 
 // MCMSChainState holds a Go binding for all the currently deployed MCMS contracts
-// on a chain, indexed byqualifier. If a binding is nil, it means there is no such
+// on a chain, indexed by qualifier. If a binding is nil, it means there is no such
 // MCMS suite contracts on the chain for that qualifier.
 type MCMSChainState struct {
 	ByQualifier map[string]*MCMSSuiteState
@@ -64,6 +64,8 @@ func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {
 		ByQualifier: make(map[string]*MCMSSuiteState),
 	}
 
+	none := address.NewAddressNone()
+
 	// Most programs upgraded in place, but some are not so we always want to
 	// load the latest version
 	versions := make(map[ds.ContractType]semver.Version)
@@ -81,10 +83,10 @@ func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {
 		// Init suite state for this qualifier if not exist
 		if state.ByQualifier[addressType.Qualifier] == nil {
 			state.ByQualifier[addressType.Qualifier] = &MCMSSuiteState{
-				Proposer:  address.NewAddressNone(),
-				Bypasser:  address.NewAddressNone(),
-				Canceller: address.NewAddressNone(),
-				Timelock:  address.NewAddressNone(),
+				Proposer:  none,
+				Bypasser:  none,
+				Canceller: none,
+				Timelock:  none,
 			}
 		}
 

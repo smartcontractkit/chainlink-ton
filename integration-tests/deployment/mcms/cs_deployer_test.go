@@ -7,16 +7,16 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	chainselectors "github.com/smartcontractkit/chain-selectors"
 
-	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
-	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
@@ -48,8 +48,8 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	t.Log("Deployer:", deployer.WalletAddress().String())
 
 	// Testing DeployMCMS from Tooling API
-	dReg := deployops.GetRegistry()
-	mcmsRegistry := cs_ccip.GetRegistry()
+	dReg := ccipddeploy.GetRegistry()
+	mcmsRegistry := ccipdcs.GetRegistry()
 
 	version := sequence.ContractsVersionLocal
 
@@ -57,8 +57,8 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	// but the TON adapter ignores these and uses the deployer address for all roles.
 	// We provide zero values here as they will be replaced by the adapter.
 	adapterVersion := semver.MustParse("1.6.0")
-	output, err := deployops.DeployMCMS(dReg, mcmsRegistry).Apply(env, deployops.MCMSDeploymentConfig{
-		Chains: map[uint64]deployops.MCMSDeploymentConfigPerChain{
+	output, err := ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
+		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
 			chainSelector: {
 				Canceller:        mcmstypes.Config{}, // Will be replaced by TON adapter
 				Bypasser:         mcmstypes.Config{}, // Will be replaced by TON adapter
@@ -85,10 +85,11 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mc, err := chain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
 
-	qualifier := cciputils.CLLQualifier // default
+	qualifier := ccipdutils.CLLQualifier // default
 
+	suiteState := mcmsState[chainSelector].ByQualifier[qualifier]
 	// Verify timelock address
-	timelockAddr := mcmsState[chainSelector].ByQualifier[qualifier].Timelock
+	timelockAddr := suiteState.Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
 
@@ -100,30 +101,52 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	isInitialized := rawIsInitialized.Sign() != 0
 	require.True(t, isInitialized, "Timelock should be initialized")
 
-	// Verify timelock roles (all should be the deployer)
-	getProposerResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	// Verify timelock roles
+	rm, err := tvm.CallGetter(ctx, chain.Client, mc, timelockAddr, timelock.GetRoleMember, timelock.GetRoleMemberArgs{
+		Role:  timelock.RoleProposer,
+		Index: 0,
+	})
 	require.NoError(t, err)
-	getExecutorResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
-	require.NoError(t, err)
-	getCancellerResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
-	require.NoError(t, err)
-	getBypasserResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleBypasser)
-	require.NoError(t, err)
-	getAdminResponse, err := chain.Client.RunGetMethod(ctx, mc, timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
-	require.NoError(t, err)
+	require.NotNil(t, rm)
+	require.Equal(t, suiteState.Proposer.String(), rm.String(), "Proposer role should be assigned to proposer MCMS address")
 
-	require.False(t, getProposerResponse.MustIsNil(0), "Proposer should not be empty")
-	require.False(t, getCancellerResponse.MustIsNil(0), "Canceller should not be empty")
-	require.False(t, getBypasserResponse.MustIsNil(0), "Bypasser should not be empty")
-	require.True(t, getExecutorResponse.MustIsNil(0), "Executor should be empty")
-	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
+	rm, err = tvm.CallGetter(ctx, chain.Client, mc, timelockAddr, timelock.GetRoleMember, timelock.GetRoleMemberArgs{
+		Role:  timelock.RoleCanceller,
+		Index: 0,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, rm)
+	require.Equal(t, suiteState.Canceller.String(), rm.String(), "Canceller role should be assigned to canceller MCMS address")
 
+	rm, err = tvm.CallGetter(ctx, chain.Client, mc, timelockAddr, timelock.GetRoleMember, timelock.GetRoleMemberArgs{
+		Role:  timelock.RoleBypasser,
+		Index: 0,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, rm)
+	require.Equal(t, suiteState.Bypasser.String(), rm.String(), "Bypasser role should be assigned to bypasser MCMS address")
+
+	rm, err = tvm.CallGetter(ctx, chain.Client, mc, timelockAddr, timelock.GetRoleMember, timelock.GetRoleMemberArgs{
+		Role:  timelock.RoleExecutor,
+		Index: 0,
+	})
+	require.NoError(t, err)
+	require.Nil(t, rm)
+
+	rm, err = tvm.CallGetter(ctx, chain.Client, mc, timelockAddr, timelock.GetRoleMember, timelock.GetRoleMemberArgs{
+		Role:  timelock.RoleAdmin,
+		Index: 0,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, rm)
+
+	shouldBeDeployer5 := rm
 	expectedDeployerAddr := deployer.WalletAddress().Bounce(true).String()
 	require.Equal(t, expectedDeployerAddr, shouldBeDeployer5.String(), "Admin should be deployer")
 	t.Log("Verified all timelock admin is set to deployer, while other roles are empty")
 
 	// Verify MCMS contract
-	mcmsAddr := mcmsState[chainSelector].ByQualifier[qualifier].Proposer
+	mcmsAddr := suiteState.Proposer
 	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
@@ -131,9 +154,9 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 
 	// Test idempotency by deploying again
 	t.Log("Testing idempotency by deploying again")
-	dReg = deployops.GetRegistry()
-	output, err = deployops.DeployMCMS(dReg, mcmsRegistry).Apply(env, deployops.MCMSDeploymentConfig{
-		Chains: map[uint64]deployops.MCMSDeploymentConfigPerChain{
+	dReg = ccipddeploy.GetRegistry()
+	output, err = ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
+		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
 			chainSelector: {
 				Canceller:        mcmstypes.Config{},
 				Bypasser:         mcmstypes.Config{},
@@ -154,14 +177,15 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	// Verify state is still correct after idempotent deployment
 	mcmsState, err = tonstate.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
+	suiteState = mcmsState[chainSelector].ByQualifier[qualifier]
 
-	mcmsAddr = mcmsState[chainSelector].ByQualifier[qualifier].Proposer
+	mcmsAddr = suiteState.Proposer
 	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
 
-	timelockAddr = mcmsState[chainSelector].ByQualifier[qualifier].Timelock
+	timelockAddr = suiteState.Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	require.NoError(t, err)
 

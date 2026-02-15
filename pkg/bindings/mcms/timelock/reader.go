@@ -43,6 +43,15 @@ type GetRoleMemberArgs struct {
 var GetRoleMember = tvm.Getter[GetRoleMemberArgs, *address.Address]{
 	Name: "getRoleMember",
 	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*address.Address, error) {
+		isNil, err := r.IsNil(0)
+		if err != nil {
+			return nil, fmt.Errorf("error checking if getRoleMember result is nil: %w", err)
+		}
+		// If the result is nil, return nil address
+		if isNil {
+			return nil, nil
+		}
+
 		sAddr, err := r.Slice(0)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding getRoleMember result: %w", err)
