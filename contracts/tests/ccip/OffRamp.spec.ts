@@ -1594,6 +1594,9 @@ describe('OffRamp - Unit Tests', () => {
     // Check that minSeqNr is now 11 (maxSeqNr + 1)
     const config2 = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
     expect(config2.minSeqNr).toBe(11n)
+    expect(uint8ArrayToBigInt(config2.onRamp).toString(16)).toBe(
+      EVM_ONRAMP_ADDRESS_TEST.toString(16),
+    )
   })
 
   it('Test commit with large sequence number gap', async () => {
