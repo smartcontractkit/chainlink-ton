@@ -59,8 +59,6 @@ type DeployMCMSSeqInput struct {
 	ContractsSemverTimelock *semver.Version `json:"contractsSemverTimelock"` // used as DS addr version metadata for the deployed Timelock contracts
 }
 
-// TODO: implement SetConfig operation with common MCMS config struct as input,
-// which can be used for post-deployment config updates
 var DeployMCMSSequence = cldfops.NewSequence(
 	"ton/sequences/mcms/deploy-mcms-suite",
 	semver.MustParse("0.1.0"),
@@ -132,6 +130,10 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		storage := mcms.EmptyDataFrom(id, chain.WalletAddress, chainID)
 		storage.RootInfo.ExpiringRootAndOpCount.OpPendingInfo.OpFinalizationTimeout = opFinalizationTimeout
 
+		// TODO: fix, figure out why are op execution reports reused during seq execution - CLDF bug?
+		//  - "DEBUG   Previous ton/ops/mcms/set-config execution found. Returning its result from Report storage"
+		//  - is this because the input didn't change? but this is wrong, op reports should be ordered by execution and not solely based on input,
+		// otherwise we can skip execution (matching report) when executing same input multiple times (e.g., sending two identical transfers to same address)
 		out, err := cldfops.ExecuteOperation(b, SetConfig, dp, SetConfigInput{
 			Bounce:  false,
 			DstAddr: tvm.ZeroAddress,      // placeholder, actual address is determined by the deployment and not known at this point
@@ -152,7 +154,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		version := in.ContractsSemverMCMS
 		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value, version)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
 		}
 
 		// TODO (fix, improve above deployment op):
@@ -235,9 +237,6 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert bypasser address: %w", err)
 		}
-
-		// TODO: move to cs
-		// b.Logger.Infof("Skipping in.TimelockAdmin (not compatible with TON address format), using deployer address %s as initial admin", chain.WalletAddress)
 
 		qID, err := tvm.RandomQueryID()
 		if err != nil {

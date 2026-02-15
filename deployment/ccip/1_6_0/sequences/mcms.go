@@ -57,6 +57,9 @@ var DeployMCMSContracts = cldfops.NewSequence(
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 		}
 
+		b.Logger.Info("in.TimelockAdmin - skipping param (EVM specific type - 20 bytes, not compatible with TON address format)")
+		b.Logger.Infof("in.TimelockAdmin - using deployer address %s as initial admin", chain.WalletAddress)
+
 		r, err := cldfops.ExecuteSequence(b, opsmcms.DeployMCMSSequence, dp, opsmcms.DeployMCMSSeqInput{
 			Config:                  input.MCMSDeploymentConfigPerChain,
 			ContractID:              uint32(contractID),
