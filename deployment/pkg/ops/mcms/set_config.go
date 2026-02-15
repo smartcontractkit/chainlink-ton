@@ -81,6 +81,9 @@ var SetConfig = cldfops.NewOperation(
 			Amount:  in.Amount,
 			Body:    body,
 		})
+		if err != nil {
+			return opston.SendMessagesOutput{}, fmt.Errorf("failed to create message cell: %w", err)
+		}
 
 		opcode, err := tvm.ExtractOpcode(body)
 		if err != nil {

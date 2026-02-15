@@ -128,7 +128,6 @@ func (a *TonDeployAdapter) GrantAdminRoleToTimelock() *cldfops.Sequence[ccipddep
 		semver.MustParse("1.0.0"),
 		"On TON, GrantAdminRoleToTimelock is a no-op",
 		func(b cldfops.Bundle, chains cldfchain.BlockChains, in ccipddeploy.GrantAdminRoleToTimelockConfigPerChainWithSelector) (output ccipdseq.OnChainOutput, err error) {
-
 			// TODO:
 			//  - grant role to timelock
 			//  - renounce role from deployer key

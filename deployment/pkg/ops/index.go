@@ -4,6 +4,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/lib/versioning/upgradeable"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 )
@@ -19,6 +20,9 @@ var (
 		// TODO (ops): refactor ops below
 		operation.DeployTONContractOp.AsUntypedRelaxed(),
 		operation.DownloadArtifactsOp.AsUntypedRelaxed(),
+
+		// MCMS operations
+		mcms.SetConfig.AsUntypedRelaxed(),
 	}
 
 	// Registry is the (default) operations registry for available TON operations.

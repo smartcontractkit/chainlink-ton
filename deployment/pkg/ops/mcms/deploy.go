@@ -172,7 +172,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		addresses = append(addresses, *addr)
-		id += 1 // increment ID for the next contract to avoid address collision
+		id++ // increment ID for the next contract to avoid address collision
 	}
 
 	// #1 - deploy MCMS - canceller role
@@ -184,7 +184,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		addresses = append(addresses, *addr)
-		id += 1 // increment ID for the next contract to avoid address collision
+		id++ // increment ID for the next contract to avoid address collision
 	}
 
 	// #2 - deploy MCMS - bypasser role
@@ -196,7 +196,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		addresses = append(addresses, *addr)
-		id += 1 // increment ID for the next contract to avoid address collision
+		id++ // increment ID for the next contract to avoid address collision
 	}
 
 	// #3 - deploy Timelock
@@ -265,7 +265,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			return ccipdseq.OnChainOutput{}, err
 		}
 		addresses = append(addresses, *outputAddr)
-		id += 1 // increment ID for the next contract to avoid address collision
+		id++ // increment ID for the next contract to avoid address collision
 		b.Logger.Infof("Deployed Timelock at address %s on chain %s", outputAddr.Address, chain.Name)
 	}
 
