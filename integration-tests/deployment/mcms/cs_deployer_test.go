@@ -193,7 +193,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	config, err := tvm.CallGetterLatest(ctx, chain.Client, mcmsAddr, mcms.GetConfig)
 	require.NoError(t, err)
 	require.NotNil(t, config)
-	require.Equal(t, 6, len(config.Signers.AsMap()), "Config should have 6 signers in total")
+	require.Len(t, config.Signers.AsMap(), 6, "Config should have 6 signers in total")
 	t.Log("Verified MCMS config has correct number of signers")
 
 	// Test idempotency by deploying again

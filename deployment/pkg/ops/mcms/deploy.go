@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -19,17 +20,15 @@ import (
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdseq "github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	mcmstypes "github.com/smartcontractkit/mcms/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 const (
@@ -94,8 +93,17 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	}
 	// Get MCMS state by qualifier to check if any of the contracts are already deployed (and avoid redeploying them)
 	stateMCMSSuite := stateMCMS.ByQualifier[qualifier]
+	if stateMCMSSuite == nil {
+		none := address.NewAddressNone()
+		stateMCMSSuite = &state.MCMSSuiteState{
+			Proposer:  none,
+			Bypasser:  none,
+			Canceller: none,
+			Timelock:  none,
+		}
+	}
 
-	addresses := make([]cldfds.AddressRef, 0)
+	addresses := make([]cldfds.AddressRef, 0) // deployed contract addresses to return in output
 
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
 		ContractsVersionSha: in.Config.ContractVersion,
@@ -171,7 +179,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	}
 
 	// #0 - deploy MCMS - proposer role
-	if stateMCMSSuite == nil || stateMCMSSuite.Proposer.IsAddrNone() { // Deploy MCMS only if not deployed yet
+	if stateMCMSSuite.Proposer == nil || stateMCMSSuite.Proposer.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		t := cldfds.ContractType(ccipdutils.ProposerManyChainMultisig)
 		addr, err := deployAndSetConfig(&in.Config.Proposer, t)
 		if err != nil {
@@ -179,11 +187,16 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		addresses = append(addresses, *addr)
+		stateMCMSSuite.Proposer, err = utils.ToTONAddress(*addr)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert proposer address: %w", err)
+		}
+
 		id++ // increment ID for the next contract to avoid address collision
 	}
 
 	// #1 - deploy MCMS - canceller role
-	if stateMCMSSuite == nil || stateMCMSSuite.Canceller.IsAddrNone() { // Deploy MCMS only if not deployed yet
+	if stateMCMSSuite.Canceller == nil || stateMCMSSuite.Canceller.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		t := cldfds.ContractType(ccipdutils.CancellerManyChainMultisig)
 		addr, err := deployAndSetConfig(&in.Config.Canceller, t)
 		if err != nil {
@@ -191,11 +204,15 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		addresses = append(addresses, *addr)
+		stateMCMSSuite.Canceller, err = utils.ToTONAddress(*addr)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert canceller address: %w", err)
+		}
 		id++ // increment ID for the next contract to avoid address collision
 	}
 
 	// #2 - deploy MCMS - bypasser role
-	if stateMCMSSuite == nil || stateMCMSSuite.Bypasser.IsAddrNone() { // Deploy MCMS only if not deployed yet
+	if stateMCMSSuite.Bypasser == nil || stateMCMSSuite.Bypasser.IsAddrNone() { // Deploy MCMS only if not deployed yet
 		t := cldfds.ContractType(ccipdutils.BypasserManyChainMultisig)
 		addr, err := deployAndSetConfig(&in.Config.Bypasser, t)
 		if err != nil {
@@ -203,11 +220,15 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		addresses = append(addresses, *addr)
+		stateMCMSSuite.Bypasser, err = utils.ToTONAddress(*addr)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert bypasser address: %w", err)
+		}
 		id++ // increment ID for the next contract to avoid address collision
 	}
 
 	// #3 - deploy Timelock
-	if stateMCMSSuite == nil || stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
+	if stateMCMSSuite.Timelock == nil || stateMCMSSuite.Timelock.IsAddrNone() { // Deploy Timelock only if not deployed yet
 		storage := timelock.EmptyDataFrom(id)
 
 		// MinDelay from cfg.TimelockMinDelay (big.Int) to uint32 safely
@@ -228,21 +249,6 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			admin = in.TimelockAdmin
 		}
 
-		proposerAddr, err := utils.ToTONAddress(addresses[0])
-		if err != nil {
-			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert proposer address: %w", err)
-		}
-
-		cancellerAddr, err := utils.ToTONAddress(addresses[1])
-		if err != nil {
-			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert canceller address: %w", err)
-		}
-
-		bypasserAddr, err := utils.ToTONAddress(addresses[2])
-		if err != nil {
-			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to convert bypasser address: %w", err)
-		}
-
 		qID, err := tvm.RandomQueryID()
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to generate random query ID: %w", err)
@@ -253,9 +259,9 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			MinDelay: minDelay,
 			Admin:    admin,
 
-			Proposers:  []common.AddressWrap{{Val: proposerAddr}},
-			Cancellers: []common.AddressWrap{{Val: cancellerAddr}},
-			Bypassers:  []common.AddressWrap{{Val: bypasserAddr}},
+			Proposers:  []common.AddressWrap{{Val: stateMCMSSuite.Proposer}},
+			Cancellers: []common.AddressWrap{{Val: stateMCMSSuite.Canceller}},
+			Bypassers:  []common.AddressWrap{{Val: stateMCMSSuite.Bypasser}},
 			// Notice: no executors set, executor role check disabled
 
 			// disable executor role check to allow anyone to execute (TON does not have a CallProxy)

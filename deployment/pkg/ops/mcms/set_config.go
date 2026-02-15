@@ -1,6 +1,7 @@
 package mcms // alias: opsmcms
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -57,6 +58,10 @@ var SetConfig = cldfops.NewOperation(
 		configurer, err := mcmston.NewConfigurer(chain.Wallet, tlb.MustFromTON("0"), mcmston.WithDoNotSendInstructionsOnChain())
 		if err != nil {
 			return opston.SendMessagesOutput{}, fmt.Errorf("failed to transform MCMS config to chain format: %w", err)
+		}
+
+		if in.DstAddr == nil {
+			return opston.SendMessagesOutput{}, errors.New("destination address (DstAddr) is required")
 		}
 
 		tr, err := configurer.SetConfig(b.GetContext(), in.DstAddr.String(), in.Config, in.ClearRoot)
