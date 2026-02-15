@@ -5,12 +5,11 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
+	common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-
-	chainselectors "github.com/smartcontractkit/chain-selectors"
-
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
@@ -19,8 +18,9 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	toncommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -38,7 +38,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get chain selectors
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainsel.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	chain := env.BlockChains.TonChains()[chainSelector]
@@ -60,10 +60,48 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	output, err := ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
 		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
 			chainSelector: {
-				Canceller:        mcmstypes.Config{}, // Will be replaced by TON adapter
-				Bypasser:         mcmstypes.Config{}, // Will be replaced by TON adapter
-				Proposer:         mcmstypes.Config{}, // Will be replaced by TON adapter
-				TimelockMinDelay: big.NewInt(0),
+				Proposer: mcmstypes.Config{
+					Quorum: 1,
+					Signers: []common.Address{
+						common.HexToAddress("0x0000000000000000000000000000000000000021"),
+						common.HexToAddress("0x0000000000000000000000000000000000000022"),
+					},
+					GroupSigners: []mcmstypes.Config{
+						{
+							Quorum: 2,
+							Signers: []common.Address{
+								common.HexToAddress("0x0000000000000000000000000000000000000023"),
+								common.HexToAddress("0x0000000000000000000000000000000000000024"),
+								common.HexToAddress("0x0000000000000000000000000000000000000025"),
+							},
+							GroupSigners: []mcmstypes.Config{
+								{
+									Quorum: 1,
+									Signers: []common.Address{
+										common.HexToAddress("0x0000000000000000000000000000000000000026"),
+									},
+									GroupSigners: []mcmstypes.Config{},
+								},
+							},
+						},
+					},
+				},
+				Canceller: mcmstypes.Config{
+					Quorum: 1,
+					Signers: []common.Address{
+						common.HexToAddress("0x0000000000000000000000000000000000000027"),
+					},
+					GroupSigners: []mcmstypes.Config{},
+				},
+				Bypasser: mcmstypes.Config{
+					Quorum: 1,
+					Signers: []common.Address{
+						common.HexToAddress("0x0000000000000000000000000000000000000028"),
+						common.HexToAddress("0x0000000000000000000000000000000000000029"),
+					},
+					GroupSigners: []mcmstypes.Config{},
+				},
+				TimelockMinDelay: big.NewInt(2),
 				ContractVersion:  version,
 			},
 		},
@@ -147,10 +185,16 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 
 	// Verify MCMS contract
 	mcmsAddr := suiteState.Proposer
-	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
+	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, toncommon.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
+
+	config, err := tvm.CallGetterLatest(ctx, chain.Client, mcmsAddr, mcms.GetConfig)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	require.Equal(t, 6, len(config.Signers.AsMap()), "Config should have 6 signers in total")
+	t.Log("Verified MCMS config has correct number of signers")
 
 	// Test idempotency by deploying again
 	t.Log("Testing idempotency by deploying again")
@@ -180,7 +224,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	suiteState = mcmsState[chainSelector].ByQualifier[qualifier]
 
 	mcmsAddr = suiteState.Proposer
-	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, common.GetTypeAndVersion)
+	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, toncommon.GetTypeAndVersion)
 	require.NoError(t, err)
 	require.Equal(t, "com.chainlink.ton.mcms.MCMS", tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")

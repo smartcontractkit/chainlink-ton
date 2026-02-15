@@ -13,13 +13,14 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 )
 
 type DeployContractInput struct {
@@ -34,7 +35,7 @@ type DeployContractOutput struct {
 	Address *address.Address
 }
 
-var DeployTONContractOp = cldf_ops.NewOperation(
+var DeployTONContractOp = cldfops.NewOperation(
 	"ton/ops/deploy",
 	semver.MustParse("0.1.0"),
 	"Deploys a TON contract in a generic way",
@@ -58,7 +59,7 @@ func (i *DeployContractInput) Validate() error {
 	return nil
 }
 
-func deployTONContract(b cldf_ops.Bundle, dp *dep.DependencyProvider, in DeployContractInput) (DeployContractOutput, error) {
+func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployContractInput) (DeployContractOutput, error) {
 	output := DeployContractOutput{}
 
 	if err := in.Validate(); err != nil {
@@ -67,7 +68,7 @@ func deployTONContract(b cldf_ops.Bundle, dp *dep.DependencyProvider, in DeployC
 
 	b.Logger.Infow("Deploy contract with generic deploy operation", "contract name", in.Name)
 
-	chain, err := dep.Resolve[cldf_ton.Chain](dp)
+	chain, err := dep.Resolve[cldfton.Chain](dp)
 	if err != nil {
 		return output, fmt.Errorf("failed to resolve chain: %w", err)
 	}
@@ -80,11 +81,16 @@ func deployTONContract(b cldf_ops.Bundle, dp *dep.DependencyProvider, in DeployC
 	b.Logger.Infow("Setting initial storage for contract", "contract name", in.Name, "storage data hash", hex.EncodeToString(initData.Hash()), "storage bits size", initData.BitsSize())
 
 	bodyCell := tvm.EmptyCell
-
 	if in.MessageBody != nil {
-		bodyCell, err = tlb.ToCell(in.MessageBody)
-		if err != nil {
-			return output, fmt.Errorf("failed to pack message body: %w", err)
+		// Check if the message body is already a cell
+		var ok bool
+		bodyCell, ok = in.MessageBody.(*cell.Cell)
+		if !ok {
+			// If not, try to convert it to a cell using tlb
+			bodyCell, err = tlb.ToCell(in.MessageBody)
+			if err != nil {
+				return output, fmt.Errorf("failed to pack message body: %w", err)
+			}
 		}
 	}
 
