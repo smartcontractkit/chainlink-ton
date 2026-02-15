@@ -149,7 +149,12 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			return nil, fmt.Errorf("failed to send messages: %w", err)
 		}
 
-		body := out.Output.Plans[0].Cell
+		// Extract the body from the full message plan to use it for deployment
+		msg, err := out.Output.Plans[0].Cell.ToValue()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert plan cell to value: %w", err)
+		}
+		body := msg.Body
 
 		version := in.ContractsSemverMCMS
 		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value, version)

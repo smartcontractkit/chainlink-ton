@@ -17,13 +17,12 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
-	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -136,7 +135,7 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	t.Logf("New owner wallet created and funded: %s", newOwnerWallet.WalletAddress().String())
 
 	// Step 4: Build contract refs for the contracts to transfer
-	contractRefs := []datastore.AddressRef{
+	contractRefs := []cldfds.AddressRef{
 		{Address: stateCCIPChain.Router.String(), Type: state.Router, ChainSelector: selector, Version: &state.Version1_6_0},
 		{Address: stateCCIPChain.OnRamp.String(), Type: state.OnRamp, ChainSelector: selector, Version: &state.Version1_6_0},
 		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector, Version: &state.Version1_6_0},

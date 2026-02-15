@@ -94,6 +94,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				}
 
 				contractType := bindings.PkgLib + ".access.Ownable"
+				//nolint:govet // allow shadowing
 				contractAddr, err := address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
@@ -181,6 +182,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
 			for _, contractRef := range in.ContractRef {
+				//nolint:govet // allow shadowing
 				contractAddr, err := address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
