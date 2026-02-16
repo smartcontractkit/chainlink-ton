@@ -2,11 +2,13 @@ package ton // alias: opston
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
@@ -59,7 +61,8 @@ func anySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in AnySequen
 			return output, fmt.Errorf("failed to retrieve operation %s: %w", def.ID, err)
 		}
 
-		r, err := operations.ExecuteOperation(b, op, any(dp), in.Inputs[i])
+		seriesID := strconv.Itoa(i) // Create a unique series ID for this operation execution within the sequence
+		r, err := opsutils.ExecuteOperation(b, op, any(dp), in.Inputs[i], seriesID)
 		if err != nil {
 			return output, fmt.Errorf("failed to execute operation %s: %w", def.ID, err)
 		}

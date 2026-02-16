@@ -26,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
@@ -138,11 +139,11 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		storage := mcms.EmptyDataFrom(id, chain.WalletAddress, chainID)
 		storage.RootInfo.ExpiringRootAndOpCount.OpPendingInfo.OpFinalizationTimeout = opFinalizationTimeout
 
-		// TODO: fix, figure out why are op execution reports reused during seq execution - CLDF bug?
-		//  - "DEBUG   Previous ton/ops/mcms/set-config execution found. Returning its result from Report storage"
-		//  - is this because the input didn't change? but this is wrong, op reports should be ordered by execution and not solely based on input,
-		// otherwise we can skip execution (matching report) when executing same input multiple times (e.g., sending two identical transfers to same address)
-		out, err := cldfops.ExecuteOperation(b, SetConfig, dp, SetConfigInput{
+		// Notice: we use a unique seriesID for the setConfig operations to ensure that the reports are correctly matched to each execution,
+		// otherwise we can skip execution (matching report) when executing same input multiple times.
+		// Not critical here as we only plan, but set as an example.
+		seriesID := strconv.FormatUint(uint64(id), 10)
+		out, err := opsutils.ExecuteOperation(b, SetConfig, dp, SetConfigInput{
 			Bounce:  false,
 			DstAddr: tvm.ZeroAddress,      // placeholder, actual address is determined by the deployment and not known at this point
 			Amount:  tlb.MustFromTON("0"), // placeholder, we just plan here
@@ -152,7 +153,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			ClearRoot: false,
 
 			Plan: true, // we just want to plan the setConfig message to get the body for deployment
-		})
+		}, seriesID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to send messages: %w", err)
 		}
@@ -165,6 +166,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		body := msg.Body
 
 		version := in.ContractsSemverMCMS
+		// Notice: storage.id acts as a series ID and makes the input unique per deployment
 		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value, version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
