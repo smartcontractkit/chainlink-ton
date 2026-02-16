@@ -45,7 +45,7 @@ func TestCrossChainAddress_LoadFromCell(t *testing.T) {
 		expectErr bool
 	}{
 		{"valid data", []byte{0x01, 0xFF}, false},
-		{"invalid length", []byte{0x00}, true},
+		{"empty address", []byte{0x00}, false},
 		{"too long", []byte{0x41}, true},
 	}
 
@@ -67,6 +67,18 @@ func TestCrossChainAddress_LoadFromCell(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCrossChainAddress_RoundTrip_Empty(t *testing.T) {
+	original := CrossChainAddress{}
+
+	c, err := original.ToCell()
+	require.NoError(t, err)
+
+	var restored CrossChainAddress
+	err = restored.LoadFromCell(c.BeginParse())
+	require.NoError(t, err)
+	require.Empty(t, restored)
 }
 
 func TestCrossChainAddress_RoundTrip(t *testing.T) {
