@@ -148,8 +148,13 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	}
 
 	addrLength := int(length[0]) // first byte is the length
-	if addrLength == 0 || addrLength > CrossChainAddressMaxLength {
+	if addrLength > CrossChainAddressMaxLength {
 		return fmt.Errorf("invalid crosschain address length %d", addrLength)
+	}
+
+	if addrLength == 0 {
+		*c = CrossChainAddress{}
+		return nil
 	}
 
 	// Check if the remaining bits are enough for the address

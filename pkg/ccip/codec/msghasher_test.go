@@ -182,7 +182,8 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
 
-		rawTonAddr := ToRawAddr(tonAddr)
+		rawTonAddr, err := ToRawAddr(tonAddr)
+		require.NoError(t, err)
 		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
 		require.NoError(t, err)
 
@@ -267,7 +268,8 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
 
-		rawTonAddr := ToRawAddr(tonAddr)
+		rawTonAddr, err := ToRawAddr(tonAddr)
+		require.NoError(t, err)
 		// EVM_SENDER_ADDRESS_TEST: 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a
 		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
 		require.NoError(t, err)

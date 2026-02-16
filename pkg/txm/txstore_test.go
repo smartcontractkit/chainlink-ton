@@ -251,9 +251,9 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		}
 
 		// Cleanup
-		finalizedCount := store.cleanupFinalized()
+		finalizedTxs := store.cleanupFinalized()
 
-		assert.Equal(t, 5, finalizedCount)
+		assert.Len(t, finalizedTxs, 5)
 
 		// Verify all finalized transactions are removed
 		for i := range 5 {
@@ -286,9 +286,9 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cleanup
-		expiredCount := store.cleanupExpired(currentTimeMs)
+		expiredTxs := store.cleanupExpired(currentTimeMs)
 
-		assert.Equal(t, 2, expiredCount)
+		assert.Len(t, expiredTxs, 2)
 
 		// Verify expired transactions are removed
 		_, _, _, _, found := store.GetTxState(1001)
@@ -336,11 +336,11 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		require.NoError(t, err)
 
 		// Cleanup
-		finalizedCount := store.cleanupFinalized()
-		expiredCount := store.cleanupExpired(currentTimeMs)
+		finalized := store.cleanupFinalized()
+		expired := store.cleanupExpired(currentTimeMs)
 
-		assert.Equal(t, 3, finalizedCount)
-		assert.Equal(t, 2, expiredCount)
+		assert.Len(t, finalized, 3)
+		assert.Len(t, expired, 2)
 
 		// Verify finalized transactions are removed
 		for i := range 3 {
@@ -365,11 +365,11 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 		store := NewTxStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
-		finalizedCount := store.cleanupFinalized()
-		expiredCount := store.cleanupExpired(currentTimeMs)
+		finalized := store.cleanupFinalized()
+		expired := store.cleanupExpired(currentTimeMs)
 
-		assert.Equal(t, 0, finalizedCount)
-		assert.Equal(t, 0, expiredCount)
+		assert.Empty(t, finalized)
+		assert.Empty(t, expired)
 	})
 
 	t.Run("handles cleanup with only non-expired transactions", func(t *testing.T) {
@@ -384,11 +384,11 @@ func TestTxStore_CleanupFinalizedAndExpired(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		finalizedCount := store.cleanupFinalized()
-		expiredCount := store.cleanupExpired(currentTimeMs)
+		finalized := store.cleanupFinalized()
+		expired := store.cleanupExpired(currentTimeMs)
 
-		assert.Equal(t, 0, finalizedCount)
-		assert.Equal(t, 0, expiredCount)
+		assert.Empty(t, finalized)
+		assert.Empty(t, expired)
 
 		// Verify all transactions remain
 		for i := range 3 {
@@ -528,20 +528,20 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 		}
 
 		// Cleanup all
-		totalFinalized, totalExpired := accountStore.CleanupAll(currentTimeMs)
+		finalizedTxs, expiredTxs := accountStore.CleanupAll(currentTimeMs)
 
-		assert.Equal(t, 5, totalFinalized) // 2 from account1 + 3 from account2
-		assert.Equal(t, 3, totalExpired)   // 1 from account1 + 2 from account2
+		assert.Len(t, finalizedTxs, 5) // 2 from account1 + 3 from account2
+		assert.Len(t, expiredTxs, 3)   // 1 from account1 + 2 from account2
 	})
 
 	t.Run("returns zero counts when no transactions to cleanup", func(t *testing.T) {
 		accountStore := NewAccountStore()
 		currentTimeMs := uint64(time.Now().UnixMilli())
 
-		totalFinalized, totalExpired := accountStore.CleanupAll(currentTimeMs)
+		finalized, expired := accountStore.CleanupAll(currentTimeMs)
 
-		assert.Equal(t, 0, totalFinalized)
-		assert.Equal(t, 0, totalExpired)
+		assert.Empty(t, finalized)
+		assert.Empty(t, expired)
 	})
 
 	t.Run("only cleans up expired transactions when no finalized exist", func(t *testing.T) {
@@ -558,10 +558,10 @@ func TestAccountStore_CleanupAll(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		totalFinalized, totalExpired := accountStore.CleanupAll(currentTimeMs)
+		finalized, expired := accountStore.CleanupAll(currentTimeMs)
 
-		assert.Equal(t, 0, totalFinalized)
-		assert.Equal(t, 4, totalExpired)
+		assert.Empty(t, finalized)
+		assert.Len(t, expired, 4)
 	})
 }
 

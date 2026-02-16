@@ -48,11 +48,15 @@ func _() {
 	_ = x[ExitCodeTactCodeOfAContractWasNotFound-135]
 	_ = x[ExitCodeTactInvalidStandardAddress-136]
 	_ = x[ExitCodeTactNotABasechainAddress-138]
+	_ = x[ExitCodeComputeSkipReasonNoState - -1]
+	_ = x[ExitCodeComputeSkipReasonBadState - -2]
+	_ = x[ExitCodeComputeSkipReasonNoGas - -3]
+	_ = x[ExitCodeComputeSkipReasonSuspended - -4]
 }
 
 const (
 	_ExitCode_name_0 = "ExitCodeOutOfGasErrorVariant"
-	_ExitCode_name_1 = "ExitCodeSuccessExitCodeSuccessVariantExitCodeStackUnderflowExitCodeStackOverflowExitCodeIntegerOverflowExitCodeIntegerOutOfExpectedRangeExitCodeInvalidOpcodeExitCodeTypeCheckErrorExitCodeCellOverflowExitCodeCellUnderflowExitCodeDictionaryErrorExitCodeUnknownErrorExitCodeFatalErrorExitCodeOutOfGasErrorExitCodeVirtualizationError"
+	_ExitCode_name_1 = "ExitCodeComputeSkipReasonSuspendedExitCodeComputeSkipReasonNoGasExitCodeComputeSkipReasonBadStateExitCodeComputeSkipReasonNoStateExitCodeSuccessExitCodeSuccessVariantExitCodeStackUnderflowExitCodeStackOverflowExitCodeIntegerOverflowExitCodeIntegerOutOfExpectedRangeExitCodeInvalidOpcodeExitCodeTypeCheckErrorExitCodeCellOverflowExitCodeCellUnderflowExitCodeDictionaryErrorExitCodeUnknownErrorExitCodeFatalErrorExitCodeOutOfGasErrorExitCodeVirtualizationError"
 	_ExitCode_name_2 = "ExitCodeActionListIsInvalidExitCodeActionListIsTooLongExitCodeActionIsInvalidOrNotSupportedExitCodeInvalidSourceAddressInOutboundMessageExitCodeInvalidDestinationAddressInOutboundMessageExitCodeNotEnoughToncoinExitCodeNotEnoughExtraCurrenciesExitCodeOutboundMessageDoesNotFitIntoACellAfterRewritingExitCodeCannotProcessAMessageExitCodeLibraryReferenceIsNullExitCodeLibraryChangeActionErrorExitCodeExceededMaximumNumberOfCellsInTheLibraryOrTheMaximumDepthOfTheMerkleTree"
 	_ExitCode_name_3 = "ExitCodeAccountStateSizeExceededLimits"
 	_ExitCode_name_4 = "ExitCodeTolkUnmatchedOpcode"
@@ -61,7 +65,7 @@ const (
 )
 
 var (
-	_ExitCode_index_1 = [...]uint16{0, 15, 37, 59, 80, 103, 136, 157, 179, 199, 220, 243, 263, 281, 302, 329}
+	_ExitCode_index_1 = [...]uint16{0, 34, 64, 97, 129, 144, 166, 188, 209, 232, 265, 286, 308, 328, 349, 372, 392, 410, 431, 458}
 	_ExitCode_index_2 = [...]uint16{0, 27, 54, 91, 136, 186, 210, 242, 298, 327, 357, 389, 469}
 	_ExitCode_index_5 = [...]uint16{0, 30, 64, 98, 126, 150, 177, 204, 242, 276}
 )
@@ -70,7 +74,8 @@ func (i ExitCode) String() string {
 	switch {
 	case i == -14:
 		return _ExitCode_name_0
-	case 0 <= i && i <= 14:
+	case -4 <= i && i <= 14:
+		i -= -4
 		return _ExitCode_name_1[_ExitCode_index_1[i]:_ExitCode_index_1[i+1]]
 	case 32 <= i && i <= 43:
 		i -= 32

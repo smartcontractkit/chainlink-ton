@@ -30,6 +30,7 @@ import (
 
 	logpoller_testdata "github.com/smartcontractkit/chainlink-ton/integration-tests/logpoller/testdata"
 	pgtest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/postgres"
+	tontest "github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton"
 )
 
 const (
@@ -484,7 +485,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{1, 2, 3, 4, 5},
 			TxLT:         1000,
 			TxTimestamp:  baseTimestamp.Add(1 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			Block:        tontest.TestBlockIDExt(100),
 			MCBlockSeqno: 200,
 			MsgIndex:     0,
 		},
@@ -498,7 +499,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{2, 3, 4, 5, 6},
 			TxLT:         1001,
 			TxTimestamp:  baseTimestamp.Add(2 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			Block:        tontest.TestBlockIDExt(101),
 			MCBlockSeqno: 201,
 			MsgIndex:     1,
 		},
@@ -512,7 +513,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{3, 4, 5, 6, 7},
 			TxLT:         1002,
 			TxTimestamp:  baseTimestamp.Add(3 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			Block:        tontest.TestBlockIDExt(102),
 			MCBlockSeqno: 202,
 			MsgIndex:     2,
 		},
@@ -526,7 +527,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{4, 5, 6, 7, 8},
 			TxLT:         1003,
 			TxTimestamp:  baseTimestamp.Add(4 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 103},
+			Block:        tontest.TestBlockIDExt(103),
 			MCBlockSeqno: 203,
 			MsgIndex:     3,
 		},
@@ -540,7 +541,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 			TxHash:       lptypes.TxHash{5, 6, 7, 8, 9},
 			TxLT:         1004,
 			TxTimestamp:  baseTimestamp.Add(5 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 104},
+			Block:        tontest.TestBlockIDExt(104),
 			MCBlockSeqno: 204,
 			MsgIndex:     4,
 		},
@@ -565,7 +566,9 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 
 	// Validate all returned reports have MerkleRoot
 	for i, report := range reports {
-		require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Report %d should have at least 1 blessed merkle root", i+1)
+		if len(report.Report.PriceUpdates.GasPriceUpdates) == 0 && len(report.Report.PriceUpdates.TokenPriceUpdates) == 0 {
+			require.NotEmpty(t, report.Report.UnblessedMerkleRoots, "Report %d should have at least 1 unblessed merkle root", i+1)
+		}
 	}
 
 	// Test 2: Query with limit=2 - should return only first 2 MerkleRoot reports
@@ -575,14 +578,19 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 
 	// Validate the limited reports are the first 2 chronologically (with MerkleRoot)
 	for i, report := range limitedReports {
-		require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Limited report %d should have at least 1 blessed merkle root", i+1)
+		if len(report.Report.PriceUpdates.GasPriceUpdates) == 0 && len(report.Report.PriceUpdates.TokenPriceUpdates) == 0 {
+			require.NotEmpty(t, report.Report.UnblessedMerkleRoots, "Limited report %d should have at least 1 unblessed merkle root", i+1)
+		}
 	}
 
 	// Test 3: Query with limit=1 - should return only the first MerkleRoot report
 	singleReport, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
 	require.NoError(t, err, "failed to get single commit report")
 	require.Len(t, singleReport, 1, "Should return exactly 1 report due to limit=1")
-	require.NotEmpty(t, singleReport[0].Report.BlessedMerkleRoots, "Single report should have at least 1 blessed merkle root")
+
+	if len(singleReport[0].Report.PriceUpdates.GasPriceUpdates) == 0 && len(singleReport[0].Report.PriceUpdates.TokenPriceUpdates) == 0 {
+		require.NotEmpty(t, singleReport[0].Report.UnblessedMerkleRoots, "Single report should have at least 1 unblessed merkle root")
+	}
 
 	// Validate chronological ordering (reports should be ordered by timestamp ASC)
 	for i := 1; i < len(reports); i++ {
@@ -609,7 +617,7 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 		TxHash:       lptypes.TxHash{1, 2, 3, 4, 5},
 		TxLT:         1000,
 		TxTimestamp:  logTimestamp,
-		Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+		Block:        tontest.TestBlockIDExt(100),
 		MCBlockSeqno: 200,
 		MsgIndex:     0,
 	}}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
@@ -632,9 +640,11 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 
 	// Validate the returned report
 	report := reports[0]
-	require.Len(t, report.Report.BlessedMerkleRoots, 1, "expected 1 blessed merkle root in the report")
+	if len(report.Report.PriceUpdates.GasPriceUpdates) == 0 && len(report.Report.PriceUpdates.TokenPriceUpdates) == 0 {
+		require.Len(t, report.Report.UnblessedMerkleRoots, 1, "expected 1 unblessed merkle root in the report")
+	}
 
-	merkleRoot := report.Report.BlessedMerkleRoots[0]
+	merkleRoot := report.Report.UnblessedMerkleRoots[0]
 	require.Equal(t, ccipocr3.ChainSelector(909606746561742123), merkleRoot.ChainSel, "ChainSelector should match")
 	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.Start(), "MinSeqNr should be 1")
 	require.Equal(t, ccipocr3.SeqNum(1), merkleRoot.SeqNumsRange.End(), "MaxSeqNr should be 1")
@@ -870,7 +880,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxHash:       lptypes.TxHash{1, 2, 3, 4, 5},
 			TxLT:         1000,
 			TxTimestamp:  baseTimestamp.Add(1 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			Block:        tontest.TestBlockIDExt(100),
 			MCBlockSeqno: 200,
 			MsgLT:        1000,
 			MsgIndex:     0,
@@ -884,7 +894,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxHash:       lptypes.TxHash{2, 3, 4, 5, 6},
 			TxLT:         1001,
 			TxTimestamp:  baseTimestamp.Add(2 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			Block:        tontest.TestBlockIDExt(101),
 			MCBlockSeqno: 201,
 			MsgLT:        1001,
 			MsgIndex:     1,
@@ -898,7 +908,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 			TxHash:       lptypes.TxHash{3, 4, 5, 6, 7},
 			TxLT:         1002,
 			TxTimestamp:  baseTimestamp.Add(3 * time.Second),
-			Block:        &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			Block:        tontest.TestBlockIDExt(102),
 			MCBlockSeqno: 202,
 			MsgLT:        1002,
 			MsgIndex:     2,

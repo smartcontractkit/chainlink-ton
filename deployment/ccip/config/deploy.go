@@ -52,7 +52,7 @@ type FeeQuoterParams struct {
 	ContractsSemver              *semver.Version
 	Coin                         string
 	MaxFeeJuelsPerMsg            *big.Int
-	TokenPriceStalenessThreshold uint64
+	TokenPriceStalenessThreshold uint32
 	FeeTokens                    map[TokenSymbol]FeeToken
 }
 

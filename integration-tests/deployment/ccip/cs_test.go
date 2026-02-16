@@ -58,7 +58,7 @@ func TestDeployCCIP(t *testing.T) {
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
 
-	version := sequence.ContractsVersionLatestSupported
+	version := sequence.ContractsVersionLocal
 	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, chainSelector, version, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})

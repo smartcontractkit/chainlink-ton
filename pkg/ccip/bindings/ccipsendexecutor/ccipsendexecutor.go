@@ -8,15 +8,12 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // CCIPSend Executor opcodes
 const (
-	OpcodeCCIPSendExecutorExecute          = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
-	OpcodeFeeQuoterMessageValidated        = 0x1fa60374 // crc32('FeeQuoter_MessageValidated')
-	OpcodeFeeQuoterMessageValidationFailed = 0xbcf0ab0f // crc32('FeeQuoter_MessageValidationFailed')
+	OpcodeCCIPSendExecutorExecute = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
@@ -48,28 +45,8 @@ type Execute struct {
 	Config     *cell.Cell  `tlb:"^"`
 }
 
-// FeeQuoter_MessageValidated message structure
-type MessageValidated struct {
-	_        tlb.Magic        `tlb:"#cbc4af76" json:"-"` //nolint:revive // Ignore opcode tag
-	Fee      *tlb.Coins       `tlb:"."`
-	Msg      *router.CCIPSend `tlb:"^"`
-	Metadata *cell.Cell       `tlb:"^"`
-}
-
-// FeeQuoter_MessageValidationFailed message structure
-type MessageValidationFailed struct {
-	_       tlb.Magic        `tlb:"#0f756150" json:"-"` //nolint:revive // Ignore opcode tag
-	Error   *big.Int         `tlb:"## 256"`
-	Msg     *router.CCIPSend `tlb:"^"`
-	Context *cell.Cell       `tlb:"^"`
-}
-
 var TLBs = tvm.MustNewTLBMap([]any{
 	Execute{},
-	MessageValidated{},
-	MessageValidationFailed{},
-	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
-	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
 }).MustWithStorageType(InitialData{})
 
 // Metadata structure
@@ -104,6 +81,6 @@ type StateOnGoingFeeValidation struct {
 
 // TokenAmount structure (reused from router package concept)
 type TokenAmount struct {
-	Amount *big.Int         `tlb:"## 256"`
+	Amount *tlb.Coins       `tlb:"."`
 	Token  *address.Address `tlb:"addr"`
 }

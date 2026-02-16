@@ -11,10 +11,16 @@ import (
 )
 
 // MCMSChainState holds a Go binding for all the currently deployed MCMS contracts
-// on a chain. If a binding is nil, it means there is no such contract on the chain.
+// on a chain, indexed byqualifier. If a binding is nil, it means there is no such
+// MCMS suite contracts on the chain for that qualifier.
 type MCMSChainState struct {
-	Timelock address.Address
-	MCMS     address.Address
+	ByQualifier map[string]*MCMSSuiteState
+}
+
+// MCMSSuiteState holds the state of a single MCMS suite - currently includes all contracts addresses.
+type MCMSSuiteState struct {
+	Timelock *address.Address
+	MCMS     *address.Address
 }
 
 // TODO refactor state management for different protocol NONEVM-3181
@@ -43,7 +49,9 @@ func LoadMCMSOnChainStateUsingDataStore(dataStore ds.DataStore, chainSelector ui
 }
 
 func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {
-	state := MCMSChainState{}
+	state := MCMSChainState{
+		ByQualifier: make(map[string]*MCMSSuiteState),
+	}
 
 	// Most programs upgraded in place, but some are not so we always want to
 	// load the latest version
@@ -59,11 +67,18 @@ func loadMCMSChainState(addresses []ds.AddressRef) (MCMSChainState, error) {
 			return state, err
 		}
 
+		// Init suite state for this qualifier if not exist
+		if state.ByQualifier[addressType.Qualifier] == nil {
+			state.ByQualifier[addressType.Qualifier] = &MCMSSuiteState{
+				Timelock: address.NewAddressNone(), MCMS: address.NewAddressNone(),
+			}
+		}
+
 		switch contractType {
 		case Timelock:
-			state.Timelock = *contractAddress
+			state.ByQualifier[addressType.Qualifier].Timelock = contractAddress
 		case MCMS:
-			state.MCMS = *contractAddress
+			state.ByQualifier[addressType.Qualifier].MCMS = contractAddress
 		default:
 			continue
 		}

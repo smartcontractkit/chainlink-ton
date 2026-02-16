@@ -140,16 +140,24 @@ func TestJettonAll(t *testing.T) {
 		})
 		t.Logf("Msg trace:\n%s\n", debugger.DumpReceived(sendMintMsg))
 
-		require.Zero(t, sendMintMsg.ExitCode, "Msg to wallet should have exit code 0")
+		exitCode, err := sendMintMsg.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to wallet should have exit code 0")
 		require.Len(t, sendMintMsg.OutgoingInternalReceivedMessages, 1, "Msg to wallet should have 1 outgoing message")
 		msgToMinter := sendMintMsg.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgToMinter.ExitCode, "Msg to minter should have exit code 0")
+		exitCode, err = msgToMinter.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to minter should have exit code 0")
 		require.Len(t, msgToMinter.OutgoingInternalReceivedMessages, 1, "Msg to minter should have 1 outgoing message")
 		msgToJettonWallet := msgToMinter.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgToJettonWallet.ExitCode, "Msg to jetton wallet should have exit code 0")
+		exitCode, err = msgToJettonWallet.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to jetton wallet should have exit code 0")
 		require.Len(t, msgToJettonWallet.OutgoingInternalReceivedMessages, 1, "Msg to jetton wallet should not have outgoing messages")
 		msgReturnExcessesBack := msgToJettonWallet.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgReturnExcessesBack.ExitCode, "Msg to return excesses should have exit code 0")
+		exitCode, err = msgReturnExcessesBack.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to return excesses should have exit code 0")
 		require.Empty(t, msgReturnExcessesBack.OutgoingInternalReceivedMessages, "Msg to return excesses should have no outgoing messages")
 		senderJettonWalletAddress := msgToJettonWallet.InternalMsg.DstAddr
 
@@ -277,16 +285,24 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons")
 
-		require.Zero(t, sendMintMsg.ExitCode, "Msg to wallet should have exit code 0")
+		exitCode, err := sendMintMsg.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to wallet should have exit code 0")
 		require.Len(t, sendMintMsg.OutgoingInternalReceivedMessages, 1, "Msg to wallet should have 1 outgoing message")
 		msgToMinter := sendMintMsg.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgToMinter.ExitCode, "Msg to minter should have exit code 0")
+		exitCode, err = msgToMinter.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to minter should have exit code 0")
 		require.Len(t, msgToMinter.OutgoingInternalReceivedMessages, 1, "Msg to minter should have 1 outgoing message")
 		msgToJettonWallet := msgToMinter.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgToJettonWallet.ExitCode, "Msg to jetton wallet should have exit code 0")
+		exitCode, err = msgToJettonWallet.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to jetton wallet should have exit code 0")
 		require.Len(t, msgToJettonWallet.OutgoingInternalReceivedMessages, 1, "Msg to jetton wallet should not have outgoing messages")
 		msgReturnExcessesBack := msgToJettonWallet.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgReturnExcessesBack.ExitCode, "Msg to return excesses should have exit code 0")
+		exitCode, err = msgReturnExcessesBack.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to return excesses should have exit code 0")
 		require.Empty(t, msgReturnExcessesBack.OutgoingInternalReceivedMessages, "Msg to return excesses should have no outgoing messages")
 		deployerJettonWalletAddress := msgToJettonWallet.InternalMsg.DstAddr
 
@@ -438,7 +454,9 @@ func TestJettonAll(t *testing.T) {
 			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
 		})
 		t.Logf("Claim admin message received: \n%s\n", debugger2.DumpReceived(claimAdminMsg))
-		require.Zero(t, claimAdminMsg.ExitCode, "Claim admin message should have exit code 0")
+		exitCode, err := claimAdminMsg.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Claim admin message should have exit code 0")
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data after admin change")
@@ -459,10 +477,14 @@ func TestJettonAll(t *testing.T) {
 			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
 		})
 		t.Logf("Drop admin message received: \n%s\n", debugger.DumpReceived(dropAdminMsg))
-		require.Zero(t, dropAdminMsg.ExitCode, "Drop admin message should have exit code 0")
+		exitCode, err := dropAdminMsg.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Drop admin message should have exit code 0")
 		require.Len(t, dropAdminMsg.OutgoingInternalReceivedMessages, 1, "Drop admin message should have 1 outgoing message")
 		msgToMinter := dropAdminMsg.OutgoingInternalReceivedMessages[0]
-		require.Zero(t, msgToMinter.ExitCode, "Msg to minter should have exit code 0")
+		exitCode, err = msgToMinter.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Msg to minter should have exit code 0")
 		require.Empty(t, msgToMinter.OutgoingInternalReceivedMessages, "Msg to minter should have no outgoing messages")
 
 		queryID := rand.Uint64()
@@ -480,10 +502,14 @@ func TestJettonAll(t *testing.T) {
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons after admin drop")
-		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
+		exitCode, err = mintMsg.ExitCode()
+		require.NoError(t, err)
+		require.Zero(t, exitCode, "Mint message should have exit code 0")
 		require.Len(t, mintMsg.OutgoingInternalReceivedMessages, 1, "Mint message should have 1 outgoing message")
 		msgToMinter = mintMsg.OutgoingInternalReceivedMessages[0]
-		require.Equal(t, int(jetton_common.ErrorNotOwner), int(msgToMinter.ExitCode), "Msg to minter should have")
+		exitCode, err = msgToMinter.ExitCode()
+		require.NoError(t, err)
+		require.Equal(t, int(jetton_common.ErrorNotOwner), int(exitCode), "Msg to minter should have")
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data after admin change")
@@ -651,20 +677,26 @@ func TestJettonAll(t *testing.T) {
 			msgToSendersJettonWallet := msgToSender.OutgoingInternalReceivedMessages[0]
 			require.NotEmpty(t, msgToSendersJettonWallet.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
 			msgToOnrampMockJettonWallet := msgToSendersJettonWallet.OutgoingInternalReceivedMessages[0]
-			assert.Zero(t, msgToOnrampMockJettonWallet.ExitCode, "Onramp mock jetton wallet message should have exit code 0")
+			exitCode, err2 := msgToOnrampMockJettonWallet.ExitCode()
+			require.NoError(t, err2)
+			assert.Zero(t, exitCode, "Onramp mock jetton wallet message should have exit code 0")
 			msgWithExcessesIdx := slices.IndexFunc(msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages, func(m *tracetracking.ReceivedMessage) bool {
 				return m.InternalMsg.DstAddr.Equals(setup.Sender.Contract.Address)
 			})
 			require.Greater(t, msgWithExcessesIdx, -1, "Excesses message should be present in outgoing messages")
 			msgWithExcesses := msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages[msgWithExcessesIdx]
-			assert.Zero(t, msgWithExcesses.ExitCode, "Excesses message should have exit code 0")
+			exitCode, err2 = msgWithExcesses.ExitCode()
+			require.NoError(t, err2)
+			assert.Zero(t, exitCode, "Excesses message should have exit code 0")
 
 			onrampMockCallIdx := slices.IndexFunc(msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages, func(m *tracetracking.ReceivedMessage) bool {
 				return m.InternalMsg.DstAddr.Equals(setup.onrampMock.Contract.Address)
 			})
 			require.Greater(t, onrampMockCallIdx, -1, "Onramp mock call message should be present in outgoing messages")
 			onrampMockCall := msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages[onrampMockCallIdx]
-			require.Zero(t, onrampMockCall.ExitCode, "Onramp mock call should have exit code 0")
+			exitCode, err2 = onrampMockCall.ExitCode()
+			require.NoError(t, err2)
+			require.Zero(t, exitCode, "Onramp mock call should have exit code 0")
 			require.NotEmpty(t, onrampMockCall.OutgoingExternalMessages, "Outgoing external messages should not be empty")
 			eventLog := onrampMockCall.OutgoingExternalMessages[0]
 			return eventLog, queryID, nil

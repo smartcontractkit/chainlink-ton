@@ -38,6 +38,7 @@ import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
 import { EVM_ADDRESS } from './router/Router.Setup'
+import { loadContractCode } from '../../wrappers/codeLoader'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -545,7 +546,7 @@ describe('OffRamp - Unit Tests', () => {
     }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
-    deployerCode = await compile('Deployable')
+    deployerCode = await loadContractCode('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
     receiveExecutorCodeRaw = await compile('ReceiveExecutor')
     offRampCodeRaw = await compile('OffRamp')
@@ -1593,6 +1594,9 @@ describe('OffRamp - Unit Tests', () => {
     // Check that minSeqNr is now 11 (maxSeqNr + 1)
     const config2 = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
     expect(config2.minSeqNr).toBe(11n)
+    expect(uint8ArrayToBigInt(config2.onRamp).toString(16)).toBe(
+      EVM_ONRAMP_ADDRESS_TEST.toString(16),
+    )
   })
 
   it('Test commit with large sequence number gap', async () => {

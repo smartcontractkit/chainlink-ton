@@ -18,6 +18,8 @@ export const LogTypes = {
   OffRampRemoved: `OffRampRemoved`,
   Cursed: 'Cursed',
   Uncursed: 'Uncursed',
+  UsdPerTokenUpdated: 'UsdPerTokenUpdated',
+  UsdPerUnitGasUpdated: 'UsdPerUnitGasUpdated',
   ReceiveExecutorInitExecuteBounced: 'ReceiveExecutorInitExecuteBounced',
   DeployableInitializeBounced: 'DeployableInitializeBounced',
   RouteMessageBounced: 'RouteMessageBounced',
@@ -41,6 +43,8 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   OffRampRemoved: crc32('OffRampRemoved'),
   Cursed: crc32('Cursed'),
   Uncursed: crc32('Uncursed'),
+  UsdPerTokenUpdated: crc32('UsdPerTokenUpdated'),
+  UsdPerUnitGasUpdated: crc32('UsdPerUnitGasUpdated'),
   ReceiveExecutorInitExecuteBounced: crc32('ReceiveExecutorInitExecuteBounced'),
   DeployableInitializeBounced: crc32('DeployableInitializeBounced'),
   RouteMessageBounced: crc32('RouteMessageBounced'),
@@ -102,6 +106,19 @@ export type Cursed = {
 
 export type Uncursed = {
   subject: bigint
+}
+
+export type UsdPerTokenUpdated = {
+  sourceToken: Address
+  usdPerToken: bigint // uint224
+  timestamp: bigint // uint64
+}
+
+export type UsdPerUnitGasUpdated = {
+  destChainSelector: bigint // uint64
+  executionGasPrice: bigint // uint112
+  dataAvailabilityGasPrice: bigint // uint112
+  timestamp: bigint // uint64
 }
 
 export type ReceiveExecutorInitExecuteBounced = {

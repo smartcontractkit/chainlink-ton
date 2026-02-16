@@ -14,6 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	cciputils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
@@ -39,7 +40,13 @@ var DeployMCMSContracts = operations.NewSequence(
 	"Deploys all MCM contracts with config",
 	func(b operations.Bundle, chains cldf_chain.BlockChains, input deploy.MCMSDeploymentConfigPerChainWithAddress) (output sequences.OnChainOutput, err error) {
 		chain := chains.TonChains()[input.ChainSelector]
-		stateMCMS, err := extractMCMSChainStateFromMCMSDeploymentInput(chain, input.ExistingAddresses)
+
+		qualifier := cciputils.CLLQualifier // default
+		if input.Qualifier != nil {
+			qualifier = *input.Qualifier
+		}
+
+		stateMCMS, err := extractMCMSChainStateFromMCMSDeploymentInput(chain, input.ExistingAddresses, qualifier)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -60,6 +67,11 @@ var DeployMCMSContracts = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
 		}
 
+		// Attach the qualifier to the output (to be stored in DS)
+		for i := range r.Output.Addresses {
+			r.Output.Addresses[i].Qualifier = qualifier
+		}
+
 		return sequences.OnChainOutput{
 			Addresses: r.Output.Addresses,
 			BatchOps:  r.Output.BatchOps,
@@ -67,11 +79,13 @@ var DeployMCMSContracts = operations.NewSequence(
 	},
 )
 
-func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef) (map[uint64]state.MCMSChainState, error) {
+// TODO: unify and deduplicate with state.LoadMCMSOnChainState
+func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []datastore.AddressRef, qualifier string) (map[uint64]state.MCMSChainState, error) {
 	noneAddr := address.NewAddressNone()
-	init := state.MCMSChainState{
-		Timelock: *noneAddr,
-		MCMS:     *noneAddr,
+	s := state.MCMSChainState{
+		ByQualifier: map[string]*state.MCMSSuiteState{
+			qualifier: {Timelock: noneAddr, MCMS: noneAddr},
+		},
 	}
 
 	// fill in existing addresses
@@ -80,20 +94,22 @@ func extractMCMSChainStateFromMCMSDeploymentInput(chain ton.Chain, existing []da
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse existing address %s: %w", e.Address, err)
 		}
+
+		if e.Qualifier != qualifier {
+			continue // skip addresses that don't match the qualifier for this deployment
+		}
+
 		switch e.Type {
 		case state.Timelock:
-			init.Timelock = *tonAddr
+			s.ByQualifier[qualifier].Timelock = tonAddr
 		case state.MCMS:
-			init.MCMS = *tonAddr
+			s.ByQualifier[qualifier].MCMS = tonAddr
 		default:
 			// ignore unknown types
 		}
 	}
 
-	state := map[uint64]state.MCMSChainState{
-		chain.Selector: init,
-	}
-	return state, nil
+	return map[uint64]state.MCMSChainState{chain.Selector: s}, nil
 }
 
 func intoDeployMCMSSeqInput(cfg deploy.MCMSDeploymentConfigPerChainWithAddress, deployer *address.Address) (mcmsSeq.DeployMCMSSeqInput, error) {

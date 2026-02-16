@@ -13,6 +13,7 @@ import * as or from '../../../wrappers/ccip/OnRamp'
 import * as of from '../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
@@ -156,7 +157,7 @@ async function deployFeeQuoterInstance(
     allowedPriceUpdaters: Dictionary.empty(Dictionary.Keys.Address()),
     maxFeeJuelsPerMsg: 100000000n,
     linkToken: LINK_TOKEN,
-    tokenPriceStalenessThreshold: 1000n,
+    tokenPriceStalenessThreshold: 1000,
     usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), fq.createTimestampedPriceValue()),
     premiumMultiplierWeiPerEth: Dictionary.empty(
       Dictionary.Keys.Address(),
@@ -279,7 +280,7 @@ async function deployOnRampInstance(
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
     executor: {
-      deployableCode: await compile('Deployable'),
+      deployableCode: await loadContractCode('Deployable'),
       executorCode: await compile('CCIPSendExecutor'),
     },
   }
@@ -346,7 +347,7 @@ async function deployOffRampInstance(
     },
     chainSelector: CHAINSEL_TON,
     deployables: {
-      deployerCode: await compile('Deployable'),
+      deployerCode: await loadContractCode('Deployable'),
       merkleRootCode: await compile('MerkleRoot'),
       receiveExecutorCode: await compile('ReceiveExecutor'),
     },

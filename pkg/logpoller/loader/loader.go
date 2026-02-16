@@ -167,6 +167,7 @@ func (l *rawTxLoader) GetTransactionLTBounds(ctx context.Context, blockRange *mo
 func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) ([]models.Tx, error) {
 	txOut := make(chan models.Tx)
 	errOut := make(chan error, 1)
+	defer close(errOut)
 
 	var txs []models.Tx
 	done := make(chan struct{})
@@ -280,6 +281,11 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 			}
 			// update txHash for next iteration's validation
 			txHash = tx.PrevTxHash
+
+			// validate block hash lengths
+			if err = models.ValidateBlockIDExt(t.IDs[i]); err != nil {
+				return nil, nil, fmt.Errorf("invalid block ID at index %d: %w", i, err)
+			}
 
 			reversedIdx := (len(txList) - 1) - i
 			resTxs[reversedIdx] = &tx

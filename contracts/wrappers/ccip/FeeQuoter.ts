@@ -71,7 +71,7 @@ export type FeeQuoterStorage = {
   allowedPriceUpdaters: Dictionary<Address, Buffer>
   maxFeeJuelsPerMsg: bigint
   linkToken: Address
-  tokenPriceStalenessThreshold: bigint
+  tokenPriceStalenessThreshold: number
   usdPerToken: Dictionary<Address, TimestampedPrice>
   premiumMultiplierWeiPerEth: Dictionary<Address, bigint>
   destChainConfigs: Dictionary<bigint, DestChainConfig>
@@ -237,7 +237,7 @@ export const builder = (() => {
           .storeDict(data.allowedPriceUpdaters)
           .storeUint(data.maxFeeJuelsPerMsg, 96)
           .storeAddress(data.linkToken)
-          .storeUint(data.tokenPriceStalenessThreshold, 64)
+          .storeUint(data.tokenPriceStalenessThreshold, 32)
           .storeDict(data.usdPerToken)
           .storeDict(data.premiumMultiplierWeiPerEth)
           .storeDict(data.destChainConfigs)
@@ -247,7 +247,7 @@ export const builder = (() => {
         const ownable = ownable2step.builder.data.traitData.load(src)
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
-        const tokenPriceStalenessThreshold = src.loadUintBig(64)
+        const tokenPriceStalenessThreshold = src.loadUint(32)
 
         const allowedPriceUpdaters = Dictionary.loadDirect(
           Dictionary.Keys.Address(),
@@ -959,13 +959,13 @@ export class FeeQuoter
   async getStaticConfig(provider: ContractProvider): Promise<{
     maxFeeJuelsPerMsg: bigint
     linkToken: Address
-    tokenPriceStalenessThreshold: bigint
+    tokenPriceStalenessThreshold: number
   }> {
     const result = await provider.get('staticConfig', [])
     return {
       maxFeeJuelsPerMsg: result.stack.readBigNumber(),
       linkToken: result.stack.readAddress(),
-      tokenPriceStalenessThreshold: result.stack.readBigNumber(),
+      tokenPriceStalenessThreshold: result.stack.readNumber(),
     }
   }
 
