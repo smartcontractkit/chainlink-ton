@@ -7,17 +7,20 @@ import (
 	"github.com/Masterminds/semver/v3"
 	common "github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 
+	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	toncommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -25,7 +28,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	cs "github.com/smartcontractkit/chainlink-ton/deployment/pkg/changesets"
+	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
@@ -38,7 +45,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get chain selectors
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainsel.FamilyTon))
+	tonChainSelectors := env.BlockChains.ListChainSelectors(cldfchain.WithFamily(chainsel.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	chain := env.BlockChains.TonChains()[chainSelector]
@@ -53,60 +60,65 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 
 	version := sequence.ContractsVersionLocal
 
-	// Note: The MCMSDeploymentConfigPerChain uses EVM-specific types (common.Address),
-	// but the TON adapter ignores these and uses the deployer address for all roles.
-	// We provide zero values here as they will be replaced by the adapter.
+	configProposer := mcmstypes.Config{
+		Quorum: 1,
+		Signers: []common.Address{
+			common.HexToAddress("0x0000000000000000000000000000000000000021"),
+			common.HexToAddress("0x0000000000000000000000000000000000000022"),
+		},
+		GroupSigners: []mcmstypes.Config{
+			{
+				Quorum: 2,
+				Signers: []common.Address{
+					common.HexToAddress("0x0000000000000000000000000000000000000023"),
+					common.HexToAddress("0x0000000000000000000000000000000000000024"),
+					common.HexToAddress("0x0000000000000000000000000000000000000025"),
+				},
+				GroupSigners: []mcmstypes.Config{
+					{
+						Quorum: 1,
+						Signers: []common.Address{
+							common.HexToAddress("0x0000000000000000000000000000000000000026"),
+						},
+						GroupSigners: []mcmstypes.Config{},
+					},
+				},
+			},
+		},
+	}
+
+	configCanceller := mcmstypes.Config{
+		Quorum: 1,
+		Signers: []common.Address{
+			common.HexToAddress("0x0000000000000000000000000000000000000027"),
+		},
+		GroupSigners: []mcmstypes.Config{},
+	}
+
+	configBypasser := mcmstypes.Config{
+		Quorum: 1,
+		Signers: []common.Address{
+			common.HexToAddress("0x0000000000000000000000000000000000000028"),
+			common.HexToAddress("0x0000000000000000000000000000000000000029"),
+		},
+		GroupSigners: []mcmstypes.Config{},
+	}
+
 	adapterVersion := semver.MustParse("1.6.0")
-	output, err := ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
+	input := ccipddeploy.MCMSDeploymentConfig{
 		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
 			chainSelector: {
-				Proposer: mcmstypes.Config{
-					Quorum: 1,
-					Signers: []common.Address{
-						common.HexToAddress("0x0000000000000000000000000000000000000021"),
-						common.HexToAddress("0x0000000000000000000000000000000000000022"),
-					},
-					GroupSigners: []mcmstypes.Config{
-						{
-							Quorum: 2,
-							Signers: []common.Address{
-								common.HexToAddress("0x0000000000000000000000000000000000000023"),
-								common.HexToAddress("0x0000000000000000000000000000000000000024"),
-								common.HexToAddress("0x0000000000000000000000000000000000000025"),
-							},
-							GroupSigners: []mcmstypes.Config{
-								{
-									Quorum: 1,
-									Signers: []common.Address{
-										common.HexToAddress("0x0000000000000000000000000000000000000026"),
-									},
-									GroupSigners: []mcmstypes.Config{},
-								},
-							},
-						},
-					},
-				},
-				Canceller: mcmstypes.Config{
-					Quorum: 1,
-					Signers: []common.Address{
-						common.HexToAddress("0x0000000000000000000000000000000000000027"),
-					},
-					GroupSigners: []mcmstypes.Config{},
-				},
-				Bypasser: mcmstypes.Config{
-					Quorum: 1,
-					Signers: []common.Address{
-						common.HexToAddress("0x0000000000000000000000000000000000000028"),
-						common.HexToAddress("0x0000000000000000000000000000000000000029"),
-					},
-					GroupSigners: []mcmstypes.Config{},
-				},
+				Proposer:         configProposer,
+				Canceller:        configCanceller,
+				Bypasser:         configBypasser,
 				TimelockMinDelay: big.NewInt(2),
 				ContractVersion:  version,
 			},
 		},
 		AdapterVersion: adapterVersion,
-	})
+	}
+
+	output, err := ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, input)
 	require.NoError(t, err, "Failed to deploy MCMS contracts")
 	t.Log("Successfully deployed MCMS contracts")
 
@@ -115,7 +127,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	env.DataStore = output.DataStore.Seal()
 
 	// Verify deployment
-	mcmsState, err := tonstate.LoadMCMSOnChainState(env)
+	mcmsState, err := state.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
 
 	ctx := t.Context()
@@ -199,18 +211,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	// Test idempotency by deploying again
 	t.Log("Testing idempotency by deploying again")
 	dReg = ccipddeploy.GetRegistry()
-	output, err = ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
-		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
-			chainSelector: {
-				Canceller:        mcmstypes.Config{},
-				Bypasser:         mcmstypes.Config{},
-				Proposer:         mcmstypes.Config{},
-				TimelockMinDelay: big.NewInt(0),
-				ContractVersion:  version,
-			},
-		},
-		AdapterVersion: adapterVersion,
-	})
+	output, err = ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, input)
 	require.NoError(t, err, "Failed to deploy MCMS contracts on second attempt")
 	t.Log("Successfully verified idempotency - second deployment succeeded")
 
@@ -219,7 +220,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	env.DataStore = output.DataStore.Seal()
 
 	// Verify state is still correct after idempotent deployment
-	mcmsState, err = tonstate.LoadMCMSOnChainState(env)
+	mcmsState, err = state.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
 	suiteState = mcmsState[chainSelector].ByQualifier[qualifier]
 
@@ -241,4 +242,29 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	isInitialized = rawIsInitialized.Sign() != 0
 	require.True(t, isInitialized, "Timelock should still be initialized after idempotent deployment")
 	t.Log("Verified timelock is still initialized after idempotent deployment")
+
+	// Reconfigure with setConfig and verify config is updated correctly
+	output, err = cs.NewOpsAnySequence(bindings.Registry, nil).Apply(env, cs.OpsAnySequence{
+		AnySequenceIn: opston.AnySequenceInput{
+			Defs: []cldfops.Definition{
+				opsmcms.SetConfig.Def(),
+			},
+			Inputs: []any{
+				opsmcms.SetConfigInput{
+					DstAddr: mcmsAddr,
+					Amount:  tlb.MustFromTON("0.1"),
+					Config:  &TestMCMSConfig1,
+				},
+			},
+		},
+		Options: opsmcms.TimelockOpts{
+			ChainSelector: mcmstypes.ChainSelector(chainSelector),
+		},
+	})
+	require.NoError(t, err, "Failed to execute setConfig in sequence")
+
+	config, err = tvm.CallGetterLatest(ctx, chain.Client, mcmsAddr, mcms.GetConfig)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	require.Len(t, config.Signers.AsMap(), 1, "Config should have 1 signer in total after setConfig")
 }

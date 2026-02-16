@@ -33,6 +33,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+
+	testsmcms "github.com/smartcontractkit/chainlink-ton/integration-tests/deployment/mcms"
 )
 
 func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
@@ -74,9 +76,9 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	output, err = ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
 		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
 			selector: {
-				Canceller:        mcmstypes.Config{},
-				Bypasser:         mcmstypes.Config{},
-				Proposer:         mcmstypes.Config{},
+				Canceller:        testsmcms.TestMCMSConfig1,
+				Bypasser:         testsmcms.TestMCMSConfig1,
+				Proposer:         testsmcms.TestMCMSConfig1,
 				TimelockMinDelay: big.NewInt(0),
 				ContractVersion:  version,
 			},
