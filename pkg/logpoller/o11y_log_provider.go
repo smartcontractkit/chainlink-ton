@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -31,7 +32,7 @@ func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) RawLogP
 // GetLogs retrieves all ExternalMsgOutLogs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
 func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]models.RawLog, error) {
 	if to == nil {
-		return nil, fmt.Errorf("to block must not be nil")
+		return nil, errors.New("to block must not be nil")
 	}
 
 	// validate that the provided block belongs to the masterchain
