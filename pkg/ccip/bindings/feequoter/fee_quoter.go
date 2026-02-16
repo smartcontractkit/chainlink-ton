@@ -276,12 +276,12 @@ type UpdateFeeTokens struct {
 // It represents per-destination-chain token transfer fee config updates.
 type UpdateTokenTransferFeeConfig struct {
 	Add    *tlbe.Dict[common.AddressWrap, TokenTransferFeeConfig] `tlb:"."`
-	Remove common.SnakedCell[common.AddressWrap]      `tlb:"^"`
+	Remove common.SnakedCell[common.AddressWrap]                  `tlb:"^"`
 }
 
 // UpdateTokenTransferFeeConfigs is the message type for updating token transfer fee configs.
 type UpdateTokenTransferFeeConfigs struct {
-	_       tlb.Magic                                  `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                                        `tlb:"#B2826316" json:"-"` //nolint:revive // Ignore opcode tag
 	Updates *tlbe.Dict[uint64, UpdateTokenTransferFeeConfig] `tlb:"."`
 }
 
