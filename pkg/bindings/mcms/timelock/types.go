@@ -424,13 +424,13 @@ type Role = *big.Int
 var (
 	// TODO: compute with Go implementation of keccak256
 	// Notice: role constants are kept as original Ethereum implementation (keccak256)
-	RoleAdmin     Role = mustHexToBigInt("0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775") // keccak256('ADMIN_ROLE')
-	RoleProposer  Role = mustHexToBigInt("0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1") // keccak256('PROPOSER_ROLE')
-	RoleCanceller Role = mustHexToBigInt("0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783") // keccak256('CANCELLER_ROLE')
-	RoleExecutor  Role = mustHexToBigInt("0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63") // keccak256('EXECUTOR_ROLE')
-	RoleBypasser  Role = mustHexToBigInt("0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8d") // keccak256('BYPASSER_ROLE')
+	RoleAdmin     = mustHexToBigInt("0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775") // keccak256('ADMIN_ROLE')
+	RoleProposer  = mustHexToBigInt("0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1") // keccak256('PROPOSER_ROLE')
+	RoleCanceller = mustHexToBigInt("0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783") // keccak256('CANCELLER_ROLE')
+	RoleExecutor  = mustHexToBigInt("0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63") // keccak256('EXECUTOR_ROLE')
+	RoleBypasser  = mustHexToBigInt("0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8d") // keccak256('BYPASSER_ROLE')
 	// @dev: new role, can report errors for executed operations
-	RoleOracle Role = mustHexToBigInt("0x68e79a7bf1e0bc45d0a330c573bc367f9cf464fd326078812f301165fbda4ef1") // keccak256('ORACLE_ROLE')
+	RoleOracle = mustHexToBigInt("0x68e79a7bf1e0bc45d0a330c573bc367f9cf464fd326078812f301165fbda4ef1") // keccak256('ORACLE_ROLE')
 
 	TopicBypasserCallExecuted Topic = hash.CRC32("Timelock_BypasserCallExecuted")
 	TopicCallScheduled        Topic = hash.CRC32("Timelock_CallScheduled")
