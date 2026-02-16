@@ -8,10 +8,11 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
+	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"
 )
 
 var (

@@ -1,4 +1,4 @@
-package utils
+package utils //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
 	"context"
@@ -7,8 +7,10 @@ import (
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 )
 
+type contextKey string
+
 const (
-	SeriesIDKey string = "cldf/seriesID"
+	SeriesIDKey contextKey = "cldf/seriesID"
 )
 
 // ExecuteOperation is a helper function to execute an operation whoose report is unique by seriesID.
@@ -35,13 +37,13 @@ func ExecuteOperation[IN, OUT, DEP any](
 	//
 	// Without using a seriesID, if there are multiple operations with same input, the CLDF framework
 	// would match the report to the first execution and skip executing the rest of ops with same input.
-	n := 1 // Execute a single operation
-	rr, err := cldfops.ExecuteOperationN(b, operation, deps, input, seriesID, uint(n), opts...)
+	n := uint(1) // Execute a single operation
+	rr, err := cldfops.ExecuteOperationN(b, operation, deps, input, seriesID, n, opts...)
 	if err != nil {
 		return cldfops.Report[IN, OUT]{}, fmt.Errorf("failed to execute operation: %w", err)
 	}
 
-	if len(rr) != n {
+	if len(rr) != int(n) {
 		return cldfops.Report[IN, OUT]{}, fmt.Errorf("expected %d reports, got %d", n, len(rr))
 	}
 
