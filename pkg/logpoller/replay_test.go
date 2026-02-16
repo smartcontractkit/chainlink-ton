@@ -115,33 +115,10 @@ func TestApplyReplayOverride(t *testing.T) {
 		require.Nil(t, lp.replay.prevBlock)
 	})
 
-	t.Run("replay rejected and status reset when block pruned", func(t *testing.T) {
-		t.Parallel()
-		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
-		// Replay from block 51 stores fromBlock=51, prevBlock=50, validation looks up block 50
-		prevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
-
-		lp := &service{
-			lggr: logger.Sugared(logger.Nop()),
-			clientProvider: func(_ context.Context) (ton.APIClientWrapped, error) {
-				return &mockAPIClient{lookupBlockErr: ton.ErrBlockNotFound}, nil
-			},
-		}
-		lp.replay.status = models.ReplayStatusRequested
-		lp.replay.fromBlock = 51
-		lp.replay.prevBlock = prevBlock
-
-		result, _ := lp.applyReplayOverride(context.Background(), nil, currentMasterchainBlock)
-		require.Nil(t, result)
-		// Status should be NoRequest after clearReplayRequest() is called (rejection resets to initial state)
-		require.Equal(t, models.ReplayStatusNoRequest, lp.replay.status)
-		require.Equal(t, uint32(0), lp.replay.fromBlock)
-		require.Nil(t, lp.replay.prevBlock)
-	})
-
 	t.Run("replay rejected when prevBlock pruned between request and override", func(t *testing.T) {
 		t.Parallel()
 		currentMasterchainBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
+		// Replay from block 51 stores fromBlock=51, prevBlock=50, validation looks up prevBlock (50)
 		prevBlock := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 50, Shard: 1}
 
 		lp := &service{
@@ -159,6 +136,8 @@ func TestApplyReplayOverride(t *testing.T) {
 		require.Nil(t, result)
 		require.Equal(t, uint32(0), replayFrom)
 		require.Equal(t, models.ReplayStatusNoRequest, lp.replay.status)
+		require.Equal(t, uint32(0), lp.replay.fromBlock)
+		require.Nil(t, lp.replay.prevBlock)
 	})
 
 	t.Run("block 1 replay constructs blockRange with Prev=nil", func(t *testing.T) {
