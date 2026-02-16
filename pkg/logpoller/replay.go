@@ -133,8 +133,14 @@ func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.B
 		return blockRange, 0 // No replay request
 	}
 
-	// re-validate that the replay target block still exists
-	_, err := lp.lookupRequestedReplayBlock(ctx, fromBlock, currentMasterchainBlock)
+	// re-validate prevBlock (fromBlock-1) to handle the edge case where it gets pruned between
+	// request and override time. Validate fromBlock-1 since it's the block used by
+	// GetTransactionLTBounds for startLT.
+	blockToValidate := fromBlock // fromBlock == 1: no block 0 on TON (localnet edge case)
+	if fromBlock > 1 {
+		blockToValidate = fromBlock - 1
+	}
+	_, err := lp.lookupRequestedReplayBlock(ctx, blockToValidate, currentMasterchainBlock)
 	if err != nil {
 		lp.lggr.Warnw("replay rejected", "error", err, "fromBlock", fromBlock)
 		lp.clearReplayRequest()
