@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/config"
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -34,9 +35,8 @@ type SetConfigInput struct {
 	Config    *mcmstypes.Config `json:"config"` // Notice: common config input type
 	ClearRoot bool              `json:"clearRoot"`
 
-	Plan bool `json:"plan"`
-
-	// TODO: add WaitTrace option
+	Plan bool             `json:"plan"`
+	Wait *config.Duration `json:"wait,omitempty"` // optional wait time after sending messages (trace tracking)
 }
 
 func (in SetConfigInput) IsPlan() bool {
@@ -108,7 +108,7 @@ var SetConfig = cldfops.NewOperation(
 		}
 
 		msgs := []*tlbe.Cell[tlb.InternalMessage]{mcell}
-		out, err := cldfops.ExecuteOperation(b, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs})
+		out, err := cldfops.ExecuteOperation(b, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs, Wait: in.Wait})
 		if err != nil {
 			return opston.SendMessagesOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}

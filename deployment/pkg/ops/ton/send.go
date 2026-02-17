@@ -1,15 +1,19 @@
 package ton // alias: opston
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/config"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -23,13 +27,14 @@ var (
 	_ PlannerOption           = SendMessagesInput{}
 	_ Planner[MessagePlanRaw] = SendMessagesOutput{}
 	_ MessageSender           = SendMessagesOutput{}
+
+	DefaultWaitDuration = config.MustNewDuration(60 * time.Second)
 )
 
 type SendMessagesInput struct {
 	Messages []InternalMessage[any] `json:"messages"`
 	Plan     bool                   `json:"plan"`
-
-	// TODO: add WaitTrace option
+	Wait     *config.Duration       `json:"wait,omitempty"` // optional wait time after sending messages (trace tracking)
 }
 
 func (in SendMessagesInput) IsPlan() bool {
@@ -73,12 +78,6 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address", opcode)
 			}
 
-			if _im.Body == nil || tvm.CellEquals(_im.Body, tvm.EmptyCell) {
-				if !m.Bounce {
-					return SendMessagesOutput{}, errors.New("empty body messages must have bounce enabled")
-				}
-			}
-
 			_imc, err := tlbe.NewCellFrom(*_im)
 			if err != nil {
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to cell: %w", err)
@@ -99,7 +98,7 @@ var SendMessages = cldf_ops.NewOperation(
 			return SendMessagesOutput{Plans: plans}, nil // return early on plan
 		}
 
-		out, err := cldf_ops.ExecuteOperation(b, SendMessagesRaw, dp, SendMessagesRawInput{Messages: msgs})
+		out, err := cldf_ops.ExecuteOperation(b, SendMessagesRaw, dp, SendMessagesRawInput{Messages: msgs, Wait: in.Wait})
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}
@@ -110,6 +109,7 @@ var SendMessages = cldf_ops.NewOperation(
 
 type SendMessagesRawInput struct {
 	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
+	Wait     *config.Duration                  `json:"wait,omitempty"` // optional wait time after sending messages (trace tracking)
 }
 
 var SendMessagesRaw = cldf_ops.NewOperation(
@@ -121,6 +121,11 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 
 		n := len(in.Messages)
 		msgs := make([]*wallet.Message, 0, n)
+
+		wait := DefaultWaitDuration
+		if in.Wait != nil {
+			wait = in.Wait
+		}
 
 		for _, m := range in.Messages {
 			_im, err := m.ToValue()
@@ -148,9 +153,19 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 
 		b.Logger.Infow("Transaction sent", "blockID", block, "tx", _tx)
 
-		err = tracetracking.WaitForTrace(ctx, chain.Client, _tx)
-		if err != nil {
-			return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
+		// Wait for the transaction to be processed, if wait time is specified (trace tracking)
+		if !wait.IsInstant() {
+			// Timeout context to prevent waiting indefinitely
+			// Notice: on timeout, we return an error
+			ctxWithTimeout, cancel := context.WithTimeout(ctx, wait.Duration())
+			defer cancel()
+
+			// Notice: we use the default trace stop condition which won't error on compute phase skip (uninitialized accounts),
+			// for a few specific cases (e.g. empty messages, access control forward notifications)
+			err = tracetracking.WaitForTrace(ctxWithTimeout, chain.Client, _tx, bindings.DefaultTraceStopCondition)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
+			}
 		}
 
 		tx, err := tlbe.NewCellFrom(*_tx)

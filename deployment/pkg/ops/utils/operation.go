@@ -40,7 +40,7 @@ func ExecuteOperation[IN, OUT, DEP any](
 	n := uint(1) // Execute a single operation
 	rr, err := cldfops.ExecuteOperationN(b, operation, deps, input, seriesID, n, opts...)
 	if err != nil {
-		return cldfops.Report[IN, OUT]{}, fmt.Errorf("failed to execute operation: %w", err)
+		return cldfops.Report[IN, OUT]{}, fmt.Errorf("failed to execute operation %s: %w", operation.ID(), err)
 	}
 
 	if len(rr) != int(n) {

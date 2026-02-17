@@ -451,6 +451,7 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 
 	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
 		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
+
 		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
 		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ctx, c)
 		if err != nil {
@@ -498,6 +499,7 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 	for len(stack) > 0 {
 		n := len(stack) - 1
 		curr := stack[n]
+
 		stack = stack[:n]
 		exitCode, err := curr.ExitCode()
 		if err != nil {
