@@ -13,7 +13,7 @@ const (
 	SeriesIDKey contextKey = "cldf/seriesID"
 )
 
-// ExecuteOperation is a helper function to execute an operation whoose report is unique by seriesID.
+// ExecuteOperation is a helper function to execute an operation whose report is unique by seriesID.
 // It sets the seriesID in the context for the duration of the operation execution, so that it can be
 // sourced and used by underlying operations. It uses ExecuteOperationN with n=1 to execute a single
 // operation and retrieve its report.
