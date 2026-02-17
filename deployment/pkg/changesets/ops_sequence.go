@@ -39,6 +39,7 @@ type opsAnySequence struct {
 
 func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.ContractCodeProvider) cldf.ChangeSetV2[OpsAnySequence] {
 	return opsAnySequence{
+		// Register static resolvers
 		rregistry: *codec.NewResolverRegistry(
 			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
 			codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
@@ -53,6 +54,11 @@ func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ OpsAnySequenc
 
 func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.ChangesetOutput, error) {
 	selector := in.Options.ChainSelector
+
+	// Register environment-specific resolvers
+	cs.rregistry.Register(
+		codec.NewTypedResolver(resolversd.NewTonAddrResolver(uint64(selector), env.DataStore)),
+	)
 
 	stateCCIP, err := state.LoadOnchainState(env)
 	if err != nil {
