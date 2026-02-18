@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"reflect"
 	"slices"
 
 	"github.com/Masterminds/semver/v3"
@@ -379,14 +380,13 @@ func prepareTransfers(amount tlb.Coins, targetContracts []targetContract) ([]Int
 
 func prepareTopUps(ctx context.Context, logger logger.Logger, targetAmount tlb.Coins, targetContracts []targetContract, tonChain cldf_ton.Chain) ([]InternalMessage[any], error) {
 	requests := make([]InternalMessage[any], 0, len(targetContracts))
+	block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
 	for _, contract := range targetContracts {
 		if contract.addr.IsAddrNone() {
 			continue
-		}
-
-		block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 		}
 		contractState, err := tonChain.Client.GetAccount(ctx, block, &contract.addr)
 		if err != nil {
