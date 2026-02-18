@@ -225,8 +225,14 @@ func (t MCMSTarget) Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]
 	}
 
 	if len(t.Qualifiers) == 0 {
-		// Fund all MCMS qualifiers
-		for qualifier, state := range mcmsState.ByQualifier {
+		// Fund all MCMS qualifiers in deterministic order
+		qualifiers := make([]string, 0, len(mcmsState.ByQualifier))
+		for qualifier := range mcmsState.ByQualifier {
+			qualifiers = append(qualifiers, qualifier)
+		}
+		slices.Sort(qualifiers)
+		for _, qualifier := range qualifiers {
+			state := mcmsState.ByQualifier[qualifier]
 			appendMCMSState(qualifier, state)
 		}
 	} else {
