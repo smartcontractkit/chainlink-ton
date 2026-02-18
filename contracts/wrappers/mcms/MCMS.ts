@@ -176,7 +176,7 @@ export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Error {
   /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-  OutOfBoundsNumSigners = 39000,
+  OutOfBoundsNumSigners = 10400,
 
   /// Thrown when signerAddresses and signerGroups have different lengths.
   SignerGroupsLengthMismatch,

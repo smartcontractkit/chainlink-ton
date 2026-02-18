@@ -7,7 +7,7 @@ import "../../lib/deployable/namespace"
 
 const OnRamp_FACILITY_NAME = "link.chain.ton.ccip.OnRamp";
 // getFacilityId(stringCrc32(OnRamp_FACILITY_NAME));
-const OnRamp_FACILITY_ID = 181;
+const OnRamp_FACILITY_ID = 134;
 
 struct OnRamp_DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.

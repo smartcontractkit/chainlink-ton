@@ -217,7 +217,7 @@ const DEFAULT_ADMIN_ROLE = 0x00;
 
 /// Error codes used by the Timelock contract.
 enum AccessControl_Error {
-    UnauthorizedAccount = 60900 // AccessControl<T>.errorCode(0)
+    UnauthorizedAccount = 47400 // AccessControl<T>.errorCode(0)
     BadConfirmation
 }
 

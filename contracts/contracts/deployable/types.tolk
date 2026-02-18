@@ -3,7 +3,7 @@ import "../lib/utils"
 
 const Deployable_FACILITY_NAME = "link.chain.ton.ccip.Deployable";
 // getFacilityId(stringCrc32("Deployable"))
-const Deployable_FACILITY_ID = 374;
+const Deployable_FACILITY_ID = 531;
 
 struct Deployable<T> {
     owner: address;

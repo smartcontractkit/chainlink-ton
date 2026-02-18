@@ -2,7 +2,7 @@
 import "./../utils.tolk";
 
 // getFacilityId(stringCrc32(link.chain.ton.lib.access.Ownable2Step))
-const Ownable2Step_FACILITY_ID = 204;
+const Ownable2Step_FACILITY_ID = 498;
 const Ownable2Step_ERROR_CODE = Ownable2Step_FACILITY_ID * 100;
 
 // Exit codes

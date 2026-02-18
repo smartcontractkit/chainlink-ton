@@ -2,7 +2,7 @@ import "../../lib/utils"
 
 const FeeQuoter_FACILITY_NAME = "link.chain.ton.ccip.FeeQuoter";
 // getFacilityId(stringCrc32(FeeQuoter_FACILITY_NAME));
-const FeeQuoter_FACILITY_ID = 248;
+const FeeQuoter_FACILITY_ID = 344;
 
 struct TimestampedPrice {
     value: uint224;

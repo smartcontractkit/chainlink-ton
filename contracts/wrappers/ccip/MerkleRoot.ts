@@ -24,7 +24,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum MerkleRootError {
-  AlreadyExecuted = 47900, // Facility ID * 100
+  AlreadyExecuted = 18600, // Facility ID * 100
   NotOwner,
   ManualExecutionNotYetEnabled,
   SkippedAlreadyExecutedMessage,

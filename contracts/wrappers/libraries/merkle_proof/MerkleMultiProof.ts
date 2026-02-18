@@ -6,7 +6,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  InvalidProofLeavesCannotBeEmpty = 462,
+  InvalidProofLeavesCannotBeEmpty = 12000,
   InvalidProofLeavesTooLarge,
   InvalidProofProofsTooLarge,
   InvalidProofTotalHashesExceededMax,

@@ -11,7 +11,7 @@ import {
   Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { CellCodec } from '../../utils'
+import { CellCodec, errorCode, facilityId } from '../../utils'
 
 // @dev Grants `role` to `account`.
 export type GrantRole = {
@@ -75,8 +75,12 @@ export const opcodes = {
   },
 }
 
+export const FACILITY_NAME = 'link.chain.ton.lib.access.AccessControl'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
+
 export enum Error {
-  UnauthorizedAccount = 60900,
+  UnauthorizedAccount = 47400,
   BadConfirmation,
 }
 

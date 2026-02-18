@@ -9,7 +9,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum error {
-  Unauthorized = 23500,
+  Unauthorized = 5400,
   LowValue,
 }
 

@@ -2,21 +2,25 @@ import {
   Address,
   beginCell,
   Builder,
-  Cell,
   Contract,
   ContractProvider,
   Sender,
   SendMode,
   Slice,
 } from '@ton/core'
-import { CellCodec } from '../../utils'
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../../utils'
 
 export const opcodes = {
   Withdraw: 0xf343fc1b, // crc32('Withdrawable_Withdraw')
 }
 
+export const FACILITY_NAME = 'link.chain.ton.lib.funding.Withdrawable'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
+
 export enum Error {
-  InsufficientBalance = 44800, // Facility ID * 100
+  InsufficientBalance = 57100, // Facility ID * 100
   HitReserve,
   InvalidRequest,
 }

@@ -36,7 +36,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum errors {
-  UnsupportedChainFamilySelector = 24800,
+  UnsupportedChainFamilySelector = 34400,
   GasLimitTooHigh,
   ExtraArgOutOfOrderExecutionMustBeTrue,
   InvalidExtraArgsData,

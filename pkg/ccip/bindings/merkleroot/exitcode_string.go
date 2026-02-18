@@ -8,12 +8,12 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorAlreadyExecuted-47900]
-	_ = x[ErrorNotOwner-47901]
-	_ = x[ErrorManualExecutionNotYetEnabled-47902]
-	_ = x[ErrorSkippedAlreadyExecutedMessage-47903]
-	_ = x[ErrorInvalidState-47904]
-	_ = x[ErrorSeqNumOutOfBounds-47905]
+	_ = x[ErrorAlreadyExecuted-18600]
+	_ = x[ErrorNotOwner-18601]
+	_ = x[ErrorManualExecutionNotYetEnabled-18602]
+	_ = x[ErrorSkippedAlreadyExecutedMessage-18603]
+	_ = x[ErrorInvalidState-18604]
+	_ = x[ErrorSeqNumOutOfBounds-18605]
 }
 
 const _ExitCode_name = "ErrorAlreadyExecutedErrorNotOwnerErrorManualExecutionNotYetEnabledErrorSkippedAlreadyExecutedMessageErrorInvalidStateErrorSeqNumOutOfBounds"
@@ -21,8 +21,8 @@ const _ExitCode_name = "ErrorAlreadyExecutedErrorNotOwnerErrorManualExecutionNot
 var _ExitCode_index = [...]uint8{0, 20, 33, 66, 100, 117, 139}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 47900
-	if i < 47900 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 18600
+	if i < 18600 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

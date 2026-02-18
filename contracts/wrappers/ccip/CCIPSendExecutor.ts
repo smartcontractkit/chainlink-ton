@@ -26,7 +26,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum error {
-  StateNotExpected = 43600, // Facility ID * 100
+  StateNotExpected = 17800, // Facility ID * 100
   Unauthorized,
   InsufficientFunds,
   InsufficientFee,

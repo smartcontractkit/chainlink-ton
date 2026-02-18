@@ -18,7 +18,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  OnlyCallableByOwner = 20400,
+  OnlyCallableByOwner = 49800,
   CannotTransferToSelf,
   MustBeProposedOwner,
 }

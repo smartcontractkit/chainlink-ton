@@ -33,7 +33,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum RouterError {
-  DestChainNotEnabled = 49600,
+  DestChainNotEnabled = 57100,
   SourceChainNotEnabled,
   SenderIsNotOffRamp,
   OffRampNotSetForSelector,

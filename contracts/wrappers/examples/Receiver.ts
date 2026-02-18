@@ -24,7 +24,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 enum TestReceiverError {
-  Rejected = 34600,
+  Rejected = 19100, // Facility ID * 100
 }
 
 export const error = {

@@ -44,7 +44,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorDestChainNotEnabled ExitCode = ExitCode(49600 + iota)
+	ErrorDestChainNotEnabled ExitCode = ExitCode(57100 + iota)
 	ErrorSourceChainNotEnabled
 	SenderIsNotOffRamp
 	OffRampNotSetForSelector

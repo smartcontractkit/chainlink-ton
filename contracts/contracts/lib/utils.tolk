@@ -4,7 +4,7 @@ import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
 // getFacilityId(stringCrc32(Utils_FACILITY_NAME));
-const Utils_FACILITY_ID = 489;
+const Utils_FACILITY_ID = 135;
 
 enum Utils_Error {
     InvalidData = Utils_FACILITY_ID * 100

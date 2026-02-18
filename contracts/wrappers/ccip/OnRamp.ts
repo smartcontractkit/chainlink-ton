@@ -31,12 +31,6 @@ export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export const CONTRACT_VERSION = '1.6.0'
 
-export enum OnRampError {
-  UnknownDestChainSelector = 18100,
-  Unauthorized,
-  SenderNotAllowed,
-}
-
 export type OnRampStorage = {
   id: bigint
   ownable: ownable2step.Data
@@ -663,7 +657,7 @@ export const opcodes = {
 }
 
 export enum Errors {
-  UnknownDestChainSelector = 18100, // Facility ID * 100
+  UnknownDestChainSelector = 13400, // Facility ID * 100
   Unauthorized,
   SenderNotAllowed,
   InvalidConfig,

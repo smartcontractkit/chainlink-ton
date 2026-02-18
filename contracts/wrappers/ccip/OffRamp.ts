@@ -47,7 +47,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum OffRampError {
-  MessageNotFromOwnedContract = 8400,
+  MessageNotFromOwnedContract = 22100,
   SourceChainNotEnabled,
   EmptyExecutionReport,
   InvalidMessageDestChainSelector,

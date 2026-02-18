@@ -13,7 +13,7 @@ func TestExitCodeCodecAndStringer(t *testing.T) {
 		code     int32
 		wantName string
 	}{
-		{39000, "ErrorOutOfBoundsNumSigners"},
+		{10400, "ErrorOutOfBoundsNumSigners"},
 		{39001, "ErrorSignerGroupsLengthMismatch"},
 		{39024, "ErrorUnauthorizedOracle"},
 	}

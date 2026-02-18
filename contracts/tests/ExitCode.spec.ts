@@ -1,6 +1,5 @@
 import '@ton/test-utils'
 import { crc32 } from 'zlib'
-
 import { errorCode, facilityId } from '../wrappers/utils'
 
 import * as sendExecutor from '../wrappers/ccip/CCIPSendExecutor'
@@ -15,11 +14,14 @@ import * as rece from '../wrappers/examples/Receiver'
 import * as deployable from '../wrappers/libraries/Deployable'
 import * as rec from '../wrappers/libraries/Receiver'
 import * as ownable2step from '../wrappers/libraries/access/Ownable2Step'
+import * as withdrawable from '../wrappers/libraries/funding/Withdrawable'
+import * as upgradeable from '../wrappers/libraries/versioning/Upgradeable'
 import * as ocr from '../wrappers/libraries/ocr/MultiOCR3Base'
 import * as mmp from '../wrappers/libraries/merkle_proof/MerkleMultiProof'
 import * as ocrbase from '../wrappers/libraries/ocr/MultiOCR3Base'
 import * as utils from '../wrappers/libraries/utils/Utils'
 
+import * as ac from '../wrappers/lib/access/AccessControl'
 import * as mcms from '../wrappers/mcms/MCMS'
 import * as rbact from '../wrappers/mcms/RBACTimelock'
 
@@ -87,6 +89,18 @@ describe('Exit Codes', () => {
         error0: ownable2step.Errors.OnlyCallableByOwner,
       },
       {
+        facilityId: withdrawable.FACILITY_ID,
+        facilityName: withdrawable.FACILITY_NAME,
+        errorCode: withdrawable.ERROR_CODE,
+        error0: withdrawable.Error.InsufficientBalance,
+      },
+      {
+        facilityId: upgradeable.FACILITY_ID,
+        facilityName: upgradeable.FACILITY_NAME,
+        errorCode: upgradeable.ERROR_CODE,
+        error0: upgradeable.Error.VersionMismatch,
+      },
+      {
         facilityId: ocr.FACILITY_ID,
         facilityName: ocr.FACILITY_NAME,
         errorCode: ocr.ERROR_CODE,
@@ -117,6 +131,12 @@ describe('Exit Codes', () => {
         error0: utils.Errors.InvalidData,
       },
       // MCMS
+      {
+        facilityId: ac.FACILITY_ID,
+        facilityName: ac.FACILITY_NAME,
+        errorCode: ac.ERROR_CODE,
+        error0: ac.Error.UnauthorizedAccount,
+      },
       {
         facilityId: mcms.FACILITY_ID,
         facilityName: mcms.FACILITY_NAME,

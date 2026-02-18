@@ -783,7 +783,7 @@ export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Error {
   // Thrown when trying to schedule an operation which contains a blocked function selector.
-  SelectorIsBlocked = 19300,
+  SelectorIsBlocked = 60600,
   // Thrown when trying to execute an operation which is not ready yet.
   OperationNotReady,
   // Thrown when an operation is missing a required dependency (predecessor not done).

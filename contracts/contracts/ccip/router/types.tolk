@@ -3,7 +3,7 @@ import "../../lib/utils"
 
 const Router_FACILITY_NAME = "link.chain.ton.ccip.Router";
 // getFacilityId(stringCrc32(Router_FACILITY_NAME));
-const Router_FACILITY_ID = 496;
+const Router_FACILITY_ID = 571;
 
 struct OnRamps {
     destChainSelectors: SnakedCell<uint64>;

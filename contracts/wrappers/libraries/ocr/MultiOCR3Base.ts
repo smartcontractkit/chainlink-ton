@@ -11,7 +11,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  BigFMustBePositive = 3100,
+  BigFMustBePositive = 54500,
   StaticConfigCannotBeChanged,
   TooManySigners,
   BigFTooHigh,

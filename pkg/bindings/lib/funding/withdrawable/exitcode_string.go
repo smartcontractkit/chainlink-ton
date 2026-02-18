@@ -8,9 +8,9 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[InsufficientBalance-44800]
-	_ = x[HitReserve-44801]
-	_ = x[InvalidRequest-44802]
+	_ = x[InsufficientBalance-57100]
+	_ = x[HitReserve-57101]
+	_ = x[InvalidRequest-57102]
 }
 
 const _ExitCode_name = "InsufficientBalanceHitReserveInvalidRequest"
@@ -18,8 +18,8 @@ const _ExitCode_name = "InsufficientBalanceHitReserveInvalidRequest"
 var _ExitCode_index = [...]uint8{0, 19, 29, 43}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 44800
-	if i < 44800 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 57100
+	if i < 57100 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

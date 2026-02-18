@@ -6,6 +6,6 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  InvalidData = 489,
+  InvalidData = 13500, // Facility ID * 100
   BitmapOutOfBounds,
 }

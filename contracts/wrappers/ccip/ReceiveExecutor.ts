@@ -24,7 +24,7 @@ export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  StateIsNotUntouched = 33800, // Facility ID * 100
+  StateIsNotUntouched = 37600, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
   Unauthorized,

@@ -410,7 +410,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-    OutOfBoundsNumSigners = 39000 // MCMS<T>.errorCode(0)
+    OutOfBoundsNumSigners = 10400 // MCMS<T>.errorCode(0)
 
     /// Thrown when signerAddresses and signerGroups have different lengths.
     SignerGroupsLengthMismatch
@@ -677,7 +677,7 @@ struct RootDescriptor {
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
-///     errorCode(0) == 39000
+///     errorCode(0) == 10400
 fun MCMS<T>.errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("link.chain.ton.mcms.MCMS"), local);
 }

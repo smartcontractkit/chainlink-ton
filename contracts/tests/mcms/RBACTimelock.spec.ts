@@ -8,6 +8,7 @@ import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
 import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 import { errorCode } from '../../wrappers/utils'
+import { FACILITY_ID, FACILITY_NAME } from '../../wrappers/ccip/OffRamp'
 
 describe('RBACTimelock', () => {
   let code: Cell
@@ -73,11 +74,8 @@ describe('RBACTimelock', () => {
   })
 
   it('should compute error code', async () => {
-    expect(rbactl.Error.SelectorIsBlocked).toBe(errorCode(crc32('link.chain.ton.mcms.Timelock'), 0))
-
-    expect(ac.Error.UnauthorizedAccount).toBe(
-      errorCode(crc32('link.chain.ton.lib.access.AccessControl'), 0),
-    )
+    expect(rbactl.Error.SelectorIsBlocked).toBe(errorCode(crc32(rbactl.FACILITY_NAME)))
+    expect(ac.Error.UnauthorizedAccount).toBe(errorCode(crc32(ac.FACILITY_NAME)))
   })
 
   it('should compute keccak256 roles', async () => {

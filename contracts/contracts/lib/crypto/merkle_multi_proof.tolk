@@ -2,7 +2,7 @@
 import "../utils.tolk"
 
 // getFacilityId(stringCrc32(link.chain.ton.lib.crypto.MerkleMultiProof))
-const MerkleMultiProof_FACILITY_ID= 462;
+const MerkleMultiProof_FACILITY_ID= 120;
 const MerkleMultiProof_ERROR_CODE= MerkleMultiProof_FACILITY_ID * 100;
 
 // --- Errror Codes ---
