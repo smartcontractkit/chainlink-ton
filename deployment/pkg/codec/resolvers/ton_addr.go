@@ -21,7 +21,7 @@ var (
 	_ codec.ResolverKeyProvider                        = (*tonAddrResolver)(nil)
 )
 
-// tonAddrResolver resolves a message envelope map data to codec.MessageEnvelope[any] struct
+// tonAddrResolver resolves an AddressRef map data to *address.Address
 type tonAddrResolver struct {
 	// Loaded environment data is needed to resolve the address
 	chainSelector uint64
@@ -60,13 +60,13 @@ func (r *tonAddrResolver) Resolve(input map[string]any) (*address.Address, error
 		return nil, fmt.Errorf("failed to marshal 'data' field: %w", err)
 	}
 
-	var q *cldfds.AddressRef
+	var q cldfds.AddressRef
 	err = json.Unmarshal(dataBytes, &q)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal 'data' field to AddressRef: %w", err)
 	}
 
-	addr, err := ccipdds.FindAndFormatRef(r.dataStore, *q, r.chainSelector, utils.ToTONAddress)
+	addr, err := ccipdds.FindAndFormatRef(r.dataStore, q, r.chainSelector, utils.ToTONAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve address for chain %d: %w", r.chainSelector, err)
 	}

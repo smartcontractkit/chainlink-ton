@@ -11,6 +11,8 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
@@ -302,8 +304,14 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 													"QueryID": float64(31),
 													"Calls": []any{
 														map[string]any{
-															"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-															"Value":  "500000000",
+															"Target": map[string]any{
+																"resolver": "codec.resolvers.address-ref-to-ton-addr",
+																"data": map[string]any{
+																	"type":      "RBACTimelock",
+																	"qualifier": "RMNMCMS",
+																},
+															},
+															"Value": "500000000",
 															"Data": must(
 																tlb.ToCell(Foo{
 																	Any: must(tlb.ToCell(Bar{Val: big.NewInt(42)})),
@@ -399,11 +407,22 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			selector := uint64(13879075125137744094) // TON Localnet chain selector
+			ds := cldfds.NewMemoryDataStore()
+			err := ds.AddressRefStore.Add(cldfds.AddressRef{
+				Address:       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+				ChainSelector: selector,
+				Qualifier:     "RMNMCMS",
+				Type:          "RBACTimelock",
+			})
+			require.NoError(t, err)
+
 			registry := codec.NewResolverRegistry(
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolversd.NewContractToCellResolver(fakeContractProvider{})),
+				codec.NewTypedResolver(resolversd.NewTonAddrResolver(selector, ds.Seal())),
 			)
 
 			resolved, err := registry.Resolve(tc.input)
