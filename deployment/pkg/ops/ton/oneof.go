@@ -65,7 +65,7 @@ func reflectUnmarshal[T any](ptr *T, key string, items []interface{}) error {
 	})
 
 	if len(results) != 1 {
-		return fmt.Errorf("Unmarshal method must return exactly one value (error)")
+		return errors.New("Unmarshal method must return exactly one value (error)")
 	}
 
 	// Check if there was an error

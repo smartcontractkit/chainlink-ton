@@ -58,7 +58,6 @@ type TargetSpec struct {
 // Unmarshal implements the required method for TargetSpec to be used with OneOf[TargetSpec].
 // This method is called via reflection by OneOf's unmarshalers.
 func (t *TargetSpec) Unmarshal(key string, items []interface{}) error {
-
 	// Validate and convert key to typed enum
 	protocol, err := TargetProtocolString(key)
 	if err != nil {
@@ -201,25 +200,25 @@ func (t MCMSTarget) Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]
 		// TBD: Can these be nil? Should we error if they are?
 		if state.Bypasser != nil {
 			contracts = append(contracts, targetContract{
-				name: fmt.Sprintf("%s/Bypasser", qualifier),
+				name: qualifier + "/Bypasser",
 				addr: *state.Bypasser,
 			})
 		}
 		if state.Canceller != nil {
 			contracts = append(contracts, targetContract{
-				name: fmt.Sprintf("%s/Canceller", qualifier),
+				name: qualifier + "/Canceller",
 				addr: *state.Canceller,
 			})
 		}
 		if state.Proposer != nil {
 			contracts = append(contracts, targetContract{
-				name: fmt.Sprintf("%s/Proposer", qualifier),
+				name: qualifier + "/Proposer",
 				addr: *state.Proposer,
 			})
 		}
 		if state.Timelock != nil {
 			contracts = append(contracts, targetContract{
-				name: fmt.Sprintf("%s/Timelock", qualifier),
+				name: qualifier + "/Timelock",
 				addr: *state.Timelock,
 			})
 		}
