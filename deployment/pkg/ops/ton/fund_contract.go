@@ -271,6 +271,11 @@ func fundContracts(b operations.Bundle, dp *dep.DependencyProvider, in FundContr
 		return FundContractsOutput{}, fmt.Errorf("failed to generate funding requests: %w", err)
 	}
 
+	if len(messages) == 0 {
+		b.Logger.Info("No contracts need funding, skipping transfer")
+		return FundContractsOutput{}, nil
+	}
+
 	_in := SendMessagesInput{
 		Messages: messages,
 		Plan:     parsedInput.Plan,
