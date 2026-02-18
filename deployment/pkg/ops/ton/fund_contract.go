@@ -197,30 +197,22 @@ func (t MCMSTarget) Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]
 
 	var contracts []targetContract
 	appendMCMSState := func(qualifier string, state *tonstate.MCMSSuiteState) {
-		// TBD: Can these be nil? Should we error if they are?
-		if state.Bypasser != nil {
-			contracts = append(contracts, targetContract{
-				name: qualifier + "/Bypasser",
-				addr: *state.Bypasser,
-			})
-		}
-		if state.Canceller != nil {
-			contracts = append(contracts, targetContract{
-				name: qualifier + "/Canceller",
-				addr: *state.Canceller,
-			})
-		}
-		if state.Proposer != nil {
-			contracts = append(contracts, targetContract{
-				name: qualifier + "/Proposer",
-				addr: *state.Proposer,
-			})
-		}
-		if state.Timelock != nil {
-			contracts = append(contracts, targetContract{
-				name: qualifier + "/Timelock",
-				addr: *state.Timelock,
-			})
+		// Use reflection to iterate over all fields and append non-nil address fields
+		v := reflect.ValueOf(state).Elem()
+		for _, fieldType := range reflect.VisibleFields(v.Type()) {
+			field := v.FieldByIndex(fieldType.Index)
+
+			// Check if field is a pointer to address.Address and not nil
+			if field.Kind() == reflect.Pointer && !field.IsNil() {
+				if addr, ok := field.Interface().(*address.Address); ok {
+					if addr != nil && !addr.IsAddrNone() {
+						contracts = append(contracts, targetContract{
+							name: qualifier + "/" + fieldType.Name,
+							addr: *addr,
+						})
+					}
+				}
+			}
 		}
 	}
 
