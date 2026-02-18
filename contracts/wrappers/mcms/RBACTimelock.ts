@@ -12,7 +12,7 @@ import {
   Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { CellCodec } from '../utils'
+import { CellCodec, errorCode, facilityId } from '../utils'
 import { loadContractCode } from '../codeLoader'
 import { keccak256 } from '@ethersproject/keccak256'
 import { asSnakedCell, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
@@ -776,6 +776,10 @@ export const topics = {
 export const DONE_TIMESTAMP = 1n
 // Timestamp value used to mark an operation as error
 export const ERROR_TIMESTAMP = 2n
+
+export const FACILITY_NAME = 'link.chain.ton.mcms.Timelock'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Error {
   // Thrown when trying to schedule an operation which contains a blocked function selector.

@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	// TODO: rename as "link.chain.ton.<...>"?
 	PkgLib  = "link.chain.ton.lib"
 	PkgCCIP = "link.chain.ton.ccip"
 	PkgMCMS = "link.chain.ton.mcms"
