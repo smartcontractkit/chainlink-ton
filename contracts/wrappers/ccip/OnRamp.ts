@@ -23,7 +23,7 @@ import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { loadContractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
+export const FACILITY_NAME = 'link.chain.ton.ccip.OnRamp'
 export const FACILITY_ID = 181
 export const ERROR_CODE = FACILITY_ID * 100
 

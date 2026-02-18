@@ -29,7 +29,7 @@ import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
+export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
 export const FACILITY_ID = 248
 export const ERROR_CODE = FACILITY_ID * 100
 

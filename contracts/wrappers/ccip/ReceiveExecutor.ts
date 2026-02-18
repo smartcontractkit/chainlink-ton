@@ -17,7 +17,7 @@ import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as of from './OffRamp'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
+export const FACILITY_NAME = 'link.chain.ton.ccip.ReceiveExecutor'
 export const FACILITY_ID = 338
 export const ERROR_CODE = FACILITY_ID * 100
 

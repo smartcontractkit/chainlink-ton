@@ -18,7 +18,7 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as receiver from '../libraries/Receiver'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
+export const FACILITY_NAME = 'link.chain.ton.ccip.test.Receiver'
 export const FACILITY_ID = 346
 export const ERROR_CODE = FACILITY_ID * 100
 

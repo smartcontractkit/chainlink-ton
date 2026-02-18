@@ -42,7 +42,7 @@ export const opcodes = {
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
+export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
 export const FACILITY_ID = 84
 export const ERROR_CODE = FACILITY_ID * 100
 

@@ -1,4 +1,4 @@
-// getFacilityId(stringCrc32(com.chainlink.ton.lib.ocr.MultiOCR3Base))
+// getFacilityId(stringCrc32(link.chain.ton.lib.ocr.MultiOCR3Base))
 const MultiOCR3Base_FACILITY_ID = 31;
 const MultiOCR3Base_ERROR_CODE = MultiOCR3Base_FACILITY_ID * 100
 

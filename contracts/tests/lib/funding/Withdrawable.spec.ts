@@ -5,7 +5,7 @@ import { errorCode } from '../../../wrappers/utils'
 describe('Withdrawable', () => {
   it('should compute error code', async () => {
     expect(withdrawable.Error.InsufficientBalance).toBe(
-      errorCode(crc32('com.chainlink.ton.lib.funding.Withdrawable'), 0),
+      errorCode(crc32('link.chain.ton.lib.funding.Withdrawable'), 0),
     )
   })
 

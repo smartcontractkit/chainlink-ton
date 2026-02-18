@@ -621,7 +621,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 19300
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.mcms.Timelock"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.mcms.Timelock"), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.
@@ -1544,7 +1544,7 @@ fun Timelock_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.mcms.Timelock", CONTRACT_VERSION);
+    return ("link.chain.ton.mcms.Timelock", CONTRACT_VERSION);
 }
 
 /// @see <Timelock<T>.getId>

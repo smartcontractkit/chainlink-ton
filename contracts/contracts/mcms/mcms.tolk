@@ -679,7 +679,7 @@ struct RootDescriptor {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 39000
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.mcms.MCMS"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.mcms.MCMS"), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.
@@ -1696,7 +1696,7 @@ fun MCMS_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.mcms.MCMS", CONTRACT_VERSION);
+    return ("link.chain.ton.mcms.MCMS", CONTRACT_VERSION);
 }
 
 /// @see <MCMS<T>.getId>

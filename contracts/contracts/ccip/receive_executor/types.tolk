@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-const ReceiveExecutor_FACILITY_NAME = "com.chainlink.ton.ccip.ReceiveExecutor";
+const ReceiveExecutor_FACILITY_NAME = "link.chain.ton.ccip.ReceiveExecutor";
 // getFacilityId(stringCrc32(ReceiveExecutor_FACILITY_NAME));
 const ReceiveExecutor_FACILITY_ID = 338;
 

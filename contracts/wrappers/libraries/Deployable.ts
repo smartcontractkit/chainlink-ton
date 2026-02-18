@@ -16,7 +16,7 @@ import { CellCodec } from '../utils'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.Deployable'
+export const FACILITY_NAME = 'link.chain.ton.ccip.Deployable'
 export const FACILITY_ID = 374
 export const ERROR_CODE = FACILITY_ID * 100
 

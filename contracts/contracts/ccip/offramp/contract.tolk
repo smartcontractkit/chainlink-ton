@@ -981,7 +981,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OffRamp"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.OffRamp"), local);
 }
 
 get fun reserve(): coins {

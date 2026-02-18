@@ -281,7 +281,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
     // Verify the contract is now on version 2
     const typeAndVersion = await upgradeableCounterV2.getTypeAndVersion()
     expect(typeAndVersion.type).toBe(
-      'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+      'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
     )
     expect(typeAndVersion.version).toBe('2.0.0')
 

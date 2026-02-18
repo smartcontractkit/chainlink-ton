@@ -22,7 +22,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 func (d *decoder) ContractType() string {
-	return "com.chainlink.ton.ccip.CCIPSendExecutor"
+	return "link.chain.ton.ccip.CCIPSendExecutor"
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {

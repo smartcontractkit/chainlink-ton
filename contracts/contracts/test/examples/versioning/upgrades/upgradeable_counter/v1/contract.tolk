@@ -14,7 +14,7 @@ fun saveData(data: StorageV1) {
     contract.setData(data.toCell());
 }
 
-const FACILITY_NAME= "com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter";
+const FACILITY_NAME= "link.chain.ton.examples.versioning.upgrades.UpgradeableCounter";
 const CONTRACT_VERSION = "1.0.0";
 
 struct (0x00000001) Step {
@@ -74,13 +74,13 @@ fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.Versi
 fun version(): slice { return CONTRACT_VERSION; }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter", CONTRACT_VERSION);
+    return ("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter", CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"));
+    return getFacilityId(stringCrc32("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter"));
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter"), local);
 }

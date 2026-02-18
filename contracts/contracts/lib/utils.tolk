@@ -2,7 +2,7 @@
 import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
-const Utils_FACILITY_NAME = "com.chainlink.ton.lib.Utils";
+const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
 // getFacilityId(stringCrc32(Utils_FACILITY_NAME));
 const Utils_FACILITY_ID = 489;
 
@@ -11,7 +11,7 @@ enum Utils_Error {
     BitmapOutOfBounds
 }
 
-/// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("com.chainlink.ton.mcms.Timelock")).
+/// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("link.chain.ton.mcms.Timelock")).
 /// Returns a value in range 10..649 (640 values).
 fun getFacilityId(crc32Key: int): uint16 {
     return (crc32Key % 640) + 10;

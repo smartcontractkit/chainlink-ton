@@ -19,7 +19,7 @@ import * as fq from './FeeQuoter'
 
 export const CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
+export const FACILITY_NAME = 'link.chain.ton.ccip.CCIPSendExecutor'
 export const FACILITY_ID = 436
 export const ERROR_CODE = FACILITY_ID * 100
 

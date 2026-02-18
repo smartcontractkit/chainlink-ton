@@ -60,7 +60,7 @@ describe('MCMS', () => {
 
   it('should compute error code', async () => {
     expect(mcms.Error.OutOfBoundsNumSigners).toBe(
-      errorCode(crc32('com.chainlink.ton.mcms.MCMS'), 0),
+      errorCode(crc32('link.chain.ton.mcms.MCMS'), 0),
     )
   })
 

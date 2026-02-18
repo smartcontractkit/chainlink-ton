@@ -36,5 +36,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.Deployable"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.Deployable"), local);
 }

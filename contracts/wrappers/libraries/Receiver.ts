@@ -3,7 +3,7 @@ import { beginCell, Builder, Contract, ContractProvider, Sender, Slice } from '@
 import { CellCodec } from '../utils'
 import { Any2TVMMessage, builder as OffRampBuilder } from '../ccip/OffRamp'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.lib.Receiver'
+export const FACILITY_NAME = 'link.chain.ton.ccip.lib.Receiver'
 export const FACILITY_ID = 235
 export const ERROR_CODE = 23500 //FACILITY_ID * 100
 

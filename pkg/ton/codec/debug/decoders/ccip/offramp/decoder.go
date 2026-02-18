@@ -21,7 +21,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 func (d *decoder) ContractType() string {
-	return "com.chainlink.ton.ccip.OffRamp"
+	return "link.chain.ton.ccip.OffRamp"
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {

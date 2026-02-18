@@ -20,9 +20,9 @@ import (
 
 const (
 	// TODO: rename as "link.chain.ton.<...>"?
-	PkgLib  = "com.chainlink.ton.lib"
-	PkgCCIP = "com.chainlink.ton.ccip"
-	PkgMCMS = "com.chainlink.ton.mcms"
+	PkgLib  = "link.chain.ton.lib"
+	PkgCCIP = "link.chain.ton.ccip"
+	PkgMCMS = "link.chain.ton.mcms"
 
 	// Third-party contract types
 	PkgJetton = "com.github.ton-blockchain.jetton-contract"

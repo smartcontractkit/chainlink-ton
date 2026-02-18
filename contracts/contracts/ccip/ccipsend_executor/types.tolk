@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../onramp/messages.tolk";
 
-const CCIPSendExecutor_FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
+const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
 // getFacilityId(stringCrc32(CCIPSendExecutor_FACILITY_NAME));
 const CCIPSendExecutor_FACILITY_ID = 436;
 

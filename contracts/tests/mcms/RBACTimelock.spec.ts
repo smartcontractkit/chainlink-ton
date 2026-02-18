@@ -74,11 +74,11 @@ describe('RBACTimelock', () => {
 
   it('should compute error code', async () => {
     expect(rbactl.Error.SelectorIsBlocked).toBe(
-      errorCode(crc32('com.chainlink.ton.mcms.Timelock'), 0),
+      errorCode(crc32('link.chain.ton.mcms.Timelock'), 0),
     )
 
     expect(ac.Error.UnauthorizedAccount).toBe(
-      errorCode(crc32('com.chainlink.ton.lib.access.AccessControl'), 0),
+      errorCode(crc32('link.chain.ton.lib.access.AccessControl'), 0),
     )
   })
 

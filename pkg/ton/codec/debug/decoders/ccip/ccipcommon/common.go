@@ -20,7 +20,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 
 // ContractType implements lib.ContractDecoder.
 func (d *decoder) ContractType() string {
-	return "com.chainlink.ton.ccip"
+	return "link.chain.ton.ccip"
 }
 
 // EventInfo implements lib.ContractDecoder.

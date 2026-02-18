@@ -5,7 +5,7 @@ import { uint8ArrayToBigInt } from '../../../src/utils'
 import { crc32 } from 'zlib'
 import { asSnakedCell, fromSnakeData } from '../../../src/utils'
 
-export const FACILITY_NAME = 'com.chainlink.ton.lib.ocr.MultiOCR3Base'
+export const FACILITY_NAME = 'link.chain.ton.lib.ocr.MultiOCR3Base'
 export const FACILITY_ID = 31
 export const ERROR_CODE = FACILITY_ID * 100
 

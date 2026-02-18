@@ -37,7 +37,7 @@ var unsupported = []uint64{
 }
 
 // Test contract types
-const PkgTest = "com.chainlink.ton.test"
+const PkgTest = "link.chain.ton.test"
 
 // Sent back to sender after the executor role check is updated.
 type TestMessage struct {

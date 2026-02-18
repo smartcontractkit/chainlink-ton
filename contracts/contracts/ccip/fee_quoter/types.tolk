@@ -1,6 +1,6 @@
 import "../../lib/utils"
 
-const FeeQuoter_FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
+const FeeQuoter_FACILITY_NAME = "link.chain.ton.ccip.FeeQuoter";
 // getFacilityId(stringCrc32(FeeQuoter_FACILITY_NAME));
 const FeeQuoter_FACILITY_ID = 248;
 

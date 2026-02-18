@@ -1,7 +1,7 @@
 import { Builder, Slice, TupleItem } from '@ton/core'
 import { createHash } from 'crypto'
 
-/// Returns the facility ID for the given CRC16 key (e.g. stringCrc16("com.chainlink.ton.mcms.Timelock")).
+/// Returns the facility ID for the given CRC16 key (e.g. stringCrc16("link.chain.ton.mcms.Timelock")).
 /// Returns a value in range 10..649 (640 values).
 export const facilityId = (crc32Key: number): number => {
   return (crc32Key % 640) + 10

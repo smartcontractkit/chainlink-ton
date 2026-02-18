@@ -16,7 +16,7 @@ import * as typeAndVersion from '../../libraries/versioning/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
 
-export const FACILITY_NAME = 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter'
+export const FACILITY_NAME = 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter'
 export const CONTRACT_VERSION = '1.0.0'
 
 export type CounterConfig = {
