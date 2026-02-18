@@ -21,7 +21,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -198,12 +197,24 @@ func (t MCMSTarget) Resolve(b operations.Bundle, dp *dep.DependencyProvider) ([]
 	}
 
 	var contracts []targetContract
-	appendMCMSState := func(qualifier string, state *state.MCMSSuiteState) {
+	appendMCMSState := func(qualifier string, state *tonstate.MCMSSuiteState) {
 		// TBD: Can these be nil? Should we error if they are?
-		if state.MCMS != nil {
+		if state.Bypasser != nil {
 			contracts = append(contracts, targetContract{
-				name: fmt.Sprintf("%s/MCMS", qualifier),
-				addr: *state.MCMS,
+				name: fmt.Sprintf("%s/Bypasser", qualifier),
+				addr: *state.Bypasser,
+			})
+		}
+		if state.Canceller != nil {
+			contracts = append(contracts, targetContract{
+				name: fmt.Sprintf("%s/Canceller", qualifier),
+				addr: *state.Canceller,
+			})
+		}
+		if state.Proposer != nil {
+			contracts = append(contracts, targetContract{
+				name: fmt.Sprintf("%s/Proposer", qualifier),
+				addr: *state.Proposer,
 			})
 		}
 		if state.Timelock != nil {
