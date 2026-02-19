@@ -38,7 +38,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	InsufficientBalance ExitCode = iota + 57100 // (crc32(<facility>) % 640) + 10
+	InsufficientBalance ExitCode = iota + 57100 // Facility ID * 100
 	HitReserve
 	InvalidRequest
 )

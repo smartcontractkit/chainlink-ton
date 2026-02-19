@@ -35,5 +35,5 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	VersionMismatch ExitCode = iota + 19900 // (crc32(<facility>) % 640) + 10
+	VersionMismatch ExitCode = iota + 19900 // Facility ID * 100
 )
