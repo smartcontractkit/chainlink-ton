@@ -48,7 +48,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorOnlyCallableByOwner ExitCode = iota + 49800
+	ErrorOnlyCallableByOwner ExitCode = iota + 49800 // (crc32(<facility>) % 640) + 10
 	ErrorCannotTransferToSelf
 	ErrorMustBeProposedOwner
 )

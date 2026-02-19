@@ -56,7 +56,7 @@ const (
 
 // Common error codes constants
 const (
-	ErrorUnknownDestChainSelector ExitCode = iota + 256
+	ErrorUnknownDestChainSelector ExitCode = iota + 256 // (crc32(<facility>) % 640) + 10
 	ErrorDestChainNotEnabled
 	ErrorFeeTokenNotSupported
 	ErrorStaleGasPrice

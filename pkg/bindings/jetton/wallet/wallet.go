@@ -36,7 +36,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	BalanceError ExitCode = iota + 47
+	BalanceError ExitCode = iota + 47 // (crc32(<facility>) % 640) + 10
 	NotEnoughGas
 	InvalidMessage
 )

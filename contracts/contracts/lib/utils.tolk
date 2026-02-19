@@ -3,8 +3,7 @@ import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
-// getFacilityId(stringCrc32(Utils_FACILITY_NAME));
-const Utils_FACILITY_ID = 135;
+const Utils_FACILITY_ID = 135;  // (crc32(<facility>) % 640) + 10
 
 enum Utils_Error {
     InvalidData = Utils_FACILITY_ID * 100

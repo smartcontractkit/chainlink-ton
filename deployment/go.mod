@@ -14,7 +14,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.10.1-0.20260217084735-307a5770c4f6
 	github.com/smartcontractkit/chainlink-deployments-framework v0.80.1-0.20260209182815-b296b7df28a6
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260209205928-e7e034ed7976
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20260209205928-e7e034ed7976 // TODO: needs update to latest main sha
 	github.com/smartcontractkit/mcms v0.35.1-0.20260209175626-b68b54b6e8d0
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1

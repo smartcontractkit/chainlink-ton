@@ -8,7 +8,6 @@ import { ac } from '../../wrappers/lib/access'
 import { rbactl } from '../../wrappers/mcms'
 import { asSnakedCell, generateRandomContractId } from '../../src/utils'
 import { errorCode } from '../../wrappers/utils'
-import { FACILITY_ID, FACILITY_NAME } from '../../wrappers/ccip/OffRamp'
 
 describe('RBACTimelock', () => {
   let code: Cell

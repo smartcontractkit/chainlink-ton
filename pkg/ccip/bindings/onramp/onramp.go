@@ -276,7 +276,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	UnknownDestChainSelector ExitCode = iota + 13400
+	UnknownDestChainSelector ExitCode = iota + 13400 // (crc32(<facility>) % 640) + 10
 	Unauthorized
 	SenderNotAllowed
 	InvalidConfig

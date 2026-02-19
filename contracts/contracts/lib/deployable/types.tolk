@@ -2,8 +2,7 @@
 import "../utils"
 
 const Deployable_FACILITY_NAME = "link.chain.ton.lib.Deployable";
-// getFacilityId(stringCrc32("Deployable"))
-const Deployable_FACILITY_ID = 92;
+const Deployable_FACILITY_ID = 92;  // (crc32(<facility>) % 640) + 10
 
 struct Deployable<T> {
     owner: address;

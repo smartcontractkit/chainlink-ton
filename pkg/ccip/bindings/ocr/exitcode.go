@@ -16,7 +16,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorBigFMustBePositive ExitCode = iota + 54500
+	ErrorBigFMustBePositive ExitCode = iota + 54500 // (crc32(<facility>) % 640) + 10
 	ErrorStaticConfigCannotBeChanged
 	ErrorTooManySigners
 	ErrorBigFTooHigh
