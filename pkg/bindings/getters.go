@@ -65,10 +65,12 @@ var TypeToGetterMap = map[string]GetterMap{
 	},
 	// MCMS contract types
 	"link.chain.ton.mcms.MCMS": {
-		"getConfig":       mcms.GetConfig,
-		"getOpCount":      mcms.GetOpCount,
-		"getRoot":         mcms.GetRoot,
-		"getRootMetadata": mcms.GetRootMetadata,
+		"getConfig":        mcms.GetConfig,
+		"getOpCount":       mcms.GetOpCount,
+		"getRoot":          mcms.GetRoot,
+		"getRootMetadata":  mcms.GetRootMetadata,
+		"getOracle":        mcms.GetOracle,
+		"getOpPendingInfo": mcms.GetOpPendingInfo,
 	},
 	"link.chain.ton.mcms.Timelock": {
 		"getMinDelay":        timelock.GetMinDelay,
