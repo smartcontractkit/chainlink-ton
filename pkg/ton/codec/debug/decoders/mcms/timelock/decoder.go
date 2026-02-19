@@ -4,6 +4,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -22,7 +23,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 func (d *decoder) ContractType() string {
-	return "link.chain.ton.mcms.Timelock"
+	return bindings.TypeTimelock
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {

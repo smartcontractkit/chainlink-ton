@@ -21,7 +21,7 @@ type GetterMap map[string]interface{}
 // The values are Getter[A, R] instances representing typed getter methods.
 var TypeToGetterMap = map[string]GetterMap{
 	// CCIP contract types
-	"link.chain.ton.ccip.Router": {
+	TypeRouter: {
 		"owner":              router.GetOwner,
 		"pendingOwner":       router.GetPendingOwner,
 		"rmn_owner":          router.GetRMNOwner,
@@ -29,7 +29,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"onRamp":             router.GetOnRamp,
 		"destChainSelectors": router.GetDestChainSelectors,
 	},
-	"link.chain.ton.ccip.OnRamp": {
+	TypeOnRamp: {
 		"owner":              onramp.GetOwner,
 		"pendingOwner":       onramp.GetPendingOwner,
 		"destChainConfig":    onramp.GetDestChainConfig,
@@ -37,7 +37,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"staticConfig":       onramp.GetStaticConfig,
 		"destChainSelectors": onramp.GetDestChainSelectors,
 	},
-	"link.chain.ton.ccip.OffRamp": {
+	TypeOffRamp: {
 		"owner":                offramp.GetOwner,
 		"pendingOwner":         offramp.GetPendingOwner,
 		"ocr3Config":           offramp.GetOCR3Config,
@@ -45,7 +45,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"sourceChainConfig":    offramp.GetSourceChainConfig,
 		"sourceChainSelectors": offramp.GetSourceChainSelectors,
 	},
-	"link.chain.ton.ccip.FeeQuoter": {
+	TypeFeeQuoter: {
 		"owner":                    feequoter.GetOwner,
 		"pendingOwner":             feequoter.GetPendingOwner,
 		"destChainConfig":          feequoter.GetDestChainConfig,
@@ -59,12 +59,12 @@ var TypeToGetterMap = map[string]GetterMap{
 		"typeAndVersion": common.GetTypeAndVersion,
 	},
 	// Ownable2Step pattern (inherited by many contracts)
-	"link.chain.ton.lib.access.Ownable2Step": {
+	TypeOwnable: {
 		"owner":        ownable2step.GetOwner,
 		"pendingOwner": ownable2step.GetPendingOwner,
 	},
 	// MCMS contract types
-	"link.chain.ton.mcms.MCMS": {
+	TypeMCMS: {
 		"getConfig":        mcms.GetConfig,
 		"getOpCount":       mcms.GetOpCount,
 		"getRoot":          mcms.GetRoot,
@@ -72,7 +72,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"getOracle":        mcms.GetOracle,
 		"getOpPendingInfo": mcms.GetOpPendingInfo,
 	},
-	"link.chain.ton.mcms.Timelock": {
+	TypeTimelock: {
 		"getMinDelay":        timelock.GetMinDelay,
 		"getRoleMemberCount": timelock.GetRoleMemberCount,
 		"getRoleMember":      timelock.GetRoleMember,
