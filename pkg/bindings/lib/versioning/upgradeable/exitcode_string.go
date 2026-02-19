@@ -8,7 +8,7 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[VersionMismatch-28700]
+	_ = x[VersionMismatch-19900]
 }
 
 const _ExitCode_name = "VersionMismatch"
@@ -16,8 +16,8 @@ const _ExitCode_name = "VersionMismatch"
 var _ExitCode_index = [...]uint8{0, 15}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 28700
-	if i < 28700 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 19900
+	if i < 19900 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]
