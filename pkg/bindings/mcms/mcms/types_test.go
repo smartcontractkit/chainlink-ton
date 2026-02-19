@@ -14,8 +14,8 @@ func TestExitCodeCodecAndStringer(t *testing.T) {
 		wantName string
 	}{
 		{10400, "ErrorOutOfBoundsNumSigners"},
-		{39001, "ErrorSignerGroupsLengthMismatch"},
-		{39024, "ErrorUnauthorizedOracle"},
+		{10401, "ErrorSignerGroupsLengthMismatch"},
+		{10424, "ErrorUnauthorizedOracle"},
 	}
 
 	for _, tt := range valid {
@@ -30,7 +30,7 @@ func TestExitCodeCodecAndStringer(t *testing.T) {
 	}
 
 	// Out-of-range codes must return an error
-	invalid := []int32{38999, 40000, 12345}
+	invalid := []int32{10425, 10426, 12345}
 	for _, c := range invalid {
 		_, err := ExitCodeCodec.NewFrom(tvm.ExitCode(c))
 		if err == nil {
