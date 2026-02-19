@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-import "../lib/utils"
+import "../utils"
 
-const Deployable_FACILITY_NAME = "link.chain.ton.ccip.Deployable";
+const Deployable_FACILITY_NAME = "link.chain.ton.lib.Deployable";
 // getFacilityId(stringCrc32("Deployable"))
-const Deployable_FACILITY_ID = 531;
+const Deployable_FACILITY_ID = 92;
 
 struct Deployable<T> {
     owner: address;

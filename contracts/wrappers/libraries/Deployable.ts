@@ -19,12 +19,12 @@ import { CellCodec } from '../utils'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const FACILITY_NAME = 'link.chain.ton.ccip.Deployable'
+export const FACILITY_NAME = 'link.chain.ton.lib.Deployable'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  ErrorNotOwner = 53100, // Facility ID * 100
+  ErrorNotOwner = 9200, // Facility ID * 100
 }
 
 export type DeployableStorage = {

@@ -56,7 +56,7 @@ export async function loadContractCode(contractName: string): Promise<Cell> {
     const code = await codeCache.get(contractName)!
     const codeHash = code.hash()
     expect(codeHash).toEqual(
-      Buffer.from('0a848f11f0dd717b47a5f78e854fd764b0538f48bff808d07e6191f4abe1f2d3', 'hex'),
+      Buffer.from('61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc', 'hex'),
     )
   }
   return codeCache.get(contractName)!

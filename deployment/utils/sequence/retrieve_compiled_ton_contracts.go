@@ -204,7 +204,7 @@ func verifyDeployerCodeHash(code *cell.Cell) error {
 	}
 	computedHash := code.Hash()
 	expectedHash, err := hex.DecodeString(
-		"0a848f11f0dd717b47a5f78e854fd764b0538f48bff808d07e6191f4abe1f2d3",
+		"61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc",
 	)
 	if err != nil {
 		return fmt.Errorf("invalid expected hash: %w", err)

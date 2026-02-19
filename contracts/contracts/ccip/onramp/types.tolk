@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
-import "../../lib/utils"
 import "../ccipsend_executor/types"
-import "../../deployable/types"
+import "../../lib/utils"
+import "../../lib/deployable/types"
 import "../../lib/deployable/namespace"
 
 const OnRamp_FACILITY_NAME = "link.chain.ton.ccip.OnRamp";
