@@ -75,26 +75,18 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			// Default proposed owner to timelock address if not provided
-			proposedOwner := a.timelockAddrs[in.ChainSelector]
-			if in.ProposedOwner != "" {
-				proposedOwner, err = address.ParseAddr(in.ProposedOwner)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse proposed owner address: %w", err)
-				}
+			timelockAddr := a.timelockAddrs[in.ChainSelector]
+			proposedOwner, err := a.getProposedOwner(in, timelockAddr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get proposed owner: %w", err)
 			}
 
-			deployerAddr := chain.Wallet.WalletAddress()
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
-			// Default current owner to deployer address if not provided
-			// Notice: common case where deployer is transferring to timelock
-			currentOwner := chain.Wallet.WalletAddress()
-			if in.CurrentOwner != "" {
-				currentOwner, err = address.ParseAddr(in.CurrentOwner)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse current owner address: %w", err)
-				}
+			deployerAddr := chain.Wallet.WalletAddress()
+			currentOwner, err := a.getCurrentOwner(in, deployerAddr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get current owner: %w", err)
 			}
 
 			for _, contractRef := range in.ContractRef {
@@ -182,13 +174,10 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			// Default proposed owner to timelock address if not provided
-			proposedOwner := a.timelockAddrs[in.ChainSelector]
-			if in.ProposedOwner != "" {
-				proposedOwner, err = address.ParseAddr(in.ProposedOwner)
-				if err != nil {
-					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse proposed owner address: %w", err)
-				}
+			timelockAddr := a.timelockAddrs[in.ChainSelector]
+			proposedOwner, err := a.getProposedOwner(in, timelockAddr)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get proposed owner: %w", err)
 			}
 
 			sender := chain.Wallet.WalletAddress()
@@ -252,15 +241,44 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 // Returns false when the proposed owner is the deployer (timelock transfers via deferred execution, can't accept in same changeset).
 // Returns false when the proposed owner is unknown
 func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership(_ cldf.Environment, in deploy.TransferOwnershipPerChainInput) (bool, error) {
-	proposedOwner, err := address.ParseAddr(in.ProposedOwner)
+	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
+	proposedOwner, err := a.getProposedOwner(in, timelockAddr)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse proposed owner address: %w", err)
+		return false, fmt.Errorf("failed to get proposed owner: %w", err)
 	}
 
-	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
 	if ok && proposedOwner.Equals(timelockAddr) {
 		return true, nil // proposed owner is timelock, can accept in same changeset - will plan a proposal
 	}
 
 	return false, nil
+}
+
+// Default proposed owner to timelock address if not provided
+func (a *TonTransferOwnershipAdapter) getProposedOwner(in deploy.TransferOwnershipPerChainInput, defaultAddr *address.Address) (*address.Address, error) {
+	if in.ProposedOwner != "" {
+		proposedOwner, err := address.ParseAddr(in.ProposedOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse proposed owner address: %w", err)
+		}
+
+		return proposedOwner, nil
+	}
+
+	return defaultAddr, nil
+}
+
+func (a *TonTransferOwnershipAdapter) getCurrentOwner(in deploy.TransferOwnershipPerChainInput, defaultAddr *address.Address) (*address.Address, error) {
+	// Default current owner to deployer address if not provided
+	// Notice: common case where deployer is transferring to timelock
+	if in.CurrentOwner != "" {
+		currentOwner, err := address.ParseAddr(in.CurrentOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse current owner address: %w", err)
+		}
+
+		return currentOwner, nil
+	}
+
+	return defaultAddr, nil
 }
