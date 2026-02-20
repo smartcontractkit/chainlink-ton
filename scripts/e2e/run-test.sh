@@ -84,7 +84,8 @@ setup_contracts "$CHAINLINK_CORE_DIR"
 # verifying gitRef match might be redundant for local workflow.
 verify_plugin_config "$CHAINLINK_CORE_DIR"
 
-build_ton_binary
+# disable LOOP plugin — run TON relayer in-process for profiling
+export CL_TON_CMD=""
 
 # test database URL availability validation
 if [ -z "${CL_DATABASE_URL:-}" ]; then
@@ -110,7 +111,7 @@ fi
 log_info "=== CCIP Test Execution ==="
 log_info "Using Chainlink Core: $CHAINLINK_CORE_DIR"
 log_info "Using Database URL: $CL_DATABASE_URL"
-log_info "Using TON Binary: $CL_TON_CMD"
+log_info "CL_TON_CMD: '${CL_TON_CMD}' (empty = embedded/in-process)"
 log_info "Test Command: $ARG_TEST_COMMAND"
 
 log_info "Executing Test Command in $CHAINLINK_CORE_DIR: $ARG_TEST_COMMAND"

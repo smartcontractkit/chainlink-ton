@@ -112,11 +112,11 @@ replace_ton_modules() {
       go mod tidy
     fi
   done
-  
+
   # scan for go.mod files that use chainlink-ton
   find "$CHAINLINK_CORE_DIR" -name "go.mod" -type f -print0 | while IFS= read -r -d '' gomod; do
     dir=$(dirname "$gomod")
-    
+
     # check if any chainlink-ton modules are used
     needs_update=false
     for mod in "${!MODULES_TON[@]}"; do
@@ -125,10 +125,10 @@ replace_ton_modules() {
         break
       fi
     done
-    
+
     if [ "$needs_update" = true ]; then
       log_info "  Updating ${dir#$CHAINLINK_CORE_DIR/}"
-      
+
       pushd "$dir" > /dev/null
       for mod in "${!MODULES_TON[@]}"; do
         if grep -q "$mod" go.mod; then
@@ -140,7 +140,7 @@ replace_ton_modules() {
       popd > /dev/null
     fi
   done
-  
+
   go run github.com/jmank88/gomods@v0.1.6 tidy
   log_info "Module replacements complete"
 }
@@ -188,9 +188,8 @@ validate_core_version "$CHAINLINK_CORE_DIR"
 # This allows testing with previous contract versions without rebuilding
 setup_contracts "$CHAINLINK_CORE_DIR"
 
-# TODO: Revisit to check if this is needed. we already have nix build for chainlink-ton.
-# but the point is building the binary for every test run in local dev env
-build_ton_binary
+# disable LOOP plugin — run TON relayer in-process for profiling
+export CL_TON_CMD=""
 
 setup_postgres
 
