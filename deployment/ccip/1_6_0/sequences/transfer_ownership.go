@@ -68,16 +68,20 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found in environment", in.ChainSelector)
 			}
 
-			proposedOwner, err := address.ParseAddr(in.ProposedOwner)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse proposed owner address: %w", err)
-			}
-
 			dp, err := dep.NewDependencyProvider(
 				dep.Provide(chain),
 			)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+			}
+
+			// Default proposed owner to timelock address if not provided
+			proposedOwner := a.timelockAddrs[in.ChainSelector]
+			if in.ProposedOwner != "" {
+				proposedOwner, err = address.ParseAddr(in.ProposedOwner)
+				if err != nil {
+					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse proposed owner address: %w", err)
+				}
 			}
 
 			deployerAddr := chain.Wallet.WalletAddress()
