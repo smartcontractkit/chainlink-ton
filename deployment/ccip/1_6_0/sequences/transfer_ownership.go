@@ -75,8 +75,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			timelockAddr := a.timelockAddrs[in.ChainSelector]
-			proposedOwner, err := a.getProposedOwner(in, timelockAddr)
+			proposedOwner, err := a.getProposedOwner(in)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get proposed owner: %w", err)
 			}
@@ -174,8 +173,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			timelockAddr := a.timelockAddrs[in.ChainSelector]
-			proposedOwner, err := a.getProposedOwner(in, timelockAddr)
+			proposedOwner, err := a.getProposedOwner(in)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get proposed owner: %w", err)
 			}
@@ -241,12 +239,12 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 // Returns false when the proposed owner is the deployer (timelock transfers via deferred execution, can't accept in same changeset).
 // Returns false when the proposed owner is unknown
 func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership(_ cldf.Environment, in deploy.TransferOwnershipPerChainInput) (bool, error) {
-	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
-	proposedOwner, err := a.getProposedOwner(in, timelockAddr)
+	proposedOwner, err := a.getProposedOwner(in)
 	if err != nil {
 		return false, fmt.Errorf("failed to get proposed owner: %w", err)
 	}
 
+	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
 	if ok && proposedOwner.Equals(timelockAddr) {
 		return true, nil // proposed owner is timelock, can accept in same changeset - will plan a proposal
 	}
@@ -255,7 +253,7 @@ func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership
 }
 
 // Default proposed owner to timelock address if not provided
-func (a *TonTransferOwnershipAdapter) getProposedOwner(in deploy.TransferOwnershipPerChainInput, defaultAddr *address.Address) (*address.Address, error) {
+func (a *TonTransferOwnershipAdapter) getProposedOwner(in deploy.TransferOwnershipPerChainInput) (*address.Address, error) {
 	if in.ProposedOwner != "" {
 		proposedOwner, err := address.ParseAddr(in.ProposedOwner)
 		if err != nil {
@@ -265,7 +263,12 @@ func (a *TonTransferOwnershipAdapter) getProposedOwner(in deploy.TransferOwnersh
 		return proposedOwner, nil
 	}
 
-	return defaultAddr, nil
+	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
+	if !ok {
+		return nil, fmt.Errorf("timelock address not initialized for chain %d", in.ChainSelector)
+	}
+
+	return timelockAddr, nil
 }
 
 func (a *TonTransferOwnershipAdapter) getCurrentOwner(in deploy.TransferOwnershipPerChainInput, defaultAddr *address.Address) (*address.Address, error) {
