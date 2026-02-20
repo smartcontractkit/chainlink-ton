@@ -15,7 +15,6 @@ var (
 	AllOperations = []*operations.Operation[any, any, any]{
 		ton.SendMessages.AsUntypedRelaxed(),
 		ton.Deploy.AsUntypedRelaxed(),
-		ton.FundContractsOp.AsUntypedRelaxed(),
 		upgradeable.Upgrade.AsUntypedRelaxed(),
 
 		// TODO (ops): refactor ops below

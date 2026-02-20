@@ -55,9 +55,14 @@ func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ OpsAnySequenc
 func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.ChangesetOutput, error) {
 	selector := in.Options.ChainSelector
 
+	chain := env.BlockChains.TonChains()[uint64(selector)]
+
 	// Register environment-specific resolvers
 	cs.rregistry.Register(
 		codec.NewTypedResolver(resolversd.NewTonAddrResolver(uint64(selector), env.DataStore)),
+	)
+	cs.rregistry.Register(
+		codec.NewTypedResolver(resolversd.NewTopUpResolver(uint64(selector), env.DataStore, chain)),
 	)
 
 	stateCCIP, err := state.LoadOnchainState(env)
@@ -70,8 +75,6 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
-
-	chain := env.BlockChains.TonChains()[uint64(selector)]
 
 	// Create the dependencies provider - supplies chain and other dependencies to ops/sequences
 	dp, err := dep.NewDependencyProvider(
