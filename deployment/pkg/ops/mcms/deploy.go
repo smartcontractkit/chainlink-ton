@@ -129,7 +129,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	// Notice: we increment the id for each deployment to avoid address collision
 	id := in.ContractID
 
-	opFinalizationTimeout := uint32(DefaultOpFinalizationTimeout) // default to 10 seconds
+	opFinalizationTimeout := uint32(DefaultOpFinalizationTimeout) // default to 30 seconds
 	if in.OpFinalizationTimeout != 0 {
 		opFinalizationTimeout = in.OpFinalizationTimeout
 	}
@@ -268,7 +268,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 			// disable executor role check to allow anyone to execute (TON does not have a CallProxy)
 			ExecutorRoleCheckEnabled: in.TimelockExecutorRoleCheckEnabled,
-			OpFinalizationTimeout:    opFinalizationTimeout, // 10 seconds default, can be updated later
+			OpFinalizationTimeout:    opFinalizationTimeout, // 30 seconds default, can be updated later
 		}
 
 		version := in.ContractsSemverTimelock
