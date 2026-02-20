@@ -61,7 +61,7 @@ func TestTopUpResolver_InputStructure(t *testing.T) {
 		require.NotNil(t, dstAddr["data"])
 		addrData := dstAddr["data"].(map[string]any)
 		require.Equal(t, "Router", addrData["type"])
-		require.Equal(t, "", addrData["qualifier"])
+		require.Empty(t, addrData["qualifier"])
 		require.Equal(t, "10.5", data["targetAmount"])
 	})
 

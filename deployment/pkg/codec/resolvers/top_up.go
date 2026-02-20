@@ -44,7 +44,7 @@ func (r *topUpResolver) Key() string {
 
 type topUpInput struct {
 	DstAddr      *address.Address `json:"dstAddr"`      // Address to top up (can be raw string or resolved by nested resolver)
-	TargetAmount string            `json:"targetAmount"` // Decimal string like "10.5"
+	TargetAmount string           `json:"targetAmount"` // Decimal string like "10.5"
 }
 
 // Resolve calculates the difference between current balance and target balance and returns an InternalMessage
@@ -96,10 +96,7 @@ func (r *topUpResolver) Resolve(input map[string]any) (opston.InternalMessage[an
 	}
 
 	currentBalance := tlb.ZeroCoins
-
-	if contractState == nil || contractState.State == nil {
-		// TODO log warning
-	} else {
+	if contractState != nil && contractState.State != nil {
 		currentBalance = contractState.State.Balance
 	}
 
