@@ -69,24 +69,18 @@ func anySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in AnySequen
 		}
 
 		// Extract plan and transaction info from the output
-		po, ok := r.Input.(PlannerOption)
-		if ok && po.IsPlan() {
-			// If planning option is set, extract the plan
-			planer, ok := r.Output.(Planner[MessagePlanRaw]) //nolint:govet // should be ok
-			if !ok {
-				return output, fmt.Errorf("operation %s output does not implement Planner interface", def.ID)
+		planner, ok := r.Output.(Planner[MessagePlanRaw])
+		if ok {
+			plans := planner.GetPlans()
+			if len(plans) > 0 {
+				output.Plans = append(output.Plans, plans...)
 			}
-			output.Plans = append(output.Plans, planer.GetPlans()...)
 		}
 
 		sender, ok := r.Output.(MessageSender)
 		if ok {
 			tx := sender.GetTransaction()
 			if tx != nil {
-				po, ok := r.Input.(PlannerOption)
-				if ok && po.IsPlan() {
-					return output, fmt.Errorf("operation %s declared as a plan but returned a transaction", def.ID)
-				}
 				output.Transactions = append(output.Transactions, tx)
 			}
 		}
