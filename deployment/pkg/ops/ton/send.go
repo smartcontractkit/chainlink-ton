@@ -128,7 +128,7 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 		}
 
 		// Check total value against account balance before sending
-		valueTotal := tlb.ZeroCoins
+		valueTotal := &tlb.ZeroCoins
 
 		for _, m := range in.Messages {
 			_im, err := m.ToValue()
@@ -141,7 +141,10 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 				InternalMessage: &_im,
 			})
 
-			valueTotal.Add(&_im.Amount)
+			valueTotal, err = valueTotal.Add(&_im.Amount)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to add message amount: %w", err)
+			}
 		}
 
 		chain, err := dep.Resolve[cldf_ton.Chain](dp)
@@ -159,7 +162,7 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 			return SendMessagesOutput{}, fmt.Errorf("failed to get wallet balance: %w", err)
 		}
 
-		if balance.Compare(&valueTotal) < 0 {
+		if balance.Compare(valueTotal) < 0 {
 			return SendMessagesOutput{}, fmt.Errorf("insufficient account balance to send messages: balance %s, total value %s", balance.String(), valueTotal.String())
 		}
 
