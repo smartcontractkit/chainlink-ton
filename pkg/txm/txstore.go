@@ -2,6 +2,7 @@ package txm
 
 import (
 	"fmt"
+	"math/big"
 	"sort"
 	"sync"
 
@@ -20,7 +21,7 @@ type UnconfirmedTx struct {
 }
 
 type FinalizedTx struct {
-	ReceivedMessage tracetracking.ReceivedMessage
+	TotalActionFees *big.Int
 	ExitCode        tvm.ExitCode
 	TraceSucceeded  bool
 }
@@ -78,7 +79,7 @@ func (s *TxStore) MarkFinalized(lt uint64, success bool, exitCode tvm.ExitCode) 
 
 	// move transaction to finalized map
 	s.finalizedTxs[lt] = &FinalizedTx{
-		ReceivedMessage: unconfirmedTx.Tx.ReceivedMessage,
+		TotalActionFees: unconfirmedTx.Tx.ReceivedMessage.TotalActionFees,
 		ExitCode:        exitCode,
 		TraceSucceeded:  success,
 	}
@@ -125,7 +126,7 @@ func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.Exit
 
 	if tx, exists := s.finalizedTxs[lt]; exists {
 		// Transaction is finalized (success or failure is indicated separately)
-		totalActionFees := tlb.MustFromNano(tx.ReceivedMessage.TotalActionFees, 9)
+		totalActionFees := tlb.MustFromNano(tx.TotalActionFees, 9)
 		return tracetracking.Finalized, tx.TraceSucceeded, tx.ExitCode, totalActionFees, true
 	}
 
