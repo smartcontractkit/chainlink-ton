@@ -39,7 +39,7 @@ func NewTopUpResolver(chainSelector uint64, dataStore cldfds.DataStore, chain cl
 }
 
 func (r *topUpResolver) Key() string {
-	return "codec.resolvers.amount-to-top-up-message"
+	return "codec.resolvers.top-up-message"
 }
 
 type topUpInput struct {

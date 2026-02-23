@@ -12,7 +12,7 @@ import (
 func TestTopUpResolver_Key(t *testing.T) {
 	// Test that the resolver has the correct key
 	resolver := NewTopUpResolver(0, nil, cldf_ton.Chain{})
-	require.Equal(t, "codec.resolvers.amount-to-top-up-message", resolver.(interface{ Key() string }).Key())
+	require.Equal(t, "codec.resolvers.top-up-message", resolver.(interface{ Key() string }).Key())
 }
 
 func TestTopUpResolver_InputStructure(t *testing.T) {
@@ -23,7 +23,7 @@ func TestTopUpResolver_InputStructure(t *testing.T) {
 		testAddr := address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 		input := map[string]any{
-			"resolver": "codec.resolvers.amount-to-top-up-message",
+			"resolver": "codec.resolvers.top-up-message",
 			"data": map[string]any{
 				"dstAddr":      testAddr.String(),
 				"targetAmount": "10.5",
@@ -39,7 +39,7 @@ func TestTopUpResolver_InputStructure(t *testing.T) {
 
 	t.Run("validates input structure with address resolver", func(t *testing.T) {
 		input := map[string]any{
-			"resolver": "codec.resolvers.amount-to-top-up-message",
+			"resolver": "codec.resolvers.top-up-message",
 			"data": map[string]any{
 				"dstAddr": map[string]any{
 					"resolver": "codec.resolvers.address-ref-to-ton-addr",
@@ -69,7 +69,7 @@ func TestTopUpResolver_InputStructure(t *testing.T) {
 		testAddr := address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 		input := map[string]any{
-			"resolver": "codec.resolvers.amount-to-top-up-message",
+			"resolver": "codec.resolvers.top-up-message",
 			"data": map[string]any{
 				"dstAddr":      testAddr, // Direct address pointer (also supported)
 				"targetAmount": "10.5",
