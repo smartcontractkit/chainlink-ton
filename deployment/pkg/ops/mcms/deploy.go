@@ -34,7 +34,7 @@ import (
 
 const (
 	DefaultMinDelay              = 1 * 60 * 60 // 1 hour in seconds
-	DefaultOpFinalizationTimeout = 10          // 10 seconds
+	DefaultOpFinalizationTimeout = 30          // 30 seconds
 
 	// DefaultDeployValueTON is the default amount of TON coins to allocate for MCMS/Timelock contract deployment.
 	// MCMS contracts require more storage and operational capacity, hence the higher allocation compared to CCIP contracts.
@@ -47,7 +47,7 @@ type DeployMCMSSeqInput struct {
 	// Extra TON specific params
 	Value                 *tlb.Coins `json:"value"`                 // value to send with deployment, optional, if not provided, defaults to 1.5 TON
 	ContractID            uint32     `json:"contractID"`            // ID (storage data) to use for the deployed contracts, can be used to derive the address pre-deployment.
-	OpFinalizationTimeout uint32     `json:"opFinalizationTimeout"` // optional, if not provided, defaults to 10 seconds
+	OpFinalizationTimeout uint32     `json:"opFinalizationTimeout"` // optional, if not provided, defaults to 30 seconds
 	// Extra Timelock params
 	// Notice: in.Config.TimelockAdmin is of EVM type common.Address (20 bytes),
 	// which is not compatible with TON address, so we have a separate field for TON address type.
@@ -129,7 +129,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	// Notice: we increment the id for each deployment to avoid address collision
 	id := in.ContractID
 
-	opFinalizationTimeout := uint32(DefaultOpFinalizationTimeout) // default to 10 seconds
+	opFinalizationTimeout := uint32(DefaultOpFinalizationTimeout) // default to 30 seconds
 	if in.OpFinalizationTimeout != 0 {
 		opFinalizationTimeout = in.OpFinalizationTimeout
 	}
@@ -268,7 +268,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 			// disable executor role check to allow anyone to execute (TON does not have a CallProxy)
 			ExecutorRoleCheckEnabled: in.TimelockExecutorRoleCheckEnabled,
-			OpFinalizationTimeout:    opFinalizationTimeout, // 10 seconds default, can be updated later
+			OpFinalizationTimeout:    opFinalizationTimeout, // 30 seconds default, can be updated later
 		}
 
 		version := in.ContractsSemverTimelock

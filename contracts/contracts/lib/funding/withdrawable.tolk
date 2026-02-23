@@ -7,7 +7,7 @@ struct Withdrawable {
 
 enum Withdrawable_Error {
     // Trying to withdraw more TON than available in balance.
-    InsufficientBalance = 44800; // Facility ID * 100
+    InsufficientBalance = 57100; // Facility ID * 100
     // Trying to withdraw more TON than available in balance above reserve.
     HitReserve;
     // Invalid withdrawal request: Amount is non-zero and drain is true or Amount is zero and drain is false.

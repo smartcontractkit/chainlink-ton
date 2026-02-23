@@ -16,25 +16,27 @@ import {
   Tuple,
 } from '@ton/core'
 
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
+import { asSnakedCell } from '../../src/utils'
+import { loadContractCode } from '../codeLoader'
+
+import { Maybe } from '@ton/core/dist/utils/maybe'
+
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { CellCodec, StackCodec } from '../utils'
-import { asSnakedCell } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { loadContractCode } from '../codeLoader'
 import * as rt from './Router'
-import { crc32 } from 'zlib'
-import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
-export const FACILITY_ID = 248
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum errors {
-  UnsupportedChainFamilySelector = ERROR_CODE,
+  UnsupportedChainFamilySelector = 34400,
   GasLimitTooHigh,
   ExtraArgOutOfOrderExecutionMustBeTrue,
   InvalidExtraArgsData,

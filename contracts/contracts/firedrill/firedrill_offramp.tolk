@@ -131,5 +131,5 @@ get fun cursedSubjects(): tuple? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("com.chainlink.ton.ccip.firedrill.firedrillOffRamp", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillOffRamp", "1.6.0")
 }

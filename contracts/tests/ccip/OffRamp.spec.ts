@@ -2039,7 +2039,7 @@ describe('OffRamp - Unit Tests', () => {
     const errorCodeVal = await offRamp.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(of.ERROR_CODE))
 
-    expect(of.ERROR_CODE).toEqual(errorCode(crc32(of.FACILITY_NAME), 0))
+    expect(of.ERROR_CODE).toEqual(errorCode(crc32(of.FACILITY_NAME)))
   })
 
   it('ReceiveExecutor should match facility name and ID', async () => {
@@ -2058,7 +2058,7 @@ describe('OffRamp - Unit Tests', () => {
     const errorCodeVal = await receiveExecutor.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(rx.ERROR_CODE))
 
-    expect(rx.ERROR_CODE).toEqual(errorCode(crc32(rx.FACILITY_NAME), 0))
+    expect(rx.ERROR_CODE).toEqual(errorCode(crc32(rx.FACILITY_NAME)))
   })
 
   it('Test commit two messages in one root and execute first message with proof', async () => {

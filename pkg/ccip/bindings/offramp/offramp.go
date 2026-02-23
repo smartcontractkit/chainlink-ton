@@ -278,7 +278,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorMessageNotFromOwnedContract ExitCode = iota + 8400
+	ErrorMessageNotFromOwnedContract ExitCode = iota + 22100 // Facility ID * 100
 	ErrorSourceChainNotEnabled
 	ErrorEmptyExecutionReport
 	ErrorInvalidMessageDestChainSelector

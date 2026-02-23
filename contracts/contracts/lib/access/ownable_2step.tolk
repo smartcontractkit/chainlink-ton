@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 import "./../utils.tolk";
 
-// getFacilityId(stringCrc32(com.chainlink.ton.lib.access.Ownable2Step))
-const Ownable2Step_FACILITY_ID = 204;
+const Ownable2Step_FACILITY_ID = 498;  // (crc32(<facility>) % 640) + 10
 const Ownable2Step_ERROR_CODE = Ownable2Step_FACILITY_ID * 100;
 
 // Exit codes

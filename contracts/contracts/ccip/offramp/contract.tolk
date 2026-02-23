@@ -1,27 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "messages"
-import "errors"
-import "types"
-import "storage"
-import "events"
-
 import "../../lib/versioning/upgradeable"
-import "../common/types.tolk"
-import "../../deployable/types.tolk"
+import "../../lib/deployable/types"
 import "../../lib/access/ownable_2step.tolk"
 import "../../lib/funding/withdrawable.tolk"
 import "../../lib/crypto/merkle_multi_proof.tolk"
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
+import "../../lib/receiver/types"
+import "../../lib/deployable/namespace"
+
+import "../common/types.tolk"
+
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../router/messages"
-import "../../lib/receiver/types"
-import "../../lib/deployable/namespace"
+
+import "messages"
+import "errors"
+import "types"
+import "storage"
+import "events"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
@@ -981,7 +983,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OffRamp"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.OffRamp"), local);
 }
 
 get fun reserve(): coins {

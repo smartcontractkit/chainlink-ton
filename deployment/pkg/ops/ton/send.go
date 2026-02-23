@@ -127,6 +127,9 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 			wait = in.Wait
 		}
 
+		// Check total value against account balance before sending
+		valueTotal := &tlb.ZeroCoins
+
 		for _, m := range in.Messages {
 			_im, err := m.ToValue()
 			if err != nil {
@@ -137,11 +140,30 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 				Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
 				InternalMessage: &_im,
 			})
+
+			valueTotal, err = valueTotal.Add(&_im.Amount)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to add message amount: %w", err)
+			}
 		}
 
 		chain, err := dep.Resolve[cldf_ton.Chain](dp)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to resolve chain: %w", err)
+		}
+
+		block, err := chain.Client.CurrentMasterchainInfo(ctx)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to get masterchain info: %w", err)
+		}
+
+		balance, err := chain.Wallet.GetBalance(ctx, block)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to get wallet balance: %w", err)
+		}
+
+		if balance.Compare(valueTotal) < 0 {
+			return SendMessagesOutput{}, fmt.Errorf("insufficient account balance to send messages: balance %s, total value %s", balance.String(), valueTotal.String())
 		}
 
 		b.Logger.Infow("Sending messages", "msgs", msgs)

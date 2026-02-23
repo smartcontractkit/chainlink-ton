@@ -16,12 +16,12 @@ import (
 type GetterMap map[string]interface{}
 
 // TypeToGetterMap is a registry mapping contract types to their available getters.
-// The outer map keys are contract type identifiers (e.g., "com.chainlink.ton.ccip.Router").
+// The outer map keys are contract type identifiers (e.g., "link.chain.ton.ccip.Router").
 // The inner map keys are getter method names (e.g., "owner", "onRamp").
 // The values are Getter[A, R] instances representing typed getter methods.
 var TypeToGetterMap = map[string]GetterMap{
 	// CCIP contract types
-	"com.chainlink.ton.ccip.Router": {
+	TypeRouter: {
 		"owner":              router.GetOwner,
 		"pendingOwner":       router.GetPendingOwner,
 		"rmn_owner":          router.GetRMNOwner,
@@ -29,7 +29,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"onRamp":             router.GetOnRamp,
 		"destChainSelectors": router.GetDestChainSelectors,
 	},
-	"com.chainlink.ton.ccip.OnRamp": {
+	TypeOnRamp: {
 		"owner":              onramp.GetOwner,
 		"pendingOwner":       onramp.GetPendingOwner,
 		"destChainConfig":    onramp.GetDestChainConfig,
@@ -37,7 +37,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"staticConfig":       onramp.GetStaticConfig,
 		"destChainSelectors": onramp.GetDestChainSelectors,
 	},
-	"com.chainlink.ton.ccip.OffRamp": {
+	TypeOffRamp: {
 		"owner":                offramp.GetOwner,
 		"pendingOwner":         offramp.GetPendingOwner,
 		"ocr3Config":           offramp.GetOCR3Config,
@@ -45,7 +45,7 @@ var TypeToGetterMap = map[string]GetterMap{
 		"sourceChainConfig":    offramp.GetSourceChainConfig,
 		"sourceChainSelectors": offramp.GetSourceChainSelectors,
 	},
-	"com.chainlink.ton.ccip.FeeQuoter": {
+	TypeFeeQuoter: {
 		"owner":                    feequoter.GetOwner,
 		"pendingOwner":             feequoter.GetPendingOwner,
 		"destChainConfig":          feequoter.GetDestChainConfig,
@@ -55,22 +55,24 @@ var TypeToGetterMap = map[string]GetterMap{
 		"destChainSelectors":       feequoter.GetDestChainSelectors,
 	},
 	// Common contract getters (applies to all CCIP contracts)
-	"com.chainlink.ton.ccip.Common": {
+	"link.chain.ton.ccip.Common": {
 		"typeAndVersion": common.GetTypeAndVersion,
 	},
 	// Ownable2Step pattern (inherited by many contracts)
-	"com.chainlink.ton.lib.access.Ownable2Step": {
+	TypeOwnable: {
 		"owner":        ownable2step.GetOwner,
 		"pendingOwner": ownable2step.GetPendingOwner,
 	},
 	// MCMS contract types
-	"com.chainlink.ton.mcms.MCMS": {
-		"getConfig":       mcms.GetConfig,
-		"getOpCount":      mcms.GetOpCount,
-		"getRoot":         mcms.GetRoot,
-		"getRootMetadata": mcms.GetRootMetadata,
+	TypeMCMS: {
+		"getConfig":        mcms.GetConfig,
+		"getOpCount":       mcms.GetOpCount,
+		"getRoot":          mcms.GetRoot,
+		"getRootMetadata":  mcms.GetRootMetadata,
+		"getOracle":        mcms.GetOracle,
+		"getOpPendingInfo": mcms.GetOpPendingInfo,
 	},
-	"com.chainlink.ton.mcms.Timelock": {
+	TypeTimelock: {
 		"getMinDelay":        timelock.GetMinDelay,
 		"getRoleMemberCount": timelock.GetRoleMemberCount,
 		"getRoleMember":      timelock.GetRoleMember,

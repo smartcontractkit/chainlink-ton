@@ -12,12 +12,13 @@ import {
   Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { CellCodec, sha256 } from '../utils'
+import { CellCodec, errorCode, facilityId, sha256 } from '../utils'
 import { loadContractCode } from '../codeLoader'
 import { asSnakedCell, fromSnakeData, DUMMY_ADDRESS } from '../../src/utils'
-import * as ownable2step from '../libraries/access/Ownable2Step'
 import { loadDict, loadMap } from '../../src/utils/dict'
 import { Maybe } from '@ton/core/dist/utils/maybe'
+
+import * as ownable2step from '../libraries/access/Ownable2Step'
 
 // @dev Sets a new expiring root.
 export type SetRoot = {
@@ -169,9 +170,13 @@ export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = sha256(
 export const NUM_GROUPS = 32
 export const MAX_NUM_SIGNERS = 200
 
+export const FACILITY_NAME = 'link.chain.ton.mcms.MCMS'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
+
 export enum Error {
   /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-  OutOfBoundsNumSigners = 39000,
+  OutOfBoundsNumSigners = 10400,
 
   /// Thrown when signerAddresses and signerGroups have different lengths.
   SignerGroupsLengthMismatch,

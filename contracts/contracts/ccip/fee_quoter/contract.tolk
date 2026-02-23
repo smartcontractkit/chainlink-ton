@@ -8,13 +8,13 @@ import "storage"
 import "../common/types";
 import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
-import "../../deployable/types";
+import "../../lib/deployable/types";
+import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
-import "../../lib/funding/withdrawable"
-import "../../lib/versioning/upgradeable"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -648,7 +648,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.FeeQuoter"), local);
 }
 
 get fun destChainSelectors(): tuple? {

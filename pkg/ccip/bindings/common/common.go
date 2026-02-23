@@ -14,19 +14,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
-type ExitCode tvm.ExitCode
-
-var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
-
-func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
-	const (
-		ecMin = int32(ErrorUnknownDestChainSelector)
-		ecMax = int32(ErrorDispatchNotFromMerkleRoot)
-	)
-	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
-}
-
 const (
 	versionGetter = "typeAndVersion"
 )
@@ -52,23 +39,6 @@ const (
 	// MaxCellChainBytes is the maximum total bytes in a cell chain (MaxCellChainDepth * MaxCellDataBytes = ~65KB).
 	// Represents the practical limit for c4/c5 register data.
 	MaxCellChainBytes = MaxCellChainDepth * MaxCellDataBytes // 65,024 bytes
-)
-
-// Common error codes constants
-const (
-	ErrorUnknownDestChainSelector ExitCode = iota + 256
-	ErrorDestChainNotEnabled
-	ErrorFeeTokenNotSupported
-	ErrorStaleGasPrice
-	ErrorInvalidMsgData
-	ErrorSenderNotAllowed
-	ErrorInvalidMessageDestChainSelector
-	ErrorSourceChainSelectorMismatch
-	ErrorTokenNotSupported
-	ErrorUnauthorized
-	ErrorSourceChainNotEnabled
-	ErrorEmptyReport
-	ErrorDispatchNotFromMerkleRoot
 )
 
 // AddressWrap is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakedCell[] of addresses.

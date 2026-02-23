@@ -149,7 +149,7 @@ describe('FeeQuoter - Unit Tests', () => {
     const errorCodeVal = await feeQuoter.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(fq.ERROR_CODE))
 
-    expect(fq.ERROR_CODE).toEqual(errorCode(crc32(fq.FACILITY_NAME), 0))
+    expect(fq.ERROR_CODE).toEqual(errorCode(crc32(fq.FACILITY_NAME)))
   })
 
   afterAll(async () => {

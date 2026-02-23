@@ -74,7 +74,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -95,7 +95,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -121,7 +121,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -138,7 +138,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -159,7 +159,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -176,7 +176,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -202,7 +202,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -222,7 +222,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 							},
 							"data": map[string]any{
 								"resolver": "codec.resolvers.contract-data-to-cell",
-								"contract": "com.chainlink.ton.mcms.Timelock",
+								"contract": bindings.TypeTimelock,
 								"data": map[string]any{
 									"ID":                       42,
 									"MinDelay":                 0,
@@ -253,7 +253,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -283,7 +283,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.mcms.MCMS",
+								"contract": bindings.TypeMCMS,
 								"type":     "Execute",
 								"opcode":   "0x9b9ce96a",
 								"payload": map[string]any{
@@ -297,7 +297,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 										"Data": map[string]any{
 											"resolver": "codec.resolvers.msg-envelope-to-cell",
 											"data": map[string]any{
-												"contract": "com.chainlink.ton.mcms.Timelock",
+												"contract": bindings.TypeTimelock,
 												"type":     "ScheduleBatch",
 												"opcode":   "0x094718f4",
 												"payload": map[string]any{
@@ -364,7 +364,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.mcms.MCMS",
+								Contract: bindings.TypeMCMS,
 								Opcode:   0x9b9ce96a,
 								TypeName: "Execute",
 								GoType:   reflect.TypeOf(&mcms.Execute{}),

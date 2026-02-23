@@ -149,7 +149,7 @@ describe('OnRamp - Unit Tests', () => {
     const errorCodeVal = await onramp.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(or.ERROR_CODE))
 
-    expect(or.ERROR_CODE).toEqual(errorCode(crc32(or.FACILITY_NAME), 0))
+    expect(or.ERROR_CODE).toEqual(errorCode(crc32(or.FACILITY_NAME)))
   })
 
   it('getStaticConfig should return chain selector', async () => {

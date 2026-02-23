@@ -31,7 +31,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 
 // CCIPSend Executor exit codes
 const (
-	ErrorStateNotExpected ExitCode = iota + 43600
+	ErrorStateNotExpected ExitCode = iota + 17800 // (crc32(<facility>) % 640) + 10
 	ErrorUnauthorized
 	ErrorInsufficientFunds
 	ErrorInsufficientFee

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
-const TEST_RECEIVER_FACILITY_NAME = "com.chainlink.ton.ccip.test.Receiver";
-const TEST_RECEIVER_FACILITY_ID = 346;
-const TEST_RECEIVER_ERROR_CODE = 34600; //FACILITY_ID * 100
+import "types"
 
 enum TestReceiver_Error {
-    Rejected = 34600 // Facility ID * 100
+    Rejected = TestReceiver_ERROR_CODE
 }

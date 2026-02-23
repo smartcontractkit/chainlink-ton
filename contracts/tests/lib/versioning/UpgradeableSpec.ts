@@ -12,7 +12,7 @@ import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndV
  * Configuration for testing upgrades between two versions of an upgradeable contract.
  */
 export type UpgradeTestConfig<TCurrentVersionContract> = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
+  /** The expected contract type name (e.g., 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
   /** Version string for previous version contract */
   prevVersion: string
@@ -40,7 +40,7 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
  * Configuration for testing the current version of an upgradeable contract.
  */
 export type CurrentVersionTestConfig<TCurrentVersionContract> = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
+  /** The expected contract type name (e.g., 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
   /** Version string for current version contract */
   currentVersion: string
@@ -86,7 +86,7 @@ interface TestSetup {
  * @example
  * ```typescript
  * const upgradeSpec = newUpgradeSpec({
- *   contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+ *   contractType: 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
  *   prevVersion: '1.0.0',
  *   currentVersion: '2.0.0',
  *   getPrevCode: () => UpgradeableCounterV1.code(),
@@ -282,7 +282,7 @@ interface CurrentVersionTestSetup {
  * @example
  * ```typescript
  * const currentVersionSpec = newCurrentVersionSpec({
- *   contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+ *   contractType: 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
  *   currentVersion: '2.0.0',
  *   getCurrentCode: () => UpgradeableCounterV2.code(),
  *   CurrentVersionConstructor: UpgradeableCounterV2,

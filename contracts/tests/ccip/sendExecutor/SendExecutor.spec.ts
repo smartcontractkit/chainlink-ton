@@ -117,7 +117,7 @@ describe('SendExecutor - Unit tests', () => {
     const errorCodeVal = await sendExecutor.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(sx.ERROR_CODE))
 
-    expect(sx.ERROR_CODE).toEqual(errorCode(crc32(sx.FACILITY_NAME), 0))
+    expect(sx.ERROR_CODE).toEqual(errorCode(crc32(sx.FACILITY_NAME)))
   })
 
   async function afterExecute(feeQuoterBouncer?: SandboxContract<bouncer.ContractClient>): Promise<{

@@ -5,13 +5,13 @@ import "../../lib/ocr/multi_ocr3_base.tolk"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "../../lib/deployable/types"
 import "../common/types.tolk"
 import "../rmn_remote/lib"
 import "../merkle_root/messages"
 import "../receive_executor/messages"
 import "../fee_quoter/messages"
 import "../router/messages"
-import "../../deployable/types.tolk"
 
 type OffRamp_InMessage =
     | OffRamp_Commit

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-const RECEIVER_FACILITY_NAME = "com.chainlink.ton.ccip.lib.Receiver";
-const RECEIVER_FACILITY_ID = 235;
-const RECEIVER_ERROR_CODE = 23500; //FACILITY_ID * 100
+const RECEIVER_FACILITY_NAME = "link.chain.ton.ccip.lib.Receiver";
+const RECEIVER_FACILITY_ID = 54; // (crc32(<facility>) % 640) + 10
+const RECEIVER_ERROR_CODE = RECEIVER_FACILITY_ID * 100;
 
 enum Receiver_Error {
-    Unauthorized = 23500 //FACILITY_ID * 100,
+    Unauthorized = 5400 //FACILITY_ID * 100,
     LowValue,
 }

@@ -17,8 +17,8 @@ import {
 import { Maybe } from '@ton/core/dist/utils/maybe'
 import { loadContractCode } from '../codeLoader'
 import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
 
-import { CellCodec } from '../utils'
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakedCell, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -42,12 +42,12 @@ export const opcodes = {
 
 export const OFFRAMP_CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
-export const FACILITY_ID = 84
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum OffRampError {
-  MessageNotFromOwnedContract = ERROR_CODE,
+  MessageNotFromOwnedContract = 22100,
   SourceChainNotEnabled,
   EmptyExecutionReport,
   InvalidMessageDestChainSelector,

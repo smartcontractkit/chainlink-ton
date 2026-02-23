@@ -59,7 +59,7 @@ The module defines the following error codes:
 
 ```tolk
 enum Upgradeable_Error {
-    VersionMismatch = 28700; // Thrown when the version passed to migrate doesn't match expected version
+    VersionMismatch = 19900; // Thrown when the version passed to migrate doesn't match expected version
 }
 ```
 
@@ -242,7 +242,7 @@ await contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
   code: v2Code, // V2 code expects to upgrade from "1.0.0"
 })
 
-// ❌ Incorrect: Will fail with exit code 28700 (VersionMismatch)
+// ❌ Incorrect: Will fail with exit code 19900 (VersionMismatch)
 // If you try to upgrade a V2 contract with V3 code that expects V1
 await v2Contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
   queryId: 0n,
@@ -381,7 +381,7 @@ The current version test spec provides the following test cases:
 
 1. **should deploy on correct version**: Verifies that the contract deploys with the correct version, type, code, and code hash
 2. **should fail when non-owner tries to upgrade**: Ensures that only the owner can perform upgrades
-3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 28700 when the new contract's `migrate` function rejects the current version
+3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 19900 when the new contract's `migrate` function rejects the current version
 
 ### Configuration Options
 

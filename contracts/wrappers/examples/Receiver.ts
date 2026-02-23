@@ -11,19 +11,20 @@ import {
   Slice,
 } from '@ton/core'
 
-import { CellCodec } from '../utils'
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as receiver from '../libraries/Receiver'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
-export const FACILITY_ID = 346
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.test.Receiver'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 enum TestReceiverError {
-  Rejected = ERROR_CODE,
+  Rejected = 19100, // Facility ID * 100
 }
 
 export const error = {
