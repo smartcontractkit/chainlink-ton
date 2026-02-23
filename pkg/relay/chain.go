@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -85,6 +86,7 @@ type chain struct {
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
+	pool        *liteclient.ConnectionPool
 }
 
 func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
@@ -208,7 +210,16 @@ func (c *chain) Start(ctx context.Context) error {
 func (c *chain) Close() error {
 	return c.starter.StopOnce("Chain", func() error {
 		c.lggr.Debug("Stopping txm, log poller, and balance monitor")
-		return services.CloseAll(c.txm, c.lp, c.bm)
+		err := services.CloseAll(c.txm, c.lp, c.bm)
+
+		c.cacheMu.Lock()
+		if c.pool != nil {
+			c.pool.Stop()
+			c.pool = nil
+		}
+		c.cacheMu.Unlock()
+
+		return err
 	})
 }
 
@@ -355,8 +366,7 @@ func (c *chain) GetClient(ctx context.Context) (ton.APIClientWrapped, error) {
 		}
 
 		// Build new client, expected URL format: liteserver://publickey@host:port
-		liteServerURL := node.URL.String()
-		connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
+		connectionPool, cerr := c.getOrCreatePool(ctx, i)
 		if cerr != nil {
 			c.lggr.Warnw("failed to get connection pool", "name", node.Name, "ton-url", node.URL, "err", cerr)
 			continue
@@ -438,6 +448,35 @@ func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped
 	}
 
 	return w, nil
+}
+
+// getOrCreatePool returns the long-lived ConnectionPool, creating it on first call.
+// Caller must NOT hold cacheMu — this method locks it internally.
+func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient.ConnectionPool, error) {
+	c.cacheMu.RLock()
+	pool := c.pool
+	c.cacheMu.RUnlock()
+	if pool != nil {
+		return pool, nil
+	}
+
+	liteServerURL := c.cfg.Nodes[nodeIndex].URL.String()
+	pool, err := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cacheMu.Lock()
+	// Double-check: another goroutine may have created it
+	if c.pool != nil {
+		c.cacheMu.Unlock()
+		pool.Stop() // discard the one we just made
+		return c.pool, nil
+	}
+	c.pool = pool
+	c.cacheMu.Unlock()
+
+	return pool, nil
 }
 
 func (c *chain) evictClient(index int, name string, reason string) {
