@@ -84,7 +84,7 @@ func (r *topUpResolver) Resolve(input map[string]any) (opston.InternalMessage[an
 	}
 
 	// Get current balance
-	ctx := context.Background()
+	ctx := context.TODO()
 	block, err := r.chain.Client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return opston.InternalMessage[any]{}, fmt.Errorf("failed to get current masterchain info: %w", err)
