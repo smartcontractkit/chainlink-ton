@@ -353,7 +353,8 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Contex
 		// select, and exit. Without draining, the goroutine leaks forever.
 		cancel()
 		go func() {
-			for range transactionsReceived {
+			for tx := range transactionsReceived {
+				_ = tx // intentionally draining channel to unblock sender goroutine
 			}
 		}()
 
