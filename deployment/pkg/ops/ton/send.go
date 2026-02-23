@@ -69,6 +69,10 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to message: %w", err)
 			}
 
+			if _im.Amount.IsZero() {
+				continue // skip zero-value messages (no-op)
+			}
+
 			opcode, err := tvm.ExtractOpcode(_im.Body)
 			if err != nil {
 				return SendMessagesOutput{}, fmt.Errorf("failed to extract opcode from message body: %w", err)

@@ -101,20 +101,20 @@ func (r *topUpResolver) Resolve(input map[string]any) (opston.InternalMessage[an
 	}
 
 	// Calculate difference
-	amountToSend := tlb.ZeroCoins
-	if currentBalance.LessThan(&targetAmount) {
-		diff, err := targetAmount.Sub(&currentBalance)
-		if err != nil {
-			return opston.InternalMessage[any]{}, fmt.Errorf("failed to calculate top-up amount: %w", err)
-		}
-		amountToSend = *diff
+
+	if currentBalance.GreaterOrEqual(&targetAmount) {
+		return opston.InternalMessage[any]{}, nil // No top-up needed (TODO no-op)
+	}
+	amountToSend, err := targetAmount.Sub(&currentBalance)
+	if err != nil {
+		return opston.InternalMessage[any]{}, fmt.Errorf("failed to calculate top-up amount: %w", err)
 	}
 
 	// Create an InternalMessage to send the amount
 	msg := opston.InternalMessage[any]{
 		Bounce:  false,
 		DstAddr: in.DstAddr,
-		Amount:  amountToSend,
+		Amount:  *amountToSend,
 		Body:    nil,
 	}
 
