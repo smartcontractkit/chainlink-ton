@@ -348,8 +348,14 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Contex
 
 		receivedMessage, err := waitForMatchingMessage(subCtx, transactionsReceived, sentMessage)
 
-		// Cancel context as soon as we have the result to prevent leaks
+		// Cancel context and drain the channel so the SubscribeOnTransactions goroutine
+		// can unblock from its bare `channel <- tx` send, reach the `workerCtx.Done()`
+		// select, and exit. Without draining, the goroutine leaks forever.
 		cancel()
+		go func() {
+			for range transactionsReceived {
+			}
+		}()
 
 		if err != nil {
 			return err
