@@ -92,6 +92,9 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 	Enabled = true
 	NetworkName = 'ton-localnet'
 
+	[TON.TransactionManager]
+	CleanupInterval = '5m'
+
 	[[TON.Nodes]]
 	Name = '%s'
 	URL = '%s'`,
@@ -105,9 +108,11 @@ func (m *CCIP16TON) ConfigureNodes(ctx context.Context, bc *blockchain.Input) (s
 	), nil
 }
 
+const defaultNodeFundingTON = "500"
+
 func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input, nodeKeyBundles map[string]clclient.NodeKeysBundle, bc *blockchain.Input, linkAmount, nativeAmount *big.Int) error {
 	l := zerolog.Ctx(ctx)
-	l.Info().Msg("Funding CL nodes with native and LINK")
+	l.Info().Str("amount", defaultNodeFundingTON).Msg("Funding CL nodes with native TON")
 	keys := make([]*address.Address, 0)
 	amounts := make([]tlb.Coins, 0)
 	for _, nk := range nodeKeyBundles {
@@ -116,7 +121,7 @@ func (m *CCIP16TON) FundNodes(ctx context.Context, cls []*simple_node_set.Input,
 			return err
 		}
 		keys = append(keys, address.MustParseAddr(addr))
-		amounts = append(amounts, tlb.MustFromTON(nativeAmount.String()))
+		amounts = append(amounts, tlb.MustFromTON(defaultNodeFundingTON))
 	}
 	client, err := testutils.CreateClient(ctx, bc.Out.Nodes[0].ExternalHTTPUrl)
 	if err != nil {
