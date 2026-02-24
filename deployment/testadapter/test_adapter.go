@@ -137,6 +137,29 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 	}
 	return receiver
 }
+func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) error {
+	receiverAddr, err := a.getAddress("Receiver")
+	if err != nil {
+		return err
+	}
+
+	bodyCell := cell.
+		BeginCell().
+		MustStoreBoolBit(rejectAll).
+		EndCell()
+
+	_, _, err = a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     &receiverAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	return err
+}
 
 func (a *TONAdapter) NativeFeeToken() string {
 	return tvm.TonTokenAddr.String()
