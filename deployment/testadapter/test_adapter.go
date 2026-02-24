@@ -166,8 +166,8 @@ func (a *TONAdapter) NativeFeeToken() string {
 }
 
 // TODO: use constants from chainlink-ccip once merged
-const EXTRA_ARG_GAS_LIMIT = "gasLimit|computeUnits"
-const EXTRA_ARG_OOO = "outOfOrderExecutionEnabled"
+const ExtraArgGasLimit = "gasLimit|computeUnits"
+const ExtraArgOOO = "outOfOrderExecutionEnabled"
 
 func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
 	switch sourceFamily {
@@ -180,9 +180,9 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 		// override via options
 		for _, opt := range opts {
 			switch opt.Name {
-			case EXTRA_ARG_GAS_LIMIT:
+			case ExtraArgGasLimit:
 				extraArgs.GasLimit = opt.Value.(*big.Int)
-			case EXTRA_ARG_OOO:
+			case ExtraArgOOO:
 				extraArgs.AllowOutOfOrderExecution = opt.Value.(bool)
 			default:
 				// unsupported arg
