@@ -8,33 +8,33 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorOutOfBoundsNumSigners-39000]
-	_ = x[ErrorSignerGroupsLengthMismatch-39001]
-	_ = x[ErrorOutOfBoundsGroup-39002]
-	_ = x[ErrorGroupTreeNotWellFormed-39003]
-	_ = x[ErrorOutOfBoundsGroupQuorum-39004]
-	_ = x[ErrorSignerInDisabledGroup-39005]
-	_ = x[ErrorSignersAdderssesMustBeStrictlyIncreasing-39006]
-	_ = x[ErrorInvalidSigner-39007]
-	_ = x[ErrorInsufficientSigners-39008]
-	_ = x[ErrorWrongChainID-39009]
-	_ = x[ErrorWrongMultiSig-39010]
-	_ = x[ErrorWrongPostOpCount-39011]
-	_ = x[ErrorPendingOps-39012]
-	_ = x[ErrorWrongPreOpCount-39013]
-	_ = x[ErrorProofCannotBeVerified-39014]
-	_ = x[ErrorRootExpired-39015]
-	_ = x[ErrorWrongNonce-39016]
-	_ = x[ErrorPostOpCountReached-39017]
-	_ = x[ErrorCallReverted-39018]
-	_ = x[ErrorValidUntilHasAlreadyPassed-39019]
-	_ = x[ErrorMissingConfig-39020]
-	_ = x[ErrorSignedHashAlreadySeen-39021]
-	_ = x[ErrorRootNotFinalized-39022]
-	_ = x[ErrorInsufficientValue-39023]
-	_ = x[ErrorUnauthorizedOracle-39024]
-	_ = x[ErrorRootNotExpired-39025]
-	_ = x[InsufficientFee-39026]
+	_ = x[ErrorOutOfBoundsNumSigners-10400]
+	_ = x[ErrorSignerGroupsLengthMismatch-10401]
+	_ = x[ErrorOutOfBoundsGroup-10402]
+	_ = x[ErrorGroupTreeNotWellFormed-10403]
+	_ = x[ErrorOutOfBoundsGroupQuorum-10404]
+	_ = x[ErrorSignerInDisabledGroup-10405]
+	_ = x[ErrorSignersAdderssesMustBeStrictlyIncreasing-10406]
+	_ = x[ErrorInvalidSigner-10407]
+	_ = x[ErrorInsufficientSigners-10408]
+	_ = x[ErrorWrongChainID-10409]
+	_ = x[ErrorWrongMultiSig-10410]
+	_ = x[ErrorWrongPostOpCount-10411]
+	_ = x[ErrorPendingOps-10412]
+	_ = x[ErrorWrongPreOpCount-10413]
+	_ = x[ErrorProofCannotBeVerified-10414]
+	_ = x[ErrorRootExpired-10415]
+	_ = x[ErrorWrongNonce-10416]
+	_ = x[ErrorPostOpCountReached-10417]
+	_ = x[ErrorCallReverted-10418]
+	_ = x[ErrorValidUntilHasAlreadyPassed-10419]
+	_ = x[ErrorMissingConfig-10420]
+	_ = x[ErrorSignedHashAlreadySeen-10421]
+	_ = x[ErrorRootNotFinalized-10422]
+	_ = x[ErrorInsufficientValue-10423]
+	_ = x[ErrorUnauthorizedOracle-10424]
+	_ = x[ErrorRootNotExpired-10425]
+	_ = x[InsufficientFee-10426]
 }
 
 const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatchErrorOutOfBoundsGroupErrorGroupTreeNotWellFormedErrorOutOfBoundsGroupQuorumErrorSignerInDisabledGroupErrorSignersAdderssesMustBeStrictlyIncreasingErrorInvalidSignerErrorInsufficientSignersErrorWrongChainIDErrorWrongMultiSigErrorWrongPostOpCountErrorPendingOpsErrorWrongPreOpCountErrorProofCannotBeVerifiedErrorRootExpiredErrorWrongNonceErrorPostOpCountReachedErrorCallRevertedErrorValidUntilHasAlreadyPassedErrorMissingConfigErrorSignedHashAlreadySeenErrorRootNotFinalizedErrorInsufficientValueErrorUnauthorizedOracleErrorRootNotExpiredInsufficientFee"
@@ -42,8 +42,8 @@ const _ExitCode_name = "ErrorOutOfBoundsNumSignersErrorSignerGroupsLengthMismatc
 var _ExitCode_index = [...]uint16{0, 26, 57, 78, 105, 132, 158, 203, 221, 245, 262, 280, 301, 316, 336, 362, 378, 393, 416, 433, 464, 482, 508, 529, 551, 574, 593, 608}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 39000
-	if i < 39000 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 10400
+	if i < 10400 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

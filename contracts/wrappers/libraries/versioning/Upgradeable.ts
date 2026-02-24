@@ -10,14 +10,19 @@ import {
   Slice,
 } from '@ton/core'
 import { SandboxContract, SendMessageResult } from '@ton/sandbox'
-import { CellCodec } from '../../utils'
+import { crc32 } from 'zlib'
+import { CellCodec, errorCode, facilityId } from '../../utils'
 
 export const opcodes = {
   Upgrade: 0x0aa811ed,
 }
 
+export const FACILITY_NAME = 'link.chain.ton.lib.versioning.Upgradeable'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
+
 export enum Error {
-  VersionMismatch = 28700,
+  VersionMismatch = 19900,
 }
 
 export const eventTopics = {

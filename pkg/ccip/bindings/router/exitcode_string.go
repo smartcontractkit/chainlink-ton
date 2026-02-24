@@ -8,16 +8,16 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorDestChainNotEnabled-49600]
-	_ = x[ErrorSourceChainNotEnabled-49601]
-	_ = x[SenderIsNotOffRamp-49602]
-	_ = x[OffRampNotSetForSelector-49603]
-	_ = x[OffRampAddressMismatch-49604]
-	_ = x[ErrorSubjectCursed-49605]
-	_ = x[ErrorNotOnRamp-49606]
-	_ = x[ErrorMissingTokenAmounts-49607]
-	_ = x[ErrorNoMultiTokenTransfers-49608]
-	_ = x[ErrorInsufficientFee-49609]
+	_ = x[ErrorDestChainNotEnabled-57100]
+	_ = x[ErrorSourceChainNotEnabled-57101]
+	_ = x[SenderIsNotOffRamp-57102]
+	_ = x[OffRampNotSetForSelector-57103]
+	_ = x[OffRampAddressMismatch-57104]
+	_ = x[ErrorSubjectCursed-57105]
+	_ = x[ErrorNotOnRamp-57106]
+	_ = x[ErrorMissingTokenAmounts-57107]
+	_ = x[ErrorNoMultiTokenTransfers-57108]
+	_ = x[ErrorInsufficientFee-57109]
 }
 
 const _ExitCode_name = "ErrorDestChainNotEnabledErrorSourceChainNotEnabledSenderIsNotOffRampOffRampNotSetForSelectorOffRampAddressMismatchErrorSubjectCursedErrorNotOnRampErrorMissingTokenAmountsErrorNoMultiTokenTransfersErrorInsufficientFee"
@@ -25,8 +25,8 @@ const _ExitCode_name = "ErrorDestChainNotEnabledErrorSourceChainNotEnabledSender
 var _ExitCode_index = [...]uint8{0, 24, 50, 68, 92, 114, 132, 146, 170, 196, 216}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 49600
-	if i < 49600 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 57100
+	if i < 57100 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

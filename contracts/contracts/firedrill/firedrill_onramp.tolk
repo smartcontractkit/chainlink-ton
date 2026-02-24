@@ -104,5 +104,5 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("com.chainlink.ton.ccip.firedrill.firedrillOnRamp", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillOnRamp", "1.6.0")
 }

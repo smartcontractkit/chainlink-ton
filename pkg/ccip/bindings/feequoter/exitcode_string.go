@@ -8,34 +8,34 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorUnsupportedChainFamilySelector-24800]
-	_ = x[ErrorGasLimitTooHigh-24801]
-	_ = x[ExtraArgOutOfOrderExecutionMustBeTrue-24802]
-	_ = x[ErrorInvalidExtraArgsData-24803]
-	_ = x[ErrorUnsupportedNumberOfTokens-24804]
-	_ = x[ErrorInvalidEVMReceiverAddress-24805]
-	_ = x[ErrorInvalid32ByteReceiverAddress-24806]
-	_ = x[ErrorInvalidSuiReceiverAddress-24807]
-	_ = x[ErrorInvalidSVMReceiverAddress-24808]
-	_ = x[ErrorInvalidTokenReceiver-24809]
-	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-24810]
-	_ = x[ErrorMsgDataTooLarge-24811]
-	_ = x[ErrorStaleGasPrice-24812]
-	_ = x[ErrorDestChainNotEnabled-24813]
-	_ = x[ErrorFeeTokenNotSupported-24814]
-	_ = x[ErrorInvalidMsgData-24815]
-	_ = x[ErrorTokenNotSupported-24816]
-	_ = x[ErrorUnknownDestChainSelector-24817]
-	_ = x[ErrorInsufficientFee-24818]
-	_ = x[ErrorTokenTransfersNotSupported-24819]
-	_ = x[ErrorUnauthorizedPriceUpdater-24820]
-	_ = x[ErrorExecutionCostOverflow-24821]
-	_ = x[ErrorPremiumFeeOverflow-24822]
-	_ = x[ErrorDataAvailabilityCostOverflow-24823]
-	_ = x[ErrorFeeCalculationOverflow-24824]
-	_ = x[ErrorTokenPriceTooLow-24825]
-	_ = x[ErrorFeeOverflow-24826]
-	_ = x[ErrorMessageFeeTooHigh-24827]
+	_ = x[ErrorUnsupportedChainFamilySelector-34400]
+	_ = x[ErrorGasLimitTooHigh-34401]
+	_ = x[ExtraArgOutOfOrderExecutionMustBeTrue-34402]
+	_ = x[ErrorInvalidExtraArgsData-34403]
+	_ = x[ErrorUnsupportedNumberOfTokens-34404]
+	_ = x[ErrorInvalidEVMReceiverAddress-34405]
+	_ = x[ErrorInvalid32ByteReceiverAddress-34406]
+	_ = x[ErrorInvalidSuiReceiverAddress-34407]
+	_ = x[ErrorInvalidSVMReceiverAddress-34408]
+	_ = x[ErrorInvalidTokenReceiver-34409]
+	_ = x[ErrorTooManySuiExtraArgsReceiverObjectIDs-34410]
+	_ = x[ErrorMsgDataTooLarge-34411]
+	_ = x[ErrorStaleGasPrice-34412]
+	_ = x[ErrorDestChainNotEnabled-34413]
+	_ = x[ErrorFeeTokenNotSupported-34414]
+	_ = x[ErrorInvalidMsgData-34415]
+	_ = x[ErrorTokenNotSupported-34416]
+	_ = x[ErrorUnknownDestChainSelector-34417]
+	_ = x[ErrorInsufficientFee-34418]
+	_ = x[ErrorTokenTransfersNotSupported-34419]
+	_ = x[ErrorUnauthorizedPriceUpdater-34420]
+	_ = x[ErrorExecutionCostOverflow-34421]
+	_ = x[ErrorPremiumFeeOverflow-34422]
+	_ = x[ErrorDataAvailabilityCostOverflow-34423]
+	_ = x[ErrorFeeCalculationOverflow-34424]
+	_ = x[ErrorTokenPriceTooLow-34425]
+	_ = x[ErrorFeeOverflow-34426]
+	_ = x[ErrorMessageFeeTooHigh-34427]
 }
 
 const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighExtraArgOutOfOrderExecutionMustBeTrueErrorInvalidExtraArgsDataErrorUnsupportedNumberOfTokensErrorInvalidEVMReceiverAddressErrorInvalid32ByteReceiverAddressErrorInvalidSuiReceiverAddressErrorInvalidSVMReceiverAddressErrorInvalidTokenReceiverErrorTooManySuiExtraArgsReceiverObjectIDsErrorMsgDataTooLargeErrorStaleGasPriceErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorInvalidMsgDataErrorTokenNotSupportedErrorUnknownDestChainSelectorErrorInsufficientFeeErrorTokenTransfersNotSupportedErrorUnauthorizedPriceUpdaterErrorExecutionCostOverflowErrorPremiumFeeOverflowErrorDataAvailabilityCostOverflowErrorFeeCalculationOverflowErrorTokenPriceTooLowErrorFeeOverflowErrorMessageFeeTooHigh"
@@ -43,8 +43,8 @@ const _ExitCode_name = "ErrorUnsupportedChainFamilySelectorErrorGasLimitTooHighE
 var _ExitCode_index = [...]uint16{0, 35, 55, 92, 117, 147, 177, 210, 240, 270, 295, 336, 356, 374, 398, 423, 442, 464, 493, 513, 544, 573, 599, 622, 655, 682, 703, 719, 741}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 24800
-	if i < 24800 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 34400
+	if i < 34400 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

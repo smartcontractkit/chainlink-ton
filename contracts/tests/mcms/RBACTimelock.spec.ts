@@ -73,13 +73,8 @@ describe('RBACTimelock', () => {
   })
 
   it('should compute error code', async () => {
-    expect(rbactl.Error.SelectorIsBlocked).toBe(
-      errorCode(crc32('com.chainlink.ton.mcms.Timelock'), 0),
-    )
-
-    expect(ac.Error.UnauthorizedAccount).toBe(
-      errorCode(crc32('com.chainlink.ton.lib.access.AccessControl'), 0),
-    )
+    expect(rbactl.Error.SelectorIsBlocked).toBe(errorCode(crc32(rbactl.FACILITY_NAME)))
+    expect(ac.Error.UnauthorizedAccount).toBe(errorCode(crc32(ac.FACILITY_NAME)))
   })
 
   it('should compute keccak256 roles', async () => {

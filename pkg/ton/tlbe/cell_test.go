@@ -40,7 +40,7 @@ func TestCellJSONRoundTrip(t *testing.T) {
 
 	// Compare cell hashes to ensure the full structure is the same
 	// This is the most reliable way to compare the cells
-	require.Equal(t, c.ToCell().Hash(), c2.ToCell().Hash())
+	require.Equal(t, c.MustToCell().Hash(), c2.MustToCell().Hash())
 
 	// Also verify the JSON representation is consistent
 	jsonData2, err := json.Marshal(c2)
@@ -52,13 +52,13 @@ func TestCellJSONRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	msg1c, err := tlb.ToCell(msg1)
 	require.NoError(t, err)
-	require.Equal(t, c.ToCell().Hash(), msg1c.Hash())
+	require.Equal(t, c.MustToCell().Hash(), msg1c.Hash())
 
 	msg2, err := c2.ToValue()
 	require.NoError(t, err)
 	msg2c, err := tlb.ToCell(msg2)
 	require.NoError(t, err)
-	require.Equal(t, c2.ToCell().Hash(), msg2c.Hash())
+	require.Equal(t, c2.MustToCell().Hash(), msg2c.Hash())
 }
 
 func TestCellRejectsPointerTypes(t *testing.T) {

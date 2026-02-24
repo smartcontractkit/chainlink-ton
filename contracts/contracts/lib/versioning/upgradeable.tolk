@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
 import "@stdlib/tvm-lowlevel";
-import "@stdlib/tvm-dicts.tolk";
 import "../utils.tolk";
 
 /// Upgradeable contract interface.
@@ -101,7 +100,7 @@ struct Upgradeable {
 }
 
 enum Upgradeable_Error {
-    VersionMismatch = 28700; // Facility ID * 100
+    VersionMismatch = 19900; // Facility ID * 100
 }
 
 /// Message for upgrading a contract.

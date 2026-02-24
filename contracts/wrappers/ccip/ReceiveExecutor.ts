@@ -11,18 +11,20 @@ import {
   Slice,
 } from '@ton/core'
 
-import { CellCodec } from '../utils'
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
+
 import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as of from './OffRamp'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
-export const FACILITY_ID = 338
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.ReceiveExecutor'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  StateIsNotUntouched = ERROR_CODE, // Facility ID * 100
+  StateIsNotUntouched = 37600, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
   Unauthorized,

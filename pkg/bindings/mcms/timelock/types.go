@@ -462,7 +462,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 
 const (
 	// Thrown when trying to schedule an operation which contains a blocked function selector.
-	ErrorSelectorIsBlocked ExitCode = iota + 19300
+	ErrorSelectorIsBlocked ExitCode = iota + 60600 // Facility ID * 100
 	// Thrown when trying to execute an operation which is not ready yet.
 	ErrorOperationNotReady
 	// Thrown when an operation is missing a required dependency (predecessor not done).

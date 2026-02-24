@@ -145,6 +145,9 @@ func (b *TestEnvironmentBuilder) newCTFBasedEnvironment(t *testing.T) (cldf.Envi
 		return cldf.Environment{}, fmt.Errorf("failed to create environment: %w", err)
 	}
 
+	// Register operations in the environment's operation registry
+	env.OperationsBundle.OperationRegistry = ops.Registry
+
 	return *env, nil
 }
 

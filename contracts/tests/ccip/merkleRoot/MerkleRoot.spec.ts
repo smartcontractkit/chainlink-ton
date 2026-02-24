@@ -64,6 +64,6 @@ describe('MerkleRoot - Unit Tests', () => {
     const errorCodeVal = await merkleRoot.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(mr.ERROR_CODE))
 
-    expect(mr.ERROR_CODE).toEqual(errorCode(crc32(mr.FACILITY_NAME), 0))
+    expect(mr.ERROR_CODE).toEqual(errorCode(crc32(mr.FACILITY_NAME)))
   })
 })

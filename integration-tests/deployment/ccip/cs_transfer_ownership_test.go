@@ -5,30 +5,36 @@ import (
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
-	chainselectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	mcms_types "github.com/smartcontractkit/mcms/types"
+	mcmstypes "github.com/smartcontractkit/mcms/types"
 
-	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+
+	ccipddeploy "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+
+	testsmcms "github.com/smartcontractkit/chainlink-ton/integration-tests/deployment/mcms"
 )
 
 func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
@@ -38,17 +44,17 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().Build(t)
 	require.NoError(t, err)
 
-	tonSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))[0]
-	tonChain := env.BlockChains.TonChains()[tonSelector]
+	selector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainsel.FamilyTon))[0]
+	tonChain := env.BlockChains.TonChains()[selector]
 
 	version := sequence.ContractsVersionLocal
 
 	// Step 1: Deploy CCIP contracts (deployer becomes owner)
-	dReg := deployops.GetRegistry()
-	output, err := deployops.DeployContracts(dReg).Apply(env, deployops.ContractDeploymentConfig{
-		Chains: map[uint64]deployops.ContractDeploymentConfigPerChain{
-			tonSelector: {
-				Version:                                 &tonstate.Version1_6_0,
+	dReg := ccipddeploy.GetRegistry()
+	output, err := ccipddeploy.DeployContracts(dReg).Apply(env, ccipddeploy.ContractDeploymentConfig{
+		Chains: map[uint64]ccipddeploy.ContractDeploymentConfigPerChain{
+			selector: {
+				Version:                                 &state.Version1_6_0,
 				TokenDecimals:                           9,
 				MaxFeeJuelsPerMsg:                       big.NewInt(1),
 				TokenPriceStalenessThreshold:            0,
@@ -64,15 +70,15 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	env.DataStore = output.DataStore.Seal()
 
 	// Step 1.5: Deploy MCMS contracts (needed for transfer ownership timelock reference)
-	mcmsRegistry := cs_ccip.GetRegistry()
+	mcmsRegistry := ccipdcs.GetRegistry()
 	adapterVersion := semver.MustParse("1.6.0")
-	dReg = deployops.GetRegistry()
-	output, err = deployops.DeployMCMS(dReg, mcmsRegistry).Apply(env, deployops.MCMSDeploymentConfig{
-		Chains: map[uint64]deployops.MCMSDeploymentConfigPerChain{
-			tonSelector: {
-				Canceller:        mcms_types.Config{},
-				Bypasser:         mcms_types.Config{},
-				Proposer:         mcms_types.Config{},
+	dReg = ccipddeploy.GetRegistry()
+	output, err = ccipddeploy.DeployMCMS(dReg, mcmsRegistry).Apply(env, ccipddeploy.MCMSDeploymentConfig{
+		Chains: map[uint64]ccipddeploy.MCMSDeploymentConfigPerChain{
+			selector: {
+				Canceller:        testsmcms.TestMCMSConfig1,
+				Bypasser:         testsmcms.TestMCMSConfig1,
+				Proposer:         testsmcms.TestMCMSConfig1,
 				TimelockMinDelay: big.NewInt(0),
 				ContractVersion:  version,
 			},
@@ -86,9 +92,14 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	env.DataStore = output.DataStore.Seal()
 
 	// Load state to get contract addresses
-	state, err := tonstate.LoadOnchainState(env)
+
+	stateMCMS, err := state.LoadMCMSOnChainState(env)
 	require.NoError(t, err)
-	chainState := state[tonSelector]
+	stateMCMSChainQ := stateMCMS[selector].ByQualifier[ccipdutils.CLLQualifier]
+
+	stateCCIP, err := state.LoadOnchainState(env)
+	require.NoError(t, err)
+	stateCCIPChain := stateCCIP[selector]
 
 	deployerAddr := tonChain.WalletAddress
 
@@ -97,10 +108,14 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 		addr *address.Address
 	}
 	contracts := []contractEntry{
-		{"Router", &chainState.Router},
-		{"OnRamp", &chainState.OnRamp},
-		{"OffRamp", &chainState.OffRamp},
-		{"FeeQuoter", &chainState.FeeQuoter},
+		{"Router", &stateCCIPChain.Router},
+		{"OnRamp", &stateCCIPChain.OnRamp},
+		{"OffRamp", &stateCCIPChain.OffRamp},
+		{"FeeQuoter", &stateCCIPChain.FeeQuoter},
+		// MCMS contracts
+		{"Proposer", stateMCMSChainQ.Proposer},
+		{"Canceller", stateMCMSChainQ.Canceller},
+		{"Bypasser", stateMCMSChainQ.Bypasser},
 	}
 
 	// Step 2: Verify deployer is the initial owner of all contracts
@@ -122,11 +137,15 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	t.Logf("New owner wallet created and funded: %s", newOwnerWallet.WalletAddress().String())
 
 	// Step 4: Build contract refs for the contracts to transfer
-	contractRefs := []datastore.AddressRef{
-		{Address: chainState.Router.String(), Type: tonstate.Router, ChainSelector: tonSelector, Version: &tonstate.Version1_6_0},
-		{Address: chainState.OnRamp.String(), Type: tonstate.OnRamp, ChainSelector: tonSelector, Version: &tonstate.Version1_6_0},
-		{Address: chainState.OffRamp.String(), Type: tonstate.OffRamp, ChainSelector: tonSelector, Version: &tonstate.Version1_6_0},
-		{Address: chainState.FeeQuoter.String(), Type: tonstate.FeeQuoter, ChainSelector: tonSelector, Version: &tonstate.Version1_6_0},
+	contractRefs := []cldfds.AddressRef{
+		{Address: stateCCIPChain.Router.String(), Type: state.Router, ChainSelector: selector, Version: &state.Version1_6_0},
+		{Address: stateCCIPChain.OnRamp.String(), Type: state.OnRamp, ChainSelector: selector, Version: &state.Version1_6_0},
+		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector, Version: &state.Version1_6_0},
+		{Address: stateCCIPChain.FeeQuoter.String(), Type: state.FeeQuoter, ChainSelector: selector, Version: &state.Version1_6_0},
+		// MCMS contracts
+		{Address: stateMCMSChainQ.Proposer.String(), Type: cldfds.ContractType(ccipdutils.ProposerManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
+		{Address: stateMCMSChainQ.Canceller.String(), Type: cldfds.ContractType(ccipdutils.CancellerManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
+		{Address: stateMCMSChainQ.Bypasser.String(), Type: cldfds.ContractType(ccipdutils.BypasserManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
 	}
 
 	// Step 5: Transfer ownership from deployer to new wallet via the tooling API.
@@ -134,24 +153,24 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	// messages directly (plan=false). ShouldAcceptOwnershipWithTransferOwnership returns
 	// false because the proposed owner is the new wallet (not the deployer), so the
 	// changeset only performs the transfer step — accept is handled separately below.
-	toRegistry := deployops.GetTransferOwnershipRegistry()
+	toRegistry := ccipddeploy.GetTransferOwnershipRegistry()
 
-	transferInput := deployops.TransferOwnershipInput{
-		ChainInputs: []deployops.TransferOwnershipPerChainInput{
+	transferInput := ccipddeploy.TransferOwnershipInput{
+		ChainInputs: []ccipddeploy.TransferOwnershipPerChainInput{
 			{
-				ChainSelector: tonSelector,
+				ChainSelector: selector,
 				ContractRef:   contractRefs,
 				CurrentOwner:  deployerAddr.String(),
 				ProposedOwner: newOwnerWallet.WalletAddress().String(),
 			},
 		},
-		AdapterVersion: &tonstate.Version1_6_0,
+		AdapterVersion: &state.Version1_6_0,
 		MCMS: mcms.Input{
-			TimelockAction: mcms_types.TimelockActionSchedule,
+			TimelockAction: mcmstypes.TimelockActionSchedule,
 		},
 	}
 
-	_, err = deployops.TransferOwnershipChangeset(toRegistry, mcmsRegistry).Apply(env, transferInput)
+	_, err = ccipddeploy.TransferOwnershipChangeset(toRegistry, mcmsRegistry).Apply(env, transferInput)
 	require.NoError(t, err, "Failed to transfer ownership")
 	t.Log("Successfully transferred ownership")
 

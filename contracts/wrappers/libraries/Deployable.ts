@@ -11,17 +11,20 @@ import {
   Slice,
 } from '@ton/core'
 
+import { crc32 } from 'zlib'
+import { errorCode, facilityId } from '../utils'
+
 import { loadContractCode } from '../codeLoader'
 import { CellCodec } from '../utils'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.Deployable'
-export const FACILITY_ID = 374
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.lib.Deployable'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  ErrorNotOwner = ERROR_CODE,
+  ErrorNotOwner = 9200, // Facility ID * 100
 }
 
 export type DeployableStorage = {

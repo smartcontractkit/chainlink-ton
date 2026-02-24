@@ -16,7 +16,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorInvalidProofLeavesCannotBeEmpty ExitCode = iota + 46200
+	ErrorInvalidProofLeavesCannotBeEmpty ExitCode = iota + 46200 // Facility ID * 100
 	ErrorInvalidProofLeavesTooLarge
 	ErrorInvalidProofProofsTooLarge
 	ErrorInvalidProofTotalHashesExceededMax

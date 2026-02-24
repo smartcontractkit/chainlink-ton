@@ -4,29 +4,29 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-
-	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms/types"
 
+	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
+	ccipds "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	ton_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 // TonTransferOwnershipAdapter implements the deploy.TransferOwnershipAdapter interface for TON chains.
@@ -46,7 +46,7 @@ func (a *TonTransferOwnershipAdapter) InitializeTimelockAddress(e cldf.Environme
 		if err != nil {
 			return fmt.Errorf("failed to get timelock ref for chain %d: %w", sel, err)
 		}
-		addr, err := datastore_utils.FindAndFormatRef(e.DataStore, timelockRef, sel, ton_utils.ToTONAddress)
+		addr, err := ccipds.FindAndFormatRef(e.DataStore, timelockRef, sel, utils.ToTONAddress)
 		if err != nil {
 			return fmt.Errorf("failed to find timelock address for chain %d: %w", sel, err)
 		}
@@ -57,20 +57,15 @@ func (a *TonTransferOwnershipAdapter) InitializeTimelockAddress(e cldf.Environme
 	return nil
 }
 
-func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_ops.Sequence[deploy.TransferOwnershipPerChainInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return cldf_ops.NewSequence(
+func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfops.Sequence[deploy.TransferOwnershipPerChainInput, sequences.OnChainOutput, cldfchain.BlockChains] {
+	return cldfops.NewSequence(
 		"ton/sequences/ccip/tooling-api/transfer-ownership-via-mcms",
 		semver.MustParse("0.1.0"),
 		"Transfers ownership of TON contracts via MCMS",
-		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in deploy.TransferOwnershipPerChainInput) (output sequences.OnChainOutput, err error) {
+		func(b cldfops.Bundle, chains cldfchain.BlockChains, in deploy.TransferOwnershipPerChainInput) (output sequences.OnChainOutput, err error) {
 			chain, ok := chains.TonChains()[in.ChainSelector]
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found in environment", in.ChainSelector)
-			}
-
-			proposedOwner, err := address.ParseAddr(in.ProposedOwner)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse proposed owner address: %w", err)
 			}
 
 			dp, err := dep.NewDependencyProvider(
@@ -80,13 +75,17 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
-			deployerAddr := chain.Wallet.WalletAddress()
+			proposedOwner, err := a.getProposedOwner(in)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get proposed owner: %w", err)
+			}
+
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
-			var currentOwner *address.Address
-			currentOwner, err = address.ParseAddr(in.CurrentOwner)
+			deployerAddr := chain.Wallet.WalletAddress()
+			currentOwner, err := a.getCurrentOwner(in, deployerAddr)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse current owner address: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get current owner: %w", err)
 			}
 
 			for _, contractRef := range in.ContractRef {
@@ -94,16 +93,15 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 					return sequences.OnChainOutput{}, fmt.Errorf("timelock address not initialized for chain %d, cannot plan transfer ownership to non-deployer", in.ChainSelector)
 				}
 
-				ownableType := bindings.PkgLib + ".access.Ownable"
-				var contractAddr *address.Address
-				contractAddr, err = address.ParseAddr(contractRef.Address)
+				contractType := bindings.PkgLib + ".access.Ownable"
+				//nolint:govet // allow shadowing
+				contractAddr, err := address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
 				}
 
 				// Read the actual on-chain owner
-				var onChainOwner *address.Address
-				onChainOwner, err = tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, ownable2step.GetOwner)
+				onChainOwner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, contractAddr, ownable2step.GetOwner)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get owner of %s: %w", contractRef.Address, err)
 				}
@@ -122,14 +120,13 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 					NewOwner: proposedOwner,
 				}
 
-				var r cldf_ops.Report[opston.SendMessagesInput, opston.SendMessagesOutput]
-				r, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				r, err := cldfops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
 							DstAddr: contractAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body:    codec.MustWrapMessage[any](ownableType, body),
+							Body:    codec.MustWrapMessage[any](contractType, body),
 						},
 					},
 					Plan: true,
@@ -142,13 +139,13 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 				plan := !deployerAddr.Equals(currentOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: ownableType,
+						ContractType: contractType,
 						Tags:         []string{},
 					},
 				})
 			}
 
-			r, err := cldf_ops.ExecuteOperation(b, opsmcms.SendOrPlan, dp, _inputMCMS)
+			r, err := cldfops.ExecuteOperation(b, opsmcms.SendOrPlan, dp, _inputMCMS)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan transfer ownership messages: %w", err)
 			}
@@ -158,20 +155,15 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldf_o
 	)
 }
 
-func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequence[deploy.TransferOwnershipPerChainInput, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	return cldf_ops.NewSequence(
+func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequence[deploy.TransferOwnershipPerChainInput, sequences.OnChainOutput, cldfchain.BlockChains] {
+	return cldfops.NewSequence(
 		"ton/sequences/ccip/tooling-api/accept-ownership",
 		semver.MustParse("0.1.0"),
 		"Accepts ownership of TON contracts",
-		func(b cldf_ops.Bundle, chains cldf_chain.BlockChains, in deploy.TransferOwnershipPerChainInput) (output sequences.OnChainOutput, err error) {
+		func(b cldfops.Bundle, chains cldfchain.BlockChains, in deploy.TransferOwnershipPerChainInput) (output sequences.OnChainOutput, err error) {
 			chain, ok := chains.TonChains()[in.ChainSelector]
 			if !ok {
 				return sequences.OnChainOutput{}, fmt.Errorf("TON chain with selector %d not found in environment", in.ChainSelector)
-			}
-
-			proposedOwner, err := address.ParseAddr(in.ProposedOwner)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to parse proposed owner address: %w", err)
 			}
 
 			dp, err := dep.NewDependencyProvider(
@@ -181,17 +173,22 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
 			}
 
+			proposedOwner, err := a.getProposedOwner(in)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get proposed owner: %w", err)
+			}
+
 			sender := chain.Wallet.WalletAddress()
 			_inputMCMS := opsmcms.NewSendOrPlanInput(types.ChainSelector(in.ChainSelector))
 
 			for _, contractRef := range in.ContractRef {
-				var contractAddr *address.Address
-				contractAddr, err = address.ParseAddr(contractRef.Address)
+				//nolint:govet // allow shadowing
+				contractAddr, err := address.ParseAddr(contractRef.Address)
 				if err != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to parse contract address %s: %w", contractRef.Address, err)
 				}
 
-				ownableType := bindings.PkgLib + ".access.Ownable"
+				contractType := bindings.PkgLib + ".access.Ownable"
 				queryID, errQ := tvm.RandomQueryID()
 				if errQ != nil {
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to generate query ID: %w", errQ)
@@ -201,14 +198,13 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 					QueryID: queryID,
 				}
 
-				var r cldf_ops.Report[opston.SendMessagesInput, opston.SendMessagesOutput]
-				r, err = cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
+				r, err := cldfops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
 							DstAddr: contractAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body:    codec.MustWrapMessage[any](ownableType, body),
+							Body:    codec.MustWrapMessage[any](contractType, body),
 						},
 					},
 					Plan: true,
@@ -222,13 +218,13 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 				plan := !sender.Equals(proposedOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: ownableType,
+						ContractType: contractType,
 						Tags:         []string{},
 					},
 				})
 			}
 
-			r, err := cldf_ops.ExecuteOperation(b, opsmcms.SendOrPlan, dp, _inputMCMS)
+			r, err := cldfops.ExecuteOperation(b, opsmcms.SendOrPlan, dp, _inputMCMS)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to send or plan accept ownership messages: %w", err)
 			}
@@ -243,14 +239,49 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldf_ops.Sequen
 // Returns false when the proposed owner is the deployer (timelock transfers via deferred execution, can't accept in same changeset).
 // Returns false when the proposed owner is unknown
 func (a *TonTransferOwnershipAdapter) ShouldAcceptOwnershipWithTransferOwnership(_ cldf.Environment, in deploy.TransferOwnershipPerChainInput) (bool, error) {
-	proposedOwner, err := address.ParseAddr(in.ProposedOwner)
+	proposedOwner, err := a.getProposedOwner(in)
 	if err != nil {
-		return false, fmt.Errorf("failed to parse proposed owner address: %w", err)
+		return false, fmt.Errorf("failed to get proposed owner: %w", err)
 	}
 
-	if timelockAddr, exist := a.timelockAddrs[in.ChainSelector]; exist && proposedOwner.Equals(timelockAddr) {
-		return true, nil
+	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
+	if ok && proposedOwner.Equals(timelockAddr) {
+		return true, nil // proposed owner is timelock, can accept in same changeset - will plan a proposal
 	}
 
 	return false, nil
+}
+
+// Default proposed owner to timelock address if not provided
+func (a *TonTransferOwnershipAdapter) getProposedOwner(in deploy.TransferOwnershipPerChainInput) (*address.Address, error) {
+	if in.ProposedOwner != "" {
+		proposedOwner, err := address.ParseAddr(in.ProposedOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse proposed owner address: %w", err)
+		}
+
+		return proposedOwner, nil
+	}
+
+	timelockAddr, ok := a.timelockAddrs[in.ChainSelector]
+	if !ok {
+		return nil, fmt.Errorf("timelock address not initialized for chain %d", in.ChainSelector)
+	}
+
+	return timelockAddr, nil
+}
+
+func (a *TonTransferOwnershipAdapter) getCurrentOwner(in deploy.TransferOwnershipPerChainInput, defaultAddr *address.Address) (*address.Address, error) {
+	// Default current owner to deployer address if not provided
+	// Notice: common case where deployer is transferring to timelock
+	if in.CurrentOwner != "" {
+		currentOwner, err := address.ParseAddr(in.CurrentOwner)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse current owner address: %w", err)
+		}
+
+		return currentOwner, nil
+	}
+
+	return defaultAddr, nil
 }

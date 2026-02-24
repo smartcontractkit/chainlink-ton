@@ -3,37 +3,40 @@ package sequences
 import (
 	"fmt"
 
-	mcms_ton "github.com/smartcontractkit/mcms/sdk/ton"
+	mcmston "github.com/smartcontractkit/mcms/sdk/ton"
 	"github.com/smartcontractkit/mcms/types"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-	datastore_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
-	mcms_utils "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+	ccipdutils "github.com/smartcontractkit/chainlink-ccip/deployment/utils"
+	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	ccipdds "github.com/smartcontractkit/chainlink-ccip/deployment/utils/datastore"
+	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
+var _ ccipdcs.MCMSReader = &MCMSReaderAdapter{}
+
 type MCMSReaderAdapter struct{}
 
 // GetChainMetadata returns the chain metadata for a given MCMS input.
-func (r *MCMSReaderAdapter) GetChainMetadata(e deployment.Environment, chainSelector uint64, input mcms_utils.Input) (types.ChainMetadata, error) {
-	chain, ok := e.BlockChains.TonChains()[chainSelector]
+func (r *MCMSReaderAdapter) GetChainMetadata(e cldf.Environment, cs uint64, input ccipdmcms.Input) (types.ChainMetadata, error) {
+	chain, ok := e.BlockChains.TonChains()[cs]
 	if !ok {
-		return types.ChainMetadata{}, fmt.Errorf("chain with selector %d not found in environment", chainSelector)
+		return types.ChainMetadata{}, fmt.Errorf("chain with selector %d not found in environment", cs)
 	}
 
-	mcmsAddr, err := r.GetMCMSRef(e, chainSelector, input)
+	mcmsAddr, err := r.GetMCMSRef(e, cs, input)
 	if err != nil {
-		return types.ChainMetadata{}, fmt.Errorf("failed to get MCMS address for chain %d: %w", chainSelector, err)
+		return types.ChainMetadata{}, fmt.Errorf("failed to get MCMS address for chain %d: %w", cs, err)
 	}
 
-	inspector := mcms_ton.NewInspector(chain.Client)
+	inspector := mcmston.NewInspector(chain.Client)
 	counts, err := inspector.GetOpCount(e.GetContext(), mcmsAddr.Address)
 	if err != nil {
-		return types.ChainMetadata{}, fmt.Errorf("failed to get opCount for MCMS at address %s on chain %d: %w", mcmsAddr.Address, chainSelector, err)
+		return types.ChainMetadata{}, fmt.Errorf("failed to get opCount for MCMS at address %s on chain %d: %w", mcmsAddr.Address, cs, err)
 	}
 
 	return types.ChainMetadata{
@@ -44,33 +47,38 @@ func (r *MCMSReaderAdapter) GetChainMetadata(e deployment.Environment, chainSele
 }
 
 // GetTimelockRef returns the timelock contract address reference for a given MCMS input.
-func (r *MCMSReaderAdapter) GetTimelockRef(e deployment.Environment, chainSelector uint64, input mcms_utils.Input) (datastore.AddressRef, error) {
-	ref := datastore_utils.GetAddressRef(
-		e.DataStore.Addresses().Filter(),
-		chainSelector,
-		deployment.ContractType(state.Timelock),
-		&state.TimelockVersion,
-		input.Qualifier,
-	)
+func (r *MCMSReaderAdapter) GetTimelockRef(e cldf.Environment, cs uint64, input ccipdmcms.Input) (cldfds.AddressRef, error) {
+	t := ccipdutils.RBACTimelock
+	version := state.TimelockVersion
+	ref := ccipdds.GetAddressRef(e.DataStore.Addresses().Filter(), cs, t, &version, input.Qualifier)
 	if ref.Address == "" {
-		return datastore.AddressRef{}, fmt.Errorf("timelock contract not found for chain selector %d", chainSelector)
+		return cldfds.AddressRef{}, fmt.Errorf("timelock contract not found for chain selector %d", cs)
 	}
+
 	return ref, nil
 }
 
 // GetMCMSRef returns the MCMS contract address reference for a given MCMS input.
-func (r *MCMSReaderAdapter) GetMCMSRef(e deployment.Environment, chainSelector uint64, input mcms_utils.Input) (datastore.AddressRef, error) {
-	ref := datastore_utils.GetAddressRef(
-		e.DataStore.Addresses().Filter(),
-		chainSelector,
-		deployment.ContractType(state.MCMS),
-		&state.MCMSVersion,
-		input.Qualifier,
-	)
-	if ref.Address == "" {
-		return datastore.AddressRef{}, fmt.Errorf("MCMS contract not found for chain selector %d", chainSelector)
+func (r *MCMSReaderAdapter) GetMCMSRef(e cldf.Environment, cs uint64, input ccipdmcms.Input) (cldfds.AddressRef, error) {
+	// find mcms address
+	// populate contract type from TimelockAction
+	var t cldf.ContractType
+	switch input.TimelockAction {
+	case types.TimelockActionSchedule:
+		t = ccipdutils.ProposerManyChainMultisig
+	case types.TimelockActionBypass:
+		t = ccipdutils.BypasserManyChainMultisig
+	case types.TimelockActionCancel:
+		t = ccipdutils.CancellerManyChainMultisig
+	default:
+		return cldfds.AddressRef{}, fmt.Errorf("unsupported timelock action type: %s", input.TimelockAction)
 	}
+
+	version := state.MCMSVersion
+	ref := ccipdds.GetAddressRef(e.DataStore.Addresses().Filter(), cs, t, &version, input.Qualifier)
+	if ref.Address == "" {
+		return cldfds.AddressRef{}, fmt.Errorf("MCMS contract not found for chain selector %d", cs)
+	}
+
 	return ref, nil
 }
-
-var _ changesets.MCMSReader = &MCMSReaderAdapter{}

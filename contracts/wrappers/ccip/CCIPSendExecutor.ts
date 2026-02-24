@@ -11,20 +11,22 @@ import {
   Slice,
 } from '@ton/core'
 
-import { CellCodec } from '../utils'
-import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
+
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as or from './OnRamp'
 import * as fq from './FeeQuoter'
 
 export const CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
-export const FACILITY_ID = 436
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.CCIPSendExecutor'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum error {
-  StateNotExpected = ERROR_CODE,
+  StateNotExpected = 17800, // Facility ID * 100
   Unauthorized,
   InsufficientFunds,
   InsufficientFee,

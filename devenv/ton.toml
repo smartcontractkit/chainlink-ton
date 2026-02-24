@@ -10,6 +10,6 @@
   container_name = "ton-chain"
   chain_id = "-217"
   type = "ton"
-  image = "ghcr.io/neodix42/mylocalton-docker:v3.99"
+  image = "ghcr.io/neodix42/mylocalton-docker:v4.0.0"
   port = "8575"
   custom_env = {VERSION_CAPABILITIES = "12", NEXT_BLOCK_GENERATION_DELAY = "0.5"}

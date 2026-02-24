@@ -16,8 +16,8 @@ import (
 // Notice: we expect account contracts (e.g., Wallet contracts, MCMS/Timelock, multisigs, etc) to accept
 // all incoming messages (replies) and not reject with 0xffff (wrong opcode) but accept/ignore.
 var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current *tracetracking.ReceivedMessage) (bool, error) {
-	// Check if internal messages exist, or continue (e.g., for external messages)
-	if parent.InternalMsg == nil || current.InternalMsg == nil {
+	// Check if internal messages exist, or continue
+	if current.InternalMsg == nil {
 		return false, nil
 	}
 
@@ -27,11 +27,6 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 	}
 
 	// Check specific conditions and opcodes for MCMS/CCIP messages to determine trace boundaries
-	opcodeParent, err := tvm.ExtractOpcode(parent.InternalMsg.Body)
-	if err != nil {
-		return false, fmt.Errorf("failed to extract opcode from parent message: %w", err)
-	}
-
 	opcodeCurrent, err := tvm.ExtractOpcode(current.InternalMsg.Body)
 	if err != nil {
 		return false, fmt.Errorf("failed to extract opcode from current message: %w", err)
@@ -39,6 +34,7 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 
 	// Stop tracing on NoState exit code (fwd notifications to uninitialized accounts)
 	if ec == tvm.ExitCodeComputeSkipReasonNoState {
+		fmt.Printf("Stopping trace tracking due to NoState exit code on opcode %d\n", opcodeCurrent)
 		switch uint64(opcodeCurrent) {
 		case 0:
 			return true, nil // allow empty messages to uninitialized accounts (stop tracing)
@@ -47,6 +43,15 @@ var DefaultTraceStopCondition tracetracking.StopCondition = func(parent, current
 		case rbac.OpcodeRoleRevoked:
 			return true, nil // allow ac forward notifications to uninitialized accounts (stop tracing)
 		}
+	}
+
+	if parent.InternalMsg == nil {
+		return false, nil
+	}
+
+	opcodeParent, err := tvm.ExtractOpcode(parent.InternalMsg.Body)
+	if err != nil {
+		return false, fmt.Errorf("failed to extract opcode from parent message: %w", err)
 	}
 
 	switch uint64(opcodeParent) {

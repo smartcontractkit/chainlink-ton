@@ -348,8 +348,15 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ctx context.Contex
 
 		receivedMessage, err := waitForMatchingMessage(subCtx, transactionsReceived, sentMessage)
 
-		// Cancel context as soon as we have the result to prevent leaks
+		// Cancel context and drain the channel so the SubscribeOnTransactions goroutine
+		// can unblock from its bare `channel <- tx` send, reach the `workerCtx.Done()`
+		// select, and exit. Without draining, the goroutine leaks forever.
 		cancel()
+		go func() {
+			for tx := range transactionsReceived {
+				_ = tx // intentionally draining channel to unblock sender goroutine
+			}
+		}()
 
 		if err != nil {
 			return err
@@ -451,6 +458,7 @@ func (m *ReceivedMessage) WaitForTrace(ctx context.Context, c ton.APIClientWrapp
 
 	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
 		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
+
 		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
 		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ctx, c)
 		if err != nil {
@@ -498,6 +506,7 @@ func (m *ReceivedMessage) TraceExitCodeWith(boundary StopCondition) (tvm.ExitCod
 	for len(stack) > 0 {
 		n := len(stack) - 1
 		curr := stack[n]
+
 		stack = stack[:n]
 		exitCode, err := curr.ExitCode()
 		if err != nil {

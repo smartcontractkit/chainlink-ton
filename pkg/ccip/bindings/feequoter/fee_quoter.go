@@ -46,7 +46,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorUnsupportedChainFamilySelector ExitCode = ExitCode(24800 + iota)
+	ErrorUnsupportedChainFamilySelector ExitCode = ExitCode(34400 + iota)
 	ErrorGasLimitTooHigh
 	ExtraArgOutOfOrderExecutionMustBeTrue
 	ErrorInvalidExtraArgsData

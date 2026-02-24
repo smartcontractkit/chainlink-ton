@@ -1,5 +1,5 @@
-// getFacilityId(stringCrc32(com.chainlink.ton.lib.ocr.MultiOCR3Base))
-const MultiOCR3Base_FACILITY_ID = 31;
+// SPDX-License-Identifier: BUSL-1.1
+const MultiOCR3Base_FACILITY_ID = 545; // (crc32(<facility>) % 640) + 10
 const MultiOCR3Base_ERROR_CODE = MultiOCR3Base_FACILITY_ID * 100
 
 enum MultiOCR3Base_Error {

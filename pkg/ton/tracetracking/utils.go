@@ -17,6 +17,7 @@ func WaitForTrace(ctx context.Context, c ton.APIClientWrapped, tx *tlb.Transacti
 	if err != nil {
 		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
+
 	err = r.WaitForTrace(ctx, c)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)

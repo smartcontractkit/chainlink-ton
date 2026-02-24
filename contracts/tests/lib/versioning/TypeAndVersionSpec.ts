@@ -8,7 +8,7 @@ import { ContractCoverageConfig, generateCoverageArtifacts } from '../../coverag
  * Configuration for testing type and version
  */
 export type TypeAndVersionTestConfig<TContract> = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.ccip.FeeQuoter') */
+  /** The expected contract type name (e.g., 'link.chain.ton.ccip.FeeQuoter') */
   type: string
   /** Version string for current version contract */
   version: string
@@ -46,7 +46,7 @@ interface TestSetup {
  * import { * } as TypeAndVersionSpec from './TypeAndVersionSpec'
  *
  * const typeAndVersionSpec = TypeAndVersionSpec.newInstance({
- *   type: 'com.chainlink.ton.examples.MyContract',
+ *   type: 'link.chain.ton.examples.MyContract',
  *   version: '1.0.0',
  *   deployContract: async (blockchain, deployer) => {
  *     const contract = blockchain.openContract(

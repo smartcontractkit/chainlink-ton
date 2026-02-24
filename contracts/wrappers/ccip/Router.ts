@@ -13,8 +13,9 @@ import {
   TupleItem,
 } from '@ton/core'
 
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
 import { asSnakedCell, asSnakeDataUint, fromSnakeData } from '../../src/utils'
-import { CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -27,12 +28,12 @@ import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export const ROUTER_CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
-export const FACILITY_ID = 496
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.Router'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum RouterError {
-  DestChainNotEnabled = ERROR_CODE,
+  DestChainNotEnabled = 57100,
   SourceChainNotEnabled,
   SenderIsNotOffRamp,
   OffRampNotSetForSelector,

@@ -30,14 +30,12 @@ var (
 	OnRamp    ds.ContractType = "OnRamp"
 	OffRamp   ds.ContractType = "OffRamp"
 	FeeQuoter ds.ContractType = "FeeQuoter"
-	MCMS      ds.ContractType = "MCMS"
 	// Internal contracts
 	Deployer        ds.ContractType = "Deployer"
 	MerkleRoot      ds.ContractType = "MerkleRoot"
 	SendExecutor    ds.ContractType = "SendExecutor"
 	ReceiveExecutor ds.ContractType = "ReceiveExecutor"
 	// Utilities
-	Timelock    ds.ContractType = "Timelock"
 	TonReceiver ds.ContractType = "Receiver"
 	Counter     ds.ContractType = "Counter"
 )

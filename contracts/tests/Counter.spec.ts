@@ -44,7 +44,7 @@ describe('Counter', () => {
 
   it('should have type and version', async () => {
     const typeAndVersion = await bind.counter.getTypeAndVersion()
-    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.Counter')
+    expect(typeAndVersion.type).toBe('link.chain.ton.examples.Counter')
     expect(typeAndVersion.version).toBe('1.1.2')
   })
 

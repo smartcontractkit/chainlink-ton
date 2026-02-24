@@ -17,7 +17,7 @@ func TestMessageEnvelopeMarshalJSONPrefersCell(t *testing.T) {
 	env, err := codec.WrapMessage(bindings.PkgCCIP+".Router", sample)
 	require.NoError(t, err)
 
-	want := `{"contract":"com.chainlink.ton.ccip.Router","type":"ApplyRampUpdates","opcode":"0x7db6745d","payload":{"QueryID":0,"OnRampUpdates":null,"OffRampAdds":null,"OffRampRemoves":null}}`
+	want := `{"contract":"link.chain.ton.ccip.Router","type":"ApplyRampUpdates","opcode":"0x7db6745d","payload":{"QueryID":0,"OnRampUpdates":null,"OffRampAdds":null,"OffRampRemoves":null}}`
 
 	got, err := json.Marshal(env)
 	require.NoError(t, err)

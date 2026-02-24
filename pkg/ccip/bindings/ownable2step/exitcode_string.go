@@ -8,9 +8,9 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorOnlyCallableByOwner-20400]
-	_ = x[ErrorCannotTransferToSelf-20401]
-	_ = x[ErrorMustBeProposedOwner-20402]
+	_ = x[ErrorOnlyCallableByOwner-49800]
+	_ = x[ErrorCannotTransferToSelf-49801]
+	_ = x[ErrorMustBeProposedOwner-49802]
 }
 
 const _ExitCode_name = "ErrorOnlyCallableByOwnerErrorCannotTransferToSelfErrorMustBeProposedOwner"
@@ -18,8 +18,8 @@ const _ExitCode_name = "ErrorOnlyCallableByOwnerErrorCannotTransferToSelfErrorMu
 var _ExitCode_index = [...]uint8{0, 24, 49, 73}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 20400
-	if i < 20400 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 49800
+	if i < 49800 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

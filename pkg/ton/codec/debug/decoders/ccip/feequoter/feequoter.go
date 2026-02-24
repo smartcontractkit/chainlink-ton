@@ -4,6 +4,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -22,7 +23,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 func (d *decoder) ContractType() string {
-	return "com.chainlink.ton.ccip.FeeQuoter"
+	return bindings.TypeFeeQuoter
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {

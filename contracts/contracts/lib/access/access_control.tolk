@@ -217,7 +217,7 @@ const DEFAULT_ADMIN_ROLE = 0x00;
 
 /// Error codes used by the Timelock contract.
 enum AccessControl_Error {
-    UnauthorizedAccount = 60900 // AccessControl<T>.errorCode(0)
+    UnauthorizedAccount = 47400 // AccessControl<T>.errorCode(0)
     BadConfirmation
 }
 
@@ -226,7 +226,7 @@ enum AccessControl_Error {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 60900
 fun AccessControl<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.lib.access.AccessControl"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.lib.access.AccessControl"), local);
 }
 
 /// @dev Returns the sender of the message.

@@ -514,7 +514,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-	ErrorOutOfBoundsNumSigners ExitCode = iota + 39000
+	ErrorOutOfBoundsNumSigners ExitCode = iota + 10400 // Facility ID * 100
 
 	// Thrown when signerAddresses and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch
