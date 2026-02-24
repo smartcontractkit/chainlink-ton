@@ -35,7 +35,7 @@ const (
 	ContractsVersionLocal = "local"
 	// Notice: "local" should be used only for development,
 	// while a specific version should be pinned for releases (production deployments).
-	ContractsVersionLatestSupported = "788c63978124" // Feb 5, 2026
+	ContractsVersionLatestSupported = "054376f21418" // Feb 19, 2026
 )
 
 type ContractMappingMetadata struct {
