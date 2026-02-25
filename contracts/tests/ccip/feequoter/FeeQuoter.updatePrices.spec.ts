@@ -319,6 +319,35 @@ describe('FeeQuoter UpdatePrices', () => {
     })
   })
 
+  it('should not end up with lower balance than initial balance after returning excess', async () => {
+    const contract = await blockchain.getContract(setup.bind.feeQuoter.address)
+    const initialBalance = contract.balance
+
+    const priceUpdates: feeQuoter.PriceUpdates = {
+      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
+      gasPricesUpdates: [],
+    }
+
+    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
+      value: toNano('0.01'),
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
+    })
+
+    expect(updateResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+
+    expect(updateResult.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      to: setup.acc.deployer.address,
+      success: true,
+    })
+
+    const finalBalance = (await blockchain.getContract(setup.bind.feeQuoter.address)).balance
+    expect(finalBalance).toEqual(initialBalance)
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       const testSuitePrefix = 'feeQuoter_update_prices_suite'

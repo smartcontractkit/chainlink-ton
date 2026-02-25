@@ -536,7 +536,8 @@ fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
         dest: receiver,
         body: createEmptyCell(),
     });
-    returnExcesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    returnExcesses.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {
