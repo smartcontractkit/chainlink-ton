@@ -106,8 +106,14 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 	addresses := make([]cldfds.AddressRef, 0) // deployed contract addresses to return in output
 
+	// Notice: we set a (static) default when version is not provided (e.g., common 'deploy_mcms_for_cll' changeset)
+	contractVersion := sequence.ContractsVersionLatestSupported
+	if in.Config.ContractVersion != "" {
+		contractVersion = in.Config.ContractVersion
+	}
+
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
-		ContractsVersionSha: in.Config.ContractVersion,
+		ContractsVersionSha: contractVersion,
 		Contracts: []cldfds.ContractType{
 			state.Timelock,
 			state.MCMS, // Notice: this is the type we use to load contract code, vs. deployment types

@@ -54,10 +54,16 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		return sequences.OnChainOutput{}, fmt.Errorf("failed to resolve ton ccip state: %w", err)
 	}
 
+	// Notice: we set a (static) default when version is not provided
+	contractVersion := sequence.ContractsVersionLatestSupported
+	if in.ContractsVersionSha != "" {
+		contractVersion = in.ContractsVersionSha
+	}
+
 	// TODO: don't directly execute deployments, instead return them as txs
 	addresses := make([]datastore.AddressRef, 0)
 	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
-		ContractsVersionSha: in.ContractsVersionSha,
+		ContractsVersionSha: contractVersion,
 		Contracts: []datastore.ContractType{
 			state.Router,
 			state.FeeQuoter,
