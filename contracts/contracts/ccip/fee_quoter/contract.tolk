@@ -16,7 +16,7 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
@@ -664,6 +664,7 @@ get fun reserve(): coins {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell { 
+    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
     return storage;
 }
 
