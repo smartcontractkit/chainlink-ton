@@ -6,14 +6,13 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 type Storage struct {
-	ID            uint32                   `tlb:"## 32"`
-	Router        *address.Address         `tlb:"addr"`
-	AllowedSender common.CrossChainAddress `tlb:"^"`
+	ID     uint32           `tlb:"## 32"`
+	Router *address.Address `tlb:"addr"`
+	// AllowedSender common.CrossChainAddress `tlb:"^"`
 }
 
 type Tick struct {

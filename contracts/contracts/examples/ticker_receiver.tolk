@@ -11,6 +11,7 @@ import "../ccip/router/messages"
 
 
 const CONTRACT_VERSION = "1.0.0";
+const FACILITY_ID = 999; // getFacilityId(stringCrc32("com.chainlink.ton.examples.TickerReceiver"))
 
 /// Message to start the ticker.
 struct (0xd4834e00) Ticker_Tick {
@@ -28,7 +29,7 @@ struct (0x46033C09) Ticker_TickRec {
 struct Storage {
     id: uint32
     router: address
-    allowedSender: cell
+    // allowedSender: cell
 }
 
 fun Storage.load(): Storage {
@@ -36,7 +37,7 @@ fun Storage.load(): Storage {
 }
 
 enum TickerReceiver_Error {
-    Unauthorized = 10000,
+    Unauthorized = 99900,
 }
 
 type Msg =
@@ -59,7 +60,8 @@ fun onInternalMessage(in: InMessage) {
 
             // 3. Note: Skip enqueue CCIPReceiveConfirm to msg.callback
 
-            assert (msg.message.sender.bitsEqual(st.allowedSender.beginParse())) throw (TickerReceiver_Error.Unauthorized as int);
+            // TODO maybe next iteration
+            // assert (msg.message.sender.bitsEqual(st.allowedSender.beginParse())) throw (TickerReceiver_Error.Unauthorized as int);
 
             val tick = Ticker_Tick.fromCell(msg.message.data);
 
@@ -116,7 +118,20 @@ get fun id(): int {
     return s.id;
 }
 
+get fun router(): address {
+    val s = lazy Storage.load();
+    return s.router;
+}
+
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.examples.Ticker", CONTRACT_VERSION)
+    return ("com.chainlink.ton.examples.TickerReceiver", CONTRACT_VERSION)
+}
+
+get fun facilityId(): uint16  {
+    return FACILITY_ID;
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.test.TickerReceiver"), local);
 }
