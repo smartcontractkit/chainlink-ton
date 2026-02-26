@@ -216,7 +216,6 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 }
 
 func resolveSenderAddress(ctx context.Context, c *client, srcAddrStr string, effectiveTxHash string, txHashStr string) (*address.Address, error) {
-	var err error
 	if srcAddrStr == "" {
 		if !c.supportsToncenter() {
 			return nil, fmt.Errorf("source address is required for network %s when toncenter metadata is unavailable", c.net)
