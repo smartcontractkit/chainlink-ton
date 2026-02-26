@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -64,6 +65,39 @@ func decodeTxHash(txHash string) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported tx hash format: %s", txHash)
+}
+
+func parseShardID(shardHex string) (int64, error) {
+	if after, ok := strings.CutPrefix(shardHex, "0x"); ok {
+		shardHex = after
+	}
+
+	parsed := new(big.Int)
+	if _, ok := parsed.SetString(shardHex, 16); !ok {
+		return 0, fmt.Errorf("invalid shard id: %s", shardHex)
+	}
+
+	if parsed.Sign() < 0 {
+		if !parsed.IsInt64() {
+			return 0, fmt.Errorf("shard id out of int64 range: %s", shardHex)
+		}
+		return parsed.Int64(), nil
+	}
+
+	if parsed.BitLen() > 64 {
+		return 0, fmt.Errorf("shard id out of 64-bit range: %s", shardHex)
+	}
+
+	if parsed.Bit(63) == 1 {
+		twoTo64 := new(big.Int).Lsh(big.NewInt(1), 64)
+		parsed.Sub(parsed, twoTo64)
+	}
+
+	if !parsed.IsInt64() {
+		return 0, fmt.Errorf("shard id out of int64 range: %s", shardHex)
+	}
+
+	return parsed.Int64(), nil
 }
 
 func (c *client) getTraceRootTxHash(ctx context.Context, txHashStr string) (string, error) {
@@ -173,12 +207,12 @@ func (c *client) findTxByToncenterMetadata(ctx context.Context, api ton.APIClien
 		return nil, fmt.Errorf("failed to parse lt from toncenter response: %w", err)
 	}
 
-	shard, err := strconv.ParseUint(res.BlockRef.Shard, 16, 64)
+	shard, err := parseShardID(res.BlockRef.Shard)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse shard from toncenter response: %w", err)
 	}
 
-	block, err := api.LookupBlock(ctx, res.BlockRef.Workchain, int64(shard), res.BlockRef.SeqNo)
+	block, err := api.LookupBlock(ctx, res.BlockRef.Workchain, shard, res.BlockRef.SeqNo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lookup block from toncenter metadata: %w", err)
 	}
