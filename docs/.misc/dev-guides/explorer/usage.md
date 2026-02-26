@@ -2,13 +2,15 @@
 
 Command-line tool for analyzing TON blockchain transactions and traces.
 
+Read [TON Explorer Architecture](./architecture.md) for internal module layout and execution flow.
+
 ## Usage
 
 Three ways to run:
 
 1. **URL**: `./explorer <tonscan-url>`
 2. **Hash + Address**: `./explorer <tx-hash> <address>`
-3. **Hash only**: `./explorer <tx-hash>` (testnet/mainnet only)
+3. **Hash only**: `./explorer <tx-hash>` (testnet/mainnet only unless sender address is provided separately)
 
 ## Run with Nix
 
@@ -37,7 +39,7 @@ go build
 # Hash + address
 ./explorer <tx-hash> <address> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 
-# Hash only (auto-resolves address)
+# Hash only (auto-resolves address via toncenter on testnet/mainnet)
 ./explorer <tx-hash> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 ```
 
@@ -71,6 +73,8 @@ Display message trace as a tree structure with `--visualization tree`.
 --verbose                    # Show debugging information
 --page-size 10 --max-pages 10 # Control transaction search pagination
 ```
+
+Note: `--address` and `--tx` flags are not supported; use positional arguments.
 
 ## Environment injection
 

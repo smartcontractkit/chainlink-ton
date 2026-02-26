@@ -120,7 +120,7 @@ func (v *visualization) actorFromAddr(addr *address.Address) *sequence.Actor {
 	var actor *sequence.Actor
 	var ok bool
 	name := v.describeAddr(addr)
-	id := strings.ReplaceAll(addr.StringRaw(), ":", "_")
+	id := sanitizeMermaidIdentifier(addr.StringRaw())
 	if actor, ok = v.ActiveActors[id]; !ok {
 		actor = v.Diagram.AddActor(id, name, sequence.ActorParticipant)
 		v.ActiveActors[id] = actor

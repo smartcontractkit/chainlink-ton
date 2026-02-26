@@ -5,6 +5,43 @@ import (
 	"unicode/utf8"
 )
 
+func sanitizeMermaidIdentifier(s string) string {
+	if s == "" {
+		return "actor"
+	}
+
+	var b strings.Builder
+	b.Grow(len(s) + 6)
+
+	for i, r := range s {
+		isAlpha := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+		isDigit := r >= '0' && r <= '9'
+
+		if i == 0 {
+			if isAlpha || r == '_' {
+				b.WriteRune(r)
+				continue
+			}
+			if isDigit {
+				b.WriteString("a_")
+				b.WriteRune(r)
+				continue
+			}
+			b.WriteString("a_")
+			b.WriteByte('_')
+			continue
+		}
+
+		if isAlpha || isDigit || r == '_' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+
+	return b.String()
+}
+
 func sanitizeString(s string) string {
 	var b strings.Builder
 	for i, line := range strings.Split(s, "\n") {

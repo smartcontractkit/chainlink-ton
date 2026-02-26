@@ -135,3 +135,39 @@ func TestWrap(t *testing.T) {
 		})
 	}
 }
+
+func TestSanitizeMermaidIdentifier(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "masterchain raw address",
+			input:    "-1_e69571e7b9f58edfebefa297e547f36920532289dbe9ff1b76d107fcbac30104",
+			expected: "a__1_e69571e7b9f58edfebefa297e547f36920532289dbe9ff1b76d107fcbac30104",
+		},
+		{
+			name:     "colon separated raw address",
+			input:    "-1:e69571e7b9f58edfebefa297e547f36920532289dbe9ff1b76d107fcbac30104",
+			expected: "a__1_e69571e7b9f58edfebefa297e547f36920532289dbe9ff1b76d107fcbac30104",
+		},
+		{
+			name:     "starts with digit",
+			input:    "0_abc",
+			expected: "a_0_abc",
+		},
+		{
+			name:     "already valid",
+			input:    "abc_123",
+			expected: "abc_123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeMermaidIdentifier(tt.input)
+			assert.Equalf(t, tt.expected, result, "Failed test: %s", tt.name)
+		})
+	}
+}
