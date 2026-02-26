@@ -26,18 +26,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Receiver_CCIPReceive => {
             var st = lazy Storage.load();
-            msg.validateAndConfirm({
-                router: st.authorizedCaller,
-                minValue: ton("0.01"),
-                inMsg: {
-                    senderAddress: in.senderAddress,
-                    valueCoins: in.valueCoins,
-                },
-                confirmationMsg: {
-                    sendMode: SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
-                }
-            });
-           
+
             match (st.behavior) {
                 TestReceiverBehavior.Accept => {
                     processAccept(msg, in.senderAddress)
@@ -49,6 +38,20 @@ fun onInternalMessage(in: InMessage) {
                     processConsumeAllGas()
                 }
             }
+
+            reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+            msg.validateAndConfirm({
+                router: st.authorizedCaller,
+                minValue: ton("0.01"),
+                inMsg: {
+                    senderAddress: in.senderAddress,
+                    valueCoins: in.valueCoins,
+                },
+                confirmationMsg: {
+                    sendMode: SEND_MODE_CARRY_ALL_BALANCE,
+                }
+            });
+           
         }
         TestReceiver_UpdateAuthorizedCaller => {
             onUpdateAuthorizedCaller(msg, in.senderAddress)
