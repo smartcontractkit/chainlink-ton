@@ -258,4 +258,25 @@ describe('Receiver', () => {
       exitCode: -14,
     })
   })
+
+  it('should keep original balance after succesfully receiving', async () => {
+    const contract = await blockchain.getContract(receiver.address)
+    const initialBalance = contract.balance
+
+    const result = await receiver.sendCCIPReceive(
+      deployer.getSender(),
+      toNano('1'),
+      ccipReceiveSampleMessage,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+      deploy: false,
+      body: tr.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
+    })
+
+    const finalBalance = (await blockchain.getContract(receiver.address)).balance
+    expect(finalBalance).toEqual(initialBalance)
+  })
 })
