@@ -2,6 +2,7 @@ package explorer
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -316,6 +317,15 @@ type toncenterAPIResponse struct {
 	Transactions []toncenterTxResult `json:"transactions"`
 }
 
+type toncenterTraceResponse struct {
+	Traces []struct {
+		Trace struct {
+			TxHash string `json:"tx_hash"`
+		} `json:"trace"`
+		TransactionsOrder []string `json:"transactions_order"`
+	} `json:"traces"`
+}
+
 // PrintTrace connects to the specified TON network, retrieves the transaction
 // by the given source address and transaction hash, and prints the full execution
 // trace of the transaction, including all outgoing messages and their subsequent
@@ -327,28 +337,45 @@ type toncenterAPIResponse struct {
 // - srcAddrStr: The source address of the transaction in string format.
 func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr string, format Format, knownActors map[string]debug.TypeAndVersion) error {
 	api := c.resilientAPI()
+	effectiveTxHash := txHashStr
+	rootTxHash, rootErr := c.getTraceRootTxHash(ctx, txHashStr)
+	if rootErr == nil && rootTxHash != "" {
+		effectiveTxHash = rootTxHash
+		if rootTxHash != txHashStr {
+			c.lggr.Info("resolved input transaction to trace root", "input_tx_hash", txHashStr, "root_tx_hash", rootTxHash)
+		}
+	} else if rootErr != nil {
+		c.lggr.Debug("failed to resolve trace root tx hash, continuing with provided tx", "tx_hash", txHashStr, "error", rootErr)
+	}
 
 	var senderAddr *address.Address
 	var err error
 	if srcAddrStr == "" {
 		c.lggr.Debug("source address not provided, attempting to fetch from toncenter by hash...")
-		senderAddr, err = c.GetSenderAddressFromTxHash(ctx, txHashStr)
+		senderAddr, err = c.GetSenderAddressFromTxHash(ctx, effectiveTxHash)
 		if err != nil {
 			return fmt.Errorf("failed to get sender address from tx hash: %w", err)
 		}
 		c.lggr.Debug("source address found:", senderAddr.String())
+	} else if effectiveTxHash != txHashStr {
+		// User-provided address may correspond to a non-root tx. Prefer root tx account.
+		senderAddr, err = c.GetSenderAddressFromTxHash(ctx, effectiveTxHash)
+		if err != nil {
+			return fmt.Errorf("failed to get root sender address from tx hash: %w", err)
+		}
+		c.lggr.Debug("overriding provided source address with trace root account", senderAddr.String())
 	} else {
 		senderAddr, err = address.ParseAddr(srcAddrStr)
 		if err != nil {
 			return fmt.Errorf("failed to parse transaction address: %w", err)
 		}
 	}
-	txHash, err := hex.DecodeString(txHashStr)
+	txHash, err := decodeTxHash(effectiveTxHash)
 	if err != nil {
 		return fmt.Errorf("failed to decode tx hash: %w", err)
 	}
 
-	tx, err := c.findTx(ctx, api, senderAddr, txHashStr, txHash)
+	tx, err := c.findTx(ctx, api, senderAddr, effectiveTxHash, txHash)
 	if err != nil {
 		return err
 	}
@@ -401,6 +428,87 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 	c.lggr.Info(output)
 
 	return nil
+}
+
+func decodeTxHash(txHash string) ([]byte, error) {
+	if after, ok := strings.CutPrefix(txHash, "0x"); ok {
+		txHash = after
+	}
+
+	if raw, err := hex.DecodeString(txHash); err == nil {
+		return raw, nil
+	}
+
+	if raw, err := base64.StdEncoding.DecodeString(txHash); err == nil {
+		return raw, nil
+	}
+
+	if raw, err := base64.URLEncoding.DecodeString(txHash); err == nil {
+		return raw, nil
+	}
+
+	if raw, err := base64.RawURLEncoding.DecodeString(txHash); err == nil {
+		return raw, nil
+	}
+
+	return nil, fmt.Errorf("unsupported tx hash format: %s", txHash)
+}
+
+func (c *client) getTraceRootTxHash(ctx context.Context, txHashStr string) (string, error) {
+	var baseURL string
+	switch c.net {
+	case "mainnet":
+		baseURL = "https://toncenter.com/api/v3/traces"
+	case "testnet":
+		baseURL = "https://testnet.toncenter.com/api/v3/traces"
+	default:
+		return "", fmt.Errorf("unsupported network for trace index lookup: %s", c.net)
+	}
+
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid trace endpoint url: %w", err)
+	}
+
+	q := u.Query()
+	q.Set("tx_hash", txHashStr)
+	u.RawQuery = q.Encode()
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create trace request: %w", err)
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch trace from toncenter: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code from trace endpoint: %d", resp.StatusCode)
+	}
+
+	var traceResp toncenterTraceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&traceResp); err != nil {
+		return "", fmt.Errorf("failed to decode trace response: %w", err)
+	}
+
+	if len(traceResp.Traces) == 0 {
+		return "", errors.New("no trace found for transaction")
+	}
+
+	trace := traceResp.Traces[0]
+	if len(trace.TransactionsOrder) > 0 && trace.TransactionsOrder[0] != "" {
+		return trace.TransactionsOrder[0], nil
+	}
+
+	if trace.Trace.TxHash != "" {
+		return trace.Trace.TxHash, nil
+	}
+
+	return "", errors.New("trace root hash missing in trace response")
 }
 
 func openInBrowser(ctx context.Context, targetURL string) error {
