@@ -157,36 +157,9 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 		}
 	}
 
-	var senderAddr *address.Address
-	var err error
-	if srcAddrStr == "" {
-		if !c.supportsToncenter() {
-			return fmt.Errorf("source address is required for network %s when toncenter metadata is unavailable", c.net)
-		}
-		c.lggr.Debug("source address not provided, attempting to fetch from toncenter by hash...")
-		senderAddr, err = c.GetSenderAddressFromTxHash(ctx, effectiveTxHash)
-		if err != nil {
-			return fmt.Errorf("failed to get sender address from tx hash: %w", err)
-		}
-		c.lggr.Debug("source address found:", senderAddr.String())
-	} else if effectiveTxHash != txHashStr {
-		if c.supportsToncenter() {
-			senderAddr, err = c.GetSenderAddressFromTxHash(ctx, effectiveTxHash)
-			if err != nil {
-				return fmt.Errorf("failed to get root sender address from tx hash: %w", err)
-			}
-			c.lggr.Debug("overriding provided source address with trace root account", senderAddr.String())
-		} else {
-			senderAddr, err = address.ParseAddr(srcAddrStr)
-			if err != nil {
-				return fmt.Errorf("failed to parse transaction address: %w", err)
-			}
-		}
-	} else {
-		senderAddr, err = address.ParseAddr(srcAddrStr)
-		if err != nil {
-			return fmt.Errorf("failed to parse transaction address: %w", err)
-		}
+	senderAddr, err := resolveSenderAddress(ctx, c, srcAddrStr, effectiveTxHash, txHashStr)
+	if err != nil {
+		return fmt.Errorf("failed to resolve sender address: %w", err)
 	}
 	decodedTxHash, err := decodeTxHash(effectiveTxHash)
 	if err != nil {
@@ -240,6 +213,37 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 
 	c.lggr.Info(output)
 	return nil
+}
+
+func resolveSenderAddress(ctx context.Context, c *client, srcAddrStr string, effectiveTxHash string, txHashStr string) (*address.Address, error) {
+	var err error
+	if srcAddrStr == "" {
+		if !c.supportsToncenter() {
+			return nil, fmt.Errorf("source address is required for network %s when toncenter metadata is unavailable", c.net)
+		}
+		c.lggr.Debug("source address not provided, attempting to fetch from toncenter by hash...")
+		senderAddr, err := c.GetSenderAddressFromTxHash(ctx, effectiveTxHash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get sender address from tx hash: %w", err)
+		}
+		c.lggr.Debug("source address found:", senderAddr.String())
+		return senderAddr, nil
+	}
+	if effectiveTxHash != txHashStr && c.supportsToncenter() {
+		senderAddr, err := c.GetSenderAddressFromTxHash(ctx, effectiveTxHash)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get root sender address from tx hash: %w", err)
+		}
+		c.lggr.Debug("overriding provided source address with trace root account", senderAddr.String())
+		return senderAddr, nil
+	}
+
+	senderAddr, err := address.ParseAddr(srcAddrStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse transaction address: %w", err)
+	}
+
+	return senderAddr, nil
 }
 
 func (c *client) queryActors(ctx context.Context, api ton.APIClientWrapped, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion) error {
