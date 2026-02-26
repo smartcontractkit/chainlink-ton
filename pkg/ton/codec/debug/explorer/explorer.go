@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -387,7 +388,39 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 	default:
 		return errors.New("unknown format")
 	}
-	c.lggr.Info(debugger.DumpReceived(&recvMsg, c.verbose))
+
+	output := debugger.DumpReceived(&recvMsg, c.verbose)
+	if format == FormatSequenceURL {
+		if err := openInBrowser(ctx, output); err != nil {
+			return fmt.Errorf("failed to open mermaid url in browser: %w", err)
+		}
+		c.lggr.Info("opened mermaid visualization in browser")
+		return nil
+	}
+
+	c.lggr.Info(output)
+
+	return nil
+}
+
+func openInBrowser(ctx context.Context, targetURL string) error {
+	if strings.TrimSpace(targetURL) == "" {
+		return errors.New("empty url")
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.CommandContext(ctx, "open", targetURL)
+	case "windows":
+		cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", targetURL)
+	default:
+		cmd = exec.CommandContext(ctx, "xdg-open", targetURL)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
 
 	return nil
 }
