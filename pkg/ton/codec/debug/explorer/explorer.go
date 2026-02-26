@@ -291,6 +291,8 @@ type client struct {
 	maxPages   uint32
 }
 
+func (c *client) resilientAPI() ton.APIClientWrapped { return c.connection.WithRetry(5) }
+
 type Format int
 
 const (
@@ -298,6 +300,20 @@ const (
 	FormatSequenceURL
 	FormatSequenceRaw
 )
+
+type toncenterTxResult struct {
+	Account  string `json:"account"`
+	LT       string `json:"lt"`
+	BlockRef struct {
+		Workchain int32  `json:"workchain"`
+		Shard     string `json:"shard"`
+		SeqNo     uint32 `json:"seqno"`
+	} `json:"block_ref"`
+}
+
+type toncenterAPIResponse struct {
+	Transactions []toncenterTxResult `json:"transactions"`
+}
 
 // PrintTrace connects to the specified TON network, retrieves the transaction
 // by the given source address and transaction hash, and prints the full execution
@@ -309,6 +325,8 @@ const (
 // - txHashStr: The transaction hash in hexadecimal format.
 // - srcAddrStr: The source address of the transaction in string format.
 func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr string, format Format, knownActors map[string]debug.TypeAndVersion) error {
+	api := c.resilientAPI()
+
 	var senderAddr *address.Address
 	var err error
 	if srcAddrStr == "" {
@@ -329,7 +347,7 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 		return fmt.Errorf("failed to decode tx hash: %w", err)
 	}
 
-	tx, err := c.findTx(ctx, c.connection, senderAddr, txHash)
+	tx, err := c.findTx(ctx, api, senderAddr, txHashStr, txHash)
 	if err != nil {
 		return err
 	}
@@ -343,14 +361,14 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 
 	c.lggr.Info("waiting for full trace...")
 
-	err = recvMsg.WaitForTrace(ctx, c.connection)
+	err = recvMsg.WaitForTrace(ctx, api)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
 	c.lggr.Debug("actors before query:\n", knownActors)
 	c.lggr.Info("querying actors")
-	err = c.queryActors(ctx, &recvMsg, knownActors)
+	err = c.queryActors(ctx, api, &recvMsg, knownActors)
 	if err != nil {
 		return fmt.Errorf("failed to query actors: %w", err)
 	}
@@ -374,51 +392,51 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr st
 	return nil
 }
 
-func (c *client) queryActors(ctx context.Context, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion) error {
+func (c *client) queryActors(ctx context.Context, api ton.APIClientWrapped, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion) error {
 	visited := make(map[string]bool)
-	block, err := c.connection.CurrentMasterchainInfo(ctx)
+	block, err := api.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get masterchain info: %w", err)
 	}
-	return c.queryActorsReceivedRec(ctx, block, message, knownActors, visited)
+	return c.queryActorsReceivedRec(ctx, api, block, message, knownActors, visited)
 }
 
-func (c *client) queryActorsReceivedRec(ctx context.Context, block *ton.BlockIDExt, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
+func (c *client) queryActorsReceivedRec(ctx context.Context, api ton.APIClientWrapped, block *ton.BlockIDExt, message *tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
 	if message.InternalMsg != nil {
-		err := c.queryActorIfNotVisited(ctx, block, message.InternalMsg.SrcAddr, knownActors, visited)
+		err := c.queryActorIfNotVisited(ctx, api, block, message.InternalMsg.SrcAddr, knownActors, visited)
 		if err != nil {
 			return err
 		}
-		err = c.queryActorIfNotVisited(ctx, block, message.InternalMsg.DstAddr, knownActors, visited)
+		err = c.queryActorIfNotVisited(ctx, api, block, message.InternalMsg.DstAddr, knownActors, visited)
 		if err != nil {
 			return err
 		}
-		err = c.queryOutgoingMessages(ctx, block, message.OutgoingInternalSentMessages, message.OutgoingInternalReceivedMessages, knownActors, visited)
+		err = c.queryOutgoingMessages(ctx, api, block, message.OutgoingInternalSentMessages, message.OutgoingInternalReceivedMessages, knownActors, visited)
 		return err
 	} else if message.ExternalMsg != nil {
-		err := c.queryActorIfNotVisited(ctx, block, message.ExternalMsg.DstAddr, knownActors, visited)
+		err := c.queryActorIfNotVisited(ctx, api, block, message.ExternalMsg.DstAddr, knownActors, visited)
 		if err != nil {
 			return err
 		}
-		err = c.queryOutgoingMessages(ctx, block, message.OutgoingInternalSentMessages, message.OutgoingInternalReceivedMessages, knownActors, visited)
+		err = c.queryOutgoingMessages(ctx, api, block, message.OutgoingInternalSentMessages, message.OutgoingInternalReceivedMessages, knownActors, visited)
 		return err
 	}
 	return fmt.Errorf("unknown message type: %+v", message)
 }
 
-func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDExt, outgoingSentMessages []*tracetracking.SentMessage, outgoingReceivedMessages []*tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
+func (c *client) queryOutgoingMessages(ctx context.Context, api ton.APIClientWrapped, block *ton.BlockIDExt, outgoingSentMessages []*tracetracking.SentMessage, outgoingReceivedMessages []*tracetracking.ReceivedMessage, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
 	for _, outMsg := range outgoingSentMessages {
-		err := c.queryActorIfNotVisited(ctx, block, outMsg.InternalMsg.SrcAddr, knownActors, visited)
+		err := c.queryActorIfNotVisited(ctx, api, block, outMsg.InternalMsg.SrcAddr, knownActors, visited)
 		if err != nil {
 			return err
 		}
-		err = c.queryActorIfNotVisited(ctx, block, outMsg.InternalMsg.DstAddr, knownActors, visited)
+		err = c.queryActorIfNotVisited(ctx, api, block, outMsg.InternalMsg.DstAddr, knownActors, visited)
 		if err != nil {
 			return err
 		}
 	}
 	for _, outMsg := range outgoingReceivedMessages {
-		err := c.queryActorsReceivedRec(ctx, block, outMsg, knownActors, visited)
+		err := c.queryActorsReceivedRec(ctx, api, block, outMsg, knownActors, visited)
 		if err != nil {
 			return err
 		}
@@ -426,7 +444,7 @@ func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDEx
 	return nil
 }
 
-func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDExt, addr *address.Address, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
+func (c *client) queryActorIfNotVisited(ctx context.Context, api ton.APIClientWrapped, block *ton.BlockIDExt, addr *address.Address, knownActors map[string]debug.TypeAndVersion, visited map[string]bool) error {
 	c.lggr.Debug("queryActorIfNotVisited", addr.String())
 	c.lggr.Debug("visited:", visited)
 	c.lggr.Debug("knownActors:", knownActors)
@@ -441,7 +459,7 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	}
 	c.lggr.Debug("actor not known")
 	var typeVersion common.TypeAndVersion
-	result, err := c.connection.RunGetMethod(ctx, block, addr, "typeAndVersion")
+	result, err := api.RunGetMethod(ctx, block, addr, "typeAndVersion")
 	if err != nil {
 		// We don't fail here because many contracts don't implement typeAndVersion
 		return nil // TODO try deducing from code?
@@ -463,6 +481,19 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 }
 
 func (c *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr string) (*address.Address, error) {
+	res, err := c.getToncenterTxByHash(ctx, txHashStr)
+	if err != nil {
+		return nil, err
+	}
+
+	addr, err := address.ParseRawAddr(res.Account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source address from toncenter response: %w", err)
+	}
+	return addr, nil
+}
+
+func (c *client) getToncenterTxByHash(ctx context.Context, txHashStr string) (*toncenterTxResult, error) {
 	// fetch from https://testnet.toncenter.com/api/v3/transactions?hash=txHashStr
 	var baseURL string
 	switch c.net {
@@ -472,12 +503,6 @@ func (c *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr strin
 		baseURL = "https://testnet.toncenter.com/api/v3/transactions"
 	default:
 		return nil, fmt.Errorf("unsupported network: %s", c.net)
-	}
-	type txResult struct {
-		Account string `json:"account"`
-	}
-	type apiResponse struct {
-		Transactions []txResult `json:"transactions"`
 	}
 	// Use url.URL for safer URL construction
 	u, err := url.Parse(baseURL)
@@ -505,7 +530,7 @@ func (c *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr strin
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code from toncenter: %d", resp.StatusCode)
 	}
-	var respData apiResponse
+	var respData toncenterAPIResponse
 	err = json.NewDecoder(resp.Body).Decode(&respData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode toncenter response: %w", err)
@@ -513,14 +538,44 @@ func (c *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr strin
 	if len(respData.Transactions) != 1 {
 		return nil, errors.New("transaction not found in toncenter response")
 	}
-	addr, err := address.ParseRawAddr(respData.Transactions[0].Account)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse source address from toncenter response: %w", err)
-	}
-	return addr, nil
+
+	return &respData.Transactions[0], nil
 }
 
-func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *address.Address, txHash []byte) (*tlb.Transaction, error) {
+func (c *client) findTxByToncenterMetadata(ctx context.Context, api ton.APIClientWrapped, txHashStr string, txHash []byte, srcAddr *address.Address) (*tlb.Transaction, error) {
+	res, err := c.getToncenterTxByHash(ctx, txHashStr)
+	if err != nil {
+		return nil, err
+	}
+
+	lt, err := strconv.ParseUint(res.LT, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse lt from toncenter response: %w", err)
+	}
+
+	shard, err := strconv.ParseUint(res.BlockRef.Shard, 16, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse shard from toncenter response: %w", err)
+	}
+
+	block, err := api.LookupBlock(ctx, res.BlockRef.Workchain, int64(shard), res.BlockRef.SeqNo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup block from toncenter metadata: %w", err)
+	}
+
+	tx, err := api.GetTransaction(ctx, block, srcAddr, lt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch transaction from toncenter metadata: %w", err)
+	}
+
+	if !equalHash(tx.Hash, txHash) {
+		return nil, errors.New("toncenter metadata lookup returned a different transaction hash")
+	}
+
+	return tx, nil
+}
+
+func (c *client) findTx(ctx context.Context, api ton.APIClientWrapped, srcAddr *address.Address, txHashStr string, txHash []byte) (*tlb.Transaction, error) {
 	block, err := api.GetMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get masterchain info: %w", err)
@@ -538,6 +593,9 @@ func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *addres
 		if err != nil {
 			return nil, fmt.Errorf("get transaction: %w", err)
 		}
+		if len(txs) == 0 {
+			return nil, errors.New("transaction not found in searched range. Try increasing --page-size and --max-pages")
+		}
 		for _, tx := range txs {
 			if equalHash(tx.Hash, txHash) {
 				return tx, nil
@@ -548,7 +606,12 @@ func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *addres
 		maxLT = last.PrevTxLT
 		maxHash = last.PrevTxHash
 	}
-	return nil, errors.New("transaction not found in searched range. Try increasing --page-size and --max-pages")
+	tx, err := c.findTxByToncenterMetadata(ctx, api, txHashStr, txHash, srcAddr)
+	if err == nil {
+		return tx, nil
+	}
+
+	return nil, fmt.Errorf("transaction not found in searched range. Try increasing --page-size and --max-pages (fallback failed: %w)", err)
 }
 
 func equalHash(a, b []byte) bool {
