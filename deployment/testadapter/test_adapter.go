@@ -142,12 +142,19 @@ func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) e
 	if err != nil {
 		return err
 	}
+	type updateBehavior struct {
+		_        tlb.Magic `tlb:"#e7fabde3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+		Behavior uint8     `tlb:"## 8"`
+	}
+	var behavior uint8
+	if rejectAll {
+		behavior = 1
+	}
 
-	bodyCell := cell.
-		BeginCell().
-		MustStoreBoolBit(rejectAll).
-		EndCell()
-
+	bodyCell, err := tlb.ToCell(updateBehavior{Behavior: behavior})
+	if err != nil {
+		return err
+	}
 	_, _, err = a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
