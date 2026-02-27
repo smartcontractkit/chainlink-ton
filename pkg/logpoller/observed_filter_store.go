@@ -34,9 +34,7 @@ func NewObservedFilterStore(store FilterStore, metrics *logPollerMetrics, lggr l
 func (o *ObservedFilterStore) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
 	start := time.Now()
 	id, err := o.FilterStore.RegisterFilter(ctx, flt)
-
-	o.metrics.RecordQueryDuration(ctx, "RegisterFilter", frameworkmetrics.Create, time.Since(start))
-
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "RegisterFilter", frameworkmetrics.Create, time.Since(start).Seconds())
 	return id, err
 }
 
@@ -44,9 +42,7 @@ func (o *ObservedFilterStore) RegisterFilter(ctx context.Context, flt models.Fil
 func (o *ObservedFilterStore) UnregisterFilter(ctx context.Context, name string) error {
 	start := time.Now()
 	err := o.FilterStore.UnregisterFilter(ctx, name)
-
-	o.metrics.RecordQueryDuration(ctx, "UnregisterFilter", frameworkmetrics.Del, time.Since(start))
-
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "UnregisterFilter", frameworkmetrics.Del, time.Since(start).Seconds())
 	return err
 }
 
@@ -54,9 +50,7 @@ func (o *ObservedFilterStore) UnregisterFilter(ctx context.Context, name string)
 func (o *ObservedFilterStore) HasFilter(ctx context.Context, name string) (bool, error) {
 	start := time.Now()
 	exists, err := o.FilterStore.HasFilter(ctx, name)
-
-	o.metrics.RecordQueryDuration(ctx, "HasFilter", frameworkmetrics.Read, time.Since(start))
-
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "HasFilter", frameworkmetrics.Read, time.Since(start).Seconds())
 	return exists, err
 }
 
@@ -64,12 +58,10 @@ func (o *ObservedFilterStore) HasFilter(ctx context.Context, name string) (bool,
 func (o *ObservedFilterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Address, error) {
 	start := time.Now()
 	addresses, err := o.FilterStore.GetDistinctAddresses(ctx)
-
-	o.metrics.RecordQueryDuration(ctx, "GetDistinctAddresses", frameworkmetrics.Read, time.Since(start))
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "GetDistinctAddresses", frameworkmetrics.Read, time.Since(start).Seconds())
 	if err == nil {
 		o.metrics.SetAddressesMonitored(ctx, len(addresses))
 	}
-
 	return addresses, err
 }
 
@@ -77,12 +69,10 @@ func (o *ObservedFilterStore) GetDistinctAddresses(ctx context.Context) ([]*addr
 func (o *ObservedFilterStore) GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error) {
 	start := time.Now()
 	filters, err := o.FilterStore.GetFiltersByAddress(ctx, addr)
-
-	o.metrics.RecordQueryDuration(ctx, "GetFiltersByAddress", frameworkmetrics.Read, time.Since(start))
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "GetFiltersByAddress", frameworkmetrics.Read, time.Since(start).Seconds())
 	if err == nil {
-		o.metrics.SetQueryResultSize(ctx, "GetFiltersByAddress", len(filters))
+		o.metrics.frameworkMetrics.RecordQueryDatasetSize(ctx, "GetFiltersByAddress", frameworkmetrics.Read, int64(len(filters)))
 	}
-
 	return filters, err
 }
 
@@ -90,11 +80,9 @@ func (o *ObservedFilterStore) GetFiltersByAddress(ctx context.Context, addr *add
 func (o *ObservedFilterStore) GetAllActiveFilters(ctx context.Context) ([]models.Filter, error) {
 	start := time.Now()
 	filters, err := o.FilterStore.GetAllActiveFilters(ctx)
-
-	o.metrics.RecordQueryDuration(ctx, "GetAllActiveFilters", frameworkmetrics.Read, time.Since(start))
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "GetAllActiveFilters", frameworkmetrics.Read, time.Since(start).Seconds())
 	if err == nil {
-		o.metrics.SetQueryResultSize(ctx, "GetAllActiveFilters", len(filters))
+		o.metrics.frameworkMetrics.RecordQueryDatasetSize(ctx, "GetAllActiveFilters", frameworkmetrics.Read, int64(len(filters)))
 	}
-
 	return filters, err
 }

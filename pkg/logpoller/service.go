@@ -288,7 +288,6 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	lp.lastProcessedBlockSeqNo = blockRange.ToSeqNo()
 	lp.metrics.SetLastProcessedBlock(ctx, lp.lastProcessedBlockSeqNo)
-	lp.metrics.AddBlocksProcessed(ctx, int64(blockRange.ToSeqNo()-blockRange.FromSeqNo()))
 
 	return nil
 }
