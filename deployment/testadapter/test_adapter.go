@@ -22,6 +22,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -36,6 +37,8 @@ import (
 	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -137,6 +140,25 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 	}
 	return receiver
 }
+
+func (a *TONAdapter) EOAReceiver(t *testing.T) []byte {
+	t.Skip("TON doesn't have EOA accounts")
+	return nil
+}
+
+func (a *TONAdapter) InvalidCCIPReceivers() [][]byte {
+	ac := codec.NewAddressCodec()
+	zeroAddress, err := ac.AddressStringToBytes(tvm.ZeroAddress.String())
+	if err != nil {
+		panic(fmt.Sprintf("failed to convert TON address to bytes: %v", err))
+	}
+
+	return [][]byte{
+		{99},
+		zeroAddress,
+	}
+}
+
 func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) error {
 	receiverAddr, err := a.getAddress("Receiver")
 	if err != nil {
@@ -256,6 +278,154 @@ func (a *TONAdapter) GetTokenExpansionConfig() tokensapi.TokenExpansionInputPerC
 func (a *TONAdapter) GetRegistryAddress() (string, error) {
 	// TODO: implement when TON token transfer support is added
 	return "", errors.ErrUnsupported
+}
+
+func (a *TONAdapter) SetAllowlist(ctx context.Context, destChainSelector uint64, enabled bool) error {
+	routerStr, err := a.state.GetAddress(state.Router)
+	if err != nil {
+		return fmt.Errorf("failed to get router address: %w", err)
+	}
+	routerAddr := address.MustParseAddr(routerStr)
+	onrampStr, err := a.state.GetAddress(state.OnRamp)
+	if err != nil {
+		return fmt.Errorf("failed to get onramp address: %w", err)
+	}
+	onrampAddr := address.MustParseAddr(onrampStr)
+	msg := onramp.UpdateDestChainConfigsMessage{
+		Updates: common.SnakedCell[onramp.UpdateDestChainConfig]{
+			onramp.UpdateDestChainConfig{
+				DestinationChainSelector: destChainSelector,
+				Router:                   routerAddr,
+				AllowListEnabled:         enabled,
+			},
+		},
+	}
+
+	bodyCell, err := tlb.ToCell(msg)
+	if err != nil {
+		return fmt.Errorf("failed to convert allowlist update message to cell: %w", err)
+	}
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     onrampAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send allowlist update transaction: %w", err)
+	}
+	err = tracetracking.WaitForTrace(ctx, a.Client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for allowlist update message: %w", err)
+	}
+	return nil
+}
+
+func (a *TONAdapter) UpdateSenderAllowlistStatus(ctx context.Context, destChainSelector uint64, included bool) error {
+	onrampStr, err := a.state.GetAddress(state.OnRamp)
+	if err != nil {
+		return fmt.Errorf("failed to get onramp address: %w", err)
+	}
+	onrampAddr := address.MustParseAddr(onrampStr)
+	add, remove := func() (common.SnakedCell[common.AddressWrap], common.SnakedCell[common.AddressWrap]) {
+		sender := common.SnakedCell[common.AddressWrap]{
+			common.AddressWrap{
+				Val: a.Wallet.WalletAddress(),
+			},
+		}
+		if included {
+			return sender, common.SnakedCell[common.AddressWrap]{}
+		}
+		return common.SnakedCell[common.AddressWrap]{}, sender
+	}()
+	Updates := common.SnakedCell[onramp.UpdateAllowlist]{
+		onramp.UpdateAllowlist{
+			DestinationChainSelector: destChainSelector,
+			Add:                      add,
+			Remove:                   remove,
+		},
+	}
+	msg := onramp.UpdateAllowlists{
+		Updates: Updates,
+	}
+
+	bodyCell, err := tlb.ToCell(msg)
+	if err != nil {
+		return fmt.Errorf("failed to convert allowlist update message to cell: %w", err)
+	}
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     onrampAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send allowlist update transaction: %w", err)
+	}
+	err = tracetracking.WaitForTrace(ctx, a.Client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for allowlist update message: %w", err)
+	}
+	return nil
+}
+
+func (a *TONAdapter) RMNCursed(ctx context.Context, chainSelector uint64, cursed bool) error {
+	routerStr, err := a.state.GetAddress(state.Router)
+	if err != nil {
+		return fmt.Errorf("failed to get router address: %w", err)
+	}
+	routerAddr := address.MustParseAddr(routerStr)
+	queryID, err := tvm.RandomQueryID()
+	if err != nil {
+		return fmt.Errorf("failed to generate random query ID: %w", err)
+	}
+	subjects := common.SnakedCell[router.Subject]{
+		router.Subject{
+			Value: big.NewInt(int64(chainSelector)),
+		},
+	}
+
+	bodyCell, err := func() (*cell.Cell, error) {
+		if cursed {
+			return tlb.ToCell(router.RMNRemoteCurse{
+				QueryID:  queryID,
+				Subjects: subjects,
+			})
+		}
+		return tlb.ToCell(router.RMNRemoteUncurse{
+			QueryID:  queryID,
+			Subjects: subjects,
+		})
+	}()
+	if err != nil {
+		return fmt.Errorf("failed to convert message to cell: %w", err)
+	}
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     routerAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send rmn transaction: %w", err)
+	}
+	err = tracetracking.WaitForTrace(ctx, a.Client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for rmn message: %w", err)
+	}
+	return nil
 }
 
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
