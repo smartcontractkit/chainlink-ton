@@ -105,7 +105,12 @@ func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployCo
 		return output, fmt.Errorf("failed to get wallet balance: %w", err)
 	}
 
-	value := tlb.MustFromTON(in.Coins)
+	value, err := tlb.FromTON(in.Coins)
+	if err != nil {
+		return output, fmt.Errorf("failed to parse coin amount: %w", err)
+	}
+
+	// Check balance before deploying
 	if balance.Compare(&value) < 0 {
 		return output, fmt.Errorf("insufficient account balance to deploy: balance %s, required value %s", balance.String(), value.String())
 	}
