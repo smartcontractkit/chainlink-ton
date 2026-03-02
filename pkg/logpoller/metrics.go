@@ -304,4 +304,3 @@ func (m *logPollerMetrics) IncrementPruningErrors(ctx context.Context) {
 	promTonLpPruningErrors.WithLabelValues(m.chainID).Inc()
 	m.pruningErrors.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
-
