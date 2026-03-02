@@ -27,11 +27,11 @@ func (r *msgEnvelopeToPayloadResolver) Key() string {
 	return "codec.resolvers.msg-envelope-to-payload"
 }
 
-// Decode map data to *cell.Cell using loaded TLB registry
+// Resolve decodes the message envelope map into the JSON payload (json.RawMessage)
 func (r *msgEnvelopeToPayloadResolver) Resolve(input map[string]any) (json.RawMessage, error) {
 	e, err := r.msgEnvelopeResolver.Resolve(input)
 	if err != nil {
-		if errors.Is(err, codec.NonFatalResolverError{}) {
+		if errors.As(err, &codec.NonFatalResolverError{}) {
 			return nil, err
 		}
 
