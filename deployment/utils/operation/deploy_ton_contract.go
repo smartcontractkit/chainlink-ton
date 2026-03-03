@@ -60,6 +60,7 @@ func (i *DeployContractInput) Validate() error {
 }
 
 func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployContractInput) (DeployContractOutput, error) {
+	ctx := b.GetContext()
 	output := DeployContractOutput{}
 
 	if err := in.Validate(); err != nil {
@@ -94,16 +95,29 @@ func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployCo
 		}
 	}
 
+	block, err := chain.Client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return output, fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+
+	balance, err := chain.Wallet.GetBalance(ctx, block)
+	if err != nil {
+		return output, fmt.Errorf("failed to get wallet balance: %w", err)
+	}
+
+	value, err := tlb.FromTON(in.Coins)
+	if err != nil {
+		return output, fmt.Errorf("failed to parse coin amount: %w", err)
+	}
+
+	// Check balance before deploying
+	if balance.Compare(&value) < 0 {
+		return output, fmt.Errorf("insufficient account balance to deploy: balance %s, required value %s", balance.String(), value.String())
+	}
+
 	b.Logger.Infow("Initializing contract with body", "contract name", in.Name, "body data hash", hex.EncodeToString(bodyCell.Hash()), "body bits size", bodyCell.BitsSize())
 
-	contract, _, err := wrappers.Deploy(
-		b.GetContext(),
-		&conn,
-		in.ContractCode,
-		initData,
-		tlb.MustFromTON(in.Coins),
-		bodyCell,
-	)
+	contract, _, err := wrappers.Deploy(ctx, &conn, in.ContractCode, initData, value, bodyCell)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy contract: %w", err)
 	}
