@@ -23,9 +23,9 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Run build
-        run: |
-          pushd deployment
-          nix develop -c go build -v ./...
+        run: nix develop -c go build -v ./...
+        working-directory: deployment
 
       - name: Run unit tests
         run: nix develop -c go test -v -count=1 -p=1 ./...
+        working-directory: deployment
