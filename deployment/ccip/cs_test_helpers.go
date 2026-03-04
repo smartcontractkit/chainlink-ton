@@ -22,7 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 const (
@@ -134,7 +134,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 
 	// if contractVersion is not set, use local version
 	if contractVersion == "" {
-		contractVersion = sequence.ContractsVersionLocal
+		contractVersion = utils.ContractsVersionLocal
 	}
 
 	ccipContractSemver := semver.MustParse("1.6.0")
