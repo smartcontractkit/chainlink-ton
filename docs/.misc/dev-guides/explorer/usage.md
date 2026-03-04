@@ -6,11 +6,12 @@ Read [TON Explorer Architecture](./architecture.md) for internal module layout a
 
 ## Usage
 
-Three ways to run:
+Four ways to run:
 
 1. **URL**: `./explorer trace <tonscan-url>`
 2. **Hash + Address**: `./explorer trace <tx-hash> <address>`
 3. **Hash only**: `./explorer trace <tx-hash>` (testnet/mainnet only unless sender address is provided separately)
+4. **Getter call**: `./explorer get <address> <getter_name>`
 
 ## Run with Nix
 
@@ -41,7 +42,71 @@ go build
 
 # Hash only (auto-resolves address via toncenter on testnet/mainnet)
 ./explorer trace <tx-hash> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
+
+# Getter call (no-args getters only for now)
+./explorer get <address> <getter_name> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json] [--contract-type <type>]
+
+# Example
+./explorer get EQA-CUZI_USus4w0_Erf-wTj5uhaAR7XldEimU0w0WAJGGod dynamicConfig
 ```
+
+## Getter command
+
+`explorer get` currently supports no-args getters and prints decoded JSON output.
+
+The command tries to infer the contract type by calling `typeAndVersion` on the target address.
+If inference is unavailable/fails, pass `--contract-type` explicitly.
+
+Examples:
+
+```bash
+# auto-detect contract type
+./explorer get <address> owner
+
+# explicit contract type
+./explorer get <address> owner --contract-type link.chain.ton.ccip.OnRamp
+```
+
+## Autocomplete setup
+
+The explorer uses Cobra shell completion, including dynamic getter completion for:
+
+`explorer get <address> <TAB>`
+
+### zsh (current shell only)
+
+```bash
+source <(./explorer completion zsh)
+```
+
+### zsh (persistent)
+
+```bash
+mkdir -p ~/.zfunc
+./explorer completion zsh > ~/.zfunc/_explorer
+```
+
+Add this to `~/.zshrc`:
+
+```bash
+fpath=(~/.zfunc $fpath)
+autoload -Uz compinit
+compinit
+```
+
+Reload:
+
+```bash
+source ~/.zshrc
+```
+
+If you run the local binary directly from this repository, add an alias in `~/.zshrc`:
+
+```bash
+alias explorer="/Users/patricio.passarino/Code/ton/chainlink-ton-explorer/explorer"
+```
+
+Then you can tab-complete getter names for a contract address.
 
 ## Networks
 
@@ -72,6 +137,7 @@ Display message trace as a tree structure with `--visualization tree`.
 ```bash
 --verbose                    # Show debugging information
 --page-size 10 --max-pages 10 # Control transaction search pagination
+--contract-type <type>       # (get command) optional contract type override
 ```
 
 Note: `--address` and `--tx` flags are not supported; use positional arguments.
