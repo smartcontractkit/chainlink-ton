@@ -24,6 +24,7 @@ import (
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 )
 
 type TxManager interface {
@@ -249,6 +250,21 @@ func (t *Txm) broadcastLoop() {
 			return
 		}
 	}
+}
+
+// We consider succesful a transaction that reaches CCIPReceive, so we stop tracing after that.
+// TODO: We should be able to trace up to CCIPReceive, ignore the result of the CCIPReceive message, and then trace
+// either the confirmation or failure path back through the CCIP contracts.
+var stopAtCCIPReceiveCondition tracetracking.StopCondition = func (_, m *tracetracking.ReceivedMessage) (bool, error) {
+	opcode, err := tvm.ExtractOpcode(m.InternalMsg.Body)
+	if err != nil {
+		return true, (fmt.Errorf("failed to extract opcode from message in the trace: %w", err))
+	}
+	//Stop tracing on CCIPReceive message delivery
+	if uint64(opcode) == offramp.OpcodeCCIPReceive {
+		return true, nil 
+	}
+	return false, nil
 }
 
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
@@ -483,7 +499,8 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 				t.logger.Errorw("failed to get outcome exit code", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
-			traceSucceeded := receivedMessage.TraceSucceeded()
+
+			traceSucceeded, _ := receivedMessage.TraceSucceededWith(stopAtCCIPReceiveCondition)
 
 			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
 				t.logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
