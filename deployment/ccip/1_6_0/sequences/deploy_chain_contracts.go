@@ -219,6 +219,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		ContractsVersionSha: cfg.ContractVersion,
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
+				ID:                           contractID,
 				ContractsSemver:              cfg.Version,
 				Coin:                         defaultCCIPContractCoin,
 				MaxFeeJuelsPerMsg:            cfg.MaxFeeJuelsPerMsg,

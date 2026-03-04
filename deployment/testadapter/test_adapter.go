@@ -137,18 +137,65 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 	}
 	return receiver
 }
+func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) error {
+	receiverAddr, err := a.getAddress("Receiver")
+	if err != nil {
+		return err
+	}
+	type updateBehavior struct {
+		_        tlb.Magic `tlb:"#e7fabde3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+		Behavior uint8     `tlb:"## 8"`
+	}
+	var behavior uint8
+	if rejectAll {
+		behavior = 1
+	}
+
+	bodyCell, err := tlb.ToCell(updateBehavior{Behavior: behavior})
+	if err != nil {
+		return err
+	}
+	_, _, err = a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     &receiverAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	return err
+}
 
 func (a *TONAdapter) NativeFeeToken() string {
 	return tvm.TonTokenAddr.String()
 }
 
+// TODO: use constants from chainlink-ccip once merged
+const ExtraArgGasLimit = "gasLimit|computeUnits"
+const ExtraArgOOO = "outOfOrderExecutionEnabled"
+
 func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
-		return ccipcommon.SerializeClientGenericExtraArgsV2(msg_hasher163.ClientGenericExtraArgsV2{
+		// defaults
+		extraArgs := msg_hasher163.ClientGenericExtraArgsV2{
 			GasLimit:                 new(big.Int).SetUint64(100_000_000),
 			AllowOutOfOrderExecution: true,
-		})
+		}
+		// override via options
+		for _, opt := range opts {
+			switch opt.Name {
+			case ExtraArgGasLimit:
+				extraArgs.GasLimit = opt.Value.(*big.Int)
+			case ExtraArgOOO:
+				extraArgs.AllowOutOfOrderExecution = opt.Value.(bool)
+			default:
+				// unsupported arg
+			}
+		}
+		return ccipcommon.SerializeClientGenericExtraArgsV2(extraArgs)
 	case chain_selectors.FamilyTon:
 		return nil, nil
 	case chain_selectors.FamilySolana:

@@ -420,6 +420,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 			registry := codec.NewResolverRegistry(
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(bindings.Registry)),
+				codec.NewTypedResolver(resolvers.NewMsgEnvelopeToPayloadResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolversd.NewContractToCellResolver(fakeContractProvider{})),
 				codec.NewTypedResolver(resolversd.NewTonAddrResolver(selector, ds.Seal())),
