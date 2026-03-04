@@ -135,7 +135,7 @@ func MustWrapMessage[T any](contract string, val T) *MessageEnvelope[T] {
 
 // MarshalJSON ensures we persist the cached payload bytes when present.
 func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
-	var payload json.RawMessage
+	payload := json.RawMessage("null")
 	if e.Payload != nil && json.Valid(e.Payload) {
 		payload = e.Payload
 	} else if !lo.IsNil(e.Value) {
@@ -145,9 +145,7 @@ func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 		}
 		payload = json.RawMessage(data)
 	} else if e.Payload != nil {
-		return nil, fmt.Errorf("failed to marshal message payload: invalid JSON payload bytes")
-	} else {
-		payload = json.RawMessage("null")
+		return nil, errors.New("failed to marshal message payload: invalid JSON payload bytes")
 	}
 
 	out := messageJSON{
@@ -234,7 +232,7 @@ func (e *MessageEnvelope[T]) LoadDecoded(r tvm.ContractTLBRegistry) error {
 	}
 
 	e.Value = val
-	if err := LoadNestedEnvelopes(e.Value, r); err != nil {
+	if err = LoadNestedEnvelopes(e.Value, r); err != nil {
 		return fmt.Errorf("failed to load nested message envelopes: %w", err)
 	}
 

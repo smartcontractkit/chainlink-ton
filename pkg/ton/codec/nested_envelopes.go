@@ -7,6 +7,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// envelopeLoader is an interface that MessageEnvelope implements to load decoded data from registry.
 type envelopeLoader interface {
 	LoadDecoded(tvm.ContractTLBRegistry) error
 }
@@ -21,6 +22,7 @@ func LoadNestedEnvelopes(value any, registry tvm.ContractTLBRegistry) error {
 	return loadNestedEnvelopesValue(reflect.ValueOf(value), registry, visited)
 }
 
+// loadNestedEnvelopesValue is the recursive implementation of LoadNestedEnvelopes that operates on reflect.Value.
 func loadNestedEnvelopesValue(v reflect.Value, registry tvm.ContractTLBRegistry, visited map[uintptr]struct{}) error {
 	if !v.IsValid() {
 		return nil
@@ -82,6 +84,8 @@ func loadNestedEnvelopesValue(v reflect.Value, registry tvm.ContractTLBRegistry,
 	return nil
 }
 
+// tryLoadEnvelope attempts to load the envelope if the value implements envelopeLoader,
+// checking both value and pointer receivers.
 func tryLoadEnvelope(v reflect.Value, registry tvm.ContractTLBRegistry) error {
 	if !v.IsValid() {
 		return nil
