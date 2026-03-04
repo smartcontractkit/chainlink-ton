@@ -276,7 +276,22 @@ describe('Receiver', () => {
       body: tr.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
     })
 
+    const tx = result.transactions.find(
+      (tx) =>
+        tx.inMessage &&
+        tx.inMessage.info.src &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(deployer.address) &&
+        tx.inMessage.info.dest &&
+        tx.inMessage.info.dest instanceof Address &&
+        tx.inMessage.info.dest.equals(receiver.address),
+    )
+    if (!tx || tx.description.type != 'generic') {
+      throw new Error('Expected an internal message')
+    }
+    const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
+
     const finalBalance = (await blockchain.getContract(receiver.address)).balance
-    expect(finalBalance).toEqual(initialBalance)
+    expect(finalBalance).toEqual(initialBalance - storageFees)
   })
 })
