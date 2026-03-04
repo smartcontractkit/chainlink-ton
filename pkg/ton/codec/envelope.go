@@ -136,6 +136,7 @@ func MustWrapMessage[T any](contract string, val T) *MessageEnvelope[T] {
 // MarshalJSON ensures we persist the cached payload bytes when present.
 func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
 	payload := json.RawMessage("null")
+	//nolint:gocritic // allow if-else
 	if e.Payload != nil && json.Valid(e.Payload) {
 		payload = e.Payload
 	} else if !lo.IsNil(e.Value) {
