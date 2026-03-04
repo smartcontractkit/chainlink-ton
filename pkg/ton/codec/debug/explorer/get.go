@@ -1,12 +1,15 @@
 package explorer
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,6 +18,8 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"golang.org/x/term"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -91,8 +96,8 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) != 2 {
-				return errors.New("requires exactly 2 arguments (<address> <getter_name>)")
+			if len(args) < 1 || len(args) > 2 {
+				return errors.New("requires <address> and optional <getter_name>")
 			}
 
 			log, err := buildCmdLogger(lggr, verbose)
@@ -120,7 +125,22 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 				return err
 			}
 
-			getterName := args[1]
+			availableGetters := listNoArgsGetterNames(effectiveContractType)
+			if len(availableGetters) == 0 {
+				return fmt.Errorf("no no-args getters registered for %q", effectiveContractType)
+			}
+
+			getterName := ""
+			if len(args) == 2 {
+				getterName = args[1]
+			} else {
+				selected, selectErr := selectGetterInteractive(cmd, targetAddr.String(), effectiveContractType, availableGetters)
+				if selectErr != nil {
+					return selectErr
+				}
+				getterName = selected
+			}
+
 			invocation, err := resolveNoArgsGetter(effectiveContractType, getterName)
 			if err != nil {
 				return err
@@ -344,4 +364,39 @@ func isNoArgsEncoderFieldType(t reflect.Type) bool {
 
 	typeStr := t.String()
 	return strings.Contains(typeStr, "[tvm.NoArgs]") || strings.Contains(typeStr, "[struct {}]")
+}
+
+func selectGetterInteractive(cmd *cobra.Command, addr string, contractType string, options []string) (string, error) {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		return "", errors.New("getter_name is required in non-interactive mode")
+	}
+
+	out := cmd.OutOrStdout()
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Fprintf(out, "Select getter for %s (%s):\n", addr, contractType)
+	for i, opt := range options {
+		fmt.Fprintf(out, "  %d) %s\n", i+1, opt)
+	}
+	fmt.Fprintln(out, "  0) cancel")
+
+	for {
+		fmt.Fprintf(out, "Enter number [0-%d]: ", len(options))
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return "", fmt.Errorf("interactive selector failed: %w", err)
+		}
+
+		choice := strings.TrimSpace(line)
+		index, convErr := strconv.Atoi(choice)
+		if convErr != nil || index < 0 || index > len(options) {
+			fmt.Fprintln(out, "Invalid selection, try again.")
+			continue
+		}
+		if index == 0 {
+			return "", errors.New("selection canceled")
+		}
+
+		return options[index-1], nil
+	}
 }
