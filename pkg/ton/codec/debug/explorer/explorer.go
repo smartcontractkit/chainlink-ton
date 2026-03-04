@@ -30,19 +30,24 @@ func GenerateExplorerCmd(lggr *logger.Logger, contracts map[string]debug.TypeAnd
 	)
 
 	cmd := &cobra.Command{
-		Use:   "explorer <tx-hash> <address> | <url>",
+		Use:   "explorer",
 		Short: "TON blockchain explorer and trace analyzer",
 		Long: `A command-line tool for exploring TON blockchain transactions and analyzing traces.
 This tool helps debug and understand transaction flows on the TON network.
 
 Usage:
-  explorer <tx-hash> <address>  - Analyze transaction with address and hash
-  explorer <url>                - Analyze transaction from URL
+  explorer trace <tx-hash> [address]  - Analyze transaction with address and hash
+  explorer trace <url> [address]      - Analyze transaction from URL
 
 Arguments:
   address   Destination address in base64
   tx-hash   Transaction hash in hex
   url       tonscan TX URL`,
+	}
+
+	traceCmd := &cobra.Command{
+		Use:   "trace <tx-hash> [address] | <url> [address]",
+		Short: "Analyze a TON transaction trace",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 && len(args) != 2 {
 				return errors.New("requires 1 argument (URL) or 2 arguments (<tx-hash> <address>)")
@@ -91,14 +96,16 @@ Arguments:
 		},
 	}
 
-	cmd.Flags().StringVarP(&visualization, "visualization", "V", "sequence", "Visualization format (sequence or tree)")
-	cmd.Flags().StringVarP(&format, "format", "f", "", "Sequence visualization format (url or raw) (only for sequence visualization)")
-	cmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
+	traceCmd.Flags().StringVarP(&visualization, "visualization", "V", "sequence", "Visualization format (sequence or tree)")
+	traceCmd.Flags().StringVarP(&format, "format", "f", "", "Sequence visualization format (url or raw) (only for sequence visualization)")
+	traceCmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	if lggr == nil {
-		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
+		traceCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
 	}
-	cmd.Flags().Uint32VarP(&pageSize, "page-size", "s", 10, "Number of blocks to fetch per page")
-	cmd.Flags().Uint32VarP(&maxPages, "max-pages", "p", 10, "Maximum number of pages to fetch")
+	traceCmd.Flags().Uint32VarP(&pageSize, "page-size", "s", 10, "Number of blocks to fetch per page")
+	traceCmd.Flags().Uint32VarP(&maxPages, "max-pages", "p", 10, "Maximum number of pages to fetch")
+
+	cmd.AddCommand(traceCmd)
 
 	return cmd
 }

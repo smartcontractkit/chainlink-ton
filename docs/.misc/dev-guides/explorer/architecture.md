@@ -59,10 +59,10 @@ For maintainability, keep future changes aligned with existing seams:
 
 ## Compatibility contract
 
-Current CLI contract intentionally remains:
+Current trace CLI contract is:
 
-- `explorer <url>`
-- `explorer <tx-hash> <address>`
-- `explorer <tx-hash>` (works when address can be resolved via toncenter)
+- `explorer trace <url>`
+- `explorer trace <tx-hash> <address>`
+- `explorer trace <tx-hash>` (works when address can be resolved via toncenter)
 
 `--address` and `--tx` flags were removed because they were unused and misleading.

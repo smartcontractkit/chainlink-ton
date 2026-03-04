@@ -8,9 +8,9 @@ Read [TON Explorer Architecture](./architecture.md) for internal module layout a
 
 Three ways to run:
 
-1. **URL**: `./explorer <tonscan-url>`
-2. **Hash + Address**: `./explorer <tx-hash> <address>`
-3. **Hash only**: `./explorer <tx-hash>` (testnet/mainnet only unless sender address is provided separately)
+1. **URL**: `./explorer trace <tonscan-url>`
+2. **Hash + Address**: `./explorer trace <tx-hash> <address>`
+3. **Hash only**: `./explorer trace <tx-hash>` (testnet/mainnet only unless sender address is provided separately)
 
 ## Run with Nix
 
@@ -19,7 +19,7 @@ The `explorer` binary is packaged with `chainlink-ton-extras` pkg bundle.
 We can start a dev shell including specific pkg contents and execute a bash cmd:
 
 ```bash
-nix shell .#chainlink-ton-extras -c explorer https://testnet.tonscan.org/tx/<tx-hash>
+nix shell .#chainlink-ton-extras -c explorer trace https://testnet.tonscan.org/tx/<tx-hash>
 ```
 
 ## Build
@@ -33,14 +33,14 @@ go build
 
 ```bash
 # URL (recommended)
-./explorer https://testnet.tonscan.org/tx/<tx-hash>
-./explorer http://localhost:8080/transaction?account=<account_addr>&hash=<tx-hash>
+./explorer trace https://testnet.tonscan.org/tx/<tx-hash>
+./explorer trace http://localhost:8080/transaction?account=<account_addr>&hash=<tx-hash>
 
 # Hash + address
-./explorer <tx-hash> <address> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
+./explorer trace <tx-hash> <address> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 
 # Hash only (auto-resolves address via toncenter on testnet/mainnet)
-./explorer <tx-hash> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
+./explorer trace <tx-hash> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 ```
 
 ## Networks
