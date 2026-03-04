@@ -174,7 +174,7 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-type RMNOwnableMessage[T ownable2step.InMessage] struct {
+type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
 	_       tlb.Magic                 `tlb:"#af7a9ac6" json:"-"` //nolint:revive // Ignore opcode tag
 	Content *codec.MessageEnvelope[T] `tlb:"."`
 }
@@ -190,5 +190,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
-	RMNOwnableMessage[ownable2step.TransferOwnership]{Content: nil},
+	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
+	RMNOwnableMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})
