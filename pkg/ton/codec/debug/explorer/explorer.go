@@ -38,11 +38,13 @@ This tool helps debug and understand transaction flows on the TON network.
 Usage:
   explorer trace <tx-hash> [address]  - Analyze transaction with address and hash
   explorer trace <url> [address]      - Analyze transaction from URL
+	explorer get <address> <getter_name> - Execute a no-args getter on a contract
 
 Arguments:
   address   Destination address in base64
   tx-hash   Transaction hash in hex
-  url       tonscan TX URL`,
+	url       tonscan TX URL
+	getter_name Getter name registered in bindings.GetterMap`,
 	}
 
 	traceCmd := &cobra.Command{
@@ -106,6 +108,7 @@ Arguments:
 	traceCmd.Flags().Uint32VarP(&maxPages, "max-pages", "p", 10, "Maximum number of pages to fetch")
 
 	cmd.AddCommand(traceCmd)
+	cmd.AddCommand(newGetCmd(lggr, contracts, client))
 
 	return cmd
 }
