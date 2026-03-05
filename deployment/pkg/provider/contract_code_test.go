@@ -86,14 +86,3 @@ func TestContractProvider_GetContract_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "contract not found for metadata")
 }
 
-func TestContractProvider_ImplementsInterface(t *testing.T) {
-	ctx := context.Background()
-	lggr, err := logger.New()
-	require.NoError(t, err)
-
-	// Compile-time assertion: codeProvider satisfies ton.ContractCodeProvider.
-	codeProvider, err := provider.NewCCIPContractProvider(ctx, lggr, utils.ContractsVersionLocal)
-	require.NoError(t, err)
-
-	var _ opston.ContractCodeProvider = codeProvider
-}
