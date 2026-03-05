@@ -89,7 +89,8 @@ func (lp *service) parseTx(ctx context.Context, tx models.Tx, chainID string, fi
 		logs, err := lp.parseMessage(ctx, &msg, msgIndex, tx, chainID, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
-			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Transaction.Hash, "msgIndex", msgIndex, "err", err)
+			lp.lggr.Errorw("failed to parse message, skipping", "tx_hash", tx.Transaction.Hash, "msgIndex", msgIndex, "err", err)
+			lp.metrics.IncrementParseErrors(ctx)
 			continue
 		}
 		allLogs = append(allLogs, logs...)
