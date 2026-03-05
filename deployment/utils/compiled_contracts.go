@@ -275,11 +275,12 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 		case tar.TypeReg:
 			clean := filepath.Clean(header.Name)
 
-			// Only accept root-level files in this current version (no "/")
-			if strings.Contains(clean, "/") {
+			// Only accept root-level files in this current version (no "/") and disallow any occurrence of ".." in the name
+			if strings.Contains(clean, "/") || strings.Contains(clean, "..") {
 				continue
 			}
-			if !strings.HasSuffix(clean, suffix) {
+			// Reject empty, current-dir
+			if clean == "" || clean == "." {
 				continue
 			}
 			var buf bytes.Buffer
