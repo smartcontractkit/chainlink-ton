@@ -321,11 +321,8 @@ func getBytesFromURL(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 
-	defer func() error {
-		if err := resp.Body.Close(); err != nil {
-			return fmt.Errorf("failed to close response body: %v", err)
-		}
-		return nil
+	defer func() {
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
