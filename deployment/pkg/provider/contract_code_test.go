@@ -91,9 +91,9 @@ func TestContractProvider_ImplementsInterface(t *testing.T) {
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
+	// Compile-time assertion: codeProvider satisfies ton.ContractCodeProvider.
 	codeProvider, err := provider.NewCCIPContractProvider(ctx, lggr, utils.ContractsVersionLocal)
 	require.NoError(t, err)
 
-	// Compile-time assertion: codeProvider satisfies ton.ContractCodeProvider.
 	var _ opston.ContractCodeProvider = codeProvider
 }

@@ -35,5 +35,3 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, dp *dep.Dependenc
 	}
 	return output, nil
 }
-
-

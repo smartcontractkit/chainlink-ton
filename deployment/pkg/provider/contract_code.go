@@ -12,8 +12,6 @@ import (
 )
 
 type contractProvider struct {
-	ctx               context.Context
-	logger            logger.Logger
 	compiledContracts map[string]ton.CompiledContract
 }
 
@@ -62,8 +60,6 @@ func NewCCIPContractProvider(ctx context.Context, logger logger.Logger, contract
 	}
 
 	return &contractProvider{
-		ctx:               ctx,
-		logger:            logger,
 		compiledContracts: compiledContracts,
 	}, nil
 }

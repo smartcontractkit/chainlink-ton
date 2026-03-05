@@ -11,8 +11,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
-
-
 var DownloadArtifactsOp = operations.NewOperation(
 	"ton/ops/download-artifacts",
 	semver.MustParse("0.1.0"),
@@ -27,5 +25,3 @@ func downloadArtifactsOperationHandler(b operations.Bundle, _ *dep.DependencyPro
 	}
 	return output, nil
 }
-
-

@@ -88,8 +88,6 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	},
 }
 
-
-
 type RetrieveCompiledContractsInput struct {
 	ContractsVersionSha string
 	Contracts           []ds.ContractType
