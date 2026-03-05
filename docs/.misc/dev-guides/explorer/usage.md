@@ -11,7 +11,7 @@ Four ways to run:
 1. **URL**: `./explorer trace <tonscan-url>`
 2. **Hash + Address**: `./explorer trace <tx-hash> <address>`
 3. **Hash only**: `./explorer trace <tx-hash>` (testnet/mainnet only unless sender address is provided separately)
-4. **Getter call**: `./explorer get <address> [getter_name]`
+4. **Getter call**: `./explorer get <address> [getter_name] [args...]`
 
 ## Run with Nix
 
@@ -43,8 +43,8 @@ go build
 # Hash only (auto-resolves address via toncenter on testnet/mainnet)
 ./explorer trace <tx-hash> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 
-# Getter call (no-args getters only for now)
-./explorer get <address> [getter_name] [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json] [--contract-type <type>]
+# Getter call
+./explorer get <address> [getter_name] [args...] [--arg name=value] [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json] [--contract-type <type>]
 
 # Example
 ./explorer get EQA-CUZI_USus4w0_Erf-wTj5uhaAR7XldEimU0w0WAJGGod dynamicConfig
@@ -52,9 +52,10 @@ go build
 
 ## Getter command
 
-`explorer get` currently supports no-args getters and prints decoded JSON output.
+`explorer get` supports no-args and argument-based getters and prints decoded JSON output.
 
 When `getter_name` is omitted in an interactive terminal, explorer opens a numbered selector prompt (`0` to cancel).
+When a selected getter requires arguments and values are missing, explorer prompts for those values.
 
 The command tries to infer the contract type by calling `typeAndVersion` on the target address.
 If inference is unavailable/fails, pass `--contract-type` explicitly.
@@ -67,6 +68,12 @@ Examples:
 
 # explicit contract type
 ./explorer get <address> owner --contract-type link.chain.ton.ccip.OnRamp
+
+# positional args
+./explorer get <router-address> onRamp 16015286601757825753
+
+# named args
+./explorer get <timelock-address> getRoleMember --arg role=1 --arg index=0
 ```
 
 ## Autocomplete setup
@@ -140,6 +147,7 @@ Display message trace as a tree structure with `--visualization tree`.
 --verbose                    # Show debugging information
 --page-size 10 --max-pages 10 # Control transaction search pagination
 --contract-type <type>       # (get command) optional contract type override
+--arg name=value             # (get command) named getter argument (repeatable)
 ```
 
 Note: `--address` and `--tx` flags are not supported; use positional arguments.

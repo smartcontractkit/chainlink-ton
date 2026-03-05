@@ -28,6 +28,8 @@ var TypeToGetterMap = map[string]GetterMap{
 		"rmn_pendingOwner":   router.GetRMNPendingOwner,
 		"onRamp":             router.GetOnRamp,
 		"destChainSelectors": router.GetDestChainSelectors,
+		"verifyNotCursed":    router.GetVerifyNotCursed,
+		"cursedSubjects":     router.GetCursedSubjects,
 	},
 	TypeOnRamp: {
 		"owner":              onramp.GetOwner,

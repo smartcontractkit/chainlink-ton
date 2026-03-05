@@ -59,3 +59,15 @@ var GetVerifyNotCursed = tvm.Getter[*big.Int, bool]{
 		return notCursed.Cmp(big.NewInt(0)) != 0, nil
 	}),
 }
+
+// GetCursedSubjects gets all cursed subjects.
+var GetCursedSubjects = tvm.Getter[struct{}, []*big.Int]{
+	Name: "cursedSubjects",
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]*big.Int, error) {
+		subjects, err := parser.ParseLispTuple[*big.Int](r.AsTuple())
+		if err != nil {
+			return nil, err
+		}
+		return subjects, nil
+	}),
+}

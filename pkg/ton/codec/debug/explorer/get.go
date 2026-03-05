@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -27,21 +26,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-type noArgsGetterInvocation struct {
-	name   string
-	decode func(*ton.ExecutionResult) (any, error)
-}
-
 func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, apiClient *ton.APIClient) *cobra.Command {
 	var (
 		net          string
 		verbose      bool
 		contractType string
+		namedArgs    []string
 	)
 
 	cmd := &cobra.Command{
-		Use:   "get <address> <getter_name>",
-		Short: "Execute a no-args getter",
+		Use:   "get <address> [getter_name] [args...]",
+		Short: "Execute a getter",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -75,7 +70,7 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
 
-			candidates := listNoArgsGetterNames(effectiveContractType)
+			candidates := listGetterNames(effectiveContractType)
 			if toComplete == "" {
 				return candidates, cobra.ShellCompDirectiveNoFileComp
 			}
@@ -90,14 +85,14 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 			return filtered, cobra.ShellCompDirectiveNoFileComp
 		},
 		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 || len(args) > 2 {
-				return errors.New("requires <address> and <getter_name>")
+			if len(args) < 1 {
+				return errors.New("requires <address>")
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 || len(args) > 2 {
-				return errors.New("requires <address> and optional <getter_name>")
+			if len(args) < 1 {
+				return errors.New("requires <address>")
 			}
 
 			log, err := buildCmdLogger(lggr, verbose)
@@ -125,13 +120,13 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 				return err
 			}
 
-			availableGetters := listNoArgsGetterNames(effectiveContractType)
+			availableGetters := listGetterNames(effectiveContractType)
 			if len(availableGetters) == 0 {
-				return fmt.Errorf("no no-args getters registered for %q", effectiveContractType)
+				return fmt.Errorf("no getters registered for %q", effectiveContractType)
 			}
 
 			getterName := ""
-			if len(args) == 2 {
+			if len(args) >= 2 {
 				getterName = args[1]
 			} else {
 				selected, selectErr := selectGetterInteractive(cmd, targetAddr.String(), effectiveContractType, availableGetters)
@@ -141,9 +136,30 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 				getterName = selected
 			}
 
-			invocation, err := resolveNoArgsGetter(effectiveContractType, getterName)
+			desc, err := resolveGetterDescriptor(effectiveContractType, getterName)
 			if err != nil {
 				return err
+			}
+
+			named, err := parseNamedArgs(namedArgs)
+			if err != nil {
+				return err
+			}
+
+			positional := []string{}
+			if len(args) > 2 {
+				positional = args[2:]
+			}
+
+			interactive := term.IsTerminal(int(os.Stdin.Fd()))
+			inputValue, err := buildGetterInput(desc, positional, named, interactive, promptForArgValue)
+			if err != nil {
+				return err
+			}
+
+			params, err := desc.Encode(inputValue)
+			if err != nil {
+				return fmt.Errorf("failed to encode getter %q args: %w", getterName, err)
 			}
 
 			api := explorerClient.resilientAPI()
@@ -152,13 +168,13 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 				return fmt.Errorf("failed to get current block: %w", err)
 			}
 
-			result, err := api.RunGetMethod(ctx, block, targetAddr, invocation.name)
+			result, err := api.RunGetMethod(ctx, block, targetAddr, desc.MethodName, params...)
 			if err != nil {
-				return fmt.Errorf("failed to run getter %q: %w", invocation.name, err)
+				return fmt.Errorf("failed to run getter %q: %w", desc.MethodName, err)
 			}
-			decoded, err := invocation.decode(result)
+			decoded, err := desc.Decode(result)
 			if err != nil {
-				return fmt.Errorf("failed to decode getter %q result: %w", invocation.name, err)
+				return fmt.Errorf("failed to decode getter %q result: %w", desc.MethodName, err)
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), formatGetterResult(decoded))
@@ -168,6 +184,7 @@ func newGetCmd(lggr *logger.Logger, contracts map[string]debug.TypeAndVersion, a
 
 	cmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	cmd.Flags().StringVarP(&contractType, "contract-type", "t", "", "Contract type (e.g. link.chain.ton.ccip.Router)")
+	cmd.Flags().StringArrayVar(&namedArgs, "arg", nil, "Getter argument in name=value form (repeatable)")
 	if lggr == nil {
 		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
 	}
@@ -221,48 +238,6 @@ func resolveContractType(ctx context.Context, c *client, targetAddr *address.Add
 	return decoded.Type, nil
 }
 
-func resolveNoArgsGetter(contractType string, getterName string) (noArgsGetterInvocation, error) {
-	available := listNoArgsGetterNames(contractType)
-	if len(available) == 0 {
-		return noArgsGetterInvocation{}, fmt.Errorf("no no-args getters registered for contract type %q", contractType)
-	}
-
-	for _, name := range available {
-		if name != getterName {
-			continue
-		}
-		getter, found := resolveRegisteredGetter(contractType, getterName)
-		if !found {
-			break
-		}
-		return newNoArgsGetterInvocation(getter)
-	}
-
-	return noArgsGetterInvocation{}, fmt.Errorf("getter %q is not registered for %q (available: %s)", getterName, contractType, strings.Join(available, ", "))
-}
-
-func listNoArgsGetterNames(contractType string) []string {
-	availableSet := make(map[string]struct{})
-	collectNoArgsGetterNames(availableSet, bindings.TypeToGetterMap[contractType])
-	collectNoArgsGetterNames(availableSet, bindings.TypeToGetterMap["link.chain.ton.ccip.Common"])
-	collectNoArgsGetterNames(availableSet, bindings.TypeToGetterMap[bindings.TypeOwnable])
-
-	available := make([]string, 0, len(availableSet))
-	for name := range availableSet {
-		available = append(available, name)
-	}
-	sort.Strings(available)
-	return available
-}
-
-func collectNoArgsGetterNames(dest map[string]struct{}, getterMap bindings.GetterMap) {
-	for name, getter := range getterMap {
-		if _, err := newNoArgsGetterInvocation(getter); err == nil {
-			dest[name] = struct{}{}
-		}
-	}
-}
-
 func resolveRegisteredGetter(contractType string, getterName string) (any, bool) {
 	mapsToSearch := []bindings.GetterMap{
 		bindings.TypeToGetterMap[contractType],
@@ -276,68 +251,6 @@ func resolveRegisteredGetter(contractType string, getterName string) (any, bool)
 		}
 	}
 	return nil, false
-}
-
-func newNoArgsGetterInvocation(getter any) (noArgsGetterInvocation, error) {
-	value := reflect.ValueOf(getter)
-	if value.Kind() != reflect.Struct {
-		return noArgsGetterInvocation{}, fmt.Errorf("registered getter has unsupported shape %T", getter)
-	}
-
-	nameField := value.FieldByName("Name")
-	if !nameField.IsValid() || nameField.Kind() != reflect.String || nameField.String() == "" {
-		return noArgsGetterInvocation{}, fmt.Errorf("registered getter has invalid Name field %T", getter)
-	}
-
-	encoderField := value.FieldByName("Encoder")
-	if !encoderField.IsValid() {
-		return noArgsGetterInvocation{}, errors.New("getter has no encoder information")
-	}
-	if encoderField.IsNil() {
-		if !isNoArgsEncoderFieldType(encoderField.Type()) {
-			return noArgsGetterInvocation{}, errors.New("getter requires input arguments; only no-args getters are currently supported")
-		}
-	} else {
-		encodeMethod := encoderField.MethodByName("Encode")
-		if !encodeMethod.IsValid() {
-			return noArgsGetterInvocation{}, errors.New("getter encoder has no Encode method")
-		}
-		if encodeMethod.Type().NumIn() != 1 {
-			return noArgsGetterInvocation{}, errors.New("getter encoder has unexpected Encode signature")
-		}
-
-		// Use method signature to ensure this getter accepts tvm.NoArgs only.
-		if !isNoArgsInputType(encodeMethod.Type().In(0)) {
-			return noArgsGetterInvocation{}, errors.New("getter requires input arguments; only no-args getters are currently supported")
-		}
-	}
-
-	decoderField := value.FieldByName("Decoder")
-	if !decoderField.IsValid() || decoderField.IsNil() {
-		return noArgsGetterInvocation{}, errors.New("getter has no decoder")
-	}
-
-	decodeMethod := decoderField.MethodByName("Decode")
-	if !decodeMethod.IsValid() {
-		return noArgsGetterInvocation{}, errors.New("getter decoder has no Decode method")
-	}
-
-	decodeFn := func(result *ton.ExecutionResult) (any, error) {
-		outs := decodeMethod.Call([]reflect.Value{reflect.ValueOf(result)})
-		if len(outs) != 2 {
-			return nil, errors.New("getter decoder returned unexpected values")
-		}
-		if !outs[1].IsNil() {
-			err, ok := outs[1].Interface().(error)
-			if !ok {
-				return nil, errors.New("getter decoder returned non-error second value")
-			}
-			return nil, err
-		}
-		return outs[0].Interface(), nil
-	}
-
-	return noArgsGetterInvocation{name: nameField.String(), decode: decodeFn}, nil
 }
 
 func formatGetterResult(decoded any) string {
@@ -355,15 +268,6 @@ func isNoArgsInputType(t reflect.Type) bool {
 
 	// Some bindings model no-args getters as Getter[struct{}, R].
 	return t.Kind() == reflect.Struct && t.NumField() == 0
-}
-
-func isNoArgsEncoderFieldType(t reflect.Type) bool {
-	if t == nil {
-		return false
-	}
-
-	typeStr := t.String()
-	return strings.Contains(typeStr, "[tvm.NoArgs]") || strings.Contains(typeStr, "[struct {}]")
 }
 
 func selectGetterInteractive(cmd *cobra.Command, addr string, contractType string, options []string) (string, error) {
