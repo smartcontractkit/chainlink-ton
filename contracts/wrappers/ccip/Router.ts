@@ -583,6 +583,8 @@ export type MessageValidationFailed = {
   context: Slice
 }
 
+export const RMNREMOTE_GLOBAL_CURSE_SUBJECT = 0x01000000000000000000000000000001n
+
 export type RMNRemoteCurse = {
   queryID: bigint
   subjects: bigint[]

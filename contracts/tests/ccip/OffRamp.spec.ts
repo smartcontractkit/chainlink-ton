@@ -929,6 +929,48 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([root], toNano('0.5'), 0x02, undefined)
   })
 
+  it('Test commit fails when global cursed', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // Curse all lanes
+    const curseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT],
+    })
+    expect(curseResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+    let cursedSubjects = await offRamp.getCursedSubjects()
+    expect(cursedSubjects).toEqual([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT])
+
+    // Attempt to commit - should fail with SubjectCursed
+    await commitReport([root], toNano('0.5'), 0x01, undefined, false, of.OffRampError.SubjectCursed)
+
+    // Uncurse all lanes
+    const uncurseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [],
+    })
+    expect(uncurseResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+    cursedSubjects = await offRamp.getCursedSubjects()
+    expect(cursedSubjects).toEqual([])
+
+    // Now commit should succeed
+    await commitReport([root], toNano('0.5'), 0x02, undefined)
+  })
+
   it('Test commit fails with onRamp address mismatch', async () => {
     const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
@@ -1355,6 +1397,42 @@ describe('OffRamp - Unit Tests', () => {
     let result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
       value: toNano('0.5'),
       subjects: [CHAINSEL_EVM_TEST_90000001],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    const report = createExecuteReport([message])
+    await executeReportExpectingFailure(report, of.OffRampError.SubjectCursed)
+
+    // Uncurse source chain
+    result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+  })
+
+  it('Test execute fails when source chain is cursed', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+
+    // Setup and commit with enabled chain
+    await setupOCRConfigs()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+    await commitReport([root])
+
+    // Curse source chain
+    let result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT],
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,

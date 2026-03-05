@@ -140,6 +140,50 @@ describe('Router.cursing', () => {
     }
   })
 
+  it('router respect global cursing', async () => {
+    // Curse all lanes
+    {
+      const result = await router.sendRMNRemoteCurse(deployer.getSender(), {
+        value: toNano('1'),
+        body: { queryID: 0n, subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT] },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.Cursed, {
+        subject: rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT,
+      })
+
+      await verifyNotCursed(router, deployer, false)
+      const cursedSubjects = await router.getCursedSubjects()
+      expect(cursedSubjects).toEqual([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT])
+    }
+
+    // Uncurse all lanes
+    {
+      const result = await router.sendRMNRemoteUncurse(deployer.getSender(), {
+        value: toNano('1'),
+        body: { queryID: 0n, subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT] },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+
+      assertLog(result.transactions, router.address, LogTypes.Uncursed, {
+        subject: rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT,
+      })
+
+      await verifyNotCursed(router, deployer, true)
+      const cursedSubjects = await router.getCursedSubjects()
+      expect(cursedSubjects).toEqual([])
+    }
+  })
+
   afterAll(async () => {
     if (process.env['COVERAGE'] === 'true') {
       await coverage.generateCoverageArtifacts(
