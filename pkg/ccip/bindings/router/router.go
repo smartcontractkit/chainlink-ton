@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -173,9 +174,9 @@ type RMNRemoteUncurse struct {
 	Subjects common.SnakedCell[Subject] `tlb:"^"`
 }
 
-type RMNOwnableMessage[T ownable2step.InMessage] struct {
-	_       tlb.Magic `tlb:"#af7a9ac6"` //nolint:revive // Ignore opcode tag
-	Content T         `tlb:"."`
+type RMNOwnableMessage[T ownable2step.InMessage | any] struct {
+	_       tlb.Magic                 `tlb:"#af7a9ac6" json:"-"` //nolint:revive // Ignore opcode tag
+	Content *codec.MessageEnvelope[T] `tlb:"."`
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
@@ -189,5 +190,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	MessageRejected{},
 	RMNRemoteCurse{},
 	RMNRemoteUncurse{},
-	RMNOwnableMessage[ownable2step.TransferOwnership]{Content: ownable2step.TransferOwnership{}},
+	// Notice: T as any to register once for all generic instances of RMNOwnableMessage
+	RMNOwnableMessage[any]{Content: nil},
 }).MustWithStorageType(Storage{})
