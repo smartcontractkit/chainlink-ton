@@ -63,7 +63,6 @@ func (i *DeployContractInput) Validate() error {
 
 // InvokeDeployContractOperation invokes the generic TON contract deployment operation.
 // It always executes the deployment operation and returns an error if the deployment fails.
-//
 func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract utils.CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
 	deployContractInput := DeployContractInput{
 		Name:         compiledContract.Type.String(),
