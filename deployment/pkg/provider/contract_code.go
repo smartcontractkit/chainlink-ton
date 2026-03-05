@@ -35,13 +35,11 @@ func NewCCIPContractProvider(ctx context.Context, logger logger.Logger, contract
 
 	// Convert from map[ds.ContractType]CompiledContractData to map[string]ton.CompiledContract
 	compiledContracts := make(map[string]ton.CompiledContract, len(output.CompiledContracts))
-	for contractType, data := range output.CompiledContracts {
-		// Parse version from the contract version SHA
-		version, err := semver.NewVersion("1.6.0") // Default version for now
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse version: %w", err)
-		}
 
+	// Default version for now; parse once and reuse for all contracts
+	version := semver.MustParse("1.6.0")
+
+	for contractType, data := range output.CompiledContracts {
 		// Create ton.ContractMetadata
 		metadata := ton.ContractMetadata{
 			Package: "github.com/smartcontractkit/chainlink-ton",
