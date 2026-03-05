@@ -85,4 +85,3 @@ func TestContractProvider_GetContract_NotFound(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "contract not found for metadata")
 }
-
