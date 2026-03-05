@@ -45,6 +45,13 @@ type ContractMappingMetadata struct {
 	CompiledVersionKey string
 }
 
+type CompiledContractData struct {
+	Type               ds.ContractType
+	Code               *cell.Cell
+	ContractVersionSha string
+	ContractPath       string
+}
+
 // Eventually, we can move this mapping into a descriptor as part of the contract release package.
 var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	// Core CCIP Contracts
@@ -322,11 +329,4 @@ func getBytesFromURL(ctx context.Context, url string) ([]byte, error) {
 	}
 
 	return io.ReadAll(resp.Body)
-}
-
-type CompiledContractData struct {
-	Type               ds.ContractType
-	Code               *cell.Cell
-	ContractVersionSha string
-	ContractPath       string
 }
