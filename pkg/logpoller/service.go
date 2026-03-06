@@ -383,11 +383,9 @@ func (lp *service) loadTxsForAddresses(
 	// resolve masterchain seqno and forward to output channel
 	go lp.resolveTxsMCBlock(ctx, rawTxsCh, txsOut, errsOut)
 
-	// close rawTxsCh and errsOut when all loaders are done
 	go func() {
 		wg.Wait()
 		close(rawTxsCh)
-		close(errsOut)
 	}()
 
 	return txsOut, errsOut
@@ -397,6 +395,7 @@ func (lp *service) loadTxsForAddresses(
 // On resolution failure after retries, tx proceeds with MCBlockSeqno=0 to avoid data loss.
 func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models.Tx, txsOut chan<- models.Tx, errsOut chan<- error) {
 	defer close(txsOut)
+	defer close(errsOut)
 
 	for tx := range rawTxsCh {
 		mcSeqno, err := lp.resolveMCBlockSeqNoWithRetry(ctx, tx.Block)
