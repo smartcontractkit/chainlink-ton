@@ -71,7 +71,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
         run: |
           cd staging-monitor
-          nix develop -c go run ./cmd/send-slack -webhook-url="$SLACK_WEBHOOK_URL" -environment PROD-TESTNET
+          nix develop -c go run ./cmd/send-slack -webhook-url="$SLACK_WEBHOOK_URL" -environment Prod-Testnet
 
       - name: Fail job if test failed
         if: always()
