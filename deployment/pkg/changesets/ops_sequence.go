@@ -41,6 +41,7 @@ func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.Contrac
 	return opsAnySequence{
 		// Register static resolvers
 		rregistry: *codec.NewResolverRegistry(
+			codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(registry)),
 			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
 			codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
 			codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),

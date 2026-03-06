@@ -135,17 +135,18 @@ func MustWrapMessage[T any](contract string, val T) *MessageEnvelope[T] {
 
 // MarshalJSON ensures we persist the cached payload bytes when present.
 func (e MessageEnvelope[T]) MarshalJSON() ([]byte, error) {
-	payload := e.Payload
-	if payload == nil {
-		if lo.IsNil(e.Value) {
-			payload = json.RawMessage("null")
-		} else {
-			data, err := json.Marshal(e.Value)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal message value: %w", err)
-			}
-			payload = json.RawMessage(data)
+	payload := json.RawMessage("null")
+	//nolint:gocritic // allow if-else
+	if e.Payload != nil && json.Valid(e.Payload) {
+		payload = e.Payload
+	} else if !lo.IsNil(e.Value) {
+		data, err := json.Marshal(e.Value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal message value: %w", err)
 		}
+		payload = json.RawMessage(data)
+	} else if e.Payload != nil {
+		return nil, errors.New("failed to marshal message payload: invalid JSON payload bytes")
 	}
 
 	out := messageJSON{
@@ -203,11 +204,15 @@ func (e *MessageEnvelope[T]) UnmarshalJSON(data []byte) error {
 }
 
 func (e MessageEnvelope[T]) ToCell() (*cell.Cell, error) {
+	if !lo.IsNil(e.Value) {
+		return tlb.ToCell(e.Value)
+	}
+
 	if e.Cell != nil {
 		return e.Cell, nil
 	}
 
-	return tlb.ToCell(e.Value)
+	return nil, errors.New("no value or cell data to convert to cell")
 }
 
 func (e *MessageEnvelope[T]) LoadFromCell(slice *cell.Slice) error {
@@ -228,6 +233,10 @@ func (e *MessageEnvelope[T]) LoadDecoded(r tvm.ContractTLBRegistry) error {
 	}
 
 	e.Value = val
+	if err = LoadNestedEnvelopes(e.Value, r); err != nil {
+		return fmt.Errorf("failed to load nested message envelopes: %w", err)
+	}
+
 	e.Metadata.GoType = reflect.TypeOf(val)
 	e.Cell, err = tlb.ToCell(val)
 	if err != nil {
@@ -237,9 +246,51 @@ func (e *MessageEnvelope[T]) LoadDecoded(r tvm.ContractTLBRegistry) error {
 	return nil
 }
 
+// coerceDecodedToType normalizes a decoded value to the envelope type parameter T.
+//
+// Decoders may return either a value or a single pointer layer, while
+// MessageEnvelope[T] can be instantiated with either shape (for example T or *T).
+//
+// This helper performs a small, deterministic set of conversions:
+//  1. Direct type assertion to T.
+//  2. One-level pointer dereference and assertion to T.
+//
+// It returns (zero, false) when the decoded value cannot be safely represented as T.
+func coerceDecodedToType[T any](inst any) (T, bool) {
+	var zero T
+
+	// 1. Direct assertion to T
+	if val, ok := inst.(T); ok {
+		return val, true
+	}
+
+	// 2. One-level pointer dereference and assertion to T
+	decodedVal := reflect.ValueOf(inst)
+	if !decodedVal.IsValid() {
+		return zero, false
+	}
+
+	if decodedVal.Kind() == reflect.Pointer {
+		if decodedVal.IsNil() {
+			return zero, false
+		}
+
+		if val, ok := decodedVal.Elem().Interface().(T); ok {
+			return val, true
+		}
+	}
+
+	return zero, false
+}
+
 // decode attempts to decode the message using either the Payload or Cell and the provided registry.
 func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 	var zero T
+
+	if e.Payload == nil && e.Cell == nil && !lo.IsNil(e.Value) {
+		return e.Value, nil
+	}
+
 	// TODO (ops): map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry
 	if e.Payload != nil {
@@ -248,17 +299,20 @@ func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 			return zero, fmt.Errorf("message type not found in registry for contract=%s opcode=0x%08x", e.Metadata.Contract, e.Metadata.Opcode)
 		}
 
-		// Create new instance of the candidate type
+		// Create pointer to concrete decode target type (avoid **T when registry stores *T)
 		rt := reflect.TypeOf(typ)
-		inst := reflect.New(rt).Interface() // pointer to zero value
+		if rt.Kind() == reflect.Pointer {
+			rt = rt.Elem()
+		}
+		inst := reflect.New(rt).Interface()
 
 		if err := json.Unmarshal(e.Payload, inst); err != nil {
 			return zero, fmt.Errorf("failed to unmarshal payload into type %s: %w", rt.String(), err)
 		}
 
-		val, ok := inst.(T)
+		val, ok := coerceDecodedToType[T](inst)
 		if !ok {
-			return zero, fmt.Errorf("decoded value type %T does not match envelope type parameter", inst)
+			return zero, fmt.Errorf("decoded value type %T does not match envelope type parameter %T", inst, zero)
 		}
 
 		return val, nil
@@ -271,9 +325,9 @@ func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 			return zero, fmt.Errorf("failed to decode cell for contract=%s opcode=0x%08x: %w", e.Metadata.Contract, e.Metadata.Opcode, err)
 		}
 
-		val, ok := inst.(T)
+		val, ok := coerceDecodedToType[T](inst)
 		if !ok {
-			return zero, fmt.Errorf("decoded value type %T does not match envelope type parameter", inst)
+			return zero, fmt.Errorf("decoded value type %T does not match envelope type parameter %T", inst, zero)
 		}
 
 		return val, nil
