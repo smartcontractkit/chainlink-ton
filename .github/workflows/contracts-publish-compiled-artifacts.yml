@@ -25,6 +25,7 @@ on:
 jobs:
   changes:
     name: Detect changes
+    if: ${{ !(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-contracts')) }}
     runs-on: ubuntu-latest
     outputs:
       ton_changes: ${{ steps.changes.outputs.ton_changes }}
@@ -47,8 +48,9 @@ jobs:
     name: Build Nix pkg and publish tarball
     needs: [ changes ]
     if: |
-      (needs.changes.outputs.ton_changes == 'true' || github.event_name == 'workflow_dispatch') &&
-      (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-publish-contracts'))
+      needs.changes.outputs.ton_changes == 'true' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-contracts'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
