@@ -35,7 +35,7 @@ fun onInternalMessage(in: InMessage) {
             assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized as int);
 
             // 2. Check that enough value is received to process this message (you should benchmark accordingly)
-            assert( in.valueCoins >= ton("0.01") ) throw (Receiver_Error.LowValue as int);
+            assert( in.valueCoins >= ton("0.03") ) throw (Receiver_Error.LowValue as int);
 
             // 3. Process the message according to your product logic
             match (st.behavior) {
@@ -54,8 +54,8 @@ fun onInternalMessage(in: InMessage) {
 
             // In this example we are sending all the value remaining from the message after compute costs
             // and action fees from previously emitted events. You should use an appropiate message mode for your own use case.
-            // But, consider that a minimum of 0.002 TON is required for the Router to process your confirmation message,
-            // and you should probably send more than that (~0.005 TON) to make sure the message goes through
+            // But, consider that a minimum of 0.02 TON is required for the Router to process your confirmation message,
+            // and you should probably send more than that (~0.025 TON) to make sure the message goes through
             // even if there are some fluctuations in the fees.
             reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
             val receiveConfirm = createMessage({
