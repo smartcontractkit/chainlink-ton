@@ -57,10 +57,14 @@ func (s *testLogStore) SaveLogs(_ context.Context, logs []models.Log, _, _ uint3
 func (s *testLogStore) QueryLogs(context.Context, *query.LogQuery) ([]models.Log, bool, string, error) {
 	return nil, false, "", nil
 }
-func (s *testLogStore) GetHighestMCBlockSeqno(context.Context) (uint32, bool, error) { return 0, false, nil }
-func (s *testLogStore) DeleteExpiredLogs(context.Context, int64) (int64, error)          { return 0, nil }
-func (s *testLogStore) DeleteExcessLogs(context.Context, int64) (int64, error)           { return 0, nil }
-func (s *testLogStore) DeleteLogsForDeletedFilters(context.Context, int64) (int64, error) { return 0, nil }
+func (s *testLogStore) GetHighestMCBlockSeqno(context.Context) (uint32, bool, error) {
+	return 0, false, nil
+}
+func (s *testLogStore) DeleteExpiredLogs(context.Context, int64) (int64, error) { return 0, nil }
+func (s *testLogStore) DeleteExcessLogs(context.Context, int64) (int64, error)  { return 0, nil }
+func (s *testLogStore) DeleteLogsForDeletedFilters(context.Context, int64) (int64, error) {
+	return 0, nil
+}
 
 func makeTestService(t *testing.T, loader TxLoader, logStore LogStore) *service {
 	t.Helper()
