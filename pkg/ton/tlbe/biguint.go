@@ -123,14 +123,11 @@ func (x *Uint160) MarshalJSON() ([]byte, error) {
 	// Canonical output: hexadecimal string.
 	// Avoids precision/scientific-notation issues in intermediate tooling.
 	v := x.Value()
-	if v.Sign() < 0 || uint(v.BitLen()) > x.BitsLen() {
-		return nil, fmt.Errorf("failed to marshal Uint160: out of range")
+	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) {
+		return nil, errors.New("failed to marshal Uint160: out of range")
 	}
 
 	hex := v.Text(16) // lowercase
-	if len(hex) < 40 {
-		hex = strings.Repeat("0", 40-len(hex)) + hex
-	}
 	return []byte(`"0x` + hex + `"`), nil
 }
 
@@ -149,8 +146,8 @@ func (x *Uint160) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("failed to parse Uint160 string %q", s)
 		}
 
-		if b.Sign() < 0 || uint(b.BitLen()) > x.BitsLen() {
-			return fmt.Errorf("failed to unmarshal Uint256 from JSON: out of range")
+		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+			return errors.New("failed to unmarshal Uint160 from JSON: out of range")
 		}
 		*x = Uint160(*b)
 		return nil
@@ -162,8 +159,8 @@ func (x *Uint160) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Uint160 from JSON: %w", err)
 	}
 
-	if b.Sign() < 0 || uint(b.BitLen()) > x.BitsLen() {
-		return fmt.Errorf("failed to unmarshal Uint256 from JSON: out of range")
+	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+		return errors.New("failed to unmarshal Uint160 from JSON: out of range")
 	}
 	*x = Uint160(*b)
 	return nil
@@ -221,14 +218,11 @@ func (x *Uint256) MarshalJSON() ([]byte, error) {
 	// Canonical output: hexadecimal string.
 	// Avoids precision/scientific-notation issues in intermediate tooling.
 	v := x.Value()
-	if v.Sign() < 0 || uint(v.BitLen()) > x.BitsLen() {
-		return nil, fmt.Errorf("failed to marshal Uint256: out of range")
+	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) {
+		return nil, errors.New("failed to marshal Uint256: out of range")
 	}
 
 	hex := v.Text(16) // lowercase
-	if len(hex) < 64 {
-		hex = strings.Repeat("0", 64-len(hex)) + hex
-	}
 	return []byte(`"0x` + hex + `"`), nil
 }
 
@@ -247,8 +241,8 @@ func (x *Uint256) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("failed to parse Uint256 string %q", s)
 		}
 
-		if b.Sign() < 0 || uint(b.BitLen()) > x.BitsLen() {
-			return fmt.Errorf("failed to unmarshal Uint256 from JSON: out of range")
+		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+			return errors.New("failed to unmarshal Uint256 from JSON: out of range")
 		}
 		*x = Uint256(*b)
 		return nil
@@ -260,8 +254,8 @@ func (x *Uint256) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Uint256 from JSON: %w", err)
 	}
 
-	if b.Sign() < 0 || uint(b.BitLen()) > x.BitsLen() {
-		return fmt.Errorf("failed to unmarshal Uint256 from JSON: out of range")
+	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+		return errors.New("failed to unmarshal Uint256 from JSON: out of range")
 	}
 	*x = Uint256(*b)
 	return nil
