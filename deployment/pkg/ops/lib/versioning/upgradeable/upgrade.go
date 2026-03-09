@@ -85,10 +85,18 @@ var Upgrade = operations.NewOperation(
 			val.Code = c.Code
 			valAny := any(val)
 
+			// Pre-compute the Cell from the typed value before converting to MessageEnvelope[any].
+			// WrapMessage does not set Cell, and  tlb.ToCell cannot reflect on *interface{},
+			// so we must serialize while the concrete type information is still available.
+			bodyCell, err := tlb.ToCell(val)
+			if err != nil {
+				return UpgradeOutput{}, fmt.Errorf("failed to serialize upgrade body to cell: %w", err)
+			}
+
 			bodyAny := &codec.MessageEnvelope[any]{
 				Metadata: body.Metadata,
 				Payload:  body.Payload,
-				Cell:     body.Cell,
+				Cell:     bodyCell,
 				Value:    &valAny,
 			}
 

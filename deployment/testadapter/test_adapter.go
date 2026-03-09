@@ -508,8 +508,11 @@ func waitForTONEvent[T any](
 	lggr := logger.Named(logger.Test(t), loggerName)
 
 	service := setupLogPoller(ctx, t, lggr, tonChain, offRamp, eventName)
-	defer service.Close()
-
+	defer func() {
+		if err := service.Close(); err != nil {
+			lggr.Errorw("failed to close service", "err", err)
+		}
+	}()
 	eventSig := hash.CRC32(eventName)
 	deadline := time.Now().Add(tests.WaitTimeout(t))
 	ticker := time.NewTicker(queryInterval)

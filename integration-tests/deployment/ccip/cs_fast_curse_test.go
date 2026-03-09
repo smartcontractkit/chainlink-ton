@@ -25,7 +25,8 @@ import (
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
 
@@ -78,7 +79,7 @@ func TestFastCurseTON(t *testing.T) {
 	contractID, err := ops.RandomUint32()
 	require.NoError(t, err)
 
-	version := sequence.ContractsVersionLocal
+	version := deployutils.ContractsVersionLocal
 	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, tonChainSelector, version, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})

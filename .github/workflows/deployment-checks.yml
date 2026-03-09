@@ -22,6 +22,10 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      - name: Build contracts
+        run: nix develop .#contracts -c yarn && yarn build
+        working-directory: contracts
+
       - name: Run build
         run: nix develop -c go build -v ./...
         working-directory: deployment

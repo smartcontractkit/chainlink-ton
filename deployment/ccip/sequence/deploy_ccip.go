@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -55,14 +56,14 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	}
 
 	// Notice: we set a (static) default when version is not provided
-	contractVersion := sequence.ContractsVersionLatestSupported
+	contractVersion := utils.ContractsVersionLatestSupported
 	if in.ContractsVersionSha != "" {
 		contractVersion = in.ContractsVersionSha
 	}
 
 	// TODO: don't directly execute deployments, instead return them as txs
 	addresses := make([]datastore.AddressRef, 0)
-	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
+	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
 		ContractsVersionSha: contractVersion,
 		Contracts: []datastore.ContractType{
 			state.Router,
@@ -109,7 +110,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			OnRamps: nil, // set afterward
 		}
 
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil, in.CCIPConfig.RouterParams.Coin, in.CCIPConfig.RouterParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.Router], routerStorage, nil, in.CCIPConfig.RouterParams.Coin, in.CCIPConfig.RouterParams.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -148,7 +149,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		}
 
 		// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -185,7 +186,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 		}
 
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin, in.CCIPConfig.OnRampParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.OnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin, in.CCIPConfig.OnRampParams.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -217,7 +218,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			LatestPriceSequenceNumber: 0,
 		}
 
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin, in.CCIPConfig.OffRampParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.OffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin, in.CCIPConfig.OffRampParams.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -238,7 +239,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			Behavior:         receiver.Accept,
 		}
 
-		outputAddr, err = utils.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}

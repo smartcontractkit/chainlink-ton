@@ -14,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -21,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 type DeployContractInput struct {
@@ -57,6 +59,33 @@ func (i *DeployContractInput) Validate() error {
 	}
 
 	return nil
+}
+
+// InvokeDeployContractOperation invokes the generic TON contract deployment operation.
+// It always executes the deployment operation and returns an error if the deployment fails.
+func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract utils.CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
+	deployContractInput := DeployContractInput{
+		Name:         compiledContract.Type.String(),
+		Storage:      storage,
+		MessageBody:  messageBody,
+		ContractCode: compiledContract.Code,
+		Coins:        coin,
+	}
+
+	deployContractReport, err := cldfops.ExecuteOperation(b, DeployTONContractOp, dp, deployContractInput)
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddress := *deployContractReport.Output.Address
+	// TODO: Qualifier not used here (fix)
+	return &ds.AddressRef{
+		Address:       contractAddress.String(),
+		ChainSelector: chainSelector,
+		Type:          compiledContract.Type, // TODO: type mismatch for MCMS deployment (updated upstream, needs fix here)
+		Version:       semver,
+		Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
+	}, nil
 }
 
 func deployTONContract(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployContractInput) (DeployContractOutput, error) {
