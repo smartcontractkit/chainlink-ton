@@ -136,7 +136,7 @@ type UpdateAllowlists struct {
 }
 
 type WithdrawFeeTokens struct {
-	_         tlb.Magic                             `tlb:"#7052dc75"` //nolint:revive // Ignore opcode tag
+	_         tlb.Magic                             `tlb:"#7052dc75" json:"-"` //nolint:revive // Ignore opcode tag
 	FeeTokens common.SnakedCell[common.AddressWrap] `tlb:"^"`
 }
 

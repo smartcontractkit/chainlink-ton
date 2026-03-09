@@ -56,6 +56,10 @@ func (a *TonLaneAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.Updat
 	return ConfigureLaneLegAsDest
 }
 
+func (a *TonLaneAdapter) DisableRemoteChain() *cldf_ops.Sequence[lanes.DisableRemoteChainInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+	panic("DisableRemoteChain not implemented for TON")
+}
+
 var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 	"ton/sequences/ccip/tooling-api/configure-lane-leg-as-source",
 	semver.MustParse("1.6.0"),
