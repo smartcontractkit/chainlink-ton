@@ -123,7 +123,7 @@ func (x *Uint160) MarshalJSON() ([]byte, error) {
 	// Canonical output: hexadecimal string.
 	// Avoids precision/scientific-notation issues in intermediate tooling.
 	v := x.Value()
-	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) {
+	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) { //nolint:gosec // no overflow risk
 		return nil, errors.New("failed to marshal Uint160: out of range")
 	}
 
@@ -146,7 +146,7 @@ func (x *Uint160) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("failed to parse Uint160 string %q", s)
 		}
 
-		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) { //nolint:gosec // no overflow risk
 			return errors.New("failed to unmarshal Uint160 from JSON: out of range")
 		}
 		*x = Uint160(*b)
@@ -159,7 +159,7 @@ func (x *Uint160) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Uint160 from JSON: %w", err)
 	}
 
-	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) { //nolint:gosec // no overflow risk
 		return errors.New("failed to unmarshal Uint160 from JSON: out of range")
 	}
 	*x = Uint160(*b)
@@ -218,7 +218,7 @@ func (x *Uint256) MarshalJSON() ([]byte, error) {
 	// Canonical output: hexadecimal string.
 	// Avoids precision/scientific-notation issues in intermediate tooling.
 	v := x.Value()
-	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) {
+	if v.Sign() < 0 || v.BitLen() > int(x.BitsLen()) { //nolint:gosec // no overflow risk
 		return nil, errors.New("failed to marshal Uint256: out of range")
 	}
 
@@ -241,7 +241,7 @@ func (x *Uint256) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("failed to parse Uint256 string %q", s)
 		}
 
-		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+		if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) { //nolint:gosec // no overflow risk
 			return errors.New("failed to unmarshal Uint256 from JSON: out of range")
 		}
 		*x = Uint256(*b)
@@ -254,7 +254,7 @@ func (x *Uint256) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Uint256 from JSON: %w", err)
 	}
 
-	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) {
+	if b.Sign() < 0 || b.BitLen() > int(x.BitsLen()) { //nolint:gosec // no overflow risk
 		return errors.New("failed to unmarshal Uint256 from JSON: out of range")
 	}
 	*x = Uint256(*b)
