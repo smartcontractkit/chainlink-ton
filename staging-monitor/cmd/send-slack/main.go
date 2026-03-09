@@ -20,6 +20,7 @@ func main() {
 	// optional, defaults to "result.json"
 	resultFile := flag.String("result-file", "result.json", "Path to read test result JSON from")
 	webhookURL := flag.String("webhook-url", "", "Slack webhook URL (required)")
+	environment := flag.String("environment", "", "Environment (e.g. testnet, staging)")
 	flag.Parse()
 
 	if *webhookURL == "" {
@@ -33,7 +34,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		if err := sendSlackNoti(ctx, *resultFile, *webhookURL); err != nil {
+		if err := sendSlackNoti(ctx, *resultFile, *webhookURL, *environment); err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			exitCode = 1
 		}
@@ -45,7 +46,7 @@ func main() {
 	os.Exit(exitCode)
 }
 
-func sendSlackNoti(ctx context.Context, resultFile, webhookURL string) error {
+func sendSlackNoti(ctx context.Context, resultFile, webhookURL string, environment string) error {
 	// get GitHub Actions context from environment
 	runURL := os.Getenv("RUN_URL")
 	trigger := os.Getenv("TRIGGER")
@@ -88,6 +89,7 @@ func sendSlackNoti(ctx context.Context, resultFile, webhookURL string) error {
 		"trigger":        trigger,
 		"when":           when,
 		"error":          result.Error,
+		"environment":    environment,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
