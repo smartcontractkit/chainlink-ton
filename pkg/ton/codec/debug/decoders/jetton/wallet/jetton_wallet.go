@@ -29,7 +29,11 @@ func (d *decoder) ContractType() string {
 
 // EventInfo implements lib.ContractDecoder.
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, codec.ErrUnknownMessage
+	info, err := lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
+	if err != nil {
+		return jetton_common.NewDecoder(d.tlbsCtx, d.ContractType()).InternalMessageInfo(msg)
+	}
+	return info, nil
 }
 
 // ExternalMessageInfo implements lib.ContractDecoder.

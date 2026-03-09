@@ -35,16 +35,38 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 	if err != nil {
 		return nil, codec.ErrUnknownMessage
 	}
-	if topic == onramp.TopicCCIPMessageSent {
+	switch topic {
+	case onramp.TopicCCIPMessageSent:
 		var ccipMessageSent onramp.CCIPMessageSent
 		err := tlb.LoadFromCell(&ccipMessageSent, msg.BeginParse())
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("CCIPMessageSent", ccipMessageSent)
+	case onramp.TopicDestChainSelectorAdded:
+		var destChainSelectorAdded onramp.DestChainSelectorAdded
+		err := tlb.LoadFromCell(&destChainSelectorAdded, msg.BeginParse())
+		if err != nil {
+			return nil, err
+		}
+		return lib.NewMessageInfo("DestChainSelectorAdded", destChainSelectorAdded)
+	case onramp.TopicDestChainConfigUpdated:
+		var destChainConfigUpdated onramp.DestChainConfigUpdated
+		err := tlb.LoadFromCell(&destChainConfigUpdated, msg.BeginParse())
+		if err != nil {
+			return nil, err
+		}
+		return lib.NewMessageInfo("DestChainConfigUpdated", destChainConfigUpdated)
+	case onramp.TopicConfigSet:
+		var configSet onramp.ConfigSet
+		err := tlb.LoadFromCell(&configSet, msg.BeginParse())
+		if err != nil {
+			return nil, err
+		}
+		return lib.NewMessageInfo("ConfigSet", configSet)
+	default:
+		return nil, codec.ErrUnknownMessage
 	}
-
-	return nil, codec.ErrUnknownMessage
 }
 
 func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {

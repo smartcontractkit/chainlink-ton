@@ -43,6 +43,11 @@ func TestTopicCRC32Values(t *testing.T) {
 			topic:    "ConfigSet",
 			expected: TopicConfigSet,
 		},
+		{
+			name:     "TopicDynamicConfigSetAlias",
+			topic:    "ConfigSet",
+			expected: TopicDynamicConfigSet,
+		},
 	}
 
 	for _, tt := range tests {

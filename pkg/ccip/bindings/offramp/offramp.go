@@ -15,6 +15,18 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// Topics
+const (
+	TopicExecutionStateChanged             = 0x4C94C360 // CRC32("ExecutionStateChanged")
+	TopicCommitReportAccepted              = 0x27D3BCE8 // CRC32("CommitReportAccepted")
+	TopicSourceChainSelectorAdded          = 0x989AA53E // CRC32("SourceChainSelectorAdded")
+	TopicSourceChainConfigUpdated          = 0x71E9FD30 // CRC32("SourceChainConfigUpdated")
+	TopicDynamicConfigSet                  = 0xAD76A933 // CRC32("DynamicConfigSet")
+	TopicReceiveExecutorInitExecuteBounced = 0x8DC48A3C // CRC32("ReceiveExecutorInitExecuteBounced")
+	TopicDeployableInitializeBounced       = 0x408AA96F // CRC32("DeployableInitializeBounced")
+	TopicRouteMessageBounced               = 0x9C288FEA // CRC32("RouteMessageBounced")
+)
+
 // OCR3Config represents the OCR3 configuration stored on-chain
 type OCR3Config struct {
 	ConfigInfo   ConfigInfo       `tlb:"."`
@@ -166,6 +178,73 @@ type Execute struct {
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
 }
 
+// ExecuteValidated represents the executeValidated message.
+type ExecuteValidated struct {
+	_              tlb.Magic              `tlb:"#c73d5a8a" json:"-"` //nolint:revive // Ignore opcode tag
+	Message        ocr.Any2TVMRampMessage `tlb:"^"`
+	Root           []byte                 `tlb:"bits 256"`
+	MetadataHash   []byte                 `tlb:"bits 256"`
+	GasOverride    *tlb.Coins             `tlb:"maybe ."`
+	ExecutionState uint8                  `tlb:"## 8"`
+}
+
+// ManuallyExecute represents the manuallyExecute message.
+type ManuallyExecute struct {
+	_           tlb.Magic         `tlb:"#a00785cf" json:"-"` //nolint:revive // Ignore opcode tag
+	QueryID     uint64            `tlb:"## 64"`
+	Report      ocr.ExecuteReport `tlb:"."`
+	GasOverride tlb.Coins         `tlb:"."`
+}
+
+// DispatchValidated represents the dispatchValidated message.
+type DispatchValidated struct {
+	_           tlb.Magic              `tlb:"#58cfcb02" json:"-"` //nolint:revive // Ignore opcode tag
+	Message     ocr.Any2TVMRampMessage `tlb:"^"`
+	ExecID      []byte                 `tlb:"bits 192"`
+	GasOverride *tlb.Coins             `tlb:"maybe ."`
+}
+
+// CCIPReceiveConfirm represents the ccipReceiveConfirm message.
+type CCIPReceiveConfirm struct {
+	_        tlb.Magic        `tlb:"#28f4166f" json:"-"` //nolint:revive // Ignore opcode tag
+	ExecID   []byte           `tlb:"bits 192"`
+	Receiver *address.Address `tlb:"addr"`
+}
+
+// CCIPReceiveBounced represents the ccipReceiveBounced message.
+type CCIPReceiveBounced struct {
+	_        tlb.Magic        `tlb:"#2dcf2a43" json:"-"` //nolint:revive // Ignore opcode tag
+	ExecID   []byte           `tlb:"bits 192"`
+	Receiver *address.Address `tlb:"addr"`
+}
+
+// NotifySuccess represents the notifySuccess message.
+type NotifySuccess struct {
+	_      tlb.Magic             `tlb:"#59e56170" json:"-"` //nolint:revive // Ignore opcode tag
+	Header ocr.RampMessageHeader `tlb:"."`
+	ExecID []byte                `tlb:"bits 192"`
+	Root   *address.Address      `tlb:"addr"`
+}
+
+// NotifyFailure represents the notifyFailure message.
+type NotifyFailure struct {
+	_      tlb.Magic             `tlb:"#177ebd03" json:"-"` //nolint:revive // Ignore opcode tag
+	Header ocr.RampMessageHeader `tlb:"."`
+	ExecID []byte                `tlb:"bits 192"`
+	Root   *address.Address      `tlb:"addr"`
+}
+
+// CursedSubjects wraps the cursed subject map used by RMN remote.
+type CursedSubjects struct {
+	Data *cell.Dictionary `tlb:"dict 128"`
+}
+
+// UpdateCursedSubjects represents the updateCursedSubjects message.
+type UpdateCursedSubjects struct {
+	_              tlb.Magic      `tlb:"#4ca1bcb3" json:"-"` //nolint:revive // Ignore opcode tag
+	CursedSubjects CursedSubjects `tlb:"."`
+}
+
 type SetDynamicConfig struct {
 	_                                       tlb.Magic        `tlb:"#95bc5a5c" json:"-"` //nolint:revive // Ignore opcode tag
 	QueryID                                 uint64           `tlb:"## 64"`
@@ -182,11 +261,20 @@ type UpdateDeployables struct {
 
 var TLBs = tvm.MustNewTLBMap([]any{
 	CCIPReceive{},
-	SetOCR3Config{},
 	UpdateSourceChainConfigs{},
 	Commit{},
 	Execute{},
+	ExecuteValidated{},
+	ManuallyExecute{},
+	DispatchValidated{},
+	UpdateSourceChainConfigs{},
+	CCIPReceiveConfirm{},
+	CCIPReceiveBounced{},
+	NotifyFailure{},
+	NotifySuccess{},
+	UpdateCursedSubjects{},
 	SetDynamicConfig{},
+	SetOCR3Config{},
 	UpdateDeployables{},
 }).MustWithStorageType(Storage{})
 

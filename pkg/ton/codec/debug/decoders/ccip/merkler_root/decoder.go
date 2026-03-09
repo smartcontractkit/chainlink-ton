@@ -1,18 +1,17 @@
-package rbac
+package merkle_root
 
 import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
-
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkleroot"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-var TLBs = rbac.TLBs
+var TLBs = merkleroot.TLBs
 
 type decoder struct {
 	tlbsCtx tvm.TLBMap
@@ -23,11 +22,11 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 func (d *decoder) ContractType() string {
-	return bindings.TypeRBAC
+	return bindings.TypeMerkleRoot
 }
 
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
-	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
+	return nil, codec.ErrUnknownMessage
 }
 
 func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
@@ -39,7 +38,7 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	ec, err := rbac.ExitCodeCodec.NewFrom(exitCode)
+	ec, err := merkleroot.ExitCodeCodec.NewFrom(exitCode)
 	if err != nil {
 		return "", codec.ErrUnknownMessage
 	}

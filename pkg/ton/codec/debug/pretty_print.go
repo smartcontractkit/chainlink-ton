@@ -14,8 +14,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/feequoter"
+	merkle_root "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/merkler_root"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/receiveexecutor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/ccip/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/decoders/jetton/wallet"
@@ -77,8 +80,12 @@ func defaultDecoders() map[string]lib.ContractDecoder {
 	// CCIP contract types
 	maps.Copy(tlbs, router.TLBs)
 	maps.Copy(tlbs, onramp.TLBs)
+	maps.Copy(tlbs, merkle_root.TLBs)
 	maps.Copy(tlbs, feequoter.TLBs)
 	maps.Copy(tlbs, ccipsendexecutor.TLBs)
+	maps.Copy(tlbs, receiveexecutor.TLBs)
+	// CCIP Test contract types
+	maps.Copy(tlbs, receiver.TLBs)
 	// MCMS contract types
 	maps.Copy(tlbs, rbac.TLBs)
 	maps.Copy(tlbs, mcms.TLBs)
@@ -89,9 +96,12 @@ func defaultDecoders() map[string]lib.ContractDecoder {
 	registerDecoder(t, minter.NewDecoder(tlbs))
 	registerDecoder(t, router.NewDecoder(tlbs))
 	registerDecoder(t, onramp.NewDecoder(tlbs))
+	registerDecoder(t, merkle_root.NewDecoder(tlbs))
 	registerDecoder(t, offramp.NewDecoder(tlbs))
 	registerDecoder(t, feequoter.NewDecoder(tlbs))
 	registerDecoder(t, ccipsendexecutor.NewDecoder(tlbs))
+	registerDecoder(t, receiveexecutor.NewDecoder(tlbs))
+	registerDecoder(t, receiver.NewDecoder(tlbs))
 	registerDecoder(t, rbac.NewDecoder(tlbs))
 	registerDecoder(t, mcms.NewDecoder(tlbs))
 	registerDecoder(t, timelock.NewDecoder(tlbs))
@@ -275,6 +285,20 @@ func (d DebuggerEnvironment) describeSentMessage(m *tt.SentMessage, verbose bool
 func (d DebuggerEnvironment) describeExternalOutMsg(m tt.OutgoingExternalMessages, verbose bool) (*lib.MessageInfo, error) {
 	var info lib.MessageInfo
 	var err error
+	if m.SrcAddr != nil {
+		if actor, ok := d.existingAddresses[m.SrcAddr.String()]; ok {
+			if contract, exists := d.contracts[actor.Type]; exists {
+				info, err = contract.EventInfo(m.DstAddr, m.Body)
+				if err == nil {
+					return &info, nil
+				}
+				if !errors.Is(err, codec.ErrUnknownMessage) {
+					return nil, err
+				}
+			}
+		}
+	}
+
 	for _, contract := range d.contracts {
 		info, err = contract.EventInfo(m.DstAddr, m.Body)
 		if err == nil {

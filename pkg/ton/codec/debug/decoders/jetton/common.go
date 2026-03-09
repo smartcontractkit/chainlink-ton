@@ -29,7 +29,7 @@ func (d *decoder) ContractType() string {
 
 // EventInfo implements lib.ContractDecoder.
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
-	return nil, codec.ErrUnknownMessage
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
 }
 
 // ExternalMessageInfo implements lib.ContractDecoder.
