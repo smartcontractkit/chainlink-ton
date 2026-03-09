@@ -410,7 +410,7 @@ func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models
 		select {
 		case txsOut <- tx:
 		case <-ctx.Done():
-			return
+			continue
 		}
 	}
 }
