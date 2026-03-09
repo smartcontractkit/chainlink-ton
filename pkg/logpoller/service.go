@@ -303,14 +303,22 @@ func (lp *service) processBlockRange(
 	txsCh, loadErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, parseErrsCh := lp.parseTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
+	var loadErrCount, parseErrCount int
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
 		for err := range loadErrsCh {
+			loadErrCount++
 			lp.metrics.IncrementLoaderErrors(ctx)
 			lp.lggr.Errorw("loading transactions error", "err", err)
 		}
 	}()
 	go func() {
+		defer wg.Done()
 		for err := range parseErrsCh {
+			parseErrCount++
 			lp.metrics.IncrementParseErrors(ctx)
 			lp.lggr.Errorw("parsing transactions error", "err", err)
 		}
@@ -321,9 +329,29 @@ func (lp *service) processBlockRange(
 		return fmt.Errorf("failed to save logs: %w", err)
 	}
 
+	// Wait for error processing to complete before logging summary and returning
+	wg.Wait()
+
 	// Note: logs inserted metric is recorded by ObservedLogStore.SaveLogs
 	if totalSaved > 0 {
 		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.FromSeqNo(), blockRange.ToSeqNo(), totalSaved, len(addresses))
+	}
+
+	if parseErrCount > 0 {
+		// Parsing errors are concerning but not critical - they indicate some transactions may have been skipped,
+		// but we can still advance the block checkpoint to avoid getting stuck. So we log the error count and continue.
+		lp.lggr.Warnw("block range had parse errors",
+			"parseErrCount", parseErrCount,
+			"fromSeqNo", blockRange.FromSeqNo(),
+			"toSeqNo", blockRange.ToSeqNo())
+	}
+
+	if loadErrCount > 0 {
+		// Loader errors are more concerning as they may indicate issues with fetching transactions,
+		// which can lead to missing logs but advanced block checkpoint
+		// so here we abort the current loop and return an error to trigger retry on next tick,
+		// rather than risk data loss by proceeding with incomplete transaction data.
+		return fmt.Errorf("block range processing had %d loader error(s)", loadErrCount)
 	}
 
 	return nil
@@ -355,11 +383,9 @@ func (lp *service) loadTxsForAddresses(
 	// resolve masterchain seqno and forward to output channel
 	go lp.resolveTxsMCBlock(ctx, rawTxsCh, txsOut, errsOut)
 
-	// close rawTxsCh and errsOut when all loaders are done
 	go func() {
 		wg.Wait()
 		close(rawTxsCh)
-		close(errsOut)
 	}()
 
 	return txsOut, errsOut
@@ -369,6 +395,7 @@ func (lp *service) loadTxsForAddresses(
 // On resolution failure after retries, tx proceeds with MCBlockSeqno=0 to avoid data loss.
 func (lp *service) resolveTxsMCBlock(ctx context.Context, rawTxsCh <-chan models.Tx, txsOut chan<- models.Tx, errsOut chan<- error) {
 	defer close(txsOut)
+	defer close(errsOut)
 
 	for tx := range rawTxsCh {
 		mcSeqno, err := lp.resolveMCBlockSeqNoWithRetry(ctx, tx.Block)
