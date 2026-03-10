@@ -34,7 +34,7 @@ type OpsAnySequence struct {
 
 // opsAnySequence deploys MCMS packages and modules
 type opsAnySequence struct {
-	rregistry codec.ResolverRegistry
+	rregistry        codec.ResolverRegistry
 	contractProvider opston.ContractCodeProvider
 }
 
