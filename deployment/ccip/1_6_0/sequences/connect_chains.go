@@ -433,7 +433,3 @@ func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.App
 		OffRampRemoves: nil,
 	}, nil
 }
-
-func (a *TonLaneAdapter) DisableRemoteChain() *cldf_ops.Sequence[lanes.DisableRemoteChainInput, sequences.OnChainOutput, cldfChain.BlockChains] {
-	panic("unimplemented")
-}

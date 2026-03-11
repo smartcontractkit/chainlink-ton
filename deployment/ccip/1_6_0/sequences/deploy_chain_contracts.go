@@ -263,7 +263,3 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		ChainSelector: cfg.ChainSelector,
 	}, nil
 }
-
-func (a *TonDeployAdapter) UpdateMCMSConfig() *cldf_ops.Sequence[deploy.UpdateMCMSConfigInputPerChainWithSelector, sequences.OnChainOutput, cldf_chain.BlockChains] {
-	panic("unimplemented")
-}
