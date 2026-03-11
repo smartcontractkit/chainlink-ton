@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -31,6 +32,8 @@ import (
 
 // TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
 type TonLaneAdapter struct{}
+
+var _ lanes.LaneAdapter = &TonLaneAdapter{}
 
 func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	return getOnRampAddress(ds, chainSelector)
@@ -427,4 +430,6 @@ func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.App
 	}, nil
 }
 
-var _ lanes.LaneAdapter = &TonLaneAdapter{}
+func (a *TonLaneAdapter) DisableRemoteChain() *cldf_ops.Sequence[lanes.DisableRemoteChainInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+	panic("unimplemented")
+}

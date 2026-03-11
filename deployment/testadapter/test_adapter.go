@@ -41,9 +41,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -115,17 +117,25 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 	}, nil
 }
 
-func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, error) {
+func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (ccipocr3.SeqNum, string, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
 	msg, ok := m.(router.CCIPSend)
 	if !ok {
-		return 0, errors.New("expected router.CCIPSend")
+		return 0, "", errors.New("expected router.CCIPSend")
 	}
 
-	seq, _, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
-	return seq, err
+	seq, eAny, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
+	if err != nil {
+		return 0, "", err
+	}
+	event, ok := eAny.(onramp.CCIPMessageSent)
+	if !ok {
+		return 0, "", errors.New("expected onramp.CCIPMessageSent")
+	}
+	messageID := hex.EncodeToString(event.Message.Header.MessageID[:])
+	return ccipocr3.SeqNum(seq), messageID, nil
 }
 
 func (a *TONAdapter) CCIPReceiver() []byte {
@@ -142,8 +152,14 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 }
 
 func (a *TONAdapter) EOAReceiver(t *testing.T) []byte {
-	t.Skip("TON doesn't have EOA accounts")
-	return nil
+	// t.Skip("TON doesn't have EOA accounts")
+	receiverAddr := a.WalletAddress
+	ac := codec.NewAddressCodec()
+	receiver, err := ac.AddressStringToBytes(receiverAddr.String())
+	if err != nil {
+		panic(fmt.Sprintf("failed to convert TON address to bytes: %v", err))
+	}
+	return receiver
 }
 
 func (a *TONAdapter) InvalidCCIPReceivers() [][]byte {
@@ -159,25 +175,21 @@ func (a *TONAdapter) InvalidCCIPReceivers() [][]byte {
 	}
 }
 
-func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) error {
+func (a *TONAdapter) SetReceiverRejectAll(t *testing.T, rejectAll bool) error {
 	receiverAddr, err := a.getAddress("Receiver")
 	if err != nil {
 		return err
 	}
-	type updateBehavior struct {
-		_        tlb.Magic `tlb:"#e7fabde3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-		Behavior uint8     `tlb:"## 8"`
-	}
-	var behavior uint8
-	if rejectAll {
-		behavior = 1
-	}
 
-	bodyCell, err := tlb.ToCell(updateBehavior{Behavior: behavior})
+	var behavior receiver.Behavior = receiver.BehaviorAccept
+	if rejectAll {
+		behavior = receiver.BehaviorRejectAll
+	}
+	bodyCell, err := tlb.ToCell(receiver.UpdateBehavior{Behavior: behavior})
 	if err != nil {
 		return err
 	}
-	_, _, err = a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
@@ -187,7 +199,19 @@ func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) e
 			Body:        bodyCell,
 		},
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to send transaction: %w", err)
+	}
+	msg, err := tracetracking.MapToReceivedMessage(tx)
+	if err != nil {
+		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	err = msg.WaitForTrace(t.Context(), a.Client)
+	if err != nil {
+		return fmt.Errorf("failed to wait for trace: %w", err)
+	}
+	t.Logf("Receiver Reject All %v:\n%s", rejectAll, debug.NewDebuggerSequenceTrace(nil, sequence.OutputFmtURL).DumpReceived(&msg))
+	return nil
 }
 
 func (a *TONAdapter) NativeFeeToken() string {
@@ -228,6 +252,10 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 	}
 }
 
+func (a *TONAdapter) LowGasLimit() *big.Int {
+	return tlb.MustFromTON("0.001").Nano()
+}
+
 func (a *TONAdapter) GetInboundNonce(ctx context.Context, sender []byte, srcSel uint64) (uint64, error) {
 	return 0, errors.ErrUnsupported
 }
@@ -245,19 +273,41 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 	require.NoError(t, err)
 }
 
-func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (executionStates map[uint64]int) {
+func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []ccipocr3.SeqNum) (executionStates map[uint64]int) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
+	seqNrsMaped := make([]uint64, len(seqNrs))
+	for i, seqNr := range seqNrs {
+		seqNrsMaped[i] = uint64(seqNr)
+	}
 	executionStates, err = confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
 		a.Chain,
 		offRamp,
 		startBlock,
-		seqNrs,
+		seqNrsMaped,
 	)
 	require.NoError(t, err)
 	return executionStates
+}
+
+func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []ccipocr3.SeqNum) {
+	offRamp, err := a.getAddress("OffRamp")
+	require.NoError(t, err)
+	seqNrsMaped := make([]uint64, len(seqNrs))
+	for i, seqNr := range seqNrs {
+		seqNrsMaped[i] = uint64(seqNr)
+	}
+	_, err = confirmExecWithExpectedSeqNrsTON(
+		t,
+		sourceSelector,
+		a.Chain,
+		offRamp,
+		startBlock,
+		seqNrsMaped,
+	)
+	require.Error(t, err)
 }
 
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
@@ -280,7 +330,13 @@ func (a *TONAdapter) GetRegistryAddress() (string, error) {
 	return "", errors.ErrUnsupported
 }
 
-func (a *TONAdapter) SetAllowlist(ctx context.Context, destChainSelector uint64, enabled bool) error {
+func (a *TONAdapter) CurrentBlock(t *testing.T) uint64 {
+	info, err := a.Client.GetMasterchainInfo(t.Context())
+	require.NoError(t, err)
+	return uint64(info.SeqNo)
+}
+
+func (a *TONAdapter) SetAllowlist(t *testing.T, destChainSelector uint64, enabled bool) error {
 	routerStr, err := a.state.GetAddress(state.Router)
 	if err != nil {
 		return fmt.Errorf("failed to get router address: %w", err)
@@ -305,7 +361,7 @@ func (a *TONAdapter) SetAllowlist(ctx context.Context, destChainSelector uint64,
 	if err != nil {
 		return fmt.Errorf("failed to convert allowlist update message to cell: %w", err)
 	}
-	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
@@ -318,14 +374,14 @@ func (a *TONAdapter) SetAllowlist(ctx context.Context, destChainSelector uint64,
 	if err != nil {
 		return fmt.Errorf("failed to send allowlist update transaction: %w", err)
 	}
-	err = tracetracking.WaitForTrace(ctx, a.Client, tx)
+	err = tracetracking.WaitForTrace(t.Context(), a.Client, tx)
 	if err != nil {
 		return fmt.Errorf("failed to wait for allowlist update message: %w", err)
 	}
 	return nil
 }
 
-func (a *TONAdapter) UpdateSenderAllowlistStatus(ctx context.Context, destChainSelector uint64, included bool) error {
+func (a *TONAdapter) UpdateSenderAllowlistStatus(t *testing.T, destChainSelector uint64, included bool) error {
 	onrampStr, err := a.state.GetAddress(state.OnRamp)
 	if err != nil {
 		return fmt.Errorf("failed to get onramp address: %w", err)
@@ -357,7 +413,7 @@ func (a *TONAdapter) UpdateSenderAllowlistStatus(ctx context.Context, destChainS
 	if err != nil {
 		return fmt.Errorf("failed to convert allowlist update message to cell: %w", err)
 	}
-	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
@@ -370,14 +426,14 @@ func (a *TONAdapter) UpdateSenderAllowlistStatus(ctx context.Context, destChainS
 	if err != nil {
 		return fmt.Errorf("failed to send allowlist update transaction: %w", err)
 	}
-	err = tracetracking.WaitForTrace(ctx, a.Client, tx)
+	err = tracetracking.WaitForTrace(t.Context(), a.Client, tx)
 	if err != nil {
 		return fmt.Errorf("failed to wait for allowlist update message: %w", err)
 	}
 	return nil
 }
 
-func (a *TONAdapter) RMNCursed(ctx context.Context, chainSelector uint64, cursed bool) error {
+func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) error {
 	routerStr, err := a.state.GetAddress(state.Router)
 	if err != nil {
 		return fmt.Errorf("failed to get router address: %w", err)
@@ -408,7 +464,7 @@ func (a *TONAdapter) RMNCursed(ctx context.Context, chainSelector uint64, cursed
 	if err != nil {
 		return fmt.Errorf("failed to convert message to cell: %w", err)
 	}
-	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
@@ -421,7 +477,7 @@ func (a *TONAdapter) RMNCursed(ctx context.Context, chainSelector uint64, cursed
 	if err != nil {
 		return fmt.Errorf("failed to send rmn transaction: %w", err)
 	}
-	err = tracetracking.WaitForTrace(ctx, a.Client, tx)
+	err = tracetracking.WaitForTrace(t.Context(), a.Client, tx)
 	if err != nil {
 		return fmt.Errorf("failed to wait for rmn message: %w", err)
 	}
@@ -788,7 +844,7 @@ func confirmExecWithExpectedSeqNrsTON(
 	srcChainSelector uint64,
 	tonChain cldf_ton.Chain,
 	offRamp address.Address,
-	_startBlock *uint64,
+	startBlock *uint64,
 	expectedSeqNums []uint64,
 ) (map[uint64]int, error) {
 	if len(expectedSeqNums) == 0 {
@@ -806,7 +862,13 @@ func confirmExecWithExpectedSeqNrsTON(
 		func(lggr logger.Logger, event tonlptypes.TypedLog[offramp.ExecutionStateChanged]) (bool, error) {
 			exec := event.TypedData
 
-			if exec.SourceChainSelector != srcChainSelector || (!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) {
+			if startBlock != nil {
+				t.Logf("DEBUG: startBlock: %d, mcSeqNo: %d", *startBlock, event.MCBlockSeqno)
+			}
+
+			if exec.SourceChainSelector != srcChainSelector ||
+				(!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) ||
+				(startBlock != nil && event.MCBlockSeqno < uint32(*startBlock)) {
 				return false, nil
 			}
 
