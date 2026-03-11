@@ -79,11 +79,14 @@ const (
 
 // Registry method names
 const (
-	DestChainsGetter               = "destChainSelectors"
-	tokenPriceGetter               = "tokenPrice"
-	staticConfigGetter             = "staticConfig"
-	destChainConfigGetter          = "destChainConfig"
-	destinationChainGasPriceGetter = "destinationChainGasPrice"
+	DestChainsGetter                 = "destChainSelectors"
+	tokenPriceGetter                 = "tokenPrice"
+	staticConfigGetter               = "staticConfig"
+	destChainConfigGetter            = "destChainConfig"
+	destinationChainGasPriceGetter   = "destinationChainGasPrice"
+	FeeTokensGetter                  = "feeTokens"
+	premiumMultiplierWeiPerEthGetter = "premiumMultiplierWeiPerEth"
+	tokenTransferFeeConfigGetter     = "tokenTransferFeeConfig"
 )
 
 type Storage struct {

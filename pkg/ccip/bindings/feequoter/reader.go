@@ -214,3 +214,85 @@ var GetDestChainSelectors = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]uint64]{
 		return lo.Map(selectors, func(x *big.Int, _ int) uint64 { return x.Uint64() }), nil
 	}),
 })
+
+// GetFeeTokens gets the list of fee token addresses
+var GetFeeTokens = tvm.NewNoArgsGetter(tvm.NoArgsOpts[[]*address.Address]{
+	Name: FeeTokensGetter,
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) ([]*address.Address, error) {
+		slices, err := parser.ParseLispTuple[*cell.Slice](r.AsTuple())
+		if err != nil {
+			return nil, err
+		}
+		addrs := make([]*address.Address, 0, len(slices))
+		for _, s := range slices {
+			addr, err := s.LoadAddr()
+			if err != nil {
+				return nil, err
+			}
+			addrs = append(addrs, addr)
+		}
+		return addrs, nil
+	}),
+})
+
+// GetPremiumMultiplierWeiPerEth gets the premium multiplier wei per eth for a given fee token
+var GetPremiumMultiplierWeiPerEth = tvm.Getter[*address.Address, *big.Int]{
+	Name: premiumMultiplierWeiPerEthGetter,
+	Encoder: tvm.NewArgsEncoder(func(addr *address.Address) ([]any, error) {
+		addrSlice := cell.BeginCell().MustStoreAddr(addr).EndCell().BeginParse()
+		return []any{addrSlice}, nil
+	}),
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (*big.Int, error) {
+		return r.Int(0)
+	}),
+}
+
+// TokenTransferFeeConfigInput is the input type for GetTokenTransferFeeConfig.
+type TokenTransferFeeConfigInput struct {
+	DestChainSelector uint64
+	Token             *address.Address
+}
+
+// GetTokenTransferFeeConfig gets the token transfer fee config for a given destination chain and token
+var GetTokenTransferFeeConfig = tvm.Getter[TokenTransferFeeConfigInput, TokenTransferFeeConfig]{
+	Name: tokenTransferFeeConfigGetter,
+	Encoder: tvm.NewArgsEncoder(func(args TokenTransferFeeConfigInput) ([]any, error) {
+		addrSlice := cell.BeginCell().MustStoreAddr(args.Token).EndCell().BeginParse()
+		return []any{args.DestChainSelector, addrSlice}, nil
+	}),
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (TokenTransferFeeConfig, error) {
+		var c TokenTransferFeeConfig
+		isEnabledInt, err := r.Int(0)
+		if err != nil {
+			return c, err
+		}
+		minFeeUsdCents, err := r.Int(1)
+		if err != nil {
+			return c, err
+		}
+		maxFeeUsdCents, err := r.Int(2)
+		if err != nil {
+			return c, err
+		}
+		deciBps, err := r.Int(3)
+		if err != nil {
+			return c, err
+		}
+		destGasOverhead, err := r.Int(4)
+		if err != nil {
+			return c, err
+		}
+		destBytesOverhead, err := r.Int(5)
+		if err != nil {
+			return c, err
+		}
+		return TokenTransferFeeConfig{
+			IsEnabled:         isEnabledInt.Cmp(big.NewInt(-1)) == 0,
+			MinFeeUsdCents:    uint32(minFeeUsdCents.Uint64()),
+			MaxFeeUsdCents:    uint32(maxFeeUsdCents.Uint64()),
+			DeciBps:           uint16(deciBps.Uint64()),
+			DestGasOverhead:   uint32(destGasOverhead.Uint64()),
+			DestBytesOverhead: uint32(destBytesOverhead.Uint64()),
+		}, nil
+	}),
+}

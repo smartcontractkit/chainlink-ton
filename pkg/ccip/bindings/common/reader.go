@@ -36,3 +36,27 @@ var GetTypeAndVersion = tvm.NewNoArgsGetter(tvm.NoArgsOpts[TypeAndVersion]{
 		}, nil
 	}),
 })
+
+// GetFacilityId gets the facility ID of the FeeQuoter contract
+var GetFacilityId = tvm.NewNoArgsGetter(tvm.NoArgsOpts[uint16]{
+	Name: facilityIdGetter,
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint16, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return 0, err
+		}
+		return uint16(v.Uint64()), nil
+	}),
+})
+
+// GetErrorCode gets the contract-specific error code for a given local error code
+var GetErrorCode = tvm.Getter[uint16, uint16]{
+	Name: errorCodeGetter,
+	Decoder: tvm.NewResultDecoder(func(r *ton.ExecutionResult) (uint16, error) {
+		v, err := r.Int(0)
+		if err != nil {
+			return 0, err
+		}
+		return uint16(v.Uint64()), nil
+	}),
+}
