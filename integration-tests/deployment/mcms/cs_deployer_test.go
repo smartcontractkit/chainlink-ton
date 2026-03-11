@@ -32,7 +32,7 @@ import (
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 )
@@ -58,7 +58,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	dReg := ccipddeploy.GetRegistry()
 	mcmsRegistry := ccipdcs.GetRegistry()
 
-	version := sequence.ContractsVersionLocal
+	version := deployutils.ContractsVersionLocal
 
 	configProposer := mcmstypes.Config{
 		Quorum: 1,

@@ -33,6 +33,7 @@ import (
 
 var unsupported = []uint64{
 	0xD0984986,           // feequoter.UpdateFeeTokens, requires dictionary surrogate
+	0xaf7a9ac6,           // router.RMNOwnableMessage, nested message envelope with generic parameter - not supported by current generator
 	tvm.TLBMapKeyStorage, // special storage type key, not a message
 }
 
@@ -72,7 +73,7 @@ func TestIsSerializable_AllMessages(t *testing.T) {
 
 			sample, err := gen.Generate(proto)
 			require.NoErrorf(t, err, "generating sample for %s opcode=0x%08x (%T)", contract, opcode, proto)
-			require.Truef(t, operations.IsSerializable(lggr, sample), "operation should be serializable: contract=%s opcode=0x%08x type=%T", contract, opcode, sample)
+			require.Truef(t, operations.IsSerializable(lggr, sample), "operation should be serializable: contract=%s opcode=0x%08x type=%T, sample=%+v", contract, opcode, sample, sample)
 		}
 	}
 }
@@ -158,7 +159,7 @@ func messageEnvelopeRoundTrip(t *testing.T, seed int64, iterations int, writeArt
 
 				var decoded *codec.MessageEnvelope[any]
 				require.NoError(t, json.Unmarshal(raw, &decoded))
-				err = decoded.LoadDecoded(bindings.Registry)
+				err = codec.LoadNestedEnvelopes(decoded, bindings.Registry)
 				require.NoError(t, err)
 
 				rawDecoded, err := json.Marshal(decoded)

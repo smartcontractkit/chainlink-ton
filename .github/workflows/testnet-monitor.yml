@@ -1,4 +1,4 @@
-name: CCIP TON Staging Monitor
+name: CCIP TON Testnet Monitor
 permissions:
   contents: read
 
@@ -16,14 +16,14 @@ on:
 
 jobs:
   ccip-monitor-tests:
-    # Toggle via CCIP_STAGING_MONITOR_ENABLED variable (set to 'false' to disable)
+    # Toggle via CCIP_TESTNET_MONITOR_ENABLED variable (set to 'false' to disable)
     # Manual triggers (workflow_dispatch) always run regardless of toggle
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (vars.CCIP_STAGING_MONITOR_ENABLED != 'false' && (
+      (vars.CCIP_TESTNET_MONITOR_ENABLED != 'false' && (
         github.event_name == 'schedule' ||
         (github.event_name == 'pull_request' &&
-         contains(github.event.pull_request.labels.*.name, 'run-staging-monitor-test'))
+         contains(github.event.pull_request.labels.*.name, 'run-testnet-monitor-test'))
       ))
     runs-on: ubuntu-latest
     strategy:
@@ -36,16 +36,16 @@ jobs:
     env:
       TON_TESTNET_SELECTOR: ${{ vars.TON_TESTNET_SELECTOR }}
       ETHEREUM_TESTNET_SEPOLIA_SELECTOR: ${{ vars.ETHEREUM_TESTNET_SEPOLIA_SELECTOR }}
-      TON_TESTNET_ROUTER: ${{ secrets.STAGING_TON_TESTNET_ROUTER }}
-      TON_TESTNET_FEE_QUOTER: ${{ secrets.STAGING_TON_TESTNET_FEE_QUOTER }}
-      TON_TESTNET_RECEIVER: ${{ secrets.STAGING_TON_TESTNET_RECEIVER }}
-      TON_TESTNET_WALLET_KEY: ${{ secrets.STAGING_TON_TESTNET_WALLET_KEY }}
+      TON_TESTNET_ROUTER: ${{ secrets.TON_TESTNET_ROUTER }}
+      TON_TESTNET_FEE_QUOTER: ${{ secrets.TON_TESTNET_FEE_QUOTER }}
+      TON_TESTNET_RECEIVER: ${{ secrets.TON_TESTNET_RECEIVER }}
+      TON_TESTNET_WALLET_KEY: ${{ secrets.TON_TESTNET_WALLET_KEY }}
       TON_TESTNET_ENDPOINT: ${{ secrets.STAGING_TON_TESTNET_ENDPOINT }}
-      ETHEREUM_TESTNET_SEPOLIA_ROUTER: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ROUTER }}
-      ETHEREUM_TESTNET_SEPOLIA_RECEIVER: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_RECEIVER }}
-      ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY }}
+      ETHEREUM_TESTNET_SEPOLIA_ROUTER: ${{ secrets.ETHEREUM_TESTNET_SEPOLIA_ROUTER }}
+      ETHEREUM_TESTNET_SEPOLIA_RECEIVER: ${{ secrets.ETHEREUM_TESTNET_SEPOLIA_RECEIVER }}
+      ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY: ${{ secrets.ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY }}
       ETHEREUM_TESTNET_SEPOLIA_ENDPOINT: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ENDPOINT }}
-      MESSAGE: "ccip-staging-${{ github.run_id }}"
+      MESSAGE: "ccip-testnet-${{ github.run_id }}"
       RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       TRIGGER: "${{ github.event_name }}"
       WHEN: "${{ github.run_started_at }}" # ISO8601
@@ -71,7 +71,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
         run: |
           cd staging-monitor
-          nix develop -c go run ./cmd/send-slack -webhook-url="$SLACK_WEBHOOK_URL" -environment Staging
+          nix develop -c go run ./cmd/send-slack -webhook-url="$SLACK_WEBHOOK_URL" -environment Prod-Testnet
 
       - name: Fail job if test failed
         if: always()

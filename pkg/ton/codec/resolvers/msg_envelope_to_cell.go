@@ -32,7 +32,7 @@ func (r *msgEnvelopeToCellResolver) Key() string {
 func (r *msgEnvelopeToCellResolver) Resolve(input map[string]any) (*cell.Cell, error) {
 	e, err := r.msgEnvelopeResolver.Resolve(input)
 	if err != nil {
-		if errors.Is(err, codec.NonFatalResolverError{}) {
+		if errors.As(err, &codec.NonFatalResolverError{}) {
 			return nil, err
 		}
 

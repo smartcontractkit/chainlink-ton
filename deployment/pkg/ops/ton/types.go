@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 )
@@ -84,6 +85,12 @@ func (im *InternalMessage[T]) ToMessage() (*tlb.InternalMessage, error) {
 
 	// Notice: nil Body is allowed (empty message)
 	if im.Body != nil {
+		// recursive for nested envelopes
+		err := im.Body.LoadDecoded(bindings.Registry)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load message body envelope: %w", err)
+		}
+
 		bodyCell, err := im.Body.ToCell()
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert message body to cell: %w", err)

@@ -25,7 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
@@ -58,7 +58,7 @@ func TestDeployCCIP(t *testing.T) {
 	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
 
-	version := sequence.ContractsVersionLocal
+	version := deployutils.ContractsVersionLocal
 	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, chainSelector, version, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})

@@ -31,6 +31,7 @@ import (
 	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 )
 
@@ -109,12 +110,12 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	addresses := make([]cldfds.AddressRef, 0) // deployed contract addresses to return in output
 
 	// Notice: we set a (static) default when version is not provided (e.g., common 'deploy_mcms_for_cll' changeset)
-	contractVersion := sequence.ContractsVersionLatestSupported
+	contractVersion := utils.ContractsVersionLatestSupported
 	if in.Config.ContractVersion != "" {
 		contractVersion = in.Config.ContractVersion
 	}
 
-	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
+	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
 		ContractsVersionSha: contractVersion,
 		Contracts: []cldfds.ContractType{
 			state.Timelock,
@@ -175,7 +176,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 		version := in.ContractsSemverMCMS
 		// Notice: storage.id acts as a series ID and makes the input unique per deployment
-		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value.String(), version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value.String(), version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
 		}
@@ -303,7 +304,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		version := in.ContractsSemverTimelock
-		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.Timelock], storage, body, value.String(), version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.Timelock], storage, body, value.String(), version)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, err
 		}
