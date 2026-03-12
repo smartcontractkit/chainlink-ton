@@ -133,7 +133,7 @@ func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, 
 	if !ok {
 		return 0, "", errors.New("expected onramp.CCIPMessageSent")
 	}
-	messageID := hex.EncodeToString(event.Message.Header.MessageID[:])
+	messageID := hex.EncodeToString(event.Message.Header.MessageID)
 	return ccipocr3.SeqNum(seq), messageID, nil
 }
 
@@ -180,7 +180,7 @@ func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, t *testing.T, rej
 		return err
 	}
 
-	var behavior receiver.Behavior = receiver.BehaviorAccept
+	behavior := receiver.BehaviorAccept
 	if rejectAll {
 		behavior = receiver.BehaviorRejectAll
 	}
