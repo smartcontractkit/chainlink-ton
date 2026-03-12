@@ -19,21 +19,31 @@ func ParseURL(urlStr string) (txHash, address, network string, err error) {
 	network = "testnet" // default
 	switch {
 	case strings.Contains(u.Host, "testnet.tonscan.org"):
+	case strings.Contains(u.Host, "testnet.tonviewer.com"):
 		network = "testnet"
 	case strings.Contains(u.Host, "tonscan.org"):
+	case strings.Contains(u.Host, "tonviewer.com"):
 		network = "mainnet"
 	case strings.Contains(u.Host, "localhost"):
 		network = "mylocalton"
 	}
 
 	// Handle tonscan.org transaction URLs: /tx/{hash}
-	if strings.Contains(u.Host, "tonscan.org") {
+	switch {
+
+	case strings.Contains(u.Host, "tonscan.org"):
 		pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
 		if len(pathParts) >= 2 && pathParts[0] == "tx" {
 			txHash = pathParts[1]
 			return txHash, address, network, nil
 		}
-	} else if strings.Contains(u.Host, "localhost") {
+	case strings.Contains(u.Host, "tonviewer.com"):
+		pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
+		if len(pathParts) >= 2 && pathParts[0] == "transaction" {
+			txHash = pathParts[1]
+			return txHash, address, network, nil
+		}
+	case strings.Contains(u.Host, "localhost"):
 		// Handle mylocalton transaction URLs: /transaction?hash={hash}&account={address}
 		if u.Path == "/transaction" {
 			query := u.Query()
