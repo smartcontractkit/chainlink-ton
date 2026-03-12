@@ -125,7 +125,10 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell { 
+    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
+    return storage;
+}
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
