@@ -57,7 +57,6 @@ fun onInternalMessage(in: InMessage) {
         TestReceiver_UpdateBehavior => {
             onUpdateBehavior(msg, in.senderAddress)
         }
-        // Sender must be owner
         Upgradeable_Upgrade => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
