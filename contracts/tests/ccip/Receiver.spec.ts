@@ -13,6 +13,28 @@ import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+
+async function deployReceiverContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+) {
+  const code = await tr.Receiver.code()
+  let data: tr.Storage = {
+    id: generateRandomContractId(),
+    ownable: {
+      owner: owner.address,
+      pendingOwner: null,
+    },
+    authorizedCaller: owner.address,
+    behavior: tr.ReceiverBehavior.Accept,
+  }
+
+  const contract = blockchain.openContract(tr.Receiver.createFromConfig(data, code))
+  const deployer = await blockchain.treasury('deployer')
+  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+  return contract
+}
 
 const ccipReceiveSampleMessage: r.CCIPReceive = {
   rootId: BigInt(1),
@@ -37,6 +59,17 @@ describe('Receiver - Opcodes', () => {
     expect(tr.opcodes.in.updateBehavior).toBe(crc32('TestReceiver_UpdateBehavior'))
     expect(tr.opcodes.in.updateAuthorizedCaller).toBe(crc32('TestReceiver_UpdateAuthorizedCaller'))
   })
+})
+
+describe('Receiver - Current Version Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: tr.Receiver.type(),
+    currentVersion: tr.Receiver.version(),
+    getCurrentCode: () => tr.Receiver.code(),
+    CurrentVersionConstructor: tr.Receiver,
+    deployCurrentContract: deployReceiverContract,
+  })
+  currentVersionSpec.run()
 })
 
 describe('Receiver', () => {

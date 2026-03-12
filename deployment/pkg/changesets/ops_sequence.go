@@ -34,7 +34,8 @@ type OpsAnySequence struct {
 
 // opsAnySequence deploys MCMS packages and modules
 type opsAnySequence struct {
-	rregistry codec.ResolverRegistry
+	rregistry        codec.ResolverRegistry
+	contractProvider opston.ContractCodeProvider
 }
 
 func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.ContractCodeProvider) cldf.ChangeSetV2[OpsAnySequence] {
@@ -46,6 +47,7 @@ func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.Contrac
 			codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
 			codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),
 		),
+		contractProvider: provider,
 	}
 }
 
@@ -82,6 +84,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 		dep.Provide(chain),
 		dep.Provide(stateCCIP[uint64(selector)]),
 		dep.Provide(stateMCMS[uint64(selector)]),
+		dep.Provide(cs.contractProvider),
 	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)

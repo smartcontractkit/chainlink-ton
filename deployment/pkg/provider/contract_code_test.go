@@ -34,7 +34,6 @@ var allMappedContractTypes = []struct {
 	{"TonReceiver", string(state.TonReceiver)},
 	{"Timelock", string(state.Timelock)},
 	{"MCMS", string(state.MCMS)},
-	{"Counter", string(state.Counter)},
 }
 
 func TestNewCCIPContractProvider_Local(t *testing.T) {

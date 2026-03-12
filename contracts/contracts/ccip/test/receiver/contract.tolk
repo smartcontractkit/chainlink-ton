@@ -6,15 +6,16 @@
 import "storage"
 import "errors"
 import "messages"
+import "types"
 
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
+import "../../../lib/receiver/errors"
 import "../../../lib/utils";
 import "../../../lib/access/ownable_2step"
-import "types"
-import "errors"
+import "../../../lib/versioning/upgradeable"
+
 import "../../router/messages"
-import "../../../lib/receiver/errors"
 
 const CONTRACT_VERSION = "1.6.0";
 
@@ -75,6 +76,11 @@ fun onInternalMessage(in: InMessage) {
         TestReceiver_UpdateBehavior => {
             onUpdateBehavior(msg, in.senderAddress)
         }
+        Upgradeable_Upgrade => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            onUpgrade(msg);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -113,6 +119,16 @@ fun onUpdateBehavior(msg: TestReceiver_UpdateBehavior, senderAddress: address) {
     st.behavior = msg.behavior;
     st.store();
 }
+
+fun onUpgrade(msg: Upgradeable_Upgrade) {
+    Upgradeable{ migrate, version }.upgrade(msg);
+}
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
 
 get fun getId(): uint32 {
     val st = lazy Storage.load();
