@@ -866,11 +866,11 @@ func confirmExecWithExpectedSeqNrsTON(
 
 			if exec.SourceChainSelector != srcChainSelector ||
 				(!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) ||
-                (startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {  
+				(startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {
 				return false, nil
 			}
 
-				(startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {
+			eventsProcessed++
 
 			switch exec.State {
 			case utils.EXECUTION_STATE_INPROGRESS:
