@@ -174,7 +174,7 @@ func (a *TONAdapter) InvalidCCIPReceivers() [][]byte {
 	}
 }
 
-func (a *TONAdapter) SetReceiverRejectAll(t *testing.T, rejectAll bool) error {
+func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, t *testing.T, rejectAll bool) error {
 	receiverAddr, err := a.getAddress("Receiver")
 	if err != nil {
 		return err
@@ -188,7 +188,7 @@ func (a *TONAdapter) SetReceiverRejectAll(t *testing.T, rejectAll bool) error {
 	if err != nil {
 		return err
 	}
-	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
@@ -205,7 +205,7 @@ func (a *TONAdapter) SetReceiverRejectAll(t *testing.T, rejectAll bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
 	}
-	err = msg.WaitForTrace(t.Context(), a.Client)
+	err = msg.WaitForTrace(ctx, a.Client)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
