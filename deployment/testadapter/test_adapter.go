@@ -45,7 +45,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	sequenceDiagram "github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -210,7 +209,7 @@ func (a *TONAdapter) SetReceiverRejectAll(t *testing.T, rejectAll bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	t.Logf("Receiver Reject All %v:\n%s", rejectAll, debug.NewDebuggerSequenceTrace(nil, sequence.OutputFmtURL).DumpReceived(&msg))
+	t.Logf("Receiver Reject All %v:\n%s", rejectAll, debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(&msg))
 	return nil
 }
 
@@ -398,7 +397,7 @@ func (a *TONAdapter) UpdateSenderAllowlistStatus(t *testing.T, destChainSelector
 		}
 		return common.SnakedCell[common.AddressWrap]{}, sender
 	}()
-	Updates := common.SnakedCell[onramp.UpdateAllowlist]{
+	updates := common.SnakedCell[onramp.UpdateAllowlist]{
 		onramp.UpdateAllowlist{
 			DestinationChainSelector: destChainSelector,
 			Add:                      add,
@@ -406,7 +405,7 @@ func (a *TONAdapter) UpdateSenderAllowlistStatus(t *testing.T, destChainSelector
 		},
 	}
 	msg := onramp.UpdateAllowlists{
-		Updates: Updates,
+		Updates: updates,
 	}
 
 	bodyCell, err := tlb.ToCell(msg)
@@ -445,7 +444,7 @@ func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) 
 	}
 	subjects := common.SnakedCell[router.Subject]{
 		router.Subject{
-			Value: big.NewInt(int64(chainSelector)),
+			Value: new(big.Int).SetUint64(chainSelector),
 		},
 	}
 
@@ -865,17 +864,13 @@ func confirmExecWithExpectedSeqNrsTON(
 		func(lggr logger.Logger, event tonlptypes.TypedLog[offramp.ExecutionStateChanged]) (bool, error) {
 			exec := event.TypedData
 
-			if startBlock != nil {
-				t.Logf("DEBUG: startBlock: %d, mcSeqNo: %d", *startBlock, event.MCBlockSeqno)
-			}
-
 			if exec.SourceChainSelector != srcChainSelector ||
 				(!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) ||
-				(startBlock != nil && event.MCBlockSeqno < uint32(*startBlock)) {
+                (startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {  
 				return false, nil
 			}
 
-			eventsProcessed++
+				(startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {
 
 			switch exec.State {
 			case utils.EXECUTION_STATE_INPROGRESS:
