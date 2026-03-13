@@ -81,7 +81,6 @@ var (
 		GasPriceStalenessThreshold:      0,
 		NetworkFeeUSDCents:              0,
 	}
-
 )
 
 func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployCCIPContractsCfg {
