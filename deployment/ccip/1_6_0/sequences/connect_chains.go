@@ -2,6 +2,7 @@ package sequences
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -23,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
@@ -46,6 +48,33 @@ func (a *TonLaneAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint
 
 func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	return getRouterAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
+	return lanes.FeeQuoterDestChainConfig{
+		IsEnabled:                         true,
+		MaxNumberOfTokensPerMsg:           10,
+		MaxDataBytes:                      30_000,
+		MaxPerMsgGasLimit:                 4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
+		DestGasOverhead:                   300_000,
+		DefaultTokenFeeUSDCents:           25,
+		DestGasPerPayloadByteBase:         16,
+		DestGasPerPayloadByteHigh:         40,
+		DestGasPerPayloadByteThreshold:    3000,
+		DestDataAvailabilityOverheadGas:   100,
+		DestGasPerDataAvailabilityByte:    16,
+		DestDataAvailabilityMultiplierBps: 1,
+		DefaultTokenDestGasOverhead:       90_000,
+		DefaultTxGasLimit:                 200_000,
+		GasMultiplierWeiPerEth:            11e17,
+		NetworkFeeUSDCents:                10,
+		ChainFamilySelector:               config.TVMFamilySelector,
+	}
+}
+
+func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
+	// 1 TON ~2.13 USD -> 1 nanoTON = 2.13e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.13e9
+	return big.NewInt(2.12e9)
 }
 
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
