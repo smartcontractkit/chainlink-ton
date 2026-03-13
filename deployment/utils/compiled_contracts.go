@@ -90,9 +90,6 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	state.MCMS: {
 		CompiledVersionKey: "mcms.MCMS.compiled.json",
 	},
-	state.Counter: {
-		CompiledVersionKey: "examples.Counter.compiled.json",
-	},
 }
 
 type RetrieveCompiledContractsInput struct {

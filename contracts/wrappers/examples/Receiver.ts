@@ -18,10 +18,12 @@ import { loadContractCode } from '../codeLoader'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as receiver from '../libraries/Receiver'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import * as upgradeable from '../libraries/versioning/Upgradeable'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.test.Receiver'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
+export const CONTRACT_VERSION = '1.6.0'
 
 enum TestReceiverError {
   Rejected = 19100, // Facility ID * 100
@@ -132,7 +134,7 @@ export const builder = {
   },
 }
 
-export class Receiver implements Contract, receiver.Receiver {
+export class Receiver implements Contract, receiver.Receiver, upgradeable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -148,6 +150,14 @@ export class Receiver implements Contract, receiver.Receiver {
     return new Receiver(contractAddress(workchain, init), init)
   }
 
+  static type() {
+    return FACILITY_NAME
+  }
+
+  static version() {
+    return CONTRACT_VERSION
+  }
+
   static code(): Promise<Cell> {
     return loadContractCode('ccip.test.receiver')
   }
@@ -158,6 +168,15 @@ export class Receiver implements Contract, receiver.Receiver {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: Cell.EMPTY,
     })
+  }
+
+  async sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
   }
 
   async sendCCIPReceive(
