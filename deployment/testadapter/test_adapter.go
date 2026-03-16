@@ -116,7 +116,7 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 	}, nil
 }
 
-func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (ccipocr3.SeqNum, string, error) {
+func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, string, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
@@ -134,7 +134,7 @@ func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, 
 		return 0, "", errors.New("expected onramp.CCIPMessageSent")
 	}
 	messageID := hex.EncodeToString(event.Message.Header.MessageID)
-	return ccipocr3.SeqNum(seq), messageID, nil
+	return seq, messageID, nil
 }
 
 func (a *TONAdapter) CCIPReceiver() []byte {
@@ -161,7 +161,7 @@ func (a *TONAdapter) EOAReceiver(t *testing.T) []byte {
 	return receiver
 }
 
-func (a *TONAdapter) InvalidCCIPReceivers() [][]byte {
+func (a *TONAdapter) InvalidAddresses() [][]byte {
 	ac := codec.NewAddressCodec()
 	zeroAddress, err := ac.AddressStringToBytes(tvm.ZeroAddress.String())
 	if err != nil {
@@ -272,39 +272,31 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 	require.NoError(t, err)
 }
 
-func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []ccipocr3.SeqNum) (executionStates map[uint64]int) {
+func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (execStates map[uint64]int) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
-	seqNrsMaped := make([]uint64, len(seqNrs))
-	for i, seqNr := range seqNrs {
-		seqNrsMaped[i] = uint64(seqNr)
-	}
-	executionStates, err = confirmExecWithExpectedSeqNrsTON(
+	execStates, err = confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
 		a.Chain,
 		offRamp,
 		startBlock,
-		seqNrsMaped,
+		seqNrs,
 	)
 	require.NoError(t, err)
-	return executionStates
+	return execStates
 }
 
-func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []ccipocr3.SeqNum) {
+func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
-	seqNrsMaped := make([]uint64, len(seqNrs))
-	for i, seqNr := range seqNrs {
-		seqNrsMaped[i] = uint64(seqNr)
-	}
 	_, err = confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
 		a.Chain,
 		offRamp,
 		startBlock,
-		seqNrsMaped,
+		seqNrs,
 	)
 	require.Error(t, err)
 }
