@@ -25,7 +25,7 @@ type tonO11yLogProvider struct {
 	lggr   logger.Logger
 }
 
-// NewLogReader creates a new LogReader instance.
+// NewTonO11yLogProvider creates a new RawLogProvider backed by a TON o11y client.
 func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader, lggr logger.Logger) RawLogProvider {
 	return &tonO11yLogProvider{
 		client: client,
