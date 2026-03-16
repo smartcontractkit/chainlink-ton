@@ -107,7 +107,7 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 
 			extMsg := msg.AsExternalOut()
 
-			// Not all external out messages follow the ExtOutLogBucket convention (e.g., ownable_2step.tolk emits events with addr_none, which has no  CRC32 topic).
+			// Not all external out messages follow the ExtOutLogBucket convention (e.g., ownable_2step.tolk emits events with addr_none, which has no CRC32 topic).
 			// These are non-CCIP messages that cannot be decoded as log events.
 			// Skipping them is safe as they carry no extractable topic and is required to avoid permanently blocking checkpoint advancement for the address.
 			eventSig, body, err := message.ParseExtMsgOut(extMsg)
