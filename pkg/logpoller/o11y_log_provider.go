@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -108,7 +109,7 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 			eventSig, body, err := message.ParseExtMsgOut(extMsg)
 			if err != nil {
 				tlp.lggr.Warnw("skipping unparseable external out message",
-					"txHash", fmt.Sprintf("%x", tx.Transaction.Hash),
+					"txHash", hex.EncodeToString(tx.Transaction.Hash),
 					"LT", tx.Transaction.LT,
 					"err", err,
 				)
