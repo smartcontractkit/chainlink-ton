@@ -52,16 +52,16 @@ func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector 
 
 func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
 	return lanes.FeeQuoterDestChainConfig{
-		IsEnabled:               true,
-		MaxDataBytes:             30_000,
-		MaxPerMsgGasLimit:        4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
-		DestGasOverhead:          300_000,
-		DestGasPerPayloadByteBase: 16,
-		ChainFamilySelector:      config.TVMFamilySelector,
-		DefaultTokenFeeUSDCents:  25,
+		IsEnabled:                   true,
+		MaxDataBytes:                30_000,
+		MaxPerMsgGasLimit:           4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
+		DestGasOverhead:             300_000,
+		DestGasPerPayloadByteBase:   16,
+		ChainFamilySelector:         config.TVMFamilySelector,
+		DefaultTokenFeeUSDCents:     25,
 		DefaultTokenDestGasOverhead: 90_000,
-		DefaultTxGasLimit:        200_000,
-		NetworkFeeUSDCents:       10,
+		DefaultTxGasLimit:           200_000,
+		NetworkFeeUSDCents:          10,
 		V1Params: &lanes.FeeQuoterV1Params{
 			MaxNumberOfTokensPerMsg:           10,
 			DestGasPerPayloadByteHigh:         40,
