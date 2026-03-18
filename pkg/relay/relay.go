@@ -126,15 +126,10 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		return nil, fmt.Errorf("invalid chain ID %d: could not find chain selector: %w", chainID, err)
 	}
 
-	// TODO: pass GetClient through? So we don't pin provider to a single client
-
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		cl, cerr := r.chain.GetClient(ctx)
 		if cerr != nil {
 			return nil, cerr
-		}
-		if true {
-			return nil, fmt.Errorf("TEST TEST TEST TEST GetClient failed: %s", cerr)
 		}
 		return cl, nil
 	}
