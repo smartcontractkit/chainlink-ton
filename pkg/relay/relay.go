@@ -132,6 +132,10 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		return nil, fmt.Errorf("failed to fetch TON client: %w", err)
 	}
 
+	if true {
+		return nil, fmt.Errorf("TON CCIPProvider is temporarily disabled")
+	}
+
 	// TODO: check if rargs.ContractID is offramp address ?
 	return provider.NewCCIPProvider(
 		r.lggr,
