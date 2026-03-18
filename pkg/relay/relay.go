@@ -133,6 +133,9 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		if cerr != nil {
 			return nil, cerr
 		}
+		if true {
+			return nil, fmt.Errorf("TEST TEST TEST TEST GetClient failed: %s", cerr)
+		}
 		return cl, nil
 	}
 
