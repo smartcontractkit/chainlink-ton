@@ -10,7 +10,7 @@ require (
 	github.com/samber/lo v1.52.0
 	github.com/smartcontractkit/chain-selectors v1.0.97
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260303213437-47af98c8ae82
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260316135128-c6e8472ce957
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260316180019-c4bf1b1306b7
 	github.com/smartcontractkit/chainlink-common v0.10.1-0.20260310151336-c98a9c147ac0
 	github.com/smartcontractkit/chainlink-deployments-framework v0.80.1-0.20260209182815-b296b7df28a6
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0

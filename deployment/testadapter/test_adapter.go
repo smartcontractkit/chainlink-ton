@@ -290,7 +290,7 @@ func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, s
 func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
-	_, err = confirmExecWithExpectedSeqNrsTON(
+	executionStates, err := confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
 		a.Chain,
@@ -298,7 +298,13 @@ func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, star
 		startBlock,
 		seqNrs,
 	)
-	require.Error(t, err)
+	require.NoError(t, err)
+	for _, seqNr := range seqNrs {
+		state, ok := executionStates[seqNr]
+		require.True(t, ok, "no execution state found for seqNr %d", seqNr)
+		require.Equal(t, int(utils.EXECUTION_STATE_FAILURE), state,
+			"expected execution state FAILURE for seqNr %d, got state %d", seqNr, state)
+	}
 }
 
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
@@ -808,8 +814,11 @@ func confirmCommitWithExpectedSeqNumRangeTON(
 				return false, nil // Skip price-only updates
 			}
 
+			if mr.SourceChainSelector != srcChainSelector {
+				lggr.Warnw("Received commit report for unexpected source chain", "expected", srcChainSelector, "actual", mr.SourceChainSelector)
+				return false, nil // Skip reports from other source chains
+			}
 			reportsProcessed++
-			require.Equal(t, srcChainSelector, mr.SourceChainSelector, "Commit report source chain mismatch")
 			lggr.Infow("Received commit", "seqNums", fmt.Sprintf("[%d, %d]", mr.MinSeqNr, mr.MaxSeqNr))
 
 			tracker.VisitCommitReport(srcChainSelector, mr.MinSeqNr, mr.MaxSeqNr)
