@@ -42,7 +42,7 @@ type Provider struct {
 func NewCCIPProvider(
 	lggr logger.Logger,
 	chainSelector ccipocr3.ChainSelector,
-	client ton.APIClientWrapped,
+	clientProvider func(context.Context) (ton.APIClientWrapped, error),
 	txm txm.TxManager,
 	logPoller logpoller.Service,
 	cargs commontypes.CCIPProviderArgs,
@@ -96,7 +96,7 @@ func NewCCIPProvider(
 		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),
 	}
 
-	ca, err := chainaccessor.NewTONAccessor(lggr, chainSelector, client, logPoller, c.ChainSpecificAddressCodec)
+	ca, err := chainaccessor.NewTONAccessor(lggr, chainSelector, clientProvider, logPoller, c.ChainSpecificAddressCodec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON Accessor: %w", err)
 	}
