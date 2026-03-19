@@ -32,12 +32,11 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onRelayCCIPSend(msg: CCIPSender_RelayCCIPSend) {
-    val messageBody = Router_CCIPSend.fromCell(msg.message);
     val message = createMessage({
         bounce: true,
         value: msg.valueToAttach,
         dest: msg.routerAddress,
-        body: messageBody,
+        body: msg.message,
     });
     message.send(SEND_MODE_REGULAR);
 }
