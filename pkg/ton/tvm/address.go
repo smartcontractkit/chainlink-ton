@@ -8,6 +8,8 @@ const (
 	AddressLength     = 36
 	AddressDataLength = 32
 	ZeroAddressStr    = "0:0000000000000000000000000000000000000000000000000000000000000000"
+	LinkTokenType     = "LinkToken"
+	TONNativeType     = "TONNative"
 )
 
 var (

@@ -80,10 +80,11 @@ func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
 }
 
 func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
-	defaultPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
-
+	defaultLinkPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
+	defaultTONPrice := new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18))
 	return map[datastore.ContractType]*big.Int{
-		"LinkToken": defaultPrice,
+		tvm.LinkTokenType: defaultLinkPrice,
+		tvm.TONNativeType: defaultTONPrice,
 	}
 }
 
