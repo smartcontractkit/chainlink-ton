@@ -79,6 +79,14 @@ func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
 	return big.NewInt(2.12e9)
 }
 
+func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
+	defaultPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
+
+	return map[datastore.ContractType]*big.Int{
+		"LinkToken": defaultPrice,
+	}
+}
+
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource
 }
