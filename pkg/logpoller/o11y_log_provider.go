@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
@@ -9,6 +10,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
@@ -19,13 +22,19 @@ var _ RawLogProvider = (*tonO11yLogProvider)(nil)
 type tonO11yLogProvider struct {
 	client ton.APIClientWrapped
 	loader TxLoader
+	lggr   logger.Logger
 }
 
-// NewLogReader creates a new LogReader instance.
-func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) RawLogProvider {
+// NewTonO11yLogProvider creates a new RawLogProvider backed by a TON o11y client.
+func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader, lggr logger.Logger) RawLogProvider {
+	if lggr == nil {
+		lggr = logger.Nop()
+	}
+
 	return &tonO11yLogProvider{
 		client: client,
 		loader: loader,
+		lggr:   lggr,
 	}
 }
 
@@ -98,10 +107,17 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 
 			extMsg := msg.AsExternalOut()
 
-			// Fail hard so we don't skip events. We want at-least-once delivery guarantees on events
+			// Not all external out messages follow the ExtOutLogBucket convention (e.g., ownable_2step.tolk emits events with addr_none, which has no CRC32 topic).
+			// These are non-CCIP messages that cannot be decoded as log events.
+			// Skipping them is safe as they carry no extractable topic and is required to avoid permanently blocking checkpoint advancement for the address.
 			eventSig, body, err := message.ParseExtMsgOut(extMsg)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse external message out for txHash=%v, LT=%d: %w", tx.Transaction.Hash, tx.Transaction.LT, err)
+				tlp.lggr.Warnw("skipping unparseable external out message",
+					"txHash", hex.EncodeToString(tx.Transaction.Hash),
+					"LT", tx.Transaction.LT,
+					"err", err,
+				)
+				continue
 			}
 
 			// If we got a valid event and body

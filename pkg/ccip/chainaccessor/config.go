@@ -109,12 +109,16 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
-	config, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetConfig)
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	config, err := tvm.CallGetter(ctx, client, block, addr, offramp.GetConfig)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
 
-	ocr3Base, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetOCR3Config)
+	ocr3Base, err := tvm.CallGetter(ctx, client, block, addr, offramp.GetOCR3Config)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
 	}
@@ -156,8 +160,12 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		return nil, err
 	}
 
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TON client: %w", err)
+	}
 	var sourceConfigsGot offrampview.SourceChainConfigMap
-	if err = sourceConfigsGot.Fetch(ctx, a.client, block, addr); err != nil {
+	if err = sourceConfigsGot.Fetch(ctx, client, block, addr); err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
@@ -214,7 +222,11 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 		return ccipocr3.SourceChainConfig{}, err
 	}
 
-	config, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetSourceChainConfig, uint64(sourceChainSelector))
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.SourceChainConfig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	config, err := tvm.CallGetter(ctx, client, block, addr, offramp.GetSourceChainConfig, uint64(sourceChainSelector))
 	if err != nil {
 		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
 		var execError ton.ContractExecError
@@ -249,7 +261,11 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
-	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetStaticConfig)
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.FeeQuoterStaticConfig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	cfg, err := tvm.CallGetter(ctx, client, block, addr, feequoter.GetStaticConfig)
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
@@ -270,7 +286,12 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
-	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, onramp.GetDynamicConfig)
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+
+	cfg, err := tvm.CallGetter(ctx, client, block, addr, onramp.GetDynamicConfig)
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
@@ -302,7 +323,11 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
-	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, onramp.GetDestChainConfig, uint64(dest))
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.OnRampDestChainConfig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	cfg, err := tvm.CallGetter(ctx, client, block, addr, onramp.GetDestChainConfig, uint64(dest))
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
@@ -325,7 +350,11 @@ func (a *TONAccessor) GetCurseInfo(ctx context.Context, block *ton.BlockIDExt, d
 	if err != nil {
 		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get OffRamp address from accessor bindings: %w", err)
 	}
-	cursedSubjects, err := tvm.CallGetter(ctx, a.client, block, addr, offramp.GetCursedSubjects)
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.CurseInfo{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	cursedSubjects, err := tvm.CallGetter(ctx, client, block, addr, offramp.GetCursedSubjects)
 	if err != nil {
 		return ccipocr3.CurseInfo{}, fmt.Errorf("could not get cursed subjects: %w", err)
 	}

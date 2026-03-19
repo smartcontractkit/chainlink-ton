@@ -423,7 +423,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	)
 	require.NoError(t, err)
 	addrCodec := codec.NewAddressCodec()
-	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(tonSelector), tonChain.Client, lp, addrCodec)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(tonSelector), clientProvider, lp, addrCodec)
 	require.NoError(t, err)
 
 	state, err := tonstate.LoadOnchainState(env)
