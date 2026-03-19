@@ -6,6 +6,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink/deployment"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -81,10 +83,10 @@ func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
 
 func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
 	defaultLinkPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
-	defaultTONPrice := new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18))
+	defaultTONPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18)), big.NewInt(1e9)) // 2e18 * 1e9 = 2e27, 2 is approx USD price of TON
 	return map[datastore.ContractType]*big.Int{
-		tvm.LinkTokenType: defaultLinkPrice,
-		tvm.TONNativeType: defaultTONPrice,
+		state.LinkToken: defaultLinkPrice,
+		state.TONNative: defaultTONPrice,
 	}
 }
 
