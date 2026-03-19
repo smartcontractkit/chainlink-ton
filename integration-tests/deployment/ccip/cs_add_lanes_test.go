@@ -100,9 +100,8 @@ func TestAddLanes(t *testing.T) {
 		TokenPrices: map[string]*big.Int{
 			tvm.TonTokenAddr.String(): big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainCanonicalConfig,
-		RMNVerificationEnabled:   false,
-		AllowListEnabled:         false,
+		RMNVerificationEnabled: false,
+		AllowListEnabled:       false,
 	}
 
 	evmDefinition := lanes.ChainDefinition{
@@ -111,9 +110,8 @@ func TestAddLanes(t *testing.T) {
 		TokenPrices: map[string]*big.Int{
 			"0x779877A7B0D9E8603169DdbD7836e478b4624789": big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: tonops.EvmFeeQuoterDestChainCanonicalConfig,
-		RMNVerificationEnabled:   false,
-		AllowListEnabled:         false,
+		RMNVerificationEnabled: false,
+		AllowListEnabled:       false,
 	}
 
 	// TON <> EVM lanes

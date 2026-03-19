@@ -2,6 +2,7 @@ package sequences
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -23,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
@@ -46,6 +48,35 @@ func (a *TonLaneAdapter) GetFQAddress(ds datastore.DataStore, chainSelector uint
 
 func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	return getRouterAddress(ds, chainSelector)
+}
+
+func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
+	return lanes.FeeQuoterDestChainConfig{
+		IsEnabled:                   true,
+		MaxDataBytes:                30_000,
+		MaxPerMsgGasLimit:           4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
+		DestGasOverhead:             300_000,
+		DestGasPerPayloadByteBase:   16,
+		ChainFamilySelector:         config.TVMFamilySelector,
+		DefaultTokenFeeUSDCents:     25,
+		DefaultTokenDestGasOverhead: 90_000,
+		DefaultTxGasLimit:           200_000,
+		NetworkFeeUSDCents:          10,
+		V1Params: &lanes.FeeQuoterV1Params{
+			MaxNumberOfTokensPerMsg:           10,
+			DestGasPerPayloadByteHigh:         40,
+			DestGasPerPayloadByteThreshold:    3000,
+			DestDataAvailabilityOverheadGas:   100,
+			DestGasPerDataAvailabilityByte:    16,
+			DestDataAvailabilityMultiplierBps: 1,
+			GasMultiplierWeiPerEth:            11e17,
+		},
+	}
+}
+
+func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
+	// 1 TON ~2.13 USD -> 1 nanoTON = 2.13e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.13e9
+	return big.NewInt(2.12e9)
 }
 
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
@@ -342,28 +373,33 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 
 // TODO change the operation input to lanes.UpdateLanesInput
 func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) []feequoter.UpdateDestChainConfig {
+	fqc := input.Dest.FeeQuoterDestChainConfig
+	var v1 lanes.FeeQuoterV1Params
+	if fqc.V1Params != nil {
+		v1 = *fqc.V1Params
+	}
 	return []feequoter.UpdateDestChainConfig{
 		{
 			DestinationChainSelector: input.Dest.Selector,
 			DestChainConfig: feequoter.DestChainConfig{
-				IsEnabled:                         input.Dest.FeeQuoterDestChainConfig.IsEnabled,
-				MaxNumberOfTokensPerMsg:           input.Dest.FeeQuoterDestChainConfig.MaxNumberOfTokensPerMsg,
-				MaxDataBytes:                      input.Dest.FeeQuoterDestChainConfig.MaxDataBytes,
-				MaxPerMsgGasLimit:                 input.Dest.FeeQuoterDestChainConfig.MaxPerMsgGasLimit,
-				DestGasOverhead:                   input.Dest.FeeQuoterDestChainConfig.DestGasOverhead,
-				DestGasPerPayloadByteBase:         input.Dest.FeeQuoterDestChainConfig.DestGasPerPayloadByteBase,
-				DestGasPerPayloadByteHigh:         input.Dest.FeeQuoterDestChainConfig.DestGasPerPayloadByteHigh,
-				DestGasPerPayloadByteThreshold:    input.Dest.FeeQuoterDestChainConfig.DestGasPerPayloadByteThreshold,
-				DestDataAvailabilityOverheadGas:   input.Dest.FeeQuoterDestChainConfig.DestDataAvailabilityOverheadGas,
-				DestGasPerDataAvailabilityByte:    input.Dest.FeeQuoterDestChainConfig.DestGasPerDataAvailabilityByte,
-				DestDataAvailabilityMultiplierBps: input.Dest.FeeQuoterDestChainConfig.DestDataAvailabilityMultiplierBps,
-				ChainFamilySelector:               input.Dest.FeeQuoterDestChainConfig.ChainFamilySelector,
-				DefaultTokenFeeUsdCents:           input.Dest.FeeQuoterDestChainConfig.DefaultTokenFeeUSDCents,
-				DefaultTokenDestGasOverhead:       input.Dest.FeeQuoterDestChainConfig.DefaultTokenDestGasOverhead,
-				DefaultTxGasLimit:                 input.Dest.FeeQuoterDestChainConfig.DefaultTxGasLimit,
-				GasMultiplierWeiPerEth:            input.Dest.FeeQuoterDestChainConfig.GasMultiplierWeiPerEth,
-				GasPriceStalenessThreshold:        input.Dest.FeeQuoterDestChainConfig.GasPriceStalenessThreshold,
-				NetworkFeeUsdCents:                input.Dest.FeeQuoterDestChainConfig.NetworkFeeUSDCents,
+				IsEnabled:                         fqc.IsEnabled,
+				MaxNumberOfTokensPerMsg:           v1.MaxNumberOfTokensPerMsg,
+				MaxDataBytes:                      fqc.MaxDataBytes,
+				MaxPerMsgGasLimit:                 fqc.MaxPerMsgGasLimit,
+				DestGasOverhead:                   fqc.DestGasOverhead,
+				DestGasPerPayloadByteBase:         fqc.DestGasPerPayloadByteBase,
+				DestGasPerPayloadByteHigh:         v1.DestGasPerPayloadByteHigh,
+				DestGasPerPayloadByteThreshold:    v1.DestGasPerPayloadByteThreshold,
+				DestDataAvailabilityOverheadGas:   v1.DestDataAvailabilityOverheadGas,
+				DestGasPerDataAvailabilityByte:    v1.DestGasPerDataAvailabilityByte,
+				DestDataAvailabilityMultiplierBps: v1.DestDataAvailabilityMultiplierBps,
+				ChainFamilySelector:               fqc.ChainFamilySelector,
+				DefaultTokenFeeUsdCents:           fqc.DefaultTokenFeeUSDCents,
+				DefaultTokenDestGasOverhead:       fqc.DefaultTokenDestGasOverhead,
+				DefaultTxGasLimit:                 fqc.DefaultTxGasLimit,
+				GasMultiplierWeiPerEth:            v1.GasMultiplierWeiPerEth,
+				GasPriceStalenessThreshold:        v1.GasPriceStalenessThreshold,
+				NetworkFeeUsdCents:                uint32(fqc.NetworkFeeUSDCents),
 			},
 		},
 	}
