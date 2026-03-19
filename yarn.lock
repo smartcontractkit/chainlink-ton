@@ -1067,10 +1067,10 @@
     arg "^5.0.2"
     fflate "^0.8.2"
 
-"@ton/blueprint@^0.42.0":
-  version "0.42.0"
-  resolved "https://registry.yarnpkg.com/@ton/blueprint/-/blueprint-0.42.0.tgz#40baae5a0e472980352fc2665fdbd151ba4b9b48"
-  integrity sha512-P2HvHkF3eDgZZcAI9GIB1djJQK0Nigj5yHGi0XDvC3w8GQMBUuwONvvLPfnECNRDuF9jRovyzB8ChTDMqvGEPg==
+"@ton/blueprint@^0.44.0":
+  version "0.44.0"
+  resolved "https://registry.yarnpkg.com/@ton/blueprint/-/blueprint-0.44.0.tgz#832ed11db0fdc695836c6c8a631213b85bb5d62b"
+  integrity sha512-RkEJeAZUKvLmzBw/fpS7foKk6UhlMrMk/Rss58pOCiAGjB+O2iOxyMfQvk7irBtaE45OjlCFePNJPzPwyy1pqg==
   dependencies:
     "@ton-api/client" "^0.2.0"
     "@ton-api/ton-adapter" "^0.2.0"
@@ -1129,10 +1129,10 @@
     chalk "^4.1.2"
     table "^6.9.0"
 
-"@ton/sandbox@^0.40.0":
-  version "0.40.0"
-  resolved "https://registry.yarnpkg.com/@ton/sandbox/-/sandbox-0.40.0.tgz#d414bcbf5015417c57fa0619501b3f752a235502"
-  integrity sha512-j0+9uqdxYrMb89O8GKWHqX0Yz0FZXrbDZOdgIO0cUgVgydMT7kIn7EOM8KGy6h+bD1Vk9kcpGqfhX1e4isQYTQ==
+"@ton/sandbox@^0.41.0":
+  version "0.41.0"
+  resolved "https://registry.yarnpkg.com/@ton/sandbox/-/sandbox-0.41.0.tgz#a0c81cca5dedb1891e1cf3f621f730f6bac63539"
+  integrity sha512-+WRWiHfm62xQebVt6BvLb2UhVphpBHCwSby8R5vP9llzdVck+XEs+p4csIkZBh6gRQsy1Xomzh1PpgZS5XVE3A==
   dependencies:
     "@vscode/debugadapter" "^1.68.0"
     chalk "^4.1.2"
