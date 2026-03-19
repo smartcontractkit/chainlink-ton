@@ -6,12 +6,13 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink/deployment/common/types"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/mcms/types"
+	mcmsTypes "github.com/smartcontractkit/mcms/types"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -79,6 +80,14 @@ func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
 	return big.NewInt(2.12e9)
 }
 
+func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
+	defaultPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
+
+	return map[datastore.ContractType]*big.Int{
+		datastore.ContractType(types.LinkToken): defaultPrice,
+	}
+}
+
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource
 }
@@ -113,7 +122,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 		}
 
 		sender := chain.Wallet.Address()
-		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
+		_inputMCMS := mcms.NewSendOrPlanInput(mcmsTypes.ChainSelector(chainSelector))
 
 		// update fee quoter with dest chain configs
 		{
@@ -148,7 +157,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				}
 
 				plan := !sender.Equals(owner) // plan if sender is not owner
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcmsTypes.OperationMetadata{
 					{
 						ContractType: contractType,
 						Tags:         []string{},
@@ -207,7 +216,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				}
 
 				plan := !sender.Equals(owner) // plan if sender is not owner
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcmsTypes.OperationMetadata{
 					{
 						ContractType: contractType,
 						Tags:         []string{},
@@ -235,7 +244,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcmsTypes.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -265,7 +274,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcmsTypes.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -304,7 +313,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 		}
 
 		sender := chain.Wallet.Address()
-		_inputMCMS := mcms.NewSendOrPlanInput(types.ChainSelector(chainSelector))
+		_inputMCMS := mcms.NewSendOrPlanInput(mcmsTypes.ChainSelector(chainSelector))
 
 		// configure offramp sources
 		{
@@ -323,7 +332,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcmsTypes.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
@@ -350,7 +359,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcmsTypes.OperationMetadata{
 				{
 					ContractType: contractType,
 					Tags:         []string{},
