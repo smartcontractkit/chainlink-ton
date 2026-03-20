@@ -13,7 +13,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func (m *CCIP16TON) PreDeployContractsForSelector(ctx context.Context, env *deployment.Environment, cls []*simple_node_set.Input, selector uint64, ccipHomeSelector uint64, crAddr string) error {
@@ -49,7 +48,7 @@ func (m *CCIP16TON) PostDeployContractsForSelector(ctx context.Context, env *dep
 
 	updateConfig := operation.UpdateFeeQuoterPricesInput{
 		TokenPrices: map[string]*big.Int{
-			tvm.TonTokenAddr.String():           tonTokenPrice,
+			stateCCIP.TONNativeAddress.String(): tonTokenPrice,
 			stateCCIP.LinkTokenAddress.String(): linkTokenPrice,
 		},
 	}

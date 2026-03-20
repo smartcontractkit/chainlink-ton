@@ -7,9 +7,10 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms/types"
@@ -80,6 +81,15 @@ func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainC
 func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
 	// 1 TON ~2.13 USD -> 1 nanoTON = 2.13e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.13e9
 	return big.NewInt(2.12e9)
+}
+
+func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
+	defaultLinkPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
+	defaultTONPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18)), big.NewInt(1e9)) // 2e18 * 1e9 = 2e27, 2 is approx USD price of TON
+	return map[datastore.ContractType]*big.Int{
+		state.LinkToken: defaultLinkPrice,
+		state.TONNative: defaultTONPrice,
+	}
 }
 
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {

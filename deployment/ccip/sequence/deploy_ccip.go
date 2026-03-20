@@ -132,6 +132,18 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		})
 	}
 
+	tonNativeTokenAddress := stateCCIP.TONNativeAddress
+	if tonNativeTokenAddress.IsAddrNone() {
+		tonNativeTokenAddress = *tvm.TonTokenAddr
+		addresses = append(addresses, datastore.AddressRef{
+			Address:       tonNativeTokenAddress.String(),
+			ChainSelector: in.ChainSelector,
+			Labels:        datastore.LabelSet{},
+			Type:          state.TONNative,
+			Version:       &state.Version1_6_0,
+		})
+	}
+
 	feeQuoterAddress := stateCCIP.FeeQuoter
 	if feeQuoterAddress.IsAddrNone() {
 		feeQuoterStorage := feequoter.Storage{

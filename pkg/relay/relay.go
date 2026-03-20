@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 
@@ -125,18 +126,19 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 		return nil, fmt.Errorf("invalid chain ID %d: could not find chain selector: %w", chainID, err)
 	}
 
-	// TODO: pass GetClient through? So we don't pin provider to a single client
-
-	client, err := r.chain.GetClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch TON client: %w", err)
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		cl, cerr := r.chain.GetClient(ctx)
+		if cerr != nil {
+			return nil, cerr
+		}
+		return cl, nil
 	}
 
 	// TODO: check if rargs.ContractID is offramp address ?
 	return provider.NewCCIPProvider(
 		r.lggr,
 		ccipocr3.ChainSelector(chainSelector),
-		client,
+		clientProvider,
 		r.chain.TxManager(),
 		r.chain.LogPoller(),
 		cargs,

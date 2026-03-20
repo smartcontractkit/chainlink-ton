@@ -194,7 +194,7 @@ func TestDeployCCIP(t *testing.T) {
 	)
 	require.NoError(t, err)
 	addrCodec := codec.NewAddressCodec()
-	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), clientProvider, lp, addrCodec)
 	require.NoError(t, err)
 
 	ctx := t.Context()

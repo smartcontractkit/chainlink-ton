@@ -21,7 +21,7 @@ import "errors"
 import "events"
 
 const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1"); // TODO: set correct value
+const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Router_InMsg.fromSlice(in.body);

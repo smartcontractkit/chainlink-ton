@@ -26,6 +26,7 @@ var (
 	MCMSVersion     = *semver.MustParse("0.0.4")
 	// Core contracts
 	LinkToken ds.ContractType = "LinkToken"
+	TONNative ds.ContractType = "TONNative"
 	Router    ds.ContractType = "Router"
 	OnRamp    ds.ContractType = "OnRamp"
 	OffRamp   ds.ContractType = "OffRamp"
@@ -44,6 +45,7 @@ var (
 // on a chain. If a binding is nil, it means there is no such contract on the chain.
 type CCIPChainState struct {
 	LinkTokenAddress address.Address
+	TONNativeAddress address.Address
 	OffRamp          address.Address
 	Router           address.Address
 	OnRamp           address.Address
@@ -192,6 +194,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 		switch contractType {
 		case LinkToken:
 			state.LinkTokenAddress = *contractAddress
+		case TONNative:
+			state.TONNativeAddress = *contractAddress
 		case TonReceiver:
 			state.ReceiverAddress = *contractAddress
 		case OffRamp:
