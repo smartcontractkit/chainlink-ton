@@ -38,7 +38,7 @@ export async function run(provider: NetworkProvider) {
 
   console.log('🚀 Sending drill price registries...\n')
 
-  await entrypoint.sendDrillPriceRegistries(sender, toNano('0.5'))
+  await entrypoint.sendDrillPriceRegistries(sender, toNano('0.2'))
 
   await new Promise((resolve) => setTimeout(resolve, 3000))
 

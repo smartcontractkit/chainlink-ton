@@ -5,9 +5,9 @@ import { FiredrillOnRamp } from '../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../wrappers/firedrill/FiredrillOffRamp'
 import { generateRandomContractId, LINK_TOKEN } from '../src/utils'
 import { tonAddressToCrossChainAddress } from '../tests/firedrill/Firedrill.Setup'
-import { randomAddress } from '@ton/test-utils'
 
-const CHAINSEL_TON = 1399300952838017768n
+const CHAINSEL_TON_TESTNET = 1399300952838017768n
+const CHAINSEL_TON_MAINNET = 16448340667252469081n
 export async function run(provider: NetworkProvider) {
   // Compile contracts
   console.log('📦 Compiling contracts...')
@@ -38,6 +38,8 @@ export async function run(provider: NetworkProvider) {
     console.log(`Using default token address: ${tokenAddress.toString()}`)
   }
 
+  const selector = (provider.network() === 'mainnet') ? CHAINSEL_TON_MAINNET : CHAINSEL_TON_TESTNET
+
   console.log('\n🚀 Starting deployment...\n')
 
   // Step 1: Deploy Entrypoint first with random ramp addresses
@@ -48,7 +50,7 @@ export async function run(provider: NetworkProvider) {
       owner: senderAddress,
       pendingOwner: null,
     },
-    chainSelector: CHAINSEL_TON,
+    chainSelector: selector,
     tokenAddress: tokenAddress,
     firedrillContracts: undefined,
     sSendLast: 0n,
@@ -63,9 +65,9 @@ export async function run(provider: NetworkProvider) {
 
   // Verify entrypoint deployed correctly
   const initialChainSelector = await entrypoint.getChainSelector()
-  if (initialChainSelector !== CHAINSEL_TON) {
+  if (initialChainSelector !== selector) {
     throw new Error(
-      `Entrypoint chain selector mismatch: expected ${CHAINSEL_TON}, got ${initialChainSelector}`,
+      `Entrypoint chain selector mismatch: expected ${selector}, got ${initialChainSelector}`,
     )
   }
   console.log(`✅ Entrypoint deployed at: ${entrypoint.address.toString()}\n`)
@@ -75,7 +77,7 @@ export async function run(provider: NetworkProvider) {
   const onRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
-    chainSelector: CHAINSEL_TON,
+    chainSelector: selector,
     tokenAddress: tokenAddress,
   }
 
@@ -97,7 +99,7 @@ export async function run(provider: NetworkProvider) {
   const offRampConfig = {
     id: generateRandomContractId(),
     controlAddress: entrypoint.address,
-    chainSelector: CHAINSEL_TON,
+    chainSelector: selector,
     onRampAddress: tonAddressToCrossChainAddress(onramp.address),
   }
 
@@ -111,6 +113,7 @@ export async function run(provider: NetworkProvider) {
   // Step 4: Update ramp addresses in entrypoint
   console.log('4  Updating ramp addresses in Entrypoint...')
   await entrypoint.sendInitRamps(sender, toNano('0.05'), onramp.address, offramp.address)
+  await delay(15000)
 
   // Verify ramps were set correctly
   const setOnRampAddress = await entrypoint.getOnRampAddress()
