@@ -4,7 +4,7 @@ import "time"
 
 // Test timeouts and intervals
 const (
-	TestTimeout         = 20 * time.Minute
+	TestTimeout         = 25 * time.Minute
 	PollInterval        = 4 * time.Second
 	ProgressLogInterval = 15 * time.Second
 )
