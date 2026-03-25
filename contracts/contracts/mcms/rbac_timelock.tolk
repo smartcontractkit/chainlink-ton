@@ -1247,7 +1247,6 @@ fun Timelock<T>.submitErrorReport(
     // Mark op in error state (recover with new op + bypass)
     self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
-    // TODO: notify everyone in the batch about the error (message)
     //   - opportunity to rollback, not currently supported
 
     // Check the reported error against the stored pending operation
@@ -1471,7 +1470,6 @@ fun onBouncedMessage(in: InMessageBounced) {
     timelock.data.opPendingInfo.validAfter = blockchain.now(); // mark op as final
     timelock.data.opPendingInfo.opPendingCalls.set(fingerprint, false); // mark op pendingCalls as final/bounced
 
-    // TODO: notify everyone in the batch about the error (message)
     //   - opportunity to rollback, not currently supported
 
     // Store the updated contract data

@@ -173,11 +173,6 @@ type SetDynamicConfigMessage struct {
 	Config DynamicConfig `tlb:"."`
 }
 
-type UpdateAllowlistsMessage struct {
-	_       tlb.Magic  `tlb:"#9dc06185" json:"-"` //nolint:revive // Ignore opcode tag
-	Updates *cell.Cell `tlb:"^"`                  // Snake-encoded updates
-}
-
 type UpdateSendExecutorMessage struct {
 	_    tlb.Magic  `tlb:"#82901c45" json:"-"` //nolint:revive // Ignore opcode tag
 	Code *cell.Cell `tlb:"^"`                  // New executor code
@@ -190,7 +185,6 @@ var TLBs = tvm.MustNewTLBMap([]any{
 	ExecutorFinishedWithError{},
 	SetDynamicConfigMessage{},
 	UpdateDestChainConfigsMessage{},
-	UpdateAllowlistsMessage{},
 	UpdateSendExecutorMessage{},
 	WithdrawFeeTokens{},
 }).MustWithStorageType(Storage{})

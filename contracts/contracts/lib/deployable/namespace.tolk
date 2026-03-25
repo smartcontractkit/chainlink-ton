@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 import "types"
 
-// TODO: this should be moved to CCIP package
 const DeployableNamespace_CCIPSendExecutor: Namespace = 0;
 const DeployableNamespace_ReceiveExecutor: Namespace = 1;
 const DeployableNamespace_MerkleRoot: Namespace = 2;

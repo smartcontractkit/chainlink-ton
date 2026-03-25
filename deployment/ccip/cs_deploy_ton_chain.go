@@ -78,6 +78,18 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 		})
 	}
 
+	// TODO: deploy TON native token
+	if s.TONNativeAddress.IsAddrNone() {
+		s.TONNativeAddress = *tvm.TonTokenAddr // using dummy TON address until we deploy real one
+		_ = dataStore.Addresses().Upsert(ds.AddressRef{
+			Address:       tvm.TonTokenAddr.String(),
+			ChainSelector: selector,
+			Labels:        ds.LabelSet{},
+			Type:          state.TONNative,
+			Version:       &state.Version1_6_0,
+		})
+	}
+
 	states[selector] = s
 
 	dp, err := dep.NewDependencyProvider(
