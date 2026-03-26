@@ -9,6 +9,7 @@ import (
 	"github.com/sigurn/crc16"
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -16,21 +17,31 @@ import (
 
 var crcTable = crc16.MakeTable(crc16.CRC16_XMODEM)
 
-type addressCodec struct{}
+type addressCodec struct {
+	lggr logger.Logger
+}
 
 var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 
-// For the sake of comparison and storage, home chain and other registries should use the user-friendly format:
-// `1 byte flags + 1 byte workchain (int8) + 32 byte data + 2 byte CRC16`
+// The codec supports two address formats (both 36 bytes):
+//
+// 1. User-friendly format (preferred, matches Solidity _validateTVMAddress):
+//    `1 byte flags + 1 byte workchain (int8) + 32 byte data + 2 byte CRC16`
+//
+// 2. Legacy raw format (for backwards compatibility):
+//    `4 byte workchain (int32, big-endian) + 32 byte data`
+//
+// When decoding, CRC16 validation is attempted first. If it passes, user-friendly format is used.
+// If CRC16 fails, the legacy raw format is assumed.
 //
 // For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
 // the same address with different flags.
 
-// UserFriendlyAddr is a fixed-size byte array representing a TON user-friendly address
+// UserFriendlyAddr is a fixed-size byte array representing a TON user-friendly address.
+// Format: 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16
 type UserFriendlyAddr [tvm.AddressLength]byte
 
-// RawAddr is an alias for UserFriendlyAddr for backwards compatibility.
-// Deprecated: Use UserFriendlyAddr instead.
+// RawAddr is an alias for UserFriendlyAddr for backwards compatibility with existing code.
 type RawAddr = UserFriendlyAddr
 
 // ToUserFriendlyAddr converts an address.Address to a UserFriendlyAddr (36 bytes).
@@ -54,36 +65,43 @@ func ToUserFriendlyAddr(addr *address.Address) (UserFriendlyAddr, error) {
 	return buf, nil
 }
 
-// ToRawAddr is an alias for ToUserFriendlyAddr for backwards compatibility.
-// Deprecated: Use ToUserFriendlyAddr instead.
+// ToRawAddr is an alias for ToUserFriendlyAddr for backwards compatibility with existing code.
 func ToRawAddr(addr *address.Address) (RawAddr, error) {
 	return ToUserFriendlyAddr(addr)
 }
 
-func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
-	return addressCodec{}
+func NewAddressCodec(lggr logger.Logger) ccipocr3.ChainSpecificAddressCodec {
+	return addressCodec{lggr: lggr}
 }
 
-// AddressBytesToString converts a byte slice representing a TON user-friendly address into its string representation.
-// Expected format: 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16
+// AddressBytesToString converts a byte slice representing a TON address into its string representation.
+// Supports both user-friendly format (with CRC16) and legacy raw format (4-byte workchain).
 func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	if len(bytes) != tvm.AddressLength {
 		return "", fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 
-	// Verify CRC16 checksum
+	// Try user-friendly format first (check CRC16)
 	expectedChecksum := binary.BigEndian.Uint16(bytes[34:36])
 	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
-	if expectedChecksum != actualChecksum {
-		return "", fmt.Errorf("invalid CRC16 checksum: expected %d, got %d", expectedChecksum, actualChecksum)
+	if expectedChecksum == actualChecksum {
+		// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
+		flags := bytes[0]
+		workchain := bytes[1]
+		data := bytes[2:34]
+		addr := address.NewAddress(flags, workchain, data)
+		return addr.String(), nil
 	}
 
-	// Parse: flags (1) + workchain (1) + data (32) + crc16 (2)
-	flags := bytes[0]
-	workchain := bytes[1]
-	data := bytes[2:34]
-
-	addr := address.NewAddress(flags, workchain, data)
+	// Fall back to legacy raw format: workchain (4) + data (32)
+	// Note: workchain validation is intentionally lenient - we don't block on invalid values
+	// since the underlying tonutils-go will truncate to int8 anyway.
+	workchain := int32(binary.BigEndian.Uint32(bytes[0:4])) //nolint:gosec // G115
+	if workchain < -128 || workchain > 127 {
+		a.lggr.Warnw("legacy format workchain is outside int8 range, will be truncated",
+			"workchain", workchain, "validRange", "[-128, 127]")
+	}
+	addr := address.NewAddress(0, byte(workchain), bytes[4:])
 	return addr.String(), nil
 }
 
@@ -124,25 +142,29 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 	return hex.EncodeToString(addr), nil
 }
 
-// AddressBytesToTONAddress converts a byte slice representing a TON user-friendly address into its ton address representation.
-// Expected format: 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16
+// AddressBytesToTONAddress converts a byte slice representing a TON address into its ton address representation.
+// Supports both user-friendly format (with CRC16) and legacy raw format (4-byte workchain).
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
 	if len(bytes) != tvm.AddressLength {
 		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 
-	// Verify CRC16 checksum
+	// Try user-friendly format first (check CRC16)
 	expectedChecksum := binary.BigEndian.Uint16(bytes[34:36])
 	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
-	if expectedChecksum != actualChecksum {
-		return nil, fmt.Errorf("invalid CRC16 checksum: expected %d, got %d", expectedChecksum, actualChecksum)
+	if expectedChecksum == actualChecksum {
+		// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
+		flags := bytes[0]
+		workchain := bytes[1]
+		data := bytes[2:34]
+		addr := address.NewAddress(flags, workchain, data)
+		return addr, nil
 	}
 
-	// Parse: flags (1) + workchain (1) + data (32) + crc16 (2)
-	flags := bytes[0]
-	workchain := bytes[1]
-	data := bytes[2:34]
-
-	addr := address.NewAddress(flags, workchain, data)
+	// Fall back to legacy raw format: workchain (4) + data (32)
+	// Note: workchain validation is intentionally lenient - we don't block on invalid values
+	// since the underlying tonutils-go will truncate to int8 anyway.
+	workchain := int32(binary.BigEndian.Uint32(bytes[0:4])) //nolint:gosec // G115
+	addr := address.NewAddress(0, byte(workchain), bytes[4:])
 	return addr, nil
 }

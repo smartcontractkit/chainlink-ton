@@ -12,6 +12,8 @@ import (
 	"github.com/sigurn/crc16"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 func TestTONAddress(t *testing.T) {
@@ -63,7 +65,7 @@ func TestTONAddress(t *testing.T) {
 		},
 	}
 
-	codec := addressCodec{}
+	codec := addressCodec{lggr: logger.Nop()}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			actual, err := codec.AddressStringToBytes(test.in)
@@ -78,7 +80,7 @@ func TestTONAddress(t *testing.T) {
 }
 
 func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
-	codec := addressCodec{}
+	codec := addressCodec{lggr: logger.Nop()}
 
 	testCases := []struct {
 		name     string
@@ -120,7 +122,7 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 }
 
 func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
-	codec := addressCodec{}
+	codec := addressCodec{lggr: logger.Nop()}
 
 	// Generate a real ed25519 key for testing
 	pubKey, _, err := ed25519.GenerateKey(crypto_rand.Reader)
@@ -179,82 +181,270 @@ func packOracleID(oracleID uint8) []byte {
 	return userFriendlyAddr[:]
 }
 
-func TestCRC16Validation(t *testing.T) {
-	codec := addressCodec{}
+func TestDualFormatSupport(t *testing.T) {
+	codec := addressCodec{lggr: logger.Nop()}
 
-	// Create a valid user-friendly address
+	// Create a valid TON address
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
-	validBytes, err := ToUserFriendlyAddr(addr)
+	// Build user-friendly format bytes
+	userFriendlyBytes, err := ToUserFriendlyAddr(addr)
 	require.NoError(t, err)
 
+	// Build legacy raw format bytes: 4-byte workchain + 32-byte data
+	legacyBytes := make([]byte, 36)
+	binary.BigEndian.PutUint32(legacyBytes[0:4], uint32(addr.Workchain())) //nolint:gosec // G115
+	copy(legacyBytes[4:], addr.Data())
+
+	t.Run("user-friendly format", func(t *testing.T) {
+		str, err := codec.AddressBytesToString(userFriendlyBytes[:])
+		require.NoError(t, err)
+		require.Equal(t, addr.String(), str)
+
+		tonAddr, err := AddressBytesToTONAddress(userFriendlyBytes[:])
+		require.NoError(t, err)
+		require.True(t, addr.Equals(tonAddr))
+	})
+
+	t.Run("legacy raw format", func(t *testing.T) {
+		str, err := codec.AddressBytesToString(legacyBytes)
+		require.NoError(t, err)
+		// Legacy format doesn't preserve flags, so we compare the underlying address
+		parsedAddr, err := address.ParseAddr(str)
+		require.NoError(t, err)
+		require.True(t, addr.Equals(parsedAddr))
+
+		tonAddr, err := AddressBytesToTONAddress(legacyBytes)
+		require.NoError(t, err)
+		require.True(t, addr.Equals(tonAddr))
+	})
+
+	t.Run("legacy format with masterchain (-1)", func(t *testing.T) {
+		masterchainAddr := address.NewAddress(0, 0xFF, addr.Data()) // 0xFF = -1 as int8
+
+		legacyMasterchain := make([]byte, 36)
+		// Write -1 as int32 in big-endian (0xFFFFFFFF)
+		legacyMasterchain[0] = 0xFF
+		legacyMasterchain[1] = 0xFF
+		legacyMasterchain[2] = 0xFF
+		legacyMasterchain[3] = 0xFF
+		copy(legacyMasterchain[4:], masterchainAddr.Data())
+
+		tonAddr, err := AddressBytesToTONAddress(legacyMasterchain)
+		require.NoError(t, err)
+		require.Equal(t, int32(-1), tonAddr.Workchain())
+	})
+
+	t.Run("invalid length - too short", func(t *testing.T) {
+		_, err := codec.AddressBytesToString(userFriendlyBytes[:35])
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+
+		_, err = AddressBytesToTONAddress(userFriendlyBytes[:35])
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+	})
+
+	t.Run("invalid length - too long", func(t *testing.T) {
+		tooLong := append(userFriendlyBytes[:], 0x00)
+		_, err := codec.AddressBytesToString(tooLong)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+
+		_, err = AddressBytesToTONAddress(tooLong)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+	})
+}
+
+func TestLegacyFormatWorkchainHandling(t *testing.T) {
+	codec := addressCodec{lggr: logger.Nop()}
+
+	// Create dummy address data
+	data := make([]byte, 32)
+	for i := range data {
+		data[i] = byte(i + 1)
+	}
+
+	// All workchain values should succeed (no error), but values outside int8 range
+	// will be truncated and logged as warnings
 	tests := []struct {
-		name        string
-		modifyBytes func([]byte) []byte
-		expectError bool
+		name              string
+		workchain         int32
+		expectedWorkchain int32 // after truncation to int8
 	}{
 		{
-			name: "valid address",
-			modifyBytes: func(b []byte) []byte {
-				return b
-			},
-			expectError: false,
+			name:              "workchain 0 (basechain)",
+			workchain:         0,
+			expectedWorkchain: 0,
 		},
 		{
-			name: "invalid CRC16 - zeroed checksum",
-			modifyBytes: func(b []byte) []byte {
-				modified := make([]byte, len(b))
-				copy(modified, b)
-				modified[34] = 0x00
-				modified[35] = 0x00
-				return modified
-			},
-			expectError: true,
+			name:              "workchain -1 (masterchain)",
+			workchain:         -1,
+			expectedWorkchain: -1,
 		},
 		{
-			name: "invalid CRC16 - corrupted data",
-			modifyBytes: func(b []byte) []byte {
-				modified := make([]byte, len(b))
-				copy(modified, b)
-				modified[10] ^= 0xFF // flip bits in data section
-				return modified
-			},
-			expectError: true,
+			name:              "workchain 127 (max int8)",
+			workchain:         127,
+			expectedWorkchain: 127,
 		},
 		{
-			name: "invalid length - too short",
-			modifyBytes: func(b []byte) []byte {
-				return b[:35]
-			},
-			expectError: true,
+			name:              "workchain -128 (min int8)",
+			workchain:         -128,
+			expectedWorkchain: -128,
 		},
 		{
-			name: "invalid length - too long",
-			modifyBytes: func(b []byte) []byte {
-				return append(b, 0x00)
-			},
-			expectError: true,
+			name:              "workchain 128 (truncates to -128)",
+			workchain:         128,
+			expectedWorkchain: -128, // 128 as int8 wraps to -128
+		},
+		{
+			name:              "workchain 256 (truncates to 0)",
+			workchain:         256,
+			expectedWorkchain: 0, // 256 as int8 wraps to 0
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			testBytes := tc.modifyBytes(validBytes[:])
+			// Build legacy format bytes with specified workchain
+			legacyBytes := make([]byte, 36)
+			binary.BigEndian.PutUint32(legacyBytes[0:4], uint32(tc.workchain)) //nolint:gosec // G115
+			copy(legacyBytes[4:], data)
 
-			_, err := codec.AddressBytesToString(testBytes)
-			if tc.expectError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			// Should not error - invalid workchains are logged but not rejected
+			_, err := codec.AddressBytesToString(legacyBytes)
+			require.NoError(t, err)
 
-			_, err = AddressBytesToTONAddress(testBytes)
-			if tc.expectError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
+			tonAddr, err := AddressBytesToTONAddress(legacyBytes)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedWorkchain, tonAddr.Workchain())
 		})
 	}
+}
+
+func TestToUserFriendlyAddr(t *testing.T) {
+	t.Run("valid address", func(t *testing.T) {
+		addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+		require.NoError(t, err)
+
+		userFriendly, err := ToUserFriendlyAddr(addr)
+		require.NoError(t, err)
+		require.Len(t, userFriendly, 36)
+
+		// Verify CRC16 is correct
+		expectedChecksum := crc16.Checksum(userFriendly[:34], crcTable)
+		actualChecksum := binary.BigEndian.Uint16(userFriendly[34:36])
+		require.Equal(t, expectedChecksum, actualChecksum)
+
+		// Verify we can convert back
+		recoveredAddr, err := AddressBytesToTONAddress(userFriendly[:])
+		require.NoError(t, err)
+		require.True(t, addr.Equals(recoveredAddr))
+	})
+
+	t.Run("nil address", func(t *testing.T) {
+		_, err := ToUserFriendlyAddr(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot convert nil address")
+	})
+
+	t.Run("none address", func(t *testing.T) {
+		noneAddr := address.NewAddressNone()
+		_, err := ToUserFriendlyAddr(noneAddr)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "cannot convert none address")
+	})
+
+	t.Run("masterchain address", func(t *testing.T) {
+		data := make([]byte, 32)
+		for i := range data {
+			data[i] = byte(i)
+		}
+		masterchainAddr := address.NewAddress(0, 0xFF, data) // 0xFF = -1 as int8
+
+		userFriendly, err := ToUserFriendlyAddr(masterchainAddr)
+		require.NoError(t, err)
+
+		// Verify workchain byte is 0xFF (-1)
+		require.Equal(t, byte(0xFF), userFriendly[1])
+
+		// Verify we can convert back and get the same workchain
+		recoveredAddr, err := AddressBytesToTONAddress(userFriendly[:])
+		require.NoError(t, err)
+		require.Equal(t, int32(-1), recoveredAddr.Workchain())
+	})
+}
+
+func TestToRawAddr(t *testing.T) {
+	// ToRawAddr is an alias for ToUserFriendlyAddr, just verify it works
+	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+
+	rawAddr, err := ToRawAddr(addr)
+	require.NoError(t, err)
+
+	userFriendly, err := ToUserFriendlyAddr(addr)
+	require.NoError(t, err)
+
+	require.Equal(t, userFriendly, rawAddr)
+}
+
+func TestAddressRoundtrip(t *testing.T) {
+	codec := addressCodec{lggr: logger.Nop()}
+
+	testAddresses := []string{
+		"EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
+		"EQBvW8Z5huBkMJYdnfAEM5JqTNkuWX3diqYENkWsIL0XggGG",
+		"EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N",
+	}
+
+	for _, addrStr := range testAddresses {
+		t.Run(addrStr[:20]+"...", func(t *testing.T) {
+			// String -> Bytes -> String roundtrip
+			bytes, err := codec.AddressStringToBytes(addrStr)
+			require.NoError(t, err)
+
+			recoveredStr, err := codec.AddressBytesToString(bytes)
+			require.NoError(t, err)
+
+			// Parse both to compare (flags may differ in string representation)
+			originalAddr, err := address.ParseAddr(addrStr)
+			require.NoError(t, err)
+			recoveredAddr, err := address.ParseAddr(recoveredStr)
+			require.NoError(t, err)
+
+			require.True(t, originalAddr.Equals(recoveredAddr),
+				"roundtrip failed: original=%s, recovered=%s", addrStr, recoveredStr)
+		})
+	}
+}
+
+func TestAddressBytesToString_InvalidInput(t *testing.T) {
+	codec := addressCodec{lggr: logger.Nop()}
+
+	t.Run("nil input", func(t *testing.T) {
+		_, err := codec.AddressBytesToString(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+	})
+
+	t.Run("empty input", func(t *testing.T) {
+		_, err := codec.AddressBytesToString([]byte{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+	})
+
+	t.Run("35 bytes - too short", func(t *testing.T) {
+		_, err := codec.AddressBytesToString(make([]byte, 35))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+	})
+
+	t.Run("37 bytes - too long", func(t *testing.T) {
+		_, err := codec.AddressBytesToString(make([]byte, 37))
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid address length")
+	})
 }

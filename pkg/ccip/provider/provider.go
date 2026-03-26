@@ -49,7 +49,7 @@ func NewCCIPProvider(
 	contractTransmitterCfg *ocr.Config,
 ) (*Provider, error) {
 	// Validate offramp address
-	addressCodec := codec.NewAddressCodec()
+	addressCodec := codec.NewAddressCodec(lggr)
 	var offRampAddrStr string
 	var err error
 
@@ -90,7 +90,7 @@ func NewCCIPProvider(
 	c := ccipocr3.Codec{
 		ChainSpecificAddressCodec: addressCodec,
 		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),
-		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(cargs.ExtraDataCodecBundle),
+		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(lggr, cargs.ExtraDataCodecBundle),
 		MessageHasher:             codec.NewMessageHasherV1(lggr, cargs.ExtraDataCodecBundle),
 		TokenDataEncoder:          codec.NewTokenDataEncoder(),
 		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),

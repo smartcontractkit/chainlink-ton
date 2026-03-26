@@ -15,6 +15,7 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	mocks "github.com/smartcontractkit/chainlink-ton/mocks/ccipocr3"
@@ -96,7 +97,7 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 	mockExtraDataCodec.On("DecodeExtraArgsToMap", mock.Anything).Return(map[string]any{
 		"gasLimit": big.NewInt(1000),
 	}, nil)
-	codec := NewExecutePluginCodecV1(edc)
+	codec := NewExecutePluginCodecV1(logger.Nop(), edc)
 
 	t.Run("encode/decode roundtrip", func(t *testing.T) {
 		report := randomTONExecuteReport(t, 5009297550715157269) // evm selector for TON
