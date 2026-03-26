@@ -9,7 +9,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -67,16 +66,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 				return [32]byte{}, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			destTokenAddrStr, err := m.addrCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("convert dest token address: %w", err)
-			}
-
-			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
-			if err != nil {
-				return [32]byte{}, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
-			}
-
+			DestPoolTonAddr := AddressBytesToStringWithBurning(tokenAmount.DestTokenAddress)
 			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
 				SourcePoolAddress: poolAddrCell,
 				ExtraData:         extraData,
@@ -95,16 +85,8 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		Nonce:               msg.Header.Nonce,
 	}
 
-	tonReceiverAddrStr, err := m.addrCodec.AddressBytesToString(msg.Receiver)
-	if err != nil {
-		return [32]byte{}, fmt.Errorf("error convert receiver address: %w", err)
-	}
-
-	receiver, err := address.ParseAddr(tonReceiverAddrStr)
-	if err != nil {
-		return [32]byte{}, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
-	}
-
+	receiver := AddressBytesToStringWithBurning(msg.Receiver)
+	var err error
 	var gasLimit *big.Int
 	var extraArgsDecodeMap map[string]any
 	if len(msg.ExtraArgs) == 0 {
