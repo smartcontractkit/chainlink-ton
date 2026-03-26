@@ -88,7 +88,7 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 	routerAddr := common.HexToAddress(msg.Router)
 
 	// Parse receiver address using TON address codec
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(lggr)
 	receiverBytes, err := addrCodec.AddressStringToBytes(msg.Receiver)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse receiver address: %w", err)

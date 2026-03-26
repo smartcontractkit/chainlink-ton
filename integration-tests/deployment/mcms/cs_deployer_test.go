@@ -131,7 +131,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := t.Context()
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(logger.Nop())
 	mc, err := chain.Client.GetMasterchainInfo(ctx)
 	require.NoError(t, err)
 

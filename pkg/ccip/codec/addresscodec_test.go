@@ -247,7 +247,8 @@ func TestDualFormatSupport(t *testing.T) {
 	})
 
 	t.Run("invalid length - too long", func(t *testing.T) {
-		tooLong := append(userFriendlyBytes[:], 0x00)
+		tooLong := make([]byte, len(userFriendlyBytes)+1)
+		copy(tooLong, userFriendlyBytes[:])
 		_, err := codec.AddressBytesToString(tooLong)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid address length")
