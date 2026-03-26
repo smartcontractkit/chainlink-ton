@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -442,7 +443,7 @@ func intoUpdateOffRampSourcesConfig(input lanes.UpdateLanesInput) operation.Upda
 }
 
 func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
-	addressCodec := ccipcodec.NewAddressCodec()
+	addressCodec := ccipcodec.NewAddressCodec(logger.Nop())
 	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Source.OnRamp)
 	if err != nil {
 		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert onramp address to string: %w", err)
@@ -460,7 +461,7 @@ func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.Appl
 }
 
 func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
-	addressCodec := ccipcodec.NewAddressCodec()
+	addressCodec := ccipcodec.NewAddressCodec(logger.Nop())
 	offRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OffRamp)
 	if err != nil {
 		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert offramp address to string: %w", err)

@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	"github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
@@ -80,7 +81,7 @@ func getRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, err
 }
 
 func convertAddress(address address.Address) ([]byte, error) {
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(logger.Nop())
 	rawAddress, err := addrCodec.AddressStringToBytes(address.String())
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to convert TON address to bytes: %w", err)
