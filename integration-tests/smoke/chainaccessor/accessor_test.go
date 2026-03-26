@@ -550,7 +550,7 @@ func testCommitReportsMixedHelper(t *testing.T, lp logpoller.Service, logStore l
 	require.Equal(t, int64(5), savedCount, "should have saved 5 logs")
 
 	// Setup accessor
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(logger.Nop())
 	accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
 	require.NoError(t, aerr)
 
@@ -625,7 +625,7 @@ func testCommitReportsBasicHelper(t *testing.T, lp logpoller.Service, logStore l
 	require.Equal(t, int64(1), savedCount, "should have saved 1 log")
 
 	// Query report via ton accessor
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(logger.Nop())
 	accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
 	require.NoError(t, aerr)
 
@@ -753,7 +753,7 @@ func Test_TonAccessor_MsgsBetweenSeqNums_SequenceRangeValidation(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(logger.Nop())
 	accessor, aerr := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
 	require.NoError(t, aerr)
 
@@ -918,7 +918,7 @@ func testExecutedMessagesHelper(t *testing.T, lp logpoller.Service, logStore log
 	require.Equal(t, int64(3), savedCount, "should have saved 3 logs")
 
 	// Setup accessor
-	addrCodec := codec.NewAddressCodec()
+	addrCodec := codec.NewAddressCodec(logger.Nop())
 	accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
 	require.NoError(t, aerr)
 
