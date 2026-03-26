@@ -17,6 +17,19 @@ import (
 
 var crcTable = crc16.MakeTable(crc16.CRC16_XMODEM)
 
+// ErrInvalidWorkchain is returned when a workchain value is outside the valid int8 range.
+var ErrInvalidWorkchain = errors.New("workchain value outside valid int8 range [-128, 127]")
+
+// validateWorkchain checks that a workchain value fits within the int8 range.
+// tonutils-go internally treats the workchain as int8, so values outside [-128, 127]
+// would silently wrap, potentially targeting the wrong contract.
+func validateWorkchain(workchain int32) error {
+	if workchain < -128 || workchain > 127 {
+		return fmt.Errorf("%w: got %d", ErrInvalidWorkchain, workchain)
+	}
+	return nil
+}
+
 type addressCodec struct{}
 
 var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
@@ -123,15 +136,19 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 }
 
 // AddressBytesToTONAddress converts a byte slice representing a TON address into its *address.Address representation.
-// Expects user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16.
-// If parsing fails (invalid format, length, or CRC16), returns the zero address to indicate funds should be burned.
+// This method is not part of the interface as it's TON specific.
+// It uses the legacy raw format (4-byte workchain + 32-byte data) used by off-chain tooling and CCIPHome.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
-	addrStr := base64.RawURLEncoding.EncodeToString(bytes)
-	addr, err := address.ParseAddr(addrStr)
-	if err != nil {
-		// Checksum failed or invalid address format - return zero address to mark funds as burned
-		return tvm.ZeroAddress, nil
+	if len(bytes) != tvm.AddressLength {
+		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
+	}
+	var rawAddr RawAddr
+	copy(rawAddr[:], bytes)
+	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+	if err := validateWorkchain(workchain); err != nil {
+		return nil, err
 	}
 
+	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
 	return addr, nil
 }

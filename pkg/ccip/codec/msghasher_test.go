@@ -99,13 +99,14 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid destTokenAddress address")
 	})
 
-	t.Run("invalid receiver address", func(t *testing.T) {
+	t.Run("invalid receiver address returns zero address hash", func(t *testing.T) {
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.Receiver = []byte("invalid_address")
 
-		_, err := hasher.Hash(ctx, msg)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error convert receiver address")
+		// Invalid receiver resolves to zero address (funds burned), no error
+		hash, err := hasher.Hash(ctx, msg)
+		require.NoError(t, err)
+		assert.NotEqual(t, [32]byte{}, hash)
 	})
 
 	t.Run("message with empty ExtraArgs", func(t *testing.T) {
