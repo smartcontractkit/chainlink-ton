@@ -14,6 +14,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 func TestTONAddress(t *testing.T) {
@@ -181,7 +183,7 @@ func packOracleID(oracleID uint8) []byte {
 	return userFriendlyAddr[:]
 }
 
-func TestDualFormatSupport(t *testing.T) {
+func TestUserFriendlyFormatSupport(t *testing.T) {
 	codec := addressCodec{lggr: logger.Nop()}
 
 	// Create a valid TON address
@@ -192,12 +194,7 @@ func TestDualFormatSupport(t *testing.T) {
 	userFriendlyBytes, err := ToUserFriendlyAddr(addr)
 	require.NoError(t, err)
 
-	// Build legacy raw format bytes: 4-byte workchain + 32-byte data
-	legacyBytes := make([]byte, 36)
-	binary.BigEndian.PutUint32(legacyBytes[0:4], uint32(addr.Workchain())) //nolint:gosec // G115
-	copy(legacyBytes[4:], addr.Data())
-
-	t.Run("user-friendly format", func(t *testing.T) {
+	t.Run("valid user-friendly format", func(t *testing.T) {
 		str, err := codec.AddressBytesToString(userFriendlyBytes[:])
 		require.NoError(t, err)
 		require.Equal(t, addr.String(), str)
@@ -207,33 +204,37 @@ func TestDualFormatSupport(t *testing.T) {
 		require.True(t, addr.Equals(tonAddr))
 	})
 
-	t.Run("legacy raw format", func(t *testing.T) {
-		str, err := codec.AddressBytesToString(legacyBytes)
-		require.NoError(t, err)
-		// Legacy format doesn't preserve flags, so we compare the underlying address
-		parsedAddr, err := address.ParseAddr(str)
-		require.NoError(t, err)
-		require.True(t, addr.Equals(parsedAddr))
+	t.Run("invalid checksum returns zero address", func(t *testing.T) {
+		// Create bytes with invalid checksum
+		invalidBytes := make([]byte, 36)
+		copy(invalidBytes, userFriendlyBytes[:])
+		invalidBytes[34] = 0x00 // corrupt checksum
+		invalidBytes[35] = 0x00
 
-		tonAddr, err := AddressBytesToTONAddress(legacyBytes)
+		// Should return zero address (funds burned)
+		str, err := codec.AddressBytesToString(invalidBytes)
 		require.NoError(t, err)
-		require.True(t, addr.Equals(tonAddr))
+		require.Equal(t, tvm.ZeroAddress.String(), str)
+
+		tonAddr, err := AddressBytesToTONAddress(invalidBytes)
+		require.NoError(t, err)
+		require.True(t, tvm.ZeroAddress.Equals(tonAddr))
 	})
 
-	t.Run("legacy format with masterchain (-1)", func(t *testing.T) {
-		masterchainAddr := address.NewAddress(0, 0xFF, addr.Data()) // 0xFF = -1 as int8
+	t.Run("random 36 bytes returns zero address", func(t *testing.T) {
+		// Random bytes that don't have valid checksum
+		randomBytes := make([]byte, 36)
+		for i := range randomBytes {
+			randomBytes[i] = byte(i * 7) // arbitrary pattern
+		}
 
-		legacyMasterchain := make([]byte, 36)
-		// Write -1 as int32 in big-endian (0xFFFFFFFF)
-		legacyMasterchain[0] = 0xFF
-		legacyMasterchain[1] = 0xFF
-		legacyMasterchain[2] = 0xFF
-		legacyMasterchain[3] = 0xFF
-		copy(legacyMasterchain[4:], masterchainAddr.Data())
-
-		tonAddr, err := AddressBytesToTONAddress(legacyMasterchain)
+		str, err := codec.AddressBytesToString(randomBytes)
 		require.NoError(t, err)
-		require.Equal(t, int32(-1), tonAddr.Workchain())
+		require.Equal(t, tvm.ZeroAddress.String(), str)
+
+		tonAddr, err := AddressBytesToTONAddress(randomBytes)
+		require.NoError(t, err)
+		require.True(t, tvm.ZeroAddress.Equals(tonAddr))
 	})
 
 	t.Run("invalid length - too short", func(t *testing.T) {
@@ -259,70 +260,115 @@ func TestDualFormatSupport(t *testing.T) {
 	})
 }
 
-func TestLegacyFormatWorkchainHandling(t *testing.T) {
+func TestInvalidChecksumReturnsZeroAddress(t *testing.T) {
 	codec := addressCodec{lggr: logger.Nop()}
 
-	// Create dummy address data
-	data := make([]byte, 32)
-	for i := range data {
-		data[i] = byte(i + 1)
-	}
+	// Create a valid address for reference
+	validAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+	validBytes, err := ToUserFriendlyAddr(validAddr)
+	require.NoError(t, err)
 
-	// All workchain values should succeed (no error), but values outside int8 range
-	// will be truncated and logged as warnings
-	tests := []struct {
-		name              string
-		workchain         int32
-		expectedWorkchain int32 // after truncation to int8
+	testCases := []struct {
+		name  string
+		bytes []byte
 	}{
 		{
-			name:              "workchain 0 (basechain)",
-			workchain:         0,
-			expectedWorkchain: 0,
+			name: "all zeros except last byte",
+			bytes: func() []byte {
+				b := make([]byte, 36)
+				b[35] = 0x01 // CRC16 of 34 zeros is 0x0000, so add 0x01 to make it invalid
+				return b
+			}(),
 		},
 		{
-			name:              "workchain -1 (masterchain)",
-			workchain:         -1,
-			expectedWorkchain: -1,
+			name: "all 0xFF",
+			bytes: func() []byte {
+				b := make([]byte, 36)
+				for i := range b {
+					b[i] = 0xFF
+				}
+				return b
+			}(),
 		},
 		{
-			name:              "workchain 127 (max int8)",
-			workchain:         127,
-			expectedWorkchain: 127,
+			name: "valid data with corrupted checksum (single bit flip)",
+			bytes: func() []byte {
+				b := make([]byte, 36)
+				copy(b, validBytes[:])
+				b[34] ^= 0x01 // flip one bit in checksum
+				return b
+			}(),
 		},
 		{
-			name:              "workchain -128 (min int8)",
-			workchain:         -128,
-			expectedWorkchain: -128,
+			name: "valid data with zeroed checksum",
+			bytes: func() []byte {
+				b := make([]byte, 36)
+				copy(b, validBytes[:])
+				b[34] = 0x00
+				b[35] = 0x00
+				return b
+			}(),
 		},
 		{
-			name:              "workchain 128 (truncates to -128)",
-			workchain:         128,
-			expectedWorkchain: -128, // 128 as int8 wraps to -128
+			name: "valid data with swapped checksum bytes",
+			bytes: func() []byte {
+				b := make([]byte, 36)
+				copy(b, validBytes[:])
+				b[34], b[35] = b[35], b[34] // swap checksum bytes
+				return b
+			}(),
 		},
 		{
-			name:              "workchain 256 (truncates to 0)",
-			workchain:         256,
-			expectedWorkchain: 0, // 256 as int8 wraps to 0
+			name: "sequential bytes pattern",
+			bytes: func() []byte {
+				b := make([]byte, 36)
+				for i := range b {
+					b[i] = byte(i)
+				}
+				return b
+			}(),
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Build legacy format bytes with specified workchain
-			legacyBytes := make([]byte, 36)
-			binary.BigEndian.PutUint32(legacyBytes[0:4], uint32(tc.workchain)) //nolint:gosec // G115
-			copy(legacyBytes[4:], data)
+			// Verify checksum is actually invalid (sanity check)
+			expectedChecksum := binary.BigEndian.Uint16(tc.bytes[34:36])
+			actualChecksum := crc16.Checksum(tc.bytes[:34], crcTable)
+			require.NotEqual(t, expectedChecksum, actualChecksum, "test case should have invalid checksum")
 
-			// Should not error - invalid workchains are logged but not rejected
-			_, err := codec.AddressBytesToString(legacyBytes)
-			require.NoError(t, err)
+			// Test AddressBytesToString returns zero address
+			str, err := codec.AddressBytesToString(tc.bytes)
+			require.NoError(t, err, "should not return error for invalid checksum")
+			require.Equal(t, tvm.ZeroAddress.String(), str, "should return zero address string")
 
-			tonAddr, err := AddressBytesToTONAddress(legacyBytes)
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedWorkchain, tonAddr.Workchain())
+			// Test AddressBytesToTONAddress returns zero address
+			tonAddr, err := AddressBytesToTONAddress(tc.bytes)
+			require.NoError(t, err, "should not return error for invalid checksum")
+			require.True(t, tvm.ZeroAddress.Equals(tonAddr), "should return zero address")
+
+			// Verify it's actually the zero address (workchain 0, all zero data)
+			require.Equal(t, int32(0), tonAddr.Workchain())
+			require.Equal(t, make([]byte, 32), tonAddr.Data())
 		})
 	}
+}
+
+func TestZeroAddressProperties(t *testing.T) {
+	// Verify zero address has expected properties
+	require.Equal(t, int32(0), tvm.ZeroAddress.Workchain())
+	require.Equal(t, make([]byte, 32), tvm.ZeroAddress.Data())
+	require.Equal(t, "0:0000000000000000000000000000000000000000000000000000000000000000", tvm.ZeroAddressStr)
+
+	// Verify zero address string format
+	zeroAddrStr := tvm.ZeroAddress.String()
+	require.NotEmpty(t, zeroAddrStr)
+
+	// Verify zero address can be parsed back
+	parsedZero, err := address.ParseAddr(zeroAddrStr)
+	require.NoError(t, err)
+	require.True(t, tvm.ZeroAddress.Equals(parsedZero))
 }
 
 func TestToUserFriendlyAddr(t *testing.T) {

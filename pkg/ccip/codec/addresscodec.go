@@ -23,16 +23,14 @@ type addressCodec struct {
 
 var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 
-// The codec supports two address formats (both 36 bytes):
+// The codec expects user-friendly address format (36 bytes):
 //
-// 1. User-friendly format (preferred, matches Solidity _validateTVMAddress):
-//    `1 byte flags + 1 byte workchain (int8) + 32 byte data + 2 byte CRC16`
+//	`1 byte flags + 1 byte workchain (int8) + 32 byte data + 2 byte CRC16`
 //
-// 2. Legacy raw format (for backwards compatibility):
-//    `4 byte workchain (int32, big-endian) + 32 byte data`
+// This matches Solidity's _validateTVMAddress in chainlink-ccip Internal.sol.
 //
-// When decoding, CRC16 validation is attempted first. If it passes, user-friendly format is used.
-// If CRC16 fails, the legacy raw format is assumed.
+// When decoding, CRC16 validation is performed. If it fails, the zero address is returned
+// to indicate the funds should be treated as burned.
 //
 // For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
 // the same address with different flags.
@@ -75,33 +73,28 @@ func NewAddressCodec(lggr logger.Logger) ccipocr3.ChainSpecificAddressCodec {
 }
 
 // AddressBytesToString converts a byte slice representing a TON address into its string representation.
-// Supports both user-friendly format (with CRC16) and legacy raw format (4-byte workchain).
+// Expects user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16.
+// If CRC16 validation fails, returns the zero address to indicate funds should be burned.
 func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	if len(bytes) != tvm.AddressLength {
 		return "", fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 
-	// Try user-friendly format first (check CRC16)
+	// Validate CRC16 checksum
 	expectedChecksum := binary.BigEndian.Uint16(bytes[34:36])
 	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
-	if expectedChecksum == actualChecksum {
-		// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
-		flags := bytes[0]
-		workchain := bytes[1]
-		data := bytes[2:34]
-		addr := address.NewAddress(flags, workchain, data)
-		return addr.String(), nil
+	if expectedChecksum != actualChecksum {
+		// Checksum failed - return zero address to mark funds as burned
+		a.lggr.Warnw("CRC16 checksum validation failed, returning zero address (funds burned)",
+			"expectedChecksum", expectedChecksum, "actualChecksum", actualChecksum)
+		return tvm.ZeroAddress.String(), nil
 	}
 
-	// Fall back to legacy raw format: workchain (4) + data (32)
-	// Note: workchain validation is intentionally lenient - we don't block on invalid values
-	// since the underlying tonutils-go will truncate to int8 anyway.
-	workchain := int32(binary.BigEndian.Uint32(bytes[0:4])) //nolint:gosec // G115
-	if workchain < -128 || workchain > 127 {
-		a.lggr.Warnw("legacy format workchain is outside int8 range, will be truncated",
-			"workchain", workchain, "validRange", "[-128, 127]")
-	}
-	addr := address.NewAddress(0, byte(workchain), bytes[4:])
+	// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
+	flags := bytes[0]
+	workchain := bytes[1]
+	data := bytes[2:34]
+	addr := address.NewAddress(flags, workchain, data)
 	return addr.String(), nil
 }
 
@@ -143,28 +136,25 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 }
 
 // AddressBytesToTONAddress converts a byte slice representing a TON address into its ton address representation.
-// Supports both user-friendly format (with CRC16) and legacy raw format (4-byte workchain).
+// Expects user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16.
+// If CRC16 validation fails, returns the zero address to indicate funds should be burned.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
 	if len(bytes) != tvm.AddressLength {
 		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
 	}
 
-	// Try user-friendly format first (check CRC16)
+	// Validate CRC16 checksum
 	expectedChecksum := binary.BigEndian.Uint16(bytes[34:36])
 	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
-	if expectedChecksum == actualChecksum {
-		// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
-		flags := bytes[0]
-		workchain := bytes[1]
-		data := bytes[2:34]
-		addr := address.NewAddress(flags, workchain, data)
-		return addr, nil
+	if expectedChecksum != actualChecksum {
+		// Checksum failed - return zero address to mark funds as burned
+		return tvm.ZeroAddress, nil
 	}
 
-	// Fall back to legacy raw format: workchain (4) + data (32)
-	// Note: workchain validation is intentionally lenient - we don't block on invalid values
-	// since the underlying tonutils-go will truncate to int8 anyway.
-	workchain := int32(binary.BigEndian.Uint32(bytes[0:4])) //nolint:gosec // G115
-	addr := address.NewAddress(0, byte(workchain), bytes[4:])
+	// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
+	flags := bytes[0]
+	workchain := bytes[1]
+	data := bytes[2:34]
+	addr := address.NewAddress(flags, workchain, data)
 	return addr, nil
 }
