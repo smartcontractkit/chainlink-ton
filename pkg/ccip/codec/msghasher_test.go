@@ -99,13 +99,12 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid destTokenAddress address")
 	})
 
-	t.Run("invalid receiver address", func(t *testing.T) {
+	t.Run("invalid receiver address will be encoded with zero address", func(t *testing.T) {
 		msg := randomTONMessage(t, 5009297550715157269)
 		msg.Receiver = []byte("invalid_address")
 
 		_, err := hasher.Hash(ctx, msg)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error convert receiver address")
+		require.NoError(t, err)
 	})
 
 	t.Run("message with empty ExtraArgs", func(t *testing.T) {
@@ -268,7 +267,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
 
-		rawTonAddr, err := ToRawAddr(tonAddr)
+		rawTonAddr, err := ToFriendlyAddress(tonAddr)
 		require.NoError(t, err)
 		// EVM_SENDER_ADDRESS_TEST: 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a
 		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")

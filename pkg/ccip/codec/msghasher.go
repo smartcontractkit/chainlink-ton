@@ -21,7 +21,6 @@ var LeafDomainSeparator [32]byte
 
 type messageHasherV1 struct {
 	lggr           logger.Logger
-	addrCodec      addressCodec
 	extraDataCodec ccipocr3.ExtraDataCodecBundle
 }
 
