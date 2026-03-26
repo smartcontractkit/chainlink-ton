@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -71,25 +72,16 @@ func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
 
 // AddressBytesToString converts a byte slice representing a TON address into its string representation.
 // Expects user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16.
-// If CRC16 validation fails, returns the zero address to indicate funds should be burned.
+// If parsing fails (invalid format, length, or CRC16), returns the zero address to indicate funds should be burned.
 func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
-	if len(bytes) != tvm.AddressLength {
-		return "", fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
-	}
-
 	// Validate CRC16 checksum
-	expectedChecksum := binary.BigEndian.Uint16(bytes[34:36])
-	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
-	if expectedChecksum != actualChecksum {
-		// Checksum failed - return zero address to mark funds as burned
+	addrStr := base64.RawURLEncoding.EncodeToString(bytes)
+	addr, err := address.ParseAddr(addrStr)
+	if err != nil {
+		// Checksum failed or invalid address format - return zero address to mark funds as burned
 		return tvm.ZeroAddress.String(), nil
 	}
 
-	// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
-	flags := bytes[0]
-	workchain := bytes[1]
-	data := bytes[2:34]
-	addr := address.NewAddress(flags, workchain, data)
 	return addr.String(), nil
 }
 
@@ -130,26 +122,16 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 	return hex.EncodeToString(addr), nil
 }
 
-// AddressBytesToTONAddress converts a byte slice representing a TON address into its ton address representation.
+// AddressBytesToTONAddress converts a byte slice representing a TON address into its *address.Address representation.
 // Expects user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16.
-// If CRC16 validation fails, returns the zero address to indicate funds should be burned.
+// If parsing fails (invalid format, length, or CRC16), returns the zero address to indicate funds should be burned.
 func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
-	if len(bytes) != tvm.AddressLength {
-		return nil, fmt.Errorf("invalid address length: expected %d bytes, got %d", tvm.AddressLength, len(bytes))
-	}
-
-	// Validate CRC16 checksum
-	expectedChecksum := binary.BigEndian.Uint16(bytes[34:36])
-	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
-	if expectedChecksum != actualChecksum {
-		// Checksum failed - return zero address to mark funds as burned
+	addrStr := base64.RawURLEncoding.EncodeToString(bytes)
+	addr, err := address.ParseAddr(addrStr)
+	if err != nil {
+		// Checksum failed or invalid address format - return zero address to mark funds as burned
 		return tvm.ZeroAddress, nil
 	}
 
-	// User-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
-	flags := bytes[0]
-	workchain := bytes[1]
-	data := bytes[2:34]
-	addr := address.NewAddress(flags, workchain, data)
 	return addr, nil
 }

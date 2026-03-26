@@ -235,26 +235,26 @@ func TestUserFriendlyFormatSupport(t *testing.T) {
 		require.True(t, tvm.ZeroAddress.Equals(tonAddr))
 	})
 
-	t.Run("invalid length - too short", func(t *testing.T) {
-		_, err := codec.AddressBytesToString(userFriendlyBytes[:35])
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
+	t.Run("invalid length - too short returns zero address", func(t *testing.T) {
+		str, err := codec.AddressBytesToString(userFriendlyBytes[:35])
+		require.NoError(t, err)
+		require.Equal(t, tvm.ZeroAddress.String(), str)
 
-		_, err = AddressBytesToTONAddress(userFriendlyBytes[:35])
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
+		tonAddr, err := AddressBytesToTONAddress(userFriendlyBytes[:35])
+		require.NoError(t, err)
+		require.True(t, tvm.ZeroAddress.Equals(tonAddr))
 	})
 
-	t.Run("invalid length - too long", func(t *testing.T) {
+	t.Run("invalid length - too long returns zero address", func(t *testing.T) {
 		tooLong := make([]byte, len(userFriendlyBytes)+1)
 		copy(tooLong, userFriendlyBytes[:])
-		_, err := codec.AddressBytesToString(tooLong)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
+		str, err := codec.AddressBytesToString(tooLong)
+		require.NoError(t, err)
+		require.Equal(t, tvm.ZeroAddress.String(), str)
 
-		_, err = AddressBytesToTONAddress(tooLong)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
+		tonAddr, err := AddressBytesToTONAddress(tooLong)
+		require.NoError(t, err)
+		require.True(t, tvm.ZeroAddress.Equals(tonAddr))
 	})
 }
 
@@ -469,27 +469,23 @@ func TestAddressRoundtrip(t *testing.T) {
 func TestAddressBytesToString_InvalidInput(t *testing.T) {
 	codec := addressCodec{}
 
-	t.Run("nil input", func(t *testing.T) {
-		_, err := codec.AddressBytesToString(nil)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
-	})
+	// Invalid-length inputs are treated the same as invalid checksums:
+	// ParseAddr fails and the zero address is returned.
+	testCases := []struct {
+		name  string
+		input []byte
+	}{
+		{"nil input", nil},
+		{"empty input", []byte{}},
+		{"35 bytes - too short", make([]byte, 35)},
+		{"37 bytes - too long", make([]byte, 37)},
+	}
 
-	t.Run("empty input", func(t *testing.T) {
-		_, err := codec.AddressBytesToString([]byte{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
-	})
-
-	t.Run("35 bytes - too short", func(t *testing.T) {
-		_, err := codec.AddressBytesToString(make([]byte, 35))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
-	})
-
-	t.Run("37 bytes - too long", func(t *testing.T) {
-		_, err := codec.AddressBytesToString(make([]byte, 37))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid address length")
-	})
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			str, err := codec.AddressBytesToString(tc.input)
+			require.NoError(t, err)
+			require.Equal(t, tvm.ZeroAddress.String(), str)
+		})
+	}
 }
