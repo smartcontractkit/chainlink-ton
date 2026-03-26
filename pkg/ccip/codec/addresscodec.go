@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sigurn/crc16"
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -59,36 +58,22 @@ func ToRawAddr(addr *address.Address) (RawAddr, error) {
 	return rawAddress, nil
 }
 
-func ToFriendlyAddress(addr *address.Address) (RawAddr, error) {
-	if addr == nil {
-		return RawAddr{}, errors.New("cannot convert nil address to user-friendly format")
-	}
-	if addr.IsAddrNone() {
-		return RawAddr{}, errors.New("cannot convert none address to user-friendly format")
-	}
-	// Standard TON addresses have exactly 32 bytes of data
-	if len(addr.Data()) != tvm.AddressDataLength {
-		return RawAddr{}, fmt.Errorf("invalid address data length: expected %d bytes, got %d", tvm.AddressDataLength, len(addr.Data()))
-	}
-
-	var buf RawAddr
-	buf[0] = addr.FlagsToByte()
-	buf[1] = byte(addr.Workchain())
-	copy(buf[2:34], addr.Data())
-	binary.BigEndian.PutUint16(buf[34:], crc16.Checksum(buf[:34], crc16.MakeTable(crc16.CRC16_XMODEM)))
-	return buf, nil
-}
-
 func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
 	return addressCodec{}
 }
 
 // AddressBytesToStringWithBurning converts a byte slice representing a TON address into its string representation.
-// Expects user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16.
+// It first attempts to parse the bytes with `4 byte workchain (int32) + 32 byte data` TON address
+// If that fails, we expect user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16, by validating the format and CRC16 checksum.
 // If parsing fails (invalid format, length, or CRC16), returns the zero address to indicate funds should be burned.
 // This is only used in the hot path in plugin (executecodec.go and msghasher.go) where we want to avoid errors and just burn funds if the address is invalid
 func AddressBytesToStringWithBurning(bytes []byte) *address.Address {
-	// Validate CRC16 checksum
+	// First try parsing as raw format (4 byte workchain + 32 byte data)
+	if addr, err := AddressBytesToTONAddress(bytes); err == nil {
+		return addr
+	}
+
+	// user-friendly address encoding Validation with CRC16 checksum
 	addrStr := base64.RawURLEncoding.EncodeToString(bytes)
 	addr, err := address.ParseAddr(addrStr)
 	if err != nil {
