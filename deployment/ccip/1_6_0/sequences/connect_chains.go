@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
 
