@@ -201,7 +201,7 @@ func TestUserFriendlyFormatSupport(t *testing.T) {
 	t.Run("AddressBytesToTONAddress uses legacy raw format", func(t *testing.T) {
 		// Legacy raw format: 4-byte workchain (big-endian) + 32-byte data
 		rawBytes := make([]byte, 36)
-		binary.BigEndian.PutUint32(rawBytes[0:4], uint32(addr.Workchain()))
+		binary.BigEndian.PutUint32(rawBytes[0:4], uint32(addr.Workchain())) //nolint:gosec // G115 test only, workchain 0 is safe
 		copy(rawBytes[4:], addr.Data())
 
 		tonAddr, err := AddressBytesToTONAddress(rawBytes)
