@@ -9,6 +9,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/sigurn/crc16"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 )
@@ -17,13 +18,18 @@ func TestTONAddress(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
+	// Build user-friendly format: flags (1) + workchain (1) + data (32) + crc16 (2)
 	validAddressBytes := make([]byte, 36)
-	binary.BigEndian.PutUint32(validAddressBytes[0:4], uint32(addr.Workchain())) //nolint:gosec // G115
-	copy(validAddressBytes[4:], addr.Data())
+	validAddressBytes[0] = addr.FlagsToByte()
+	validAddressBytes[1] = byte(addr.Workchain())
+	copy(validAddressBytes[2:34], addr.Data())
+	binary.BigEndian.PutUint16(validAddressBytes[34:], crc16.Checksum(validAddressBytes[:34], crcTable))
 
-	invalidChecksum := make([]byte, 0)
-	invalidChecksum = append(invalidChecksum, validAddressBytes[:34]...)
-	invalidChecksum = append(invalidChecksum, 0x00, 0x00)
+	// Create address with invalid checksum
+	invalidChecksum := make([]byte, 36)
+	copy(invalidChecksum, validAddressBytes)
+	invalidChecksum[34] = 0x00
+	invalidChecksum[35] = 0x00
 	addressWithInvalidChecksum := base64.RawURLEncoding.EncodeToString(invalidChecksum)
 
 	extAddr := address.NewAddressExt(0, 256, addr.Data())
@@ -163,88 +169,89 @@ func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
 }
 
 func packOracleID(oracleID uint8) []byte {
-	addr := make([]byte, 32)
-	binary.BigEndian.PutUint32(addr, uint32(oracleID))
-	tonAddr := address.NewAddress(0, 0, addr)
-	rawAddr, err := ToRawAddr(tonAddr)
+	data := make([]byte, 32)
+	binary.BigEndian.PutUint32(data, uint32(oracleID))
+	tonAddr := address.NewAddress(0, 0, data)
+	userFriendlyAddr, err := ToUserFriendlyAddr(tonAddr)
 	if err != nil {
 		panic(err)
 	}
-	return rawAddr[:]
+	return userFriendlyAddr[:]
 }
 
-func TestValidateWorkchain(t *testing.T) {
+func TestCRC16Validation(t *testing.T) {
 	codec := addressCodec{}
+
+	// Create a valid user-friendly address
+	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+
+	validBytes, err := ToUserFriendlyAddr(addr)
+	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
-		workchain   int32
+		modifyBytes func([]byte) []byte
 		expectError bool
 	}{
 		{
-			name:        "valid workchain 0 (basechain)",
-			workchain:   0,
+			name: "valid address",
+			modifyBytes: func(b []byte) []byte {
+				return b
+			},
 			expectError: false,
 		},
 		{
-			name:        "valid workchain -1 (masterchain)",
-			workchain:   -1,
-			expectError: false,
-		},
-		{
-			name:        "valid workchain 127 (max int8)",
-			workchain:   127,
-			expectError: false,
-		},
-		{
-			name:        "valid workchain -128 (min int8)",
-			workchain:   -128,
-			expectError: false,
-		},
-		{
-			name:        "invalid workchain 128 (overflow)",
-			workchain:   128,
+			name: "invalid CRC16 - zeroed checksum",
+			modifyBytes: func(b []byte) []byte {
+				modified := make([]byte, len(b))
+				copy(modified, b)
+				modified[34] = 0x00
+				modified[35] = 0x00
+				return modified
+			},
 			expectError: true,
 		},
 		{
-			name:        "invalid workchain -129 (underflow)",
-			workchain:   -129,
+			name: "invalid CRC16 - corrupted data",
+			modifyBytes: func(b []byte) []byte {
+				modified := make([]byte, len(b))
+				copy(modified, b)
+				modified[10] ^= 0xFF // flip bits in data section
+				return modified
+			},
 			expectError: true,
 		},
 		{
-			name:        "invalid workchain 256",
-			workchain:   256,
+			name: "invalid length - too short",
+			modifyBytes: func(b []byte) []byte {
+				return b[:35]
+			},
 			expectError: true,
 		},
 		{
-			name:        "invalid workchain 1000000",
-			workchain:   1000000,
+			name: "invalid length - too long",
+			modifyBytes: func(b []byte) []byte {
+				return append(b, 0x00)
+			},
 			expectError: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create raw address with the specified workchain
-			rawBytes := make([]byte, 36)
-			binary.BigEndian.PutUint32(rawBytes[0:4], uint32(tc.workchain)) //nolint:gosec // G115: intentional for testing edge cases
-			// Dummy address data
-			for i := 4; i < 36; i++ {
-				rawBytes[i] = byte(i)
-			}
+			testBytes := tc.modifyBytes(validBytes[:])
 
-			_, err := codec.AddressBytesToString(rawBytes)
+			_, err := codec.AddressBytesToString(testBytes)
 			if tc.expectError {
 				require.Error(t, err)
-				require.ErrorIs(t, err, ErrInvalidWorkchain)
 			} else {
 				require.NoError(t, err)
 			}
 
-			_, err = AddressBytesToTONAddress(rawBytes)
+			_, err = AddressBytesToTONAddress(testBytes)
 			if tc.expectError {
 				require.Error(t, err)
-				require.ErrorIs(t, err, ErrInvalidWorkchain)
 			} else {
 				require.NoError(t, err)
 			}
