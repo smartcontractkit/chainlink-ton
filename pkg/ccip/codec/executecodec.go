@@ -100,11 +100,11 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				return nil, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			DestPoolTonAddr := AddressBytesToStringWithBurning(tokenAmount.DestTokenAddress)
+			destPoolTonAddr := AddressBytesToStringWithBurning(tokenAmount.DestTokenAddress)
 			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
 				SourcePoolAddress: poolAddrCell,
 				ExtraData:         extraData,
-				DestPoolAddress:   DestPoolTonAddr,
+				DestPoolAddress:   destPoolTonAddr,
 				Amount:            tokenAmount.Amount.Int,
 				DestGasAmount:     destGasAmount,
 			})
