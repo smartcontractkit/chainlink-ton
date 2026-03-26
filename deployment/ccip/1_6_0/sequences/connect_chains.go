@@ -55,23 +55,29 @@ func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector 
 func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
 	return lanes.FeeQuoterDestChainConfig{
 		IsEnabled:                   true,
-		MaxDataBytes:                30_000,
+		MaxDataBytes:                2_000,
 		MaxPerMsgGasLimit:           4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
-		DestGasOverhead:             300_000,
-		DestGasPerPayloadByteBase:   16,
+		DestGasOverhead:             242_500,
+		DestGasPerPayloadByteBase:   42,
 		ChainFamilySelector:         config.TVMFamilySelector,
-		DefaultTokenFeeUSDCents:     25,
-		DefaultTokenDestGasOverhead: 90_000,
-		DefaultTxGasLimit:           200_000,
+		DefaultTokenFeeUSDCents:     0,
+		DefaultTokenDestGasOverhead: 0,
+		DefaultTxGasLimit:           100_000_000,
 		NetworkFeeUSDCents:          10,
 		V1Params: &lanes.FeeQuoterV1Params{
-			MaxNumberOfTokensPerMsg:           10,
-			DestGasPerPayloadByteHigh:         40,
-			DestGasPerPayloadByteThreshold:    3000,
-			DestDataAvailabilityOverheadGas:   100,
-			DestGasPerDataAvailabilityByte:    16,
-			DestDataAvailabilityMultiplierBps: 1,
-			GasMultiplierWeiPerEth:            11e17,
+			MaxNumberOfTokensPerMsg:           1,
+			DestGasPerPayloadByteHigh:         42,
+			DestGasPerPayloadByteThreshold:    0,
+			DestDataAvailabilityOverheadGas:   0,
+			DestGasPerDataAvailabilityByte:    0,
+			DestDataAvailabilityMultiplierBps: 0,
+			GasMultiplierWeiPerEth:            1e18,
+			GasPriceStalenessThreshold:        90_000,
+			EnforceOutOfOrder:                 true, // NOTE: TON's on-chain feequoter.DestChainConfig has no EnforceOutOfOrder field; this value is not propagated and TON effectively always enforces out-of-order.
+		},
+		V2Params: &lanes.FeeQuoterV2Params{
+			LinkFeeMultiplierPercent: 1,             // no-op for TON, but required non-zero for v2 config
+			USDPerUnitGas:            big.NewInt(1), // also no-op for TON, but required for v2 config
 		},
 	}
 }
@@ -82,8 +88,8 @@ func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
 }
 
 func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
-	defaultLinkPrice := new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18))
-	defaultTONPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18)), big.NewInt(1e9)) // 2e18 * 1e9 = 2e27, 2 is approx USD price of TON
+	defaultLinkPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18)), big.NewInt(1e9)) // 20 * 2e18 * 1e9 = 2e28
+	defaultTONPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18)), big.NewInt(1e9))   // 2e18 * 1e9 = 2e27, 2 is approx USD price of TON
 	return map[datastore.ContractType]*big.Int{
 		state.LinkToken: defaultLinkPrice,
 		state.TONNative: defaultTONPrice,
