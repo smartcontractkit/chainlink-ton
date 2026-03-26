@@ -349,7 +349,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 			},
 			Sender:       ccipocr3.UnknownAddress(evmSenderBytes),
 			Data:         []byte{}, // empty cell data
-			Receiver:     rawTonAddr[:],
+			Receiver:     rawTonAddr,
 			ExtraArgs:    []byte{0x2}, // will be populated by mock
 			TokenAmounts: ta,          // no token amounts
 		}
