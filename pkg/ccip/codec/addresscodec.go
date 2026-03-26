@@ -9,7 +9,6 @@ import (
 	"github.com/sigurn/crc16"
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -17,9 +16,7 @@ import (
 
 var crcTable = crc16.MakeTable(crc16.CRC16_XMODEM)
 
-type addressCodec struct {
-	lggr logger.Logger
-}
+type addressCodec struct{}
 
 var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 
@@ -68,8 +65,8 @@ func ToRawAddr(addr *address.Address) (RawAddr, error) {
 	return ToUserFriendlyAddr(addr)
 }
 
-func NewAddressCodec(lggr logger.Logger) ccipocr3.ChainSpecificAddressCodec {
-	return addressCodec{lggr: lggr}
+func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
+	return addressCodec{}
 }
 
 // AddressBytesToString converts a byte slice representing a TON address into its string representation.
@@ -85,8 +82,6 @@ func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	actualChecksum := crc16.Checksum(bytes[:34], crcTable)
 	if expectedChecksum != actualChecksum {
 		// Checksum failed - return zero address to mark funds as burned
-		a.lggr.Warnw("CRC16 checksum validation failed, returning zero address (funds burned)",
-			"expectedChecksum", expectedChecksum, "actualChecksum", actualChecksum)
 		return tvm.ZeroAddress.String(), nil
 	}
 

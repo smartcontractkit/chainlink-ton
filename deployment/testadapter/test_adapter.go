@@ -130,7 +130,7 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 	if err != nil {
 		panic(err)
 	}
-	ac := codec.NewAddressCodec(logger.Nop())
+	ac := codec.NewAddressCodec()
 	receiver, err := ac.AddressStringToBytes(receiverAddr.String())
 	if err != nil {
 		panic(fmt.Sprintf("failed to convert TON address to bytes: %v", err))

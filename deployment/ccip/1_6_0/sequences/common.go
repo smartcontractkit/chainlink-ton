@@ -81,7 +81,7 @@ func getRouterAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, err
 }
 
 func convertAddress(address address.Address) ([]byte, error) {
-	addrCodec := codec.NewAddressCodec(logger.Nop())
+	addrCodec := codec.NewAddressCodec()
 	rawAddress, err := addrCodec.AddressStringToBytes(address.String())
 	if err != nil {
 		return []byte{}, fmt.Errorf("failed to convert TON address to bytes: %w", err)

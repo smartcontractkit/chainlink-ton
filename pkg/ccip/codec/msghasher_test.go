@@ -175,7 +175,7 @@ func TestMessageHasherV1_ExecuteCodecConsistency(t *testing.T) {
 		"gasLimit": big.NewInt(100_000_000),
 	}, nil)
 
-	executeCodec := NewExecutePluginCodecV1(logger.Nop(), edc)
+	executeCodec := NewExecutePluginCodecV1(edc)
 
 	t.Run("tokenAmounts nil preserved through encode/decode", func(t *testing.T) {
 		// Create a message with NO token amounts

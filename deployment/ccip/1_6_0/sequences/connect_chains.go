@@ -443,7 +443,7 @@ func intoUpdateOffRampSourcesConfig(input lanes.UpdateLanesInput) operation.Upda
 }
 
 func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
-	addressCodec := ccipcodec.NewAddressCodec(logger.Nop())
+	addressCodec := ccipcodec.NewAddressCodec()
 	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Source.OnRamp)
 	if err != nil {
 		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert onramp address to string: %w", err)
@@ -461,7 +461,7 @@ func intoUpdateRouterOnrampsConfig(input lanes.UpdateLanesInput) (operation.Appl
 }
 
 func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.ApplyRampUpdatesInput, error) {
-	addressCodec := ccipcodec.NewAddressCodec(logger.Nop())
+	addressCodec := ccipcodec.NewAddressCodec()
 	offRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OffRamp)
 	if err != nil {
 		return operation.ApplyRampUpdatesInput{}, fmt.Errorf("failed to convert offramp address to string: %w", err)

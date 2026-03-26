@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -67,7 +65,7 @@ func TestTONAddress(t *testing.T) {
 		},
 	}
 
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			actual, err := codec.AddressStringToBytes(test.in)
@@ -82,7 +80,7 @@ func TestTONAddress(t *testing.T) {
 }
 
 func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 
 	testCases := []struct {
 		name     string
@@ -124,7 +122,7 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 }
 
 func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 
 	// Generate a real ed25519 key for testing
 	pubKey, _, err := ed25519.GenerateKey(crypto_rand.Reader)
@@ -184,7 +182,7 @@ func packOracleID(oracleID uint8) []byte {
 }
 
 func TestUserFriendlyFormatSupport(t *testing.T) {
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 
 	// Create a valid TON address
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
@@ -261,7 +259,7 @@ func TestUserFriendlyFormatSupport(t *testing.T) {
 }
 
 func TestInvalidChecksumReturnsZeroAddress(t *testing.T) {
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 
 	// Create a valid address for reference
 	validAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
@@ -439,7 +437,7 @@ func TestToRawAddr(t *testing.T) {
 }
 
 func TestAddressRoundtrip(t *testing.T) {
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 
 	testAddresses := []string{
 		"EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2",
@@ -469,7 +467,7 @@ func TestAddressRoundtrip(t *testing.T) {
 }
 
 func TestAddressBytesToString_InvalidInput(t *testing.T) {
-	codec := addressCodec{lggr: logger.Nop()}
+	codec := addressCodec{}
 
 	t.Run("nil input", func(t *testing.T) {
 		_, err := codec.AddressBytesToString(nil)

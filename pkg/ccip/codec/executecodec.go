@@ -12,7 +12,6 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -31,9 +30,9 @@ type executePluginCodecV1 struct {
 
 var _ ccipocr3.ExecutePluginCodec = &executePluginCodecV1{}
 
-func NewExecutePluginCodecV1(lggr logger.Logger, extraDataCodec ccipocr3.ExtraDataCodecBundle) ccipocr3.ExecutePluginCodec {
+func NewExecutePluginCodecV1(extraDataCodec ccipocr3.ExtraDataCodecBundle) ccipocr3.ExecutePluginCodec {
 	return &executePluginCodecV1{
-		addressCodec:   NewAddressCodec(lggr),
+		addressCodec:   NewAddressCodec(),
 		extraDataCodec: extraDataCodec,
 	}
 }
