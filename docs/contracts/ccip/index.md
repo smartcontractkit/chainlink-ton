@@ -25,8 +25,8 @@ graph LR
     click OR "./onramp" "Open OnRamp docs"
     click OFR "./offramp" "Open OffRamp docs"
     click SE "./onramp/send-executor" "Open Send Executor docs"
-    %% click FQ "./fee-quoter" "Open Fee Quoter docs"
-    %% click MR "./merkle-root" "Open Merkle Root docs"
+    click FQ "./fee-quoter" "Open Fee Quoter docs"
+    click MR "./offramp/merkle-root" "Open Merkle Root docs"
     click RE "./offramp/receive-executor" "Open Receive Executor docs"
 
     R <--> OR
@@ -44,7 +44,8 @@ graph LR
   - [Send Executor](./onramp/send-executor.md)
 - [OffRamp](./offramp/index.md)
   - [Receive Executor](./offramp/receive-executor.md)
-<!-- - [FeeQuoter](./fee-quoter.md) TODO -->
+  - [Merkle Root](./offramp/merkle-root.md)
+- [FeeQuoter](./fee-quoter.md)
 - [Token Registry](./token-registry.md)
 
 ## Topics
