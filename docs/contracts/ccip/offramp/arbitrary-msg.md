@@ -109,6 +109,20 @@ See [user interface](../router/user-interface/receiver.md) for more details on c
 ### Happy Path
 
 ```mermaid
+graph LR
+    RCV["Receiver"]
+    R["Router"]
+    OFR["OffRamp"]
+    RE["ReceiveExecutor"]
+
+    R -->|1. CCIPReceive| RCV
+    RCV -->|2. CCIPReceiveConfirm| R
+    R -->|3. CCIPReceiveConfirm| OFR
+    OFR -->|4. Confirm| RE
+    RE -->|5. NotifySuccess| OFR
+```
+
+```mermaid
 sequenceDiagram
     participant R as Router
     participant OR as OffRamp
@@ -145,6 +159,20 @@ sequenceDiagram
 ```
 
 ### Failure Path
+
+```mermaid
+graph LR
+    RCV["Receiver"]
+    R["Router"]
+    OFR["OffRamp"]
+    RE["ReceiveExecutor"]
+
+    R -->|1. CCIPReceive| RCV
+    RCV -->|2. Bounced CCIPReceive| R
+    R -->|3. CCIPReceiveBounced| OFR
+    OFR -->|4. Bounced| RE
+    RE -->|5. NotifyFailure| OFR
+```
 
 ```mermaid
 sequenceDiagram
