@@ -1,5 +1,5 @@
 ---
-id: contracts-ccip-flow-offramp-arbitrary-msg
+id: contracts-ccip-offramp-arbitrary-msg
 title: Arbitrary Message Offramp Flow
 sidebar_label: Arbitrary Messages
 sidebar_position: 2
@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # Arbitrary Message OffRamp Flow
 
-> See [how CCIPSend works](receive-executor.md) and [how the Token Registry is implemented](../../token-registry.md).
+> See [how CCIPSend works](receive-executor.md) and [how the Token Registry is implemented](../token-registry.md).
 
 ```mermaid
 sequenceDiagram
@@ -83,7 +83,7 @@ sequenceDiagram
     deactivate R
 ```
 
-See [user interface](./user-interface.md) for more details on communication between User and Router.
+See [user interface](../router/user-interface/receiver.md) for more details on communication between User and Router.
 
 ## Receive Confirmation Flow
 

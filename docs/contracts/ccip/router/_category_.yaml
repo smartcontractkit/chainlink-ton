@@ -1,0 +1,7 @@
+position: 1
+label: Router
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-ccip-router-index

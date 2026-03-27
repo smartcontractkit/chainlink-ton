@@ -1,5 +1,5 @@
 ---
-id: contracts-ccip-flow-offramp-index
+id: contracts-ccip-offramp-index
 title: Offramp
 sidebar_label: Overview
 sidebar_position: 1
@@ -14,4 +14,4 @@ The offramp flow covers how validated CCIP messages are received, executed, and 
 - [Arbitrary Message Flow](./arbitrary-msg.md)
 - [ReceiveExecutor](./receive-executor.md)
 - [Token Transfer Flow](./token-transfer.md)
-- [Offramp User Interface](./user-interface.md)
+- [Offramp User Interface](../router/user-interface/receiver.md)

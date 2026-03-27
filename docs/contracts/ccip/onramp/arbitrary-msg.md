@@ -1,5 +1,5 @@
 ---
-id: contracts-ccip-flow-onramp-arbitrary-msg
+id: contracts-ccip-onramp-arbitrary-msg
 title: Arbitrary Message Onramp Flow
 sidebar_label: Arbitrary Messages
 sidebar_position: 2
@@ -7,7 +7,7 @@ sidebar_position: 2
 
 # Arbitrary Message Onramp Flow
 
-> See [how CCIPSend works](send-executor.md) and [how the Token Registry is implemented](../../token-registry.md).
+> See [how CCIPSend works](send-executor.md) and [how the Token Registry is implemented](../token-registry.md).
 
 ```mermaid
 sequenceDiagram

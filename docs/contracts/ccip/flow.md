@@ -11,12 +11,12 @@ sidebar_position: 2
 
 ## OnRamp
 
-See the [sender user interface here](./onramp/user-interface.md).
+See the [sender user interface here](./router/user-interface/sender.md).
 
 Here you can find the onramp flows for [arbitrary message passing](./onramp/arbitrary-msg.md) and [token transfers](./onramp/token-transfer.md).
 
 ## OffRamp
 
-See the [receiver user interface here](./offramp/user-interface.md).
+See the [receiver user interface here](./router/user-interface/receiver.md).
 
 Here you can find the offramp flows for [arbitrary message passing](./offramp/arbitrary-msg.md) and [token transfers](./offramp/token-transfer.md).

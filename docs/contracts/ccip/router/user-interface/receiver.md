@@ -1,11 +1,11 @@
 ---
-id: contracts-ccip-flow-offramp-user-interface
-title: Offramp User Interface
+id: contracts-ccip-router-user-interface-receiver
+title: Receiver User Interface
 sidebar_label: User Interface
 sidebar_position: 5
 ---
 
-# OffRamp User Interface
+# Receiver User Interface
 
 For arbitrary messages, the receiver must handle incoming `CCIPReceive` messages. On receiving such a message, the receiver should:
 

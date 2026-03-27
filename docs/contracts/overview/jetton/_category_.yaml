@@ -2,3 +2,6 @@ position: 3
 label: Jetton
 collapsible: true
 collapsed: true
+link:
+  type: doc
+  id: contracts-overview-jetton-index
