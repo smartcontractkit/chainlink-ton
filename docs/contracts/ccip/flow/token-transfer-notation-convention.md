@@ -1,3 +1,10 @@
+---
+id: contracts-ccip-flow-token-transfer-notation-convention
+title: Token Transfer Notation Convention
+sidebar_label: Notation Convention
+sidebar_position: 3
+---
+
 # Token Transfer Notation Convention
 
 This is a convention we will be using for our diagrams. Given to actors **A** and **B** where **A** transfer `T` Jettons to **B**, the real message flow looks like this:

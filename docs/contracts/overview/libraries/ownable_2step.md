@@ -1,8 +1,15 @@
+---
+id: contracts-overview-libraries-ownable-2step
+title: Ownable2Step
+sidebar_label: Ownable2Step
+sidebar_position: 3
+---
+
 # Chainlink TON - Access Control - Ownable2Step Module
 
 ## API Reference
 
-#### State Struct
+### State Struct
 
 ```tolk
 struct Ownable2Step {
@@ -17,11 +24,12 @@ Example:
     receive(msg: SetCount) {
         // Use the requireOwner() function from the Ownable2Step trait to only allow the owner to send this message.
         self.requireOwner();
+```
 
 The module exposes a single message handler, `onInternalMessage`, which processes the following messages.
 
-| Message                        | Opcode       | Description                                        |
-| ------------------------------ | ------------ | -------------------------------------------------- |
+| Message                          | Opcode       | Description                                        |
+| -------------------------------- | ------------ | -------------------------------------------------- |
 | `Ownable2Step_TransferOwnership` | `0xF21B7DA1` | Initiates an ownership transfer to a `newOwner`.   |
 | `Ownable2Step_AcceptOwnership`   | `0xF9E29E4A` | Sent by the pending owner to accept the ownership. |
 
@@ -33,7 +41,7 @@ This function should be called from your contract's `recv_internal`. It parses `
 
 - **Returns:** `true` if the message was an `Ownable2Step` message and was handled, `false` otherwise.
 
-#### Internal Functions
+### Internal Functions
 
 These are the core logic functions used to manage ownership.
 
@@ -46,7 +54,7 @@ Initiates the ownership transfer by setting the `pendingOwner`. This can only be
 **`fun Ownable2Step.acceptOwnership(mutate self, sender: address)`**
 Finalizes the ownership transfer. This must be called by the address set as `pendingOwner`.
 
-#### Getter Functions
+### Getter Functions
 
 These functions provide external read-only access to the module's state.
 
@@ -56,15 +64,15 @@ Returns the current owner of the contract.
 **`fun Ownable2Step.get_pendingOwner(self): address?`**
 Returns the pending owner, if one has been proposed.
 
-#### Exit Codes
+### Exit Codes
 
 The following exit codes can be thrown by this module's operations:
 
-| Code | Constant                        | Description                                                                  |
-| ---- | ------------------------------- | ---------------------------------------------------------------------------- |
-| 132  | `ERROR_ONLY_CALLABLE_BY_OWNER`    | The message sender is not the contract owner. Matches the standard library.  |
-| 1001 | `ERROR_CANNOT_TRANSFER_TO_SELF`   | The proposed new owner is the same as the current owner.                     |
-| 1002 | `ERROR_MUST_BE_PROPOSED_OWNER`    | The sender of `AcceptOwnership` is not the pending owner.                      |
+| Code | Constant                        | Description                                                                 |
+| ---- | ------------------------------- | --------------------------------------------------------------------------- |
+| 132  | `ERROR_ONLY_CALLABLE_BY_OWNER`  | The message sender is not the contract owner. Matches the standard library. |
+| 1001 | `ERROR_CANNOT_TRANSFER_TO_SELF` | The proposed new owner is the same as the current owner.                    |
+| 1002 | `ERROR_MUST_BE_PROPOSED_OWNER`  | The sender of `AcceptOwnership` is not the pending owner.                   |
 
 ## Overview
 
@@ -74,8 +82,8 @@ This struct implements basic contract ownership, including a 2-step ownership tr
 
 Since Tolk v0.99 does not support native inheritance or traits, we use a composability pattern based on structs and extension functions. This `Ownable2Step` module encapsulates its state and logic within a struct, which can then be embedded into your main contract's state.
 
--   **State:** The core data (`owner` and `pendingOwner`) is held in the `Ownable2Step` struct.
--   **Functionality:** Logic for handling messages and ownership checks is implemented as extension functions that operate on this struct (e.g., `fun Ownable2Step.onInternalMessage(...)`).
+- **State:** The core data (`owner` and `pendingOwner`) is held in the `Ownable2Step` struct.
+- **Functionality:** Logic for handling messages and ownership checks is implemented as extension functions that operate on this struct (e.g., `fun Ownable2Step.onInternalMessage(...)`).
 
 This approach allows for modular, readable, and maintainable code by composing independent functional units.
 
@@ -109,7 +117,7 @@ fun saveData(data: Counter) {
 ```
 
 ##### Delegate Messages in the Main Receiver
-   
+
 In your main onInternalMessage function, load the contract's state. Then, give the Ownable2Step module the first chance to handle the message by calling its onInternalMessage function. If it handles the message (returns true), save the potentially modified state and exit.
 
 ``` tolk
@@ -183,7 +191,6 @@ get fun counter(): uint32 {
     return storage.count;
 }
 ```
-
 
 ## Diagram
 

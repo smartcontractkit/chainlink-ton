@@ -1,3 +1,10 @@
+---
+id: contracts-test
+title: Test
+sidebar_label: Test
+sidebar_position: 3
+---
+
 # Chainlink TON - Smart Contracts - Test
 
 ## Run the unit tests

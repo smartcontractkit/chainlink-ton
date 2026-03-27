@@ -1,3 +1,10 @@
+---
+id: dev-guides-cross-repo-dependency-dev
+title: Cross-Repo Dependency Development
+sidebar_label: Cross-Repo Dependencies
+sidebar_position: 3
+---
+
 # Cross-Repository Change Flow: chainlink-ton ↔ chainlink Core
 
 This guide documents the formal process for merging changes in `chainlink-ton` that also depend on changes in the `chainlink` core repository.
@@ -68,8 +75,6 @@ When developing features or fixes that require changes in both repositories, the
 2. Update `scripts/.core_version` to the merged core commit hash from core's `develop` branch
 3. Merge this final PR to complete the sync
 
-
-
 ## Syncing Changes from chainlink-ton to Core
 
 When you need to update the core repository to reference new chainlink-ton changes, follow these steps:
@@ -77,20 +82,24 @@ When you need to update the core repository to reference new chainlink-ton chang
 ### Steps:
 
 1. **Update Go Module Dependency**
+
    ```bash
    go get github.com/smartcontractkit/chainlink-ton@<commit-hash>
    ```
+
    As well as any other chainlink-ton modules that need to be updated, probably easiest to run them on all. For example: `github.com/smartcontractkit/chainlink-ton/deployment` as well.
 
 
 2. **Tidy Dependencies**
+
    ```bash
    gomods tidy
    ```
 
 3. **Update Plugin Git Reference**
-   
+
    Edit `plugins/plugins.public.yaml` and find the TON plugin entry (around line 53):
+
    ```yaml
    - name: ton
      git: 
@@ -99,12 +108,13 @@ When you need to update the core repository to reference new chainlink-ton chang
    ```
 
 4. **Update Contract Version Reference (if applicable)**
-   
+
    If contract changes are involved, update hardcoded versions in:
-   ```
-   deployment/ccip/changeset/testhelpers/test_environment.go
-   ```
+
+   `deployment/ccip/changeset/testhelpers/test_environment.go`
+
    Look for lines like:
+
    ```go
    // TODO replace the hardcoded commit sha with the one fetched from memory.GetTONSha()
    contractVersion := "83e4df8520c5" // evm2ton enabled TON contracts(2025-10-09)

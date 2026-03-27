@@ -1,3 +1,10 @@
+---
+id: dev-guides-nix-builds
+title: Builds
+sidebar_label: Builds
+sidebar_position: 2
+---
+
 # Builds - Nix
 
 ## Building packages

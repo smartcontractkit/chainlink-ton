@@ -1,3 +1,10 @@
+---
+id: contracts-ccip-flow-offramp-arbitrary-msg
+title: Arbitrary Message Offramp Flow
+sidebar_label: Arbitrary Messages
+sidebar_position: 2
+---
+
 # Arbitrary Message OffRamp Flow
 
 > See [how CCIPSend works](receive-executor.md) and [how the Token Registry is implemented](../../token-registry.md).

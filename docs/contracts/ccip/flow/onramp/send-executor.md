@@ -1,3 +1,10 @@
+---
+id: contracts-ccip-flow-onramp-send-executor
+title: SendExecutor
+sidebar_label: SendExecutor
+sidebar_position: 3
+---
+
 # SendExecutor
 
 This is  a contract that will be used by the OnRamp to store incoming CCIPSend messages. CCIPSend message will be persisted in a sharded map by deploying `SendExecutor` contracts. This will be used to recover the message information in two situations:

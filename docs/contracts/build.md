@@ -1,3 +1,10 @@
+---
+id: contracts-build
+title: Build
+sidebar_label: Build
+sidebar_position: 2
+---
+
 # Chainlink TON - Smart Contracts - Build
 
 ## Building the contracts

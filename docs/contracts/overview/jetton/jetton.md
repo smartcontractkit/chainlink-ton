@@ -1,3 +1,10 @@
+---
+id: contracts-overview-jetton-jetton
+title: Jettons - TON Tokens
+sidebar_label: Jettons
+sidebar_position: 2
+---
+
 # Jettons - TON Tokens
 
 Jettons is the TON standard for Fungible Tokens.

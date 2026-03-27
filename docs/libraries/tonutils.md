@@ -1,3 +1,10 @@
+---
+id: libraries-tonutils
+title: tonutils
+sidebar_label: tonutils
+sidebar_position: 2
+---
+
 # Ton Utils Package
 
 The `tonutils` package provides utilities for interacting with the TON blockchain, focusing on asynchronous communication and message tracing. It simplifies the process of sending messages, waiting for their reception, and recursively processing outgoing messages in the trace.
@@ -108,4 +115,4 @@ The package provides detailed insights into the fees associated with transaction
 
 ## Usage Example
 
-Examples can be found at [this directory](../../pkg/tonutils/tests/async_communication/). Their documentation can be found [in this doc](../contracts/overview/examples/async-communication.md).
+Examples can be found at [this directory](../../pkg/tonutils/tests/async_communication/). Their documentation can be found [in this doc](../contracts/overview/examples/async.md).

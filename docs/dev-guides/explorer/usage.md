@@ -1,3 +1,10 @@
+---
+id: dev-guides-explorer-usage
+title: Usage
+sidebar_label: Usage
+sidebar_position: 2
+---
+
 # TON Explorer Usage Guide
 
 Command-line tool for analyzing TON blockchain transactions and traces.

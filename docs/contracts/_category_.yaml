@@ -1,0 +1,7 @@
+position: 2
+label: Contracts
+collapsible: true
+collapsed: false
+link:
+  type: doc
+  id: contracts-index

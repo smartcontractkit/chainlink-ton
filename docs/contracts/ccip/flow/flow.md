@@ -1,3 +1,10 @@
+---
+id: contracts-ccip-flow-flow
+title: CCIP Flow
+sidebar_label: Flow Overview
+sidebar_position: 2
+---
+
 # CCIP Flow
 
 > Before you read, see [Jetton Transfer Notation Convention](./token-transfer-notation-convention.md)

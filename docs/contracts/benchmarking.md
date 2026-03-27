@@ -1,3 +1,10 @@
+---
+id: contracts-benchmarking
+title: Benchmark
+sidebar_label: Benchmark
+sidebar_position: 4
+---
+
 # Chainlink TON - Smart Contracts - Benchmark
 
 > [!NOTE]  
@@ -18,7 +25,3 @@ BENCH_DIFF=true yarn jest
 ```
 
 Note that the generated gas report is not extensive, as it only covers the highest gas cost for each method throughout the whole execution.
-
-
-
-

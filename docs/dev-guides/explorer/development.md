@@ -1,6 +1,13 @@
+---
+id: dev-guides-explorer-development
+title: Development
+sidebar_label: Development
+sidebar_position: 1
+---
+
 # TON Explorer Development Guide
 
-For adding support to more contracts, you need to register your decoder in [`defaultDecoders`](../../../../pkg/ton/debug/pretty_print.go). Decoders implement [`ContractDecoder`](../../../../pkg/ton/debug/lib/lib.go) interface:
+For adding support to more contracts, you need to register your decoder in [`defaultDecoders`](../../../pkg/ton/debug/pretty_print.go). Decoders implement [`ContractDecoder`](../../../pkg/ton/debug/lib/lib.go) interface:
 
 ```go
 type ContractDecoder interface {

@@ -1,3 +1,10 @@
+---
+id: contracts-ccip-flow-onramp-user-interface
+title: Sender User Interface
+sidebar_label: User Interface
+sidebar_position: 5
+---
+
 # Sender User Interface
 
 For arbitrary messages paying fees in TON, the user interface is as follows:
