@@ -27,6 +27,13 @@ sidebar_position: 1
 
 - [Tests Documentation](./tests/index.md)
 
+## Useful TON Resources
+
+- [TON Documentation](https://docs.ton.org/)
+- [Addresses Formats](https://docs.ton.org/foundations/addresses/overview)
+- [Tolk Language](https://docs.ton.org/tolk/overview#tolk-language)
+- [Exit Codes](https://docs.ton.org/tvm/exit-codes#exit-codes)
+
 ## Developer Guides
 
 - [Developer Guides](./dev-guides/index.md)

@@ -1,5 +1,5 @@
 ---
-id: contracts-ccip-onramp-send-executor
+id: send-executor
 title: SendExecutor
 sidebar_label: SendExecutor
 sidebar_position: 3

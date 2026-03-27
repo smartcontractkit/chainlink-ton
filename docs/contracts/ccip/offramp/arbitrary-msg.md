@@ -10,6 +10,25 @@ sidebar_position: 2
 > See [how CCIPSend works](receive-executor.md) and [how the Token Registry is implemented](../token-registry.md).
 
 ```mermaid
+
+graph LR
+    OFR["OffRamp"]
+    MR["MerkleRoot"]
+    RE["ReceiveExecutor"]
+    R["Router"]
+    RCV["Receiver"]
+
+    OFR -->|1. Validate| MR
+    MR -->|2. ExecuteValidated| OFR
+    OFR -->|3. InitExecute| RE
+    RE -->|4. DispatchValidated| OFR
+    OFR -->|5. RouteMessage| R
+    R -->|6. CCIPReceive| RCV
+    RCV -->|7. CCIPReceiveConfirm| R
+    R -->|8. CCIPReceiveConfirm| OFR
+```
+
+```mermaid
 sequenceDiagram
     participant R as Router
     participant OR as OffRamp
@@ -98,7 +117,7 @@ sequenceDiagram
 
     activate R
     Note over R: RECEIVES CCIPReceiveConfirm<br>{ execId }
-    R ->> OR: Confirm { sender }
+    R ->> OR: CCIPReceiveConfirm { execId, receiver }
     deactivate R
 
 
@@ -136,7 +155,7 @@ sequenceDiagram
 
     activate R
     Note over R: RECEIVES Bounced<br>CCIPReceive { execId }
-    R ->> OR: Confirm { sender }
+    R ->> OR: CCIPReceiveBounced { sender }
     deactivate R
 
 

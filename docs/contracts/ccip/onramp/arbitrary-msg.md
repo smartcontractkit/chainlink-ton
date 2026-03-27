@@ -9,6 +9,24 @@ sidebar_position: 2
 
 > See [how CCIPSend works](send-executor.md) and [how the Token Registry is implemented](../token-registry.md).
 
+
+```mermaid
+graph LR
+    TX["Sender"]
+    R["Router"]
+    OR["OnRamp"]
+    SE["SendExecutor"]
+    FQ["FeeQuoter"]
+
+    TX -->|1. Router_CCIPSend| R
+    R -->|2. Send| OR
+    OR -->|3. Initialize & Execute| SE
+    SE -->|4. GetValidatedFee| FQ
+    FQ -->|5. MessageValidated| SE
+    SE -->|6. ExecutorFinishedSuccessfully| OR
+    OR -->|7. MessageSent| R
+```
+
 ```mermaid
 sequenceDiagram
     participant R as Router
@@ -19,11 +37,11 @@ sequenceDiagram
     Note over R: Return TON
     else Enough TON
 
-    R ->> OR: CCIPSend{}
+    R ->> OR: Send { msg: CCIPSend, metadata }
     
     Note over OR: Create msgID
     create participant ORM
-    OR ->> ORM: deploy CCIPSendStorage <br>initData{msgID}<br>store{msg: CCIPSend}
+    OR ->> ORM: InitializeAndSend { <br/>stateInit: executorID <br/> selfMessage: Execute{msg} }<br>store{msg}
 
     box OnRamp
     participant OR as OnRamp
@@ -32,33 +50,36 @@ sequenceDiagram
 
     participant FQ as FeeQuoter
 
-    ORM ->> FQ: getValidatedFee{msgID, CCIPSend}
+    ORM ->> FQ: GetValidatedFee { msg }
 
 
     alt not enough to cover fee
-    FQ ->> ORM: feeNotValidated{msgID, CCIPSend}
-    Note over ORM: Reject CCIPSend
+    FQ ->> ORM: MessageValidationFailed{error, msg}
+    Note over ORM: Reject CCIPSend [...]
 
     else enough to cover for fee
-    FQ ->> ORM: feeValidated{msgID, CCIPSend}
+    FQ ->> ORM: MessageValidated
     Note over ORM: destroy
     destroy ORM
-    ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
+    ORM ->> OR: ExecutorFinishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
-    OR ->> R: messageSent{queryID, seqNum}<br>+ Recovered TON
+    OR ->> R: MessageSent{queryID, seqNum}<br>+ TON remaining from <br/> gas fees and CCIP fee
     end
     end
 ```
 
-For any bounce we catch, or when we say Reject CCIPSend, it envolves:
+For rejected sends or executor failures, the main notification path is:
 
 ```mermaid
 sequenceDiagram
+    participant TX as Sender
+    participant R as Router
     participant OR as OnRamp
     participant LRM as SendExecutor<br>{id}
     Note over LRM: destroy
     destroy LRM
-    LRM ->> OR: messageRejected{queryID, messageId, msg, reason}<br>+ TON remaining balance
-    Note over OR: Send CCIPSendACK{reason}<br>to the user + excess TON
+    LRM ->> OR: ExecutorFinishedWithError
+    OR ->> R: MessageRejected
+    R ->> TX: CCIPSendNACK<br/> + TON Remaining from gas fees
 ```
