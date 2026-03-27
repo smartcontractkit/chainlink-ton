@@ -33,6 +33,8 @@ const (
 	TopicDestChainSelectorAdded = 0xD3D104FF // CRC32("DestChainSelectorAdded")
 	TopicDestChainConfigUpdated = 0x3AA25CF1 // CRC32("DestChainConfigUpdated")
 	TopicConfigSet              = 0x1E32222C // CRC32("ConfigSet")
+	// TopicDynamicConfigSet is an alias used by some tooling for the ConfigSet event.
+	TopicDynamicConfigSet = TopicConfigSet
 )
 
 // Registry method names
@@ -62,6 +64,9 @@ type ConfigSet struct {
 	ChainSelector uint64        `tlb:"## 64"`
 	DynamicConfig DynamicConfig `tlb:"."`
 }
+
+// DynamicConfigSet is an alias for ConfigSet kept for naming consistency with logs tooling.
+type DynamicConfigSet = ConfigSet
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {

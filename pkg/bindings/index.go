@@ -9,7 +9,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ccipsendexecutor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/merkleroot"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiveexecutor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -40,11 +43,16 @@ const (
 	TypeTimelock = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter       = PkgCCIP + ".Router"
-	TypeOnRamp       = PkgCCIP + ".OnRamp"
-	TypeOffRamp      = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter    = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor = PkgCCIP + ".CCIPSendExecutor"
+	TypeRouter          = PkgCCIP + ".Router"
+	TypeOnRamp          = PkgCCIP + ".OnRamp"
+	TypeOffRamp         = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter       = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor    = PkgCCIP + ".CCIPSendExecutor"
+	TypeReceiveExecutor = PkgCCIP + ".ReceiveExecutor"
+	TypeMerkleRoot      = PkgCCIP + ".MerkleRoot"
+
+	// Test CCIP
+	TypeReceiver = PkgCCIP + ".Receiver"
 
 	// Jetton
 	TypeJettonWallet = PkgJetton + ".contracts.jetton-wallet"
@@ -64,11 +72,16 @@ var Registry = tvm.ContractTLBRegistry{
 	TypeTimelock: timelock.TLBs,
 
 	// CCIP contract types
-	TypeRouter:       router.TLBs,
-	TypeOnRamp:       onramp.TLBs,
-	TypeOffRamp:      offramp.TLBs,
-	TypeFeeQuoter:    feequoter.TLBs,
-	TypeSendExecutor: ccipsendexecutor.TLBs,
+	TypeRouter:          router.TLBs,
+	TypeOnRamp:          onramp.TLBs,
+	TypeOffRamp:         offramp.TLBs,
+	TypeFeeQuoter:       feequoter.TLBs,
+	TypeSendExecutor:    ccipsendexecutor.TLBs,
+	TypeReceiveExecutor: receiveexecutor.TLBs,
+	TypeMerkleRoot:      merkleroot.TLBs,
+
+	// Test contract types
+	TypeReceiver: receiver.TLBs,
 
 	// Jetton contract types
 	TypeJettonWallet: wallet.TLBs,

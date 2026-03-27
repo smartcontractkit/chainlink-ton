@@ -2,17 +2,11 @@ package receiver
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
-)
-
-type Behavior uint8
-
-const (
-	Accept Behavior = iota
-	RejectAll
-	ConsumeAllGas
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Storage represents the storage structure for the CCIP receiver contract.
@@ -22,6 +16,29 @@ type Storage struct {
 	AuthorizedCaller *address.Address     `tlb:"addr"`
 	Behavior         Behavior             `tlb:"## 8"`
 }
+
+type Behavior uint8
+
+const (
+	BehaviorAccept Behavior = iota
+	BehaviorRejectAll
+	BehaviorConsumeAllGas
+)
+
+type UpdateBehavior struct {
+	_        tlb.Magic `tlb:"#cf87a147" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Behavior Behavior  `tlb:"## 8"`
+}
+
+type UpdateAuthorizedCaller struct {
+	_                tlb.Magic        `tlb:"#9f5e489f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	AuthorizedCaller *address.Address `tlb:"addr"`
+}
+
+var TLBs = tvm.MustNewTLBMap([]any{
+	UpdateBehavior{},
+	UpdateAuthorizedCaller{},
+}).MustWithStorageType(Storage{})
 
 // CCIPMessageReceivedEventTopic is the event topic for Receiver_CCIPMessageReceived event
 // crc32('Receiver_CCIPMessageReceived') = 0xc5a40ab3

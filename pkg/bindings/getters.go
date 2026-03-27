@@ -28,6 +28,8 @@ var TypeToGetterMap = map[string]GetterMap{
 		"rmn_pendingOwner":   router.GetRMNPendingOwner,
 		"onRamp":             router.GetOnRamp,
 		"destChainSelectors": router.GetDestChainSelectors,
+		"verifyNotCursed":    router.GetVerifyNotCursed,
+		"cursedSubjects":     router.GetCursedSubjects,
 	},
 	TypeOnRamp: {
 		"owner":              onramp.GetOwner,
@@ -46,17 +48,22 @@ var TypeToGetterMap = map[string]GetterMap{
 		"sourceChainSelectors": offramp.GetSourceChainSelectors,
 	},
 	TypeFeeQuoter: {
-		"owner":                    feequoter.GetOwner,
-		"pendingOwner":             feequoter.GetPendingOwner,
-		"destChainConfig":          feequoter.GetDestChainConfig,
-		"destinationChainGasPrice": feequoter.GetDestinationChainGasPrice,
-		"tokenPrice":               feequoter.GetTokenPrice,
-		"staticConfig":             feequoter.GetStaticConfig,
-		"destChainSelectors":       feequoter.GetDestChainSelectors,
+		"owner":                      feequoter.GetOwner,
+		"pendingOwner":               feequoter.GetPendingOwner,
+		"destChainConfig":            feequoter.GetDestChainConfig,
+		"destinationChainGasPrice":   feequoter.GetDestinationChainGasPrice,
+		"tokenPrice":                 feequoter.GetTokenPrice,
+		"staticConfig":               feequoter.GetStaticConfig,
+		"destChainSelectors":         feequoter.GetDestChainSelectors,
+		"feeTokens":                  feequoter.GetFeeTokens,
+		"premiumMultiplierWeiPerEth": feequoter.GetPremiumMultiplierWeiPerEth,
+		"tokenTransferFeeConfig":     feequoter.GetTokenTransferFeeConfig,
 	},
 	// Common contract getters (applies to all CCIP contracts)
 	"link.chain.ton.ccip.Common": {
 		"typeAndVersion": common.GetTypeAndVersion,
+		"facilityId":     common.GetFacilityId,
+		"errorCode":      common.GetErrorCode,
 	},
 	// Ownable2Step pattern (inherited by many contracts)
 	TypeOwnable: {

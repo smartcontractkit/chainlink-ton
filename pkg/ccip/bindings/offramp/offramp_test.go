@@ -2,6 +2,7 @@ package offramp
 
 import (
 	"encoding/hex"
+	"hash/crc32"
 	"math/big"
 	"testing"
 
@@ -14,6 +15,30 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
+
+func TestTopicCRC32Values(t *testing.T) {
+	tests := []struct {
+		name     string
+		topic    string
+		expected uint32
+	}{
+		{name: "TopicExecutionStateChanged", topic: "ExecutionStateChanged", expected: TopicExecutionStateChanged},
+		{name: "TopicCommitReportAccepted", topic: "CommitReportAccepted", expected: TopicCommitReportAccepted},
+		{name: "TopicSourceChainSelectorAdded", topic: "SourceChainSelectorAdded", expected: TopicSourceChainSelectorAdded},
+		{name: "TopicSourceChainConfigUpdated", topic: "SourceChainConfigUpdated", expected: TopicSourceChainConfigUpdated},
+		{name: "TopicDynamicConfigSet", topic: "DynamicConfigSet", expected: TopicDynamicConfigSet},
+		{name: "TopicReceiveExecutorInitExecuteBounced", topic: "ReceiveExecutorInitExecuteBounced", expected: TopicReceiveExecutorInitExecuteBounced},
+		{name: "TopicDeployableInitializeBounced", topic: "DeployableInitializeBounced", expected: TopicDeployableInitializeBounced},
+		{name: "TopicRouteMessageBounced", topic: "RouteMessageBounced", expected: TopicRouteMessageBounced},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			computed := crc32.ChecksumIEEE([]byte(tt.topic))
+			require.Equal(t, tt.expected, computed, "CRC32 mismatch for %s: expected 0x%08X, got 0x%08X", tt.topic, tt.expected, computed)
+		})
+	}
+}
 
 func TestCommit_EncodingAndDecoding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")

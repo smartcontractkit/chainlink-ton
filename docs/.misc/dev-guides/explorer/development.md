@@ -1,6 +1,8 @@
 # TON Explorer Development Guide
 
-For adding support to more contracts, you need to register your decoder in [`defaultDecoders`](../../../../pkg/ton/debug/pretty_print.go). Decoders implement [`ContractDecoder`](../../../../pkg/ton/debug/lib/lib.go) interface:
+For explorer architecture and module boundaries, read [TON Explorer Architecture](./architecture.md).
+
+For adding support to more contracts, you need to register your decoder in [`defaultDecoders`](../../../../pkg/ton/codec/debug/pretty_print.go). Decoders implement [`ContractDecoder`](../../../../pkg/ton/codec/debug/lib/lib.go) interface:
 
 ```go
 type ContractDecoder interface {
@@ -30,7 +32,7 @@ type BodyInfo interface {
 }
 ```
 
-Your decoder should go in `pkg/ton/debug/decoders/<domain>` package. If it is a ccip contract, then in `pkg/ton/debug/decoders/ccip`. E.g. `pkg/ton/debug/decoders/ccip/feequoter/feequoter.go`.
+Your decoder should go in `pkg/ton/codec/debug/decoders/<domain>` package. If it is a ccip contract, then in `pkg/ton/codec/debug/decoders/ccip`. E.g. `pkg/ton/codec/debug/decoders/ccip/feequoter/feequoter.go`.
 
 I suggest not placing any business logic in the decoder. Instead, create a separate package for that, e.g. `pkg/ccip/bindings/feequoter/codec.go` and use it from the decoder.
 

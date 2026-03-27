@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	versionGetter = "typeAndVersion"
+	versionGetter    = "typeAndVersion"
+	facilityIdGetter = "facilityId"
+	errorCodeGetter  = "errorCode"
 )
 
 // TVM limits for cell chains, enforced at different stages:
