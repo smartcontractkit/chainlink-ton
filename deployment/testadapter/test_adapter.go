@@ -322,7 +322,13 @@ func SendCCIPMessage(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to get sender account: %w", err)
 	}
-	senderBalance := senderAccount.State.Balance.Nano()
+	// State is nil when the account has never received funds and doesn't exist on-chain yet
+	var senderBalance *big.Int
+	if senderAccount.State != nil {
+		senderBalance = senderAccount.State.Balance.Nano()
+	} else {
+		senderBalance = big.NewInt(0)
+	}
 	l.Infof("Sender balance: %s nano TON, required value: %s nano TON", senderBalance.String(), value.String())
 	if senderBalance.Cmp(value) < 0 {
 		return 0, nil, fmt.Errorf("insufficient balance: sender has %s nano TON but needs %s nano TON", senderBalance.String(), value.String())

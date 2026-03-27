@@ -22,15 +22,15 @@ func TON2EVMMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult,
 	lib.TryLoadEnvFile()
 
 	// Parse selectors
-	srcChainSel, err := strconv.ParseUint(os.Getenv("TON_TESTNET_SELECTOR"), 10, 64)
+	srcChainSel, err := strconv.ParseUint(os.Getenv("TON_SELECTOR"), 10, 64)
 	if err != nil {
-		result.Error = "TON_TESTNET_SELECTOR not set or invalid"
+		result.Error = "TON_SELECTOR not set or invalid"
 		lggr.Errorw("Failed to parse source chain selector", "error", err)
 		return result, err
 	}
-	destChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
+	destChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_SELECTOR"), 10, 64)
 	if err != nil {
-		result.Error = "ETHEREUM_TESTNET_SEPOLIA_SELECTOR not set or invalid"
+		result.Error = "ETHEREUM_SELECTOR not set or invalid"
 		lggr.Errorw("Failed to parse destination chain selector", "error", err)
 		return result, err
 	}

@@ -2,10 +2,12 @@ package ton
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -50,6 +52,25 @@ type Client struct {
 	wallet   *wallet.Wallet
 }
 
+// walletVersionConfig returns the wallet VersionConfig for the given version string and network global ID.
+// Supported versions: V3R1, V3R2, V4R1, V4R2, V5R1Beta, V5R1Final (default).
+func walletVersionConfig(version string, networkGlobalID int32) wallet.VersionConfig {
+	switch strings.ToUpper(version) {
+	case "V3R1":
+		return wallet.V3R1
+	case "V3R2":
+		return wallet.V3R2
+	case "V4R1":
+		return wallet.V4R1
+	case "V4R2":
+		return wallet.V4R2
+	case "V5R1BETA":
+		return wallet.ConfigV5R1Beta{NetworkGlobalID: networkGlobalID, Workchain: 0}
+	default: // V5R1Final
+		return wallet.ConfigV5R1Final{NetworkGlobalID: networkGlobalID, Workchain: 0}
+	}
+}
+
 // NewClient creates a new TON client
 func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) (lib.Client, error) {
 	// support both liteserver:// and config URL format
@@ -65,12 +86,33 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 	}
 
 	if walletKey != "" {
-		// V5R1 Final - latest wallet version
-		v5r1Config := wallet.ConfigV5R1Final{
-			NetworkGlobalID: lib.TONNetworkGlobalIDTestnet,
-			Workchain:       0,
+		// Resolve network global ID: default to mainnet (-239), overridable via TON_NETWORK_GLOBAL_ID.
+		networkGlobalID := int32(-239) // mainnet
+		if raw := os.Getenv("TON_NETWORK_GLOBAL_ID"); raw != "" {
+			parsed, parseErr := strconv.ParseInt(raw, 10, 32)
+			if parseErr != nil {
+				return nil, fmt.Errorf("invalid TON_NETWORK_GLOBAL_ID %q: %w", raw, parseErr)
+			}
+			networkGlobalID = int32(parsed)
 		}
-		w, err := wallet.FromSeed(client, strings.Fields(walletKey), v5r1Config)
+
+		// Resolve wallet version: default to V5R1Final, overridable via TON_WALLET_VERSION.
+		// Supported: V3R1, V3R2, V4R1, V4R2, V5R1Beta, V5R1Final.
+		walletVersion := walletVersionConfig(os.Getenv("TON_WALLET_VERSION"), networkGlobalID)
+		lggr.Infow("Initializing TON wallet", "version", fmt.Sprintf("%T", walletVersion), "networkGlobalID", networkGlobalID)
+
+		var w *wallet.Wallet
+		// A raw ed25519 private key is 64 bytes = 128 hex chars.
+		// The first 32 bytes are the private key seed; the last 32 are the public key.
+		if len(walletKey) == 128 {
+			keyBytes, hexErr := hex.DecodeString(walletKey)
+			if hexErr != nil {
+				return nil, fmt.Errorf("failed to decode private key hex: %w", hexErr)
+			}
+			w, err = wallet.FromPrivateKey(client, ed25519.PrivateKey(keyBytes), walletVersion)
+		} else {
+			w, err = wallet.FromSeed(client, strings.Fields(walletKey), walletVersion)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to create TON wallet: %w", err)
 		}
