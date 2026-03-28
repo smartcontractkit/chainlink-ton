@@ -1,5 +1,6 @@
 ---
-id: merkle-root
+id: contracts-ccip-offramp-merkle-root
+slug: merkle-root
 title: MerkleRoot
 sidebar_label: MerkleRoot
 sidebar_position: 5

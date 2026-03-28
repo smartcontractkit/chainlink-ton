@@ -1,5 +1,6 @@
 ---
-id: receive-executor
+id: contracts-ccip-offramp-receive-executor
+slug: receive-executor
 title: ReceiveExecutor
 sidebar_label: ReceiveExecutor
 sidebar_position: 3

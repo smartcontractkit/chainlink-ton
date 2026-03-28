@@ -1,5 +1,6 @@
 ---
 id: contracts-ccip-onramp-index
+slug: onramp
 title: Onramp
 sidebar_label: Overview
 sidebar_position: 1
@@ -22,7 +23,6 @@ graph LR
     ADM["Allowlist Admin / Owner"]
     ANY["Anyone"]
     AGG["Fee Aggregator"]
-    R["Router"]
 
     R -->|OnRamp_Send| OR
     OR -->|MessageSent,<br/>MessageRejected| R

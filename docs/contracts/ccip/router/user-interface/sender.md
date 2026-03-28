@@ -1,5 +1,6 @@
 ---
 id: contracts-ccip-router-user-interface-sender
+slug: sender
 title: Sender User Interface
 sidebar_label: User Interface
 sidebar_position: 5
@@ -45,7 +46,7 @@ The fee can also be requested off-chain.
 2. OnRamp `feeQuoter(destChainSelector: uint64)` getter => FeeQuoter address
 3. FeeQuoter `validatedFee(msg: Cell<Router_CCIPSend>)` getter => fee
 
-> [!note] The returned fee only accounts for the CCIP Fee. The user should add extra TON for execution gas and forward fees on top of it to avoid having their message rejected for insufficient fee.
+> [!NOTE] The returned fee only accounts for the CCIP Fee. The user should add extra TON for execution gas and forward fees on top of it to avoid having their message rejected for insufficient fee.
 
 Alternatively, the user can just send the message with an optimistic amount of TON. In this case, the Router will validate the message and either accept it or reject it. 
 

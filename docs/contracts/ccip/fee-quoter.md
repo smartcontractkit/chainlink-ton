@@ -1,5 +1,6 @@
 ---
-id: fee-quoter
+id: contracts-ccip-fee-quoter
+slug: fee-quoter
 title: FeeQuoter
 sidebar_label: FeeQuoter
 sidebar_position: 4
