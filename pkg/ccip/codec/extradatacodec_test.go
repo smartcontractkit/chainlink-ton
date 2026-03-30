@@ -62,6 +62,22 @@ func Test_decodeExtraArgs(t *testing.T) {
 		ooe, exist := output["AllowOutOfOrderExecution"]
 		require.True(t, exist)
 		require.Equal(t, false, ooe)
+
+		tr, exist := output["TokenReceiver"]
+		require.True(t, exist)
+		var expectedReceiver [32]byte
+		copy(expectedReceiver[:], solana.SystemProgramID.Bytes())
+		require.Equal(t, expectedReceiver, tr)
+
+		accounts, exist := output["Accounts"]
+		require.True(t, exist)
+		accountsArr, ok := accounts.([][32]byte)
+		require.True(t, ok, "expected [][32]byte, got %T", accounts)
+		require.Len(t, accountsArr, 2)
+		var expectedAccount [32]byte
+		copy(expectedAccount[:], solana.SystemProgramID.Bytes())
+		require.Equal(t, expectedAccount, accountsArr[0])
+		require.Equal(t, expectedAccount, accountsArr[1])
 	})
 
 	t.Run("decode extra args into map evm", func(t *testing.T) {
@@ -128,10 +144,14 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 		tr, exist := output["TokenReceiver"]
 		require.True(t, exist)
-		require.Equal(t, suiReceiverBytes[:], tr)
+		require.Equal(t, [32]byte(*suiReceiverBytes), tr)
 
 		roids, exist := output["ReceiverObjectIDs"]
 		require.True(t, exist)
-		require.Len(t, roids, 2)
+		roidsArr, ok := roids.([][32]byte)
+		require.True(t, ok, "expected [][32]byte, got %T", roids)
+		require.Len(t, roidsArr, 2)
+		require.Equal(t, [32]byte(*suiAddr1Bytes), roidsArr[0])
+		require.Equal(t, [32]byte(*suiAddr2Bytes), roidsArr[1])
 	})
 }
