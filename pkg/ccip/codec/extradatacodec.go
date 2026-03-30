@@ -116,9 +116,17 @@ func normalizeFieldValue(field reflect.StructField, val any) any {
 
 	// Convert SnakedCell[Account256] to [][32]byte.
 	// Applies to SVMExtraArgsV1.Accounts and SuiExtraArgsV1.ReceiverObjectIDs.
+	// Preserves nil semantics: a nil SnakedCell stays nil (not empty slice),
+	// which can affect downstream nil checks and JSON encoding (null vs []).
 	if accounts, ok := val.(common.SnakedCell[onramp.Account256]); ok {
+		if accounts == nil {
+			return ([][32]byte)(nil)
+		}
 		result := make([][32]byte, len(accounts))
 		for i, acct := range accounts {
+			if len(acct.Value) != 32 {
+				return val // unexpected length, return as-is to avoid silent zero-padding
+			}
 			copy(result[i][:], acct.Value)
 		}
 		return result
