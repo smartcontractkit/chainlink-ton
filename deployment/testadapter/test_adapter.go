@@ -248,8 +248,10 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 	return nil, errors.ErrUnsupported
 }
 
-// TODO: return true when TON token transfer support is added
-func (a *TONAdapter) SupportsTokenTransfers() bool { return false }
+func (a *TONAdapter) SupportsTokenTransfers() bool {
+	// TODO: return true when TON token transfer support is added
+	return false
+}
 
 func (a *TONAdapter) GetTokenExpansionConfig() tokensapi.TokenExpansionInputPerChain {
 	// TODO: implement when TON token transfer support is added
