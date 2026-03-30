@@ -44,7 +44,7 @@ var extraArgsTypes = map[string]reflect.Type{
 	suiExtraArgsTagStr: reflect.TypeOf(onramp.SuiExtraArgsV1{}),
 }
 
-// DecodeExtraArgsToMap is a helper function for converting Borsh encoded extra args bytes into map[string]any
+// DecodeExtraArgsToMap is a helper function for converting BOC encoded extra args bytes into map[string]any
 func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[string]any, error) {
 	if len(extraArgs) < 4 {
 		return nil, fmt.Errorf("extra args too short: %d, should be at least 4 (i.e the extraArgs tag)", len(extraArgs))
