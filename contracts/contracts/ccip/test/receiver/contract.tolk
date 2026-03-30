@@ -6,13 +6,16 @@
 import "storage"
 import "errors"
 import "messages"
+import "types"
 
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
+import "../../../lib/receiver/errors"
 import "../../../lib/utils";
 import "../../../lib/access/ownable_2step"
-import "types"
 import "../../../lib/versioning/upgradeable"
+
+import "../../router/messages"
 
 const CONTRACT_VERSION = "1.6.0";
 
@@ -27,18 +30,15 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Receiver_CCIPReceive => {
             var st = lazy Storage.load();
-            msg.validateAndConfirm({
-                router: st.authorizedCaller,
-                minValue: ton("0.01"),
-                inMsg: {
-                    senderAddress: in.senderAddress,
-                    valueCoins: in.valueCoins,
-                },
-                confirmationMsg: {
-                    sendMode: SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
-                }
-            });
-           
+            // Standard way for a receiver to be implemented:
+
+            // 1. Check that enough value is received to process this message (you should benchmark accordingly)
+            assert( in.valueCoins >= ton("0.03") ) throw (Receiver_Error.LowValue as int);
+
+            // 2. Check CCIPReceive only comes from router
+            assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized as int);
+
+            // 3. Process the message according to your product logic
             match (st.behavior) {
                 TestReceiverBehavior.Accept => {
                     processAccept(msg, in.senderAddress)
@@ -50,6 +50,25 @@ fun onInternalMessage(in: InMessage) {
                     processConsumeAllGas()
                 }
             }
+
+            // 4. Enqueue CCIPReceiveConfirm to msg.callback
+
+            // In this example we are sending all the value remaining from the message after compute costs
+            // and action fees from previously emitted events. You should use an appropiate message mode for your own use case.
+            // But, consider that a minimum of 0.02 TON is required for the Router to process your confirmation message,
+            // and you should probably send more than that (~0.025 TON) to make sure the message goes through
+            // even if there are some fluctuations in the fees.
+            reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+            val receiveConfirm = createMessage({
+                bounce: true,
+                value: 0,
+                dest: in.senderAddress,
+                body: Router_CCIPReceiveConfirm {
+                    execId: msg.execId,
+                }
+            });
+            receiveConfirm.send(SEND_MODE_CARRY_ALL_BALANCE);
+           
         }
         TestReceiver_UpdateAuthorizedCaller => {
             onUpdateAuthorizedCaller(msg, in.senderAddress)
@@ -106,7 +125,10 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell { 
+    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
+    return storage;
+}
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

@@ -162,6 +162,82 @@ func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
 	}
 }
 
+func TestAddressBytesToStringWithBurning(t *testing.T) {
+	// Valid address
+	validAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+
+	// Encode valid address to user-friendly 36-byte format
+	validBytes, err := base64.RawURLEncoding.DecodeString(validAddr.String())
+	require.NoError(t, err)
+	require.Len(t, validBytes, 36)
+
+	tests := []struct {
+		name       string
+		input      []byte
+		wantZero   bool
+		wantEquals *address.Address
+	}{
+		{
+			name:       "valid user-friendly address",
+			input:      validBytes,
+			wantEquals: validAddr,
+		},
+		{
+			name:     "empty bytes",
+			input:    []byte{},
+			wantZero: true,
+		},
+		{
+			name:     "too short",
+			input:    []byte{0x01, 0x02, 0x03},
+			wantZero: true,
+		},
+		{
+			name: "correct length but invalid CRC16",
+			input: func() []byte {
+				b := make([]byte, 36)
+				copy(b, validBytes)
+				// Corrupt the CRC16 checksum (last 2 bytes)
+				b[34] ^= 0xFF
+				b[35] ^= 0xFF
+				return b
+			}(),
+			wantZero: true,
+		},
+		{
+			name: "correct length but corrupted data",
+			input: func() []byte {
+				b := make([]byte, 36)
+				copy(b, validBytes)
+				// Corrupt address data
+				b[10] ^= 0xFF
+				return b
+			}(),
+			wantZero: true,
+		},
+		{
+			name:     "all zeros (invalid format)",
+			input:    make([]byte, 36),
+			wantZero: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := AddressBytesToStringWithBurning(tc.input)
+			require.NotNil(t, result)
+			if tc.wantZero {
+				require.Equal(t, int32(0), result.Workchain())
+				require.Equal(t, make([]byte, 32), result.Data())
+			}
+			if tc.wantEquals != nil {
+				require.True(t, tc.wantEquals.Equals(result), "expected %s, got %s", tc.wantEquals, result)
+			}
+		})
+	}
+}
+
 func packOracleID(oracleID uint8) []byte {
 	addr := make([]byte, 32)
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))

@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, toNano } from '@ton/core'
+import { Address, beginCell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
@@ -290,5 +290,41 @@ describe('Receiver', () => {
       aborted: true,
       exitCode: -14,
     })
+  })
+
+  it('should keep original balance after succesfully receiving', async () => {
+    const contract = await blockchain.getContract(receiver.address)
+    const initialBalance = contract.balance
+
+    const result = await receiver.sendCCIPReceive(
+      deployer.getSender(),
+      toNano('1'),
+      ccipReceiveSampleMessage,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+      deploy: false,
+      body: tr.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
+    })
+
+    const tx = result.transactions.find(
+      (tx) =>
+        tx.inMessage &&
+        tx.inMessage.info.src &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(deployer.address) &&
+        tx.inMessage.info.dest &&
+        tx.inMessage.info.dest instanceof Address &&
+        tx.inMessage.info.dest.equals(receiver.address),
+    )
+    if (!tx || tx.description.type != 'generic') {
+      throw new Error('Expected an internal message')
+    }
+    const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
+
+    const finalBalance = (await blockchain.getContract(receiver.address)).balance
+    expect(finalBalance).toEqual(initialBalance - storageFees)
   })
 })

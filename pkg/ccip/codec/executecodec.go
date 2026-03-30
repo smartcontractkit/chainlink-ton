@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -101,36 +100,18 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				return nil, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			destTokenAddrStr, err := e.addressCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
-			if err != nil {
-				return nil, fmt.Errorf("convert dest token address: %w", err)
-			}
-
-			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
-			}
-
+			destPoolTonAddr := AddressBytesToStringWithBurning(tokenAmount.DestTokenAddress)
 			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
 				SourcePoolAddress: poolAddrCell,
 				ExtraData:         extraData,
-				DestPoolAddress:   DestPoolTonAddr,
+				DestPoolAddress:   destPoolTonAddr,
 				Amount:            tokenAmount.Amount.Int,
 				DestGasAmount:     destGasAmount,
 			})
 		}
 	}
 
-	tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)
-	if err != nil {
-		return nil, fmt.Errorf("error convert receiver address: %w", err)
-	}
-
-	tonReceiverAddr, err := address.ParseAddr(tonReceiverAddrStr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
-	}
-
+	tonReceiverAddr := AddressBytesToStringWithBurning(msg.Receiver)
 	header := ocr.RampMessageHeader{
 		MessageID:           msg.Header.MessageID[:],
 		SourceChainSelector: uint64(msg.Header.SourceChainSelector),
@@ -139,6 +120,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		Nonce:               msg.Header.Nonce,
 	}
 
+	var err error
 	var gasLimitBigInt *big.Int
 	var extraArgsDecodeMap map[string]any
 	if len(msg.ExtraArgs) > 0 {

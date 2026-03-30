@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -59,6 +60,28 @@ func ToRawAddr(addr *address.Address) (RawAddr, error) {
 
 func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
 	return addressCodec{}
+}
+
+// AddressBytesToStringWithBurning converts a byte slice representing a TON address into its string representation.
+// It first attempts to parse the bytes with `4 byte workchain (int32) + 32 byte data` TON address
+// If that fails, we expect user-friendly format (36 bytes): 1 byte flags + 1 byte workchain + 32 bytes data + 2 bytes CRC16, by validating the format and CRC16 checksum.
+// If parsing fails (invalid format, length, or CRC16), returns the zero address to indicate funds should be burned.
+// This is only used in the hot path in plugin (executecodec.go and msghasher.go) where we want to avoid errors and just burn funds if the address is invalid
+func AddressBytesToStringWithBurning(bytes []byte) *address.Address {
+	// First try parsing as raw format (4 byte workchain + 32 byte data)
+	if addr, err := AddressBytesToTONAddress(bytes); err == nil {
+		return addr
+	}
+
+	// user-friendly address encoding Validation with CRC16 checksum
+	addrStr := base64.RawURLEncoding.EncodeToString(bytes)
+	addr, err := address.ParseAddr(addrStr)
+	if err != nil {
+		// Checksum failed or invalid address format - return zero address to mark funds as burned
+		return tvm.ZeroAddress
+	}
+
+	return addr
 }
 
 // AddressBytesToString converts a byte slice representing a TON address into its string representation, only supporting standard TON addresses.
