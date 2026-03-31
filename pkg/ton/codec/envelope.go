@@ -291,6 +291,8 @@ func (e MessageEnvelope[T]) decode(r tvm.ContractTLBRegistry) (T, error) {
 		return e.Value, nil
 	}
 
+	fmt.Printf("Contract: %s, Opcode: 0x%08x\n", e.Metadata.Contract, e.Metadata.Opcode)
+
 	// TODO (ops): map contract name to opcode (as a fallback) !!
 	// Try to load from JSON payload + registry
 	if e.Payload != nil {
