@@ -11,6 +11,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 )
 
@@ -43,7 +44,7 @@ var extraArgsTypes = map[string]reflect.Type{
 	suiExtraArgsTagStr: reflect.TypeOf(onramp.SuiExtraArgsV1{}),
 }
 
-// DecodeExtraArgsToMap is a helper function for converting Borsh encoded extra args bytes into map[string]any
+// DecodeExtraArgsToMap is a helper function for converting BOC encoded extra args bytes into map[string]any
 func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[string]any, error) {
 	if len(extraArgs) < 4 {
 		return nil, fmt.Errorf("extra args too short: %d, should be at least 4 (i.e the extraArgs tag)", len(extraArgs))
@@ -77,10 +78,61 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 		if !field.IsExported() {
 			continue
 		}
-		outputMap[field.Name] = val.Field(i).Interface()
+		outputMap[field.Name] = normalizeFieldValue(field, val.Field(i).Interface())
 	}
 
 	return outputMap, nil
+}
+
+// normalizeFieldValue converts TL-B decoded types to the canonical types expected by
+// downstream consumers in chainlink-ccip.
+//
+// The tonutils-go TL-B library has a limitation: the `bits N` tag only supports []byte,
+// not fixed-size arrays like [32]byte — reflect.Value.Bytes() (used in serialization)
+// panics on arrays. Similarly, SnakedCell[Account256] uses Account256{Value []byte} wrappers.
+//
+// However, the chainlink-ccip plugin expects:
+//   - TokenReceiver as [32]byte (not []byte)
+//   - Accounts/ReceiverObjectIDs as [][32]byte (not SnakedCell[Account256])
+//
+// This function bridges the gap by checking the struct tag: only []byte fields explicitly
+// tagged with `tlb:"bits 256"` are converted to [32]byte. This avoids accidentally converting
+// a variable-length []byte that happens to be 32 bytes at runtime.
+//
+// Verified: all []byte fields in the onramp bindings (SVMExtraArgsV1, SuiExtraArgsV1) are
+// tagged with fixed `tlb:"bits N"` — there are no dynamically-sized []byte fields that could
+// be misidentified.
+func normalizeFieldValue(field reflect.StructField, val any) any {
+	// Convert []byte with `tlb:"bits 256"` tag to [32]byte.
+	// Only applies to fixed-size 256-bit fields (e.g. TokenReceiver, Account256.Value).
+	if bs, ok := val.([]byte); ok && len(bs) == 32 {
+		tag := field.Tag.Get("tlb")
+		if tag == "bits 256" {
+			var arr [32]byte
+			copy(arr[:], bs)
+			return arr
+		}
+	}
+
+	// Convert SnakedCell[Account256] to [][32]byte.
+	// Applies to SVMExtraArgsV1.Accounts and SuiExtraArgsV1.ReceiverObjectIDs.
+	// Preserves nil semantics: a nil SnakedCell stays nil (not empty slice),
+	// which can affect downstream nil checks and JSON encoding (null vs []).
+	if accounts, ok := val.(common.SnakedCell[onramp.Account256]); ok {
+		if accounts == nil {
+			return ([][32]byte)(nil)
+		}
+		result := make([][32]byte, len(accounts))
+		for i, acct := range accounts {
+			if len(acct.Value) != 32 {
+				return val // unexpected length, return as-is to avoid silent zero-padding
+			}
+			copy(result[i][:], acct.Value)
+		}
+		return result
+	}
+
+	return val
 }
 
 // DecodeDestExecDataToMap is a helper function for converting dest exec data bytes into map[string]any

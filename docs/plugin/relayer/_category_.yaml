@@ -1,0 +1,7 @@
+position: 2
+label: Relayer
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: plugin-relayer-index

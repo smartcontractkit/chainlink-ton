@@ -1,3 +1,10 @@
+---
+id: tests-ccip-e2e
+title: CCIP E2E
+sidebar_label: CCIP E2E
+sidebar_position: 2
+---
+
 # Chainlink-TON End-to-End Testing Setup
 
 This guide details the setup and execution of CCIP integration tests within the `chainlink-ton` repository. These tests are crucial for verifying the correct integration of `chainlink-ton` with a specific version of `chainlink` core.

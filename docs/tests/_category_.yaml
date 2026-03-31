@@ -1,0 +1,7 @@
+position: 5
+label: Tests
+collapsible: true
+collapsed: false
+link:
+  type: doc
+  id: tests-index

@@ -1,3 +1,10 @@
+---
+id: contracts-overview-examples-async
+title: Async Communication Examples
+sidebar_label: Async Communication
+sidebar_position: 2
+---
+
 # Async Communication Examples
 
 This document describes some examples developed to illustrate async communication

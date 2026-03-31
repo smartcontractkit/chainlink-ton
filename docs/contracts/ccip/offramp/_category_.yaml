@@ -1,0 +1,7 @@
+position: 3
+label: Offramp
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-ccip-offramp-index

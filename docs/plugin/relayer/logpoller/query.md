@@ -1,3 +1,10 @@
+---
+id: plugin-relayer-logpoller-query
+title: Query Interface
+sidebar_label: Query Interface
+sidebar_position: 1
+---
+
 # TON Logpoller Query Interface
 
 ## Query Flow
@@ -40,6 +47,7 @@ sequenceDiagram
 ## TON Specific Features
 
 ### Filter Types
+
 - **Byte Filter**: Filter on specific byte values in BOC-encoded data
 - **Bit Filter**: Filter on bit-level patterns within data
 - **Field Filter**: Filter on structured fields (timestamp, block height, etc.)

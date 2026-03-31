@@ -1,0 +1,7 @@
+position: 1
+label: User Interface
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-ccip-router-user-interface-index

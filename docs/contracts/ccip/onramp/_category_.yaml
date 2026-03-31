@@ -1,0 +1,7 @@
+position: 2
+label: Onramp
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-ccip-onramp-index

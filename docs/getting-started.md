@@ -1,6 +1,13 @@
+---
+id: getting-started
+title: Getting Started
+sidebar_label: Getting Started
+sidebar_position: 2
+---
+
 # Chainlink TON - Getting started
 
-1. Install Nix following instructions [here](./.misc/dev-guides/nix/getting-started.md).
+1. Install Nix following instructions [here](./dev-guides/nix/getting-started.md).
 2. Explore developer environment
 3. Build available packages
 

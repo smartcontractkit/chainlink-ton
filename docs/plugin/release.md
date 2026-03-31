@@ -1,3 +1,10 @@
+---
+id: plugin-release
+title: Release
+sidebar_label: Release
+sidebar_position: 3
+---
+
 # Chainlink TON - LOOP plugin - Release
 
 ## Build & publish a Docker image
