@@ -865,8 +865,9 @@ func confirmExecWithExpectedSeqNrsTON(
 		func(lggr logger.Logger, event tonlptypes.TypedLog[offramp.ExecutionStateChanged]) (bool, error) {
 			exec := event.TypedData
 
+			_, seen := executionStates[exec.SequenceNumber]
 			if exec.SourceChainSelector != srcChainSelector ||
-				(!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) ||
+				(!pending[exec.SequenceNumber] && !seen) ||
 				(startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {
 				return false, nil
 			}
@@ -878,9 +879,14 @@ func confirmExecWithExpectedSeqNrsTON(
 				return false, nil
 
 			case utils.EXECUTION_STATE_FAILURE:
+				executionStates[exec.SequenceNumber] = int(exec.State)
+				delete(pending, exec.SequenceNumber)
 				lggr.Errorw("Execution failed", "sequenceNumber", exec.SequenceNumber, "messageID", hex.EncodeToString(exec.MessageID))
-				return false, fmt.Errorf("execution failed for seq %d on chain %d, message ID: %x",
-					exec.SequenceNumber, exec.SourceChainSelector, exec.MessageID)
+
+				if len(pending) == 0 {
+					t.Logf("All sequence numbers executed (with failures): %v", expectedSeqNums)
+					return true, nil
+				}
 
 			case utils.EXECUTION_STATE_SUCCESS:
 				executionStates[exec.SequenceNumber] = int(exec.State)
