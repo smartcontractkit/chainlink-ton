@@ -317,9 +317,8 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 	return nil, errors.ErrUnsupported
 }
 
-func (a *TONAdapter) GetTokenExpansionConfig() tokensapi.TokenExpansionInputPerChain {
-	// TODO: implement when TON token transfer support is added
-	return tokensapi.TokenExpansionInputPerChain{}
+func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
+	return nil, errors.ErrUnsupported
 }
 
 func (a *TONAdapter) GetRegistryAddress() (string, error) {

@@ -16,9 +16,9 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/smartcontractkit/chain-selectors v1.0.97
-	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260331164527-6a2392a4bdc8
-	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20260317185256-d5f7db87ae70
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260331144324-6e92e9cb9861
+	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260331203127-b8dc0a6b85c5
+	github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment v0.0.0-20260331200043-8fe20f5147c8
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260331203127-b8dc0a6b85c5
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260327152052-032e58514a84
 	github.com/smartcontractkit/chainlink-common/keystore v1.0.2
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340

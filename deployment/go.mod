@@ -9,8 +9,8 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/samber/lo v1.52.0
 	github.com/smartcontractkit/chain-selectors v1.0.97
-	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260331164527-6a2392a4bdc8
-	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260331144324-6e92e9cb9861
+	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260331203127-b8dc0a6b85c5
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260331203127-b8dc0a6b85c5
 	github.com/smartcontractkit/chainlink-common v0.10.1-0.20260310151336-c98a9c147ac0
 	github.com/smartcontractkit/chainlink-deployments-framework v0.80.2
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.17.0
