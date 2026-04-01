@@ -33,7 +33,7 @@ require (
 	github.com/smartcontractkit/mcms v0.38.2
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
-	google.golang.org/grpc v1.79.2
+	google.golang.org/grpc v1.79.3
 )
 
 require (
