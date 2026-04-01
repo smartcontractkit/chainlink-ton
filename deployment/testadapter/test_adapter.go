@@ -151,13 +151,10 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 }
 
 func (a *TONAdapter) EOAReceiver(t *testing.T) []byte {
-	// t.Skip("TON doesn't have EOA accounts")
 	receiverAddr := a.WalletAddress
 	ac := codec.NewAddressCodec()
 	receiver, err := ac.AddressStringToBytes(receiverAddr.String())
-	if err != nil {
-		panic(fmt.Sprintf("failed to convert TON address to bytes: %v", err))
-	}
+	require.NoError(t, err, "failed to convert TON address to bytes")
 	return receiver
 }
 
@@ -217,10 +214,6 @@ func (a *TONAdapter) NativeFeeToken() string {
 	return tvm.TonTokenAddr.String()
 }
 
-// TODO: use constants from chainlink-ccip once merged
-const ExtraArgGasLimit = "gasLimit|computeUnits"
-const ExtraArgOOO = "outOfOrderExecutionEnabled"
-
 func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
@@ -232,12 +225,12 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 		// override via options
 		for _, opt := range opts {
 			switch opt.Name {
-			case ExtraArgGasLimit:
+			case testadapters.ExtraArgGasLimit:
 				extraArgs.GasLimit = opt.Value.(*big.Int)
-			case ExtraArgOOO:
+			case testadapters.ExtraArgOOO:
 				extraArgs.AllowOutOfOrderExecution = opt.Value.(bool)
 			default:
-				// unsupported arg
+				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
 			}
 		}
 		return ccipcommon.SerializeClientGenericExtraArgsV2(extraArgs)

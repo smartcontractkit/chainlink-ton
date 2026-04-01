@@ -26,7 +26,7 @@
     "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write .",
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
-    "getKeyPair": "ts-node scripts/getKeyPair.ts"
+    "get-key-pair": "ts-node scripts/getKeyPair.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",
