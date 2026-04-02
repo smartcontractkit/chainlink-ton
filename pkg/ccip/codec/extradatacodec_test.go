@@ -51,25 +51,25 @@ func Test_decodeExtraArgs(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, output, 5)
 
-		gasLimit, exist := output["ComputeUnits"]
+		gasLimit, exist := output["computeUnits"]
 		require.True(t, exist)
 		require.Equal(t, destGasAmount, gasLimit)
 
-		writableBitmap, exist := output["AccountIsWritableBitmap"]
+		writableBitmap, exist := output["accountIsWritableBitmap"]
 		require.True(t, exist)
 		require.Equal(t, bitmap, writableBitmap)
 
-		ooe, exist := output["AllowOutOfOrderExecution"]
+		ooe, exist := output["allowOutOfOrderExecution"]
 		require.True(t, exist)
 		require.Equal(t, false, ooe)
 
-		tr, exist := output["TokenReceiver"]
+		tr, exist := output["tokenReceiver"]
 		require.True(t, exist)
 		var expectedReceiver [32]byte
 		copy(expectedReceiver[:], solana.SystemProgramID.Bytes())
 		require.Equal(t, expectedReceiver, tr)
 
-		accounts, exist := output["Accounts"]
+		accounts, exist := output["accounts"]
 		require.True(t, exist)
 		accountsArr, ok := accounts.([][32]byte)
 		require.True(t, ok, "expected [][32]byte, got %T", accounts)
@@ -93,11 +93,11 @@ func Test_decodeExtraArgs(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, output, 2)
 
-		gasLimit, exist := output["GasLimit"]
+		gasLimit, exist := output["gasLimit"]
 		require.True(t, exist)
 		require.Equal(t, big.NewInt(5000), gasLimit)
 
-		ooe, exist := output["AllowOutOfOrderExecution"]
+		ooe, exist := output["allowOutOfOrderExecution"]
 		require.True(t, exist)
 		require.Equal(t, false, ooe)
 	})
@@ -134,19 +134,19 @@ func Test_decodeExtraArgs(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, output, 4)
 
-		gl, exist := output["GasLimit"]
+		gl, exist := output["gasLimit"]
 		require.True(t, exist)
 		require.Equal(t, gasLimit, gl)
 
-		ooe, exist := output["AllowOutOfOrderExecution"]
+		ooe, exist := output["allowOutOfOrderExecution"]
 		require.True(t, exist)
 		require.Equal(t, true, ooe)
 
-		tr, exist := output["TokenReceiver"]
+		tr, exist := output["tokenReceiver"]
 		require.True(t, exist)
 		require.Equal(t, [32]byte(*suiReceiverBytes), tr)
 
-		roids, exist := output["ReceiverObjectIDs"]
+		roids, exist := output["receiverObjectIDs"]
 		require.True(t, exist)
 		roidsArr, ok := roids.([][32]byte)
 		require.True(t, ok, "expected [][32]byte, got %T", roids)

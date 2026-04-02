@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -78,7 +79,10 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 		if !field.IsExported() {
 			continue
 		}
-		outputMap[field.Name] = normalizeFieldValue(field, val.Field(i).Interface())
+		if len(field.Name) > 0 {
+			lowerCamelCase := strings.ToLower(field.Name[:1]) + field.Name[1:]
+			outputMap[lowerCamelCase] = normalizeFieldValue(field, val.Field(i).Interface())
+		}
 	}
 
 	return outputMap, nil
