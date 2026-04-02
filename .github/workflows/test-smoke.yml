@@ -53,7 +53,7 @@ jobs:
     - name: Trigger Chainlink CCIP TON Smoke Tests
       env:
         GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
-        # Deployment configuration
+        # Deployment configurations
         WORKFLOW_FILE: .github/workflows/test_smoke.yml
         TARGET_REPO: smartcontractkit/chainlink-ccip
         TARGET_BRANCH: ton-qa-tests # TODO change back to main
