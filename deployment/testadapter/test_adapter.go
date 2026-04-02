@@ -238,7 +238,7 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 	case chain_selectors.FamilyTon:
 		return nil, nil
 	case chain_selectors.FamilySolana:
-		// Solana->TON: Solana fee quoter expects Borsh-encoded GenericExtraArgsV2 with OOO=true
+		// Solana -> TON: Solana fee quoter expects Borsh-encoded GenericExtraArgsV2 with OOO=true
 		// for non-SVM destinations. Format: [4-byte BE tag][Borsh data].
 		gasLimit := ag_binary.Uint128{Lo: 100_000_000}
 		ooo := true
