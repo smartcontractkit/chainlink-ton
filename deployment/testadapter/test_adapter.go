@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	ag_binary "github.com/gagliardetto/binary"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
@@ -237,7 +238,34 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 	case chain_selectors.FamilyTon:
 		return nil, nil
 	case chain_selectors.FamilySolana:
-		return nil, nil
+		// Solana->TON: Solana fee quoter expects Borsh-encoded GenericExtraArgsV2 with OOO=true
+		// for non-SVM destinations. Format: [4-byte BE tag][Borsh data].
+		gasLimit := ag_binary.Uint128{Lo: 100_000_000}
+		ooo := true
+		for _, opt := range opts {
+			switch opt.Name {
+			case testadapters.ExtraArgGasLimit:
+				gasLimit = ag_binary.Uint128{Lo: opt.Value.(*big.Int).Uint64()}
+			case testadapters.ExtraArgOOO:
+				ooo = opt.Value.(bool)
+			default:
+				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
+			}
+		}
+		type borshGenericExtraArgsV2 struct {
+			GasLimit                 ag_binary.Uint128
+			AllowOutOfOrderExecution bool
+		}
+		data, err := ag_binary.MarshalBorsh(borshGenericExtraArgsV2{
+			GasLimit:                 gasLimit,
+			AllowOutOfOrderExecution: ooo,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to borsh-serialize extra args: %w", err)
+		}
+		// Tag: bytes4(keccak256("CCIP EVMExtraArgsV2")) = 0x181dcf10
+		tag := []byte{0x18, 0x1d, 0xcf, 0x10}
+		return append(tag, data...), nil
 	default:
 		// TODO: add support for other families
 		return nil, fmt.Errorf("unsupported source family: %s", sourceFamily)
