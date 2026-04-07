@@ -11,7 +11,6 @@ import (
 
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
-
 	cmnlogger "github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -44,25 +43,32 @@ type opsAnySequence struct {
 	contractProvider opston.ContractCodeProvider
 }
 
+func NewOpsAnySequenceWithDefaultContractProvider(registry tvm.ContractTLBRegistry) cldf.ChangeSetV2[OpsAnySequence] {
+	// Use a default provider that fetches contracts from the registry on-demand.
+	// This allows using the changeset without explicitly providing a contract provider, while still supporting dynamic contract fetching.
+	lggr, _ := cmnlogger.New()
+
+	provider := tonprovider.NewContractCodeProvider(context.Background(), lggr)
+	return NewOpsAnySequence(registry, provider)
+}
+
 // NewOpsAnySequence creates the OpsAnySequence changeset with a lazy contract provider.
-func NewOpsAnySequence(registry tvm.ContractTLBRegistry) cldf.ChangeSetV2[OpsAnySequence] {
+func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.ContractCodeProvider) cldf.ChangeSetV2[OpsAnySequence] {
 	// Create provider that will fetch contracts on-demand based on ContractRef in metadata.
 	// We use background context here since this is called at registry initialization time.
-	lggr, _ := cmnlogger.New()
-	contractProvider := tonprovider.NewContractCodeProvider(context.Background(), lggr)
 
 	// Build the base resolver registry once at construction time.
 	rregistry := *codec.NewResolverRegistry(
 		codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(registry)),
 		codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
 		codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
-		codec.NewTypedResolver(resolversd.NewContractToCellResolver(contractProvider)),
+		codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),
 	)
 
 	return &opsAnySequence{
 		tlbRegistry:      registry,
 		rregistry:        rregistry,
-		contractProvider: contractProvider,
+		contractProvider: provider,
 	}
 }
 
