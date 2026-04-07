@@ -28,16 +28,6 @@ import (
 
 var _ cldf.ChangeSetV2[OpsAnySequence] = (*opsAnySequence)(nil)
 
-// errorProvider is a ContractCodeProvider that always returns an error.
-// Used when provider initialization fails.
-type errorProvider struct {
-	err error
-}
-
-func (e *errorProvider) GetContract(meta opston.ContractMetadata) (opston.CompiledContract, error) {
-	return opston.CompiledContract{}, e.err
-}
-
 type OpsAnySequence struct {
 	// Together form underlying opsmcms.TimelockAnySequenceInput
 	AnySequenceIn opston.AnySequenceInput `json:"anySequenceIn"`
@@ -56,10 +46,10 @@ type opsAnySequence struct {
 
 // NewOpsAnySequence creates the OpsAnySequence changeset with a lazy contract provider.
 func NewOpsAnySequence(registry tvm.ContractTLBRegistry) cldf.ChangeSetV2[OpsAnySequence] {
-	// Create lazy provider that will fetch contracts on-demand based on ContractRef in metadata.
+	// Create provider that will fetch contracts on-demand based on ContractRef in metadata.
 	// We use background context here since this is called at registry initialization time.
 	lggr, _ := cmnlogger.New()
-	contractProvider := tonprovider.NewLazyContractCodeProvider(context.Background(), lggr)
+	contractProvider := tonprovider.NewContractCodeProvider(context.Background(), lggr)
 
 	// Build the base resolver registry once at construction time.
 	rregistry := *codec.NewResolverRegistry(

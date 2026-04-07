@@ -2,12 +2,13 @@ package ton // alias: opston
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -69,6 +70,13 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to message: %w", err)
 			}
 
+			if _im.Body != nil {
+				b.Logger.Debugf("SendMessages: after ToMessage() bodyHash=%s bodyBits=%d bodyRefs=%d dstAddr=%s amount=%s",
+					hex.EncodeToString(_im.Body.Hash()),
+					_im.Body.BitsSize(), _im.Body.RefsNum(),
+					_im.DstAddr.String(), _im.Amount.String())
+			}
+
 			if _im.Amount.IsZero() {
 				continue // skip zero-value messages (no-op)
 			}
@@ -80,7 +88,7 @@ var SendMessages = cldf_ops.NewOperation(
 
 			// If address is empty but there is StateInit then we calculate the address and send the message  there
 			address := _im.DstAddr
-			if (_im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress)) { 
+			if _im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress) {
 				if _im.StateInit == nil {
 					return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address with empty StateInit", opcode)
 				} else {
@@ -196,6 +204,8 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 			// for a few specific cases (e.g. empty messages, access control forward notifications)
 			err = tracetracking.WaitForTrace(ctxWithTimeout, chain.Client, _tx, bindings.DefaultTraceStopCondition)
 			if err != nil {
+				received, _ := tracetracking.MapToReceivedMessage(_tx)
+				b.Logger.Debugf("Msg tree trace:\n%s\n", debug.NewDebuggerTreeTrace(nil).DumpReceived(&received))
 				return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
 			}
 		}

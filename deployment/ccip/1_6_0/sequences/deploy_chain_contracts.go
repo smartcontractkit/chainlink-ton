@@ -63,10 +63,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 		if contractsRef == "" {
 			contractsRef = utils.ContractsVersionLatestSupported
 		}
-		contractProvider, err := tonprovider.NewContractCodeProvider(b.GetContext(), b.Logger, contractsRef)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to create contract code provider from ref %q: %w", contractsRef, err)
-		}
+		contractProvider := tonprovider.NewContractCodeProvider(b.GetContext(), b.Logger)
 
 		dp, err := dep.NewDependencyProvider(
 			dep.Provide(chain),
@@ -81,6 +78,7 @@ var DeployChainContracts = cldf_ops.NewSequence(
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
+		seqInput.ContractsRef = contractsRef
 		ccipSeqReport, err := cldf_ops.ExecuteSequence(b, seq.DeployCCIPSequence, dp, seqInput)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to deploy CCIP for TON chain %d: %w", input.ChainSelector, err)

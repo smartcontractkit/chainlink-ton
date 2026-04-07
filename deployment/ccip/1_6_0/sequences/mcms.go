@@ -58,10 +58,7 @@ var DeployMCMSContracts = cldfops.NewSequence(
 		if contractsRef == "" {
 			contractsRef = utils.ContractsVersionLatestSupported
 		}
-		contractProvider, err := tonprovider.NewContractCodeProvider(b.GetContext(), b.Logger, contractsRef)
-		if err != nil {
-			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to create contract code provider from ref %q: %w", contractsRef, err)
-		}
+		contractProvider := tonprovider.NewContractCodeProvider(b.GetContext(), b.Logger)
 		dp, err = dp.With(dep.Provide[opston.ContractCodeProvider](contractProvider))
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to add contract provider to dependency provider: %w", err)
@@ -79,6 +76,7 @@ var DeployMCMSContracts = cldfops.NewSequence(
 		r, err := cldfops.ExecuteSequence(b, opsmcms.DeployMCMSSequence, dp, opsmcms.DeployMCMSSeqInput{
 			Config:                  input.MCMSDeploymentConfigPerChain,
 			ContractID:              uint32(contractID),
+			ContractsRef:            contractsRef,
 			ContractsSemverMCMS:     &state.MCMSVersion,
 			ContractsSemverTimelock: &state.TimelockVersion,
 		})

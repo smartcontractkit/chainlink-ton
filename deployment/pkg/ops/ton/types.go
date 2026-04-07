@@ -120,10 +120,10 @@ type ContractCodeProvider interface {
 }
 
 type ContractMetadata struct {
-	Package     string          `json:"package"`     // Name of the package where the contract is defined (e.g., "github.com/smartcontractkit/chainlink-ton")
-	Version     *semver.Version `json:"version"`     // Semantic version of the contract package (e.g., semver.MustParse("1.6.0"))
-	ContractRef string          `json:"contractRef"` // Contracts ref to fetch from (e.g., "1.6.0", "sha:054376f", "local") - tells provider which source to use
-	ID          string          `json:"id"`          // Contract identifier within the package (e.g., "mcms.RBACTimelock") (can be a path, or maps to a path within the package)
+	Package     string          `json:"package"`      // Name of the package where the contract is defined (e.g., "github.com/smartcontractkit/chainlink-ton")
+	Version     *semver.Version `json:"version"`      // Version of the contract package (e.g., semver.MustParse("0.1.0"))
+	ContractRef string          `json:"contract_ref"` // Contracts ref used to fetch compiled code (e.g., "1.6.0", "sha:054376f", "local")
+	ID          string          `json:"id"`           // Contract identifier within the package (e.g., "mcms.RBACTimelock") (can be a path, or maps to a path within the package)
 }
 
 func (m ContractMetadata) Key() string {

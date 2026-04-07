@@ -33,6 +33,7 @@ import (
 type DeployCCIPSeqInput struct {
 	CCIPConfig    ccipConfig.ChainContractParams
 	ChainSelector uint64
+	ContractsRef  string // contracts ref used to fetch compiled contract code (e.g., "local", "sha:054376f", "1.6.0")
 }
 
 var DeployCCIPSequence = operations.NewSequence(
@@ -60,7 +61,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	// helper to fetch a compiled contract by its state type ID
 	getContract := func(contractType datastore.ContractType) (opston.CompiledContract, error) {
-		return contractProvider.GetContract(opston.ContractMetadata{ID: string(contractType)})
+		return contractProvider.GetContract(opston.ContractMetadata{ID: string(contractType), ContractRef: in.ContractsRef})
 	}
 
 	// TODO: don't directly execute deployments, instead return them as txs

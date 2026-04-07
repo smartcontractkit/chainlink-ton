@@ -57,6 +57,7 @@ type DeployMCMSSeqInput struct {
 	TimelockExecutorRoleCheckEnabled bool             `json:"timelockExecutorRoleCheckEnabled"` // optional, if not provided, defaults to false (TON does not have a CallProxy, so we disable executor role check by default)
 
 	// Deployment metadata
+	ContractsRef            string          `json:"contractsRef"`            // contracts ref used to fetch compiled contract code
 	ContractsSemverMCMS     *semver.Version `json:"contractsSemverMCMS"`     // used as DS addr version metadata for the deployed MCMS contracts
 	ContractsSemverTimelock *semver.Version `json:"contractsSemverTimelock"` // used as DS addr version metadata for the deployed Timelock contracts
 }
@@ -112,11 +113,11 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	if err != nil {
 		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to resolve contract code provider: %w", err)
 	}
-	mcmsContract, err := contractProvider.GetContract(opston.ContractMetadata{ID: string(state.MCMS)})
+	mcmsContract, err := contractProvider.GetContract(opston.ContractMetadata{ID: string(state.MCMS), ContractRef: in.ContractsRef})
 	if err != nil {
 		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to get MCMS contract: %w", err)
 	}
-	timelockContract, err := contractProvider.GetContract(opston.ContractMetadata{ID: string(state.Timelock)})
+	timelockContract, err := contractProvider.GetContract(opston.ContractMetadata{ID: string(state.Timelock), ContractRef: in.ContractsRef})
 	if err != nil {
 		return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to get Timelock contract: %w", err)
 	}

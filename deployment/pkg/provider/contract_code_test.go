@@ -42,14 +42,14 @@ func TestNewContractCodeProvider_Local(t *testing.T) {
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	codeProvider, err := provider.NewContractCodeProvider(ctx, lggr, utils.ContractsVersionLocal)
-	require.NoError(t, err)
+	codeProvider := provider.NewContractCodeProvider(ctx, lggr)
 	require.NotNil(t, codeProvider)
 
 	for _, ct := range allMappedContractTypes {
 		t.Run(ct.Name, func(t *testing.T) {
 			meta := opston.ContractMetadata{
-				ID: ct.Type,
+				ID:          ct.Type,
+				ContractRef: utils.ContractsVersionLocal,
 			}
 
 			compiled, err := codeProvider.GetContract(meta)
@@ -66,11 +66,11 @@ func TestContractProvider_GetContract_NotFound(t *testing.T) {
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	codeProvider, err := provider.NewContractCodeProvider(ctx, lggr, utils.ContractsVersionLocal)
-	require.NoError(t, err)
+	codeProvider := provider.NewContractCodeProvider(ctx, lggr)
 
 	meta := opston.ContractMetadata{
-		ID: "NonExistentContract",
+		ID:          "NonExistentContract",
+		ContractRef: utils.ContractsVersionLocal,
 	}
 
 	_, err = codeProvider.GetContract(meta)
@@ -78,68 +78,64 @@ func TestContractProvider_GetContract_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "contract not found for ID")
 }
 
-func TestLazyContractProvider_FetchesOnFirstUse(t *testing.T) {
+func TestContractProvider_FetchesOnFirstUse(t *testing.T) {
 	ctx := context.Background()
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	// Create lazy provider (ref is specified per-contract in metadata)
-	lazyProvider := provider.NewLazyContractCodeProvider(ctx, lggr)
+	codeProvider := provider.NewContractCodeProvider(ctx, lggr)
 
 	// First call should trigger fetch
 	meta := opston.ContractMetadata{
 		ID:          string(state.Router),
 		ContractRef: utils.ContractsVersionLocal,
 	}
-	compiled, err := lazyProvider.GetContract(meta)
+	compiled, err := codeProvider.GetContract(meta)
 	require.NoError(t, err)
 	assert.Equal(t, string(state.Router), compiled.Metadata.ID)
 	assert.Equal(t, utils.ContractsVersionLocal, compiled.Metadata.ContractRef)
 
 	// Second call should use cached provider
-	compiled2, err := lazyProvider.GetContract(meta)
+	compiled2, err := codeProvider.GetContract(meta)
 	require.NoError(t, err)
 	assert.Equal(t, compiled.Metadata.ID, compiled2.Metadata.ID)
 }
 
-func TestLazyContractProvider_EmptyRef(t *testing.T) {
+func TestContractProvider_EmptyRef(t *testing.T) {
 	ctx := context.Background()
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	// Create lazy provider
-	lazyProvider := provider.NewLazyContractCodeProvider(ctx, lggr)
+	codeProvider := provider.NewContractCodeProvider(ctx, lggr)
 
 	// Attempting to get a contract without ContractRef in metadata should fail with a clear error
 	meta := opston.ContractMetadata{ID: string(state.Router)}
-	_, err = lazyProvider.GetContract(meta)
+	_, err = codeProvider.GetContract(meta)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ContractRef is required")
-	assert.Contains(t,  err.Error(), string(state.Router))
+	assert.Contains(t, err.Error(), string(state.Router))
 }
 
-func TestLazyContractProvider_MultipleRefs(t *testing.T) {
+func TestContractProvider_MultipleRefs(t *testing.T) {
 	ctx := context.Background()
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	// Create lazy provider
-	lazyProvider := provider.NewLazyContractCodeProvider(ctx, lggr)
+	codeProvider := provider.NewContractCodeProvider(ctx, lggr)
 
 	// Fetch contract with first ref
 	meta1 := opston.ContractMetadata{
 		ID:          string(state.Router),
 		ContractRef: utils.ContractsVersionLocal,
 	}
-	compiled1, err := lazyProvider.GetContract(meta1)
+	compiled1, err := codeProvider.GetContract(meta1)
 	require.NoError(t, err)
 	assert.Equal(t, utils.ContractsVersionLocal, compiled1.Metadata.ContractRef)
 
 	// Fetch same contract type but with different ref (this demonstrates caching by ref)
 	// Note: we can't actually test with a different valid ref easily here,
 	// so we just validate that the same ref works repeatedly
-	compiled2, err := lazyProvider.GetContract(meta1)
+	compiled2, err := codeProvider.GetContract(meta1)
 	require.NoError(t, err)
 	assert.Equal(t, compiled1.Metadata.ID, compiled2.Metadata.ID)
 }
-

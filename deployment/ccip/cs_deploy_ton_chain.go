@@ -97,10 +97,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	if contractsRef == "" {
 		contractsRef = utils.ContractsVersionLatestSupported
 	}
-	contractProvider, err := tonprovider.NewContractCodeProvider(env.GetContext(), env.Logger, contractsRef)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create contract code provider: %w", err)
-	}
+	contractProvider := tonprovider.NewContractCodeProvider(env.GetContext(), env.Logger)
 
 	dp, err := dep.NewDependencyProvider(
 		dep.Provide(chain),
@@ -115,6 +112,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		CCIPConfig:    cfg.Params,
 		ChainSelector: selector,
+		ContractsRef:  contractsRef,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, dp, ccipSeqInput)
 	if err != nil {
