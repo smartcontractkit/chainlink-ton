@@ -2,7 +2,7 @@
 id: dev-guides-nix-getting-started
 title: Getting Started
 sidebar_label: Getting Started
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # Getting started - Nix

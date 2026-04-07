@@ -2,7 +2,7 @@
 id: dev-guides-explorer-usage
 title: Usage
 sidebar_label: Usage
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # TON Explorer Usage Guide

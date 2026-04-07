@@ -2,7 +2,7 @@
 id: contracts-ccip-offramp-arbitrary-msg
 title: Arbitrary Message Offramp Flow
 sidebar_label: Arbitrary Messages
-sidebar_position: 2
+sidebar_position: 1
 ---
 
 # Arbitrary Message OffRamp Flow

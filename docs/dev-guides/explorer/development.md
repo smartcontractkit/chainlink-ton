@@ -2,7 +2,7 @@
 id: dev-guides-explorer-development
 title: Development
 sidebar_label: Development
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # TON Explorer Development Guide

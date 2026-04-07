@@ -3,7 +3,7 @@ id: contracts-overview-contracts-other-deployable
 slug: deployable
 title: Deployable
 sidebar_label: Deployable
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # Deployable Contract

@@ -2,7 +2,7 @@
 id: contracts-build
 title: Build
 sidebar_label: Build
-sidebar_position: 2
+sidebar_position: 4
 ---
 
 # Building Contracts

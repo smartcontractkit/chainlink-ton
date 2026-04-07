@@ -3,7 +3,7 @@ id: contracts-development
 slug: development
 title: Development
 sidebar_label: Development
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # Contract Development Guide

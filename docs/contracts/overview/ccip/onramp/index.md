@@ -1,14 +1,14 @@
 ---
 id: contracts-ccip-onramp-index
 slug: onramp
-title: Onramp
+title: OnRamp
 sidebar_label: Overview
 sidebar_position: 1
 ---
 
-# Onramp
+# OnRamp
 
-The onramp flow covers how CCIP send requests are accepted, stored, and prepared for downstream processing.
+The OnRamp flow covers how CCIP send requests are accepted, stored, and prepared for downstream processing.
 
 ## Relationship Diagram
 

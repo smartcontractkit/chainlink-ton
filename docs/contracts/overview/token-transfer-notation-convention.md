@@ -1,8 +1,9 @@
 ---
-id: contracts-ccip-flow-token-transfer-notation-convention
+id: contracts-overview-token-transfer-notation-convention
+slug: /contracts/overview/token-transfer-notation-convention
 title: Token Transfer Notation Convention
 sidebar_label: Token Transfer Notation Convention
-sidebar_position: 3
+sidebar_position: 7
 ---
 
 # Token Transfer Notation Convention

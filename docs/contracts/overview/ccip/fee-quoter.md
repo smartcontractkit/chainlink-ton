@@ -3,7 +3,7 @@ id: contracts-ccip-fee-quoter
 slug: fee-quoter
 title: FeeQuoter
 sidebar_label: FeeQuoter
-sidebar_position: 4
+sidebar_position: 6
 ---
 
 # FeeQuoter

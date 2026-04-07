@@ -2,8 +2,8 @@
 id: contracts-ccip-router-user-interface-receiver
 slug: receiver
 title: Receiver User Interface
-sidebar_label: User Interface
-sidebar_position: 5
+sidebar_label: Receiver
+sidebar_position: 3
 ---
 
 # Receiver User Interface

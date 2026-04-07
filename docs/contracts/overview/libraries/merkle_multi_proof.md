@@ -2,7 +2,7 @@
 id: contracts-overview-libraries-merkle-multi-proof
 title: MerkleMultiProof
 sidebar_label: MerkleMultiProof
-sidebar_position: 2
+sidebar_position: 4
 ---
 
 # MerkleMultiProof Library

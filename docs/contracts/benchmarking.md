@@ -3,7 +3,7 @@ id: contracts-benchmarking
 slug: benchmarking
 title: Benchmarking
 sidebar_label: Benchmarking
-sidebar_position: 6
+sidebar_position: 8
 ---
 
 # Contract Benchmarking

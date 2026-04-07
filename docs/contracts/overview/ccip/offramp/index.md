@@ -1,13 +1,13 @@
 ---
 id: contracts-ccip-offramp-index
-title: Offramp
+title: OffRamp
 sidebar_label: Overview
-sidebar_position: 1
+sidebar_position: 2
 ---
 
-# Offramp
+# OffRamp
 
-The offramp flow covers how validated CCIP messages are received, executed, and surfaced to destination contracts and applications.
+The OffRamp flow covers how validated CCIP messages are received, executed, and surfaced to destination contracts and applications.
 
 ## Relationship Diagram
 

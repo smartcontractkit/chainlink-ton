@@ -2,7 +2,7 @@
 id: tests-ccip-e2e
 title: CCIP E2E
 sidebar_label: CCIP E2E
-sidebar_position: 2
+sidebar_position: 1
 ---
 
 # Chainlink-TON End-to-End Testing Setup

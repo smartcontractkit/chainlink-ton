@@ -3,7 +3,7 @@ id: contracts-coverage
 slug: coverage
 title: Coverage
 sidebar_label: Coverage
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # Test Coverage

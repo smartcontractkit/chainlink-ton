@@ -2,7 +2,7 @@
 id: contracts-overview-libraries-upgradeable
 title: Upgradeable
 sidebar_label: Upgradeable
-sidebar_position: 4
+sidebar_position: 3
 ---
 
 # Upgradeable Library

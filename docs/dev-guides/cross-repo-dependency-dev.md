@@ -2,7 +2,7 @@
 id: dev-guides-cross-repo-dependency-dev
 title: Cross-Repo Dependency Development
 sidebar_label: Cross-Repo Dependencies
-sidebar_position: 3
+sidebar_position: 1
 ---
 
 # Cross-Repository Change Flow: chainlink-ton ↔ chainlink Core
