@@ -17,7 +17,10 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	tonprovider "github.com/smartcontractkit/chainlink-ton/deployment/pkg/provider"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -49,6 +52,19 @@ var DeployMCMSContracts = cldfops.NewSequence(
 		)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
+		}
+
+		contractsRef := input.ContractVersion
+		if contractsRef == "" {
+			contractsRef = utils.ContractsVersionLatestSupported
+		}
+		contractProvider, err := tonprovider.NewContractCodeProvider(b.GetContext(), b.Logger, contractsRef)
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to create contract code provider from ref %q: %w", contractsRef, err)
+		}
+		dp, err = dp.With(dep.Provide[opston.ContractCodeProvider](contractProvider))
+		if err != nil {
+			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to add contract provider to dependency provider: %w", err)
 		}
 
 		// Generate a random contract ID used for contracts in this deployment

@@ -27,7 +27,9 @@ import (
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	tonprovider "github.com/smartcontractkit/chainlink-ton/deployment/pkg/provider"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 // defaultCCIPContractCoin is the default amount of TON coins to allocate for each CCIP contract deployment.
@@ -57,9 +59,19 @@ var DeployChainContracts = cldf_ops.NewSequence(
 			return sequences.OnChainOutput{}, err
 		}
 
+		contractsRef := input.ContractVersion
+		if contractsRef == "" {
+			contractsRef = utils.ContractsVersionLatestSupported
+		}
+		contractProvider, err := tonprovider.NewContractCodeProvider(b.GetContext(), b.Logger, contractsRef)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to create contract code provider from ref %q: %w", contractsRef, err)
+		}
+
 		dp, err := dep.NewDependencyProvider(
 			dep.Provide(chain),
 			dep.Provide(stateCCIP),
+			dep.Provide[opston.ContractCodeProvider](contractProvider),
 		)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
@@ -216,7 +228,6 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		return seq.DeployCCIPSeqInput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 	}
 	return seq.DeployCCIPSeqInput{
-		ContractsVersionSha: cfg.ContractVersion,
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
 				ID:                           contractID,

@@ -1,7 +1,9 @@
 package changesets
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -9,6 +11,8 @@ import (
 
 	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+
+	cmnlogger "github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
@@ -18,10 +22,21 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	tonprovider "github.com/smartcontractkit/chainlink-ton/deployment/pkg/provider"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
-var _ cldf.ChangeSetV2[OpsAnySequence] = opsAnySequence{}
+var _ cldf.ChangeSetV2[OpsAnySequence] = (*opsAnySequence)(nil)
+
+// errorProvider is a ContractCodeProvider that always returns an error.
+// Used when provider initialization fails.
+type errorProvider struct {
+	err error
+}
+
+func (e *errorProvider) GetContract(meta opston.ContractMetadata) (opston.CompiledContract, error) {
+	return opston.CompiledContract{}, e.err
+}
 
 type OpsAnySequence struct {
 	// Together form underlying opsmcms.TimelockAnySequenceInput
@@ -34,37 +49,59 @@ type OpsAnySequence struct {
 
 // opsAnySequence deploys MCMS packages and modules
 type opsAnySequence struct {
+	tlbRegistry      tvm.ContractTLBRegistry
 	rregistry        codec.ResolverRegistry
 	contractProvider opston.ContractCodeProvider
 }
 
-func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.ContractCodeProvider) cldf.ChangeSetV2[OpsAnySequence] {
-	return opsAnySequence{
-		// Register static resolvers
-		rregistry: *codec.NewResolverRegistry(
-			codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(registry)),
-			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
-			codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
-			codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),
-		),
-		contractProvider: provider,
+// NewOpsAnySequence creates the OpsAnySequence changeset with a lazy contract provider.
+func NewOpsAnySequence(registry tvm.ContractTLBRegistry) cldf.ChangeSetV2[OpsAnySequence] {
+	// Create lazy provider that will fetch contracts on-demand based on ContractRef in metadata.
+	// We use background context here since this is called at registry initialization time.
+	lggr, _ := cmnlogger.New()
+	contractProvider := tonprovider.NewLazyContractCodeProvider(context.Background(), lggr)
+
+	// Build the base resolver registry once at construction time.
+	rregistry := *codec.NewResolverRegistry(
+		codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(registry)),
+		codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
+		codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
+		codec.NewTypedResolver(resolversd.NewContractToCellResolver(contractProvider)),
+	)
+
+	return &opsAnySequence{
+		tlbRegistry:      registry,
+		rregistry:        rregistry,
+		contractProvider: contractProvider,
 	}
 }
 
-func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ OpsAnySequence) error {
+func (cs *opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ OpsAnySequence) error {
 	return nil
 }
 
-func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.ChangesetOutput, error) {
+func (cs *opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.ChangesetOutput, error) {
+	_, cancel := context.WithTimeout(env.OperationsBundle.GetContext(), 5*time.Minute)
+	defer cancel()
+
+	// Rebuild the resolver registry with base resolvers + environment-specific resolvers.
+	// We rebuild from scratch to avoid polluting the shared base registry.
+	rregistry := *codec.NewResolverRegistry(
+		codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(cs.tlbRegistry)),
+		codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(cs.tlbRegistry)),
+		codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(cs.tlbRegistry)),
+		codec.NewTypedResolver(resolversd.NewContractToCellResolver(cs.contractProvider)),
+	)
+
 	selector := in.Options.ChainSelector
 
 	chain := env.BlockChains.TonChains()[uint64(selector)]
 
 	// Register environment-specific resolvers
-	cs.rregistry.Register(
+	rregistry.Register(
 		codec.NewTypedResolver(resolversd.NewTonAddrResolver(uint64(selector), env.DataStore)),
 	)
-	cs.rregistry.Register(
+	rregistry.Register(
 		codec.NewTypedResolver(resolversd.NewTopUpResolver(uint64(selector), env.DataStore, chain)),
 	)
 
@@ -84,7 +121,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 		dep.Provide(chain),
 		dep.Provide(stateCCIP[uint64(selector)]),
 		dep.Provide(stateMCMS[uint64(selector)]),
-		dep.Provide(cs.contractProvider),
+		dep.Provide[opston.ContractCodeProvider](cs.contractProvider),
 	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
@@ -94,7 +131,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 	//
 	// Notice: we try to resolve the the underlying operation inputs using the registered resolvers.
 	// For example, this allows resolving extended high-level input (any) before unmarshaling into (raw) op.IN types.
-	resolvedInputs, err := cs.rregistry.Resolve(in.AnySequenceIn.Inputs)
+	resolvedInputs, err := rregistry.Resolve(in.AnySequenceIn.Inputs)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to resolve input: %w", err)
 	}

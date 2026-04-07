@@ -13,10 +13,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -28,11 +30,15 @@ import (
 )
 
 const (
-	contractsGithubOrganization  = "smartcontractkit"
-	contractsGithubRepository    = "chainlink-ton"
-	contractsGithubReleasePrefix = "ton-contracts-build-"
-	contractsGithubAssetPrefix   = "ton-contracts-build-"
-	contractsFileNameSuffix      = ".compiled.json"
+	contractsGithubOrganization = "smartcontractkit"
+	contractsGithubRepository   = "chainlink-ton"
+	contractsFileNameSuffix     = ".compiled.json"
+
+	// release tag prefixes
+	contractsGithubReleaseSHAPrefix    = "ton-contracts-build-"    // ton-contracts-build-{sha}
+	contractsGithubReleaseSemverPrefix = "ton-contracts-v"         // ton-contracts-v{semver}
+	contractsGithubAssetSHAPrefix      = "ton-contracts-build-"    // asset name for sha releases
+	contractsGithubAssetSemverPrefix   = "ton-contracts-v"         // asset name for semver releases
 
 	// Contract version definitions
 	ContractsVersionLocal = "local"
@@ -40,6 +46,70 @@ const (
 	// while a specific version should be pinned for releases (production deployments).
 	ContractsVersionLatestSupported = "054376f21418" // Feb 19, 2026
 )
+
+// ContractsSourceKind identifies how compiled contracts should be fetched.
+type ContractsSourceKind string
+
+const (
+	ContractsSourceKindGithubSemver ContractsSourceKind = "github-semver" // ton-contracts-v{semver} release
+	ContractsSourceKindGithubSHA    ContractsSourceKind = "github-sha"    // ton-contracts-build-{sha} release
+	ContractsSourceKindLocal        ContractsSourceKind = "local"         // local contracts/build/ directory
+)
+
+// ContractsSource is the parsed representation of a contracts ref string.
+type ContractsSource struct {
+	Kind    ContractsSourceKind
+	Version string // semver string (e.g. "1.6.0") or commit sha (e.g. "054376f21418")
+	Path    string // only for local with a custom path prefix (ContractsSourceKindLocal)
+}
+
+// reHexSHA matches a short commit SHA (6-40 lowercase hex chars) to support the legacy bare-sha format.
+var reHexSHA = regexp.MustCompile(`^[0-9a-f]{6,40}$`)
+
+// ParseContractsRef parses a contracts ref string into a ContractsSource.
+//
+// Supported formats:
+//
+//	"local"              – read from the repo-root contracts/build/ directory
+//	"local:/abs/path"    – read from the given absolute directory
+//	"1.6.0" / "v1.6.0"  – GitHub release tagged as ton-contracts-v1.6.0
+//	"sha:054376f21418"   – GitHub release tagged as ton-contracts-build-054376f21418
+//	"054376f21418"       – legacy bare hex SHA; same as sha: prefix
+func ParseContractsRef(ref string) (ContractsSource, error) {
+	if ref == "" {
+		return ContractsSource{}, errors.New("contracts ref must not be empty")
+	}
+	if ref == ContractsVersionLocal {
+		return ContractsSource{Kind: ContractsSourceKindLocal}, nil
+	}
+	if strings.HasPrefix(ref, "local:") {
+		path := strings.TrimPrefix(ref, "local:")
+		if !filepath.IsAbs(path) {
+			return ContractsSource{}, fmt.Errorf("local path must be absolute, got: %q", path)
+		}
+		return ContractsSource{Kind: ContractsSourceKindLocal, Path: path}, nil
+	}
+	if strings.HasPrefix(ref, "sha:") {
+		sha := strings.TrimPrefix(ref, "sha:")
+		if sha == "" {
+			return ContractsSource{}, errors.New("sha: prefix requires a non-empty commit SHA")
+		}
+		return ContractsSource{Kind: ContractsSourceKindGithubSHA, Version: sha}, nil
+	}
+	// Try semver (handles both "1.6.0" and "v1.6.0")
+	if _, err := semver.NewVersion(ref); err == nil {
+		ver := strings.TrimPrefix(ref, "v")
+		return ContractsSource{Kind: ContractsSourceKindGithubSemver, Version: ver}, nil
+	}
+	// Legacy: bare hex string treated as a commit SHA
+	if reHexSHA.MatchString(ref) {
+		return ContractsSource{Kind: ContractsSourceKindGithubSHA, Version: ref}, nil
+	}
+	return ContractsSource{}, fmt.Errorf(
+		"invalid contracts ref %q: expected a semver (e.g. \"1.6.0\"), "+
+			"sha: prefix (e.g. \"sha:054376f\"), \"local\", or \"local:/abs/path\"", ref,
+	)
+}
 
 type ContractMappingMetadata struct {
 	CompiledVersionKey string
@@ -93,6 +163,8 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 }
 
 type RetrieveCompiledContractsInput struct {
+	// ContractsVersionSha accepts any contracts ref string understood by ParseContractsRef:
+	// a semver (e.g. "1.6.0"), "sha:<commit>", a bare hex SHA, "local", or "local:/abs/path".
 	ContractsVersionSha string
 	Contracts           []ds.ContractType
 }
@@ -108,45 +180,65 @@ type RetrieveCompiledContractsOutput struct {
 	CompiledContracts map[ds.ContractType]CompiledContractData
 }
 
-func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
+func RetrieveCompiledTONContracts(ctx context.Context, lggr logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
 	output := RetrieveCompiledContractsOutput{}
 
 	if err := in.Validate(); err != nil {
 		return output, err
 	}
 
-	if in.ContractsVersionSha != ContractsVersionLocal {
-		// Download contracts
-		// TODO we could optimize this even more by passing the file names to extract from the release package
+	source, err := ParseContractsRef(in.ContractsVersionSha)
+	if err != nil {
+		return output, fmt.Errorf("invalid contracts ref: %w", err)
+	}
+
+	// buildDir returns the directory where compiled contract files live.
+	// For a custom local path we use that directly; otherwise fall back to the
+	// repo-root-relative helpers.GetBuildDir.
+	buildDir := func(contractPath string) string {
+		if source.Kind == ContractsSourceKindLocal && source.Path != "" {
+			return filepath.Join(source.Path, contractPath)
+		}
+		return helpers.GetBuildDir(ctx, contractPath)
+	}
+
+	if source.Kind != ContractsSourceKindLocal {
+		// Determine the GitHub release tag and asset name from the source kind.
+		var releaseTag, assetName string
+		switch source.Kind {
+		case ContractsSourceKindGithubSemver:
+			releaseTag = contractsGithubReleaseSemverPrefix + source.Version
+			assetName = contractsGithubAssetSemverPrefix + source.Version
+		case ContractsSourceKindGithubSHA:
+			releaseTag = contractsGithubReleaseSHAPrefix + source.Version
+			assetName = contractsGithubAssetSHAPrefix + source.Version
+		}
+
 		downloadArtifactsInput := DownloadArtifactsInput{
 			Organization:        contractsGithubOrganization,
 			Repository:          contractsGithubRepository,
-			Release:             contractsGithubReleasePrefix + in.ContractsVersionSha,
-			Asset:               contractsGithubAssetPrefix + in.ContractsVersionSha,
+			Release:             releaseTag,
+			Asset:               assetName,
 			FilesSuffixToFilter: contractsFileNameSuffix,
 		}
 		downloadArtifactsOutput, err := DownloadArtifacts(ctx, downloadArtifactsInput)
-
 		if err != nil {
 			return output, err
 		}
 
-		if err := os.MkdirAll(helpers.GetBuildDir(ctx, ""), 0o755); err != nil {
+		if err := os.MkdirAll(buildDir(""), 0o755); err != nil {
 			return output, fmt.Errorf("failed to create dirs to store contracts: %w", err)
 		}
 
 		for _, a := range downloadArtifactsOutput.Artifacts {
-			// Save the files in the corresponding location so that the deployment operations can find them
-			path := helpers.GetBuildDir(ctx, a.Path)
-
+			path := buildDir(a.Path)
 			if err := os.WriteFile(path, a.Data, 0o600); err != nil {
 				return output, fmt.Errorf("failed to write contract artifact to path %s: %w", path, err)
 			}
-
-			logger.Infof("Saved contractType artifact %s", path)
+			lggr.Infof("Saved contractType artifact %s", path)
 		}
 	} else {
-		logger.Infof("Not downloading contracts from Github. Using local version")
+		lggr.Infof("Not downloading contracts from Github. Using local version")
 	}
 
 	// If no contractType is specified, let's get all of them
@@ -163,7 +255,7 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 			return output, fmt.Errorf("unknown contractType: %s", contractType)
 		}
 
-		contractPath := helpers.GetBuildDir(ctx, contractMetadata.CompiledVersionKey)
+		contractPath := buildDir(contractMetadata.CompiledVersionKey)
 		contractCode, err := wrappers.ParseCompiledContract(contractPath)
 		if err != nil {
 			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)

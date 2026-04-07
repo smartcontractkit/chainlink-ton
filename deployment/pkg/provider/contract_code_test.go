@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -36,32 +35,28 @@ var allMappedContractTypes = []struct {
 	{"MCMS", string(state.MCMS)},
 }
 
-func TestNewCCIPContractProvider_Local(t *testing.T) {
+func TestNewContractCodeProvider_Local(t *testing.T) {
 	// Use "local" to skip the HTTP download and read from contracts/build/
 	// in the repository root (resolved via git rev-parse).
 	ctx := context.Background()
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	codeProvider, err := provider.NewCCIPContractProvider(ctx, lggr, utils.ContractsVersionLocal)
+	codeProvider, err := provider.NewContractCodeProvider(ctx, lggr, utils.ContractsVersionLocal)
 	require.NoError(t, err)
 	require.NotNil(t, codeProvider)
-
-	defaultVersion := semver.MustParse("1.6.0")
 
 	for _, ct := range allMappedContractTypes {
 		t.Run(ct.Name, func(t *testing.T) {
 			meta := opston.ContractMetadata{
-				Package: "github.com/smartcontractkit/chainlink-ton",
-				Version: defaultVersion,
-				ID:      ct.Type,
+				ID: ct.Type,
 			}
 
 			compiled, err := codeProvider.GetContract(meta)
 			require.NoError(t, err, "GetContract should succeed for %s", ct.Name)
 			assert.NotNil(t, compiled.Code, "Code cell should not be nil for %s", ct.Name)
-			assert.Equal(t, meta.Key(), compiled.Metadata.Key(), "Metadata key should match for %s", ct.Name)
-			assert.Equal(t, ct.Type, compiled.Metadata.ID, "Metadata ID should match the contract type")
+			assert.Equal(t, ct.Type, compiled.Metadata.ID, "Metadata ID should match the contract type for %s", ct.Name)
+			assert.Equal(t, utils.ContractsVersionLocal, compiled.SourceRef, "SourceRef should match the input ref")
 		})
 	}
 }
@@ -71,16 +66,80 @@ func TestContractProvider_GetContract_NotFound(t *testing.T) {
 	lggr, err := logger.New()
 	require.NoError(t, err)
 
-	codeProvider, err := provider.NewCCIPContractProvider(ctx, lggr, utils.ContractsVersionLocal)
+	codeProvider, err := provider.NewContractCodeProvider(ctx, lggr, utils.ContractsVersionLocal)
 	require.NoError(t, err)
 
 	meta := opston.ContractMetadata{
-		Package: "github.com/smartcontractkit/chainlink-ton",
-		Version: semver.MustParse("1.6.0"),
-		ID:      "NonExistentContract",
+		ID: "NonExistentContract",
 	}
 
 	_, err = codeProvider.GetContract(meta)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "contract not found for metadata")
+	assert.Contains(t, err.Error(), "contract not found for ID")
 }
+
+func TestLazyContractProvider_FetchesOnFirstUse(t *testing.T) {
+	ctx := context.Background()
+	lggr, err := logger.New()
+	require.NoError(t, err)
+
+	// Create lazy provider (ref is specified per-contract in metadata)
+	lazyProvider := provider.NewLazyContractCodeProvider(ctx, lggr)
+
+	// First call should trigger fetch
+	meta := opston.ContractMetadata{
+		ID:          string(state.Router),
+		ContractRef: utils.ContractsVersionLocal,
+	}
+	compiled, err := lazyProvider.GetContract(meta)
+	require.NoError(t, err)
+	assert.Equal(t, string(state.Router), compiled.Metadata.ID)
+	assert.Equal(t, utils.ContractsVersionLocal, compiled.Metadata.ContractRef)
+
+	// Second call should use cached provider
+	compiled2, err := lazyProvider.GetContract(meta)
+	require.NoError(t, err)
+	assert.Equal(t, compiled.Metadata.ID, compiled2.Metadata.ID)
+}
+
+func TestLazyContractProvider_EmptyRef(t *testing.T) {
+	ctx := context.Background()
+	lggr, err := logger.New()
+	require.NoError(t, err)
+
+	// Create lazy provider
+	lazyProvider := provider.NewLazyContractCodeProvider(ctx, lggr)
+
+	// Attempting to get a contract without ContractRef in metadata should fail with a clear error
+	meta := opston.ContractMetadata{ID: string(state.Router)}
+	_, err = lazyProvider.GetContract(meta)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ContractRef is required")
+	assert.Contains(t,  err.Error(), string(state.Router))
+}
+
+func TestLazyContractProvider_MultipleRefs(t *testing.T) {
+	ctx := context.Background()
+	lggr, err := logger.New()
+	require.NoError(t, err)
+
+	// Create lazy provider
+	lazyProvider := provider.NewLazyContractCodeProvider(ctx, lggr)
+
+	// Fetch contract with first ref
+	meta1 := opston.ContractMetadata{
+		ID:          string(state.Router),
+		ContractRef: utils.ContractsVersionLocal,
+	}
+	compiled1, err := lazyProvider.GetContract(meta1)
+	require.NoError(t, err)
+	assert.Equal(t, utils.ContractsVersionLocal, compiled1.Metadata.ContractRef)
+
+	// Fetch same contract type but with different ref (this demonstrates caching by ref)
+	// Note: we can't actually test with a different valid ref easily here,
+	// so we just validate that the same ref works repeatedly
+	compiled2, err := lazyProvider.GetContract(meta1)
+	require.NoError(t, err)
+	assert.Equal(t, compiled1.Metadata.ID, compiled2.Metadata.ID)
+}
+

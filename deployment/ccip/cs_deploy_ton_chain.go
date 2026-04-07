@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	tonprovider "github.com/smartcontractkit/chainlink-ton/deployment/pkg/provider"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
@@ -92,9 +93,19 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	states[selector] = s
 
+	contractsRef := cfg.ContractsVersion
+	if contractsRef == "" {
+		contractsRef = utils.ContractsVersionLatestSupported
+	}
+	contractProvider, err := tonprovider.NewContractCodeProvider(env.GetContext(), env.Logger, contractsRef)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create contract code provider: %w", err)
+	}
+
 	dp, err := dep.NewDependencyProvider(
 		dep.Provide(chain),
 		dep.Provide(states[selector]),
+		dep.Provide[opston.ContractCodeProvider](contractProvider),
 	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
@@ -102,9 +113,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
-		CCIPConfig:          cfg.Params,
-		ContractsVersionSha: cfg.ContractsVersion,
-		ChainSelector:       selector,
+		CCIPConfig:    cfg.Params,
+		ChainSelector: selector,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, dp, ccipSeqInput)
 	if err != nil {

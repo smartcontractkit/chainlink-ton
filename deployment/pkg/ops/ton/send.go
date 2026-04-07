@@ -78,8 +78,14 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to extract opcode from message body: %w", err)
 			}
 
-			if _im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress) {
-				return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address", opcode)
+			// If address is empty but there is StateInit then we calculate the address and send the message  there
+			address := _im.DstAddr
+			if (_im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress)) { 
+				if _im.StateInit == nil {
+					return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address with empty StateInit", opcode)
+				} else {
+					address = _im.StateInit.CalcAddress(0)
+				}
 			}
 
 			_imc, err := tlbe.NewCellFrom(*_im)
@@ -89,7 +95,7 @@ var SendMessages = cldf_ops.NewOperation(
 
 			plan := MessagePlanRaw{
 				Opcode:  opcode,
-				DstAddr: _im.DstAddr,
+				DstAddr: address,
 				Amount:  m.Amount,
 
 				Cell: _imc,

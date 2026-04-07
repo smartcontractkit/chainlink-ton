@@ -80,7 +80,6 @@ var Deploy = operations.NewOperation(
 			m := u.Message
 			_messages[i] = InternalMessage[any]{
 				Bounce:  m.Bounce,
-				DstAddr: m.DstAddr,
 				Amount:  m.Amount,
 				Body:    m.Body,
 				StateInit: &StateInit{
