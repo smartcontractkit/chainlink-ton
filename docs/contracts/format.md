@@ -5,7 +5,7 @@ sidebar_label: Format
 sidebar_position: 6
 ---
 
-# Chainlink TON - Smart Contracts - Format
+# Format
 
 In the [contracts](../../contracts/) directory there is both Tact and Typescript code. The following commands allow you to check for formatting errors and correct them. These should be run inside the contracts directory.
 

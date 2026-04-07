@@ -5,7 +5,7 @@ sidebar_label: Upgradeable
 sidebar_position: 4
 ---
 
-# Chainlink TON - Contract upgradability - Upgradeable
+# Upgradeable Library
 
 This module implements the ability for a contract to upgrade its code and migrate its storage layout from one version to another.
 
