@@ -1,7 +1,6 @@
 package upgradeable
 
 import (
-	"encoding/hex"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -68,15 +67,6 @@ var Upgrade = operations.NewOperation(
 				return UpgradeOutput{}, fmt.Errorf("failed to get contract code: %w", err)
 			}
 
-			b.Logger.Debugf("Fetched contract code for upgrade: package=%s version=%s contractRef=%s id=%s codeHash=%s sourceRef=%s",
-				u.ContractMeta.Package,
-				u.ContractMeta.Version,
-				u.ContractMeta.ContractRef,
-				u.ContractMeta.ID,
-				hex.EncodeToString(c.Code.Hash()),
-				c.SourceRef,
-			)
-
 			// prepare message with loaded code
 			m := u.Message
 
@@ -88,8 +78,6 @@ var Upgrade = operations.NewOperation(
 				if err != nil {
 					return UpgradeOutput{}, fmt.Errorf("failed to wrap upgrade message: %w", err)
 				}
-				b.Logger.Debugf("Created upgrade message body: opcode=0x%08x queryID=%d contractType=%s",
-					body.Metadata.Opcode, body.Value.QueryID, contractType)
 			}
 
 			// Map to MessageEnvelope[any]
@@ -103,22 +91,6 @@ var Upgrade = operations.NewOperation(
 			bodyCell, err := tlb.ToCell(val)
 			if err != nil {
 				return UpgradeOutput{}, fmt.Errorf("failed to serialize upgrade body to cell: %w", err)
-			}
-
-			b.Logger.Debugf("Upgrade message[%d]: dstAddr=%s bounce=%v amount=%s bodyCellHash=%s bodyCellBits=%d bodyCellRefs=%d",
-				i, m.DstAddr.String(), m.Bounce, m.Amount.String(),
-				hex.EncodeToString(bodyCell.Hash()),
-				bodyCell.BitsSize(), bodyCell.RefsNum())
-
-			// Round-trip verification: deserialize the body cell back to Upgrade struct
-			var roundTrip upgradeable.Upgrade
-			if err := tlb.LoadFromCell(&roundTrip, bodyCell.BeginParse()); err != nil {
-				b.Logger.Debugf("WARNING: body cell round-trip deserialization FAILED: %v", err)
-			} else {
-				b.Logger.Debugf("Round-trip OK: queryID=%d codeHash=%s codeIsNil=%v",
-					roundTrip.QueryID,
-					hex.EncodeToString(roundTrip.Code.Hash()),
-					roundTrip.Code == nil)
 			}
 
 			bodyAny := &codec.MessageEnvelope[any]{

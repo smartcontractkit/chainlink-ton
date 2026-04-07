@@ -2,7 +2,6 @@ package ton // alias: opston
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -68,13 +67,6 @@ var SendMessages = cldf_ops.NewOperation(
 			_im, err := m.ToMessage()
 			if err != nil {
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to message: %w", err)
-			}
-
-			if _im.Body != nil {
-				b.Logger.Debugf("SendMessages: after ToMessage() bodyHash=%s bodyBits=%d bodyRefs=%d dstAddr=%s amount=%s",
-					hex.EncodeToString(_im.Body.Hash()),
-					_im.Body.BitsSize(), _im.Body.RefsNum(),
-					_im.DstAddr.String(), _im.Amount.String())
 			}
 
 			if _im.Amount.IsZero() {
