@@ -27,6 +27,7 @@ import "events"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
+const MIN_GASLIMIT = ton("0.01");
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -375,6 +376,10 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
     var gasLimit: coins = message.gasLimit;
+    if (message.gasLimit < MIN_GASLIMIT) {
+        return blockMsg(st, msg.execId, message.receiver);
+    }
+
     if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
         gasLimit = msg.gasOverride;
     }
@@ -397,6 +402,18 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     });
 
     routeMessage.send(SEND_MODE_REGULAR);
+}
+
+fun blockMsg(st: Storage, execId: uint192, receiver: address) {
+    val receiveBounced = createMessage({
+        bounce: true,
+        value: 0,
+        dest: getReceiverExecutorDeployAddress(st, execId),
+        body: ReceiveExecutor_Bounced{
+            receiver: receiver
+        }
+    });
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.
