@@ -58,7 +58,7 @@ sequenceDiagram
     deactivate U
 ```
 
-## Stuck messages
+## Messages Stuck In-Progress  
 
 Messages can get stuck in an "In Progress" state for two reasons:
 
