@@ -93,6 +93,12 @@ sequenceDiagram
 
     activate OR
     Note over OR: Verifies sender is ReceiveExecutor
+    Note over OR: Verifies gasLimit is above minimum
+    alt Gas limit too low
+    OR ->> RE: Bounced { receiver }
+    Note over RE: [...]
+    else
+
     OR ->> R: RouteMessage { dest: receiver,<br>message: CCIPReceive { execId,<br>message: { messageId,<br>sourceChain, sender, data }
     deactivate OR
 
@@ -102,6 +108,7 @@ sequenceDiagram
     Note over R: Verifies sender is OffRamp
     Note over R: SENDS message to Receiver
     deactivate R
+    end
 ```
 
 See [user interface](../router/user-interface/receiver.md) for more details on communication between User and Router.
