@@ -20,7 +20,7 @@ contract_name/
 ├── messages.tolk  // message definitions
 ├── storage.tolk   // storage definitions
 ├── errors.tolk    // error codes and messages
-└── types.tolk     // type definitions and facility*
+└── types.tolk     // type definitions and facility (see below)
 ```
 
 ## Main file
@@ -63,9 +63,9 @@ Note that, in the union declaration, we put one message per line and the semicol
 
 ### On message location
 
-Of course, a message is imported by used by multiple contracts, some send it, and others receive it. We have come up with the following conventions to determine where to locate message definitions:
+Of course, a message is imported and used by multiple contracts, some send it, and others receive it. We have come up with the following conventions to determine where to locate message definitions:
 
-- If the interface is of type request-response, both the incomming and outgoing message definitions should be owned by the contract that receives the request.
+- If the interface is of type request-response, both the incoming and outgoing message definitions should be owned by the contract that receives the request.
 - If the interface is of type proxy, the message definitions should be owned by the contract that receives the message.
 
 This is not a strict rule, but we found it helps to keep the code organized and easier to navigate.
@@ -94,7 +94,7 @@ struct ContractName_Storage {
 }
 ```
 
-Every contract storage exposes a `load` and `store` methods for loading the storage from the blockchain and storing it back after mutating it. Most use the automaticall serialization provided by Tolk, but for more complex cases, we have implemented some custom serialization.
+Every contract storage exposes a `load` and `store` methods for loading the storage from the blockchain and storing it back after mutating it. Most use the automatic serialization provided by Tolk, but for more complex cases, we have implemented some custom serialization.
 
 ```tolk
 fun ContractName_Storage.load(): ContractName_Storage {
@@ -137,4 +137,4 @@ The error code is given by the formula `facility_id * 100 + error_index`, result
 
 In TON, contract addresses are determined by the init state, i.e. the code and data used to deploy the contract. This allows a contract receiver of a message to verify that a sender is of a certain type by calculating the hash of the expected init state of the sender, with a known version of the code and a predictable data (for example, with a known owner or with the address of the receiver as a parameter, plus an id to allow for multiplicity). However, this creates an issue when a new version of a contract is released. Now, newer versions will have a different state init, thus a different address, making it impossible for the receiver to verify the sender is of the expected type. On the other hand, if the receiver switches to the new version, then it won't be able to receive messages from the old version.
 
-To solve this issue, we created the [Deployable contract](./other_contracts/deployable.md), which provides a standard init state for contracts, with a predictable data that includes the facility name of the contract. This allows us to have deterministic addresses for contracts, even across different versions, as long as they use the same facility name. The details of the implementation can be found in the [contract's documentation](./other_contracts/deployable.md).
+To solve this issue, we created the [Deployable contract](./overview/deployable.md), which provides a standard init state for contracts, with a predictable data that includes the facility name of the contract. This allows us to have deterministic addresses for contracts, even across different versions, as long as they use the same facility name. The details of the implementation can be found in the [contract's documentation](./overview/deployable.md).
