@@ -5,12 +5,12 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms/types"
@@ -35,6 +35,8 @@ import (
 
 // TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
 type TonLaneAdapter struct{}
+
+var _ lanes.LaneAdapter = &TonLaneAdapter{}
 
 func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	return getOnRampAddress(ds, chainSelector)
@@ -483,5 +485,3 @@ func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.App
 		OffRampRemoves: nil,
 	}, nil
 }
-
-var _ lanes.LaneAdapter = &TonLaneAdapter{}

@@ -248,7 +248,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 				PendingOwner: address.NewAddressNone(),
 			},
 			AuthorizedCaller: &routerAddress,
-			Behavior:         receiver.Accept,
+			Behavior:         receiver.BehaviorAccept,
 		}
 
 		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)

@@ -46,9 +46,9 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/common/types"
 
+	"github.com/smartcontractkit/chainlink-common/keystore/corekeys/p2pkey"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	ccipcaptypes "github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/types"
-	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
 
 	mocks "github.com/smartcontractkit/chainlink-ton/deployment/mocks/client"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"

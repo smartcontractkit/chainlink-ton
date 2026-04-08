@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	ag_binary "github.com/gagliardetto/binary"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccip/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -36,8 +38,11 @@ import (
 	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
@@ -112,17 +117,25 @@ func (a *TONAdapter) BuildMessage(components testadapters.MessageComponents) (an
 	}, nil
 }
 
-func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, error) {
+func (a *TONAdapter) SendMessage(ctx context.Context, destChainSelector uint64, m any) (uint64, string, error) {
 	l := zerolog.Ctx(ctx)
 	l.Info().Msg("Sending CCIP message")
 
 	msg, ok := m.(router.CCIPSend)
 	if !ok {
-		return 0, errors.New("expected router.CCIPSend")
+		return 0, "", errors.New("expected router.CCIPSend")
 	}
 
-	seq, _, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
-	return seq, err
+	seq, eAny, err := SendCCIPMessage(ctx, a.Chain, a.state, a.Selector, msg)
+	if err != nil {
+		return 0, "", err
+	}
+	event, ok := eAny.(onramp.CCIPMessageSent)
+	if !ok {
+		return 0, "", errors.New("expected onramp.CCIPMessageSent")
+	}
+	messageID := hex.EncodeToString(event.Message.Header.MessageID)
+	return seq, messageID, nil
 }
 
 func (a *TONAdapter) CCIPReceiver() []byte {
@@ -137,25 +150,43 @@ func (a *TONAdapter) CCIPReceiver() []byte {
 	}
 	return receiver
 }
-func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) error {
+
+func (a *TONAdapter) EOAReceiver(t *testing.T) []byte {
+	receiverAddr := a.WalletAddress
+	ac := codec.NewAddressCodec()
+	receiver, err := ac.AddressStringToBytes(receiverAddr.String())
+	require.NoError(t, err, "failed to convert TON address to bytes")
+	return receiver
+}
+
+func (a *TONAdapter) InvalidAddresses() [][]byte {
+	ac := codec.NewAddressCodec()
+	zeroAddress, err := ac.AddressStringToBytes(tvm.ZeroAddress.String())
+	if err != nil {
+		panic(fmt.Sprintf("failed to convert TON address to bytes: %v", err))
+	}
+
+	return [][]byte{
+		{99},
+		zeroAddress,
+	}
+}
+
+func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, t *testing.T, rejectAll bool) error {
 	receiverAddr, err := a.getAddress("Receiver")
 	if err != nil {
 		return err
 	}
-	type updateBehavior struct {
-		_        tlb.Magic `tlb:"#e7fabde3" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-		Behavior uint8     `tlb:"## 8"`
-	}
-	var behavior uint8
-	if rejectAll {
-		behavior = 1
-	}
 
-	bodyCell, err := tlb.ToCell(updateBehavior{Behavior: behavior})
+	behavior := receiver.BehaviorAccept
+	if rejectAll {
+		behavior = receiver.BehaviorRejectAll
+	}
+	bodyCell, err := tlb.ToCell(receiver.UpdateBehavior{Behavior: behavior})
 	if err != nil {
 		return err
 	}
-	_, _, err = a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
+	tx, _, err := a.Wallet.SendWaitTransaction(ctx, &wallet.Message{
 		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
@@ -165,16 +196,24 @@ func (a *TONAdapter) SetReceiverRejectAll(ctx context.Context, rejectAll bool) e
 			Body:        bodyCell,
 		},
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to send transaction: %w", err)
+	}
+	msg, err := tracetracking.MapToReceivedMessage(tx)
+	if err != nil {
+		return fmt.Errorf("failed to map tx to ReceivedMessage: %w", err)
+	}
+	err = msg.WaitForTrace(ctx, a.Client)
+	if err != nil {
+		return fmt.Errorf("failed to wait for trace: %w", err)
+	}
+	t.Logf("Receiver Reject All %v:\n%s", rejectAll, debug.NewDebuggerSequenceTrace(nil, sequenceDiagram.OutputFmtURL).DumpReceived(&msg))
+	return nil
 }
 
 func (a *TONAdapter) NativeFeeToken() string {
 	return tvm.TonTokenAddr.String()
 }
-
-// TODO: use constants from chainlink-ccip once merged
-const ExtraArgGasLimit = "gasLimit|computeUnits"
-const ExtraArgOOO = "outOfOrderExecutionEnabled"
 
 func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...testadapters.ExtraArgOpt) ([]byte, error) {
 	switch sourceFamily {
@@ -187,23 +226,54 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 		// override via options
 		for _, opt := range opts {
 			switch opt.Name {
-			case ExtraArgGasLimit:
+			case testadapters.ExtraArgGasLimit:
 				extraArgs.GasLimit = opt.Value.(*big.Int)
-			case ExtraArgOOO:
+			case testadapters.ExtraArgOOO:
 				extraArgs.AllowOutOfOrderExecution = opt.Value.(bool)
 			default:
-				// unsupported arg
+				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
 			}
 		}
 		return ccipcommon.SerializeClientGenericExtraArgsV2(extraArgs)
 	case chain_selectors.FamilyTon:
 		return nil, nil
 	case chain_selectors.FamilySolana:
-		return nil, nil
+		// Solana -> TON: Solana fee quoter expects Borsh-encoded GenericExtraArgsV2 with OOO=true
+		// for non-SVM destinations. Format: [4-byte BE tag][Borsh data]
+		gasLimit := ag_binary.Uint128{Lo: 100_000_000}
+		ooo := true
+		for _, opt := range opts {
+			switch opt.Name {
+			case testadapters.ExtraArgGasLimit:
+				gasLimit = ag_binary.Uint128{Lo: opt.Value.(*big.Int).Uint64()}
+			case testadapters.ExtraArgOOO:
+				ooo = opt.Value.(bool)
+			default:
+				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
+			}
+		}
+		type borshGenericExtraArgsV2 struct {
+			GasLimit                 ag_binary.Uint128
+			AllowOutOfOrderExecution bool
+		}
+		data, err := ag_binary.MarshalBorsh(borshGenericExtraArgsV2{
+			GasLimit:                 gasLimit,
+			AllowOutOfOrderExecution: ooo,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to borsh-serialize extra args: %w", err)
+		}
+		// Tag: bytes4(keccak256("CCIP EVMExtraArgsV2")) = 0x181dcf10
+		tag := []byte{0x18, 0x1d, 0xcf, 0x10}
+		return append(tag, data...), nil
 	default:
 		// TODO: add support for other families
 		return nil, fmt.Errorf("unsupported source family: %s", sourceFamily)
 	}
+}
+
+func (a *TONAdapter) LowGasLimit() *big.Int {
+	return tlb.MustFromTON("0.001").Nano()
 }
 
 func (a *TONAdapter) GetInboundNonce(ctx context.Context, sender []byte, srcSel uint64) (uint64, error) {
@@ -223,10 +293,10 @@ func (a *TONAdapter) ValidateCommit(t *testing.T, sourceSelector uint64, startBl
 	require.NoError(t, err)
 }
 
-func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (executionStates map[uint64]int) {
+func (a *TONAdapter) ValidateExecSucceeds(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) (execStates map[uint64]int) {
 	offRamp, err := a.getAddress("OffRamp")
 	require.NoError(t, err)
-	executionStates, err = confirmExecWithExpectedSeqNrsTON(
+	execStates, err = confirmExecWithExpectedSeqNrsTON(
 		t,
 		sourceSelector,
 		a.Chain,
@@ -235,7 +305,27 @@ func (a *TONAdapter) ValidateExec(t *testing.T, sourceSelector uint64, startBloc
 		seqNrs,
 	)
 	require.NoError(t, err)
-	return executionStates
+	return execStates
+}
+
+func (a *TONAdapter) ValidateExecFails(t *testing.T, sourceSelector uint64, startBlock *uint64, seqNrs []uint64) {
+	offRamp, err := a.getAddress("OffRamp")
+	require.NoError(t, err)
+	executionStates, err := confirmExecWithExpectedSeqNrsTON(
+		t,
+		sourceSelector,
+		a.Chain,
+		offRamp,
+		startBlock,
+		seqNrs,
+	)
+	require.NoError(t, err)
+	for _, seqNr := range seqNrs {
+		state, ok := executionStates[seqNr]
+		require.True(t, ok, "no execution state found for seqNr %d", seqNr)
+		require.Equal(t, int(utils.EXECUTION_STATE_FAILURE), state,
+			"expected execution state FAILURE for seqNr %d, got state %d", seqNr, state)
+	}
 }
 
 func (a *TONAdapter) AllowRouterToWithdrawTokens(ctx context.Context, tokenAddress string, amount *big.Int) error {
@@ -248,14 +338,167 @@ func (a *TONAdapter) GetTokenBalance(ctx context.Context, tokenAddress string, o
 	return nil, errors.ErrUnsupported
 }
 
-func (a *TONAdapter) GetTokenExpansionConfig() tokensapi.TokenExpansionInputPerChain {
-	// TODO: implement when TON token transfer support is added
-	return tokensapi.TokenExpansionInputPerChain{}
+func (a *TONAdapter) GetTokenExpansionConfig() (*tokensapi.TokenExpansionInputPerChain, error) {
+	return nil, errors.ErrUnsupported
 }
 
 func (a *TONAdapter) GetRegistryAddress() (string, error) {
 	// TODO: implement when TON token transfer support is added
 	return "", errors.ErrUnsupported
+}
+
+func (a *TONAdapter) CurrentBlock(t *testing.T) uint64 {
+	info, err := a.Client.GetMasterchainInfo(t.Context())
+	require.NoError(t, err)
+	return uint64(info.SeqNo)
+}
+
+func (a *TONAdapter) SetAllowlist(t *testing.T, destChainSelector uint64, enabled bool) error {
+	routerStr, err := a.state.GetAddress(state.Router)
+	if err != nil {
+		return fmt.Errorf("failed to get router address: %w", err)
+	}
+	routerAddr := address.MustParseAddr(routerStr)
+	onrampStr, err := a.state.GetAddress(state.OnRamp)
+	if err != nil {
+		return fmt.Errorf("failed to get onramp address: %w", err)
+	}
+	onrampAddr := address.MustParseAddr(onrampStr)
+	msg := onramp.UpdateDestChainConfigsMessage{
+		Updates: common.SnakedCell[onramp.UpdateDestChainConfig]{
+			onramp.UpdateDestChainConfig{
+				DestinationChainSelector: destChainSelector,
+				Router:                   routerAddr,
+				AllowListEnabled:         enabled,
+			},
+		},
+	}
+
+	bodyCell, err := tlb.ToCell(msg)
+	if err != nil {
+		return fmt.Errorf("failed to convert allowlist update message to cell: %w", err)
+	}
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     onrampAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send allowlist update transaction: %w", err)
+	}
+	err = tracetracking.WaitForTrace(t.Context(), a.Client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for allowlist update message: %w", err)
+	}
+	return nil
+}
+
+func (a *TONAdapter) UpdateSenderAllowlistStatus(t *testing.T, destChainSelector uint64, included bool) error {
+	onrampStr, err := a.state.GetAddress(state.OnRamp)
+	if err != nil {
+		return fmt.Errorf("failed to get onramp address: %w", err)
+	}
+	onrampAddr := address.MustParseAddr(onrampStr)
+	add, remove := func() (common.SnakedCell[common.AddressWrap], common.SnakedCell[common.AddressWrap]) {
+		sender := common.SnakedCell[common.AddressWrap]{
+			common.AddressWrap{
+				Val: a.Wallet.WalletAddress(),
+			},
+		}
+		if included {
+			return sender, common.SnakedCell[common.AddressWrap]{}
+		}
+		return common.SnakedCell[common.AddressWrap]{}, sender
+	}()
+	updates := common.SnakedCell[onramp.UpdateAllowlist]{
+		onramp.UpdateAllowlist{
+			DestinationChainSelector: destChainSelector,
+			Add:                      add,
+			Remove:                   remove,
+		},
+	}
+	msg := onramp.UpdateAllowlists{
+		Updates: updates,
+	}
+
+	bodyCell, err := tlb.ToCell(msg)
+	if err != nil {
+		return fmt.Errorf("failed to convert allowlist update message to cell: %w", err)
+	}
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     onrampAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send allowlist update transaction: %w", err)
+	}
+	err = tracetracking.WaitForTrace(t.Context(), a.Client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for allowlist update message: %w", err)
+	}
+	return nil
+}
+
+func (a *TONAdapter) RMNCursed(t *testing.T, chainSelector uint64, cursed bool) error {
+	routerStr, err := a.state.GetAddress(state.Router)
+	if err != nil {
+		return fmt.Errorf("failed to get router address: %w", err)
+	}
+	routerAddr := address.MustParseAddr(routerStr)
+	queryID, err := tvm.RandomQueryID()
+	if err != nil {
+		return fmt.Errorf("failed to generate random query ID: %w", err)
+	}
+	subjects := common.SnakedCell[router.Subject]{
+		router.Subject{
+			Value: new(big.Int).SetUint64(chainSelector),
+		},
+	}
+
+	bodyCell, err := func() (*cell.Cell, error) {
+		if cursed {
+			return tlb.ToCell(router.RMNRemoteCurse{
+				QueryID:  queryID,
+				Subjects: subjects,
+			})
+		}
+		return tlb.ToCell(router.RMNRemoteUncurse{
+			QueryID:  queryID,
+			Subjects: subjects,
+		})
+	}()
+	if err != nil {
+		return fmt.Errorf("failed to convert message to cell: %w", err)
+	}
+	tx, _, err := a.Wallet.SendWaitTransaction(t.Context(), &wallet.Message{
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     routerAddr,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        bodyCell,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to send rmn transaction: %w", err)
+	}
+	err = tracetracking.WaitForTrace(t.Context(), a.Client, tx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for rmn message: %w", err)
+	}
+	return nil
 }
 
 // SendCCIPMessage sends a CCIP request from a TON chain using the standard router.CCIPSend message.
@@ -591,8 +834,11 @@ func confirmCommitWithExpectedSeqNumRangeTON(
 				return false, nil // Skip price-only updates
 			}
 
+			if mr.SourceChainSelector != srcChainSelector {
+				lggr.Warnw("Received commit report for unexpected source chain", "expected", srcChainSelector, "actual", mr.SourceChainSelector)
+				return false, nil // Skip reports from other source chains
+			}
 			reportsProcessed++
-			require.Equal(t, srcChainSelector, mr.SourceChainSelector, "Commit report source chain mismatch")
 			lggr.Infow("Received commit", "seqNums", fmt.Sprintf("[%d, %d]", mr.MinSeqNr, mr.MaxSeqNr))
 
 			tracker.VisitCommitReport(srcChainSelector, mr.MinSeqNr, mr.MaxSeqNr)
@@ -621,7 +867,7 @@ func confirmExecWithExpectedSeqNrsTON(
 	srcChainSelector uint64,
 	tonChain cldf_ton.Chain,
 	offRamp address.Address,
-	_startBlock *uint64,
+	startBlock *uint64,
 	expectedSeqNums []uint64,
 ) (map[uint64]int, error) {
 	if len(expectedSeqNums) == 0 {
@@ -639,7 +885,10 @@ func confirmExecWithExpectedSeqNrsTON(
 		func(lggr logger.Logger, event tonlptypes.TypedLog[offramp.ExecutionStateChanged]) (bool, error) {
 			exec := event.TypedData
 
-			if exec.SourceChainSelector != srcChainSelector || (!pending[exec.SequenceNumber] && executionStates[exec.SequenceNumber] == 0) {
+			_, seen := executionStates[exec.SequenceNumber]
+			if exec.SourceChainSelector != srcChainSelector ||
+				(!pending[exec.SequenceNumber] && !seen) ||
+				(startBlock != nil && uint64(event.MCBlockSeqno) < *startBlock) {
 				return false, nil
 			}
 
@@ -650,9 +899,14 @@ func confirmExecWithExpectedSeqNrsTON(
 				return false, nil
 
 			case utils.EXECUTION_STATE_FAILURE:
+				executionStates[exec.SequenceNumber] = int(exec.State)
+				delete(pending, exec.SequenceNumber)
 				lggr.Errorw("Execution failed", "sequenceNumber", exec.SequenceNumber, "messageID", hex.EncodeToString(exec.MessageID))
-				return false, fmt.Errorf("execution failed for seq %d on chain %d, message ID: %x",
-					exec.SequenceNumber, exec.SourceChainSelector, exec.MessageID)
+
+				if len(pending) == 0 {
+					t.Logf("All sequence numbers executed (with failures): %v", expectedSeqNums)
+					return true, nil
+				}
 
 			case utils.EXECUTION_STATE_SUCCESS:
 				executionStates[exec.SequenceNumber] = int(exec.State)
