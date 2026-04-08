@@ -36,6 +36,15 @@ export enum MessageState {
   ExecuteFailed,
   Success,
 }
+
+export const opcodes = {
+  in: {
+    initExecute: 0x64cd2fd2,
+    confirm: 0x00e5dd97,
+    bounced: 0x05dee1bb,
+  },
+}
+
 export type ReceiveExecutorStorage = {
   owner: Address
   message: of.Any2TVMRampMessage

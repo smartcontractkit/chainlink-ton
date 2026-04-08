@@ -48,11 +48,6 @@ const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = 60
 
-// These have to match the EVM states
-const EXECUTION_STATE_IN_PROGRESS = 1n
-const EXECUTION_STATE_SUCCESS = 2n
-const EXECUTION_STATE_FAILURE = 3n
-
 const createSignatures = (
   signerList: KeyPair[],
   hash: Buffer<ArrayBufferLike>,
@@ -1492,6 +1487,39 @@ describe('OffRamp - Unit Tests', () => {
         },
       },
     )
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.InProgress),
+    })
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.Success),
+    })
+  })
+
+  it('Test execute fails with valid message and proof but low gaslimit', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    message.gasLimit = toNano('0.0001') // Set very low gas limit to force failure
+    await setupAndCommitMessage(message)
+
+    const report = createExecuteReport([message])
+    const result = await executeReport(report)
+
+    // Message should fail due to low gas limit
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: true,
+      op: rx.opcodes.in.bounced,
+    })
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.InProgress),
+    })
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.Failure),
+    })
   })
 
   it('Test cannot call dispatch directly', async () => {
@@ -1721,14 +1749,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -1762,14 +1790,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -1840,7 +1868,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       },
     )
 
@@ -1853,7 +1881,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_FAILURE,
+        state: BigInt(of.ExecutionState.Failure),
       },
     )
   })
@@ -1919,7 +1947,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       },
     )
 
@@ -1931,7 +1959,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       },
     )
 
@@ -1975,7 +2003,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
+      state: BigInt(of.ExecutionState.Failure),
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
@@ -2002,14 +2030,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -2051,7 +2079,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
+      state: BigInt(of.ExecutionState.Failure),
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
@@ -2078,14 +2106,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -2191,7 +2219,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
   })
 
@@ -2247,7 +2275,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 2n,
       messageId: 2n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
   })
 
@@ -2300,7 +2328,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
 
@@ -2334,7 +2362,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 2n,
         messageId: 2n,
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
   })
@@ -2456,7 +2484,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 2n,
       messageId: 2n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
   })
 
@@ -2521,7 +2549,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: BigInt(i + 1),
         messageId: BigInt(i + 1),
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
   })
@@ -2589,7 +2617,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: BigInt(index + 1),
         messageId: BigInt(index + 1),
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
   })
@@ -2812,7 +2840,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       })
 
       // Should bounce from the non-existent router
@@ -2832,7 +2860,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_FAILURE,
+        state: BigInt(of.ExecutionState.Failure),
       })
     })
 
@@ -2900,7 +2928,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       })
 
       // InitExecute should fail
@@ -2926,7 +2954,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_FAILURE,
+        state: BigInt(of.ExecutionState.Failure),
       })
     })
   })
