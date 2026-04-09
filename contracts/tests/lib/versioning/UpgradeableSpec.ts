@@ -2,7 +2,11 @@ import { Address, beginCell, Cell, Contract, Message, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 
-import { CoverageConfigNames, generateCoverageArtifacts } from '../../coverage/coverage'
+import {
+  ContractCoverageConfig,
+  CoverageConfigNames,
+  generateCoverageArtifacts,
+} from '../../coverage/coverage'
 
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
@@ -142,7 +146,7 @@ export function newUpgradeSpec<
   const amount = config.upgradeValue ?? toNano('0.05')
 
   return {
-    run: (contractName?: CoverageConfigNames) => {
+    run: (coverageConfigs?: ContractCoverageConfig[]) => {
       let blockchain: Blockchain
       let testSetup: TestSetup
 
@@ -252,13 +256,8 @@ export function newUpgradeSpec<
       }
 
       afterAll(async () => {
-        if (process.env['COVERAGE'] === 'true' && contractName) {
-          await generateCoverageArtifacts(blockchain, 'upgradeable_tests', [
-            {
-              code: await config.getCurrentCode(),
-              name: contractName,
-            },
-          ])
+        if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
+          await generateCoverageArtifacts(blockchain, 'upgradeable_tests', coverageConfigs)
         }
       })
     },
