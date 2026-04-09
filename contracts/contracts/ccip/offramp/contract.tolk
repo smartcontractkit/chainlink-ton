@@ -27,7 +27,7 @@ import "events"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
-const MIN_GASLIMIT = ton("0.01"); // Small example receiver total fees are arround 0.0029 TON 
+const MIN_GASLIMIT = ton("0.01"); // Small example receiver total fees are around 0.0029 TON 
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
