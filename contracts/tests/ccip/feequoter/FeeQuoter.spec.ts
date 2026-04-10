@@ -15,6 +15,7 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import { Cell, toNano } from '@ton/core'
 import { loadContractCodeFromRelease } from '../../../wrappers/codeLoader'
+import { tonDeepEqual } from '../../utils/tonDeepEqual'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
@@ -63,7 +64,8 @@ describe('FeeQuoter - Upgrade Tests', () => {
     getCurrentCode: () => FeeQuoter.code(),
     CurrentVersionConstructor: FeeQuoter,
     upgradeValue: toNano('0.05'),
-    deployPrevContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
+    deployPrevContract: async (blockchain, owner) =>
+      setupTestFeeQuoter(owner, blockchain, await FeeQuoterPrev.code()),
   })
   upgradeSpec.run([
     {
@@ -77,7 +79,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
     const deployer = await blockchain.treasury('deployer')
 
     // deploy prev version
-    const feeQuoterPrev = await setupTestFeeQuoter(deployer, blockchain)
+    const feeQuoterPrev = await setupTestFeeQuoter(deployer, blockchain, await FeeQuoterPrev.code())
     const loadStorage = async () => {
       const contract = await blockchain.getContract(feeQuoterPrev.address)
       if (!contract.account.account) {
@@ -114,7 +116,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
 
     // verify storage was updated
     const newStorage = await loadStorage()
-    expect(newStorage).toEqual(expectedNewStorage)
+    tonDeepEqual(newStorage, expectedNewStorage)
   })
 })
 
