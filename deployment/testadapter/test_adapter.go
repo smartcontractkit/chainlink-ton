@@ -32,8 +32,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
-	msg_hasher163 "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_3/message_hasher"
-	ccipcommon "github.com/smartcontractkit/chainlink-ccip/deployment/common"
+	"github.com/smartcontractkit/chainlink-ccip/deployment/common/extraargs"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 	tokensapi "github.com/smartcontractkit/chainlink-ccip/deployment/tokens"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
@@ -219,7 +218,7 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 	switch sourceFamily {
 	case chain_selectors.FamilyEVM:
 		// defaults
-		extraArgs := msg_hasher163.ClientGenericExtraArgsV2{
+		extraArgs := extraargs.ClientGenericExtraArgsV2{
 			GasLimit:                 new(big.Int).SetUint64(100_000_000),
 			AllowOutOfOrderExecution: true,
 		}
@@ -234,7 +233,7 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 				return nil, fmt.Errorf("unsupported extra arg: %s", opt.Name)
 			}
 		}
-		return ccipcommon.SerializeClientGenericExtraArgsV2(extraArgs)
+		return extraargs.SerializeClientGenericExtraArgsV2(extraArgs)
 	case chain_selectors.FamilyTon:
 		return nil, nil
 	case chain_selectors.FamilySolana:
