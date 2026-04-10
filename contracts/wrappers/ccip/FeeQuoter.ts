@@ -247,39 +247,25 @@ export const builder = (() => {
       load: (src: Slice): FeeQuoterStorage => {
         const id = src.loadUintBig(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
+        const allowedPriceUpdaters = src.loadDict(
+          Dictionary.Keys.Address(),
+          Dictionary.Values.Buffer(0),
+        )
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
         const tokenPriceStalenessThreshold = src.loadUint(32)
 
-        const allowedPriceUpdaters = Dictionary.loadDirect(
-          Dictionary.Keys.Address(),
-          Dictionary.Values.Buffer(0),
-          src.loadRef(),
-        )
+        const usdPerToken = src.loadDict(Dictionary.Keys.Address(), createTimestampedPriceValue())
 
-        const usdPerToken = Dictionary.loadDirect(
-          Dictionary.Keys.Address(),
-          createTimestampedPriceValue(),
-          src.loadRef(),
-        )
-
-        const premiumMultiplierWeiPerEth = Dictionary.loadDirect(
+        const premiumMultiplierWeiPerEth = src.loadDict(
           Dictionary.Keys.Address(),
           Dictionary.Values.BigUint(64),
-          src.loadRef(),
         )
 
-        const destChainConfigsRaw = Dictionary.loadDirect(
+        const destChainConfigs = src.loadDict(
           Dictionary.Keys.BigUint(64),
-          Dictionary.Values.Cell(),
-          src.loadRef(),
+          DestChainConfigDictionaryValueType(),
         )
-
-        // Convert Cell dictionary to DestChainConfig dictionary
-        const destChainConfigs = Dictionary.empty<bigint, DestChainConfig>()
-        for (const [key, configCell] of destChainConfigsRaw) {
-          destChainConfigs.set(key, destChainConfig.load(configCell.beginParse()))
-        }
 
         return {
           id,
@@ -1069,6 +1055,16 @@ function TokenTransferFeeConfigDictionaryValueType(): DictionaryValue<TokenTrans
   }
   const parse = (src: Slice): TokenTransferFeeConfig => {
     throw new Error('Function not implemented.')
+  }
+  return { serialize, parse }
+}
+
+function DestChainConfigDictionaryValueType(): DictionaryValue<DestChainConfig> {
+  const serialize = (src: DestChainConfig, builder: Builder): void => {
+    builder.storeBuilder(destChainConfigToBuilder(src))
+  }
+  const parse = (src: Slice): DestChainConfig => {
+    return builder.data.destChainConfig.load(src)
   }
   return { serialize, parse }
 }
