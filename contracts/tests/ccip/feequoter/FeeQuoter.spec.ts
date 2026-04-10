@@ -14,6 +14,7 @@ import * as ownable2StepSpec from '../../../tests/lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import { Cell, toNano } from '@ton/core'
+import { loadContractCodeFromRelease } from '../../../wrappers/codeLoader'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
@@ -50,7 +51,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
   class FeeQuoter extends fq.FeeQuoter {}
   class FeeQuoterPrev extends fq.FeeQuoter {
     static code(): Promise<Cell> {
-      return FeeQuoter.code() // TODO get prev release code
+      return loadContractCodeFromRelease('contracts/1.6.0', 'FeeQuoter')
     }
   }
 
