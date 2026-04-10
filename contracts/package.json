@@ -25,7 +25,8 @@
     "fmt-contracts": "tact-fmt --write contracts",
     "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write .",
-    "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts"
+    "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
+    "get-key-pair": "ts-node scripts/getKeyPair.ts"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",

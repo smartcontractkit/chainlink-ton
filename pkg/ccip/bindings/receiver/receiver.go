@@ -2,6 +2,7 @@ package receiver
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
@@ -10,9 +11,9 @@ import (
 type Behavior uint8
 
 const (
-	Accept Behavior = iota
-	RejectAll
-	ConsumeAllGas
+	BehaviorAccept Behavior = iota
+	BehaviorRejectAll
+	BehaviorConsumeAllGas
 )
 
 // Storage represents the storage structure for the CCIP receiver contract.
@@ -21,6 +22,16 @@ type Storage struct {
 	Ownable          ownable2step.Storage `tlb:"."`
 	AuthorizedCaller *address.Address     `tlb:"addr"`
 	Behavior         Behavior             `tlb:"## 8"`
+}
+
+type UpdateBehavior struct {
+	_        tlb.Magic `tlb:"#cf87a147" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	Behavior Behavior  `tlb:"## 8"`
+}
+
+type UpdateAuthorizedCaller struct {
+	_                tlb.Magic        `tlb:"#9f5e489f" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	AuthorizedCaller *address.Address `tlb:"addr"`
 }
 
 // CCIPMessageReceivedEventTopic is the event topic for Receiver_CCIPMessageReceived event

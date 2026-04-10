@@ -2,7 +2,7 @@
 id: dev-guides-index
 title: Developer Guides
 sidebar_label: Overview
-sidebar_position: 1
+sidebar_position: 3
 ---
 
 # Developer Guides

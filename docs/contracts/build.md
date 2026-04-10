@@ -2,12 +2,10 @@
 id: contracts-build
 title: Build
 sidebar_label: Build
-sidebar_position: 2
+sidebar_position: 4
 ---
 
-# Chainlink TON - Smart Contracts - Build
-
-## Building the contracts
+# Building Contracts
 
 We use Blueprint to compile our contracts. Refer to the [Blueprint build documentation](https://github.com/ton-org/blueprint#building-contracts). To build a contract, a file ending in `.compile.ts` must be placed under `wrappers` in the blueprint project's directory.
 

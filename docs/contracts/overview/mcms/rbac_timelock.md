@@ -5,7 +5,7 @@ sidebar_label: RBACTimelock
 sidebar_position: 2
 ---
 
-# Chainlink TON - MCMCS - RBACTimelock
+# MCMCS - RBACTimelock
 
 ## Interface
 

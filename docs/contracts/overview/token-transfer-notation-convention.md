@@ -1,8 +1,9 @@
 ---
-id: contracts-ccip-flow-token-transfer-notation-convention
+id: contracts-overview-token-transfer-notation-convention
+slug: /contracts/overview/token-transfer-notation-convention
 title: Token Transfer Notation Convention
-sidebar_label: Notation Convention
-sidebar_position: 3
+sidebar_label: Token Transfer Notation Convention
+sidebar_position: 7
 ---
 
 # Token Transfer Notation Convention
@@ -34,4 +35,4 @@ participant B
 A -->> B: Transfer T { amount,<br>fwdPayload }
 ```
 
-We must remind that we cannot get bounced from this transfers, and that they envolve 3 hops, so they add latency and foward fee costs.
+We must remember that we cannot get bounced from this transfers, and that they envolve 3 hops, so they add latency and foward fee costs.

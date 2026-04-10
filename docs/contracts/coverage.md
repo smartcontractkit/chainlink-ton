@@ -1,11 +1,12 @@
 ---
 id: contracts-coverage
+slug: coverage
 title: Coverage
 sidebar_label: Coverage
-sidebar_position: 5
+sidebar_position: 6
 ---
 
-# Chainlink TON - Smart Contracts - Coverage
+# Test Coverage
 
 Sandbox blockchain can track the executed instructions for every deployed contract and generate a coverage report. [see the Sandbox test coverage docs.](https://github.com/ton-org/sandbox/blob/develop/docs/coverage-guide.md)
 

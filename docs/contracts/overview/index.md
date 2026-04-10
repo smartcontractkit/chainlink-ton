@@ -9,7 +9,8 @@ sidebar_position: 1
 
 ## Contracts
 
-- [CCIP](../ccip/index.md)
+- [CCIP](./ccip/index.md)
+- [Deployable](./deployable.md)
 
 ### Examples
 

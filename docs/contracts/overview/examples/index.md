@@ -2,7 +2,7 @@
 id: contracts-overview-examples-index
 title: Examples
 sidebar_label: Overview
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # Examples

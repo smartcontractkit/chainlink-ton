@@ -2,10 +2,10 @@
 id: contracts-overview-libraries-ownable-2step
 title: Ownable2Step
 sidebar_label: Ownable2Step
-sidebar_position: 3
+sidebar_position: 2
 ---
 
-# Chainlink TON - Access Control - Ownable2Step Module
+# Ownable2Step Library
 
 ## API Reference
 

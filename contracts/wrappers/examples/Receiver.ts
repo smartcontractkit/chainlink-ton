@@ -113,7 +113,9 @@ export const builder = {
 
       const updateBehavior: CellCodec<UpdateBehavior> = {
         encode: (opts: UpdateBehavior): Builder => {
-          return beginCell().storeUint(opcodes.in.updateBehavior, 32).storeUint(opts.behavior, 8)
+          return beginCell()
+            .storeUint(opcodes.in.updateBehavior, 32)
+            .storeUint(Number(opts.behavior), 8)
         },
         load: function (src: Slice): UpdateBehavior {
           // TODO We can check that the opcode matches

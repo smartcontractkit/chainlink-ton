@@ -2,7 +2,7 @@
 id: plugin-relayer-logpoller-query
 title: Query Interface
 sidebar_label: Query Interface
-sidebar_position: 1
+sidebar_position: 2
 ---
 
 # TON Logpoller Query Interface

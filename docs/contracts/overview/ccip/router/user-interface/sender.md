@@ -2,8 +2,8 @@
 id: contracts-ccip-router-user-interface-sender
 slug: sender
 title: Sender User Interface
-sidebar_label: User Interface
-sidebar_position: 5
+sidebar_label: Sender
+sidebar_position: 2
 ---
 
 # Sender User Interface

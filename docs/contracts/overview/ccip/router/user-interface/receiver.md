@@ -2,8 +2,8 @@
 id: contracts-ccip-router-user-interface-receiver
 slug: receiver
 title: Receiver User Interface
-sidebar_label: User Interface
-sidebar_position: 5
+sidebar_label: Receiver
+sidebar_position: 3
 ---
 
 # Receiver User Interface
@@ -57,3 +57,10 @@ sequenceDiagram
     U ->> R: Bounced CCIPReceive { execId }
     deactivate U
 ```
+
+## Messages Stuck In-Progress  
+
+Messages can get stuck in an "In Progress" state for two reasons:
+
+- Successful delivery but no confirmation: The receiver got the message and processed it successfully but failed to send the `CCIPReceiveConfirm` back to the Router, leaving the message in an "In Progress" state until the Router times out the message. This is bad practice and can lead to confused users using ccip explorer.
+- Fail to deliver message and no bounce: If the gas limit is too low, the message may not be delivered to the receiver, or the receiver might ran ouf of gas during validation, and there will be no gas left to send the bounce message back to the Router, leaving the message in an "In Progress". In this situation, the message will never be enabled for manual execution and will be stuck forever. To avoid this, the sender should use a gas limit that is high enough to cover the worst case scenario.

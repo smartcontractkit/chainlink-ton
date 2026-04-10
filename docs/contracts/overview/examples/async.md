@@ -2,7 +2,7 @@
 id: contracts-overview-examples-async
 title: Async Communication Examples
 sidebar_label: Async Communication
-sidebar_position: 2
+sidebar_position: 1
 ---
 
 # Async Communication Examples

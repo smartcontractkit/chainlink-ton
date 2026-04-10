@@ -1,11 +1,12 @@
 ---
 id: contracts-benchmarking
-title: Benchmark
-sidebar_label: Benchmark
-sidebar_position: 4
+slug: benchmarking
+title: Benchmarking
+sidebar_label: Benchmarking
+sidebar_position: 8
 ---
 
-# Chainlink TON - Smart Contracts - Benchmark
+# Contract Benchmarking
 
 > [!NOTE]  
 > The sandbox and blueprint framewroks specify different ways to benchmark gas consumption of tets but the documentation is not too good and there are some versions for which these methods are broken. This specific method works for versions 0.33.0 for ton/blueprint, 0.31.0 for ton/sandbox, and 29.7.0 for jest.

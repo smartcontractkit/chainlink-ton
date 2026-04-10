@@ -2,7 +2,7 @@
 id: contracts-ccip-offramp-token-transfer
 title: Token Transfer Offramp Flow
 sidebar_label: Token Transfer
-sidebar_position: 4
+sidebar_position: 5
 ---
 
 # Token Transfer Offramp Flow (Not yet supported)

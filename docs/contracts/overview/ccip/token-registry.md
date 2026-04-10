@@ -2,7 +2,7 @@
 id: contracts-ccip-token-registry
 title: Token Registry
 sidebar_label: Token Registry
-sidebar_position: 2
+sidebar_position: 7
 ---
 
 # Token Registry (Not yet supported)

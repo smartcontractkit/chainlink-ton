@@ -2,10 +2,10 @@
 id: contracts-overview-libraries-merkle-multi-proof
 title: MerkleMultiProof
 sidebar_label: MerkleMultiProof
-sidebar_position: 2
+sidebar_position: 4
 ---
 
-# Chainlink TON -  MerkleMultiProof
+# MerkleMultiProof Library
 
 This library implements a Merkle multi-proof verification algorithm. The algorithm takes a list of pre-hashed leaves of the Merkle tree, and a list of already computed proofs for the other subtrees, which can be used to verify the inclusion of the provided leaves.
 
