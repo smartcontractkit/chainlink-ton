@@ -33,7 +33,7 @@ import (
 )
 
 type DeployCCIPSeqInput struct {
-	ContractsVersionSha string
+	ContractsPackageRef string
 	CCIPConfig          ccipConfig.ChainContractParams
 	ChainSelector       uint64
 }
@@ -58,8 +58,9 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 
 	// Notice: we set a (static) default when version is not provided
 	contractsPackage := utils.ContractsPackageLatestSupported
-	if in.ContractsVersionSha != "" {
-		contractsPackage = in.ContractsVersionSha
+	if in.ContractsPackageRef != "" {
+		contractsPackage = in.ContractsPackageRef
+		fmt.Println("Using contracts package from input:", contractsPackage)
 	}
 
 	// TODO: don't directly execute deployments, instead return them as txs

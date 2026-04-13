@@ -100,6 +100,7 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 	output := RetrieveCompiledContractsOutput{}
 
 	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
+	fmt.Println("Parsed package ref:", packageRef)
 	if err != nil {
 		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %v", err)
 	}
@@ -109,8 +110,8 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 		downloadArtifactsInput := DownloadArtifactsInput{
 			Organization: packageRef.Organization,
 			Repository:   packageRef.Repository,
-			Release:      in.Package,
-			Asset:        AssetNameFromReleaseTag(in.Package),
+			Release:      packageRef.Tag,
+			Asset:        AssetNameFromReleaseTag(packageRef.Tag),
 		}
 		downloadArtifactsOutput, err := DownloadArtifacts(ctx, downloadArtifactsInput)
 		if err != nil {

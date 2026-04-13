@@ -218,7 +218,7 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		return seq.DeployCCIPSeqInput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 	}
 	return seq.DeployCCIPSeqInput{
-		ContractsVersionSha: cfg.ContractVersion,
+		ContractsPackageRef: cfg.ContractVersion,
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
 				ID:                           contractID,

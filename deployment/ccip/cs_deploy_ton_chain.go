@@ -103,7 +103,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, cfg DeployCCIPContract
 	// deploy CCIP contracts
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		CCIPConfig:          cfg.Params,
-		ContractsVersionSha: cfg.ContractsVersion,
+		ContractsPackageRef: cfg.ContractsVersion,
 		ChainSelector:       selector,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, dp, ccipSeqInput)
