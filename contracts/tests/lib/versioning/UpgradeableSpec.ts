@@ -167,7 +167,7 @@ export function newUpgradeSpec<
 
       beforeEach(async () => {
         testSetup = await setup(blockchain)
-      })
+      }, 90000) // Setup may download releases
 
       /**
        * Test that the contract deploys on the correct version (previous version)
