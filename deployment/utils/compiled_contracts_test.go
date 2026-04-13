@@ -10,14 +10,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
 // Sample compiled contract JSON (minimal valid Tolk compiled contract)
@@ -559,10 +557,10 @@ func TestCompiledContractsFromArtifacts_ValidContract(t *testing.T) {
 
 	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
 	require.NoError(t, err)
-	assert.Contains(t, result, state.TonReceiver)
-	assert.Equal(t, state.TonReceiver, result[state.TonReceiver].Type)
-	assert.Equal(t, "local", result[state.TonReceiver].PackageRef)
-	assert.NotNil(t, result[state.TonReceiver].Code)
+	assert.Contains(t, result, bindings.TypeTestReceiver)
+	assert.Equal(t, bindings.TypeTestReceiver, result[bindings.TypeTestReceiver].Type)
+	assert.Equal(t, "local", result[bindings.TypeTestReceiver].PackageRef)
+	assert.NotNil(t, result[bindings.TypeTestReceiver].Code)
 }
 
 func TestCompiledContractsFromArtifacts_FilteredContracts(t *testing.T) {
@@ -573,14 +571,14 @@ func TestCompiledContractsFromArtifacts_FilteredContracts(t *testing.T) {
 		},
 	}
 
-	// Only request TonReceiver
-	result, err := compiledContractsFromArtifacts(artifacts, []ds.ContractType{state.TonReceiver}, "local")
+	// Only request TypeTestReceiver
+	result, err := compiledContractsFromArtifacts(artifacts, []string{bindings.TypeTestReceiver}, "local")
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
-	assert.Contains(t, result, state.TonReceiver)
+	assert.Contains(t, result, bindings.TypeTestReceiver)
 }
 
-func TestCompiledContractsFromArtifacts_UnknownContractType(t *testing.T) {
+func TestCompiledContractsFromArtifacts_UnknownFQNFilterReturnsEmpty(t *testing.T) {
 	artifacts := []Artifact{
 		{
 			Filename: "ccip.test.receiver.compiled.json",
@@ -588,9 +586,10 @@ func TestCompiledContractsFromArtifacts_UnknownContractType(t *testing.T) {
 		},
 	}
 
-	_, err := compiledContractsFromArtifacts(artifacts, []ds.ContractType{"NonExistent"}, "local")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown contractType")
+	// An unknown FQN in the filter simply means no contracts match - no error.
+	result, err := compiledContractsFromArtifacts(artifacts, []string{"link.chain.ton.ccip.NonExistent"}, "local")
+	require.NoError(t, err)
+	assert.Empty(t, result)
 }
 
 func TestCompiledContractsFromArtifacts_NoMatchingArtifacts(t *testing.T) {
@@ -642,10 +641,10 @@ func TestGetArtifactsFromLocalDir_ThenCompile(t *testing.T) {
 
 	compiled, err := compiledContractsFromArtifacts(artifacts, nil, dir)
 	require.NoError(t, err)
-	assert.Contains(t, compiled, state.TonReceiver)
+	assert.Contains(t, compiled, bindings.TypeTestReceiver)
 }
 
-func TestExtractFiles_ThenCompile(t *testing.T) {
+func TestExtractFiles_ThenCompiledContractsFromArtifacts(t *testing.T) {
 	tarGz := createTarGz(t, map[string][]byte{
 		"ccip.test.receiver.compiled.json": []byte(sampleCompiledContractJSON),
 	})
@@ -656,19 +655,7 @@ func TestExtractFiles_ThenCompile(t *testing.T) {
 
 	compiled, err := compiledContractsFromArtifacts(artifacts, nil, "test-ref")
 	require.NoError(t, err)
-	assert.Contains(t, compiled, state.TonReceiver)
-}
-
-// --- contractsMapping coverage ---
-
-func TestContractsMappingCompleteness(t *testing.T) {
-	// Verify all mapped contract types have non-empty compiled version keys
-	for ct, meta := range contractsMapping {
-		assert.NotEmpty(t, string(ct), "contract type should not be empty")
-		assert.NotEmpty(t, meta.CompiledVersionKey, "compiled version key should not be empty for %s", ct)
-		assert.True(t, strings.HasSuffix(meta.CompiledVersionKey, contractsFileNameSuffix),
-			"compiled version key %q for %s should end with %s", meta.CompiledVersionKey, ct, contractsFileNameSuffix)
-	}
+	assert.Contains(t, compiled, bindings.TypeTestReceiver)
 }
 
 // --- readLimited with error reader ---
@@ -683,4 +670,82 @@ func TestReadLimited_ReaderError(t *testing.T) {
 	_, err := readLimited(&errorReader{}, 100, "test")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "error while read")
+}
+
+// --- parsePackageMetadata tests ---
+
+func TestParsePackageMetadata_WithValidFile(t *testing.T) {
+	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.Router":{"path":"Router.compiled.json","version":"1.6.3"}}}`
+	artifacts := []Artifact{
+		{Filename: PackageMetadataFile, Data: []byte(meta)},
+	}
+	result, err := parsePackageMetadata(artifacts)
+	require.NoError(t, err)
+	assert.Equal(t, "1.6.3", result.Version)
+	require.Contains(t, result.Contracts, "link.chain.ton.ccip.Router")
+	assert.Equal(t, "Router.compiled.json", result.Contracts["link.chain.ton.ccip.Router"].Path)
+	assert.Equal(t, "1.6.3", result.Contracts["link.chain.ton.ccip.Router"].Version)
+}
+
+func TestParsePackageMetadata_NoFileUsesFallback(t *testing.T) {
+	artifacts := []Artifact{
+		{Filename: "Router.compiled.json", Data: []byte(`{"hex":"aa"}`)},
+	}
+	result, err := parsePackageMetadata(artifacts)
+	require.NoError(t, err)
+	assert.Equal(t, defaultPackageMetadata, result)
+}
+
+func TestParsePackageMetadata_EmptyArtifactsUsesFallback(t *testing.T) {
+	result, err := parsePackageMetadata(nil)
+	require.NoError(t, err)
+	assert.Equal(t, defaultPackageMetadata, result)
+}
+
+func TestParsePackageMetadata_InvalidJSON(t *testing.T) {
+	artifacts := []Artifact{
+		{Filename: PackageMetadataFile, Data: []byte("not json")},
+	}
+	_, err := parsePackageMetadata(artifacts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse")
+}
+
+func TestCompiledContractsFromArtifacts_UsesVersionFromMetadata(t *testing.T) {
+	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.test.Receiver":{"path":"ccip.test.receiver.compiled.json","version":"1.6.3"}}}`
+	artifacts := []Artifact{
+		{Filename: PackageMetadataFile, Data: []byte(meta)},
+		{Filename: "ccip.test.receiver.compiled.json", Data: []byte(sampleCompiledContractJSON)},
+	}
+	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
+	require.NoError(t, err)
+	require.Contains(t, result, bindings.TypeTestReceiver)
+	assert.Equal(t, "1.6.3", result[bindings.TypeTestReceiver].Version.String())
+}
+
+func TestCompiledContractsFromArtifacts_UnknownFQNInMetadataIsSkipped(t *testing.T) {
+	// A contract FQN we don't recognise in Go should be silently skipped, not cause an error.
+	meta := `{"version":"1.6.3","contracts":{
+		"link.chain.ton.ccip.test.Receiver":{"path":"ccip.test.receiver.compiled.json","version":"1.6.3"},
+		"link.chain.future.NewContract":{"path":"NewContract.compiled.json","version":"1.6.3"}
+	}}`
+	artifacts := []Artifact{
+		{Filename: PackageMetadataFile, Data: []byte(meta)},
+		{Filename: "ccip.test.receiver.compiled.json", Data: []byte(sampleCompiledContractJSON)},
+	}
+	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
+	require.NoError(t, err)
+	require.Contains(t, result, bindings.TypeTestReceiver)
+	assert.Len(t, result, 1)
+}
+
+func TestCompiledContractsFromArtifacts_InvalidVersionInMetadata(t *testing.T) {
+	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.test.Receiver":{"path":"ccip.test.receiver.compiled.json","version":"not-a-version"}}}`
+	artifacts := []Artifact{
+		{Filename: PackageMetadataFile, Data: []byte(meta)},
+		{Filename: "ccip.test.receiver.compiled.json", Data: []byte(sampleCompiledContractJSON)},
+	}
+	_, err := compiledContractsFromArtifacts(artifacts, nil, "local")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid version")
 }

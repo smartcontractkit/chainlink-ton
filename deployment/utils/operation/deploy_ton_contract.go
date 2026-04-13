@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
@@ -65,7 +66,7 @@ func (i *DeployContractInput) Validate() error {
 // It always executes the deployment operation and returns an error if the deployment fails.
 func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract utils.CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
 	deployContractInput := DeployContractInput{
-		Name:         compiledContract.Type.String(),
+		Name:         compiledContract.Type,
 		Storage:      storage,
 		MessageBody:  messageBody,
 		ContractCode: compiledContract.Code,
@@ -77,12 +78,18 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 		return nil, err
 	}
 
+	// TODO: Unify to use FQN (compiledContract.Type) directly in ds.AddressRef?.
+	contractType, ok := state.FQNToContractType[compiledContract.Type]
+	if !ok {
+		return nil, fmt.Errorf("unknown contract FQN %q: no datastore type mapping found", compiledContract.Type)
+	}
+
 	contractAddress := *deployContractReport.Output.Address
 	// TODO: Qualifier not used here (fix)
 	return &ds.AddressRef{
 		Address:       contractAddress.String(),
 		ChainSelector: chainSelector,
-		Type:          compiledContract.Type, // TODO: type mismatch for MCMS deployment (updated upstream, needs fix here)
+		Type:          contractType,
 		Version:       semver,
 		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.PackageRef)),
 	}, nil

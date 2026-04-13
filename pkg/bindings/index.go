@@ -40,11 +40,15 @@ const (
 	TypeTimelock = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter       = PkgCCIP + ".Router"
-	TypeOnRamp       = PkgCCIP + ".OnRamp"
-	TypeOffRamp      = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter    = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor = PkgCCIP + ".CCIPSendExecutor"
+	TypeRouter          = PkgCCIP + ".Router"
+	TypeOnRamp          = PkgCCIP + ".OnRamp"
+	TypeOffRamp         = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter       = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor    = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable      = PkgCCIP + ".Deployable"
+	TypeMerkleRoot      = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor = PkgCCIP + ".ReceiveExecutor"
+	TypeTestReceiver    = PkgCCIP + ".test.Receiver"
 
 	// Jetton
 	TypeJettonWallet = PkgJetton + ".contracts.jetton-wallet"

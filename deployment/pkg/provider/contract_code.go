@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Masterminds/semver/v3"
-
 	"github.com/smartcontractkit/chainlink-deployments-framework/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
@@ -34,28 +32,23 @@ func NewCCIPContractProvider(ctx context.Context, logger logger.Logger, contract
 		return nil, fmt.Errorf("failed to retrieve compiled TON contract: %w", err)
 	}
 
-	// Convert from map[ds.ContractType]CompiledContractData to map[string]ton.CompiledContract
+	// Convert from map[string]CompiledContractData (keyed by FQN) to map[string]ton.CompiledContract.
+	// The FQN is used directly as the ContractMetadata.ID so that callers can look up contracts
+	// using bindings.TypeXxx constants.
+	// TODO: Unify ContractMetadata.ID to use FQN everywhere once deployment/state short-name
+	// ds.ContractType constants are removed.
 	compiledContracts := make(map[string]ton.CompiledContract, len(output.CompiledContracts))
 
-	// Default version for now; parse once and reuse for all contracts
-	version := semver.MustParse("1.6.0")
-
-	for contractType, data := range output.CompiledContracts {
-		// Create ton.ContractMetadata
+	for _, data := range output.CompiledContracts {
 		metadata := ton.ContractMetadata{
 			Package: "github.com/smartcontractkit/chainlink-ton",
-			Version: version,
-			ID:      string(contractType), // Use the contract type as the ID
+			Version: data.Version,
+			ID:      data.Type, // FQN, e.g. bindings.TypeRouter
 		}
-
-		// Create ton.CompiledContract
-		contract := ton.CompiledContract{
+		compiledContracts[metadata.Key()] = ton.CompiledContract{
 			Metadata: metadata,
 			Code:     data.Code,
 		}
-
-		// Store using the metadata key
-		compiledContracts[metadata.Key()] = contract
 	}
 
 	return &contractProvider{

@@ -6,25 +6,23 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/smartcontractkit/chainlink-deployments-framework/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -42,54 +40,43 @@ const (
 
 var DeployableCodeHash, _ = hex.DecodeString("61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc")
 
-type ContractMappingMetadata struct {
-	CompiledVersionKey string
-}
-
 type CompiledContractData struct {
-	Type       ds.ContractType
+	// Type is the fully qualified contract name (e.g. bindings.TypeRouter).
+	Type       string
 	Code       *cell.Cell
 	PackageRef string
 	Version    *semver.Version
 }
 
-// Eventually, we can move this mapping into a descriptor as part of the contract release package.
-var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
-	// Core CCIP Contracts
-	state.Router: {
-		CompiledVersionKey: "Router.compiled.json",
-	},
-	state.FeeQuoter: {
-		CompiledVersionKey: "FeeQuoter.compiled.json",
-	},
-	state.OnRamp: {
-		CompiledVersionKey: "OnRamp.compiled.json",
-	},
-	state.OffRamp: {
-		CompiledVersionKey: "OffRamp.compiled.json",
-	},
-	// Internal contracts
-	state.SendExecutor: {
-		CompiledVersionKey: "CCIPSendExecutor.compiled.json",
-	},
-	state.Deployer: {
-		CompiledVersionKey: "Deployable.compiled.json",
-	},
-	state.MerkleRoot: {
-		CompiledVersionKey: "MerkleRoot.compiled.json",
-	},
-	state.ReceiveExecutor: {
-		CompiledVersionKey: "ReceiveExecutor.compiled.json",
-	},
-	// Utilities
-	state.TonReceiver: {
-		CompiledVersionKey: "ccip.test.receiver.compiled.json",
-	},
-	state.Timelock: {
-		CompiledVersionKey: "mcms.RBACTimelock.compiled.json",
-	},
-	state.MCMS: {
-		CompiledVersionKey: "mcms.MCMS.compiled.json",
+// ContractEntryMetadata holds per-contract metadata from contracts-pkg.json.
+type ContractEntryMetadata struct {
+	Path    string `json:"path"`
+	Version string `json:"version"`
+}
+
+// ContractPackageMetadata is the schema for contracts-pkg.json bundled in each release.
+type ContractPackageMetadata struct {
+	Version   string                           `json:"version"`
+	Contracts map[string]ContractEntryMetadata `json:"contracts"`
+}
+
+// defaultPackageMetadata is used as a fallback for releases prior to the introduction of
+// contracts-pkg.json (before 1.6.1). All contracts are assigned version 1.6.0 with their
+// original filenames.
+var defaultPackageMetadata = &ContractPackageMetadata{
+	Version: "1.6.0",
+	Contracts: map[string]ContractEntryMetadata{
+		bindings.TypeRouter:          {Path: "Router.compiled.json", Version: "1.6.0"},
+		bindings.TypeFeeQuoter:       {Path: "FeeQuoter.compiled.json", Version: "1.6.0"},
+		bindings.TypeOnRamp:          {Path: "OnRamp.compiled.json", Version: "1.6.0"},
+		bindings.TypeOffRamp:         {Path: "OffRamp.compiled.json", Version: "1.6.0"},
+		bindings.TypeSendExecutor:    {Path: "CCIPSendExecutor.compiled.json", Version: "1.6.0"},
+		bindings.TypeDeployable:      {Path: "Deployable.compiled.json", Version: "1.6.0"},
+		bindings.TypeMerkleRoot:      {Path: "MerkleRoot.compiled.json", Version: "1.6.0"},
+		bindings.TypeReceiveExecutor: {Path: "ReceiveExecutor.compiled.json", Version: "1.6.0"},
+		bindings.TypeTestReceiver:    {Path: "ccip.test.receiver.compiled.json", Version: "1.6.0"},
+		bindings.TypeTimelock:        {Path: "mcms.RBACTimelock.compiled.json", Version: "1.6.0"},
+		bindings.TypeMCMS:            {Path: "mcms.MCMS.compiled.json", Version: "1.6.0"},
 	},
 }
 
@@ -99,7 +86,7 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 //   - local (maps to {repo-root}/contracts/build)
 type RetrieveCompiledContractsInput struct {
 	Package   string
-	Contracts []ds.ContractType
+	Contracts []string // FQN contract types from pkg/bindings/index.go (e.g. bindings.TypeRouter)
 }
 
 func (i *RetrieveCompiledContractsInput) Validate() error {
@@ -114,7 +101,7 @@ func (i *RetrieveCompiledContractsInput) Validate() error {
 }
 
 type RetrieveCompiledContractsOutput struct {
-	CompiledContracts map[ds.ContractType]CompiledContractData
+	CompiledContracts map[string]CompiledContractData // keyed by FQN (e.g. bindings.TypeRouter)
 }
 
 func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
@@ -478,52 +465,76 @@ func AssetNameFromReleaseTag(tag string) string {
 	return fmt.Sprintf("%s.tar.gz", tag)
 }
 
-func compiledContractsFromArtifacts(artifacts []Artifact, contracts []ds.ContractType, packageRef string) (map[ds.ContractType]CompiledContractData, error) {
-	// Create and populate a set with the contract types/paths we will accept
-	contractsToLookFor := slices.Collect(maps.Keys(contractsMapping))
-	if len(contracts) != 0 {
-		contractsToLookFor = contracts
-	}
-	filenameToLookFor := make(map[string]struct{})
-	for _, contractType := range contractsToLookFor {
-		meta, ok := contractsMapping[contractType]
-		if !ok {
-			return nil, fmt.Errorf("unknown contractType: %s", contractType)
-		}
-		filenameToLookFor[meta.CompiledVersionKey] = struct{}{}
-	}
-
-	// Return the contracts whose paths match the ones in the mapping
-	compiledContracts := make(map[ds.ContractType]CompiledContractData)
-
-	for _, artifact := range artifacts {
-		if _, ok := filenameToLookFor[artifact.Filename]; !ok {
+// parsePackageMetadata returns the ContractPackageMetadata from the artifacts.
+// If no contracts-pkg.json artifact is present (e.g. pre-1.6.1 releases), defaultPackageMetadata is returned.
+func parsePackageMetadata(artifacts []Artifact) (*ContractPackageMetadata, error) {
+	for _, a := range artifacts {
+		if a.Filename != PackageMetadataFile {
 			continue
+		}
+		var meta ContractPackageMetadata
+		if err := json.Unmarshal(a.Data, &meta); err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", PackageMetadataFile, err)
+		}
+		return &meta, nil
+	}
+	return defaultPackageMetadata, nil
+}
+
+func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, packageRef string) (map[string]CompiledContractData, error) {
+	metadata, err := parsePackageMetadata(artifacts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build path → (fqn, version) index from metadata entries.
+	type entryInfo struct {
+		fqn     string
+		version *semver.Version
+	}
+	pathToInfo := make(map[string]entryInfo)
+	for fqn, entry := range metadata.Contracts {
+		v, err := semver.NewVersion(entry.Version)
+		if err != nil {
+			return nil, fmt.Errorf("invalid version %q for contract %s: %w", entry.Version, fqn, err)
+		}
+		pathToInfo[entry.Path] = entryInfo{fqn: fqn, version: v}
+	}
+
+	// Build allowed-FQN set if a filter was provided.
+	allowedFQNs := make(map[string]struct{}, len(contracts))
+	for _, fqn := range contracts {
+		allowedFQNs[fqn] = struct{}{}
+	}
+
+	compiledContracts := make(map[string]CompiledContractData)
+	for _, artifact := range artifacts {
+		if artifact.Filename == PackageMetadataFile {
+			continue
+		}
+		info, ok := pathToInfo[artifact.Filename]
+		if !ok {
+			continue
+		}
+		if len(allowedFQNs) > 0 {
+			if _, allowed := allowedFQNs[info.fqn]; !allowed {
+				continue
+			}
 		}
 		contractCode, err := wrappers.ParseCompiledTolkContractFromFileBytes(artifact.Data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse compiled contract from artifact %s: %w", artifact.Filename, err)
 		}
-		// Find the corresponding contract type for this path
-		var contractType ds.ContractType
-		for ct, meta := range contractsMapping {
-			if meta.CompiledVersionKey == artifact.Filename {
-				contractType = ct
-				break
-			}
-		}
-		if contractType == state.Deployer {
-			err = verifyDeployableCodeHash(contractCode)
-			if err != nil {
+		if info.fqn == bindings.TypeDeployable {
+			if err = verifyDeployableCodeHash(contractCode); err != nil {
 				return nil, fmt.Errorf("deployer code hash verification failed for artifact %s: %w", artifact.Filename, err)
 			}
 		}
-		hardCodedVersion, _ := semver.NewVersion("1.6.0")
-		compiledContracts[contractType] = CompiledContractData{
+		compiledContracts[info.fqn] = CompiledContractData{
 			Code:       contractCode,
-			Type:       contractType,
+			Type:       info.fqn,
 			PackageRef: packageRef,
-			Version:    hardCodedVersion,
+			Version:    info.version,
 		}
 	}
 	return compiledContracts, nil

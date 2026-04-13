@@ -33,6 +33,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
 const (
@@ -117,9 +118,9 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
 		Package: contractsPackage,
-		Contracts: []cldfds.ContractType{
-			state.Timelock,
-			state.MCMS, // Notice: this is the type we use to load contract code, vs. deployment types
+		Contracts: []string{
+			bindings.TypeTimelock,
+			bindings.TypeMCMS,
 		},
 	}
 
@@ -176,7 +177,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 		version := in.ContractsSemverMCMS
 		// Notice: storage.id acts as a series ID and makes the input unique per deployment
-		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value.String(), version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeMCMS], storage, body, value.String(), version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
 		}
@@ -304,7 +305,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		version := in.ContractsSemverTimelock
-		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.Timelock], storage, body, value.String(), version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeTimelock], storage, body, value.String(), version)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, err
 		}
