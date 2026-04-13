@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
+      contents: read
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -35,8 +36,10 @@ jobs:
           # Default to the pinned version for PRs
           CHAINLINK_TON_VERSION=$(cat ./scripts/.chainlink-ton_version | tr -d '[:space:]')
 
-          # If this is a scheduled (nightly) run, switch to develop OR if the CHAINLINK_TON_VERSION
-          # environment variable is empty/unset.
+          # Use the pinned version by default.
+          # For PRs, use the PR head branch.
+          # For scheduled runs, use the current repository SHA from the default branch.
+          # If the pinned version file is empty, also fall back to the current ref/SHA.
           if [[ "${{ github.event_name }}" == "schedule" || -z "$CHAINLINK_TON_VERSION" ]]; then
               CHAINLINK_TON_VERSION="${{ github.head_ref || github.sha }}"
           fi
