@@ -1,18 +1,13 @@
 import { compile } from '@ton/blueprint'
 import { Cell } from '@ton/core'
 import { promises as fs } from 'fs'
-import { Readable } from 'stream'
-import * as tar from 'tar-stream'
-import { createGunzip } from 'zlib'
-import { join, resolve, basename as pathBasename } from 'path'
+import { join, resolve } from 'path'
 
 const BUILD_ROOT = process.env.CONTRACTS_BUILD_PATH
   ? resolve(process.env.CONTRACTS_BUILD_PATH)
   : resolve(__dirname, '..', 'build')
 
 const ARTIFACT_FILE_EXTENSION = '.compiled.json'
-
-const codeCache = new Map<string, Promise<Cell>>()
 
 function parseCompiledContractJson(json: string, source: string): Cell {
   let hex: string | undefined
@@ -35,13 +30,50 @@ function parseCompiledContractJson(json: string, source: string): Cell {
   return cells[0]
 }
 
-async function readContractCode(contractName: string): Promise<Cell> {
-  const filePath = join(BUILD_ROOT, `${contractName}${ARTIFACT_FILE_EXTENSION}`)
-  let fileContents: string
-  try {
-    fileContents = await fs.readFile(filePath, 'utf8')
-  } catch (error) {
-    // if file not found
+class ContractCodeStore {
+  protected readonly basePath: string
+  private readonly cache = new Map<string, Promise<Cell>>()
+
+  constructor(basePath: string) {
+    this.basePath = basePath
+  }
+
+  get(contractName: string): Promise<Cell> {
+    const cached = this.cache.get(contractName)
+    if (cached) {
+      return cached
+    }
+    const loaded = this.load(contractName)
+    this.cache.set(contractName, loaded)
+
+    return loaded
+  }
+
+  private async load(contractName: string): Promise<Cell> {
+    const filePath = join(this.basePath, `${contractName}${ARTIFACT_FILE_EXTENSION}`)
+    try {
+      const fileContents = await fs.readFile(filePath, 'utf8')
+      return parseCompiledContractJson(fileContents, filePath)
+    } catch (error) {
+      return this.handleLoadError(filePath, contractName, error)
+    }
+  }
+
+  protected async handleLoadError(
+    filePath: string,
+    contractName: string,
+    error: unknown,
+  ): Promise<Cell> {
+    throw new Error(`Failed to load compiled contract ${filePath} from ${this.basePath}: ${error}`)
+  }
+}
+
+class LocalContractCodeStore extends ContractCodeStore {
+  protected override async handleLoadError(
+    filePath: string,
+    contractName: string,
+    error: unknown,
+  ): Promise<Cell> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       console.log(`Compiled contract not found at '${filePath}', building from source...`)
       return compile(contractName)
@@ -53,22 +85,19 @@ async function readContractCode(contractName: string): Promise<Cell> {
     }
     throw new Error(`Failed to read compiled contract ${contractName} at ${filePath}: ${error}`)
   }
-
-  return parseCompiledContractJson(fileContents, filePath)
 }
 
+const localStore = new LocalContractCodeStore(BUILD_ROOT)
+
 export async function loadContractCode(contractName: string): Promise<Cell> {
-  if (!codeCache.has(contractName)) {
-    codeCache.set(contractName, readContractCode(contractName))
-  }
+  const code = await localStore.get(contractName)
   if (contractName === 'Deployable') {
-    const code = await codeCache.get(contractName)!
     const codeHash = code.hash()
     expect(codeHash).toEqual(
       Buffer.from('61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc', 'hex'),
     )
   }
-  return codeCache.get(contractName)!
+  return code
 }
 
 export function getCompiledContractPath(contractName: string): string {
@@ -78,55 +107,17 @@ export function getCompiledContractPath(contractName: string): string {
 const GITHUB_ORG = 'smartcontractkit'
 const GITHUB_REPO = 'chainlink-ton'
 
-// Memoization: release name -> promise of extracted artifacts (contract name -> hex content)
-const releaseCache = new Map<string, Promise<Map<string, string>>>()
-
-function getReleaseAssetUrl(releaseName: string): string {
-  const encodedTag = encodeURIComponent(releaseName)
-  const assetName = releaseName.replace(/\//g, '-')
-  return `https://github.com/${GITHUB_ORG}/${GITHUB_REPO}/releases/download/${encodedTag}/${assetName}.tar.gz`
-}
-
-async function downloadAndExtractRelease(releaseName: string): Promise<Map<string, string>> {
-  const url = getReleaseAssetUrl(releaseName)
-
-  const response = await fetch(url, { redirect: 'follow' })
-  if (!response.ok) {
-    throw new Error(
-      `Failed to download release "${releaseName}" from ${url}: ${response.status} ${response.statusText}`,
-    )
+function buildReleasePath(tag: string): string {
+  const cmd = `nix build "github:${GITHUB_ORG}/${GITHUB_REPO}/${tag}#contracts" --print-out-paths`
+  const output = require('child_process').execSync(cmd, { encoding: 'utf8' }).trim()
+  const path = output.split('\n')[0]
+  if (!path) {
+    throw new Error(`Failed to build contracts for tag ${tag}. Command output: ${output}`)
   }
-
-  const compressed = Buffer.from(await response.arrayBuffer())
-  const contracts = new Map<string, string>()
-
-  await new Promise<void>((resolve, reject) => {
-    const extract = tar.extract()
-
-    extract.on('entry', (header, stream, next) => {
-      const chunks: Buffer[] = []
-      stream.on('data', (chunk: Buffer) => chunks.push(chunk))
-      stream.on('end', () => {
-        if (header.type === 'file') {
-          const name = pathBasename(header.name)
-          if (name.endsWith(ARTIFACT_FILE_EXTENSION)) {
-            const key = name.slice(0, -ARTIFACT_FILE_EXTENSION.length)
-            contracts.set(key, Buffer.concat(chunks).toString('utf8'))
-          }
-        }
-        next()
-      })
-      stream.resume()
-    })
-
-    extract.on('finish', resolve)
-    extract.on('error', reject)
-
-    Readable.from(compressed).pipe(createGunzip()).pipe(extract)
-  })
-
-  return contracts
+  return join(path, 'lib/node_modules/@chainlink/contracts-ton/build')
 }
+
+const releaseCache = new Map<string, ContractCodeStore>()
 
 /**
  * Load compiled contract bytecode from a GitHub release.
@@ -142,18 +133,7 @@ export async function loadContractCodeFromRelease(
   contractName: string,
 ): Promise<Cell> {
   if (!releaseCache.has(releaseName)) {
-    releaseCache.set(releaseName, downloadAndExtractRelease(releaseName))
+    releaseCache.set(releaseName, new ContractCodeStore(buildReleasePath(releaseName)))
   }
-
-  const contracts = await releaseCache.get(releaseName)!
-  const fileContent = contracts.get(contractName)
-
-  if (!fileContent) {
-    const available = Array.from(contracts.keys()).join(', ')
-    throw new Error(
-      `Contract "${contractName}" not found in release "${releaseName}". Available: ${available}`,
-    )
-  }
-
-  return parseCompiledContractJson(fileContent, `release "${releaseName}" / ${contractName}`)
+  return releaseCache.get(releaseName)!.get(contractName)
 }
