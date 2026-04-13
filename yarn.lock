@@ -874,7 +874,7 @@
     globby "^11.0.0"
     read-yaml-file "^1.1.0"
 
-"@multiformats/murmur3@1.1.3", "@multiformats/murmur3@^1.0.3":
+"@multiformats/murmur3@^1.0.3":
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/@multiformats/murmur3/-/murmur3-1.1.3.tgz#70349166992e5f981f1ddff0200fa775b2bf6606"
   integrity sha512-wAPLUErGR8g6Lt+bAZn6218k9YQPym+sjszsXL6o4zfxbA22P+gxWZuuD9wDbwL55xrKO5idpcuQUX7/E3oHcw==
