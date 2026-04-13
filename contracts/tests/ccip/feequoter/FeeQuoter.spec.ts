@@ -16,6 +16,7 @@ import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import { Cell, toNano } from '@ton/core'
 import { loadContractCodeFromRelease } from '../../../wrappers/codeLoader'
 import { tonDeepEqual } from '../../utils/tonDeepEqual'
+import { FEE_QUOTER_CONTRACT_PREV_VERSION } from '../../../wrappers/ccip/FeeQuoter'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
@@ -58,7 +59,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
 
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
     contractType: FeeQuoterPrev.type(),
-    prevVersion: FeeQuoterPrev.version(),
+    prevVersion: FEE_QUOTER_CONTRACT_PREV_VERSION,
     currentVersion: FeeQuoter.version(),
     getPrevCode: () => FeeQuoterPrev.code(),
     getCurrentCode: () => FeeQuoter.code(),

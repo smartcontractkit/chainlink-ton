@@ -16,7 +16,8 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_PREV_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
 const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
@@ -662,7 +663,7 @@ fun migrate(storage: cell, version: slice): cell {
     val SELECTOR = 1; // TODO
     val NEW_THRESHOLD = 24 * 3600; // 24 hours, for example
 
-    assert (version.bitsEqual(CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual(CONTRACT_PREV_VERSION)) throw Upgradeable_Error.VersionMismatch;
     var st = Storage.fromCell(storage);
     st.tokenPriceStalenessThreshold = NEW_THRESHOLD; 
     
