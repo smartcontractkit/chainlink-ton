@@ -467,11 +467,9 @@ func TestDownloadArtifacts_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	original := githubBaseURL
-	githubBaseURL = server.URL
-	t.Cleanup(func() { githubBaseURL = original })
 
 	out, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
+		Host:         server.URL,
 		Organization: "myorg",
 		Repository:   "myrepo",
 		Release:      "myrelease",
@@ -489,11 +487,8 @@ func TestDownloadArtifacts_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	original := githubBaseURL
-	githubBaseURL = server.URL
-	t.Cleanup(func() { githubBaseURL = original })
-
 	_, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
+		Host:         server.URL,
 		Organization: "myorg",
 		Repository:   "myrepo",
 		Release:      "myrelease",
@@ -517,11 +512,8 @@ func TestDownloadArtifacts_NonContractFilesIncluded(t *testing.T) {
 	}))
 	defer server.Close()
 
-	original := githubBaseURL
-	githubBaseURL = server.URL
-	t.Cleanup(func() { githubBaseURL = original })
-
 	out, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
+		Host:         server.URL,
 		Organization: "myorg",
 		Repository:   "myrepo",
 		Release:      "myrelease",

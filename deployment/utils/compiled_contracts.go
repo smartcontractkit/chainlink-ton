@@ -27,6 +27,7 @@ const (
 
 	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.0" // Feb 19, 2026
 
+
 	PackageMetadataFile = "contracts-pkg.json"
 )
 
@@ -108,6 +109,7 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 	if packageRef.Kind == CompiledContractsPackageKindRepoRef {
 		// Download contracts
 		downloadArtifactsInput := DownloadArtifactsInput{
+			Host:         packageRef.Host,
 			Organization: packageRef.Organization,
 			Repository:   packageRef.Repository,
 			Release:      packageRef.Tag,
@@ -219,6 +221,10 @@ func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
 
 	if host == "" || org == "" || repository == "" {
 		return nil, fmt.Errorf("invalid repo path %q: host, organization, and repository must be non-empty", repo)
+	}
+
+	if !(host == "https://github.com" || host == "github.com") {
+		return nil, fmt.Errorf("unsupported host %q: only github.com is supported", host)
 	}
 
 	return &ContractsPackageRef{
