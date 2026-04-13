@@ -27,7 +27,7 @@ import "events"
 
 const CONTRACT_VERSION = "1.6.0";
 const RESERVE = ton("5");
-const MIN_GASLIMIT = ton("0.01"); // Small example receiver total fees are around 0.0029 TON 
+const MIN_GASLIMIT = ton("0.025");
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -376,10 +376,6 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     // If there is a gasOverride, replace gas limit only if override is greater than original gasLimit
     // Otherwise, keep original limit
     var gasLimit: coins = message.gasLimit;
-    if (message.gasLimit < MIN_GASLIMIT) {
-        return blockMsg(st, msg.execId, message.receiver);
-    }
-
     if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
         gasLimit = msg.gasOverride;
     }
