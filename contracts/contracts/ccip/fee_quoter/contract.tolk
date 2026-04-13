@@ -660,7 +660,7 @@ get fun reserve(): coins {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    val NEW_THRESHOLD = 24 * 3600; // 24 hours, for example
+    val NEW_THRESHOLD = 90000; // 25 hours
 
     assert (version.bitsEqual(CONTRACT_PREV_VERSION)) throw Upgradeable_Error.VersionMismatch;
     var st = Storage.fromCell(storage);
