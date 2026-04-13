@@ -11,47 +11,47 @@ import (
 )
 
 type contractProvider struct {
-	compiledContracts map[string]ton.CompiledContract
+	logger logger.Logger;
+	compiledContracts map[string]ton.CompiledContract;
 }
 
-func (c *contractProvider) GetContract(meta ton.ContractMetadata) (ton.CompiledContract, error) {
-	key := meta.Key()
-	contract, ok := c.compiledContracts[key]
+func (c *contractProvider) GetContract(ctx context.Context, meta ton.ContractMetadata) (ton.CompiledContract, error) {
+	contract, ok := c.compiledContracts[meta.Key()]
 	if !ok {
-		return ton.CompiledContract{}, fmt.Errorf("contract not found for metadata: %s", key)
+		// If not found in cache, retrieve all compiled contracts for the package and populate the cache.
+		input := utils.RetrieveCompiledContractsInput{
+			Package: meta.Package,
+		}
+		output, err := utils.RetrieveCompiledTONContracts(ctx, c.logger, input)
+		if err != nil {
+			return ton.CompiledContract{}, fmt.Errorf("failed to retrieve compiled TON contract: %w", err)
+		}
+		for _, data := range output.CompiledContracts {
+			metadata := ton.ContractMetadata{
+				Package: data.PackageRef,
+				ID:      data.Type, // FQN, e.g. bindings.TypeRouter
+			}
+			c.compiledContracts[metadata.Key()] = ton.CompiledContract{
+				Metadata: metadata,
+				Code:     data.Code,
+				Version:  data.Version,
+			}
+		}
+	}
+	contract, ok = c.compiledContracts[meta.Key()]
+	if !ok {
+		return ton.CompiledContract{}, fmt.Errorf("contract not found after retrieval: %s", meta.Key())
 	}
 	return contract, nil
 }
 
-func NewCCIPContractProvider(ctx context.Context, logger logger.Logger, contractsPackage string) (ton.ContractCodeProvider, error) {
-	input := utils.RetrieveCompiledContractsInput{
-		Package: contractsPackage,
-	}
-	output, err := utils.RetrieveCompiledTONContracts(ctx, logger, input)
+func NewCCIPContractProvider() (ton.ContractCodeProvider, error) {
+	logger, err := logger.New()
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve compiled TON contract: %w", err)
+		return nil, fmt.Errorf("failed to create logger: %w", err)
 	}
-
-	// Convert from map[string]CompiledContractData (keyed by FQN) to map[string]ton.CompiledContract.
-	// The FQN is used directly as the ContractMetadata.ID so that callers can look up contracts
-	// using bindings.TypeXxx constants.
-	// TODO: Unify ContractMetadata.ID to use FQN everywhere once deployment/state short-name
-	// ds.ContractType constants are removed.
-	compiledContracts := make(map[string]ton.CompiledContract, len(output.CompiledContracts))
-
-	for _, data := range output.CompiledContracts {
-		metadata := ton.ContractMetadata{
-			Package: "github.com/smartcontractkit/chainlink-ton",
-			Version: data.Version,
-			ID:      data.Type, // FQN, e.g. bindings.TypeRouter
-		}
-		compiledContracts[metadata.Key()] = ton.CompiledContract{
-			Metadata: metadata,
-			Code:     data.Code,
-		}
-	}
-
 	return &contractProvider{
-		compiledContracts: compiledContracts,
+		logger: logger,
+		compiledContracts: make(map[string]ton.CompiledContract),
 	}, nil
 }

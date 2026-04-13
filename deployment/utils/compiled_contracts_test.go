@@ -182,68 +182,54 @@ func TestAssetNameFromReleaseTag(t *testing.T) {
 	}
 }
 
-// --- shouldIncludeRootFile tests ---
+// --- isValidRootFile tests ---
 
-func TestShouldIncludeRootFile(t *testing.T) {
+func TestIsValidRootFile(t *testing.T) {
 	tests := []struct {
 		name     string
 		filename string
-		suffix   string
 		expected bool
 	}{
 		{
-			name:     "matching suffix",
+			name:     "compiled json file",
 			filename: "Router.compiled.json",
-			suffix:   ".compiled.json",
 			expected: true,
 		},
 		{
-			name:     "non-matching suffix",
+			name:     "other file type",
 			filename: "Router.txt",
-			suffix:   ".compiled.json",
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "nested path rejected",
 			filename: "subdir/Router.compiled.json",
-			suffix:   ".compiled.json",
 			expected: false,
 		},
 		{
 			name:     "dotdot path rejected",
 			filename: "../Router.compiled.json",
-			suffix:   ".compiled.json",
 			expected: false,
 		},
 		{
 			name:     "empty name",
 			filename: "",
-			suffix:   ".compiled.json",
 			expected: false,
 		},
 		{
 			name:     "dot only",
 			filename: ".",
-			suffix:   ".compiled.json",
 			expected: false,
 		},
 		{
-			name:     "package metadata file always included",
+			name:     "package metadata file",
 			filename: PackageMetadataFile,
-			suffix:   ".compiled.json",
-			expected: true,
-		},
-		{
-			name:     "empty suffix matches any root file",
-			filename: "anyfile.txt",
-			suffix:   "",
 			expected: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := shouldIncludeRootFile(tc.filename, tc.suffix)
+			result := isValidRootFile(tc.filename)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -287,16 +273,14 @@ func TestReadLimited_EmptyReader(t *testing.T) {
 func TestGetArtifactsFromLocalDir_ReadsMatchingFiles(t *testing.T) {
 	dir := t.TempDir()
 
-	// Create matching files
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aabb"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "OnRamp.compiled.json"), []byte(`{"hex":"ccdd"}`), 0o644))
-
-	// Create non-matching file
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o644))
 
-	artifacts, err := GetArtifactsFromLocalDir(dir, ".compiled.json")
+	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
-	assert.Len(t, artifacts, 2)
+	// All root-level files are returned; callers are responsible for filtering.
+	assert.Len(t, artifacts, 3)
 
 	names := make(map[string]bool)
 	for _, a := range artifacts {
@@ -304,6 +288,7 @@ func TestGetArtifactsFromLocalDir_ReadsMatchingFiles(t *testing.T) {
 	}
 	assert.True(t, names["Router.compiled.json"])
 	assert.True(t, names["OnRamp.compiled.json"])
+	assert.True(t, names["README.md"])
 }
 
 func TestGetArtifactsFromLocalDir_SkipsDirectories(t *testing.T) {
@@ -312,32 +297,33 @@ func TestGetArtifactsFromLocalDir_SkipsDirectories(t *testing.T) {
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "subdir.compiled.json"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o644))
 
-	artifacts, err := GetArtifactsFromLocalDir(dir, ".compiled.json")
+	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
 	assert.Len(t, artifacts, 1)
 	assert.Equal(t, "Router.compiled.json", artifacts[0].Filename)
 }
 
-func TestGetArtifactsFromLocalDir_IncludesPackageMetadata(t *testing.T) {
+func TestGetArtifactsFromLocalDir_IncludesAllRootFiles(t *testing.T) {
 	dir := t.TempDir()
 
 	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(`{"version":"1.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o644))
 
-	artifacts, err := GetArtifactsFromLocalDir(dir, ".compiled.json")
+	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
-	assert.Len(t, artifacts, 1)
-	assert.Equal(t, PackageMetadataFile, artifacts[0].Filename)
+	assert.Len(t, artifacts, 3)
 }
 
 func TestGetArtifactsFromLocalDir_NonExistentDir(t *testing.T) {
-	_, err := GetArtifactsFromLocalDir("/non/existent/dir", ".compiled.json")
+	_, err := GetArtifactsFromLocalDir("/non/existent/dir")
 	require.Error(t, err)
 }
 
 func TestGetArtifactsFromLocalDir_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 
-	artifacts, err := GetArtifactsFromLocalDir(dir, ".compiled.json")
+	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
 	assert.Empty(t, artifacts)
 }
@@ -367,16 +353,16 @@ func createTarGz(t *testing.T, files map[string][]byte) []byte {
 	return buf.Bytes()
 }
 
-func TestExtractFiles_MatchingSuffix(t *testing.T) {
+func TestExtractFiles_AllRootFiles(t *testing.T) {
 	tarGz := createTarGz(t, map[string][]byte{
 		"Router.compiled.json":  []byte(`{"hex":"aa"}`),
 		"OffRamp.compiled.json": []byte(`{"hex":"bb"}`),
 		"README.md":             []byte("readme"),
 	})
 
-	artifacts, err := extractFiles(tarGz, ".compiled.json")
+	artifacts, err := extractFiles(tarGz)
 	require.NoError(t, err)
-	assert.Len(t, artifacts, 2)
+	assert.Len(t, artifacts, 3)
 }
 
 func TestExtractFiles_NestedFilesSkipped(t *testing.T) {
@@ -385,25 +371,25 @@ func TestExtractFiles_NestedFilesSkipped(t *testing.T) {
 		"Router.compiled.json":        []byte(`{"hex":"bb"}`),
 	})
 
-	artifacts, err := extractFiles(tarGz, ".compiled.json")
+	artifacts, err := extractFiles(tarGz)
 	require.NoError(t, err)
 	assert.Len(t, artifacts, 1)
 	assert.Equal(t, "Router.compiled.json", artifacts[0].Filename)
 }
 
-func TestExtractFiles_EmptySuffixMatchesAll(t *testing.T) {
+func TestExtractFiles_AllFileTypes(t *testing.T) {
 	tarGz := createTarGz(t, map[string][]byte{
 		"file1.txt":  []byte("a"),
 		"file2.json": []byte("b"),
 	})
 
-	artifacts, err := extractFiles(tarGz, "")
+	artifacts, err := extractFiles(tarGz)
 	require.NoError(t, err)
 	assert.Len(t, artifacts, 2)
 }
 
 func TestExtractFiles_InvalidGzip(t *testing.T) {
-	_, err := extractFiles([]byte("not gzip"), ".json")
+	_, err := extractFiles([]byte("not gzip"))
 	require.Error(t, err)
 }
 
@@ -413,7 +399,7 @@ func TestExtractFiles_IncludesPackageMetadataFile(t *testing.T) {
 		"Router.compiled.json": []byte(`{"hex":"aa"}`),
 	})
 
-	artifacts, err := extractFiles(tarGz, ".compiled.json")
+	artifacts, err := extractFiles(tarGz)
 	require.NoError(t, err)
 	assert.Len(t, artifacts, 2)
 }
@@ -486,11 +472,10 @@ func TestDownloadArtifacts_Success(t *testing.T) {
 	t.Cleanup(func() { githubBaseURL = original })
 
 	out, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
-		Organization:        "myorg",
-		Repository:          "myrepo",
-		Release:             "myrelease",
-		Asset:               "myasset.tar.gz",
-		FilesSuffixToFilter: contractsFileNameSuffix,
+		Organization: "myorg",
+		Repository:   "myrepo",
+		Release:      "myrelease",
+		Asset:        "myasset.tar.gz",
 	})
 	require.NoError(t, err)
 	require.Len(t, out.Artifacts, 1)
@@ -509,17 +494,19 @@ func TestDownloadArtifacts_ServerError(t *testing.T) {
 	t.Cleanup(func() { githubBaseURL = original })
 
 	_, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
-		Organization:        "myorg",
-		Repository:          "myrepo",
-		Release:             "myrelease",
-		Asset:               "myasset.tar.gz",
-		FilesSuffixToFilter: contractsFileNameSuffix,
+		Organization: "myorg",
+		Repository:   "myrepo",
+		Release:      "myrelease",
+		Asset:        "myasset.tar.gz",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to download contracts")
 }
 
-func TestDownloadArtifacts_NoMatchingArtifacts(t *testing.T) {
+func TestDownloadArtifacts_NonContractFilesIncluded(t *testing.T) {
+	// DownloadArtifacts returns all root-level files without filtering.
+	// Callers like filterContractArtifacts are responsible for selecting
+	// only the files they care about.
 	tarGz := createTarGz(t, map[string][]byte{
 		"README.md": []byte("readme"),
 	})
@@ -534,15 +521,15 @@ func TestDownloadArtifacts_NoMatchingArtifacts(t *testing.T) {
 	githubBaseURL = server.URL
 	t.Cleanup(func() { githubBaseURL = original })
 
-	_, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
-		Organization:        "myorg",
-		Repository:          "myrepo",
-		Release:             "myrelease",
-		Asset:               "myasset.tar.gz",
-		FilesSuffixToFilter: contractsFileNameSuffix,
+	out, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
+		Organization: "myorg",
+		Repository:   "myrepo",
+		Release:      "myrelease",
+		Asset:        "myasset.tar.gz",
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no artifacts found")
+	require.NoError(t, err)
+	require.Len(t, out.Artifacts, 1)
+	assert.Equal(t, "README.md", out.Artifacts[0].Filename)
 }
 
 // --- compiledContractsFromArtifacts tests ---
@@ -635,7 +622,7 @@ func TestGetArtifactsFromLocalDir_ThenCompile(t *testing.T) {
 		0o644,
 	))
 
-	artifacts, err := GetArtifactsFromLocalDir(dir, contractsFileNameSuffix)
+	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
 	require.Len(t, artifacts, 1)
 
@@ -649,7 +636,7 @@ func TestExtractFiles_ThenCompiledContractsFromArtifacts(t *testing.T) {
 		"ccip.test.receiver.compiled.json": []byte(sampleCompiledContractJSON),
 	})
 
-	artifacts, err := extractFiles(tarGz, contractsFileNameSuffix)
+	artifacts, err := extractFiles(tarGz)
 	require.NoError(t, err)
 	require.Len(t, artifacts, 1)
 

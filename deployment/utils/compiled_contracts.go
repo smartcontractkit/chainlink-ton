@@ -1,20 +1,14 @@
 package utils //nolint:revive,nolintlint
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -27,8 +21,6 @@ import (
 )
 
 const (
-	contractsFileNameSuffix = ".compiled.json"
-
 	// Contract version definitions
 	ContractsVersionLocal = "local"
 	// Notice: "local" should be used only for development,
@@ -80,9 +72,9 @@ var defaultPackageMetadata = &ContractPackageMetadata{
 	},
 }
 
-// / Package e.g:
-// /   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
-// /   - /usr/my-contracts-build
+// Package e.g:
+//   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
+//   - /usr/my-contracts-build
 //   - local (maps to {repo-root}/contracts/build)
 type RetrieveCompiledContractsInput struct {
 	Package   string
@@ -115,17 +107,16 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 	if packageRef.Kind == CompiledContractsPackageKindRepoRef {
 		// Download contracts
 		downloadArtifactsInput := DownloadArtifactsInput{
-			Organization:        packageRef.Organization,
-			Repository:          packageRef.Repository,
-			Release:             in.Package,
-			Asset:               AssetNameFromReleaseTag(in.Package),
-			FilesSuffixToFilter: contractsFileNameSuffix,
+			Organization: packageRef.Organization,
+			Repository:   packageRef.Repository,
+			Release:      in.Package,
+			Asset:        AssetNameFromReleaseTag(in.Package),
 		}
 		downloadArtifactsOutput, err := DownloadArtifacts(ctx, downloadArtifactsInput)
 		if err != nil {
 			return output, err
 		}
-		compiledContracts, err := compiledContractsFromArtifacts(downloadArtifactsOutput.Artifacts, in.Contracts, in.Package)
+		compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(downloadArtifactsOutput.Artifacts), in.Contracts, in.Package)
 
 		return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
 		//TODO Cache the results
@@ -139,8 +130,8 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 		packagePath = helpers.GetBuildsDir(ctx)
 	}
 
-	artifacts, err := GetArtifactsFromLocalDir(packagePath, contractsFileNameSuffix)
-	compiledContracts, err := compiledContractsFromArtifacts(artifacts, in.Contracts, in.Package)
+	artifacts, err := GetArtifactsFromLocalDir(packagePath)
+	compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(artifacts), in.Contracts, in.Package)
 	output = RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}
 
 	return output, nil
@@ -251,218 +242,16 @@ func verifyDeployableCodeHash(code *cell.Cell) error {
 	return nil
 }
 
-type Artifact struct {
-	Filename string
-	Data     []byte
-}
-
-// Limit decompressed size to 100MB (adjust as needed)
-const maxDecompressedSize = 100 * 1024 * 1024
-
-// githubBaseURL is the base URL for downloading release artifacts.
-// Tests can override this to point at an httptest.Server.
-var githubBaseURL = "https://github.com"
-
-func GetArtifactsFromLocalDir(dir string, suffix string) ([]Artifact, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
+// filterContractArtifacts returns only artifacts that are compiled contract files
+// (.compiled.json) or the package metadata file (contracts-pkg.json).
+func filterContractArtifacts(artifacts []Artifact) []Artifact {
 	var out []Artifact
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
+	for _, a := range artifacts {
+		if a.Filename == PackageMetadataFile || strings.HasSuffix(a.Filename, contractsFileNameSuffix) {
+			out = append(out, a)
 		}
-
-		info, err := entry.Info()
-		if err != nil {
-			return nil, fmt.Errorf("error while stat %q: %w", entry.Name(), err)
-		}
-		if !info.Mode().IsRegular() {
-			continue
-		}
-
-		if !shouldIncludeRootFile(entry.Name(), suffix) {
-			continue
-		}
-
-		clean := filepath.Clean(entry.Name())
-		fullPath := filepath.Join(dir, entry.Name())
-
-		f, err := os.Open(fullPath)
-		if err != nil {
-			return nil, fmt.Errorf("error while open %q: %w", clean, err)
-		}
-
-		data, readErr := readLimited(f, maxDecompressedSize, clean)
-		closeErr := f.Close()
-		if readErr != nil {
-			return nil, readErr
-		}
-		if closeErr != nil {
-			return nil, fmt.Errorf("error while close %q: %w", clean, closeErr)
-		}
-
-		out = append(out, Artifact{
-			Filename: filepath.Base(clean),
-			Data:     data,
-		})
 	}
-
-	return out, nil
-}
-
-type DownloadArtifactsInput struct {
-	Organization        string
-	Repository          string
-	Release             string
-	Asset               string
-	FilesSuffixToFilter string
-}
-
-type DownloadArtifactsOutput struct {
-	Artifacts []Artifact
-}
-
-func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
-	output := DownloadArtifactsOutput{}
-
-	url := fmt.Sprintf(
-		"%s/%s/%s/releases/download/%s/%s",
-		githubBaseURL, in.Organization, in.Repository, in.Release, in.Asset,
-	)
-
-	rawTarGz, err := getBytesFromURL(ctx, url)
-
-	if err != nil {
-		return output, fmt.Errorf("failed to download contracts from %s: %w", url, err)
-	}
-	artifacts, err := extractFiles(rawTarGz, in.FilesSuffixToFilter)
-
-	if err != nil {
-		return output, fmt.Errorf("failed to extract contracts from .tar.gz %s: %w", url, err)
-	}
-
-	output.Artifacts = artifacts
-
-	if len(output.Artifacts) == 0 {
-		return output, fmt.Errorf("no artifacts found in the tar.gz file %s with suffix %q", url, in.FilesSuffixToFilter)
-	}
-
-	return output, nil
-}
-
-func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
-	gzipReader, err := gzip.NewReader(bytes.NewReader(rawTarGz))
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = gzipReader.Close() }()
-
-	tarReader := tar.NewReader(io.LimitReader(gzipReader, maxDecompressedSize))
-
-	var out []Artifact
-
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		if header.Typeflag != tar.TypeReg {
-			continue
-		}
-
-		if !shouldIncludeRootFile(header.Name, suffix) {
-			continue
-		}
-
-		clean := filepath.Clean(header.Name)
-
-		data, err := readLimited(tarReader, maxDecompressedSize, clean)
-		if err != nil {
-			return nil, err
-		}
-
-		out = append(out, Artifact{
-			Filename: clean,
-			Data:     data,
-		})
-	}
-
-	return out, nil
-}
-
-func shouldIncludeRootFile(name, suffix string) bool {
-	clean := filepath.Clean(name)
-
-	// Only accept root-level files and disallow any ".."
-	if strings.Contains(clean, "/") || strings.Contains(clean, "..") {
-		return false
-	}
-	if clean == "" || clean == "." {
-		return false
-	}
-	if clean == PackageMetadataFile {
-		return true
-	}
-	if suffix != "" && !strings.HasSuffix(clean, suffix) {
-		return false
-	}
-
-	return true
-}
-
-func readLimited(r io.Reader, limit int64, name string) ([]byte, error) {
-	var buf bytes.Buffer
-
-	n, err := io.Copy(&buf, io.LimitReader(r, limit+1))
-	if err != nil {
-		return nil, fmt.Errorf("error while read %q: %w", name, err)
-	}
-	if n > limit {
-		return nil, fmt.Errorf("file %q exceeds size limit", name)
-	}
-
-	return buf.Bytes(), nil
-}
-
-func getBytesFromURL(ctx context.Context, url string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-
-	if err != nil {
-		return nil, err
-	}
-
-	cl := &http.Client{Timeout: 90 * time.Second}
-	resp, err := cl.Do(req)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("GET %s responded with an error: %s: %s", url, resp.Status, string(b))
-	}
-
-	return io.ReadAll(resp.Body)
-}
-
-// Convention for asset names: Take the release tag, replace "/" with "-", and append ".tar.gz"
-// For example, a release tag like "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0 will have an asset named contracts-1.6.0.tar.gz"
-func AssetNameFromReleaseTag(tag string) string {
-	tag = strings.ReplaceAll(tag, "/", "-")
-	return fmt.Sprintf("%s.tar.gz", tag)
+	return out
 }
 
 // parsePackageMetadata returns the ContractPackageMetadata from the artifacts.

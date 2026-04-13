@@ -1,6 +1,7 @@
 package resolvers_test
 
 import (
+	"context"
 	"encoding/json"
 	"math/big"
 	"reflect"
@@ -36,7 +37,7 @@ func must[E any](out E, err error) E {
 
 type fakeContractProvider struct{}
 
-func (f fakeContractProvider) GetContract(meta opston.ContractMetadata) (opston.CompiledContract, error) {
+func (f fakeContractProvider) GetContract(ctx context.Context, meta opston.ContractMetadata) (opston.CompiledContract, error) {
 	switch meta.Key() {
 	case "testpkg@1.0.0:Foo":
 		cell := cell.BeginCell().MustStoreInt(1, 32).EndCell()
