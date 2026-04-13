@@ -56,15 +56,15 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	}
 
 	// Notice: we set a (static) default when version is not provided
-	contractVersion := utils.ContractsVersionLatestSupported
+	contractsPackage := utils.ContractsPackageLatestSupported
 	if in.ContractsVersionSha != "" {
-		contractVersion = in.ContractsVersionSha
+		contractsPackage = in.ContractsVersionSha
 	}
 
 	// TODO: don't directly execute deployments, instead return them as txs
 	addresses := make([]datastore.AddressRef, 0)
 	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
-		ContractsVersionSha: contractVersion,
+		Package: contractsPackage,
 		Contracts: []datastore.ContractType{
 			state.Router,
 			state.FeeQuoter,

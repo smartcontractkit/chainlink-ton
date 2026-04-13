@@ -84,7 +84,7 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 		ChainSelector: chainSelector,
 		Type:          compiledContract.Type, // TODO: type mismatch for MCMS deployment (updated upstream, needs fix here)
 		Version:       semver,
-		Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
+		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.PackageRef)),
 	}, nil
 }
 

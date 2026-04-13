@@ -25,9 +25,9 @@ func (c *contractProvider) GetContract(meta ton.ContractMetadata) (ton.CompiledC
 	return contract, nil
 }
 
-func NewCCIPContractProvider(ctx context.Context, logger logger.Logger, contractsVersionSha string) (ton.ContractCodeProvider, error) {
+func NewCCIPContractProvider(ctx context.Context, logger logger.Logger, contractsPackage string) (ton.ContractCodeProvider, error) {
 	input := utils.RetrieveCompiledContractsInput{
-		ContractsVersionSha: contractsVersionSha,
+		Package: contractsPackage,
 	}
 	output, err := utils.RetrieveCompiledTONContracts(ctx, logger, input)
 	if err != nil {

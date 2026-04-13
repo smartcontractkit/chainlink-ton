@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
@@ -28,28 +29,29 @@ import (
 )
 
 const (
-	contractsGithubOrganization  = "smartcontractkit"
-	contractsGithubRepository    = "chainlink-ton"
-	contractsGithubReleasePrefix = "ton-contracts-build-"
-	contractsGithubAssetPrefix   = "ton-contracts-build-"
-	contractsFileNameSuffix      = ".compiled.json"
+	contractsFileNameSuffix  = ".compiled.json"
 
 	// Contract version definitions
 	ContractsVersionLocal = "local"
 	// Notice: "local" should be used only for development,
-	// while a specific version should be pinned for releases (production deployments).
-	ContractsVersionLatestSupported = "054376f21418" // Feb 19, 2026
+
+	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.0" // Feb 19, 2026
+
+	PackageMetadataFile = "contracts-pkg.json"
 )
+
+var DeployableCodeHash, _ = hex.DecodeString("61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc")
 
 type ContractMappingMetadata struct {
 	CompiledVersionKey string
 }
 
 type CompiledContractData struct {
-	Type               ds.ContractType
-	Code               *cell.Cell
-	ContractVersionSha string
-	ContractPath       string
+	Type                ds.ContractType
+	Code                *cell.Cell
+	PackageRef          string
+	Version		    semver.Version
+
 }
 
 // Eventually, we can move this mapping into a descriptor as part of the contract release package.
@@ -92,14 +94,22 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	},
 }
 
+/// Package e.g:
+///   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
+///   - /usr/my-contracts-build
+//    - local (maps to {repo-root}/contracts/build)
 type RetrieveCompiledContractsInput struct {
-	ContractsVersionSha string
+	Package             string
 	Contracts           []ds.ContractType
 }
 
 func (i *RetrieveCompiledContractsInput) Validate() error {
-	if strings.TrimSpace(i.ContractsVersionSha) == "" {
-		return errors.New("contracts version SHA cannot be empty")
+	if i == nil {
+		return errors.New("input cannot be nil")
+	}
+
+	if _, err := ParseCompiledContractsPackageRef(i.Package); err != nil {
+		return err
 	}
 	return nil
 }
@@ -111,93 +121,146 @@ type RetrieveCompiledContractsOutput struct {
 func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
 	output := RetrieveCompiledContractsOutput{}
 
-	if err := in.Validate(); err != nil {
-		return output, err
+	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
+	if err != nil {
+		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %v", err)
 	}
 
-	if in.ContractsVersionSha != ContractsVersionLocal {
+	if packageRef.Kind == CompiledContractsPackageKindRepoRef {
 		// Download contracts
-		// TODO we could optimize this even more by passing the file names to extract from the release package
 		downloadArtifactsInput := DownloadArtifactsInput{
-			Organization:        contractsGithubOrganization,
-			Repository:          contractsGithubRepository,
-			Release:             contractsGithubReleasePrefix + in.ContractsVersionSha,
-			Asset:               contractsGithubAssetPrefix + in.ContractsVersionSha,
+			Organization:        packageRef.Organization,
+			Repository:          packageRef.Repository,
+			Release:             in.Package,
+			Asset:               AssetNameFromReleaseTag(in.Package),
 			FilesSuffixToFilter: contractsFileNameSuffix,
 		}
 		downloadArtifactsOutput, err := DownloadArtifacts(ctx, downloadArtifactsInput)
-
 		if err != nil {
 			return output, err
 		}
+		compiledContracts, err := compiledContractsFromArtifacts(downloadArtifactsOutput.Artifacts, in.Contracts, in.Package)
 
-		if err := os.MkdirAll(helpers.GetBuildDir(ctx, ""), 0o755); err != nil {
-			return output, fmt.Errorf("failed to create dirs to store contracts: %w", err)
-		}
+		return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
+		//TODO Cache the results
+	} 
+	// Fetch contracts locally, either from a specified absolute path or from the default repo location
 
-		for _, a := range downloadArtifactsOutput.Artifacts {
-			// Save the files in the corresponding location so that the deployment operations can find them
-			path := helpers.GetBuildDir(ctx, a.Path)
-
-			if err := os.WriteFile(path, a.Data, 0o600); err != nil {
-				return output, fmt.Errorf("failed to write contract artifact to path %s: %w", path, err)
-			}
-
-			logger.Infof("Saved contractType artifact %s", path)
-		}
-	} else {
-		logger.Infof("Not downloading contracts from Github. Using local version")
+	packagePath := ""
+	if packageRef.Kind == CompiledContractsPackageKindAbsPath {
+		packagePath = packageRef.AbsPath
+	} else if packageRef.Kind == CompiledContractsPackageKindLocal {
+		packagePath = helpers.GetBuildsDir(ctx)
 	}
 
-	// If no contractType is specified, let's get all of them
-	contractToLookFor := slices.Collect(maps.Keys(contractsMapping))
-	if len(in.Contracts) != 0 {
-		contractToLookFor = in.Contracts
-	}
-
-	output.CompiledContracts = make(map[ds.ContractType]CompiledContractData)
-	for _, contractType := range contractToLookFor {
-		contractMetadata, ok := contractsMapping[contractType]
-
-		if !ok {
-			return output, fmt.Errorf("unknown contractType: %s", contractType)
-		}
-
-		contractPath := helpers.GetBuildDir(ctx, contractMetadata.CompiledVersionKey)
-		contractCode, err := wrappers.ParseCompiledContract(contractPath)
-		if err != nil {
-			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)
-		}
-
-		if contractType == state.Deployer {
-			err = verifyDeployerCodeHash(contractCode)
-			if err != nil {
-				return output, fmt.Errorf("deployer code hash verification failed: %w", err)
-			}
-		}
-
-		output.CompiledContracts[contractType] = CompiledContractData{
-			Code:               contractCode,
-			ContractVersionSha: in.ContractsVersionSha,
-			Type:               contractType,
-			ContractPath:       contractPath,
-		}
-	}
+	artifacts, err := GetArtifactsFromLocalDir(packagePath, contractsFileNameSuffix)
+	compiledContracts, err := compiledContractsFromArtifacts(artifacts, in.Contracts, in.Package)
+	output = RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}
 
 	return output, nil
 }
 
-func verifyDeployerCodeHash(code *cell.Cell) error {
+
+type CompiledContractsPackageKind string
+
+const (
+	CompiledContractsPackageKindLocal   CompiledContractsPackageKind = "local"
+	CompiledContractsPackageKindAbsPath CompiledContractsPackageKind = "abs_path"
+	CompiledContractsPackageKindRepoRef CompiledContractsPackageKind = "repo_ref"
+)
+
+type ContractsPackageRef struct {
+	Kind         CompiledContractsPackageKind
+
+	// for KindAbsPath
+	AbsPath      string
+
+	// for KindRepoRef
+	Host         string
+	Organization string
+	Repository   string
+	Tag          string
+}
+
+func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, errors.New("contracts package ref cannot be empty")
+	}
+
+	if s == "local" {
+		return &ContractsPackageRef{
+			Kind: CompiledContractsPackageKindLocal,
+		}, nil
+	}
+
+	if filepath.IsAbs(s) {
+		return &ContractsPackageRef{
+			Kind:    CompiledContractsPackageKindAbsPath,
+			AbsPath: s,
+		}, nil
+	}
+
+	repo, tag, ok := strings.Cut(s, "@")
+	if !ok {
+		return nil, fmt.Errorf(
+			"invalid contracts package ref %q: must be 'local', an absolute path, or '<host>/<org>/<repo>@<tag>'",
+			s,
+		)
+	}
+
+	repo = strings.TrimSpace(repo)
+	tag = strings.TrimSpace(tag)
+
+	if repo == "" {
+		return nil, errors.New("repo path cannot be empty")
+	}
+	if tag == "" {
+		return nil, errors.New("tag cannot be empty")
+	}
+	if strings.Contains(repo, " ") {
+		return nil, errors.New("repo path must not contain spaces")
+	}
+	if strings.Contains(tag, " ") {
+		return nil, errors.New("tag must not contain spaces")
+	}
+	if strings.Contains(tag, "@") {
+		return nil, errors.New("tag must not contain '@'")
+	}
+
+	parts := strings.Split(repo, "/")
+	if len(parts) != 3 {
+		return nil, fmt.Errorf(
+			"invalid repo path %q: expected format '<host>/<organization>/<repository>'",
+			repo,
+		)
+	}
+
+	host := parts[0]
+	org := parts[1]
+	repository := parts[2]
+
+	if host == "" || org == "" || repository == "" {
+		return nil, fmt.Errorf("invalid repo path %q: host, organization, and repository must be non-empty", repo)
+	}
+
+	return &ContractsPackageRef{
+		Kind:         CompiledContractsPackageKindRepoRef,
+		Host:         host,
+		Organization: org,
+		Repository:   repository,
+		Tag:          tag,
+	}, nil
+}
+
+
+
+func verifyDeployableCodeHash(code *cell.Cell) error {
 	if code == nil {
 		return errors.New("deployer code cell is nil")
 	}
 	computedHash := code.Hash()
-	expectedHash, err := hex.DecodeString(
-		"61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc",
-	)
-	if err != nil {
-		return fmt.Errorf("invalid expected hash: %w", err)
-	}
+	expectedHash := DeployableCodeHash
 
 	if !bytes.Equal(computedHash, expectedHash) {
 		return fmt.Errorf("code hash mismatch: got %x, expected %x", computedHash, expectedHash)
@@ -205,12 +268,63 @@ func verifyDeployerCodeHash(code *cell.Cell) error {
 	return nil
 }
 
+type Artifact struct {
+	Filename string
+	Data []byte
+}
 // Limit decompressed size to 100MB (adjust as needed)
 const maxDecompressedSize = 100 * 1024 * 1024
 
-type Artifact struct {
-	Path string
-	Data []byte
+
+func GetArtifactsFromLocalDir(dir string, suffix string) ([]Artifact, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []Artifact
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			return nil, fmt.Errorf("error while stat %q: %w", entry.Name(), err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+
+		if !shouldIncludeRootFile(entry.Name(), suffix) {
+			continue
+		}
+
+		clean := filepath.Clean(entry.Name())
+		fullPath := filepath.Join(dir, entry.Name())
+
+		f, err := os.Open(fullPath)
+		if err != nil {
+			return nil, fmt.Errorf("error while open %q: %w", clean, err)
+		}
+
+		data, readErr := readLimited(f, maxDecompressedSize, clean)
+		closeErr := f.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		if closeErr != nil {
+			return nil, fmt.Errorf("error while close %q: %w", clean, closeErr)
+		}
+
+		out = append(out, Artifact{
+			Filename: filepath.Base(clean),
+			Data: data,
+		})
+	}
+
+	return out, nil
 }
 
 type DownloadArtifactsInput struct {
@@ -230,7 +344,7 @@ func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (Download
 
 	url := fmt.Sprintf(
 		"https://github.com/%s/%s/releases/download/%s/%s",
-		in.Organization, in.Repository, in.Release, in.Asset+".tar.gz",
+		in.Organization, in.Repository, in.Release, in.Asset,
 	)
 
 	rawTarGz, err := getBytesFromURL(ctx, url)
@@ -238,7 +352,6 @@ func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (Download
 	if err != nil {
 		return output, fmt.Errorf("failed to download contracts from %s: %w", url, err)
 	}
-
 	artifacts, err := extractFiles(rawTarGz, in.FilesSuffixToFilter)
 
 	if err != nil {
@@ -261,7 +374,6 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 	}
 	defer func() { _ = gzipReader.Close() }()
 
-	// Limit decompressed size to 100MB
 	tarReader := tar.NewReader(io.LimitReader(gzipReader, maxDecompressedSize))
 
 	var out []Artifact
@@ -275,33 +387,62 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 			return nil, err
 		}
 
-		switch header.Typeflag {
-		case tar.TypeReg:
-			clean := filepath.Clean(header.Name)
-
-			// Only accept root-level files in this current version (no "/") and disallow any occurrence of ".." in the name
-			if strings.Contains(clean, "/") || strings.Contains(clean, "..") {
-				continue
-			}
-			// Reject empty, current-dir
-			if clean == "" || clean == "." {
-				continue
-			}
-			var buf bytes.Buffer
-			// Limit individual file size to prevent DoS
-			if _, err := io.Copy(&buf, io.LimitReader(tarReader, maxDecompressedSize)); err != nil {
-				return nil, fmt.Errorf("error while read %q: %w", clean, err)
-			}
-			out = append(out, Artifact{
-				Path: clean,
-				Data: buf.Bytes(),
-			})
-		default:
-			// skip dirs, symlinks, etc.
+		if header.Typeflag != tar.TypeReg {
+			continue
 		}
+
+		if !shouldIncludeRootFile(header.Name, suffix) {
+			continue
+		}
+
+		clean := filepath.Clean(header.Name)
+
+		data, err := readLimited(tarReader, maxDecompressedSize, clean)
+		if err != nil {
+			return nil, err
+		}
+
+		out = append(out, Artifact{
+			Filename: clean,
+			Data: data,
+		})
 	}
 
 	return out, nil
+}
+
+func shouldIncludeRootFile(name, suffix string) bool {
+	clean := filepath.Clean(name)
+
+	// Only accept root-level files and disallow any ".."
+	if strings.Contains(clean, "/") || strings.Contains(clean, "..") {
+		return false
+	}
+	if clean == "" || clean == "." {
+		return false
+	}
+	if clean == PackageMetadataFile {
+		return true
+	}
+	if suffix != "" && !strings.HasSuffix(clean, suffix) {
+		return false
+	}
+
+	return true
+}
+
+func readLimited(r io.Reader, limit int64, name string) ([]byte, error) {
+	var buf bytes.Buffer
+
+	n, err := io.Copy(&buf, io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("error while read %q: %w", name, err)
+	}
+	if n > limit {
+		return nil, fmt.Errorf("file %q exceeds size limit", name)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func getBytesFromURL(ctx context.Context, url string) ([]byte, error) {
@@ -328,4 +469,60 @@ func getBytesFromURL(ctx context.Context, url string) ([]byte, error) {
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+// Convention for asset names: Take the release tag, replace "/" with "-", and append ".tar.gz"
+// For example, a release tag like "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0 will have an asset named contracts-1.6.0.tar.gz"
+func AssetNameFromReleaseTag(tag string) string {
+	tag = strings.ReplaceAll(tag, "/", "-")
+	return fmt.Sprintf("%s.tar.gz", tag)
+}
+
+func compiledContractsFromArtifacts(artifacts []Artifact, contracts[]ds.ContractType, packageRef string) (map[ds.ContractType]CompiledContractData, error) {
+	// Create and populate a set with the contract types/paths we will accept
+	contractsToLookFor := slices.Collect(maps.Keys(contractsMapping))
+	if len(contracts) != 0 {
+		contractsToLookFor = contracts
+	}
+	filenameToLookFor := make(map[string]struct{})
+	for _, contractType := range contractsToLookFor {
+		meta, ok := contractsMapping[contractType]
+		if !ok {
+			return nil, fmt.Errorf("unknown contractType: %s", contractType)
+		}
+		filenameToLookFor[meta.CompiledVersionKey] = struct{}{}
+	}
+
+	// Return the contracts whose paths match the ones in the mapping
+	compiledContracts := make(map[ds.ContractType]CompiledContractData)
+
+	for _, artifact := range artifacts {
+		if _, ok := filenameToLookFor[artifact.Filename]; !ok {
+			continue
+		}
+		contractCode, err := wrappers.ParseCompiledTolkContractFromFileBytes(artifact.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse compiled contract from artifact %s: %w", artifact.Filename, err)
+		}
+		// Find the corresponding contract type for this path
+		var contractType ds.ContractType
+		for ct, meta := range contractsMapping {
+			if meta.CompiledVersionKey == artifact.Filename {
+				contractType = ct
+				break
+			}
+		}
+		if contractType == state.Deployer {
+			err = verifyDeployableCodeHash(contractCode)
+			if err != nil {
+				return nil, fmt.Errorf("deployer code hash verification failed for artifact %s: %w", artifact.Filename, err)
+			}
+		}
+		compiledContracts[contractType] = CompiledContractData{
+			Code:         contractCode,
+			Type:         contractType,
+			PackageRef:   packageRef,
+		}
+	}
+	return compiledContracts, nil
 }
