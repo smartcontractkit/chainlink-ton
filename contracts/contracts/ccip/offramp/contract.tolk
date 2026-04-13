@@ -383,6 +383,9 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
         gasLimit = msg.gasOverride;
     }
+    if (gasLimit < MIN_GASLIMIT) {
+        return blockMsg(st, msg.execId, message.receiver);
+    }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
         value: gasLimit + Router_Costs.routeMessage(),
