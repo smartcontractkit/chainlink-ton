@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	contractsFileNameSuffix  = ".compiled.json"
+	contractsFileNameSuffix = ".compiled.json"
 
 	// Contract version definitions
 	ContractsVersionLocal = "local"
@@ -47,11 +47,10 @@ type ContractMappingMetadata struct {
 }
 
 type CompiledContractData struct {
-	Type                ds.ContractType
-	Code                *cell.Cell
-	PackageRef          string
-	Version		    semver.Version
-
+	Type       ds.ContractType
+	Code       *cell.Cell
+	PackageRef string
+	Version    *semver.Version
 }
 
 // Eventually, we can move this mapping into a descriptor as part of the contract release package.
@@ -94,13 +93,13 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	},
 }
 
-/// Package e.g:
-///   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
-///   - /usr/my-contracts-build
-//    - local (maps to {repo-root}/contracts/build)
+// / Package e.g:
+// /   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
+// /   - /usr/my-contracts-build
+//   - local (maps to {repo-root}/contracts/build)
 type RetrieveCompiledContractsInput struct {
-	Package             string
-	Contracts           []ds.ContractType
+	Package   string
+	Contracts []ds.ContractType
 }
 
 func (i *RetrieveCompiledContractsInput) Validate() error {
@@ -143,7 +142,7 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 
 		return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
 		//TODO Cache the results
-	} 
+	}
 	// Fetch contracts locally, either from a specified absolute path or from the default repo location
 
 	packagePath := ""
@@ -160,7 +159,6 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 	return output, nil
 }
 
-
 type CompiledContractsPackageKind string
 
 const (
@@ -170,10 +168,10 @@ const (
 )
 
 type ContractsPackageRef struct {
-	Kind         CompiledContractsPackageKind
+	Kind CompiledContractsPackageKind
 
 	// for KindAbsPath
-	AbsPath      string
+	AbsPath string
 
 	// for KindRepoRef
 	Host         string
@@ -253,8 +251,6 @@ func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
 	}, nil
 }
 
-
-
 func verifyDeployableCodeHash(code *cell.Cell) error {
 	if code == nil {
 		return errors.New("deployer code cell is nil")
@@ -270,11 +266,15 @@ func verifyDeployableCodeHash(code *cell.Cell) error {
 
 type Artifact struct {
 	Filename string
-	Data []byte
+	Data     []byte
 }
+
 // Limit decompressed size to 100MB (adjust as needed)
 const maxDecompressedSize = 100 * 1024 * 1024
 
+// githubBaseURL is the base URL for downloading release artifacts.
+// Tests can override this to point at an httptest.Server.
+var githubBaseURL = "https://github.com"
 
 func GetArtifactsFromLocalDir(dir string, suffix string) ([]Artifact, error) {
 	entries, err := os.ReadDir(dir)
@@ -320,7 +320,7 @@ func GetArtifactsFromLocalDir(dir string, suffix string) ([]Artifact, error) {
 
 		out = append(out, Artifact{
 			Filename: filepath.Base(clean),
-			Data: data,
+			Data:     data,
 		})
 	}
 
@@ -343,8 +343,8 @@ func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (Download
 	output := DownloadArtifactsOutput{}
 
 	url := fmt.Sprintf(
-		"https://github.com/%s/%s/releases/download/%s/%s",
-		in.Organization, in.Repository, in.Release, in.Asset,
+		"%s/%s/%s/releases/download/%s/%s",
+		githubBaseURL, in.Organization, in.Repository, in.Release, in.Asset,
 	)
 
 	rawTarGz, err := getBytesFromURL(ctx, url)
@@ -404,7 +404,7 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 
 		out = append(out, Artifact{
 			Filename: clean,
-			Data: data,
+			Data:     data,
 		})
 	}
 
@@ -478,7 +478,7 @@ func AssetNameFromReleaseTag(tag string) string {
 	return fmt.Sprintf("%s.tar.gz", tag)
 }
 
-func compiledContractsFromArtifacts(artifacts []Artifact, contracts[]ds.ContractType, packageRef string) (map[ds.ContractType]CompiledContractData, error) {
+func compiledContractsFromArtifacts(artifacts []Artifact, contracts []ds.ContractType, packageRef string) (map[ds.ContractType]CompiledContractData, error) {
 	// Create and populate a set with the contract types/paths we will accept
 	contractsToLookFor := slices.Collect(maps.Keys(contractsMapping))
 	if len(contracts) != 0 {
@@ -518,10 +518,12 @@ func compiledContractsFromArtifacts(artifacts []Artifact, contracts[]ds.Contract
 				return nil, fmt.Errorf("deployer code hash verification failed for artifact %s: %w", artifact.Filename, err)
 			}
 		}
+		hardCodedVersion, _ := semver.NewVersion("1.6.0")
 		compiledContracts[contractType] = CompiledContractData{
-			Code:         contractCode,
-			Type:         contractType,
-			PackageRef:   packageRef,
+			Code:       contractCode,
+			Type:       contractType,
+			PackageRef: packageRef,
+			Version:    hardCodedVersion,
 		}
 	}
 	return compiledContracts, nil
