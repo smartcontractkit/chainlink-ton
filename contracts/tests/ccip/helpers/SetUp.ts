@@ -6,7 +6,6 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../../wrappers/ccip/FeeQuoter'
-import { compile } from '@ton/blueprint'
 import { Cell, Dictionary, toNano } from '@ton/core'
 import { loadContractCode } from '../../../wrappers/codeLoader'
 
