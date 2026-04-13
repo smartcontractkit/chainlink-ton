@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: "0 3 * * *" # runs each night at 03:00 UTC
+    - cron: "0 3 * * *" # runs each night at 03:00 UTC
 
 jobs:
   run-ton-smoke-tests:
@@ -56,55 +56,36 @@ jobs:
           WORKFLOW_FILE: .github/workflows/test_smoke.yml
           TARGET_REPO: smartcontractkit/chainlink-ccip
           TARGET_BRANCH: main
-          TON_REF: ${{steps.set-version-chainlink-ton.outputs.chainlink-ton_version}}
-          CHAINLINK_VERSION: ${{steps.set-version-chainlink.outputs.chainlink_version}}
+          TON_REF: ${{ steps.set-version-chainlink-ton.outputs.chainlink-ton_version }}
+          CHAINLINK_VERSION: ${{ steps.set-version-chainlink.outputs.chainlink_version }}
           CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv/ton.toml
           CONTRACT_VERSION: local
         run: |
           set -euo pipefail
 
-          # Generate unique correlation ID
-          CORRELATION_ID=$(uuidgen || cat /proc/sys/kernel/random/uuid)
-          echo "Correlation ID: $CORRELATION_ID"
-
-          echo "Triggering downstream workflow..."
-
-          gh workflow run "${WORKFLOW_FILE}" \
+          OUTPUT=$(gh workflow run "${WORKFLOW_FILE}" \
             --repo "${TARGET_REPO}" \
             --ref "${TARGET_BRANCH}" \
             --field "ton_ref=${TON_REF}" \
             --field "chainlink_version=${CHAINLINK_VERSION}" \
             --field "contract_version=${CONTRACT_VERSION}" \
-            --field "custom_config=${CUSTOM_CONFIG}" \
-            --field "correlation_id=${CORRELATION_ID}"
+            --field "custom_config=${CUSTOM_CONFIG}")
 
-          echo "Waiting for matching workflow run..."
+          echo "$OUTPUT"
 
-          MAX_ATTEMPTS=60
-          ATTEMPTS=0
-          RUN_ID=""
+          RUN_ID=$(printf '%s\n' "$OUTPUT" \
+            | grep -Eo 'https://github.com/[^ ]+/actions/runs/[0-9]+' \
+            | grep -Eo '[0-9]+' \
+            | tail -n 1)
 
-          while [ -z "$RUN_ID" ]; do
-            sleep 10
-            ((ATTEMPTS++))
+          if [[ -z "${RUN_ID:-}" ]]; then
+            echo "Failed to parse workflow run ID from gh workflow run output"
+            exit 1
+          fi
 
-            if [ "$ATTEMPTS" -ge "$MAX_ATTEMPTS" ]; then
-              echo "❌ Timed out waiting for workflow run"
-              exit 1
-            fi
+          echo "Triggered workflow run: https://github.com/${TARGET_REPO}/actions/runs/${RUN_ID}"
 
-            RUN_ID=$(gh run list \
-              --repo "${TARGET_REPO}" \
-              --workflow test_smoke.yml \
-              --event workflow_dispatch \
-              --status queued,in_progress \
-              --json databaseId,displayTitle \
-              --jq ".[] | select(.displayTitle | contains(\"${CORRELATION_ID}\")) | .databaseId" \
-              | head -n 1)
-
-            echo "Polling... attempt $ATTEMPTS"
-          done
-
-          echo "✅ Matched workflow run: https://github.com/${TARGET_REPO}/actions/runs/${RUN_ID}"
-
-          gh run watch --repo "${TARGET_REPO}" "$RUN_ID" --exit-status
+          gh run watch \
+            --repo "${TARGET_REPO}" \
+            "$RUN_ID" \
+            --exit-status
