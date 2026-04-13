@@ -108,8 +108,21 @@ const GITHUB_ORG = 'smartcontractkit'
 const GITHUB_REPO = 'chainlink-ton'
 
 function buildReleasePath(tag: string): string {
-  const cmd = `nix build "github:${GITHUB_ORG}/${GITHUB_REPO}/${tag}#contracts" --print-out-paths`
-  const output = require('child_process').execSync(cmd, { encoding: 'utf8' }).trim()
+  // Validate tag format to prevent injection attacks
+  const tagPattern = /^contracts\/\d+\.\d+\.\d+$/
+  if (!tagPattern.test(tag)) {
+    throw new Error(`Invalid tag format: ${tag}. Expected format: contracts/X.Y.Z`)
+  }
+
+  const { execFileSync } = require('child_process')
+  const cmd = 'nix'
+  const args = [
+    'build',
+    `github:${GITHUB_ORG}/${GITHUB_REPO}/${tag}#contracts`,
+    '--print-out-paths',
+  ]
+
+  const output = execFileSync(cmd, args, { encoding: 'utf8' }).trim()
   const path = output.split('\n')[0]
   if (!path) {
     throw new Error(`Failed to build contracts for tag ${tag}. Command output: ${output}`)
