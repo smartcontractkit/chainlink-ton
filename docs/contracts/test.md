@@ -19,5 +19,5 @@ yarn build
 # If skipped, test will fall back to just-in-time compilation
 
 # Run the Blueprint unit tests
-yarn test
+nix develop .#contracts -c yarn test
 ```
