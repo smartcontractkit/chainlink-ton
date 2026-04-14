@@ -33,7 +33,6 @@ type Artifact struct {
 }
 
 // GetArtifactsFromLocalDir reads all root-level files from a local directory.
-// The contracts-pkg.json metadata file and any .compiled.json files are included;
 // subdirectories and path-traversal entries are rejected.
 func GetArtifactsFromLocalDir(dir string) ([]Artifact, error) {
 	entries, err := os.ReadDir(dir)
