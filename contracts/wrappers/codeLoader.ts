@@ -7,76 +7,62 @@ const BUILD_ROOT = process.env.CONTRACTS_BUILD_PATH
   ? resolve(process.env.CONTRACTS_BUILD_PATH)
   : resolve(__dirname, '..', 'build')
 
-const ARTIFACT_FILE_EXTENSION = '.compiled.json'
+const codeCache = new Map<string, Cell>()
+const DEPLOYABLE_HASH = Buffer.from(
+  '61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc',
+  'hex',
+)
 
-function parseCompiledContractJson(json: string, source: string): Cell {
-  let hex: string | undefined
+type ContractCodeLoader = (contractName: string) => Promise<Cell>
+
+function createContractCodeLoader({
+  buildDirectory,
+  compileIfMissing = false,
+  cache = new Map<string, Cell>(),
+}: {
+  buildDirectory: string
+  compileIfMissing?: boolean
+  cache?: Map<string, Cell>
+}): ContractCodeLoader {
+  return async (contractName: string) => {
+    const code = await getCode(cache, buildDirectory, contractName, compileIfMissing)
+
+    if (contractName === 'Deployable') {
+      expect(code.hash()).toEqual(DEPLOYABLE_HASH)
+    }
+
+    return code
+  }
+}
+
+// Creates a contract code loader that reads from the directory specified in the given environment variable.
+function createContractCodeLoaderFromEnvDirectory(envVarName: string): ContractCodeLoader {
+  const buildDirectory = process.env[envVarName]
+  if (!buildDirectory) {
+    // Return a loader that always throws an error
+    return (contractName: string) => {
+      throw new Error(
+        `Cannot build contract loader for ${contractName}: Environment variable ${envVarName} not set`,
+      )
+    }
+  }
+  return createContractCodeLoader({ buildDirectory })
+}
+
+// Returns the compiled code for the given contract name, loading from storage if available.
+// It returns null if the compiled code is not available on disk.
+async function readBuiltContractCodeFromStorage(
+  buildDirectory: string,
+  contractName: string,
+): Promise<Cell | null> {
+  const filePath = join(buildDirectory, `${contractName}.compiled.json`)
+  let fileContents: string
   try {
-    const parsed = JSON.parse(json)
-    hex = parsed?.hex
+    fileContents = await fs.readFile(filePath, 'utf8')
   } catch (error) {
-    throw new Error(`Failed to parse compiled contract from ${source}: ${error}`)
-  }
-
-  if (typeof hex !== 'string' || hex.length === 0) {
-    throw new Error(`Compiled contract from ${source} is missing a hex field`)
-  }
-
-  const boc = Buffer.from(hex, 'hex')
-  const cells = Cell.fromBoc(boc)
-  if (cells.length === 0) {
-    throw new Error(`Compiled contract from ${source} is empty`)
-  }
-  return cells[0]
-}
-
-class ContractCodeStore {
-  protected readonly basePath: string
-  private readonly cache = new Map<string, Promise<Cell>>()
-
-  constructor(basePath: string) {
-    this.basePath = basePath
-  }
-
-  get(contractName: string): Promise<Cell> {
-    const cached = this.cache.get(contractName)
-    if (cached) {
-      return cached
-    }
-    const loaded = this.load(contractName)
-    this.cache.set(contractName, loaded)
-
-    return loaded
-  }
-
-  private async load(contractName: string): Promise<Cell> {
-    const filePath = join(this.basePath, `${contractName}${ARTIFACT_FILE_EXTENSION}`)
-    try {
-      const fileContents = await fs.readFile(filePath, 'utf8')
-      return parseCompiledContractJson(fileContents, filePath)
-    } catch (error) {
-      return this.handleLoadError(filePath, contractName, error)
-    }
-  }
-
-  protected async handleLoadError(
-    filePath: string,
-    contractName: string,
-    error: unknown,
-  ): Promise<Cell> {
-    throw new Error(`Failed to load compiled contract ${filePath} from ${this.basePath}: ${error}`)
-  }
-}
-
-class LocalContractCodeStore extends ContractCodeStore {
-  protected override async handleLoadError(
-    filePath: string,
-    contractName: string,
-    error: unknown,
-  ): Promise<Cell> {
+    // if file not found
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.log(`Compiled contract not found at '${filePath}', building from source...`)
-      return compile(contractName)
+      return null
     }
     if (contractName === 'Deployable') {
       throw new Error(
@@ -85,68 +71,69 @@ class LocalContractCodeStore extends ContractCodeStore {
     }
     throw new Error(`Failed to read compiled contract ${contractName} at ${filePath}: ${error}`)
   }
+
+  let hex: string | undefined
+  try {
+    const parsed = JSON.parse(fileContents)
+    hex = parsed?.hex
+  } catch (error) {
+    throw new Error(`Failed to parse compiled contract ${contractName} at ${filePath}: ${error}`)
+  }
+
+  if (typeof hex !== 'string' || hex.length === 0) {
+    throw new Error(`Compiled contract ${contractName} at ${filePath} is missing a hex field`)
+  }
+
+  const boc = Buffer.from(hex, 'hex')
+  const cells = Cell.fromBoc(boc)
+  if (cells.length === 0) {
+    throw new Error(`Compiled contract ${contractName} at ${filePath} is empty`)
+  }
+  return cells[0]
 }
 
-const localStore = new LocalContractCodeStore(BUILD_ROOT)
+export const contractCode = {
+  jetton: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_JETTON'),
+  ccip: {
+    local: createContractCodeLoader({ buildDirectory: BUILD_ROOT }),
+    release_1_6_0: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6'),
+  },
+}
 
+// Kept for backwards compatibility
+// Used to load built contracts
 export async function loadContractCode(contractName: string): Promise<Cell> {
-  const code = await localStore.get(contractName)
-  if (contractName === 'Deployable') {
-    const codeHash = code.hash()
-    expect(codeHash).toEqual(
-      Buffer.from('61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc', 'hex'),
-    )
-  }
-  return code
+  const loader = createContractCodeLoader({
+    buildDirectory: BUILD_ROOT,
+    compileIfMissing: true,
+    cache: codeCache,
+  })
+  return loader(contractName)
 }
 
-export function getCompiledContractPath(contractName: string): string {
-  return join(BUILD_ROOT, `${contractName}${ARTIFACT_FILE_EXTENSION}`)
-}
-
-const GITHUB_ORG = 'smartcontractkit'
-const GITHUB_REPO = 'chainlink-ton'
-
-function buildReleasePath(tag: string): string {
-  // Validate tag format to prevent injection attacks
-  const tagPattern = /^contracts\/\d+\.\d+\.\d+$/
-  if (!tagPattern.test(tag)) {
-    throw new Error(`Invalid tag format: ${tag}. Expected format: contracts/X.Y.Z`)
-  }
-
-  const { execFileSync } = require('child_process')
-  const cmd = 'nix'
-  const args = [
-    'build',
-    `github:${GITHUB_ORG}/${GITHUB_REPO}/${tag}#contracts`,
-    '--print-out-paths',
-  ]
-
-  const output = execFileSync(cmd, args, { encoding: 'utf8' }).trim()
-  const path = output.split('\n')[0]
-  if (!path) {
-    throw new Error(`Failed to build contracts for tag ${tag}. Command output: ${output}`)
-  }
-  return join(path, 'lib/node_modules/@chainlink/contracts-ton/build')
-}
-
-const releaseCache = new Map<string, ContractCodeStore>()
-
-/**
- * Load compiled contract bytecode from a GitHub release.
- *
- * @param releaseName - The release tag, e.g. "contracts/1.6.0"
- * @param contractName - The contract name without suffix, e.g. "FeeQuoter"
- * @returns The contract code Cell
- *
- * Release data is memoized so that the same release is only downloaded once.
- */
-export async function loadContractCodeFromRelease(
-  releaseName: string,
+async function getCode(
+  cache: Map<string, Cell>,
+  buildDirectory: string,
   contractName: string,
+  compileIfMissing: boolean,
 ): Promise<Cell> {
-  if (!releaseCache.has(releaseName)) {
-    releaseCache.set(releaseName, new ContractCodeStore(buildReleasePath(releaseName)))
+  const cachedCode = cache.get(contractName)
+  if (cachedCode) {
+    return cachedCode
   }
-  return releaseCache.get(releaseName)!.get(contractName)
+
+  const preCompiledCode = await readBuiltContractCodeFromStorage(buildDirectory, contractName)
+  if (preCompiledCode) {
+    cache.set(contractName, preCompiledCode)
+    return preCompiledCode
+  }
+
+  if (compileIfMissing) {
+    console.warn(`Compiled code for contract ${contractName} not found, attempting to compile...`)
+    const compiledCode = await compile(contractName)
+    cache.set(contractName, compiledCode)
+    return compiledCode
+  }
+
+  throw new Error(`Compiled code for contract ${contractName} not found at ${buildDirectory}`)
 }
