@@ -17,8 +17,6 @@ import (
 	"google.golang.org/grpc"
 
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
-	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
-	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -42,6 +40,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
+	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/globals"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/common/types"
@@ -393,14 +392,15 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	})
 	require.NoError(t, err, "failed to promote candidate")
 
-	// Finally, test SetOCR3Config from tooling deployer API
-	mcmsRegistry := cs_ccip.GetRegistry()
-	_, err = deployops.SetOCR3Config(dReg, mcmsRegistry).Apply(env, deployops.SetOCR3ConfigArgs{
-		HomeChainSel:    evmSelector,
-		RemoteChainSels: tonChainSelectors,
-		ConfigType:      utils.ConfigTypeActive,
+	// Finally, set OCR3 config on TON offramp using the active CCIPHome config.
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+		commonchangeset.Configure(cldf.CreateLegacyChangeSet(v1_6.SetOCR3OffRampChangeset), v1_6.SetOCR3OffRampConfig{
+			HomeChainSel:       evmSelector,
+			RemoteChainSels:    tonChainSelectors,
+			CCIPHomeConfigType: globals.ConfigTypeActive,
+		}),
 	})
-	require.NoError(t, err, "Failed to apply SetOCR3Config changeset")
+	require.NoError(t, err, "Failed to apply SetOCR3OffRamp changeset")
 	t.Log("Successfully set OCR3 config on TON offRamp")
 
 	// initialize accessor to verify configuration
