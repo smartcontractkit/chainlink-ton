@@ -351,8 +351,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 							"code": map[string]any{
 								"resolver": "codec.resolvers.contract-meta-to-code-cell",
 								"data": map[string]any{
-									"package": "testpkg",
-									"version": "1.0.0",
+									"package": "testpkg@1.0.0",
 									"id":      "Foo",
 								},
 							},
