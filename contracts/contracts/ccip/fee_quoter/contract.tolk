@@ -16,7 +16,7 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_PREV_VERSION = "1.6.0";
+const CONTRACT_VERSION_PREV = "1.6.0";
 const CONTRACT_VERSION = "1.6.1";
 const RESERVE = ton("1");
 
@@ -662,7 +662,7 @@ get fun reserve(): coins {
 fun migrate(storage: cell, version: slice): cell {
     val NEW_THRESHOLD = 24 * 60 * 60; //  86400 seconds = 24 hours
 
-    assert (version.bitsEqual(CONTRACT_PREV_VERSION)) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual(CONTRACT_VERSION_PREV)) throw Upgradeable_Error.VersionMismatch;
     var st = Storage.fromCell(storage);
     st.tokenPriceStalenessThreshold = NEW_THRESHOLD; 
     
