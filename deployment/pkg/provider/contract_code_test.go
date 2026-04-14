@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/provider"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
-
 
 func TestNewCCIPContractProvider_Local(t *testing.T) {
 	// Use "local" to skip the HTTP download and read from contracts/build/

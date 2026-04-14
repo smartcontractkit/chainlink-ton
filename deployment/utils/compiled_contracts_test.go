@@ -273,9 +273,9 @@ func TestReadLimited_EmptyReader(t *testing.T) {
 func TestGetArtifactsFromLocalDir_ReadsMatchingFiles(t *testing.T) {
 	dir := t.TempDir()
 
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aabb"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "OnRamp.compiled.json"), []byte(`{"hex":"ccdd"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aabb"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "OnRamp.compiled.json"), []byte(`{"hex":"ccdd"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o600))
 
 	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestGetArtifactsFromLocalDir_SkipsDirectories(t *testing.T) {
 	dir := t.TempDir()
 
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "subdir.compiled.json"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o600))
 
 	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
@@ -306,9 +306,9 @@ func TestGetArtifactsFromLocalDir_SkipsDirectories(t *testing.T) {
 func TestGetArtifactsFromLocalDir_IncludesAllRootFiles(t *testing.T) {
 	dir := t.TempDir()
 
-	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(`{"version":"1.0"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(`{"version":"1.0"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o600))
 
 	artifacts, err := GetArtifactsFromLocalDir(dir)
 	require.NoError(t, err)
@@ -540,7 +540,7 @@ func TestGetArtifactsFromLocalDir_ThenCompile(t *testing.T) {
 	require.NoError(t, os.WriteFile(
 		filepath.Join(dir, "ccip.test.receiver.compiled.json"),
 		[]byte(sampleCompiledContractJSON),
-		0o644,
+		0o600,
 	))
 
 	artifacts, err := GetArtifactsFromLocalDir(dir)

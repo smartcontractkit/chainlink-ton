@@ -57,8 +57,8 @@ const (
 
 // AllContractTypes lists every FQN for contracts present in the bindings
 var AllContractTypes = []struct {
-	SimpleName string
-	ContractType  string
+	SimpleName   string
+	ContractType string
 }{
 	{"Router", TypeRouter},
 	{"FeeQuoter", TypeFeeQuoter},

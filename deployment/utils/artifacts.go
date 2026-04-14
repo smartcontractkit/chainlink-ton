@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -86,7 +87,7 @@ func GetArtifactsFromLocalDir(dir string) ([]Artifact, error) {
 }
 
 type DownloadArtifactsInput struct {
-	Host	     string
+	Host         string
 	Organization string
 	Repository   string
 	Release      string
@@ -101,7 +102,7 @@ type DownloadArtifactsOutput struct {
 func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
 	output := DownloadArtifactsOutput{}
 
-	if !(in.Host == githubDomain || in.Host == githubBaseURL) {
+	if in.Host != githubDomain && in.Host != githubBaseURL {
 		return output, fmt.Errorf("expected %s or %s as a host for remote releases, got %s", githubDomain, githubBaseURL, in.Host)
 	}
 
@@ -134,7 +135,7 @@ func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (Download
 // For example, "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0" → "contracts-v1.6.0.tar.gz".
 func AssetNameFromReleaseTag(tag string) string {
 	tag = strings.ReplaceAll(tag, "/", "-")
-	return fmt.Sprintf("%s.tar.gz", tag)
+	return tag + ".tar.gz"
 }
 
 func extractFiles(rawTarGz []byte) ([]Artifact, error) {
@@ -150,7 +151,7 @@ func extractFiles(rawTarGz []byte) ([]Artifact, error) {
 
 	for {
 		header, err := tarReader.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -186,7 +187,7 @@ func extractFiles(rawTarGz []byte) ([]Artifact, error) {
 func isValidRootFile(name string) bool {
 	clean := filepath.Clean(name)
 
- 	if strings.ContainsAny(clean, `/\`) || strings.Contains(clean, "..") {
+	if strings.ContainsAny(clean, `/\`) || strings.Contains(clean, "..") {
 		return false
 	}
 	if clean == "" || clean == "." {

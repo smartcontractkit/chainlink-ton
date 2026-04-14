@@ -16,8 +16,8 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -27,7 +27,6 @@ const (
 	// Notice: "local" should be used only for development,
 
 	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.0" // Feb 19, 2026
-
 
 	PackageMetadataFile = "contracts-pkg.json"
 )
@@ -101,7 +100,7 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 
 	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
 	if err != nil {
-		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %v", err)
+		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %w", err)
 	}
 
 	if packageRef.Kind == CompiledContractsPackageKindRepoRef {
@@ -113,28 +112,34 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 			Release:      packageRef.Tag,
 			Asset:        AssetNameFromReleaseTag(packageRef.Tag),
 		}
-		downloadArtifactsOutput, err := DownloadArtifacts(ctx, downloadArtifactsInput)
-		if err != nil {
-			return output, err
+		downloadArtifactsOutput, dlErr := DownloadArtifacts(ctx, downloadArtifactsInput)
+		if dlErr != nil {
+			return output, dlErr
 		}
-		compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(downloadArtifactsOutput.Artifacts), in.Contracts, in.Package)
-		if err != nil {
-			return output, err
+		compiledContracts, ccErr := compiledContractsFromArtifacts(filterContractArtifacts(downloadArtifactsOutput.Artifacts), in.Contracts, in.Package)
+		if ccErr != nil {
+			return output, ccErr
 		}
 
 		return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
-		//TODO Cache the results
+		// TODO Cache the results
 	}
 	// Fetch contracts locally, either from a specified absolute path or from the default repo location
 
-	packagePath := ""
-	if packageRef.Kind == CompiledContractsPackageKindAbsPath {
+	var packagePath string
+	switch packageRef.Kind {
+	case CompiledContractsPackageKindAbsPath:
 		packagePath = packageRef.AbsPath
-	} else if packageRef.Kind == CompiledContractsPackageKindLocal {
+	case CompiledContractsPackageKindLocal:
 		packagePath = helpers.GetBuildsDir(ctx)
+	case CompiledContractsPackageKindRepoRef:
+		// Already handled above; unreachable.
 	}
 
 	artifacts, err := GetArtifactsFromLocalDir(packagePath)
+	if err != nil {
+		return output, err
+	}
 	compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(artifacts), in.Contracts, in.Package)
 	if err != nil {
 		return output, err
@@ -227,7 +232,7 @@ func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
 		return nil, fmt.Errorf("invalid repo path %q: host, organization, and repository must be non-empty", repo)
 	}
 
-	if !(host == "https://github.com" || host == "github.com") {
+	if host != "https://github.com" && host != "github.com" {
 		return nil, fmt.Errorf("unsupported host %q: only github.com is supported", host)
 	}
 
@@ -331,12 +336,12 @@ func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, pa
 			}
 		}
 		compiledContracts[info.fqn] = ton.CompiledContract{
-			Metadata: ton.ContractMetadata {
+			Metadata: ton.ContractMetadata{
 				Package: packageRef,
-				ID:     info.fqn,
+				ID:      info.fqn,
 			},
-			Code:       contractCode,
-			Version:    info.version,
+			Code:    contractCode,
+			Version: info.version,
 		}
 	}
 	return compiledContracts, nil
