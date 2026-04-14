@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/pkg/logger"
 
@@ -12,44 +13,52 @@ import (
 
 type contractProvider struct {
 	logger logger.Logger;
+	mu      sync.RWMutex;
 	compiledContracts map[string]ton.CompiledContract;
 }
 
 func (c *contractProvider) GetContract(ctx context.Context, meta ton.ContractMetadata) (ton.CompiledContract, error) {
-	contract, ok := c.compiledContracts[meta.Key()]
-	if !ok {
-		// If not found in cache, retrieve all compiled contracts for the package and populate the cache.
-		input := utils.RetrieveCompiledContractsInput{
-			Package: meta.Package,
-		}
-		output, err := utils.RetrieveCompiledTONContracts(ctx, c.logger, input)
-		if err != nil {
-			return ton.CompiledContract{}, fmt.Errorf("failed to retrieve compiled TON contract: %w", err)
-		}
-		for _, data := range output.CompiledContracts {
-			metadata := ton.ContractMetadata{
-				Package: data.PackageRef,
-				ID:      data.Type, // FQN, e.g. bindings.TypeRouter
-			}
-			c.compiledContracts[metadata.Key()] = ton.CompiledContract{
-				Metadata: metadata,
-				Code:     data.Code,
-				Version:  data.Version,
-			}
-		}
-	}
-	contract, ok = c.compiledContracts[meta.Key()]
-	if !ok {
-		return ton.CompiledContract{}, fmt.Errorf("contract not found after retrieval: %s", meta.Key())
-	}
-	return contract, nil
+        key := meta.Key()
+    
+	// Check if the contract is already cached
+        c.mu.RLock()
+        contract, ok := c.compiledContracts[key]
+        c.mu.RUnlock()
+        if ok {
+            return contract, nil
+        }
+	// If it wasn't cached acquire write lock and continue fetching
+        c.mu.Lock()
+        defer c.mu.Unlock()
+    
+        // Check again in case another goroutine populated it
+        contract, ok = c.compiledContracts[key]
+        if ok {
+            return contract, nil
+        }
+    
+	// Fetch compiled contracts for the package and cache them
+        input := utils.RetrieveCompiledContractsInput{
+            Package: meta.Package,
+        }
+        output, err := utils.RetrieveCompiledTONContracts(ctx, c.logger, input)
+        if err != nil {
+            return ton.CompiledContract{}, fmt.Errorf("failed to retrieve compiled TON contract: %w", err)
+        }
+    
+        for _, compiledContract := range output.CompiledContracts {
+            c.compiledContracts[compiledContract.Metadata.Key()] = compiledContract
+        }
+    
+        contract, ok = c.compiledContracts[key]
+        if !ok {
+            return ton.CompiledContract{}, fmt.Errorf("contract not found after retrieval: %s", key)
+        }
+    
+        return contract, nil
 }
 
-func NewCCIPContractProvider() (ton.ContractCodeProvider, error) {
-	logger, err := logger.New()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create logger: %w", err)
-	}
+func NewCCIPContractProvider(logger logger.Logger) (ton.ContractCodeProvider, error) {
 	return &contractProvider{
 		logger: logger,
 		compiledContracts: make(map[string]ton.CompiledContract),

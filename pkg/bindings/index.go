@@ -55,6 +55,24 @@ const (
 	TypeJettonMinter = PkgJetton + ".contracts.jetton-minter"
 )
 
+// AllContractTypes lists every FQN for contracts present in the bindings
+var AllContractTypes = []struct {
+	SimpleName string
+	ContractType  string
+}{
+	{"Router", TypeRouter},
+	{"FeeQuoter", TypeFeeQuoter},
+	{"OnRamp", TypeOnRamp},
+	{"OffRamp", TypeOffRamp},
+	{"SendExecutor", TypeSendExecutor},
+	{"Deployable", TypeDeployable},
+	{"MerkleRoot", TypeMerkleRoot},
+	{"ReceiveExecutor", TypeReceiveExecutor},
+	{"TestReceiver", TypeTestReceiver},
+	{"Timelock", TypeTimelock},
+	{"MCMS", TypeMCMS},
+}
+
 // Map of TLBs keyed by contract type
 var Registry = tvm.ContractTLBRegistry{
 	// Libs and traits

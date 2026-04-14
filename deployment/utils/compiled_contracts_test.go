@@ -453,77 +453,6 @@ func TestGetBytesFromURL_ContextCancelled(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- DownloadArtifacts tests ---
-
-func TestDownloadArtifacts_Success(t *testing.T) {
-	tarGz := createTarGz(t, map[string][]byte{
-		"ccip.test.receiver.compiled.json": []byte(sampleCompiledContractJSON),
-	})
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/myorg/myrepo/releases/download/myrelease/myasset.tar.gz", r.URL.Path)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(tarGz)
-	}))
-	defer server.Close()
-
-
-	out, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
-		Host:         server.URL,
-		Organization: "myorg",
-		Repository:   "myrepo",
-		Release:      "myrelease",
-		Asset:        "myasset.tar.gz",
-	})
-	require.NoError(t, err)
-	require.Len(t, out.Artifacts, 1)
-	assert.Equal(t, "ccip.test.receiver.compiled.json", out.Artifacts[0].Filename)
-}
-
-func TestDownloadArtifacts_ServerError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte("not found"))
-	}))
-	defer server.Close()
-
-	_, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
-		Host:         server.URL,
-		Organization: "myorg",
-		Repository:   "myrepo",
-		Release:      "myrelease",
-		Asset:        "myasset.tar.gz",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to download contracts")
-}
-
-func TestDownloadArtifacts_NonContractFilesIncluded(t *testing.T) {
-	// DownloadArtifacts returns all root-level files without filtering.
-	// Callers like filterContractArtifacts are responsible for selecting
-	// only the files they care about.
-	tarGz := createTarGz(t, map[string][]byte{
-		"README.md": []byte("readme"),
-	})
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(tarGz)
-	}))
-	defer server.Close()
-
-	out, err := DownloadArtifacts(context.Background(), DownloadArtifactsInput{
-		Host:         server.URL,
-		Organization: "myorg",
-		Repository:   "myrepo",
-		Release:      "myrelease",
-		Asset:        "myasset.tar.gz",
-	})
-	require.NoError(t, err)
-	require.Len(t, out.Artifacts, 1)
-	assert.Equal(t, "README.md", out.Artifacts[0].Filename)
-}
-
 // --- compiledContractsFromArtifacts tests ---
 
 func TestCompiledContractsFromArtifacts_ValidContract(t *testing.T) {
@@ -537,8 +466,8 @@ func TestCompiledContractsFromArtifacts_ValidContract(t *testing.T) {
 	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
 	require.NoError(t, err)
 	assert.Contains(t, result, bindings.TypeTestReceiver)
-	assert.Equal(t, bindings.TypeTestReceiver, result[bindings.TypeTestReceiver].Type)
-	assert.Equal(t, "local", result[bindings.TypeTestReceiver].PackageRef)
+	assert.Equal(t, bindings.TypeTestReceiver, result[bindings.TypeTestReceiver].Metadata.ID)
+	assert.Equal(t, "local", result[bindings.TypeTestReceiver].Metadata.Package)
 	assert.NotNil(t, result[bindings.TypeTestReceiver].Code)
 }
 

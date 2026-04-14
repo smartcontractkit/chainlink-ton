@@ -60,13 +60,13 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	contractsPackage := utils.ContractsPackageLatestSupported
 	if in.ContractsPackageRef != "" {
 		contractsPackage = in.ContractsPackageRef
-		fmt.Println("Using contracts package from input:", contractsPackage)
+		b.Logger.Infof("Will try to fetch contracts package from package ref: %s", contractsPackage)
 	}
 
 	// TODO: don't directly execute deployments, instead return them as txs
 	addresses := make([]datastore.AddressRef, 0)
-	// TODO: Unify to use FQN directly in the datastore once deployment/state short-name
-	// ds.ContractType constants are removed.
+
+	// Fetch the contracts using the FQN of the contracts instead of the types used in the datastore
 	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
 		Package: contractsPackage,
 		Contracts: []string{

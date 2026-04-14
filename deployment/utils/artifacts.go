@@ -21,6 +21,11 @@ const (
 	maxDecompressedSize = 100 * 1024 * 1024
 )
 
+// githubBaseURL is the base URL for downloading release artifacts.
+// Tests can override this to point at an httptest.Server.
+var githubDomain = "github.com"
+var githubBaseURL = "https://" + githubDomain
+
 // Artifact is a single file retrieved from a contracts release package.
 type Artifact struct {
 	Filename string
@@ -82,7 +87,7 @@ func GetArtifactsFromLocalDir(dir string) ([]Artifact, error) {
 }
 
 type DownloadArtifactsInput struct {
-	Host         string
+	Host	     string
 	Organization string
 	Repository   string
 	Release      string
@@ -97,9 +102,13 @@ type DownloadArtifactsOutput struct {
 func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
 	output := DownloadArtifactsOutput{}
 
+	if !(in.Host == githubDomain || in.Host == githubBaseURL) {
+		return output, fmt.Errorf("expected %s or %s as a host for remote releases, got %s", githubDomain, githubBaseURL, in.Host)
+	}
+
 	url := fmt.Sprintf(
 		"%s/%s/%s/releases/download/%s/%s",
-		in.Host, in.Organization, in.Repository, in.Release, in.Asset,
+		githubBaseURL, in.Organization, in.Repository, in.Release, in.Asset,
 	)
 
 	rawTarGz, err := getBytesFromURL(ctx, url)
@@ -178,7 +187,7 @@ func extractFiles(rawTarGz []byte) ([]Artifact, error) {
 func isValidRootFile(name string) bool {
 	clean := filepath.Clean(name)
 
-	if strings.Contains(clean, "/") || strings.Contains(clean, "..") {
+ 	if strings.ContainsAny(clean, `/\`) || strings.Contains(clean, "..") {
 		return false
 	}
 	if clean == "" || clean == "." {

@@ -1,7 +1,6 @@
 package upgradeable
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -63,7 +62,7 @@ var Upgrade = operations.NewOperation(
 				return UpgradeOutput{}, fmt.Errorf("failed to resolve contract provider: %w", err)
 			}
 
-			c, err := contractProvider.GetContract(context.Background(), u.ContractMeta)
+			c, err := contractProvider.GetContract(b.GetContext(), u.ContractMeta)
 			if err != nil {
 				return UpgradeOutput{}, fmt.Errorf("failed to get contract code: %w", err)
 			}

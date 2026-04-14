@@ -22,8 +22,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 type DeployContractInput struct {
@@ -64,9 +64,9 @@ func (i *DeployContractInput) Validate() error {
 
 // InvokeDeployContractOperation invokes the generic TON contract deployment operation.
 // It always executes the deployment operation and returns an error if the deployment fails.
-func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract utils.CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
+func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract ton.CompiledContract, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
 	deployContractInput := DeployContractInput{
-		Name:         compiledContract.Type,
+		Name:         compiledContract.Metadata.ID,
 		Storage:      storage,
 		MessageBody:  messageBody,
 		ContractCode: compiledContract.Code,
@@ -78,10 +78,11 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 		return nil, err
 	}
 
-	// TODO: Unify to use FQN (compiledContract.Type) directly in ds.AddressRef?.
-	contractType, ok := state.FQNToContractType[compiledContract.Type]
+	// Convert to ContractType (short identifier eg FeeQuoter from link.chain.ccip.ton.FeeQuoter)
+	// before creating a ds.AddressRef
+	contractType, ok := state.FQNToContractType[compiledContract.Metadata.ID]
 	if !ok {
-		return nil, fmt.Errorf("unknown contract FQN %q: no datastore type mapping found", compiledContract.Type)
+		return nil, fmt.Errorf("unknown contract FQN %q: no datastore type mapping found", compiledContract.Metadata.ID)
 	}
 
 	contractAddress := *deployContractReport.Output.Address
@@ -91,7 +92,7 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 		ChainSelector: chainSelector,
 		Type:          contractType,
 		Version:       semver,
-		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.PackageRef)),
+		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.Metadata.Package)),
 	}, nil
 }
 

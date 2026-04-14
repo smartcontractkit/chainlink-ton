@@ -46,8 +46,9 @@ var (
 
 // FQNToContractType maps the fully qualified contract name (as used in contracts-pkg.json
 // and pkg/bindings/index.go) to the ds.ContractType value used in the datastore.
-// TODO: Eventually unify to use only the FQN from pkg/bindings/index.go everywhere,
-// eliminating the short-name ds.ContractType constants in deployment/state.
+
+// TODO: Currently we cannot unify to use only the FQN from pkg/bindings/index.go everywhere,
+// Is there a cleaner way to manage these two types together?
 var FQNToContractType = map[string]ds.ContractType{
 	bindings.TypeRouter:          Router,
 	bindings.TypeFeeQuoter:       FeeQuoter,

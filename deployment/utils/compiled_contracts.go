@@ -17,6 +17,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -31,15 +32,13 @@ const (
 	PackageMetadataFile = "contracts-pkg.json"
 )
 
-var DeployableCodeHash, _ = hex.DecodeString("61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc")
-
-type CompiledContractData struct {
-	// Type is the fully qualified contract name (e.g. bindings.TypeRouter).
-	Type       string
-	Code       *cell.Cell
-	PackageRef string
-	Version    *semver.Version
-}
+var DeployableCodeHash = func() []byte {
+	v, err := hex.DecodeString("61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc")
+	if err != nil {
+		panic(fmt.Sprintf("invalid deployable code hash: %v", err))
+	}
+	return v
+}()
 
 // ContractEntryMetadata holds per-contract metadata from contracts-pkg.json.
 type ContractEntryMetadata struct {
@@ -94,14 +93,13 @@ func (i *RetrieveCompiledContractsInput) Validate() error {
 }
 
 type RetrieveCompiledContractsOutput struct {
-	CompiledContracts map[string]CompiledContractData // keyed by FQN (e.g. bindings.TypeRouter)
+	CompiledContracts map[string]ton.CompiledContract // keyed by FQN (e.g. bindings.TypeRouter)
 }
 
 func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
 	output := RetrieveCompiledContractsOutput{}
 
 	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
-	fmt.Println("Parsed package ref:", packageRef)
 	if err != nil {
 		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %v", err)
 	}
@@ -120,6 +118,9 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 			return output, err
 		}
 		compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(downloadArtifactsOutput.Artifacts), in.Contracts, in.Package)
+		if err != nil {
+			return output, err
+		}
 
 		return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
 		//TODO Cache the results
@@ -135,6 +136,9 @@ func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in 
 
 	artifacts, err := GetArtifactsFromLocalDir(packagePath)
 	compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(artifacts), in.Contracts, in.Package)
+	if err != nil {
+		return output, err
+	}
 	output = RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}
 
 	return output, nil
@@ -277,7 +281,7 @@ func parsePackageMetadata(artifacts []Artifact) (*ContractPackageMetadata, error
 	return defaultPackageMetadata, nil
 }
 
-func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, packageRef string) (map[string]CompiledContractData, error) {
+func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, packageRef string) (map[string]ton.CompiledContract, error) {
 	metadata, err := parsePackageMetadata(artifacts)
 	if err != nil {
 		return nil, err
@@ -303,7 +307,7 @@ func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, pa
 		allowedFQNs[fqn] = struct{}{}
 	}
 
-	compiledContracts := make(map[string]CompiledContractData)
+	compiledContracts := make(map[string]ton.CompiledContract)
 	for _, artifact := range artifacts {
 		if artifact.Filename == PackageMetadataFile {
 			continue
@@ -326,10 +330,12 @@ func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, pa
 				return nil, fmt.Errorf("deployer code hash verification failed for artifact %s: %w", artifact.Filename, err)
 			}
 		}
-		compiledContracts[info.fqn] = CompiledContractData{
+		compiledContracts[info.fqn] = ton.CompiledContract{
+			Metadata: ton.ContractMetadata {
+				Package: packageRef,
+				ID:     info.fqn,
+			},
 			Code:       contractCode,
-			Type:       info.fqn,
-			PackageRef: packageRef,
 			Version:    info.version,
 		}
 	}

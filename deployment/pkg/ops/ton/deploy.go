@@ -1,7 +1,6 @@
 package ton // alias: opston
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 
@@ -62,7 +61,7 @@ var Deploy = operations.NewOperation(
 				return DeployOutput{}, fmt.Errorf("failed to resolve contract provider: %w", err)
 			}
 
-			c, err := contractProvider.GetContract(context.Background(), u.ContractMeta)
+			c, err := contractProvider.GetContract(b.GetContext(), u.ContractMeta)
 			if err != nil {
 				return DeployOutput{}, fmt.Errorf("failed to get contract code: %w", err)
 			}
