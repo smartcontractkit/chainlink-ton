@@ -97,7 +97,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
     }
     const originalStorage = await loadStorage()
     const originalThreshold = originalStorage.tokenPriceStalenessThreshold
-    const expectedNewThreshold = 90000 // 25 hours in seconds
+    const expectedNewThreshold = 86400 // 24 hours in seconds
     expect(originalThreshold).not.toBe(expectedNewThreshold) // sanity check
     const expectedNewStorage = {
       ...originalStorage,
