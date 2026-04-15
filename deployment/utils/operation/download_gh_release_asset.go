@@ -14,7 +14,7 @@ import (
 var DownloadArtifactsOp = operations.NewOperation(
 	"ton/ops/download-artifacts",
 	semver.MustParse("0.1.0"),
-	"Downloads a release tar.gz artifact from Github and extracts and retrieves the files that match with the given filter",
+	"Downloads a release tar.gz artifact from GitHub and extracts it to a local directory (disk-cached)",
 	downloadArtifactsOperationHandler,
 )
 

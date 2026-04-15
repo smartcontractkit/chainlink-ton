@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -22,9 +23,8 @@ import (
 )
 
 const (
-	// Contract version definitions
+	// ContractsVersionLocal should be used only for development.
 	ContractsVersionLocal = "local"
-	// Notice: "local" should be used only for development,
 
 	ContractsPackageLatestSupported = "github.com/smartcontractkit/chainlink-ton@contracts/1.6.0" // Feb 19, 2026
 
@@ -78,6 +78,7 @@ var defaultPackageMetadata = &ContractPackageMetadata{
 type RetrieveCompiledContractsInput struct {
 	Package   string
 	Contracts []string // FQN contract types from pkg/bindings/index.go (e.g. bindings.TypeRouter)
+	PkgsDir   string   // optional base directory for the local package cache (passed through to DownloadArtifacts)
 }
 
 func (i *RetrieveCompiledContractsInput) Validate() error {
@@ -95,58 +96,92 @@ type RetrieveCompiledContractsOutput struct {
 	CompiledContracts map[string]ton.CompiledContract // keyed by FQN (e.g. bindings.TypeRouter)
 }
 
-func RetrieveCompiledTONContracts(ctx context.Context, logger logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
-	output := RetrieveCompiledContractsOutput{}
-
+// RetrieveCompiledTONContracts resolves the package path, reads the package metadata,
+// and loads each requested contract individually from disk.
+func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
 	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
 	if err != nil {
 		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %w", err)
 	}
 
-	if packageRef.Kind == CompiledContractsPackageKindRepoRef {
-		// Download contracts
-		downloadArtifactsInput := DownloadArtifactsInput{
-			Host:         packageRef.Host,
-			Organization: packageRef.Organization,
-			Repository:   packageRef.Repository,
-			Release:      packageRef.Tag,
-			Asset:        AssetNameFromReleaseTag(packageRef.Tag),
-		}
-		downloadArtifactsOutput, dlErr := DownloadArtifacts(ctx, downloadArtifactsInput)
-		if dlErr != nil {
-			return output, dlErr
-		}
-		compiledContracts, ccErr := compiledContractsFromArtifacts(filterContractArtifacts(downloadArtifactsOutput.Artifacts), in.Contracts, in.Package)
-		if ccErr != nil {
-			return output, ccErr
-		}
-
-		return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
-		// TODO Cache the results
-	}
-	// Fetch contracts locally, either from a specified absolute path or from the default repo location
-
-	var packagePath string
-	switch packageRef.Kind {
-	case CompiledContractsPackageKindAbsPath:
-		packagePath = packageRef.AbsPath
-	case CompiledContractsPackageKindLocal:
-		packagePath = helpers.GetBuildsDir(ctx)
-	case CompiledContractsPackageKindRepoRef:
-		// Already handled above; unreachable.
-	}
-
-	artifacts, err := GetArtifactsFromLocalDir(packagePath)
+	pkgPath, err := resolvePackagePath(ctx, log, packageRef, in.PkgsDir)
 	if err != nil {
-		return output, err
+		return RetrieveCompiledContractsOutput{}, err
 	}
-	compiledContracts, err := compiledContractsFromArtifacts(filterContractArtifacts(artifacts), in.Contracts, in.Package)
-	if err != nil {
-		return output, err
-	}
-	output = RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}
 
-	return output, nil
+	meta, err := readPackageMetadata(pkgPath)
+	if err != nil {
+		return RetrieveCompiledContractsOutput{}, err
+	}
+
+	fqns := in.Contracts
+	if len(fqns) == 0 {
+		// No filter: collect all known FQNs from metadata.
+		fqns = make([]string, 0, len(meta.Contracts))
+		for fqn := range meta.Contracts {
+			fqns = append(fqns, fqn)
+		}
+	}
+
+	compiledContracts := make(map[string]ton.CompiledContract, len(fqns))
+	for _, fqn := range fqns {
+		contract, err := ReadCompiledContract(ton.ContractMetadata{Package: in.Package, ID: fqn}, pkgPath, meta)
+		if err != nil {
+			return RetrieveCompiledContractsOutput{}, err
+		}
+		compiledContracts[fqn] = contract
+	}
+
+	return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
+}
+
+// ReadCompiledContract reads a single compiled contract from pkgPath using the provided
+// metadata. If meta is nil it is loaded from the package-metadata file in pkgPath.
+//
+// pkgPath is the directory where the package files (contracts-pkg.json + *.compiled.json)
+// live. It must already be present on disk; callers are responsible for resolving / downloading
+// the package before calling this function.
+func ReadCompiledContract(contractMeta ton.ContractMetadata, pkgPath string, meta *ContractPackageMetadata) (ton.CompiledContract, error) {
+	if meta == nil {
+		var err error
+		meta, err = readPackageMetadata(pkgPath)
+		if err != nil {
+			return ton.CompiledContract{}, err
+		}
+	}
+
+	entry, ok := meta.Contracts[contractMeta.ID]
+	if !ok {
+		return ton.CompiledContract{}, fmt.Errorf("contract %q not found in package metadata", contractMeta.ID)
+	}
+
+	version, err := semver.NewVersion(entry.Version)
+	if err != nil {
+		return ton.CompiledContract{}, fmt.Errorf("invalid version %q for contract %s: %w", entry.Version, contractMeta.ID, err)
+	}
+
+	filePath := filepath.Join(pkgPath, entry.Path)
+	data, err := os.ReadFile(filePath) //nolint:gosec // path is derived from trusted metadata
+	if err != nil {
+		return ton.CompiledContract{}, fmt.Errorf("failed to read contract file %s: %w", filePath, err)
+	}
+
+	code, err := wrappers.ParseCompiledTolkContractFromFileBytes(data)
+	if err != nil {
+		return ton.CompiledContract{}, fmt.Errorf("failed to parse compiled contract %s: %w", entry.Path, err)
+	}
+
+	if contractMeta.ID == bindings.TypeDeployable {
+		if err = verifyDeployableCodeHash(code); err != nil {
+			return ton.CompiledContract{}, fmt.Errorf("deployer code hash verification failed for %s: %w", entry.Path, err)
+		}
+	}
+
+	return ton.CompiledContract{
+		Metadata: contractMeta,
+		Code:     code,
+		Version:  version,
+	}, nil
 }
 
 type CompiledContractsPackageKind string
@@ -245,6 +280,52 @@ func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
 	}, nil
 }
 
+// resolvePackagePath returns the local directory for a package, downloading and extracting
+// it first when it is a remote GitHub release (disk-cached).
+func resolvePackagePath(ctx context.Context, log logger.Logger, ref *ContractsPackageRef, pkgsDir string) (string, error) {
+	switch ref.Kind {
+	case CompiledContractsPackageKindAbsPath:
+		return ref.AbsPath, nil
+	case CompiledContractsPackageKindLocal:
+		return helpers.GetBuildsDir(ctx), nil
+	case CompiledContractsPackageKindRepoRef:
+		downloadInput := DownloadArtifactsInput{
+			Host:         ref.Host,
+			Organization: ref.Organization,
+			Repository:   ref.Repository,
+			Release:      ref.Tag,
+			Asset:        AssetNameFromReleaseTag(ref.Tag),
+			PkgsDir:      pkgsDir,
+		}
+		out, err := DownloadArtifacts(ctx, downloadInput)
+		if err != nil {
+			return "", err
+		}
+		log.Debugf("contracts package available at %s", out.Path)
+		return out.Path, nil
+	default:
+		return "", fmt.Errorf("unknown package kind %q", ref.Kind)
+	}
+}
+
+// readPackageMetadata reads contracts-pkg.json from pkgPath.
+// Falls back to defaultPackageMetadata when the file is absent (pre-1.6.1 releases).
+func readPackageMetadata(pkgPath string) (*ContractPackageMetadata, error) {
+	metaPath := filepath.Join(pkgPath, PackageMetadataFile)
+	data, err := os.ReadFile(metaPath) //nolint:gosec // path is caller-controlled and trusted or default which is also safe
+	if errors.Is(err, os.ErrNotExist) {
+		return defaultPackageMetadata, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %w", PackageMetadataFile, err)
+	}
+	var meta ContractPackageMetadata
+	if err = json.Unmarshal(data, &meta); err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", PackageMetadataFile, err)
+	}
+	return &meta, nil
+}
+
 func verifyDeployableCodeHash(code *cell.Cell) error {
 	if code == nil {
 		return errors.New("deployer code cell is nil")
@@ -256,93 +337,4 @@ func verifyDeployableCodeHash(code *cell.Cell) error {
 		return fmt.Errorf("code hash mismatch: got %x, expected %x", computedHash, expectedHash)
 	}
 	return nil
-}
-
-// filterContractArtifacts returns only artifacts that are compiled contract files
-// (.compiled.json) or the package metadata file (contracts-pkg.json).
-func filterContractArtifacts(artifacts []Artifact) []Artifact {
-	var out []Artifact
-	for _, a := range artifacts {
-		if a.Filename == PackageMetadataFile || strings.HasSuffix(a.Filename, contractsFileNameSuffix) {
-			out = append(out, a)
-		}
-	}
-	return out
-}
-
-// parsePackageMetadata returns the ContractPackageMetadata from the artifacts.
-// If no contracts-pkg.json artifact is present (e.g. pre-1.6.1 releases), defaultPackageMetadata is returned.
-func parsePackageMetadata(artifacts []Artifact) (*ContractPackageMetadata, error) {
-	for _, a := range artifacts {
-		if a.Filename != PackageMetadataFile {
-			continue
-		}
-		var meta ContractPackageMetadata
-		if err := json.Unmarshal(a.Data, &meta); err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %w", PackageMetadataFile, err)
-		}
-		return &meta, nil
-	}
-	return defaultPackageMetadata, nil
-}
-
-func compiledContractsFromArtifacts(artifacts []Artifact, contracts []string, packageRef string) (map[string]ton.CompiledContract, error) {
-	metadata, err := parsePackageMetadata(artifacts)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build path → (fqn, version) index from metadata entries.
-	type entryInfo struct {
-		fqn     string
-		version *semver.Version
-	}
-	pathToInfo := make(map[string]entryInfo)
-	for fqn, entry := range metadata.Contracts {
-		v, err := semver.NewVersion(entry.Version)
-		if err != nil {
-			return nil, fmt.Errorf("invalid version %q for contract %s: %w", entry.Version, fqn, err)
-		}
-		pathToInfo[entry.Path] = entryInfo{fqn: fqn, version: v}
-	}
-
-	// Build allowed-FQN set if a filter was provided.
-	allowedFQNs := make(map[string]struct{}, len(contracts))
-	for _, fqn := range contracts {
-		allowedFQNs[fqn] = struct{}{}
-	}
-
-	compiledContracts := make(map[string]ton.CompiledContract)
-	for _, artifact := range artifacts {
-		if artifact.Filename == PackageMetadataFile {
-			continue
-		}
-		info, ok := pathToInfo[artifact.Filename]
-		if !ok {
-			continue
-		}
-		if len(allowedFQNs) > 0 {
-			if _, allowed := allowedFQNs[info.fqn]; !allowed {
-				continue
-			}
-		}
-		contractCode, err := wrappers.ParseCompiledTolkContractFromFileBytes(artifact.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse compiled contract from artifact %s: %w", artifact.Filename, err)
-		}
-		if info.fqn == bindings.TypeDeployable {
-			if err = verifyDeployableCodeHash(contractCode); err != nil {
-				return nil, fmt.Errorf("deployer code hash verification failed for artifact %s: %w", artifact.Filename, err)
-			}
-		}
-		compiledContracts[info.fqn] = ton.CompiledContract{
-			Metadata: ton.ContractMetadata{
-				Package: packageRef,
-				ID:      info.fqn,
-			},
-			Code:    contractCode,
-			Version: info.version,
-		}
-	}
-	return compiledContracts, nil
 }

@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	contractsFileNameSuffix = ".compiled.json"
-
 	// Limit decompressed size to 100MB (adjust as needed)
 	maxDecompressedSize = 100 * 1024 * 1024
 )
@@ -27,83 +25,46 @@ const (
 var githubDomain = "github.com"
 var githubBaseURL = "https://" + githubDomain
 
-// Artifact is a single file retrieved from a contracts release package.
+// Artifact is a generic single file from a contracts package.
+// It can be reused by other chain implementations.
 type Artifact struct {
 	Filename string
 	Data     []byte
 }
 
-// GetArtifactsFromLocalDir reads all root-level files from a local directory.
-// subdirectories and path-traversal entries are rejected.
-func GetArtifactsFromLocalDir(dir string) ([]Artifact, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	var out []Artifact
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		info, err := entry.Info()
-		if err != nil {
-			return nil, fmt.Errorf("error while stat %q: %w", entry.Name(), err)
-		}
-		if !info.Mode().IsRegular() {
-			continue
-		}
-
-		if !isValidRootFile(entry.Name()) {
-			continue
-		}
-
-		clean := filepath.Clean(entry.Name())
-		fullPath := filepath.Join(dir, entry.Name())
-
-		f, err := os.Open(fullPath)
-		if err != nil {
-			return nil, fmt.Errorf("error while open %q: %w", clean, err)
-		}
-
-		data, readErr := readLimited(f, maxDecompressedSize, clean)
-		closeErr := f.Close()
-		if readErr != nil {
-			return nil, readErr
-		}
-		if closeErr != nil {
-			return nil, fmt.Errorf("error while close %q: %w", clean, closeErr)
-		}
-
-		out = append(out, Artifact{
-			Filename: filepath.Base(clean),
-			Data:     data,
-		})
-	}
-
-	return out, nil
-}
-
+// DownloadArtifactsInput specifies what to download and where to cache it.
 type DownloadArtifactsInput struct {
 	Host         string
 	Organization string
 	Repository   string
 	Release      string
 	Asset        string
+	PkgsDir      string // base directory for the local package cache; empty = use default
 }
 
+// DownloadArtifactsOutput holds the local path where the package was extracted.
 type DownloadArtifactsOutput struct {
-	Artifacts []Artifact
+	Path string
 }
 
-// DownloadArtifacts fetches a release tar.gz from GitHub and extracts all root-level files.
+// DownloadArtifacts fetches a release tar.gz from GitHub and extracts it to a local directory.
+// The destination is derived deterministically from the input fields under PkgsDir.
+// If the destination directory already exists, the download is skipped (disk cache).
 func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
 	output := DownloadArtifactsOutput{}
 
 	if in.Host != githubDomain && in.Host != githubBaseURL {
 		return output, fmt.Errorf("expected %s or %s as a host for remote releases, got %s", githubDomain, githubBaseURL, in.Host)
+	}
+
+	destDir, err := packageDestDir(in)
+	if err != nil {
+		return output, err
+	}
+
+	// Cache check: if directory already exists, skip the download.
+	if _, err = os.Stat(destDir); err == nil {
+		return DownloadArtifactsOutput{Path: destDir}, nil
 	}
 
 	url := fmt.Sprintf(
@@ -113,41 +74,58 @@ func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (Download
 
 	rawTarGz, err := getBytesFromURL(ctx, url)
 	if err != nil {
-		return output, fmt.Errorf("failed to download contracts from %s: %w", url, err)
+		return output, fmt.Errorf("failed to download artifacts from %s: %w", url, err)
 	}
 
-	artifacts, err := extractFiles(rawTarGz)
-	if err != nil {
-		return output, fmt.Errorf("failed to extract contracts from .tar.gz %s: %w", url, err)
+	if err = os.MkdirAll(destDir, 0o755); err != nil {
+		return output, fmt.Errorf("failed to create destination directory %s: %w", destDir, err)
 	}
 
-	output.Artifacts = artifacts
-
-	if len(output.Artifacts) == 0 {
-		return output, fmt.Errorf("no artifacts found in the tar.gz file %s", url)
+	if err = extractFilesToDir(rawTarGz, destDir); err != nil {
+		_ = os.RemoveAll(destDir) // clean up partial extraction
+		return output, fmt.Errorf("failed to extract artifacts from %s: %w", url, err)
 	}
 
-	return output, nil
+	return DownloadArtifactsOutput{Path: destDir}, nil
+}
+
+// packageDestDir returns the directory where a downloaded package should be stored.
+func packageDestDir(in DownloadArtifactsInput) (string, error) {
+	base := in.PkgsDir
+	if base == "" {
+		cacheDir, err := os.UserCacheDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to determine user cache dir: %w", err)
+		}
+		base = filepath.Join(cacheDir, "chainlink-ton", "packages")
+	}
+	// Derive a stable, filesystem-safe name from org/repo@release.
+	name := sanitizePackageName(fmt.Sprintf("%s-%s-%s", in.Organization, in.Repository, in.Release))
+	return filepath.Join(base, name), nil
+}
+
+// sanitizePackageName replaces characters that are problematic in directory names.
+func sanitizePackageName(s string) string {
+	return strings.NewReplacer("/", "_", "@", "_", " ", "_", "\\", "_").Replace(s)
 }
 
 // AssetNameFromReleaseTag derives the release asset filename from a release tag.
 // Convention: replace "/" with "-" and append ".tar.gz".
-// For example, "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0" → "contracts-v1.6.0.tar.gz".
+// For example, "contracts/v1.6.0" → "contracts-v1.6.0.tar.gz".
 func AssetNameFromReleaseTag(tag string) string {
 	tag = strings.ReplaceAll(tag, "/", "-")
 	return tag + ".tar.gz"
 }
 
-func extractFiles(rawTarGz []byte) ([]Artifact, error) {
+// extractFilesToDir extracts all root-level files from rawTarGz into destDir.
+func extractFilesToDir(rawTarGz []byte, destDir string) error {
 	gzipReader, err := gzip.NewReader(bytes.NewReader(rawTarGz))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer func() { _ = gzipReader.Close() }()
 
 	tarReader := tar.NewReader(io.LimitReader(gzipReader, maxDecompressedSize))
-
-	var out []Artifact
 
 	for {
 		header, err := tarReader.Next()
@@ -155,7 +133,7 @@ func extractFiles(rawTarGz []byte) ([]Artifact, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		if header.Typeflag != tar.TypeReg {
@@ -167,19 +145,19 @@ func extractFiles(rawTarGz []byte) ([]Artifact, error) {
 		}
 
 		clean := filepath.Clean(header.Name)
+		destPath := filepath.Join(destDir, clean)
 
 		data, err := readLimited(tarReader, maxDecompressedSize, clean)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		out = append(out, Artifact{
-			Filename: clean,
-			Data:     data,
-		})
+		if err = os.WriteFile(destPath, data, 0o600); err != nil {
+			return fmt.Errorf("failed to write %s: %w", destPath, err)
+		}
 	}
 
-	return out, nil
+	return nil
 }
 
 // isValidRootFile returns true if name is a safe, root-level file (no path separators or

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
@@ -268,67 +270,7 @@ func TestReadLimited_EmptyReader(t *testing.T) {
 	assert.Empty(t, result)
 }
 
-// --- GetArtifactsFromLocalDir tests ---
-
-func TestGetArtifactsFromLocalDir_ReadsMatchingFiles(t *testing.T) {
-	dir := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aabb"}`), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "OnRamp.compiled.json"), []byte(`{"hex":"ccdd"}`), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o600))
-
-	artifacts, err := GetArtifactsFromLocalDir(dir)
-	require.NoError(t, err)
-	// All root-level files are returned; callers are responsible for filtering.
-	assert.Len(t, artifacts, 3)
-
-	names := make(map[string]bool)
-	for _, a := range artifacts {
-		names[a.Filename] = true
-	}
-	assert.True(t, names["Router.compiled.json"])
-	assert.True(t, names["OnRamp.compiled.json"])
-	assert.True(t, names["README.md"])
-}
-
-func TestGetArtifactsFromLocalDir_SkipsDirectories(t *testing.T) {
-	dir := t.TempDir()
-
-	require.NoError(t, os.Mkdir(filepath.Join(dir, "subdir.compiled.json"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o600))
-
-	artifacts, err := GetArtifactsFromLocalDir(dir)
-	require.NoError(t, err)
-	assert.Len(t, artifacts, 1)
-	assert.Equal(t, "Router.compiled.json", artifacts[0].Filename)
-}
-
-func TestGetArtifactsFromLocalDir_IncludesAllRootFiles(t *testing.T) {
-	dir := t.TempDir()
-
-	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(`{"version":"1.0"}`), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Router.compiled.json"), []byte(`{"hex":"aa"}`), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("readme"), 0o600))
-
-	artifacts, err := GetArtifactsFromLocalDir(dir)
-	require.NoError(t, err)
-	assert.Len(t, artifacts, 3)
-}
-
-func TestGetArtifactsFromLocalDir_NonExistentDir(t *testing.T) {
-	_, err := GetArtifactsFromLocalDir("/non/existent/dir")
-	require.Error(t, err)
-}
-
-func TestGetArtifactsFromLocalDir_EmptyDir(t *testing.T) {
-	dir := t.TempDir()
-
-	artifacts, err := GetArtifactsFromLocalDir(dir)
-	require.NoError(t, err)
-	assert.Empty(t, artifacts)
-}
-
-// --- extractFiles tests ---
+// --- extractFilesToDir tests ---
 
 func createTarGz(t *testing.T, files map[string][]byte) []byte {
 	t.Helper()
@@ -353,55 +295,54 @@ func createTarGz(t *testing.T, files map[string][]byte) []byte {
 	return buf.Bytes()
 }
 
-func TestExtractFiles_AllRootFiles(t *testing.T) {
+func TestExtractFilesToDir_AllRootFiles(t *testing.T) {
 	tarGz := createTarGz(t, map[string][]byte{
 		"Router.compiled.json":  []byte(`{"hex":"aa"}`),
 		"OffRamp.compiled.json": []byte(`{"hex":"bb"}`),
 		"README.md":             []byte("readme"),
 	})
 
-	artifacts, err := extractFiles(tarGz)
+	dir := t.TempDir()
+	require.NoError(t, extractFilesToDir(tarGz, dir))
+
+	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	assert.Len(t, artifacts, 3)
+	assert.Len(t, entries, 3)
 }
 
-func TestExtractFiles_NestedFilesSkipped(t *testing.T) {
+func TestExtractFilesToDir_NestedFilesSkipped(t *testing.T) {
 	tarGz := createTarGz(t, map[string][]byte{
 		"subdir/Router.compiled.json": []byte(`{"hex":"aa"}`),
 		"Router.compiled.json":        []byte(`{"hex":"bb"}`),
 	})
 
-	artifacts, err := extractFiles(tarGz)
+	dir := t.TempDir()
+	require.NoError(t, extractFilesToDir(tarGz, dir))
+
+	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	assert.Len(t, artifacts, 1)
-	assert.Equal(t, "Router.compiled.json", artifacts[0].Filename)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "Router.compiled.json", entries[0].Name())
 }
 
-func TestExtractFiles_AllFileTypes(t *testing.T) {
-	tarGz := createTarGz(t, map[string][]byte{
-		"file1.txt":  []byte("a"),
-		"file2.json": []byte("b"),
-	})
-
-	artifacts, err := extractFiles(tarGz)
-	require.NoError(t, err)
-	assert.Len(t, artifacts, 2)
-}
-
-func TestExtractFiles_InvalidGzip(t *testing.T) {
-	_, err := extractFiles([]byte("not gzip"))
+func TestExtractFilesToDir_InvalidGzip(t *testing.T) {
+	dir := t.TempDir()
+	err := extractFilesToDir([]byte("not gzip"), dir)
 	require.Error(t, err)
 }
 
-func TestExtractFiles_IncludesPackageMetadataFile(t *testing.T) {
+func TestExtractFilesToDir_IncludesPackageMetadataFile(t *testing.T) {
 	tarGz := createTarGz(t, map[string][]byte{
 		PackageMetadataFile:    []byte(`{"version":"1.0"}`),
 		"Router.compiled.json": []byte(`{"hex":"aa"}`),
 	})
 
-	artifacts, err := extractFiles(tarGz)
+	dir := t.TempDir()
+	require.NoError(t, extractFilesToDir(tarGz, dir))
+
+	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)
-	assert.Len(t, artifacts, 2)
+	assert.Len(t, entries, 2)
 }
 
 // --- verifyDeployableCodeHash tests ---
@@ -453,117 +394,204 @@ func TestGetBytesFromURL_ContextCancelled(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- compiledContractsFromArtifacts tests ---
+// --- readPackageMetadata tests ---
 
-func TestCompiledContractsFromArtifacts_ValidContract(t *testing.T) {
-	artifacts := []Artifact{
-		{
-			Filename: "ccip.test.receiver.compiled.json",
-			Data:     []byte(sampleCompiledContractJSON),
-		},
-	}
+func TestReadPackageMetadata_WithValidFile(t *testing.T) {
+	dir := t.TempDir()
+	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.Router":{"path":"Router.compiled.json","version":"1.6.3"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(meta), 0o600))
 
-	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
+	result, err := readPackageMetadata(dir)
 	require.NoError(t, err)
-	assert.Contains(t, result, bindings.TypeTestReceiver)
-	assert.Equal(t, bindings.TypeTestReceiver, result[bindings.TypeTestReceiver].Metadata.ID)
-	assert.Equal(t, "local", result[bindings.TypeTestReceiver].Metadata.Package)
-	assert.NotNil(t, result[bindings.TypeTestReceiver].Code)
+	assert.Equal(t, "1.6.3", result.Version)
+	require.Contains(t, result.Contracts, "link.chain.ton.ccip.Router")
+	assert.Equal(t, "Router.compiled.json", result.Contracts["link.chain.ton.ccip.Router"].Path)
+	assert.Equal(t, "1.6.3", result.Contracts["link.chain.ton.ccip.Router"].Version)
 }
 
-func TestCompiledContractsFromArtifacts_FilteredContracts(t *testing.T) {
-	artifacts := []Artifact{
-		{
-			Filename: "ccip.test.receiver.compiled.json",
-			Data:     []byte(sampleCompiledContractJSON),
-		},
-	}
-
-	// Only request TypeTestReceiver
-	result, err := compiledContractsFromArtifacts(artifacts, []string{bindings.TypeTestReceiver}, "local")
+func TestReadPackageMetadata_MissingFileUsesFallback(t *testing.T) {
+	dir := t.TempDir()
+	result, err := readPackageMetadata(dir)
 	require.NoError(t, err)
-	assert.Len(t, result, 1)
-	assert.Contains(t, result, bindings.TypeTestReceiver)
+	assert.Equal(t, defaultPackageMetadata, result)
 }
 
-func TestCompiledContractsFromArtifacts_UnknownFQNFilterReturnsEmpty(t *testing.T) {
-	artifacts := []Artifact{
-		{
-			Filename: "ccip.test.receiver.compiled.json",
-			Data:     []byte(sampleCompiledContractJSON),
-		},
-	}
+func TestReadPackageMetadata_InvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte("not json"), 0o600))
 
-	// An unknown FQN in the filter simply means no contracts match - no error.
-	result, err := compiledContractsFromArtifacts(artifacts, []string{"link.chain.ton.ccip.NonExistent"}, "local")
-	require.NoError(t, err)
-	assert.Empty(t, result)
+	_, err := readPackageMetadata(dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse")
 }
 
-func TestCompiledContractsFromArtifacts_NoMatchingArtifacts(t *testing.T) {
-	artifacts := []Artifact{
-		{
-			Filename: "Unknown.compiled.json",
-			Data:     []byte(sampleCompiledContractJSON),
-		},
-	}
+// --- ReadCompiledContract tests ---
 
-	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
+// writePkgDir creates a temporary package directory with the given contracts-pkg.json content
+// and the sample compiled contract file for TypeTestReceiver.
+func writePkgDir(t *testing.T, pkgMeta *ContractPackageMetadata) string {
+	t.Helper()
+	dir := t.TempDir()
+
+	metaBytes, err := json.Marshal(pkgMeta)
 	require.NoError(t, err)
-	assert.Empty(t, result)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), metaBytes, 0o600))
+
+	entry := pkgMeta.Contracts[bindings.TypeTestReceiver]
+	require.NoError(t, os.WriteFile(filepath.Join(dir, entry.Path), []byte(sampleCompiledContractJSON), 0o600))
+
+	return dir
 }
 
-func TestCompiledContractsFromArtifacts_InvalidJSON(t *testing.T) {
-	artifacts := []Artifact{
-		{
-			Filename: "ccip.test.receiver.compiled.json",
-			Data:     []byte("not valid json"),
+func testReceiverMeta(version string) *ContractPackageMetadata {
+	return &ContractPackageMetadata{
+		Version: version,
+		Contracts: map[string]ContractEntryMetadata{
+			bindings.TypeTestReceiver: {Path: "ccip.test.receiver.compiled.json", Version: version},
 		},
 	}
+}
 
-	_, err := compiledContractsFromArtifacts(artifacts, nil, "local")
+func TestReadCompiledContract_ValidContract(t *testing.T) {
+	dir := writePkgDir(t, testReceiverMeta("1.6.3"))
+
+	contract, err := ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: bindings.TypeTestReceiver}, dir, nil)
+	require.NoError(t, err)
+	assert.Equal(t, bindings.TypeTestReceiver, contract.Metadata.ID)
+	assert.Equal(t, "local", contract.Metadata.Package)
+	assert.Equal(t, "1.6.3", contract.Version.String())
+	assert.NotNil(t, contract.Code)
+}
+
+func TestReadCompiledContract_UsesProvidedMetadata(t *testing.T) {
+	dir := t.TempDir()
+	// Write the contract file directly (no contracts-pkg.json needed because we pass meta inline)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ccip.test.receiver.compiled.json"), []byte(sampleCompiledContractJSON), 0o600))
+
+	meta := testReceiverMeta("1.6.5")
+	contract, err := ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: bindings.TypeTestReceiver}, dir, meta)
+	require.NoError(t, err)
+	assert.Equal(t, "1.6.5", contract.Version.String())
+}
+
+func TestReadCompiledContract_UnknownFQN(t *testing.T) {
+	dir := writePkgDir(t, testReceiverMeta("1.6.3"))
+
+	_, err := ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: "link.chain.ton.ccip.NonExistent"}, dir, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found in package metadata")
+}
+
+func TestReadCompiledContract_InvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	meta := testReceiverMeta("1.6.3")
+	metaBytes, err := json.Marshal(meta)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), metaBytes, 0o600))
+	// Write invalid JSON for the contract file
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ccip.test.receiver.compiled.json"), []byte("not valid json"), 0o600))
+
+	_, err = ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: bindings.TypeTestReceiver}, dir, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse compiled contract")
 }
 
-func TestCompiledContractsFromArtifacts_EmptyArtifacts(t *testing.T) {
-	result, err := compiledContractsFromArtifacts(nil, nil, "local")
-	require.NoError(t, err)
-	assert.Empty(t, result)
-}
-
-// --- Integration-like tests using local dir + compiled artifacts ---
-
-func TestGetArtifactsFromLocalDir_ThenCompile(t *testing.T) {
+func TestReadCompiledContract_InvalidVersionInMetadata(t *testing.T) {
 	dir := t.TempDir()
-
-	require.NoError(t, os.WriteFile(
-		filepath.Join(dir, "ccip.test.receiver.compiled.json"),
-		[]byte(sampleCompiledContractJSON),
-		0o600,
-	))
-
-	artifacts, err := GetArtifactsFromLocalDir(dir)
+	meta := &ContractPackageMetadata{
+		Version: "1.6.3",
+		Contracts: map[string]ContractEntryMetadata{
+			bindings.TypeTestReceiver: {Path: "ccip.test.receiver.compiled.json", Version: "not-a-version"},
+		},
+	}
+	metaBytes, err := json.Marshal(meta)
 	require.NoError(t, err)
-	require.Len(t, artifacts, 1)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), metaBytes, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "ccip.test.receiver.compiled.json"), []byte(sampleCompiledContractJSON), 0o600))
 
-	compiled, err := compiledContractsFromArtifacts(artifacts, nil, dir)
-	require.NoError(t, err)
-	assert.Contains(t, compiled, bindings.TypeTestReceiver)
+	_, err = ReadCompiledContract(ton.ContractMetadata{Package: "local", ID: bindings.TypeTestReceiver}, dir, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid version")
 }
 
-func TestExtractFiles_ThenCompiledContractsFromArtifacts(t *testing.T) {
-	tarGz := createTarGz(t, map[string][]byte{
-		"ccip.test.receiver.compiled.json": []byte(sampleCompiledContractJSON),
+// --- DownloadArtifacts disk-cache tests ---
+
+func serveTarGz(t *testing.T, files map[string][]byte) *httptest.Server {
+	t.Helper()
+	tarGzData := createTarGz(t, files)
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/gzip")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(tarGzData)
+	}))
+}
+
+func TestDownloadArtifacts_ExtractsToDisk(t *testing.T) {
+	server := serveTarGz(t, map[string][]byte{
+		PackageMetadataFile:    []byte(`{"version":"1.0"}`),
+		"Router.compiled.json": []byte(`{"hex":"aa"}`),
 	})
+	defer server.Close()
 
-	artifacts, err := extractFiles(tarGz)
-	require.NoError(t, err)
-	require.Len(t, artifacts, 1)
+	// Override the base URL to point at our test server.
+	origBase := githubBaseURL
+	githubBaseURL = server.URL
+	defer func() { githubBaseURL = origBase }()
 
-	compiled, err := compiledContractsFromArtifacts(artifacts, nil, "test-ref")
+	pkgsDir := t.TempDir()
+	in := DownloadArtifactsInput{
+		Host:         githubDomain,
+		Organization: "org",
+		Repository:   "repo",
+		Release:      "v1.0.0",
+		Asset:        "v1.0.0.tar.gz",
+		PkgsDir:      pkgsDir,
+	}
+
+	out, err := DownloadArtifacts(context.Background(), in)
 	require.NoError(t, err)
-	assert.Contains(t, compiled, bindings.TypeTestReceiver)
+	assert.NotEmpty(t, out.Path)
+
+	// Verify files were extracted.
+	_, err = os.Stat(filepath.Join(out.Path, PackageMetadataFile))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(out.Path, "Router.compiled.json"))
+	require.NoError(t, err)
+}
+
+func TestDownloadArtifacts_CacheHit(t *testing.T) {
+	// Pre-create the expected destination directory.
+	pkgsDir := t.TempDir()
+	in := DownloadArtifactsInput{
+		Host:         githubDomain,
+		Organization: "org",
+		Repository:   "repo",
+		Release:      "v1.0.0",
+		Asset:        "v1.0.0.tar.gz",
+		PkgsDir:      pkgsDir,
+	}
+
+	destDir, err := packageDestDir(in)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(destDir, 0o755))
+
+	// No server running — a network call would fail, proving we hit the cache.
+	out, err := DownloadArtifacts(context.Background(), in)
+	require.NoError(t, err)
+	assert.Equal(t, destDir, out.Path)
+}
+
+func TestDownloadArtifacts_InvalidHost(t *testing.T) {
+	in := DownloadArtifactsInput{
+		Host:         "evil.example.com",
+		Organization: "org",
+		Repository:   "repo",
+		Release:      "v1.0.0",
+		Asset:        "v1.0.0.tar.gz",
+	}
+	_, err := DownloadArtifacts(context.Background(), in)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "expected")
 }
 
 // --- readLimited with error reader ---
@@ -580,80 +608,9 @@ func TestReadLimited_ReaderError(t *testing.T) {
 	assert.Contains(t, err.Error(), "error while read")
 }
 
-// --- parsePackageMetadata tests ---
+// --- sanitizePackageName tests ---
 
-func TestParsePackageMetadata_WithValidFile(t *testing.T) {
-	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.Router":{"path":"Router.compiled.json","version":"1.6.3"}}}`
-	artifacts := []Artifact{
-		{Filename: PackageMetadataFile, Data: []byte(meta)},
-	}
-	result, err := parsePackageMetadata(artifacts)
-	require.NoError(t, err)
-	assert.Equal(t, "1.6.3", result.Version)
-	require.Contains(t, result.Contracts, "link.chain.ton.ccip.Router")
-	assert.Equal(t, "Router.compiled.json", result.Contracts["link.chain.ton.ccip.Router"].Path)
-	assert.Equal(t, "1.6.3", result.Contracts["link.chain.ton.ccip.Router"].Version)
-}
-
-func TestParsePackageMetadata_NoFileUsesFallback(t *testing.T) {
-	artifacts := []Artifact{
-		{Filename: "Router.compiled.json", Data: []byte(`{"hex":"aa"}`)},
-	}
-	result, err := parsePackageMetadata(artifacts)
-	require.NoError(t, err)
-	assert.Equal(t, defaultPackageMetadata, result)
-}
-
-func TestParsePackageMetadata_EmptyArtifactsUsesFallback(t *testing.T) {
-	result, err := parsePackageMetadata(nil)
-	require.NoError(t, err)
-	assert.Equal(t, defaultPackageMetadata, result)
-}
-
-func TestParsePackageMetadata_InvalidJSON(t *testing.T) {
-	artifacts := []Artifact{
-		{Filename: PackageMetadataFile, Data: []byte("not json")},
-	}
-	_, err := parsePackageMetadata(artifacts)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse")
-}
-
-func TestCompiledContractsFromArtifacts_UsesVersionFromMetadata(t *testing.T) {
-	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.test.Receiver":{"path":"ccip.test.receiver.compiled.json","version":"1.6.3"}}}`
-	artifacts := []Artifact{
-		{Filename: PackageMetadataFile, Data: []byte(meta)},
-		{Filename: "ccip.test.receiver.compiled.json", Data: []byte(sampleCompiledContractJSON)},
-	}
-	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
-	require.NoError(t, err)
-	require.Contains(t, result, bindings.TypeTestReceiver)
-	assert.Equal(t, "1.6.3", result[bindings.TypeTestReceiver].Version.String())
-}
-
-func TestCompiledContractsFromArtifacts_UnknownFQNInMetadataIsSkipped(t *testing.T) {
-	// A contract FQN we don't recognise in Go should be silently skipped, not cause an error.
-	meta := `{"version":"1.6.3","contracts":{
-		"link.chain.ton.ccip.test.Receiver":{"path":"ccip.test.receiver.compiled.json","version":"1.6.3"},
-		"link.chain.future.NewContract":{"path":"NewContract.compiled.json","version":"1.6.3"}
-	}}`
-	artifacts := []Artifact{
-		{Filename: PackageMetadataFile, Data: []byte(meta)},
-		{Filename: "ccip.test.receiver.compiled.json", Data: []byte(sampleCompiledContractJSON)},
-	}
-	result, err := compiledContractsFromArtifacts(artifacts, nil, "local")
-	require.NoError(t, err)
-	require.Contains(t, result, bindings.TypeTestReceiver)
-	assert.Len(t, result, 1)
-}
-
-func TestCompiledContractsFromArtifacts_InvalidVersionInMetadata(t *testing.T) {
-	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.test.Receiver":{"path":"ccip.test.receiver.compiled.json","version":"not-a-version"}}}`
-	artifacts := []Artifact{
-		{Filename: PackageMetadataFile, Data: []byte(meta)},
-		{Filename: "ccip.test.receiver.compiled.json", Data: []byte(sampleCompiledContractJSON)},
-	}
-	_, err := compiledContractsFromArtifacts(artifacts, nil, "local")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid version")
+func TestSanitizePackageName(t *testing.T) {
+	assert.Equal(t, "org-repo_contracts_v1.6.0", sanitizePackageName("org-repo_contracts/v1.6.0"))
+	assert.Equal(t, "org_repo_tag", sanitizePackageName("org@repo@tag"))
 }
