@@ -16,9 +16,9 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"google.golang.org/grpc"
 
+	evmdeploy "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/deploy"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
-	evmdeploy "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/deploy"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
