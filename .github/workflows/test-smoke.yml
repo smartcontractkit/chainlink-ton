@@ -1,4 +1,4 @@
-name: Run TON Devenv Tests
+name: Run TON Smoke Tests
 
 on:
   push:
