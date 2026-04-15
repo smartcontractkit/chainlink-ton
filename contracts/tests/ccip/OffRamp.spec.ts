@@ -38,7 +38,7 @@ import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
 import { EVM_ADDRESS } from './router/Router.Setup'
-import { loadContractCode } from '../../wrappers/codeLoader'
+import { contractCode, loadContractCode } from '../../wrappers/codeLoader'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -112,8 +112,8 @@ export function generateMessageId(message: of.Any2TVMRampMessage, metadataHash: 
 async function deployOffRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
+  code?: Cell,
 ) {
-  const code = await of.OffRamp.code()
   let data: of.OffRampStorage = {
     id: generateRandomContractId(),
     ownable: {
@@ -130,6 +130,10 @@ async function deployOffRampContract(
     chainSelector: CHAINSEL_TON,
     permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
     latestPriceSequenceNumber: 0n,
+  }
+
+  if (!code) {
+    code = await of.OffRamp.code()
   }
 
   const contract = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
@@ -167,33 +171,32 @@ describe('OffRamp - Withdrawable Tests', () => {
   ])
 })
 
-// TODO when we have a new version
-// describe('OffRamp - Upgrade Tests', () => {
-//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
-//     {
-//       contractType: OffRampPrev.type(),
-//       prevVersion: OffRampPrev.version(),
-//       currentVersion: OffRamp.version(),
-//       getPrevCode: () => OffRampPrev.code(),
-//       getCurrentCode: () => OffRamp.code(),
-//       CurrentVersionConstructor: OffRamp,
-//     },
-//     async (blockchain, owner) => {
-//       const codeV1 = await OffRampPrev.code()
-//       const data = {} as any // TODO fill with valid data
-//       const contract = blockchain.openContract(
-//         OffRampPrev.createFromConfig(
-//           data,
-//           codeV1,
-//         ),
-//       )
-//       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-//       return contract
-//     },
-//   )
-//   upgradeSpec.run()
-// })
+describe('OffRamp - Upgrade Tests', () => {
+  class OffRamp extends of.OffRamp {}
+  class OffRampPrev extends of.OffRamp {
+    static code(): Promise<Cell> {
+      return contractCode.ccip.release_1_6_0('OffRamp')
+    }
+  }
+
+  const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
+    contractType: OffRampPrev.type(),
+    prevVersion: of.OFFRAMP_CONTRACT_VERSION_PREV,
+    currentVersion: OffRamp.version(),
+    getPrevCode: () => OffRampPrev.code(),
+    getCurrentCode: () => OffRamp.code(),
+    CurrentVersionConstructor: OffRamp,
+    upgradeValue: toNano('0.05'),
+    deployPrevContract: async (blockchain, owner) =>
+      deployOffRampContract(blockchain, owner, await OffRampPrev.code()),
+  })
+  upgradeSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
+})
 
 describe('OffRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
