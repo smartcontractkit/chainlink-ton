@@ -177,7 +177,7 @@ func TestAddLanes(t *testing.T) {
 		destConfig, exist := feeQuoterView.DestChainConfig[evmSelector]
 		require.True(t, exist, "feeQuoter view dest config not found")
 		require.True(t, destConfig.IsEnabled)
-		require.Equal(t, uint16(10), destConfig.MaxNumberOfTokensPerMsg)
+		require.Equal(t, uint16(1), destConfig.MaxNumberOfTokensPerMsg)
 		require.Equal(t, uint32(3000000), destConfig.MaxPerMsgGasLimit)
 		// TODO Add token prices to the fee quoter view and assert that those have been applied on chain
 

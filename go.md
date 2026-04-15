@@ -98,9 +98,9 @@ flowchart LR
 	click chainlink-ccip href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/ccv/chains/evm
 	click chainlink-ccip/ccv/chains/evm href "https://github.com/smartcontractkit/chainlink-ccip"
-	chainlink-ccip/chains/evm/deployment --> ccip-contract-examples/chains/evm
-	chainlink-ccip/chains/evm/deployment --> chainlink-ccip/deployment
-	click chainlink-ccip/chains/evm/deployment href "https://github.com/smartcontractkit/chainlink-ccip"
+	chainlink-ccip/chains/evm --> ccip-contract-examples/chains/evm
+	chainlink-ccip/chains/evm --> chainlink-ccip/deployment
+	click chainlink-ccip/chains/evm href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/solana --> chainlink-ccip
 	chainlink-ccip/chains/solana --> chainlink-ccip/chains/solana/gobindings
 	click chainlink-ccip/chains/solana href "https://github.com/smartcontractkit/chainlink-ccip"
@@ -209,7 +209,6 @@ flowchart LR
 	chainlink-sui --> chainlink-ccip
 	chainlink-sui --> chainlink-common/pkg/values
 	click chainlink-sui href "https://github.com/smartcontractkit/chainlink-sui"
-	chainlink-sui/deployment --> chainlink-deployments-framework
 	chainlink-sui/deployment --> chainlink/v2
 	click chainlink-sui/deployment href "https://github.com/smartcontractkit/chainlink-sui"
 	chainlink-testing-framework/framework --> chainlink-testing-framework/lib/grafana
@@ -230,7 +229,7 @@ flowchart LR
 	chainlink-ton --> chainlink-common/pkg/monitoring
 	chainlink-ton --> chainlink-framework/metrics
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
-	chainlink-ton/deployment --> chainlink-ccip/deployment
+	chainlink-ton/deployment --> chainlink-ccip/chains/evm
 	click chainlink-ton/deployment href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/devenv --> chainlink-ton/deployment
 	click chainlink-ton/devenv href "https://github.com/smartcontractkit/chainlink-ton"
@@ -241,7 +240,6 @@ flowchart LR
 	chainlink-tron/relayer --> chainlink-common
 	chainlink-tron/relayer --> chainlink-common/pkg/values
 	click chainlink-tron/relayer href "https://github.com/smartcontractkit/chainlink-tron"
-	chainlink/deployment --> chainlink-ccip/chains/evm/deployment
 	chainlink/deployment --> chainlink-solana/contracts
 	chainlink/deployment --> chainlink-sui/deployment
 	chainlink/deployment --> chainlink-testing-framework/lib
@@ -249,8 +247,8 @@ flowchart LR
 	click chainlink/deployment href "https://github.com/smartcontractkit/chainlink"
 	chainlink/v2 --> chainlink-automation
 	chainlink/v2 --> chainlink-ccip/ccv/chains/evm
+	chainlink/v2 --> chainlink-ccip/chains/evm
 	chainlink/v2 --> chainlink-ccv
-	chainlink/v2 --> chainlink-evm
 	chainlink/v2 --> chainlink-evm/contracts/cre/gobindings
 	chainlink/v2 --> chainlink-feeds
 	chainlink/v2 --> chainlink-protos/chainlink-ccv/committee-verifier
@@ -260,8 +258,6 @@ flowchart LR
 	chainlink/v2 --> chainlink-protos/orchestrator
 	chainlink/v2 --> chainlink-protos/ring/go
 	chainlink/v2 --> chainlink-solana
-	chainlink/v2 --> chainlink-sui
-	chainlink/v2 --> chainlink-ton
 	chainlink/v2 --> cre-sdk-go
 	chainlink/v2 --> cre-sdk-go/capabilities/networking/http
 	chainlink/v2 --> cre-sdk-go/capabilities/scheduler/cron
@@ -308,7 +304,7 @@ flowchart LR
 	subgraph chainlink-ccip-repo[chainlink-ccip]
 		 chainlink-ccip
 		 chainlink-ccip/ccv/chains/evm
-		 chainlink-ccip/chains/evm/deployment
+		 chainlink-ccip/chains/evm
 		 chainlink-ccip/chains/solana
 		 chainlink-ccip/chains/solana/gobindings
 		 chainlink-ccip/deployment

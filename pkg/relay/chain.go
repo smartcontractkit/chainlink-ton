@@ -72,6 +72,7 @@ type cachedClient struct {
 }
 
 type chain struct {
+	commontypes.UnimplementedChainService
 	services.StateMachine
 	starter commonutils.StartStopOnce
 
