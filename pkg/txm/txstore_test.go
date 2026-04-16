@@ -1,4 +1,3 @@
-//nolint:gosec // ignoring G115 overflow conversion
 package txm
 
 import (

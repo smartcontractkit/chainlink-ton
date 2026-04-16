@@ -21,7 +21,7 @@ func TestTONAddress(t *testing.T) {
 	binary.BigEndian.PutUint32(validAddressBytes[0:4], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(validAddressBytes[4:], addr.Data())
 
-	invalidChecksum := make([]byte, 0)
+	invalidChecksum := make([]byte, 0) //nolint:prealloc //  - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	invalidChecksum = append(invalidChecksum, validAddressBytes[:34]...)
 	invalidChecksum = append(invalidChecksum, 0x00, 0x00)
 	addressWithInvalidChecksum := base64.RawURLEncoding.EncodeToString(invalidChecksum)

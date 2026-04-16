@@ -225,7 +225,7 @@ func (c *AccountStore) CleanupAll(currentTimeMs uint64) (finalizedLTs []uint64, 
 	defer c.lock.RUnlock()
 
 	allFinalizedLTs := []uint64{}
-	allExpiredLTs := []uint64{}
+	allExpiredLTs := []uint64{} //nolint:prealloc //  - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	for _, txStore := range c.store {
 		allFinalizedLTs = append(allFinalizedLTs, txStore.cleanupFinalized()...)
 		allExpiredLTs = append(allExpiredLTs, txStore.cleanupExpired(currentTimeMs)...)

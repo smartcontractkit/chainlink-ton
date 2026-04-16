@@ -44,7 +44,7 @@ func createTestLogsForPruning(t *testing.T, addr *address.Address, filterID int6
 	for i := range count {
 		eventCell := cell.BeginCell().
 			MustStoreUInt(uint64(1), 32).
-			MustStoreUInt(uint64((i+1)*100), 32). //nolint:gosec // test code
+			MustStoreUInt(uint64((i+1)*100), 32).
 			MustStoreAddr(addr).
 			EndCell()
 
@@ -54,12 +54,12 @@ func createTestLogsForPruning(t *testing.T, addr *address.Address, filterID int6
 			Address:      addr,
 			EventSig:     counter.TopicCountIncreased,
 			Data:         eventCell,
-			TxHash:       models.TxHash{byte(i + 1), byte(filterID), 3, 4, 5},
-			TxLT:         uint64(1000 + i), //nolint:gosec // test code
-			MsgLT:        uint64(1000 + i), //nolint:gosec // test code
+			TxHash:       models.TxHash{byte(i + 1), byte(filterID), 3, 4, 5}, //nolint:gosec // G115 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+			TxLT:         uint64(1000 + i),
+			MsgLT:        uint64(1000 + i),
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
-			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
-			MCBlockSeqno: uint32(200 + i),                         //nolint:gosec // test code
+			Block:        tontest.TestBlockIDExt(uint32(100 + i)),
+			MCBlockSeqno: uint32(200 + i),
 			MsgIndex:     int64(i),
 		}
 
@@ -80,7 +80,7 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 	for i, txLT := range txLTs {
 		eventCell := cell.BeginCell().
 			MustStoreUInt(uint64(1), 32).
-			MustStoreUInt(uint64((i+1)*100), 32). //nolint:gosec // test code
+			MustStoreUInt(uint64((i+1)*100), 32).
 			MustStoreAddr(addr).
 			EndCell()
 
@@ -90,12 +90,12 @@ func createLogsWithTxLT(t *testing.T, addr *address.Address, filterID int64, txL
 			Address:      addr,
 			EventSig:     counter.TopicCountIncreased,
 			Data:         eventCell,
-			TxHash:       models.TxHash{byte(i + 1), byte(filterID), byte(txLT % 256), 4, 5},
+			TxHash:       models.TxHash{byte(i + 1), byte(filterID), byte(txLT % 256), 4, 5}, //nolint:gosec // G115 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 			TxLT:         txLT,
 			MsgLT:        txLT,
 			TxTimestamp:  baseTime.Add(time.Duration(i) * time.Minute),
-			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code
-			MCBlockSeqno: uint32(200 + i),                         //nolint:gosec // test code
+			Block:        tontest.TestBlockIDExt(uint32(100 + i)),
+			MCBlockSeqno: uint32(200 + i),
 			MsgIndex:     0,
 		}
 	}
@@ -172,14 +172,14 @@ func TestPruning(t *testing.T) {
 	// Filter A: 3 expired + 2 valid logs
 	expiredLogsA := createTestLogsForPruning(t, testAddr, filterAID, 3, withExpiresAt(pastExpiry))
 	for i := range expiredLogsA {
-		expiredLogsA[i].TxLT = uint64(20000 + i)  //nolint:gosec // test code - bounded loop index
-		expiredLogsA[i].MsgLT = uint64(20000 + i) //nolint:gosec // test code - bounded loop index
+		expiredLogsA[i].TxLT = uint64(20000 + i)
+		expiredLogsA[i].MsgLT = uint64(20000 + i)
 	}
 	validLogsA := createTestLogsForPruning(t, testAddr, filterAID, 2, withExpiresAt(futureExpiry))
 	for i := range validLogsA {
 		validLogsA[i].TxHash[0] = byte(200 + i)
-		validLogsA[i].TxLT = uint64(20100 + i)  //nolint:gosec // test code - bounded loop index
-		validLogsA[i].MsgLT = uint64(20100 + i) //nolint:gosec // test code - bounded loop index
+		validLogsA[i].TxLT = uint64(20100 + i)
+		validLogsA[i].MsgLT = uint64(20100 + i)
 	}
 	_, err = logStore.SaveLogs(ctx, append(expiredLogsA, validLogsA...), logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, err)
@@ -192,8 +192,8 @@ func TestPruning(t *testing.T) {
 	// Filter C: 4 logs
 	logsC := createTestLogsForPruning(t, testAddr, filterCID, 4)
 	for i := range logsC {
-		logsC[i].TxLT = uint64(22000 + i)  //nolint:gosec // test code - bounded loop index
-		logsC[i].MsgLT = uint64(22000 + i) //nolint:gosec // test code - bounded loop index
+		logsC[i].TxLT = uint64(22000 + i)
+		logsC[i].MsgLT = uint64(22000 + i)
 	}
 	_, err = logStore.SaveLogs(ctx, logsC, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, err)

@@ -33,8 +33,8 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 
 	for i := range 3 {
 		// Create CountIncreased event: ID (32) + Value (32) + Sender (address)
-		counterID := uint32(1)                // Fixed ID
-		counterValue := uint32((i + 1) * 100) //nolint:gosec // test code with small values
+		counterID := uint32(1) // Fixed ID
+		counterValue := uint32((i + 1) * 100)
 
 		// Create CountIncreased event cell: ID(32) + Value(32) + Address
 		// NOTE: Parser extracts opcode from message and stores only the body
@@ -52,11 +52,11 @@ func createTestLogs(t *testing.T, addr *address.Address, filterID int64) []model
 			EventSig:     counter.TopicCountIncreased,
 			Data:         eventCell,
 			TxHash:       models.TxHash{byte(i + 1), 2, 3, 4, 5},
-			TxLT:         uint64(1000 + i), //nolint:gosec // test code with small values
-			MsgLT:        uint64(1000 + i), //nolint:gosec // test code with small values - same as TxLT for simplicity
+			TxLT:         uint64(1000 + i),
+			MsgLT:        uint64(1000 + i),
 			TxTimestamp:  time.Now().Add(time.Duration(i) * time.Minute),
-			Block:        tontest.TestBlockIDExt(uint32(100 + i)), //nolint:gosec // test code with small values
-			MCBlockSeqno: uint32(200 + i),                         //nolint:gosec // test code with small values
+			Block:        tontest.TestBlockIDExt(uint32(100 + i)),
+			MCBlockSeqno: uint32(200 + i),
 			MsgIndex:     int64(i),
 		}
 	}
@@ -179,7 +179,7 @@ func TestPgLogStore(t *testing.T) {
 		for i := range 3 {
 			eventCell := cell.BeginCell().
 				MustStoreUInt(uint64(1), 32).
-				MustStoreUInt(uint64((i+1)*1000), 32). //nolint:gosec // test code with small values
+				MustStoreUInt(uint64((i+1)*1000), 32).
 				MustStoreAddr(testAddr).
 				EndCell()
 
@@ -190,11 +190,11 @@ func TestPgLogStore(t *testing.T) {
 				EventSig:     counter.TopicCountIncreased,
 				Data:         eventCell,
 				TxHash:       models.TxHash{byte(i + 10), 2, 3, 4, 5},
-				TxLT:         uint64(5000 - i), //nolint:gosec // test code with small values
-				MsgLT:        uint64(5000 - i), //nolint:gosec // test code with small values
+				TxLT:         uint64(5000 - i),
+				MsgLT:        uint64(5000 - i),
 				TxTimestamp:  sameTimestamp,
-				Block:        tontest.TestBlockIDExt(uint32(500 + i)), //nolint:gosec // test code
-				MCBlockSeqno: uint32(600 + i),                         //nolint:gosec // test code
+				Block:        tontest.TestBlockIDExt(uint32(500 + i)),
+				MCBlockSeqno: uint32(600 + i),
 				MsgIndex:     int64(i),
 			}
 		}
@@ -346,9 +346,9 @@ func TestGetLatestBlock(t *testing.T) {
 			Address:      testAddr,
 			EventSig:     counter.TopicCountIncreased,
 			Data:         cell.BeginCell().MustStoreUInt(1, 32).MustStoreUInt(uint64(idx*100), 32).MustStoreAddr(testAddr).EndCell(), //nolint:gosec // test code
-			TxHash:       models.TxHash{byte(idx), 0, 0},
-			TxLT:         uint64(1000 + idx), //nolint:gosec // test code
-			MsgLT:        uint64(1000 + idx), //nolint:gosec // test code
+			TxHash:       models.TxHash{byte(idx), 0, 0},                                                                             //nolint:gosec // G115 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+			TxLT:         uint64(1000 + idx),                                                                                         //nolint:gosec // test code
+			MsgLT:        uint64(1000 + idx),                                                                                         //nolint:gosec // test code
 			TxTimestamp:  time.Now(),
 			Block:        tontest.TestBlockIDExt(uint32(100 + idx)), //nolint:gosec // test code
 			MCBlockSeqno: mcSeqno,
@@ -430,7 +430,7 @@ func TestMultiFilterDeduplication(t *testing.T) {
 	for eventIdx := range numEvents {
 		eventCell := cell.BeginCell().
 			MustStoreUInt(1, 32).
-			MustStoreUInt(uint64((eventIdx+1)*100), 32). //nolint:gosec // test code
+			MustStoreUInt(uint64((eventIdx+1)*100), 32).
 			MustStoreAddr(testAddr).
 			EndCell()
 
@@ -442,11 +442,11 @@ func TestMultiFilterDeduplication(t *testing.T) {
 				EventSig:     counter.TopicCountIncreased,
 				Data:         eventCell,
 				TxHash:       models.TxHash{byte(eventIdx + 1), 2, 3, 4, 5},
-				TxLT:         uint64(1000 + eventIdx), //nolint:gosec // test code
-				MsgLT:        uint64(1000 + eventIdx), //nolint:gosec // test code
+				TxLT:         uint64(1000 + eventIdx),
+				MsgLT:        uint64(1000 + eventIdx),
 				TxTimestamp:  baseTime.Add(time.Duration(eventIdx) * time.Minute),
-				Block:        tontest.TestBlockIDExt(uint32(100 + eventIdx)), //nolint:gosec // test code
-				MCBlockSeqno: uint32(200 + eventIdx),                         //nolint:gosec // test code
+				Block:        tontest.TestBlockIDExt(uint32(100 + eventIdx)),
+				MCBlockSeqno: uint32(200 + eventIdx),
 				MsgIndex:     int64(eventIdx),
 			}
 			inserted, ierr := logStore.SaveLogs(ctx, []models.Log{log}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
