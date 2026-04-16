@@ -19,7 +19,6 @@ var (
 
 		// TODO (ops): refactor ops below
 		operation.DeployTONContractOp.AsUntypedRelaxed(),
-		operation.DownloadArtifactsOp.AsUntypedRelaxed(),
 
 		// MCMS operations
 		mcms.SetConfig.AsUntypedRelaxed(),

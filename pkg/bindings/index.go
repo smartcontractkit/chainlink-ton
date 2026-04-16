@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
+//TODO we should use a type alias for these, sometihng like ContractTypeLong
 const (
 	PkgLib  = "link.chain.ton.lib"
 	PkgCCIP = "link.chain.ton.ccip"
@@ -55,7 +56,7 @@ const (
 	TypeJettonMinter = PkgJetton + ".contracts.jetton-minter"
 )
 
-// AllContractTypes lists every FQN for contracts present in the bindings
+// AllContractTypes lists every fully qualified name for contracts present in the bindings
 var AllContractTypes = []struct {
 	SimpleName   string
 	ContractType string

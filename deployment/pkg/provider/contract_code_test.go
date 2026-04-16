@@ -37,7 +37,7 @@ func TestNewCCIPContractProvider_Local(t *testing.T) {
 			require.NoError(t, err, "GetContract should succeed for %s", ct.SimpleName)
 			assert.NotNil(t, compiled.Code, "Code cell should not be nil for %s", ct.SimpleName)
 			assert.Equal(t, meta.Key(), compiled.Metadata.Key(), "Metadata key should match for %s", ct.SimpleName)
-			assert.Equal(t, ct.ContractType, compiled.Metadata.ID, "Metadata ID should match the FQN for %s", ct.SimpleName)
+			assert.Equal(t, ct.ContractType, compiled.Metadata.ID, "Metadata ID should match the fully qualified name for %s", ct.SimpleName)
 		})
 	}
 }

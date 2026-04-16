@@ -38,15 +38,15 @@ func (c *contractProvider) GetContract(ctx context.Context, meta ton.ContractMet
 	}
 
 	// Fetch compiled contracts for the package and cache them
-	input := utils.RetrieveCompiledContractsInput{
+	input := utils.RetrieveCompiledContractsOpts{
 		Package: meta.Package,
 	}
-	output, err := utils.RetrieveCompiledTONContracts(ctx, c.logger, input)
+	compiledContracts, err := utils.RetrieveCompiledTONContracts(ctx, c.logger, &input)
 	if err != nil {
 		return ton.CompiledContract{}, fmt.Errorf("failed to retrieve compiled TON contract: %w", err)
 	}
 
-	for _, compiledContract := range output.CompiledContracts {
+	for _, compiledContract := range compiledContracts {
 		c.compiledContracts[compiledContract.Metadata.Key()] = compiledContract
 	}
 

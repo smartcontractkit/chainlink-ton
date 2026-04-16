@@ -20,7 +20,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -66,8 +65,8 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	// TODO: don't directly execute deployments, instead return them as txs
 	addresses := make([]datastore.AddressRef, 0)
 
-	// Fetch the contracts using the FQN of the contracts instead of the types used in the datastore
-	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
+	// Fetch the contract code using the Fully Qualified Name of the contracts instead of the types used in the datastore
+	retrieveContractsOpts := utils.RetrieveCompiledContractsOpts{
 		Package: contractsPackage,
 		Contracts: []string{
 			bindings.TypeRouter,
@@ -84,12 +83,11 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		},
 	}
 
-	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, sequence.RetrieveContractsSequence, dp, retrieveContractsInput)
+	tonCompiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &retrieveContractsOpts)
 	if err != nil {
 		return sequences.OnChainOutput{}, err
 	}
 
-	tonCompiledContracts := tonCompiledContractsSeqOutput.Output.CompiledContracts
 
 	var outputAddr *datastore.AddressRef
 	// Router

@@ -123,7 +123,7 @@ type ContractCodeProvider interface {
 // Describes a contract by its package and identifier, used to retrieve compiled code from a ContractCodeProvider.
 type ContractMetadata struct {
 	Package string `json:"package"` // Name of the package where the contract is defined (e.g., "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3")
-	ID      string `json:"id"`      // Contract identifier within the package (indexed by FQN e.g., "link.chain.ton.mcms.RBACTimelock")
+	ID      string `json:"id"`      // Contract identifier within the package (indexed by fully qualified name e.g., "link.chain.ton.mcms.RBACTimelock")
 }
 
 func (m ContractMetadata) Key() string {

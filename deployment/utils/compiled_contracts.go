@@ -66,8 +66,8 @@ var defaultPackageMetadata = &ContractPackageMetadata{
 		bindings.TypeMerkleRoot:      {Path: "MerkleRoot.compiled.json", Version: "1.6.0"},
 		bindings.TypeReceiveExecutor: {Path: "ReceiveExecutor.compiled.json", Version: "1.6.0"},
 		bindings.TypeTestReceiver:    {Path: "ccip.test.receiver.compiled.json", Version: "1.6.0"},
-		bindings.TypeTimelock:        {Path: "mcms.RBACTimelock.compiled.json", Version: "1.6.0"},
-		bindings.TypeMCMS:            {Path: "mcms.MCMS.compiled.json", Version: "1.6.0"},
+		bindings.TypeTimelock:        {Path: "mcms.RBACTimelock.compiled.json", Version: "0.0.3"},
+		bindings.TypeMCMS:            {Path: "mcms.MCMS.compiled.json", Version: "0.0.4"},
 	},
 }
 
@@ -75,64 +75,54 @@ var defaultPackageMetadata = &ContractPackageMetadata{
 //   - github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3
 //   - /usr/my-contracts-build
 //   - local (maps to {repo-root}/contracts/build)
-type RetrieveCompiledContractsInput struct {
+type RetrieveCompiledContractsOpts struct {
 	Package   string
-	Contracts []string // FQN contract types from pkg/bindings/index.go (e.g. bindings.TypeRouter)
+	Contracts []string // Fully qualified contract names from pkg/bindings/index.go (e.g. bindings.TypeRouter)
 	PkgsDir   string   // optional base directory for the local package cache (passed through to DownloadArtifacts)
-}
-
-func (i *RetrieveCompiledContractsInput) Validate() error {
-	if i == nil {
-		return errors.New("input cannot be nil")
-	}
-
-	if _, err := ParseCompiledContractsPackageRef(i.Package); err != nil {
-		return err
-	}
-	return nil
-}
-
-type RetrieveCompiledContractsOutput struct {
-	CompiledContracts map[string]ton.CompiledContract // keyed by FQN (e.g. bindings.TypeRouter)
 }
 
 // RetrieveCompiledTONContracts resolves the package path, reads the package metadata,
 // and loads each requested contract individually from disk.
-func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in RetrieveCompiledContractsInput) (RetrieveCompiledContractsOutput, error) {
+// returns map[string]ton.CompiledContract, keyed by Fully Qualified Name (e.g. bindings.TypeRouter = link.chain.ton.ccip.Router)
+
+func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in *RetrieveCompiledContractsOpts) (map[string]ton.CompiledContract, error) {
+	if in == nil {
+		return nil, fmt.Errorf("input options cannot be nil")
+	}
 	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
 	if err != nil {
-		return RetrieveCompiledContractsOutput{}, fmt.Errorf("invalid contracts package ref: %w", err)
+		return nil, fmt.Errorf("invalid contracts package ref: %w", err)
 	}
 
 	pkgPath, err := resolvePackagePath(ctx, log, packageRef, in.PkgsDir)
 	if err != nil {
-		return RetrieveCompiledContractsOutput{}, err
+		return nil, err
 	}
 
 	meta, err := readPackageMetadata(pkgPath)
 	if err != nil {
-		return RetrieveCompiledContractsOutput{}, err
+		return nil, err
 	}
 
-	fqns := in.Contracts
-	if len(fqns) == 0 {
-		// No filter: collect all known FQNs from metadata.
-		fqns = make([]string, 0, len(meta.Contracts))
-		for fqn := range meta.Contracts {
-			fqns = append(fqns, fqn)
+	contractNames := in.Contracts
+	if len(contractNames) == 0 {
+		// No filter: collect all contract names from metadata.
+		contractNames = make([]string, 0, len(meta.Contracts))
+		for contractName := range meta.Contracts {
+			contractNames = append(contractNames, contractName)
 		}
 	}
 
-	compiledContracts := make(map[string]ton.CompiledContract, len(fqns))
-	for _, fqn := range fqns {
-		contract, err := ReadCompiledContract(ton.ContractMetadata{Package: in.Package, ID: fqn}, pkgPath, meta)
+	compiledContracts := make(map[string]ton.CompiledContract, len(contractNames))
+	for _, contractName := range contractNames {
+		contract, err := ReadCompiledContract(ton.ContractMetadata{Package: in.Package, ID: contractName}, pkgPath, meta)
 		if err != nil {
-			return RetrieveCompiledContractsOutput{}, err
+			return nil, err
 		}
-		compiledContracts[fqn] = contract
+		compiledContracts[contractName] = contract
 	}
 
-	return RetrieveCompiledContractsOutput{CompiledContracts: compiledContracts}, nil
+	return compiledContracts, nil
 }
 
 // ReadCompiledContract reads a single compiled contract from pkgPath using the provided
@@ -289,7 +279,7 @@ func resolvePackagePath(ctx context.Context, log logger.Logger, ref *ContractsPa
 	case CompiledContractsPackageKindLocal:
 		return helpers.GetBuildsDir(ctx), nil
 	case CompiledContractsPackageKindRepoRef:
-		downloadInput := DownloadArtifactsInput{
+		downloadInput := DownloadArtifactsOpts{
 			Host:         ref.Host,
 			Organization: ref.Organization,
 			Repository:   ref.Repository,
@@ -297,12 +287,12 @@ func resolvePackagePath(ctx context.Context, log logger.Logger, ref *ContractsPa
 			Asset:        AssetNameFromReleaseTag(ref.Tag),
 			PkgsDir:      pkgsDir,
 		}
-		out, err := DownloadArtifacts(ctx, downloadInput)
+		path, err := DownloadArtifacts(ctx, downloadInput)
 		if err != nil {
 			return "", err
 		}
-		log.Debugf("contracts package available at %s", out.Path)
-		return out.Path, nil
+		log.Debugf("contracts package available at %s", path)
+		return path, nil
 	default:
 		return "", fmt.Errorf("unknown package kind %q", ref.Kind)
 	}

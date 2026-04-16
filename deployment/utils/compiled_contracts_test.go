@@ -122,35 +122,6 @@ func TestParseCompiledContractsPackageRef_EmptyHostOrgOrRepo(t *testing.T) {
 	assert.Contains(t, err.Error(), "must be non-empty")
 }
 
-// --- RetrieveCompiledContractsInput.Validate tests ---
-
-func TestValidate_NilInput(t *testing.T) {
-	var input *RetrieveCompiledContractsInput
-	err := input.Validate()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "input cannot be nil")
-}
-
-func TestValidate_ValidLocal(t *testing.T) {
-	input := &RetrieveCompiledContractsInput{Package: "local"}
-	err := input.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_ValidRepoRef(t *testing.T) {
-	input := &RetrieveCompiledContractsInput{
-		Package: "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.0",
-	}
-	err := input.Validate()
-	require.NoError(t, err)
-}
-
-func TestValidate_InvalidPackage(t *testing.T) {
-	input := &RetrieveCompiledContractsInput{Package: ""}
-	err := input.Validate()
-	require.Error(t, err)
-}
-
 // --- AssetNameFromReleaseTag tests ---
 
 func TestAssetNameFromReleaseTag(t *testing.T) {
@@ -539,7 +510,7 @@ func TestDownloadArtifacts_ExtractsToDisk(t *testing.T) {
 	defer func() { githubBaseURL = origBase }()
 
 	pkgsDir := t.TempDir()
-	in := DownloadArtifactsInput{
+	in := DownloadArtifactsOpts{
 		Host:         githubDomain,
 		Organization: "org",
 		Repository:   "repo",
@@ -548,21 +519,21 @@ func TestDownloadArtifacts_ExtractsToDisk(t *testing.T) {
 		PkgsDir:      pkgsDir,
 	}
 
-	out, err := DownloadArtifacts(context.Background(), in)
+	path, err := DownloadArtifacts(context.Background(), in)
 	require.NoError(t, err)
-	assert.NotEmpty(t, out.Path)
+	assert.NotEmpty(t, path)
 
 	// Verify files were extracted.
-	_, err = os.Stat(filepath.Join(out.Path, PackageMetadataFile))
+	_, err = os.Stat(filepath.Join(path, PackageMetadataFile))
 	require.NoError(t, err)
-	_, err = os.Stat(filepath.Join(out.Path, "Router.compiled.json"))
+	_, err = os.Stat(filepath.Join(path, "Router.compiled.json"))
 	require.NoError(t, err)
 }
 
 func TestDownloadArtifacts_CacheHit(t *testing.T) {
 	// Pre-create the expected destination directory.
 	pkgsDir := t.TempDir()
-	in := DownloadArtifactsInput{
+	in := DownloadArtifactsOpts{
 		Host:         githubDomain,
 		Organization: "org",
 		Repository:   "repo",
@@ -576,13 +547,13 @@ func TestDownloadArtifacts_CacheHit(t *testing.T) {
 	require.NoError(t, os.MkdirAll(destDir, 0o755))
 
 	// No server running — a network call would fail, proving we hit the cache.
-	out, err := DownloadArtifacts(context.Background(), in)
+	path, err := DownloadArtifacts(context.Background(), in)
 	require.NoError(t, err)
-	assert.Equal(t, destDir, out.Path)
+	assert.Equal(t, destDir, path)
 }
 
 func TestDownloadArtifacts_InvalidHost(t *testing.T) {
-	in := DownloadArtifactsInput{
+	in := DownloadArtifactsOpts{
 		Host:         "evil.example.com",
 		Organization: "org",
 		Repository:   "repo",

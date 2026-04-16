@@ -32,7 +32,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
@@ -116,7 +115,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		contractsPackage = in.Config.ContractVersion
 	}
 
-	retrieveContractsInput := utils.RetrieveCompiledContractsInput{
+	retrieveContractsInput := utils.RetrieveCompiledContractsOpts{
 		Package: contractsPackage,
 		Contracts: []string{
 			bindings.TypeTimelock,
@@ -124,11 +123,10 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		},
 	}
 
-	r, err := cldfops.ExecuteSequence(b, sequence.RetrieveContractsSequence, dp, retrieveContractsInput)
+	compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(),b.Logger, &retrieveContractsInput)
 	if err != nil {
 		return ccipdseq.OnChainOutput{}, err
 	}
-	compiledContracts := r.Output.CompiledContracts
 
 	// TODO: fix type as tlb.Coins vs. string
 	value := tlb.MustFromTON(DefaultDeployValueTON)

@@ -20,8 +20,6 @@ import (
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
-// TODO: Unify to use the FQN constants from pkg/bindings/index.go (e.g. bindings.TypeRouter)
-// everywhere instead of these short-name ds.ContractType values.
 var (
 	Version1_6_0 = *semver.MustParse("1.6.0")
 	// MCMS contract versions
@@ -44,12 +42,12 @@ var (
 	Counter     ds.ContractType = "Counter"
 )
 
-// FQNToContractType maps the fully qualified contract name (as used in contracts-pkg.json
+// LongToShortContractType maps the fully qualified contract name (as used in contracts-pkg.json
 // and pkg/bindings/index.go) to the ds.ContractType value used in the datastore.
 
-// TODO: Currently we cannot unify to use only the FQN from pkg/bindings/index.go everywhere,
+// TODO: Currently we cannot unify to use only the long format from pkg/bindings/index.go everywhere,
 // Is there a cleaner way to manage these two types together?
-var FQNToContractType = map[string]ds.ContractType{
+var LongToShortContractType = map[string]ds.ContractType{
 	bindings.TypeRouter:          Router,
 	bindings.TypeFeeQuoter:       FeeQuoter,
 	bindings.TypeOnRamp:          OnRamp,

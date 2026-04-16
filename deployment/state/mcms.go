@@ -12,8 +12,6 @@ import (
 )
 
 var (
-	// TODO: Unify to use FQN constants from pkg/bindings/index.go (bindings.TypeTimelock,
-	// bindings.TypeMCMS) instead of these short-name ds.ContractType values.
 	Timelock ds.ContractType = "RBACTimelock"
 	MCMS     ds.ContractType = "MCMS"
 )

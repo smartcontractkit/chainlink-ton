@@ -32,8 +32,8 @@ type Artifact struct {
 	Data     []byte
 }
 
-// DownloadArtifactsInput specifies what to download and where to cache it.
-type DownloadArtifactsInput struct {
+// DownloadArtifactsOpts specifies what to download and where to cache it.
+type DownloadArtifactsOpts struct {
 	Host         string
 	Organization string
 	Repository   string
@@ -42,29 +42,26 @@ type DownloadArtifactsInput struct {
 	PkgsDir      string // base directory for the local package cache; empty = use default
 }
 
-// DownloadArtifactsOutput holds the local path where the package was extracted.
-type DownloadArtifactsOutput struct {
-	Path string
-}
 
 // DownloadArtifacts fetches a release tar.gz from GitHub and extracts it to a local directory.
 // The destination is derived deterministically from the input fields under PkgsDir.
 // If the destination directory already exists, the download is skipped (disk cache).
-func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (DownloadArtifactsOutput, error) {
-	output := DownloadArtifactsOutput{}
+// Returns local path where the package was extracted into after download.
+
+func DownloadArtifacts(ctx context.Context, in DownloadArtifactsOpts) (string, error) {
 
 	if in.Host != githubDomain && in.Host != githubBaseURL {
-		return output, fmt.Errorf("expected %s or %s as a host for remote releases, got %s", githubDomain, githubBaseURL, in.Host)
+		return "", fmt.Errorf("expected %s or %s as a host for remote releases, got %s", githubDomain, githubBaseURL, in.Host)
 	}
 
 	destDir, err := packageDestDir(in)
 	if err != nil {
-		return output, err
+		return "", err
 	}
 
 	// Cache check: if directory already exists, skip the download.
 	if _, err = os.Stat(destDir); err == nil {
-		return DownloadArtifactsOutput{Path: destDir}, nil
+		return destDir, nil
 	}
 
 	url := fmt.Sprintf(
@@ -74,23 +71,23 @@ func DownloadArtifacts(ctx context.Context, in DownloadArtifactsInput) (Download
 
 	rawTarGz, err := getBytesFromURL(ctx, url)
 	if err != nil {
-		return output, fmt.Errorf("failed to download artifacts from %s: %w", url, err)
+		return "", fmt.Errorf("failed to download artifacts from %s: %w", url, err)
 	}
 
 	if err = os.MkdirAll(destDir, 0o755); err != nil {
-		return output, fmt.Errorf("failed to create destination directory %s: %w", destDir, err)
+		return "", fmt.Errorf("failed to create destination directory %s: %w", destDir, err)
 	}
 
 	if err = extractFilesToDir(rawTarGz, destDir); err != nil {
 		_ = os.RemoveAll(destDir) // clean up partial extraction
-		return output, fmt.Errorf("failed to extract artifacts from %s: %w", url, err)
+		return "", fmt.Errorf("failed to extract artifacts from %s: %w", url, err)
 	}
 
-	return DownloadArtifactsOutput{Path: destDir}, nil
+	return destDir, nil
 }
 
 // packageDestDir returns the directory where a downloaded package should be stored.
-func packageDestDir(in DownloadArtifactsInput) (string, error) {
+func packageDestDir(in DownloadArtifactsOpts) (string, error) {
 	base := in.PkgsDir
 	if base == "" {
 		cacheDir, err := os.UserCacheDir()

@@ -80,18 +80,21 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 
 	// Convert to ContractType (short identifier eg FeeQuoter from link.chain.ccip.ton.FeeQuoter)
 	// before creating a ds.AddressRef
-	contractType, ok := state.FQNToContractType[compiledContract.Metadata.ID]
+	contractType, ok := state.LongToShortContractType[compiledContract.Metadata.ID]
 	if !ok {
-		return nil, fmt.Errorf("unknown contract FQN %q: no datastore type mapping found", compiledContract.Metadata.ID)
+		return nil, fmt.Errorf("unknown contract fully qualified name %q: no datastore type mapping found", compiledContract.Metadata.ID)
 	}
 
+	if !semver.Equal(compiledContract.Version) {
+		return nil, fmt.Errorf("specified version for deployment does not match the version from contract metadata")
+	}
 	contractAddress := *deployContractReport.Output.Address
 	// TODO: Qualifier not used here (fix)
 	return &ds.AddressRef{
 		Address:       contractAddress.String(),
 		ChainSelector: chainSelector,
 		Type:          contractType,
-		Version:       semver,
+		Version:       compiledContract.Version,
 		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.Metadata.Package)),
 	}, nil
 }
