@@ -16,6 +16,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"google.golang.org/grpc"
 
+	evmdeploy "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/deploy"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
@@ -395,7 +396,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 
 	// Finally, test SetOCR3Config from tooling deployer API
 	mcmsRegistry := cs_ccip.GetRegistry()
-	_, err = deployops.SetOCR3Config(dReg, mcmsRegistry).Apply(env, deployops.SetOCR3ConfigArgs{
+	_, err = evmdeploy.SetOCR3Config(dReg, mcmsRegistry).Apply(env, deployops.SetOCR3ConfigArgs{
 		HomeChainSel:    evmSelector,
 		RemoteChainSels: tonChainSelectors,
 		ConfigType:      utils.ConfigTypeActive,

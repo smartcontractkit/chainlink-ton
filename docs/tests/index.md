@@ -9,5 +9,4 @@ sidebar_position: 2
 
 ## Test Guides
 
-- [CCIP End-to-End Tests](./ccip-e2e.md)
 - [Integration Tests](./integration-tests.md)
