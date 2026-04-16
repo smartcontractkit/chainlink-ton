@@ -263,7 +263,7 @@ func (a *TONAdapter) GetExtraArgs(receiver []byte, sourceFamily string, opts ...
 			return nil, fmt.Errorf("failed to borsh-serialize extra args: %w", err)
 		}
 		// Tag: bytes4(keccak256("CCIP EVMExtraArgsV2")) = 0x181dcf10
-		tag := []byte{0x18, 0x1d, 0xcf, 0x10}
+		tag := []byte{0x18, 0x1d, 0xcf, 0x10} //nolint:prealloc //  - TODO(lint-migration): golangci-lint 2.11 rule tightened
 		return append(tag, data...), nil
 	default:
 		// TODO: add support for other families

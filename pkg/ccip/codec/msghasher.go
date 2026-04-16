@@ -141,7 +141,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	}
 
 	builder := cell.BeginCell().
-		MustStoreSlice(LeafDomainSeparator[:], uint(len(LeafDomainSeparator[:])*8)). //nolint:gosec // len here is 64
+		MustStoreSlice(LeafDomainSeparator[:], uint(len(LeafDomainSeparator[:])*8)).
 		MustStoreSlice(metadataHash, 256)
 
 	// storing header

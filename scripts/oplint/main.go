@@ -28,7 +28,7 @@ type location struct {
 func findTolkFilesInDir(root string) ([]string, error) {
 	var tolkFiles []string
 
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error { //nolint:gosec // G703 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ func findFilesFromPatterns(patterns []string) ([]string, error) {
 
 	for _, pattern := range patterns {
 		// Check if it's a directory
-		info, err := os.Stat(pattern)
+		info, err := os.Stat(pattern) //nolint:gosec // G703 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 		switch {
 		case err == nil && info.IsDir():
 			{
@@ -85,7 +85,7 @@ func findFilesFromPatterns(patterns []string) ([]string, error) {
 					continue
 				}
 				for _, match := range matches {
-					info, err := os.Stat(match)
+					info, err := os.Stat(match) //nolint:gosec // G703 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 					if err != nil {
 						continue
 					}

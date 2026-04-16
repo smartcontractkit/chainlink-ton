@@ -96,7 +96,7 @@ func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 		return "", err
 	}
 
-	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
+	addr := address.NewAddress(0, byte(workchain), rawAddr[4:]) //nolint:gosec // G115 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	return addr.String(), nil
 }
 
@@ -149,6 +149,6 @@ func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
 		return nil, err
 	}
 
-	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
+	addr := address.NewAddress(0, byte(workchain), rawAddr[4:]) //nolint:gosec // G115 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	return addr, nil
 }

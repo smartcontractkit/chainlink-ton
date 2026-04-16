@@ -594,7 +594,7 @@ func Test_LogPoller(t *testing.T) {
 				}
 
 				for i := 1; i <= int(targetCounter); i++ {
-					if !seen[uint32(i)] { //nolint:gosec // test code
+					if !seen[uint32(i)] {
 						t.Fatalf("missing counter %d", i)
 					}
 				}
@@ -626,7 +626,7 @@ func Test_LogPoller(t *testing.T) {
 				}
 
 				for i := 1; i <= int(targetCounter); i++ {
-					if !seen[uint32(i)] { //nolint:gosec // test code
+					if !seen[uint32(i)] {
 						t.Fatalf("missing counter %d", i)
 					}
 				}
@@ -676,8 +676,8 @@ func Test_LogPoller(t *testing.T) {
 				require.Len(t, result, to-from+1, "expected exactly 10 logs for the range 1-10")
 				seen := make(map[uint32]bool, to-from+1)
 				for _, log := range result {
-					require.GreaterOrEqual(t, log.TypedData.Value, uint32(from)) //nolint:gosec // test code
-					require.LessOrEqual(t, log.TypedData.Value, uint32(to))      //nolint:gosec // test code
+					require.GreaterOrEqual(t, log.TypedData.Value, uint32(from))
+					require.LessOrEqual(t, log.TypedData.Value, uint32(to))
 
 					if seen[log.TypedData.Value] {
 						t.Fatalf("duplicate counter %d found", log.TypedData.Value)
@@ -686,7 +686,7 @@ func Test_LogPoller(t *testing.T) {
 				}
 
 				for i := 1; i <= to; i++ {
-					if !seen[uint32(i)] { //nolint:gosec // test code
+					if !seen[uint32(i)] {
 						t.Fatalf("missing counter %d", i)
 					}
 				}
@@ -777,7 +777,7 @@ func Test_LogPoller(t *testing.T) {
 					).
 					WithLimitAndSort(commonquery.LimitAndSort{
 						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Desc)},
-						Limit:  commonquery.CountLimit(uint64(count)), //nolint:gosec // test code with small values
+						Limit:  commonquery.CountLimit(uint64(count)),
 					}).
 					Execute(t.Context())
 				require.NoError(t, queryErr)

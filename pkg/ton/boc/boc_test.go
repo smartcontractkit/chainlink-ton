@@ -427,8 +427,8 @@ func TestBOCHeaderVariability(t *testing.T) {
 				// Create 300 unique leaf cells
 				for i := 0; i < 300; i++ {
 					cells = append(cells, cell.BeginCell().
-						MustStoreUInt(uint64(i*1000+i), 32). //nolint:gosec // G115 - loop index i < 300
-						MustStoreUInt(uint64(i*2), 16).      //nolint:gosec // G115 - loop index i < 300
+						MustStoreUInt(uint64(i*1000+i), 32).
+						MustStoreUInt(uint64(i*2), 16).
 						EndCell())
 				}
 
@@ -437,7 +437,7 @@ func TestBOCHeaderVariability(t *testing.T) {
 				for len(cells) > 1 {
 					var newLevel []*cell.Cell
 					for i := 0; i < len(cells); i += 4 {
-						builder := cell.BeginCell().MustStoreUInt(uint64(i), 16) //nolint:gosec // G115 - loop index bounded by len(cells)
+						builder := cell.BeginCell().MustStoreUInt(uint64(i), 16)
 
 						if i < len(cells) {
 							builder.MustStoreRef(cells[i])

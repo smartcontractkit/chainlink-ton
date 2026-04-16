@@ -186,7 +186,7 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending AddPriceItem request for %s, key: %d, addr: %s\n", name, index, itemAddresses[index].String())
-			_, serr := priceRegistry.SendAddPriceItem(uint8(index), itemAddresses[index]) //nolint:gosec // testing purpose
+			_, serr := priceRegistry.SendAddPriceItem(uint8(index), itemAddresses[index])
 			require.NoError(t, serr, "failed to send AddPriceItem request: %w", serr)
 			t.Logf("AddPriceItem request sent\n")
 		}
@@ -200,7 +200,7 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending GetPrice request for %s\n", name)
-			_, err = storage.SendGetPriceFrom(priceRegistry.Contract.Address, uint8(index)) //nolint:gosec // testing purpose
+			_, err = storage.SendGetPriceFrom(priceRegistry.Contract.Address, uint8(index))
 			require.NoError(t, err, "failed to send GetPriceFrom request: %w", err)
 			t.Logf("GetPriceFrom request sent\n")
 
@@ -262,7 +262,7 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, index, itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
-			_, serr := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr) //nolint:gosec // testing purpose
+			_, serr := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
 			require.NoError(t, serr, "failed to send AddItem request: %w", serr)
 			t.Logf("AddItem request sent\n")
 		}
@@ -276,7 +276,7 @@ func TestIntegration(t *testing.T) {
 
 		for index, name := range priceIndex {
 			t.Logf("Sending GetCapitalFrom request for %s\n", name)
-			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index)) //nolint:gosec // testing purpose
+			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
 			require.NoError(t, err, "failed to send GetCapitalFrom request: %w", err)
 			t.Logf("GetCapitalFrom request sent\n")
 
