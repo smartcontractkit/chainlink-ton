@@ -42,14 +42,12 @@ type DownloadArtifactsOpts struct {
 	PkgsDir      string // base directory for the local package cache; empty = use default
 }
 
-
 // DownloadArtifacts fetches a release tar.gz from GitHub and extracts it to a local directory.
 // The destination is derived deterministically from the input fields under PkgsDir.
 // If the destination directory already exists, the download is skipped (disk cache).
 // Returns local path where the package was extracted into after download.
 
 func DownloadArtifacts(ctx context.Context, in DownloadArtifactsOpts) (string, error) {
-
 	if in.Host != githubDomain && in.Host != githubBaseURL {
 		return "", fmt.Errorf("expected %s or %s as a host for remote releases, got %s", githubDomain, githubBaseURL, in.Host)
 	}

@@ -86,7 +86,7 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 	}
 
 	if !semver.Equal(compiledContract.Version) {
-		return nil, fmt.Errorf("specified version for deployment does not match the version from contract metadata")
+		return nil, errors.New("specified version for deployment does not match the version from contract metadata")
 	}
 	contractAddress := *deployContractReport.Output.Address
 	// TODO: Qualifier not used here (fix)

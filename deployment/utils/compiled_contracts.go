@@ -87,19 +87,19 @@ type RetrieveCompiledContractsOpts struct {
 
 func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in *RetrieveCompiledContractsOpts) (map[string]ton.CompiledContract, error) {
 	if in == nil {
-		return nil, fmt.Errorf("input options cannot be nil")
+		return nil, errors.New("input options cannot be nil")
 	}
 	packageRef, err := ParseCompiledContractsPackageRef(in.Package)
 	if err != nil {
 		return nil, fmt.Errorf("invalid contracts package ref: %w", err)
 	}
 
-	pkgPath, err := resolvePackagePath(ctx, log, packageRef, in.PkgsDir)
+	pkgPath, err := packageRef.FetchPackage(ctx, log, in.PkgsDir)
 	if err != nil {
 		return nil, err
 	}
 
-	meta, err := readPackageMetadata(pkgPath)
+	meta, err := LoadPackageMetadata(pkgPath)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in *Re
 func ReadCompiledContract(contractMeta ton.ContractMetadata, pkgPath string, meta *ContractPackageMetadata) (ton.CompiledContract, error) {
 	if meta == nil {
 		var err error
-		meta, err = readPackageMetadata(pkgPath)
+		meta, err = LoadPackageMetadata(pkgPath)
 		if err != nil {
 			return ton.CompiledContract{}, err
 		}
@@ -151,7 +151,7 @@ func ReadCompiledContract(contractMeta ton.ContractMetadata, pkgPath string, met
 	}
 
 	filePath := filepath.Join(pkgPath, entry.Path)
-	data, err := os.ReadFile(filePath) //nolint:gosec // path is derived from trusted metadata
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return ton.CompiledContract{}, fmt.Errorf("failed to read contract file %s: %w", filePath, err)
 	}
@@ -270,9 +270,9 @@ func ParseCompiledContractsPackageRef(s string) (*ContractsPackageRef, error) {
 	}, nil
 }
 
-// resolvePackagePath returns the local directory for a package, downloading and extracting
+// FetchPackage returns the local directory for a package, downloading and extracting
 // it first when it is a remote GitHub release (disk-cached).
-func resolvePackagePath(ctx context.Context, log logger.Logger, ref *ContractsPackageRef, pkgsDir string) (string, error) {
+func (ref *ContractsPackageRef) FetchPackage(ctx context.Context, log logger.Logger, pkgsDir string) (string, error) {
 	switch ref.Kind {
 	case CompiledContractsPackageKindAbsPath:
 		return ref.AbsPath, nil
@@ -300,20 +300,29 @@ func resolvePackagePath(ctx context.Context, log logger.Logger, ref *ContractsPa
 
 // readPackageMetadata reads contracts-pkg.json from pkgPath.
 // Falls back to defaultPackageMetadata when the file is absent (pre-1.6.1 releases).
-func readPackageMetadata(pkgPath string) (*ContractPackageMetadata, error) {
+func (m *ContractPackageMetadata) ReadFrom(pkgPath string) error {
 	metaPath := filepath.Join(pkgPath, PackageMetadataFile)
-	data, err := os.ReadFile(metaPath) //nolint:gosec // path is caller-controlled and trusted or default which is also safe
+	data, err := os.ReadFile(metaPath)
 	if errors.Is(err, os.ErrNotExist) {
-		return defaultPackageMetadata, nil
+		*m = *defaultPackageMetadata
+		return nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to read %s: %w", PackageMetadataFile, err)
+		return fmt.Errorf("failed to read %s: %w", PackageMetadataFile, err)
 	}
-	var meta ContractPackageMetadata
-	if err = json.Unmarshal(data, &meta); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", PackageMetadataFile, err)
+	if err := json.Unmarshal(data, m); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", PackageMetadataFile, err)
 	}
-	return &meta, nil
+	return nil
+}
+
+func LoadPackageMetadata(pkgPath string) (*ContractPackageMetadata, error) {
+	var m ContractPackageMetadata
+	err := m.ReadFrom(pkgPath)
+	if err != nil {
+		return nil, err
+	}
+	return &m, err
 }
 
 func verifyDeployableCodeHash(code *cell.Cell) error {

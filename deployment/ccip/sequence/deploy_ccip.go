@@ -88,7 +88,6 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		return sequences.OnChainOutput{}, err
 	}
 
-
 	var outputAddr *datastore.AddressRef
 	// Router
 

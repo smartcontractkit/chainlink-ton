@@ -18,7 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
-//TODO we should use a type alias for these, sometihng like ContractTypeLong
+// TODO we should use a type alias for these, sometihng like ContractTypeLong
 const (
 	PkgLib  = "link.chain.ton.lib"
 	PkgCCIP = "link.chain.ton.ccip"

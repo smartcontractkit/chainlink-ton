@@ -123,7 +123,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		},
 	}
 
-	compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(),b.Logger, &retrieveContractsInput)
+	compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &retrieveContractsInput)
 	if err != nil {
 		return ccipdseq.OnChainOutput{}, err
 	}

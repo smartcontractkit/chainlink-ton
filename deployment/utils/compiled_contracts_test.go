@@ -1,4 +1,4 @@
-package utils
+package utils //nolint:revive,nolintlint
 
 import (
 	"archive/tar"
@@ -372,7 +372,7 @@ func TestReadPackageMetadata_WithValidFile(t *testing.T) {
 	meta := `{"version":"1.6.3","contracts":{"link.chain.ton.ccip.Router":{"path":"Router.compiled.json","version":"1.6.3"}}}`
 	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte(meta), 0o600))
 
-	result, err := readPackageMetadata(dir)
+	result, err := LoadPackageMetadata(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "1.6.3", result.Version)
 	require.Contains(t, result.Contracts, "link.chain.ton.ccip.Router")
@@ -382,7 +382,7 @@ func TestReadPackageMetadata_WithValidFile(t *testing.T) {
 
 func TestReadPackageMetadata_MissingFileUsesFallback(t *testing.T) {
 	dir := t.TempDir()
-	result, err := readPackageMetadata(dir)
+	result, err := LoadPackageMetadata(dir)
 	require.NoError(t, err)
 	assert.Equal(t, defaultPackageMetadata, result)
 }
@@ -391,7 +391,7 @@ func TestReadPackageMetadata_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, PackageMetadataFile), []byte("not json"), 0o600))
 
-	_, err := readPackageMetadata(dir)
+	_, err := LoadPackageMetadata(dir)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse")
 }
