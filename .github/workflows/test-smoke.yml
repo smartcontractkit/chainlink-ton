@@ -58,7 +58,7 @@ jobs:
           GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
           WORKFLOW_FILE: .github/workflows/test_smoke.yml
           TARGET_REPO: smartcontractkit/chainlink-ccip
-          TARGET_BRANCH: chains-evm-go-mod # TODO: pin back to main once https://github.com/smartcontractkit/chainlink-ccip/pull/1972 is merged
+          TARGET_BRANCH: main
           TON_REF: ${{ steps.set-version-chainlink-ton.outputs.chainlink-ton_version }}
           CHAINLINK_VERSION: ${{ steps.set-version-chainlink.outputs.chainlink_version }}
           CUSTOM_CONFIG: env.toml,env-cl-rebuild-ci.toml,../chainlink-ton/devenv/ton.toml
