@@ -9,8 +9,8 @@ pkgs.mkShell {
       # nix tooling
       alejandra
 
-      # Go 1.25 + tools
-      go_1_25
+      # Go 1.26 + tools
+      go_1_26
       gopls
       delve
       golangci-lint
@@ -21,10 +21,10 @@ pkgs.mkShell {
       nodejs_24
       (yarn.override {nodejs = nodejs_24;})
       (pnpm.override {nodejs = nodejs_24;})
-      nodePackages.typescript
-      nodePackages.typescript-language-server
+      typescript
+      typescript-language-server
       # Required dependency for @ledgerhq/hw-transport-node-hid -> usb
-      nodePackages.node-gyp
+      node-gyp
 
       # Extra tools
       git

@@ -13,7 +13,7 @@
     sha256 = "sha256-z3KSqKrIoy6WR2HUPjKJEm93NvuN0m9Edcq5BtGO5yA=";
   };
 in
-  pkgs.buildGo125Module rec {
+  pkgs.buildGo126Module rec {
     inherit (package-info) version;
     pname = "chainlink-ton-extras";
 

@@ -13,10 +13,10 @@ pkgs.mkShell {
     # TS/Node set of tools for TON dev
     nodejs_24
     (yarn.override {nodejs = nodejs_24;})
-    nodePackages.typescript
-    nodePackages.typescript-language-server
+    typescript
+    typescript-language-server
     # Required dependency for @ledgerhq/hw-transport-node-hid -> usb
-    nodePackages.node-gyp
+    node-gyp
 
     # Extra tools
     git
