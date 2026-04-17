@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -42,7 +41,7 @@ type mockContractCodeProvider struct {
 	contracts map[string]opston.CompiledContract
 }
 
-func (m *mockContractCodeProvider) GetContract(meta opston.ContractMetadata) (opston.CompiledContract, error) {
+func (m *mockContractCodeProvider) GetContract(_ context.Context, meta opston.ContractMetadata) (opston.CompiledContract, error) {
 	key := meta.Key()
 	c, ok := m.contracts[key]
 	if !ok {
@@ -68,13 +67,11 @@ func newUpgradeableCounterProvider(ctx context.Context) (*mockContractCodeProvid
 
 	metaV1 := opston.ContractMetadata{
 		Package: "github.com/smartcontractkit/chainlink-ton",
-		Version: semver.MustParse("1.0.0"),
 		ID:      "examples.versioning.upgrades.UpgradeableCounterV1",
 	}
 
 	metaV2 := opston.ContractMetadata{
 		Package: "github.com/smartcontractkit/chainlink-ton",
-		Version: semver.MustParse("2.0.0"),
 		ID:      "examples.versioning.upgrades.UpgradeableCounterV2",
 	}
 
@@ -104,9 +101,9 @@ func TestUpgradeOperation(t *testing.T) {
 	contractProvider, metaV1, metaV2, err := newUpgradeableCounterProvider(ctx)
 	require.NoError(t, err)
 
-	cV1, err := contractProvider.GetContract(metaV1)
+	cV1, err := contractProvider.GetContract(ctx, metaV1)
 	require.NoError(t, err)
-	cV2, err := contractProvider.GetContract(metaV2)
+	cV2, err := contractProvider.GetContract(ctx, metaV2)
 	require.NoError(t, err)
 	require.NotEqual(t, cV1.Code.Hash(), cV2.Code.Hash(), "V1 and V2 code hashes should differ")
 

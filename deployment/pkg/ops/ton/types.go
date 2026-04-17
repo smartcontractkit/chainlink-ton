@@ -1,6 +1,7 @@
 package ton // alias: opston
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -116,21 +117,22 @@ type StateInit struct {
 
 // ContractCodeProvider provides compiled contract code based on metadata.
 type ContractCodeProvider interface {
-	GetContract(meta ContractMetadata) (CompiledContract, error)
+	GetContract(ctx context.Context, meta ContractMetadata) (CompiledContract, error)
 }
 
+// Describes a contract by its package and identifier, used to retrieve compiled code from a ContractCodeProvider.
 type ContractMetadata struct {
-	Package string          `json:"package"` // Name of the package where the contract is defined (e.g., "github.com/smartcontractkit/chainlink-ton")
-	Version *semver.Version `json:"version"` // Version of the contract package (e.g., semver.MustParse("0.1.0"))
-	ID      string          `json:"id"`      // Contract identifier within the package (e.g., "mcms.RBACTimelock") (can be a path, or maps to a path within the package)
+	Package string `json:"package"` // Name of the package where the contract is defined (e.g., "github.com/smartcontractkit/chainlink-ton@contracts/v1.6.3")
+	ID      string `json:"id"`      // Contract identifier within the package (indexed by fully qualified name e.g., "link.chain.ton.mcms.RBACTimelock")
 }
 
 func (m ContractMetadata) Key() string {
-	return fmt.Sprintf("%s@%s:%s", m.Package, m.Version.String(), m.ID)
+	return fmt.Sprintf("%s:%s", m.Package, m.ID)
 }
 
 // CompiledContract represents a compiled TON contract with its name and code (cell).
 type CompiledContract struct {
-	Metadata ContractMetadata
-	Code     *cell.Cell
+	Metadata ContractMetadata `json:"metadata"` // Metadata to identify the contract (package, id, version)
+	Code     *cell.Cell       `json:"code"`     // Compiled code of the contract as a cell
+	Version  *semver.Version  `json:"version"`  // Version of the contract package (e.g., semver.MustParse("0.1.0"))
 }

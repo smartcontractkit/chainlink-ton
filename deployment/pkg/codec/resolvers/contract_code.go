@@ -1,6 +1,7 @@
 package resolvers // alias: resolversd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -45,7 +46,7 @@ func (r contractToCodeCellResolver) Resolve(input map[string]any) (*cell.Cell, e
 		return nil, fmt.Errorf("failed to unmarshal 'data' field to MessageEnvelope: %w", err)
 	}
 
-	contract, err := r.provider.GetContract(meta)
+	contract, err := r.provider.GetContract(context.TODO(), meta)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get contract: %w", err)
 	}

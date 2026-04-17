@@ -22,7 +22,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 type DeployContractInput struct {
@@ -63,9 +64,9 @@ func (i *DeployContractInput) Validate() error {
 
 // InvokeDeployContractOperation invokes the generic TON contract deployment operation.
 // It always executes the deployment operation and returns an error if the deployment fails.
-func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract utils.CompiledContractData, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
+func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract ton.CompiledContract, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
 	deployContractInput := DeployContractInput{
-		Name:         compiledContract.Type.String(),
+		Name:         compiledContract.Metadata.ID,
 		Storage:      storage,
 		MessageBody:  messageBody,
 		ContractCode: compiledContract.Code,
@@ -77,14 +78,24 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 		return nil, err
 	}
 
+	// Convert to ContractType (short identifier eg FeeQuoter from link.chain.ccip.ton.FeeQuoter)
+	// before creating a ds.AddressRef
+	contractType, ok := state.LongToShortContractType[compiledContract.Metadata.ID]
+	if !ok {
+		return nil, fmt.Errorf("unknown contract fully qualified name %q: no datastore type mapping found", compiledContract.Metadata.ID)
+	}
+
+	if !semver.Equal(compiledContract.Version) {
+		return nil, errors.New("specified version for deployment does not match the version from contract metadata")
+	}
 	contractAddress := *deployContractReport.Output.Address
 	// TODO: Qualifier not used here (fix)
 	return &ds.AddressRef{
 		Address:       contractAddress.String(),
 		ChainSelector: chainSelector,
-		Type:          compiledContract.Type, // TODO: type mismatch for MCMS deployment (updated upstream, needs fix here)
-		Version:       semver,
-		Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
+		Type:          contractType,
+		Version:       compiledContract.Version,
+		Labels:        ds.NewLabelSet(fmt.Sprintf("package:%v", compiledContract.Metadata.Package)),
 	}, nil
 }
 
