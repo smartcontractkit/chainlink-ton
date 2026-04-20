@@ -4,13 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import * as coverage from '../../coverage/coverage'
 
 import * as or from '../../../wrappers/ccip/OnRamp'
-import {
-  assertAddressesMatch,
-  CHAINSEL_EVM_TEST,
-  CHAINSEL_EVM_TEST_90000002,
-  deployOnRampContract,
-  setup,
-} from './OnRamp.Setup'
+import { CHAINSEL_EVM_TEST, CHAINSEL_EVM_TEST_90000002, setup } from './OnRamp.Setup'
 
 describe('OnRamp - Apply Dest Chain Config Updates', () => {
   let blockchain: Blockchain
@@ -79,10 +73,10 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     expect(await onramp.getExpectedNextSequenceNumber(CHAINSEL_EVM_TEST_90000002)).toBe(1n)
     const loadedConfig = await onramp.getDestChainConfig(CHAINSEL_EVM_TEST)
     expect(loadedConfig.allowlistEnabled).toBe(true)
-    expect(loadedConfig.router.equals(mockRouter.address)).toBe(true)
+    expect(loadedConfig.router).toEqual(mockRouter.address)
     const loadedConfig2 = await onramp.getDestChainConfig(CHAINSEL_EVM_TEST_90000002)
     expect(loadedConfig2.allowlistEnabled).toBe(true)
-    expect(loadedConfig2.router.equals(mockRouter.address)).toBe(true)
+    expect(loadedConfig2.router).toEqual(mockRouter.address)
 
     const destChainSelectors = await onramp.getDestChainSelectors()
     expect(destChainSelectors).toContain(CHAINSEL_EVM_TEST)
@@ -94,10 +88,9 @@ describe('OnRamp - Apply Dest Chain Config Updates', () => {
     expectedContracts: SandboxContract<TreasuryContract>[],
   ) => {
     const actual = await onramp.getAllowedSendersList(selector)
-    assertAddressesMatch(
-      expectedContracts.map((contract) => contract.address),
-      actual,
-    )
+    const expected = expectedContracts.map((contract) => contract.address)
+    expect(actual).toEqual(expect.arrayContaining(expected))
+    expect(actual).toHaveLength(expected.length)
   }
 
   const seedInitialAllowlists = async () => {

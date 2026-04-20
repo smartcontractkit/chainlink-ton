@@ -2692,7 +2692,7 @@ describe.each(versions)(
 
         // verify changes
         const dynamicConfig = await offRamp.getConfig()
-        expect(dynamicConfig.feeQuoter.toString()).toBe(newFeeQuoter.toString())
+        expect(dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
         expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
           newPermissionlessExecutionThresholdSeconds,
         )

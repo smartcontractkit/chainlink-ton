@@ -123,7 +123,7 @@ describe('Receiver', () => {
     const errorCode = await receiver.getErrorCode(0n)
 
     expect(id).toBeDefined()
-    expect(authorizedCaller.toString()).toEqual(deployer.address.toString())
+    expect(authorizedCaller).toEqual(deployer.address)
     expect(facilityId).toEqual(BigInt(tr.FACILITY_ID))
     expect(errorCode).toEqual(BigInt(tr.ERROR_CODE))
   })

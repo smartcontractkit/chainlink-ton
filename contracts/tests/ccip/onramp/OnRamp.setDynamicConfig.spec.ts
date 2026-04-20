@@ -47,9 +47,9 @@ describe('OnRamp - set Dynamic Config', () => {
     })
 
     const dynamicConfig = await onramp.getDynamicConfig()
-    expect(dynamicConfig.feeQuoter.equals(newConfig.feeQuoter)).toBe(true)
-    expect(dynamicConfig.feeAggregator.equals(newConfig.feeAggregator)).toBe(true)
-    expect(dynamicConfig.allowlistAdmin.equals(newConfig.allowlistAdmin)).toBe(true)
+    expect(dynamicConfig.feeQuoter).toEqual(newConfig.feeQuoter)
+    expect(dynamicConfig.feeAggregator).toEqual(newConfig.feeAggregator)
+    expect(dynamicConfig.allowlistAdmin).toEqual(newConfig.allowlistAdmin)
     expect(dynamicConfig.reserve).toBe(newConfig.reserve)
   })
 

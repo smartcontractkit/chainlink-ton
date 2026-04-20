@@ -275,9 +275,7 @@ export const testConfigSetLogMessage = (
     const ocrPluginType = cs.loadUint(16)
     const configDigest = cs.loadUintBig(256)
     const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
-    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
-      .map((x) => x.toString())
-      .sort()
+    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress()).sort()
     const bigF = cs.loadUint(8)
 
     const msg = {
@@ -291,7 +289,7 @@ export const testConfigSetLogMessage = (
       ocrPluginType: match.ocrPluginType,
       configDigest: match.configDigest,
       signers: match.signers.sort(),
-      transmitters: match.transmitters.map((x) => x.toString()).sort(),
+      transmitters: match.transmitters.sort(),
       bigF: match.bigF,
     }
 

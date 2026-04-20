@@ -213,24 +213,20 @@ describe('OnRamp - generate message id', () => {
           if (msg.info.type === 'external-out') {
             const event = or.builder.events.ccipMessageSent.load(msg.body.beginParse())
             if (event.message.header.messageId !== expectedTVM2AnyRampMessage.header.messageId) {
-              expect(event.message.sender.equals(expectedTVM2AnyRampMessage.sender)).toBe(true)
+              expect(event.message.sender).toEqual(expectedTVM2AnyRampMessage.sender)
               expect(
                 rt.builder.data.crossChainAddress
                   .load(event.message.body.receiver.beginParse())
                   .toString('hex'),
               ).toBe(ccipSend.receiver.toString('hex'))
-              expect(event.message.body.data.toString()).toBe(
-                expectedTVM2AnyRampMessage.body.data.toString(),
+              expect(event.message.body.data).toEqual(expectedTVM2AnyRampMessage.body.data)
+              expect(event.message.body.extraArgs).toEqual(
+                expectedTVM2AnyRampMessage.body.extraArgs,
               )
-              expect(event.message.body.extraArgs.toString()).toBe(
-                expectedTVM2AnyRampMessage.body.extraArgs.toString(),
+              expect(event.message.body.tokenAmounts).toEqual(
+                expectedTVM2AnyRampMessage.body.tokenAmounts,
               )
-              expect(event.message.body.tokenAmounts.toString()).toBe(
-                expectedTVM2AnyRampMessage.body.tokenAmounts.toString(),
-              )
-              expect(
-                event.message.body.feeToken.equals(expectedTVM2AnyRampMessage.body.feeToken),
-              ).toBe(true)
+              expect(event.message.body.feeToken).toEqual(expectedTVM2AnyRampMessage.body.feeToken)
               expect(event.message.body.feeTokenAmount).toBe(
                 expectedTVM2AnyRampMessage.body.feeTokenAmount,
               )

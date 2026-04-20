@@ -41,22 +41,22 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
 
   it('getTokenAddress should return token address', async () => {
     const result = await entrypoint.getTokenAddress()
-    expect(result.equals(tokenAddress)).toBe(true)
+    expect(result).toEqual(tokenAddress)
   })
 
   it('getOnRampAddress should return onramp address', async () => {
     const result = await entrypoint.getOnRampAddress()
-    expect(result.equals(onramp.address)).toBe(true)
+    expect(result).toEqual(onramp.address)
   })
 
   it('getOffRampAddress should return offramp address', async () => {
     const result = await entrypoint.getOffRampAddress()
-    expect(result.equals(offramp.address)).toBe(true)
+    expect(result).toEqual(offramp.address)
   })
 
   it('getOwner should return deployer address', async () => {
     const result = await entrypoint.getOwner()
-    expect(result.equals(deployer.address)).toBe(true)
+    expect(result).toEqual(deployer.address)
   })
 
   it('getPendingOwner should return null initially', async () => {
@@ -67,33 +67,33 @@ describe('FiredrillEntrypoint - Unit Tests', () => {
   // Router getter tests
   it('getOnRamp should return onramp address for any destination chain', async () => {
     const result = await entrypoint.getOnRamp(12345n)
-    expect(result.equals(onramp.address)).toBe(true)
+    expect(result).toEqual(onramp.address)
   })
 
   it('getOffRamp should return offramp address for any source chain', async () => {
     const result = await entrypoint.getOffRamp(12345n)
-    expect(result.equals(offramp.address)).toBe(true)
+    expect(result).toEqual(offramp.address)
   })
 
   it('getOnRamps should return onramps list', async () => {
     const result = await entrypoint.getOnRamps()
     expect(result.destChainSelectors).toHaveLength(1)
     expect(result.destChainSelectors[0]).toBe(CHAINSEL_TON_TEST)
-    expect(result.onRamp.equals(onramp.address)).toBe(true)
+    expect(result.onRamp).toEqual(onramp.address)
   })
 
   it('getOffRamps should return offramps list', async () => {
     const result = await entrypoint.getOffRamps()
     expect(result.sourceChainSelectors).toHaveLength(1)
     expect(result.sourceChainSelectors[0]).toBe(CHAINSEL_TON_TEST)
-    expect(result.offRamp.equals(offramp.address)).toBe(true)
+    expect(result.offRamp).toEqual(offramp.address)
   })
 
   // FeeQuoter getter tests
   it('getStaticConfig should return fee quoter configuration', async () => {
     const result = await entrypoint.getStaticConfig()
     expect(result.maxFeeJuelsPerMsg).toBe(1n)
-    expect(result.linkToken.equals(tokenAddress)).toBe(true)
+    expect(result.linkToken).toEqual(tokenAddress)
     expect(result.tokenPriceStalenessThreshold).toBe(0n)
   })
 
