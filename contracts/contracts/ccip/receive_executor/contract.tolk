@@ -7,7 +7,7 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);

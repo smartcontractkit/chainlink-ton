@@ -223,7 +223,8 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
-            receiver: msg.receiver
+            receiver: msg.receiver,
+            reason: ReceiveExecutor_BouncedReason.BouncedFromRouter,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -267,7 +268,8 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
-            receiver: msg.receiver
+            receiver: msg.receiver,
+            reason: ReceiveExecutor_BouncedReason.BouncedFromReceiver,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -413,7 +415,8 @@ fun blockMsg(st: Storage, execId: uint192, receiver: address) {
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, execId),
         body: ReceiveExecutor_Bounced{
-            receiver: receiver
+            receiver: receiver,
+            reason: ReceiveExecutor_BouncedReason.NotEnoughGas,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
