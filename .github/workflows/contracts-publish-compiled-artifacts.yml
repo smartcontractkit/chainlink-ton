@@ -96,7 +96,7 @@ jobs:
           # For workflow_dispatch: honour the create_release input explicitly.
           # For pull_request and other events: never a release.
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            PREV_VERSION="$(git show HEAD~1:contracts/package.json | jq -r '.version' 2>/dev/null || echo '')"
+            PREV_VERSION="$(git show "${{ github.event.before }}":contracts/package.json | jq -r '.version' 2>/dev/null || echo '')"
             TAG_NAME="contracts/${CURRENT_VERSION}"
             TAG_EXISTS="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}" | grep -c . || true)"
             if [[ "$CURRENT_VERSION" != "$PREV_VERSION" ]] && [[ "$TAG_EXISTS" == "0" ]]; then
