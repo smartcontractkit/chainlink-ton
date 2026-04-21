@@ -222,13 +222,6 @@ const versions = [
 describe.each(versions)(
   `OffRamp v${of.OFFRAMP_CONTRACT_VERSION} x ReceiveExecutor v$version`,
   (rxVersion) => {
-    // If the OffRamp version is the previous one, we expect the test to fail since they rely on fixes from the new version.
-    // const it_onlyNewOffRamp =
-    //   versions.offRamp.version == of.OFFRAMP_CONTRACT_VERSION_PREV
-    //     ? (name: string, fn?: jest.ProvidesCallback | undefined, timeout?: number) =>
-    //         it.failing(`${name} (fails)`, fn, timeout)
-    //     : it
-
     describe('OffRamp - Unit Tests', () => {
       let blockchain: Blockchain
       let deployer: SandboxContract<TreasuryContract>
