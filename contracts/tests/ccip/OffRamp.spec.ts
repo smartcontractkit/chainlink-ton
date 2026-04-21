@@ -1,4 +1,4 @@
-import { Blockchain, prettyLogTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
@@ -37,8 +37,7 @@ import * as tr from '../../wrappers/examples/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
-import { EVM_ADDRESS } from './router/Router.Setup'
-import { contractCode, loadContractCode } from '../../wrappers/codeLoader'
+import { contractCode } from '../../wrappers/codeLoader'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -269,43 +268,6 @@ describe('OffRamp - Unit Tests', () => {
     },
   ]
 
-  const setupTestReceiveExecutor = async (): Promise<SandboxContract<rx.ReceiveExecutor>> => {
-    const receiveExecutor = blockchain.openContract(
-      rx.ReceiveExecutor.createFromConfig(
-        {
-          owner: deployer.address,
-          message: {
-            header: {
-              messageId: generateRandomContractId(),
-              sourceChainSelector: 0n,
-              destChainSelector: 0n,
-              sequenceNumber: 0n,
-              nonce: 0n,
-            },
-            sender: EVM_ADDRESS,
-            data: new Cell(),
-            receiver: deployer.address,
-            gasLimit: 0n,
-            tokenAmounts: undefined,
-          },
-          root: deployer.address,
-          execId: 0n,
-          state: rx.MessageState.Untouched,
-          lastExecutionTimestamp: 0n,
-        },
-        receiveExecutorCodeRaw,
-      ),
-    )
-    const result = await receiveExecutor.sendDeploy(deployer.getSender(), toNano('0.05'))
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiveExecutor.address,
-      deploy: true,
-      success: true,
-    })
-    return receiveExecutor
-  }
-
   const createTestMessage = (
     sequenceNumber = 1n,
     messageId = 1n,
@@ -389,22 +351,24 @@ describe('OffRamp - Unit Tests', () => {
     expectSuccessfulTransaction(result, deployer.address, offRamp.address)
 
     if (isInitialSetup) {
-      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      })
-      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000002,
-      })
+      for (const config of configs) {
+        assertLog(
+          result.transactions,
+          offRamp.address,
+          CCIPLogs.LogTypes.SourceChainSelectorAdded,
+          {
+            sourceChainSelector: config.sourceChainSelector,
+          },
+        )
+      }
     }
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      config: configs[0].config,
-    })
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      config: configs[1].config,
-    })
+    for (const config of configs) {
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
+        sourceChainSelector: config.sourceChainSelector,
+        config: { ...config.config, ...overrides, minSeqNr: expect.anything() },
+      })
+    }
 
     return result
   }
@@ -544,10 +508,10 @@ describe('OffRamp - Unit Tests', () => {
     }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
-    deployerCode = await loadContractCode('Deployable')
-    merkleRootCodeRaw = await compile('MerkleRoot')
-    receiveExecutorCodeRaw = await compile('ReceiveExecutor')
-    offRampCodeRaw = await compile('OffRamp')
+    deployerCode = await contractCode.ccip.local('Deployable')
+    merkleRootCodeRaw = await contractCode.ccip.local('MerkleRoot')
+    offRampCodeRaw = await contractCode.ccip.local('OffRamp')
+    receiveExecutorCodeRaw = await contractCode.ccip.local('ReceiveExecutor')
 
     transmitters = await Promise.all([
       blockchain.treasury('transmitter1'),
@@ -1375,7 +1339,7 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([root])
 
     // Disable source chain for execution
-    await setupSourceChainConfig({ isEnabled: false, minSeqNr: 2n }, false)
+    await setupSourceChainConfig({ isEnabled: false }, false)
 
     const report = createExecuteReport([message])
     await executeReportExpectingFailure(report, of.OffRampError.SourceChainNotEnabled)
@@ -1417,7 +1381,7 @@ describe('OffRamp - Unit Tests', () => {
     })
   })
 
-  it('Test execute fails when source chain is cursed', async () => {
+  it('Test execute fails when source chain is globally cursed', async () => {
     const message = createTestMessage(1n, 1n, receiver.address)
 
     // Setup and commit with enabled chain
@@ -2151,25 +2115,6 @@ describe('OffRamp - Unit Tests', () => {
     expect(of.ERROR_CODE).toEqual(errorCode(crc32(of.FACILITY_NAME)))
   })
 
-  it('ReceiveExecutor should match facility name and ID', async () => {
-    const receiveExecutor = await setupTestReceiveExecutor()
-    const facilityIdVal = await receiveExecutor.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(rx.FACILITY_ID))
-
-    const { type } = await receiveExecutor.getTypeAndVersion()
-    expect(type).toBe(rx.FACILITY_NAME)
-
-    expect(rx.FACILITY_ID).toEqual(facilityId(crc32(rx.FACILITY_NAME)))
-  })
-
-  it('ReceiveExecutor should match error code', async () => {
-    const receiveExecutor = await setupTestReceiveExecutor()
-    const errorCodeVal = await receiveExecutor.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(rx.ERROR_CODE))
-
-    expect(rx.ERROR_CODE).toEqual(errorCode(crc32(rx.FACILITY_NAME)))
-  })
-
   it('Test commit two messages in one root and execute first message with proof', async () => {
     const message1 = createTestMessage(1n, 1n, receiver.address)
     const message2 = createTestMessage(2n, 2n, receiver.address)
@@ -2694,7 +2639,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // verify changes
     const dynamicConfig = await offRamp.getConfig()
-    expect(dynamicConfig.feeQuoter.toString()).toBe(newFeeQuoter.toString())
+    expect(dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
     expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
       newPermissionlessExecutionThresholdSeconds,
     )

@@ -37,6 +37,7 @@ export const opcodes = {
     updateCursedSubjects: crc32('OffRamp_UpdateCursedSubjects'),
     setDynamicConfig: crc32('OffRamp_SetDynamicConfig'),
     updateDeployables: crc32('OffRamp_UpdateDeployables'),
+    notifyFailure: crc32('OffRamp_NotifyFailure'),
   },
 }
 

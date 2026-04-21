@@ -204,7 +204,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
 
     // Verify initial owner
     const initialOwner = await upgradeableCounter.getOwner()
-    expect(initialOwner.equals(owner.address)).toBe(true)
+    expect(initialOwner).toEqual(owner.address)
 
     // Transfer ownership
     const transferResult = await upgradeableCounter.sendTransferOwnership(
@@ -224,7 +224,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
 
     // Verify pending owner is set
     const pendingOwner = await upgradeableCounter.getPendingOwner()
-    expect(pendingOwner?.equals(newOwner.address)).toBe(true)
+    expect(pendingOwner).toEqual(newOwner.address)
 
     // Accept ownership from new owner
     const acceptResult = await upgradeableCounter.sendAcceptOwnership(
@@ -243,7 +243,7 @@ describe('UpgradeableCounter - Unit Tests', () => {
 
     // Verify ownership transfer is complete
     const currentOwner = await upgradeableCounter.getOwner()
-    expect(currentOwner.equals(newOwner.address)).toBe(true)
+    expect(currentOwner).toEqual(newOwner.address)
 
     // Old owner should no longer be able to upgrade
     const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(
@@ -287,6 +287,6 @@ describe('UpgradeableCounter - Unit Tests', () => {
 
     // Verify new owner is still the owner after upgrade
     const finalOwner = await upgradeableCounterV2.getOwner()
-    expect(finalOwner.equals(newOwner.address)).toBe(true)
+    expect(finalOwner).toEqual(newOwner.address)
   })
 })

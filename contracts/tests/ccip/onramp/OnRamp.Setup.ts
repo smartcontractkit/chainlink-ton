@@ -70,13 +70,3 @@ export async function setup(blockchain: Blockchain, overrides: OnRampOverrides =
   const { onramp, config } = await deployOnRampContract(blockchain, deployer, overrides)
   return { deployer, onramp, config }
 }
-
-export function assertAddressesMatch(expected: Address[], actual: Address[]) {
-  expect(actual.map((x) => x.toString()).sort()).toEqual(
-    expected
-      .map((x) => {
-        return x.toString()
-      })
-      .sort(),
-  )
-}

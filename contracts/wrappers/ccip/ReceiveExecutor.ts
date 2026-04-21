@@ -19,6 +19,9 @@ import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as of from './OffRamp'
 
+export const RECEIVE_EXECUTOR_CONTRACT_VERSION_PREV = '1.6.0'
+export const RECEIVE_EXECUTOR_CONTRACT_VERSION = '1.6.1'
+
 export const FACILITY_NAME = 'link.chain.ton.ccip.ReceiveExecutor'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
@@ -54,6 +57,29 @@ export type ReceiveExecutorStorage = {
   lastExecutionTimestamp: bigint
 }
 
+export type InitExecute = {
+  gasOverride?: bigint
+  root: Address
+  sequenceNumber: bigint
+  sourceChainSelector: bigint
+  messageId: bigint
+}
+
+export type Confirm = {
+  receiver: Address
+}
+
+export type Bounced = {
+  receiver: Address
+  reason: ReceiveExecutor_BouncedReason
+}
+
+export enum ReceiveExecutor_BouncedReason {
+  NotEnoughGas = 0,
+  BouncedFromReceiver,
+  BouncedFromRouter,
+}
+
 export const builder = {
   data: {
     contractData: ((): CellCodec<ReceiveExecutorStorage> => {
@@ -70,6 +96,62 @@ export const builder = {
         load: function (src: Slice): ReceiveExecutorStorage {
           throw new Error('Function not implemented.')
         },
+      }
+    })(),
+  },
+  messages: {
+    in: (() => {
+      const initExecute: CellCodec<InitExecute> = {
+        encode: function (data: InitExecute): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.initExecute, 32)
+            .storeMaybeCoins(data.gasOverride)
+            .storeAddress(data.root)
+            .storeUint(data.sequenceNumber, 64)
+            .storeUint(data.sourceChainSelector, 64)
+            .storeUint(data.messageId, 256)
+        },
+        load: function (src: Slice): InitExecute {
+          src.skip(32) // opcode
+          return {
+            gasOverride: src.loadMaybeCoins() ?? undefined,
+            root: src.loadAddress(),
+            sequenceNumber: src.loadUintBig(64),
+            sourceChainSelector: src.loadUintBig(64),
+            messageId: src.loadUintBig(256),
+          }
+        },
+      }
+      const confirm: CellCodec<Confirm> = {
+        encode: function (data: Confirm): Builder {
+          return beginCell().storeUint(opcodes.in.confirm, 32).storeAddress(data.receiver)
+        },
+        load: function (src: Slice): Confirm {
+          src.skip(32) // opcode
+          return {
+            receiver: src.loadAddress(),
+          }
+        },
+      }
+      const bounced: CellCodec<Bounced> = {
+        encode: function (data: Bounced): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.bounced, 32)
+            .storeAddress(data.receiver)
+            .storeUint(data.reason, 8)
+        },
+        load: function (src: Slice): Bounced {
+          src.skip(32) // opcode
+          return {
+            receiver: src.loadAddress()!,
+            reason: Number(src.loadUint(8)),
+          }
+        },
+      }
+      return {
+        initExecute,
+        confirm,
+        bounced,
       }
     })(),
   },
@@ -106,6 +188,31 @@ export class ReceiveExecutor extends OCR3Base implements typeAndVersion.Interfac
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: Cell.EMPTY,
+      bounce: false,
+    })
+  }
+
+  async sendInitExecute(provider: ContractProvider, via: Sender, value: bigint, body: InitExecute) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.initExecute.encode(body).endCell(),
+    })
+  }
+
+  async sendConfirm(provider: ContractProvider, via: Sender, value: bigint, body: Confirm) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.confirm.encode(body).endCell(),
+    })
+  }
+
+  async sendBounced(provider: ContractProvider, via: Sender, value: bigint, body: Bounced) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in.bounced.encode(body).endCell(),
       bounce: false,
     })
   }

@@ -15,7 +15,6 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import { Cell, toNano } from '@ton/core'
 import { contractCode } from '../../../wrappers/codeLoader'
-import { tonDeepEqual } from '../../utils/tonDeepEqual'
 import { FEE_QUOTER_CONTRACT_VERSION_PREV } from '../../../wrappers/ccip/FeeQuoter'
 
 describe('FeeQuoter - Withdrawable Tests', () => {
@@ -117,7 +116,7 @@ describe('FeeQuoter - Upgrade Tests', () => {
 
     // verify storage was updated
     const newStorage = await loadStorage()
-    tonDeepEqual(newStorage, expectedNewStorage)
+    expect(newStorage).toEqual(expectedNewStorage)
   })
 })
 

@@ -185,13 +185,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
         expect(bypasserExecutedEvent.queryId).toEqual(1)
         expect(bypasserExecutedEvent.index).toEqual(index)
-        expect(
-          bypasserExecutedEvent.target.equals(
-            [baseTest.bind.counter.address, counterTwo.address][index],
-          ),
-        ).toBeTruthy()
+        expect(bypasserExecutedEvent.target).toEqual(
+          [baseTest.bind.counter.address, counterTwo.address][index],
+        )
         expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
-        expect(bypasserExecutedEvent.data.equals(calls[index].data)).toBeTruthy()
+        expect(bypasserExecutedEvent.data).toEqual(calls[index].data)
       }
 
       // Verify counter was incremented
@@ -553,9 +551,9 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallExecuted.toString(16))
       expect(callExecutedEvent.queryId).toEqual(2)
       expect(callExecutedEvent.index).toEqual(0)
-      expect(callExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
+      expect(callExecutedEvent.target).toEqual(baseTest.bind.counter.address)
       expect(callExecutedEvent.value).toEqual(toNano('0.05'))
-      expect(callExecutedEvent.data.equals(setCountCall.data)).toBeTruthy()
+      expect(callExecutedEvent.data).toEqual(setCountCall.data)
 
       // Verify operation was marked as done
       const operationBatch: rbactl.OperationBatch = {

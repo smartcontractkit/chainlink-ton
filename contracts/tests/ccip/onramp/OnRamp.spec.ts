@@ -170,7 +170,7 @@ describe('OnRamp - Unit Tests', () => {
     })
 
     const executorCode = await onramp.getSendExecutorCode()
-    expect(executorCode.equals(newExecutor)).toBe(true)
+    expect(executorCode).toEqual(newExecutor)
     const executorCodeHash = await onramp.getSendExecutorCodeHash()
     expect(executorCodeHash).toBe(BigInt('0x' + newExecutor.hash().toString('hex')))
   })
@@ -190,7 +190,7 @@ describe('OnRamp - Unit Tests', () => {
     })
 
     const executorCode = await onramp.getSendExecutorCode()
-    expect(executorCode.equals(beginCell().endCell())).toBe(true)
+    expect(executorCode).toEqual(beginCell().endCell())
     const executorCodeHash = await onramp.getSendExecutorCodeHash()
     expect(executorCodeHash).toBe(BigInt('0x' + beginCell().endCell().hash().toString('hex')))
   })

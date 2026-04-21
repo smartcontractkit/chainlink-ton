@@ -126,10 +126,10 @@ describe('OnRamp - Send', () => {
       deployTX.inMessage?.body.beginParse(),
     )
 
-    expect(msg.stateInit.code.equals(executorCode)).toBe(true)
+    expect(msg.stateInit.code).toEqual(executorCode)
     expect(msg.selfMessage.body.beginParse().loadUint(32)).toBe(sx.opcodes.in.execute)
     const selfMsg = sx.builder.message.in.execute.load(msg.selfMessage.body.beginParse())
-    expect(selfMsg.config.feeQuoter.equals(mockFeeQuoter.address)).toBe(true)
+    expect(selfMsg.config.feeQuoter).toEqual(mockFeeQuoter.address)
     expect(selfMsg.onrampSend.metadata.sender).toEqual(senderAddress)
     expect(selfMsg.onrampSend.metadata.value).toBe(toNano('42'))
     expect(selfMsg.onrampSend.msg.destChainSelector).toBe(ccipSend.destChainSelector)
@@ -137,10 +137,10 @@ describe('OnRamp - Send', () => {
     expect(selfMsg.onrampSend.msg.queryID).toBe(ccipSend.queryID)
     expect(selfMsg.onrampSend.msg.receiver.toString('hex')).toBe(ccipSend.receiver.toString('hex'))
     expect(selfMsg.onrampSend.msg.tokenAmounts.length).toBe(0)
-    expect(selfMsg.onrampSend.msg.data.equals(ccipSend.data)).toBe(true)
+    expect(selfMsg.onrampSend.msg.data).toEqual(ccipSend.data)
 
     const executableData = sx.builder.data.contractInitData.load(msg.stateInit.data.beginParse())
-    expect(executableData.onramp.equals(onramp.address)).toBe(true)
+    expect(executableData.onramp).toEqual(onramp.address)
   })
 
   it('should fail if sender is not the router', async () => {
