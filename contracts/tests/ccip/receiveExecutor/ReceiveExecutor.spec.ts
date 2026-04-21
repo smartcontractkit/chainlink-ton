@@ -63,19 +63,16 @@ describe('ReceiveExecutor - Opcodes', () => {
   })
 })
 
-describe.each([
-  { version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION_PREV, loadCode: contractCode.ccip.release_1_6_0 },
-  { version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION, loadCode: contractCode.ccip.local },
-])('ReceiveExecutor v$version', ({ version, loadCode }) => {
+describe('ReceiveExecutor', () => {
   describe('TypeAndVersion Tests', () => {
     const currentVersionSpec = TypeAndVersionSpec.newInstance({
       type: rx.FACILITY_NAME,
-      version,
+      version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION,
       deployContract: async (
         blockchain: Blockchain,
         deployer: SandboxContract<TreasuryContract>,
       ): Promise<SandboxContract<rx.ReceiveExecutor>> => {
-        const receiveExecutorCode = await loadCode('ReceiveExecutor')
+        const receiveExecutorCode = await contractCode.ccip.local('ReceiveExecutor')
         const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
         _libs.set(BigInt(`0x${receiveExecutorCode.hash().toString('hex')}`), receiveExecutorCode)
         blockchain.libs = beginCell().storeDictDirect(_libs).endCell()
@@ -90,7 +87,14 @@ describe.each([
     ])
   })
 
-  describe('Unit Tests', () => {
+  // Here we can test backwards compatibility with new message format by running the same tests with different versions of the code
+  describe.each([
+    {
+      version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION_PREV,
+      loadCode: contractCode.ccip.release_1_6_0,
+    },
+    { version: rx.RECEIVE_EXECUTOR_CONTRACT_VERSION, loadCode: contractCode.ccip.local },
+  ])('Unit Tests with ReceiveExecutor %s', ({ version, loadCode }) => {
     let blockchain: Blockchain
     let deployer: SandboxContract<TreasuryContract>
     let nonOwner: SandboxContract<TreasuryContract>
@@ -356,8 +360,9 @@ describe.each([
     })
 
     afterAll(async () => {
-      if (process.env['COVERAGE'] === 'true') {
-        const testSuitePrefix = `receive_executor_unit_tests_v${version.replace(/\./g, '_')}`
+      if (process.env['COVERAGE'] === 'true' && version === rx.RECEIVE_EXECUTOR_CONTRACT_VERSION) {
+        // Skip coverage for old version
+        const testSuitePrefix = 'receive_executor_unit_tests'
         await coverage.generateCoverageArtifacts(blockchain, testSuitePrefix, [
           {
             code: receiveExecutorCode,
