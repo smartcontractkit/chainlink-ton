@@ -57,7 +57,7 @@ jobs:
     name: Build Nix pkg and push dirty tag
     needs: [ changes ]
     if: |
-      needs.changes.outputs.ton_changes == 'true' ||
+      (github.event_name == 'push' && needs.changes.outputs.ton_changes == 'true') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-contracts'))
     runs-on: ubuntu-latest
@@ -86,8 +86,12 @@ jobs:
           set -euo pipefail
           VERSION="$(jq -r '.version' contracts/package.json)"
           TAG_NAME="contracts/${VERSION}+${{ steps.get_sha.outputs.short_sha }}"
+          # Sanitize tag name for use as an artifact name (/ and + are not allowed).
+          ARTIFACT_NAME="${TAG_NAME//\//-}"
+          ARTIFACT_NAME="${ARTIFACT_NAME//+/-}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
@@ -122,7 +126,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.version.outputs.tag_name }}
+          name: ${{ steps.version.outputs.artifact_name }}
           path: ${{ steps.package.outputs.tar_path }}
           if-no-files-found: error
           retention-days: 14
