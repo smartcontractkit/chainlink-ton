@@ -161,7 +161,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-          TAR_NAME="ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}.tar.gz"
+          PKG_VERSION="${{ steps.stage.outputs.pkg_version }}"
+          # Replace '+' with '-' for the filename since '+' is valid semver build metadata
+          # but can cause issues in some download tools and URLs.
+          TAR_NAME="contracts-${PKG_VERSION//+/-}.tar.gz"
           tar -C "${{ steps.stage.outputs.staging_dir }}" \
               --exclude="examples.*" \
               -czf "dist/${TAR_NAME}" .
@@ -170,7 +173,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}
+          name: contracts-${{ steps.stage.outputs.pkg_version }}
           path: ${{ steps.package.outputs.tar_path }}
           if-no-files-found: error
           retention-days: 14
