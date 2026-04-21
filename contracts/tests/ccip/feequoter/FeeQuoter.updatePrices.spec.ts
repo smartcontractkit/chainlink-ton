@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
@@ -329,7 +329,7 @@ describe('FeeQuoter UpdatePrices', () => {
     }
 
     const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
-      value: toNano('0.01'),
+      value: toNano('0.03'),
       msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
     })
 
@@ -344,8 +344,23 @@ describe('FeeQuoter UpdatePrices', () => {
       success: true,
     })
 
+    const tx = updateResult.transactions.find(
+      (tx) =>
+        tx.inMessage &&
+        tx.inMessage.info.src &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(setup.acc.owner.address) &&
+        tx.inMessage.info.dest &&
+        tx.inMessage.info.dest instanceof Address &&
+        tx.inMessage.info.dest.equals(setup.bind.feeQuoter.address),
+    )
+    if (!tx || tx.description.type != 'generic') {
+      throw new Error('Expected an internal message')
+    }
+    const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
+
     const finalBalance = (await blockchain.getContract(setup.bind.feeQuoter.address)).balance
-    expect(finalBalance).toEqual(initialBalance)
+    expect(finalBalance).toEqual(initialBalance - storageFees)
   })
 
   afterAll(async () => {
