@@ -2958,6 +2958,10 @@ describe.each(versions)(
           const testSuitePrefix = 'offramp_suite'
           const contractList: coverage.ContractCoverageConfig[] = [
             {
+              code: await contractCode.ccip.local('OffRamp'),
+              name: 'offramp',
+            },
+            {
               code: await router.getCode(),
               name: 'router',
             },
@@ -2968,10 +2972,6 @@ describe.each(versions)(
             {
               code: merkleRootCodeRaw,
               name: 'merkleroot',
-            },
-            {
-              code: await contractCode.ccip.local('OffRamp'),
-              name: 'offramp',
             },
           ]
           if (rxVersion.version == rx.RECEIVE_EXECUTOR_CONTRACT_VERSION) {
