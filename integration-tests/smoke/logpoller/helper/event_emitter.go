@@ -77,7 +77,7 @@ func VerifyAllCountLogs(indexedCells []*cell.Cell, expectedCount int) error {
 	// verify all expected counters are present (1 to expectedCount)
 	var missing []int
 	for i := 1; i <= expectedCount; i++ {
-		if !seen[uint32(i)] { //nolint:gosec // test code
+		if !seen[uint32(i)] {
 			missing = append(missing, i)
 		}
 	}

@@ -30,7 +30,7 @@ import (
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 
@@ -47,7 +47,7 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 	selector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainsel.FamilyTon))[0]
 	tonChain := env.BlockChains.TonChains()[selector]
 
-	version := sequence.ContractsVersionLocal
+	version := deployutils.ContractsVersionLocal
 
 	// Step 1: Deploy CCIP contracts (deployer becomes owner)
 	dReg := ccipddeploy.GetRegistry()

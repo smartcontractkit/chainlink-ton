@@ -41,6 +41,8 @@ const defaultReserveAmount = "0.5"
 // TonDeployAdapter implements the deploy.Deployer interface for TON chains.
 type TonDeployAdapter struct{}
 
+var _ deploy.Deployer = &TonDeployAdapter{}
+
 func (a *TonDeployAdapter) DeployChainContracts() *cldf_ops.Sequence[deploy.ContractDeploymentConfigPerChainWithAddress, sequences.OnChainOutput, cldf_chain.BlockChains] {
 	return DeployChainContracts
 }
@@ -216,9 +218,10 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		return seq.DeployCCIPSeqInput{}, fmt.Errorf("failed to generate random contract ID: %w", err)
 	}
 	return seq.DeployCCIPSeqInput{
-		ContractsVersionSha: cfg.ContractVersion,
+		ContractsPackageRef: cfg.ContractVersion,
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
+				ID:                           contractID,
 				ContractsSemver:              cfg.Version,
 				Coin:                         defaultCCIPContractCoin,
 				MaxFeeJuelsPerMsg:            cfg.MaxFeeJuelsPerMsg,
@@ -260,5 +263,3 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		ChainSelector: cfg.ChainSelector,
 	}, nil
 }
-
-var _ deploy.Deployer = &TonDeployAdapter{}

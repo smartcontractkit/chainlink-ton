@@ -295,22 +295,30 @@ func ParseCompiledContract(path string) (*cell.Cell, error) {
 
 	switch {
 	case strings.HasSuffix(path, ".pkg"):
-		// Parse the JSON
-		compiledContract := &tactCompiledContract{}
-		err = json.Unmarshal(jsonData, &compiledContract)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse JSON: %w", err)
-		}
-		return compiledContract.codeCell()
+		return ParseCompiledTactContractFromFileBytes(jsonData)
 	case strings.HasSuffix(path, ".compiled.json"):
-		// Parse the JSON
-		compiledContract := &tolkCompiledContract{}
-		err = json.Unmarshal(jsonData, &compiledContract)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse JSON: %w", err)
-		}
-		return compiledContract.codeCell()
+		return ParseCompiledTolkContractFromFileBytes(jsonData)
 	default:
 		return nil, fmt.Errorf("unsupported contract file format: %s", path)
 	}
+}
+
+func ParseCompiledTactContractFromFileBytes(data []byte) (*cell.Cell, error) {
+	// Parse the JSON
+	compiledContract := &tactCompiledContract{}
+	err := json.Unmarshal(data, compiledContract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+	return compiledContract.codeCell()
+}
+
+func ParseCompiledTolkContractFromFileBytes(data []byte) (*cell.Cell, error) {
+	// Parse the JSON
+	compiledContract := &tolkCompiledContract{}
+	err := json.Unmarshal(data, compiledContract)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+	return compiledContract.codeCell()
 }

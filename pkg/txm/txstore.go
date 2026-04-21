@@ -224,8 +224,8 @@ func (c *AccountStore) CleanupAll(currentTimeMs uint64) (finalizedLTs []uint64, 
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	allFinalizedLTs := []uint64{}
-	allExpiredLTs := []uint64{}
+	allFinalizedLTs := make([]uint64, 0, len(c.store))
+	allExpiredLTs := make([]uint64, 0, len(c.store))
 	for _, txStore := range c.store {
 		allFinalizedLTs = append(allFinalizedLTs, txStore.cleanupFinalized()...)
 		allExpiredLTs = append(allExpiredLTs, txStore.cleanupExpired(currentTimeMs)...)

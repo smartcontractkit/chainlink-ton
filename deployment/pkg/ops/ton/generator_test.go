@@ -399,7 +399,7 @@ func (g *Generator) randomUnsignedInt(bits int) uint64 {
 	if bits >= 64 {
 		return g.rng.Uint64()
 	}
-	mask := (uint64(1) << uint(bits)) - 1 //nolint:gosec // safe for tests
+	mask := (uint64(1) << uint(bits)) - 1
 	return g.rng.Uint64() & mask
 }
 
@@ -410,7 +410,7 @@ func (g *Generator) randomSignedInt(bits int) int64 {
 	if bits >= 63 {
 		return g.rng.Int63()
 	}
-	limit := (int64(1) << uint(bits)) - 1 //nolint:gosec // safe for tests
+	limit := (int64(1) << uint(bits)) - 1
 	value := g.rng.Int63n(limit + 1)
 	if g.rng.Intn(2) == 0 {
 		return -value
@@ -444,11 +444,11 @@ func (g *Generator) randomDictionary(keyBits int) (*cell.Dictionary, error) {
 		keyBuilder := cell.BeginCell()
 		switch {
 		case keyBits <= 64:
-			mask := (uint64(1) << uint(keyBits)) - 1 //nolint:gosec // safe for tests
+			mask := (uint64(1) << uint(keyBits)) - 1
 			if keyBits == 64 {
 				mask = ^uint64(0)
 			}
-			keyBuilder.MustStoreUInt(g.rng.Uint64()&mask, uint(keyBits)) //nolint:gosec // safe for tests
+			keyBuilder.MustStoreUInt(g.rng.Uint64()&mask, uint(keyBits))
 		case keyBits <= 256:
 			keyValue := g.randomBigInt(keyBits)
 			keyBuilder.MustStoreBigUInt(keyValue, uint(keyBits))

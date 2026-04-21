@@ -1,6 +1,6 @@
 name: TON - Publish contract artifacts release
 
-# This is a custom temporary solution to get the contract build artifacts on other repos and workflows 
+# This is a custom temporary solution to get the contract build artifacts on other repos and workflows
 
 permissions:
   contents: read
@@ -9,6 +9,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    types: [labeled, opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       create_release:
@@ -26,14 +27,15 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      ton_changes: ${{ steps.changes.outputs.ton_changes }}
+      ton_changes: ${{ steps.compute.outputs.ton_changes }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Detect changes
-        id: changes
+
+      - name: Detect changes (paths)
+        id: paths
         uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         with:
           list-files: "shell"
@@ -42,10 +44,24 @@ jobs:
               - 'contracts/**'
               - '.github/workflows/contracts-build.yml'
 
+      - name: Compute ton_changes
+        id: compute
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && \
+             [[ "${{ contains(github.event.pull_request.labels.*.name, 'build-publish-contracts') }}" == "true" ]]; then
+            echo "ton_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ton_changes=${{ steps.paths.outputs.ton_changes }}" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
     name: Build Nix pkg and publish tarball
     needs: [ changes ]
-    if: ${{ needs.changes.outputs.ton_changes == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: |
+      needs.changes.outputs.ton_changes == 'true' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-contracts'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -112,4 +128,3 @@ jobs:
           prerelease: false
           files: |
             ${{ steps.package.outputs.tar_path }}
-

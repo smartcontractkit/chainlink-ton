@@ -1,0 +1,7 @@
+position: 2
+label: Explorer
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: dev-guides-explorer-index

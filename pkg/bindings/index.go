@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
+// TODO we should use a type alias for these, sometihng like ContractTypeLong
 const (
 	PkgLib  = "link.chain.ton.lib"
 	PkgCCIP = "link.chain.ton.ccip"
@@ -40,16 +41,38 @@ const (
 	TypeTimelock = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter       = PkgCCIP + ".Router"
-	TypeOnRamp       = PkgCCIP + ".OnRamp"
-	TypeOffRamp      = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter    = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor = PkgCCIP + ".CCIPSendExecutor"
+	TypeRouter          = PkgCCIP + ".Router"
+	TypeOnRamp          = PkgCCIP + ".OnRamp"
+	TypeOffRamp         = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter       = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor    = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable      = PkgCCIP + ".Deployable"
+	TypeMerkleRoot      = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor = PkgCCIP + ".ReceiveExecutor"
+	TypeTestReceiver    = PkgCCIP + ".test.Receiver"
 
 	// Jetton
 	TypeJettonWallet = PkgJetton + ".contracts.jetton-wallet"
 	TypeJettonMinter = PkgJetton + ".contracts.jetton-minter"
 )
+
+// AllContractTypes lists every fully qualified name for contracts present in the bindings
+var AllContractTypes = []struct {
+	SimpleName   string
+	ContractType string
+}{
+	{"Router", TypeRouter},
+	{"FeeQuoter", TypeFeeQuoter},
+	{"OnRamp", TypeOnRamp},
+	{"OffRamp", TypeOffRamp},
+	{"SendExecutor", TypeSendExecutor},
+	{"Deployable", TypeDeployable},
+	{"MerkleRoot", TypeMerkleRoot},
+	{"ReceiveExecutor", TypeReceiveExecutor},
+	{"TestReceiver", TypeTestReceiver},
+	{"Timelock", TypeTimelock},
+	{"MCMS", TypeMCMS},
+}
 
 // Map of TLBs keyed by contract type
 var Registry = tvm.ContractTLBRegistry{

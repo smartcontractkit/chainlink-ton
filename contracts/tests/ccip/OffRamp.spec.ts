@@ -1,4 +1,4 @@
-import { Blockchain, prettyLogTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
@@ -37,8 +37,7 @@ import * as tr from '../../wrappers/examples/Receiver'
 import * as rt from '../../wrappers/ccip/Router'
 import * as deployable from '../../wrappers/libraries/Deployable'
 import * as NameSpace from '../../wrappers/ccip/NameSpace'
-import { EVM_ADDRESS } from './router/Router.Setup'
-import { loadContractCode } from '../../wrappers/codeLoader'
+import { contractCode } from '../../wrappers/codeLoader'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -47,11 +46,6 @@ const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 const PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS = 60
-
-// These have to match the EVM states
-const EXECUTION_STATE_IN_PROGRESS = 1n
-const EXECUTION_STATE_SUCCESS = 2n
-const EXECUTION_STATE_FAILURE = 3n
 
 const createSignatures = (
   signerList: KeyPair[],
@@ -117,8 +111,8 @@ export function generateMessageId(message: of.Any2TVMRampMessage, metadataHash: 
 async function deployOffRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
+  code?: Cell,
 ) {
-  const code = await of.OffRamp.code()
   let data: of.OffRampStorage = {
     id: generateRandomContractId(),
     ownable: {
@@ -135,6 +129,10 @@ async function deployOffRampContract(
     chainSelector: CHAINSEL_TON,
     permissionlessExecutionThresholdSeconds: PERMISSIONLESS_EXECUTION_THRESHOLD_SECONDS,
     latestPriceSequenceNumber: 0n,
+  }
+
+  if (!code) {
+    code = await of.OffRamp.code()
   }
 
   const contract = blockchain.openContract(of.OffRamp.createFromConfig(data, code))
@@ -172,33 +170,32 @@ describe('OffRamp - Withdrawable Tests', () => {
   ])
 })
 
-// TODO when we have a new version
-// describe('OffRamp - Upgrade Tests', () => {
-//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
-//     {
-//       contractType: OffRampPrev.type(),
-//       prevVersion: OffRampPrev.version(),
-//       currentVersion: OffRamp.version(),
-//       getPrevCode: () => OffRampPrev.code(),
-//       getCurrentCode: () => OffRamp.code(),
-//       CurrentVersionConstructor: OffRamp,
-//     },
-//     async (blockchain, owner) => {
-//       const codeV1 = await OffRampPrev.code()
-//       const data = {} as any // TODO fill with valid data
-//       const contract = blockchain.openContract(
-//         OffRampPrev.createFromConfig(
-//           data,
-//           codeV1,
-//         ),
-//       )
-//       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-//       return contract
-//     },
-//   )
-//   upgradeSpec.run()
-// })
+describe('OffRamp - Upgrade Tests', () => {
+  class OffRamp extends of.OffRamp {}
+  class OffRampPrev extends of.OffRamp {
+    static code(): Promise<Cell> {
+      return contractCode.ccip.release_1_6_0('OffRamp')
+    }
+  }
+
+  const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
+    contractType: OffRampPrev.type(),
+    prevVersion: of.OFFRAMP_CONTRACT_VERSION_PREV,
+    currentVersion: OffRamp.version(),
+    getPrevCode: () => OffRampPrev.code(),
+    getCurrentCode: () => OffRamp.code(),
+    CurrentVersionConstructor: OffRamp,
+    upgradeValue: toNano('0.05'),
+    deployPrevContract: async (blockchain, owner) =>
+      deployOffRampContract(blockchain, owner, await OffRampPrev.code()),
+  })
+  upgradeSpec.run([
+    {
+      code: 'OffRamp',
+      name: 'offramp',
+    },
+  ])
+})
 
 describe('OffRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
@@ -270,43 +267,6 @@ describe('OffRamp - Unit Tests', () => {
       },
     },
   ]
-
-  const setupTestReceiveExecutor = async (): Promise<SandboxContract<rx.ReceiveExecutor>> => {
-    const receiveExecutor = blockchain.openContract(
-      rx.ReceiveExecutor.createFromConfig(
-        {
-          owner: deployer.address,
-          message: {
-            header: {
-              messageId: generateRandomContractId(),
-              sourceChainSelector: 0n,
-              destChainSelector: 0n,
-              sequenceNumber: 0n,
-              nonce: 0n,
-            },
-            sender: EVM_ADDRESS,
-            data: new Cell(),
-            receiver: deployer.address,
-            gasLimit: 0n,
-            tokenAmounts: undefined,
-          },
-          root: deployer.address,
-          execId: 0n,
-          state: rx.MessageState.Untouched,
-          lastExecutionTimestamp: 0n,
-        },
-        receiveExecutorCodeRaw,
-      ),
-    )
-    const result = await receiveExecutor.sendDeploy(deployer.getSender(), toNano('0.05'))
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: receiveExecutor.address,
-      deploy: true,
-      success: true,
-    })
-    return receiveExecutor
-  }
 
   const createTestMessage = (
     sequenceNumber = 1n,
@@ -391,22 +351,24 @@ describe('OffRamp - Unit Tests', () => {
     expectSuccessfulTransaction(result, deployer.address, offRamp.address)
 
     if (isInitialSetup) {
-      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      })
-      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000002,
-      })
+      for (const config of configs) {
+        assertLog(
+          result.transactions,
+          offRamp.address,
+          CCIPLogs.LogTypes.SourceChainSelectorAdded,
+          {
+            sourceChainSelector: config.sourceChainSelector,
+          },
+        )
+      }
     }
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      config: configs[0].config,
-    })
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      config: configs[1].config,
-    })
+    for (const config of configs) {
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
+        sourceChainSelector: config.sourceChainSelector,
+        config: { ...config.config, ...overrides, minSeqNr: expect.anything() },
+      })
+    }
 
     return result
   }
@@ -546,10 +508,10 @@ describe('OffRamp - Unit Tests', () => {
     }
     blockchain.now = 10000
     deployer = await blockchain.treasury('deployer')
-    deployerCode = await loadContractCode('Deployable')
-    merkleRootCodeRaw = await compile('MerkleRoot')
-    receiveExecutorCodeRaw = await compile('ReceiveExecutor')
-    offRampCodeRaw = await compile('OffRamp')
+    deployerCode = await contractCode.ccip.local('Deployable')
+    merkleRootCodeRaw = await contractCode.ccip.local('MerkleRoot')
+    offRampCodeRaw = await contractCode.ccip.local('OffRamp')
+    receiveExecutorCodeRaw = await contractCode.ccip.local('ReceiveExecutor')
 
     transmitters = await Promise.all([
       blockchain.treasury('transmitter1'),
@@ -913,6 +875,48 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([root], toNano('0.5'), 0x01, undefined, false, of.OffRampError.SubjectCursed)
 
     // Uncurse source chain
+    const uncurseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [],
+    })
+    expect(uncurseResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+    cursedSubjects = await offRamp.getCursedSubjects()
+    expect(cursedSubjects).toEqual([])
+
+    // Now commit should succeed
+    await commitReport([root], toNano('0.5'), 0x02, undefined)
+  })
+
+  it('Test commit fails when global cursed', async () => {
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // Curse all lanes
+    const curseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT],
+    })
+    expect(curseResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+    let cursedSubjects = await offRamp.getCursedSubjects()
+    expect(cursedSubjects).toEqual([rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT])
+
+    // Attempt to commit - should fail with SubjectCursed
+    await commitReport([root], toNano('0.5'), 0x01, undefined, false, of.OffRampError.SubjectCursed)
+
+    // Uncurse all lanes
     const uncurseResult = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
       value: toNano('0.5'),
       subjects: [],
@@ -1335,7 +1339,7 @@ describe('OffRamp - Unit Tests', () => {
     await commitReport([root])
 
     // Disable source chain for execution
-    await setupSourceChainConfig({ isEnabled: false, minSeqNr: 2n }, false)
+    await setupSourceChainConfig({ isEnabled: false }, false)
 
     const report = createExecuteReport([message])
     await executeReportExpectingFailure(report, of.OffRampError.SourceChainNotEnabled)
@@ -1355,6 +1359,42 @@ describe('OffRamp - Unit Tests', () => {
     let result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
       value: toNano('0.5'),
       subjects: [CHAINSEL_EVM_TEST_90000001],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    const report = createExecuteReport([message])
+    await executeReportExpectingFailure(report, of.OffRampError.SubjectCursed)
+
+    // Uncurse source chain
+    result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [],
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
+  })
+
+  it('Test execute fails when source chain is globally cursed', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+
+    // Setup and commit with enabled chain
+    await setupOCRConfigs()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+    await commitReport([root])
+
+    // Curse source chain
+    let result = await offRamp.sendUpdateCursedSubjects(deployer.getSender(), {
+      value: toNano('0.5'),
+      subjects: [rt.RMNREMOTE_GLOBAL_CURSE_SUBJECT],
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -1414,6 +1454,39 @@ describe('OffRamp - Unit Tests', () => {
         },
       },
     )
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.InProgress),
+    })
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.Success),
+    })
+  })
+
+  it('Test execute fails with valid message and proof but low gaslimit', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    message.gasLimit = toNano('0.0001') // Set very low gas limit to force failure
+    await setupAndCommitMessage(message)
+
+    const report = createExecuteReport([message])
+    const result = await executeReport(report)
+
+    // Message should fail due to low gas limit
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: true,
+      op: rx.opcodes.in.bounced,
+    })
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.InProgress),
+    })
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      messageId: message.header.messageId,
+      state: BigInt(of.ExecutionState.Failure),
+    })
   })
 
   it('Test cannot call dispatch directly', async () => {
@@ -1643,14 +1716,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -1684,14 +1757,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -1762,7 +1835,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       },
     )
 
@@ -1775,7 +1848,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_FAILURE,
+        state: BigInt(of.ExecutionState.Failure),
       },
     )
   })
@@ -1841,7 +1914,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       },
     )
 
@@ -1853,7 +1926,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       },
     )
 
@@ -1897,7 +1970,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
+      state: BigInt(of.ExecutionState.Failure),
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
@@ -1924,14 +1997,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -1973,7 +2046,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
+      state: BigInt(of.ExecutionState.Failure),
     })
 
     const result3 = await receiver.sendUpdateBehavior(deployer.getSender(), toNano('0.1'), {
@@ -2000,14 +2073,14 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
+      state: BigInt(of.ExecutionState.InProgress),
     })
 
     assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
 
     assertLog(
@@ -2040,25 +2113,6 @@ describe('OffRamp - Unit Tests', () => {
     expect(errorCodeVal).toBe(BigInt(of.ERROR_CODE))
 
     expect(of.ERROR_CODE).toEqual(errorCode(crc32(of.FACILITY_NAME)))
-  })
-
-  it('ReceiveExecutor should match facility name and ID', async () => {
-    const receiveExecutor = await setupTestReceiveExecutor()
-    const facilityIdVal = await receiveExecutor.getFacilityId()
-    expect(facilityIdVal).toBe(BigInt(rx.FACILITY_ID))
-
-    const { type } = await receiveExecutor.getTypeAndVersion()
-    expect(type).toBe(rx.FACILITY_NAME)
-
-    expect(rx.FACILITY_ID).toEqual(facilityId(crc32(rx.FACILITY_NAME)))
-  })
-
-  it('ReceiveExecutor should match error code', async () => {
-    const receiveExecutor = await setupTestReceiveExecutor()
-    const errorCodeVal = await receiveExecutor.getErrorCode(0n)
-    expect(errorCodeVal).toBe(BigInt(rx.ERROR_CODE))
-
-    expect(rx.ERROR_CODE).toEqual(errorCode(crc32(rx.FACILITY_NAME)))
   })
 
   it('Test commit two messages in one root and execute first message with proof', async () => {
@@ -2113,7 +2167,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
   })
 
@@ -2169,7 +2223,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 2n,
       messageId: 2n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
   })
 
@@ -2222,7 +2276,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
 
@@ -2256,7 +2310,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 2n,
         messageId: 2n,
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
   })
@@ -2378,7 +2432,7 @@ describe('OffRamp - Unit Tests', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 2n,
       messageId: 2n,
-      state: EXECUTION_STATE_SUCCESS,
+      state: BigInt(of.ExecutionState.Success),
     })
   })
 
@@ -2443,7 +2497,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: BigInt(i + 1),
         messageId: BigInt(i + 1),
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
   })
@@ -2511,7 +2565,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: BigInt(index + 1),
         messageId: BigInt(index + 1),
-        state: EXECUTION_STATE_SUCCESS,
+        state: BigInt(of.ExecutionState.Success),
       })
     }
   })
@@ -2585,7 +2639,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // verify changes
     const dynamicConfig = await offRamp.getConfig()
-    expect(dynamicConfig.feeQuoter.toString()).toBe(newFeeQuoter.toString())
+    expect(dynamicConfig.feeQuoter).toEqual(newFeeQuoter)
     expect(dynamicConfig.permissionlessExecutionThresholdSeconds).toBe(
       newPermissionlessExecutionThresholdSeconds,
     )
@@ -2734,7 +2788,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       })
 
       // Should bounce from the non-existent router
@@ -2754,7 +2808,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_FAILURE,
+        state: BigInt(of.ExecutionState.Failure),
       })
     })
 
@@ -2822,7 +2876,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_IN_PROGRESS,
+        state: BigInt(of.ExecutionState.InProgress),
       })
 
       // InitExecute should fail
@@ -2848,7 +2902,7 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: EXECUTION_STATE_FAILURE,
+        state: BigInt(of.ExecutionState.Failure),
       })
     })
   })

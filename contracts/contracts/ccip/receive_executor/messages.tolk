@@ -20,7 +20,14 @@ struct (0x00e5dd97) ReceiveExecutor_Confirm {
 
 struct (0x05dee1bb) ReceiveExecutor_Bounced {
     receiver: address
+    reason: ReceiveExecutor_BouncedReason;
 }
+
+enum ReceiveExecutor_BouncedReason: uint8 {
+    NotEnoughGas = 0,
+    BouncedFromReceiver,
+    BouncedFromRouter,
+} 
 
 const RECEIVE_EXECUTOR_COSTS_CONFIRMED_OR_BOUNCED_FEE = ton("0.005");
 const RECEIVE_EXECUTOR_COSTS_INIT_EXEC_FEE = ton("0.004");

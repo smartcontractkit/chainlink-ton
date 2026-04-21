@@ -16,8 +16,9 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
+const CONTRACT_VERSION_PREV = "1.6.0";
 const CONTRACT_VERSION = "1.6.1";
-const RESERVE = ton("1"); // TODO: set correct value
+const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -387,8 +388,6 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             // plus remaining accounts specified in Sui extraArgs. Each receiverObjectId is 32 bytes.
             suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
         }
-
-        // TODO: tokenReceiver validation
          
         assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
@@ -418,8 +417,6 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
             svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
         }
-         
-        // TODO: tokenReceiver validation
 
         assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
@@ -663,9 +660,14 @@ get fun reserve(): coins {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { 
-    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
-    return storage;
+fun migrate(storage: cell, version: slice): cell {
+    val NEW_THRESHOLD = 24 * 60 * 60; //  86400 seconds = 24 hours
+
+    assert (version.bitsEqual(CONTRACT_VERSION_PREV)) throw Upgradeable_Error.VersionMismatch;
+    var st = Storage.fromCell(storage);
+    st.tokenPriceStalenessThreshold = NEW_THRESHOLD; 
+    
+    return st.toCell();
 }
 
 @method_id(1001)

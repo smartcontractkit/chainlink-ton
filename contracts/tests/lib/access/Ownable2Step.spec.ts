@@ -122,7 +122,7 @@ describe('Ownable2Step Counter', () => {
 
     // Check that the owner is still the original one
     const contractOwner = await bind.ownable.getOwner()
-    expect(contractOwner.toString()).toBe(owner.address.toString())
+    expect(contractOwner).toEqual(owner.address)
 
     // Check that the pending owner cannot operate as owner
     const resultSetCount = await bind.counter.sendSetCount(other.getSender(), toNano('0.05'), {
@@ -166,7 +166,7 @@ describe('Ownable2Step Counter', () => {
 
     // Check that the owner is now the new one
     const newOwner = await bind.ownable.getOwner()
-    expect(newOwner.toString()).toBe(other.address.toString())
+    expect(newOwner).toEqual(other.address)
 
     // Check that the new owner can operate as owner
     const resultSetCount = await bind.counter.sendSetCount(other.getSender(), toNano('0.05'), {

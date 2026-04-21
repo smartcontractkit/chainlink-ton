@@ -11,7 +11,6 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
-	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/testadapters"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -22,7 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/testadapter"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 const (
@@ -39,28 +38,6 @@ var TonTokenAddr = address.MustParseRawAddr("0:000000000000000000000000000000000
 var (
 	// TODO Remove in favor of the canonical model
 	EvmFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
-		IsEnabled:                         true,
-		MaxNumberOfTokensPerMsg:           10,
-		MaxDataBytes:                      30_000,
-		MaxPerMsgGasLimit:                 3_000_000,
-		DestGasOverhead:                   DestGasOverhead,
-		DestGasPerPayloadByteBase:         CalldataGasPerByteBase,
-		DestGasPerPayloadByteHigh:         CalldataGasPerByteHigh,
-		DestGasPerPayloadByteThreshold:    CalldataGasPerByteThreshold,
-		DestDataAvailabilityOverheadGas:   100,
-		DestGasPerDataAvailabilityByte:    16,
-		DestDataAvailabilityMultiplierBps: 1,
-		ChainFamilySelector:               config.EVMFamilySelector,
-		EnforceOutOfOrder:                 false,
-		DefaultTokenFeeUSDCents:           25,
-		DefaultTokenDestGasOverhead:       90_000,
-		DefaultTxGasLimit:                 200_000,
-		GasMultiplierWeiPerEth:            11e17,
-		GasPriceStalenessThreshold:        0,
-		NetworkFeeUSDCents:                10,
-	}
-
-	EvmFeeQuoterDestChainCanonicalConfig = lanes.FeeQuoterDestChainConfig{
 		IsEnabled:                         true,
 		MaxNumberOfTokensPerMsg:           10,
 		MaxDataBytes:                      30_000,
@@ -104,28 +81,6 @@ var (
 		GasPriceStalenessThreshold:      0,
 		NetworkFeeUSDCents:              0,
 	}
-
-	// Default fee quoter config for TON CCIP testing
-	TonFeeQuoterDestChainCanonicalConfig = lanes.FeeQuoterDestChainConfig{
-		IsEnabled:                       true,
-		MaxNumberOfTokensPerMsg:         0,
-		MaxDataBytes:                    100,
-		MaxPerMsgGasLimit:               100,
-		DestGasOverhead:                 0,
-		DestGasPerPayloadByteBase:       0,
-		DestGasPerPayloadByteHigh:       0,
-		DestGasPerPayloadByteThreshold:  0,
-		DestDataAvailabilityOverheadGas: 0,
-		DestGasPerDataAvailabilityByte:  0,
-		ChainFamilySelector:             config.TVMFamilySelector,
-		EnforceOutOfOrder:               false,
-		DefaultTokenFeeUSDCents:         0,
-		DefaultTokenDestGasOverhead:     0,
-		DefaultTxGasLimit:               1,
-		GasMultiplierWeiPerEth:          0,
-		GasPriceStalenessThreshold:      0,
-		NetworkFeeUSDCents:              0,
-	}
 )
 
 func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployCCIPContractsCfg {
@@ -134,7 +89,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 
 	// if contractVersion is not set, use local version
 	if contractVersion == "" {
-		contractVersion = sequence.ContractsVersionLocal
+		contractVersion = utils.ContractsVersionLocal
 	}
 
 	ccipContractSemver := semver.MustParse("1.6.0")

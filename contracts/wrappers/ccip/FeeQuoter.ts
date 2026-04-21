@@ -29,6 +29,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as rt from './Router'
 
+export const FEE_QUOTER_CONTRACT_VERSION_PREV = '1.6.0'
 export const FEE_QUOTER_CONTRACT_VERSION = '1.6.1'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
@@ -247,39 +248,25 @@ export const builder = (() => {
       load: (src: Slice): FeeQuoterStorage => {
         const id = src.loadUintBig(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
+        const allowedPriceUpdaters = src.loadDict(
+          Dictionary.Keys.Address(),
+          Dictionary.Values.Buffer(0),
+        )
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
         const tokenPriceStalenessThreshold = src.loadUint(32)
 
-        const allowedPriceUpdaters = Dictionary.loadDirect(
-          Dictionary.Keys.Address(),
-          Dictionary.Values.Buffer(0),
-          src.loadRef(),
-        )
+        const usdPerToken = src.loadDict(Dictionary.Keys.Address(), createTimestampedPriceValue())
 
-        const usdPerToken = Dictionary.loadDirect(
-          Dictionary.Keys.Address(),
-          createTimestampedPriceValue(),
-          src.loadRef(),
-        )
-
-        const premiumMultiplierWeiPerEth = Dictionary.loadDirect(
+        const premiumMultiplierWeiPerEth = src.loadDict(
           Dictionary.Keys.Address(),
           Dictionary.Values.BigUint(64),
-          src.loadRef(),
         )
 
-        const destChainConfigsRaw = Dictionary.loadDirect(
+        const destChainConfigs = src.loadDict(
           Dictionary.Keys.BigUint(64),
-          Dictionary.Values.Cell(),
-          src.loadRef(),
+          FeeQuoterDictionary.Values.DestChainConfig(),
         )
-
-        // Convert Cell dictionary to DestChainConfig dictionary
-        const destChainConfigs = Dictionary.empty<bigint, DestChainConfig>()
-        for (const [key, configCell] of destChainConfigsRaw) {
-          destChainConfigs.set(key, destChainConfig.load(configCell.beginParse()))
-        }
 
         return {
           id,
@@ -372,7 +359,7 @@ export const builder = (() => {
         encode: (data: UpdateTokenTransferFeeConfigs): Builder => {
           const updatesDict = Dictionary.empty(
             Dictionary.Keys.BigUint(64),
-            UpdateTokenTransferFeeConfigDictionaryValueType(),
+            FeeQuoterDictionary.Values.UpdateTokenTransferFeeConfig(),
           )
           for (const [destChainSelector, updateTokenTransferFeeConfig] of data.updates) {
             updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
@@ -1018,7 +1005,10 @@ export class FeeQuoter
 function encodeUpdateTokenTransferFeeConfig(
   updateTokenTransferFeeConfig: UpdateTokenTransferFeeConfig,
 ): Cell {
-  let add = Dictionary.empty(Dictionary.Keys.Address(), TokenTransferFeeConfigDictionaryValueType())
+  let add = Dictionary.empty(
+    Dictionary.Keys.Address(),
+    FeeQuoterDictionary.Values.TokenTransferFeeConfig(),
+  )
   let remove = asSnakedCell(updateTokenTransferFeeConfig.remove, (addr) =>
     new TonBuilder().storeAddress(addr),
   )
@@ -1053,22 +1043,27 @@ function encodeTokenPriceUpdate(tokenPriceUpdate: TokenPriceUpdate): TonBuilder 
     .storeUint(tokenPriceUpdate.price, 224)
 }
 
-function UpdateTokenTransferFeeConfigDictionaryValueType(): DictionaryValue<UpdateTokenTransferFeeConfig> {
-  const serialize = (src: UpdateTokenTransferFeeConfig, builder: Builder): void => {
-    builder.storeBuilder(encodeUpdateTokenTransferFeeConfig(src).asBuilder())
-  }
-  const parse = (src: Slice): UpdateTokenTransferFeeConfig => {
-    throw new Error('Function not implemented.')
-  }
-  return { serialize, parse }
-}
+// This object provides the serialization and parsing logic for complex types used in the FeeQuoter contract, which can be stored in dictionaries on-chain.
+// It follows the same structure as @ton/core/dist/dict/Dictionary.d.ts
+const FeeQuoterDictionary = {
+  Values: {
+    UpdateTokenTransferFeeConfig: (): DictionaryValue<UpdateTokenTransferFeeConfig> => ({
+      serialize: (src, builder) =>
+        builder.storeBuilder(encodeUpdateTokenTransferFeeConfig(src).asBuilder()),
+      parse: (_src) => {
+        throw new Error('Function not implemented.')
+      },
+    }),
 
-function TokenTransferFeeConfigDictionaryValueType(): DictionaryValue<TokenTransferFeeConfig> {
-  const serialize = (src: TokenTransferFeeConfig, builder: Builder): void => {
-    builder.storeBuilder(encodeTokenTransferFeeConfig(src).asBuilder())
-  }
-  const parse = (src: Slice): TokenTransferFeeConfig => {
-    throw new Error('Function not implemented.')
-  }
-  return { serialize, parse }
+    TokenTransferFeeConfig: (): DictionaryValue<TokenTransferFeeConfig> => ({
+      serialize: (src, builder) =>
+        builder.storeBuilder(encodeTokenTransferFeeConfig(src).asBuilder()),
+      parse: (src) => builder.data.tokenTransferFeeConfig.load(src),
+    }),
+
+    DestChainConfig: (): DictionaryValue<DestChainConfig> => ({
+      serialize: (src, builder) => builder.storeBuilder(destChainConfigToBuilder(src)),
+      parse: (src) => builder.data.destChainConfig.load(src),
+    }),
+  },
 }

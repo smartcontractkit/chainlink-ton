@@ -16,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
@@ -26,6 +27,7 @@ var (
 	MCMSVersion     = *semver.MustParse("0.0.4")
 	// Core contracts
 	LinkToken ds.ContractType = "LinkToken"
+	TONNative ds.ContractType = "TONNative"
 	Router    ds.ContractType = "Router"
 	OnRamp    ds.ContractType = "OnRamp"
 	OffRamp   ds.ContractType = "OffRamp"
@@ -40,10 +42,30 @@ var (
 	Counter     ds.ContractType = "Counter"
 )
 
+// LongToShortContractType maps the fully qualified contract name (as used in contracts-pkg.json
+// and pkg/bindings/index.go) to the ds.ContractType value used in the datastore.
+
+// TODO: Currently we cannot unify to use only the long format from pkg/bindings/index.go everywhere,
+// Is there a cleaner way to manage these two types together?
+var LongToShortContractType = map[string]ds.ContractType{
+	bindings.TypeRouter:          Router,
+	bindings.TypeFeeQuoter:       FeeQuoter,
+	bindings.TypeOnRamp:          OnRamp,
+	bindings.TypeOffRamp:         OffRamp,
+	bindings.TypeSendExecutor:    SendExecutor,
+	bindings.TypeDeployable:      Deployer,
+	bindings.TypeMerkleRoot:      MerkleRoot,
+	bindings.TypeReceiveExecutor: ReceiveExecutor,
+	bindings.TypeTestReceiver:    TonReceiver,
+	bindings.TypeTimelock:        Timelock,
+	bindings.TypeMCMS:            MCMS,
+}
+
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
 // on a chain. If a binding is nil, it means there is no such contract on the chain.
 type CCIPChainState struct {
 	LinkTokenAddress address.Address
+	TONNativeAddress address.Address
 	OffRamp          address.Address
 	Router           address.Address
 	OnRamp           address.Address
@@ -192,6 +214,8 @@ func loadCCIPChainState(addresses []ds.AddressRef) (CCIPChainState, error) {
 		switch contractType {
 		case LinkToken:
 			state.LinkTokenAddress = *contractAddress
+		case TONNative:
+			state.TONNativeAddress = *contractAddress
 		case TonReceiver:
 			state.ReceiverAddress = *contractAddress
 		case OffRamp:

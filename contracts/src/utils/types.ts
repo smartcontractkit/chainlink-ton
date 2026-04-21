@@ -1,5 +1,6 @@
-import { beginCell, Builder, Cell, Slice, Address } from '@ton/core'
+import { beginCell, Builder, Cell, Slice, Address, Dictionary } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey, sha256_sync } from '@ton/crypto'
+import type { Tester } from '@jest/expect-utils'
 import crypto from 'crypto'
 
 export function bigIntToBuffer(value: bigint): Buffer {
@@ -94,7 +95,8 @@ export function hashSync(data: string): bigint {
   return uint8ArrayToBigInt(sha256_sync(data))
 }
 
-export function tonEquals(a, b) {
+// Used for testing equality of Ton-specific types in Jest. See contracts/jest.setup.ts
+export const tonEquals: Tester = function (this, a, b) {
   if (a instanceof Address) {
     if (!(b instanceof Address)) return false
     return a.equals(b)
@@ -103,6 +105,17 @@ export function tonEquals(a, b) {
   if (a instanceof Cell) {
     if (!(b instanceof Cell)) return false
     return a.equals(b)
+  }
+
+  if (a instanceof Dictionary) {
+    if (!(b instanceof Dictionary)) return false
+    if (a.size !== b.size) return false
+    for (const key of a.keys()) {
+      const aVal = a.get(key)
+      const bVal = b.get(key)
+      if (!this.equals(aVal, bVal)) return false
+    }
+    return true
   }
 
   return undefined

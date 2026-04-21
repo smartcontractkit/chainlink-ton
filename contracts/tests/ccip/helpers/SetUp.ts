@@ -6,16 +6,19 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../../wrappers/ccip/FeeQuoter'
-import { compile } from '@ton/blueprint'
-import { Dictionary, toNano } from '@ton/core'
+import { Cell, Dictionary, toNano } from '@ton/core'
+import { loadContractCode } from '../../../wrappers/codeLoader'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 
 export const setupTestFeeQuoter = async (
   deployer: SandboxContract<TreasuryContract>,
   blockchain: Blockchain,
-) => {
-  let code = await compile('FeeQuoter')
+  code?: Cell,
+): Promise<SandboxContract<FeeQuoter>> => {
+  if (!code) {
+    code = await loadContractCode('FeeQuoter')
+  }
 
   let data: FeeQuoterStorage = {
     id: generateRandomContractId(),

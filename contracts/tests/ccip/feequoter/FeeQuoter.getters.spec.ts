@@ -29,9 +29,8 @@ describe('FeeQuoter Getters', () => {
       expect(feeTokens!.length).toBeGreaterThan(0)
 
       // Check that SOURCE_FEE_TOKEN and NATIVE_TON are in the list
-      const feeTokenAddresses = feeTokens!.map((item: any) => item.toString())
-      expect(feeTokenAddresses).toContain(FeeQuoterSetup.SOURCE_FEE_TOKEN.token.toString())
-      expect(feeTokenAddresses).toContain(FeeQuoterSetup.NATIVE_TON.token.toString())
+      expect(feeTokens).toContainEqual(FeeQuoterSetup.SOURCE_FEE_TOKEN.token)
+      expect(feeTokens).toContainEqual(FeeQuoterSetup.NATIVE_TON.token)
     })
 
     it('should return empty list when no fee tokens configured', async () => {
@@ -62,10 +61,9 @@ describe('FeeQuoter Getters', () => {
       expect(destChainSelectors!.length).toBeGreaterThan(0)
 
       // Check that our configured chains are in the list
-      const selectors = destChainSelectors!.map((item: any) => BigInt(item.toString()))
-      expect(selectors).toContain(FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM)
-      expect(selectors).toContain(FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM)
-      expect(selectors).toContain(FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI)
+      expect(destChainSelectors).toContainEqual(FeeQuoterSetup.DEST_CHAIN_SELECTOR_EVM)
+      expect(destChainSelectors).toContainEqual(FeeQuoterSetup.DEST_CHAIN_SELECTOR_SVM)
+      expect(destChainSelectors).toContainEqual(FeeQuoterSetup.DEST_CHAIN_SELECTOR_SUI)
     })
   })
 
@@ -141,7 +139,7 @@ describe('FeeQuoter Getters', () => {
       })
 
       const pendingOwner = await setup.bind.feeQuoter.getPendingOwner()
-      expect(pendingOwner?.toString()).toBe(newOwner.toString())
+      expect(pendingOwner).toEqual(newOwner)
     })
   })
 
@@ -166,7 +164,7 @@ describe('FeeQuoter Getters', () => {
       const config = await setup.bind.feeQuoter.getStaticConfig()
 
       expect(config.maxFeeJuelsPerMsg).toBe(FeeQuoterSetup.MAX_MSG_FEES_JUELS)
-      expect(config.linkToken.toString()).toBe(FeeQuoterSetup.SOURCE_LINK.token.toString())
+      expect(config.linkToken).toEqual(FeeQuoterSetup.SOURCE_LINK.token)
       expect(config.tokenPriceStalenessThreshold).toBe(FeeQuoterSetup.TWELVE_HOURS)
     })
   })

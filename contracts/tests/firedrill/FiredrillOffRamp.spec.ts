@@ -31,14 +31,14 @@ describe('FiredrillOffRamp - Unit Tests', () => {
   it('getConfig should return configuration', async () => {
     const result = await offramp.getConfig()
     expect(result.chainSelector).toEqual(CHAINSEL_TON_TEST)
-    expect(result.feeQuoter.equals(deployer.address)).toBe(true)
+    expect(result.feeQuoter).toEqual(deployer.address)
     expect(result.permissionlessExecutionThresholdSeconds).toBe(10)
   })
 
   it('getSourceChainConfig should return source chain configuration', async () => {
     const sourceChainSelector = 12345n
     const result = await offramp.getSourceChainConfig(sourceChainSelector)
-    expect(result.router.equals(deployer.address)).toBe(true)
+    expect(result.router).toEqual(deployer.address)
     expect(result.isEnabled).toBe(true)
     expect(result.minSeqNr).toBe(0n)
     expect(result.isRMNVerificationDisabled).toBe(false)

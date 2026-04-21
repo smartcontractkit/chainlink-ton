@@ -37,16 +37,6 @@ var (
 		Help: "Last processed masterchain block sequence number",
 	}, []string{"chainID"})
 
-	promTonLpBlocksProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "ton_logpoller_blocks_processed_total",
-		Help: "Total number of blocks processed",
-	}, []string{"chainID"})
-
-	promTonLpLogsInserted = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "ton_logpoller_logs_inserted_total",
-		Help: "Total number of logs inserted to database",
-	}, []string{"chainID"})
-
 	promTonLpLoaderErrors = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "ton_logpoller_loader_errors_total",
 		Help: "Total number of transaction loading errors",
@@ -58,20 +48,10 @@ var (
 	}, []string{"chainID"})
 
 	// Query metrics for observed stores
-	promTonLpQueryDuration = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ton_logpoller_query_duration_seconds",
-		Help: "Duration of last database query by operation",
-	}, []string{"chainID", "query", "type"})
-
 	promTonLpAddressesMonitored = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "ton_logpoller_addresses_monitored",
 		Help: "Number of addresses being monitored",
 	}, []string{"chainID"})
-
-	promTonLpQueryResultSize = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ton_logpoller_query_result_size",
-		Help: "Number of rows returned by query",
-	}, []string{"chainID", "query"})
 
 	// Parser pipeline metrics
 	promTonLpTxsProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -116,15 +96,14 @@ type logPollerMetrics struct {
 	pollErrors              metric.Int64Counter
 	blocksBehind            metric.Int64Gauge
 	lastProcessedBlockSeqNo metric.Int64Gauge
-	blocksProcessed         metric.Int64Counter
-	logsInserted            metric.Int64Counter
 	loaderErrors            metric.Int64Counter
 	parseErrors             metric.Int64Counter
 
 	// query metrics for observed stores (OTel)
-	queryDuration      metric.Float64Gauge
 	addressesMonitored metric.Int64Gauge
-	queryResultSize    metric.Int64Gauge
+
+	// framework metrics (shared cross-chain observability)
+	frameworkMetrics frameworkmetrics.GenericLogPollerMetrics
 
 	// parser pipeline metrics (OTel)
 	txsProcessed  metric.Int64Counter
@@ -161,16 +140,6 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		return nil, fmt.Errorf("failed to register last processed block: %w", err)
 	}
 
-	blocksProcessed, err := m.Int64Counter("ton_logpoller_blocks_processed_total")
-	if err != nil {
-		return nil, fmt.Errorf("failed to register blocks processed: %w", err)
-	}
-
-	logsInserted, err := m.Int64Counter("ton_logpoller_logs_inserted_total")
-	if err != nil {
-		return nil, fmt.Errorf("failed to register logs inserted: %w", err)
-	}
-
 	loaderErrors, err := m.Int64Counter("ton_logpoller_loader_errors_total")
 	if err != nil {
 		return nil, fmt.Errorf("failed to register loader errors: %w", err)
@@ -181,19 +150,9 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		return nil, fmt.Errorf("failed to register parse errors: %w", err)
 	}
 
-	queryDuration, err := m.Float64Gauge("ton_logpoller_query_duration_seconds")
-	if err != nil {
-		return nil, fmt.Errorf("failed to register query duration: %w", err)
-	}
-
 	addressesMonitored, err := m.Int64Gauge("ton_logpoller_addresses_monitored")
 	if err != nil {
 		return nil, fmt.Errorf("failed to register addresses monitored: %w", err)
-	}
-
-	queryResultSize, err := m.Int64Gauge("ton_logpoller_query_result_size")
-	if err != nil {
-		return nil, fmt.Errorf("failed to register query result size: %w", err)
 	}
 
 	txsProcessed, err := m.Int64Counter("ton_logpoller_txs_processed_total")
@@ -226,6 +185,11 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		return nil, fmt.Errorf("failed to register pruning errors: %w", err)
 	}
 
+	fwMetrics, err := frameworkmetrics.NewGenericLogPollerMetrics(chainID, "ton")
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize framework logpoller metrics: %w", err)
+	}
+
 	return &logPollerMetrics{
 		chainID: chainID,
 		Labeler: metrics.NewLabeler().With("chainID", chainID),
@@ -233,13 +197,9 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		pollDuration:            pollDuration,
 		pollErrors:              pollErrors,
 		blocksBehind:            blocksBehind,
-		blocksProcessed:         blocksProcessed,
-		logsInserted:            logsInserted,
 		loaderErrors:            loaderErrors,
 		parseErrors:             parseErrors,
-		queryDuration:           queryDuration,
 		addressesMonitored:      addressesMonitored,
-		queryResultSize:         queryResultSize,
 		txsProcessed:            txsProcessed,
 		msgsProcessed:           msgsProcessed,
 		logsMatched:             logsMatched,
@@ -247,6 +207,7 @@ func newMetrics(chainID string) (*logPollerMetrics, error) {
 		logsDeleted:             logsDeleted,
 		pruningDuration:         pruningDuration,
 		pruningErrors:           pruningErrors,
+		frameworkMetrics:        fwMetrics,
 	}, nil
 }
 
@@ -281,18 +242,6 @@ func (m *logPollerMetrics) SetLastProcessedBlock(ctx context.Context, seqNo uint
 	m.lastProcessedBlockSeqNo.Record(ctx, int64(seqNo), metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-// AddBlocksProcessed increments the blocks processed counter
-func (m *logPollerMetrics) AddBlocksProcessed(ctx context.Context, count int64) {
-	promTonLpBlocksProcessed.WithLabelValues(m.chainID).Add(float64(count))
-	m.blocksProcessed.Add(ctx, count, metric.WithAttributes(m.getOtelAttributes()...))
-}
-
-// AddLogsInserted increments the logs inserted counter
-func (m *logPollerMetrics) AddLogsInserted(ctx context.Context, count int64) {
-	promTonLpLogsInserted.WithLabelValues(m.chainID).Add(float64(count))
-	m.logsInserted.Add(ctx, count, metric.WithAttributes(m.getOtelAttributes()...))
-}
-
 // IncrementLoaderErrors increments the loader error counter
 func (m *logPollerMetrics) IncrementLoaderErrors(ctx context.Context) {
 	promTonLpLoaderErrors.WithLabelValues(m.chainID).Inc()
@@ -305,25 +254,10 @@ func (m *logPollerMetrics) IncrementParseErrors(ctx context.Context) {
 	m.parseErrors.Add(ctx, 1, metric.WithAttributes(m.getOtelAttributes()...))
 }
 
-// RecordQueryDuration records the duration of a database query
-func (m *logPollerMetrics) RecordQueryDuration(ctx context.Context, queryName string, queryType frameworkmetrics.QueryType, duration time.Duration) {
-	seconds := duration.Seconds()
-	promTonLpQueryDuration.WithLabelValues(m.chainID, queryName, string(queryType)).Set(seconds)
-	attrs := append(m.getOtelAttributes(), attribute.String("query", queryName), attribute.String("type", string(queryType)))
-	m.queryDuration.Record(ctx, seconds, metric.WithAttributes(attrs...))
-}
-
 // SetAddressesMonitored sets the number of addresses being monitored
 func (m *logPollerMetrics) SetAddressesMonitored(ctx context.Context, count int) {
 	promTonLpAddressesMonitored.WithLabelValues(m.chainID).Set(float64(count))
 	m.addressesMonitored.Record(ctx, int64(count), metric.WithAttributes(m.getOtelAttributes()...))
-}
-
-// SetQueryResultSize sets the result size of a query
-func (m *logPollerMetrics) SetQueryResultSize(ctx context.Context, queryName string, count int) {
-	promTonLpQueryResultSize.WithLabelValues(m.chainID, queryName).Set(float64(count))
-	attrs := append(m.getOtelAttributes(), attribute.String("query", queryName))
-	m.queryResultSize.Record(ctx, int64(count), metric.WithAttributes(attrs...))
 }
 
 // IncrementTxsProcessed increments the transactions processed counter

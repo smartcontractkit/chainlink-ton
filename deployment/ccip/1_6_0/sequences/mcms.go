@@ -139,3 +139,15 @@ func (a *TonDeployAdapter) GrantAdminRoleToTimelock() *cldfops.Sequence[ccipddep
 			return output, nil
 		})
 }
+
+func (a *TonDeployAdapter) UpdateMCMSConfig() *cldfops.Sequence[ccipddeploy.UpdateMCMSConfigInputPerChainWithSelector, ccipdseq.OnChainOutput, cldfchain.BlockChains] {
+	return cldfops.NewSequence(
+		"ton/sequences/ccip/tooling-api/update-mcms-config",
+		semver.MustParse("1.0.0"),
+		"On TON, updating MCM config is a no-op",
+		func(b cldfops.Bundle, chains cldfchain.BlockChains, in ccipddeploy.UpdateMCMSConfigInputPerChainWithSelector) (output ccipdseq.OnChainOutput, err error) {
+			// TODO: update config on chain by calling appropriate entry points on the contracts
+
+			return output, nil
+		})
+}

@@ -41,8 +41,6 @@ struct (0x7db6745d) Router_ApplyRampUpdates {
     offRampRemoves: OffRamps?;
 }
 
-// TODO should separate CCIPSend msg (with opcode) from CCIPSend data
-
 // Answers with Router_CCIPReceive
 struct (0x31768d95) Router_CCIPSend {
     queryID: uint64;

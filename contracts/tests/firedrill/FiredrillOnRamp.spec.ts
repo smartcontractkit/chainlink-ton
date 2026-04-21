@@ -33,16 +33,16 @@ describe('FiredrillOnRamp - Unit Tests', () => {
 
   it('getDynamicConfig should return configuration', async () => {
     const result = await onramp.getDynamicConfig()
-    expect(result.feeQuoter.equals(deployer.address)).toBe(true)
-    expect(result.feeAggregator.equals(deployer.address)).toBe(true)
-    expect(result.allowlistAdmin.equals(deployer.address)).toBe(true)
+    expect(result.feeQuoter).toEqual(deployer.address)
+    expect(result.feeAggregator).toEqual(deployer.address)
+    expect(result.allowlistAdmin).toEqual(deployer.address)
     expect(result.reserve).toBe(0n)
   })
 
   it('getDestChainConfig should return destination config', async () => {
     const destChainSelector = 12345n
     const result = await onramp.getDestChainConfig(destChainSelector)
-    expect(result.router.equals(deployer.address)).toBe(true)
+    expect(result.router).toEqual(deployer.address)
     expect(result.sequenceNumber).toBe(0n)
     expect(result.allowlistEnabled).toBe(false)
   })

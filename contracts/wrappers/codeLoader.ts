@@ -7,18 +7,62 @@ const BUILD_ROOT = process.env.CONTRACTS_BUILD_PATH
   ? resolve(process.env.CONTRACTS_BUILD_PATH)
   : resolve(__dirname, '..', 'build')
 
-const codeCache = new Map<string, Promise<Cell>>()
+const codeCache = new Map<string, Cell>()
+const DEPLOYABLE_HASH = Buffer.from(
+  '61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc',
+  'hex',
+)
 
-async function readContractCode(contractName: string): Promise<Cell> {
-  const filePath = join(BUILD_ROOT, `${contractName}.compiled.json`)
+type ContractCodeLoader = (contractName: string) => Promise<Cell>
+
+function createContractCodeLoader({
+  buildDirectory,
+  compileIfMissing = false,
+  cache = new Map<string, Cell>(),
+}: {
+  buildDirectory: string
+  compileIfMissing?: boolean
+  cache?: Map<string, Cell>
+}): ContractCodeLoader {
+  return async (contractName: string) => {
+    const code = await getCode(cache, buildDirectory, contractName, compileIfMissing)
+
+    if (contractName === 'Deployable') {
+      expect(code.hash()).toEqual(DEPLOYABLE_HASH)
+    }
+
+    return code
+  }
+}
+
+// Creates a contract code loader that reads from the directory specified in the given environment variable.
+function createContractCodeLoaderFromEnvDirectory(envVarName: string): ContractCodeLoader {
+  const buildDirectory = process.env[envVarName]
+  if (!buildDirectory) {
+    // Return a loader that always throws an error
+    return (contractName: string) => {
+      throw new Error(
+        `Cannot build contract loader for ${contractName}: Environment variable ${envVarName} not set`,
+      )
+    }
+  }
+  return createContractCodeLoader({ buildDirectory })
+}
+
+// Returns the compiled code for the given contract name, loading from storage if available.
+// It returns null if the compiled code is not available on disk.
+async function readBuiltContractCodeFromStorage(
+  buildDirectory: string,
+  contractName: string,
+): Promise<Cell | null> {
+  const filePath = join(buildDirectory, `${contractName}.compiled.json`)
   let fileContents: string
   try {
     fileContents = await fs.readFile(filePath, 'utf8')
   } catch (error) {
     // if file not found
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.log(`Compiled contract not found at '${filePath}', building from source...`)
-      return compile(contractName)
+      return null
     }
     if (contractName === 'Deployable') {
       throw new Error(
@@ -48,20 +92,48 @@ async function readContractCode(contractName: string): Promise<Cell> {
   return cells[0]
 }
 
-export async function loadContractCode(contractName: string): Promise<Cell> {
-  if (!codeCache.has(contractName)) {
-    codeCache.set(contractName, readContractCode(contractName))
-  }
-  if (contractName === 'Deployable') {
-    const code = await codeCache.get(contractName)!
-    const codeHash = code.hash()
-    expect(codeHash).toEqual(
-      Buffer.from('61ef207c8cb9d963f1cca85894f3c279edcba27490c192f0be6c3be3f6a520fc', 'hex'),
-    )
-  }
-  return codeCache.get(contractName)!
+export const contractCode = {
+  jetton: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_JETTON'),
+  ccip: {
+    local: createContractCodeLoader({ buildDirectory: BUILD_ROOT }),
+    release_1_6_0: createContractCodeLoaderFromEnvDirectory('PATH_CONTRACTS_1_6'),
+  },
 }
 
-export function getCompiledContractPath(contractName: string): string {
-  return join(BUILD_ROOT, `${contractName}.compiled.json`)
+// Kept for backwards compatibility
+// Used to load built contracts
+export async function loadContractCode(contractName: string): Promise<Cell> {
+  const loader = createContractCodeLoader({
+    buildDirectory: BUILD_ROOT,
+    compileIfMissing: true,
+    cache: codeCache,
+  })
+  return loader(contractName)
+}
+
+async function getCode(
+  cache: Map<string, Cell>,
+  buildDirectory: string,
+  contractName: string,
+  compileIfMissing: boolean,
+): Promise<Cell> {
+  const cachedCode = cache.get(contractName)
+  if (cachedCode) {
+    return cachedCode
+  }
+
+  const preCompiledCode = await readBuiltContractCodeFromStorage(buildDirectory, contractName)
+  if (preCompiledCode) {
+    cache.set(contractName, preCompiledCode)
+    return preCompiledCode
+  }
+
+  if (compileIfMissing) {
+    console.warn(`Compiled code for contract ${contractName} not found, attempting to compile...`)
+    const compiledCode = await compile(contractName)
+    cache.set(contractName, compiledCode)
+    return compiledCode
+  }
+
+  throw new Error(`Compiled code for contract ${contractName} not found at ${buildDirectory}`)
 }

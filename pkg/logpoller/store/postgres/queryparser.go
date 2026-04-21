@@ -270,7 +270,7 @@ func sortDirectionSQL(dir commonquery.SortDirection) string {
 func (p *queryParser) addLimit(limitAndSort commonquery.LimitAndSort) {
 	if limitAndSort.Limit.Count > 0 {
 		// Add +1 to detect if there are more results for pagination
-		p.query.WriteString(fmt.Sprintf(" LIMIT %d", limitAndSort.Limit.Count+1))
+		p.query.WriteString(fmt.Sprintf(" LIMIT %d", limitAndSort.Limit.Count+1)) //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	}
 }
 

@@ -48,7 +48,7 @@ func applyRampUpdates(b operations.Bundle, dp *dep.DependencyProvider, in ApplyR
 		return nil, err
 	}
 
-	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0)
+	msgs := make([]*tlbe.Cell[tlb.InternalMessage], 0, len(onramps)+len(offramps))
 	msgs = append(msgs, onramps...)
 	msgs = append(msgs, offramps...)
 	return msgs, nil

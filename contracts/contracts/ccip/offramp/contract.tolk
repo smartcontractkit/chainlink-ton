@@ -25,8 +25,10 @@ import "types"
 import "storage"
 import "events"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION_PREV = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
 const RESERVE = ton("5");
+const MIN_GASLIMIT = ton("0.025");
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -221,7 +223,8 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
-            receiver: msg.receiver
+            receiver: msg.receiver,
+            reason: ReceiveExecutor_BouncedReason.BouncedFromRouter,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -234,8 +237,8 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { 
-    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
+fun migrate(storage: cell, version: slice): cell {
+    assert (version.bitsEqual(CONTRACT_VERSION_PREV)) throw Upgradeable_Error.VersionMismatch;
     return storage;
 }
 
@@ -265,7 +268,8 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
-            receiver: msg.receiver
+            receiver: msg.receiver,
+            reason: ReceiveExecutor_BouncedReason.BouncedFromReceiver,
         }
     });
     receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -381,6 +385,9 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     if (msg.gasOverride != null && msg.gasOverride >= gasLimit) {
         gasLimit = msg.gasOverride;
     }
+    if (gasLimit < MIN_GASLIMIT) {
+        return blockMsg(st, msg.execId, message.receiver);
+    }
     val routeMessage = createMessage({
         bounce: BounceMode.RichBounce,
         value: gasLimit + Router_Costs.routeMessage(),
@@ -400,6 +407,19 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
     });
 
     routeMessage.send(SEND_MODE_REGULAR);
+}
+
+fun blockMsg(st: Storage, execId: uint192, receiver: address) {
+    val receiveBounced = createMessage({
+        bounce: true,
+        value: 0,
+        dest: getReceiverExecutorDeployAddress(st, execId),
+        body: ReceiveExecutor_Bounced{
+            receiver: receiver,
+            reason: ReceiveExecutor_BouncedReason.NotEnoughGas,
+        }
+    });
+    receiveBounced.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Sets a new OCR3 configuration for the contract. Only the contract owner can call this function.

@@ -23,13 +23,16 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	opsutils "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils/operation"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
 const (
@@ -107,29 +110,28 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 	addresses := make([]cldfds.AddressRef, 0) // deployed contract addresses to return in output
 
 	// Notice: we set a (static) default when version is not provided (e.g., common 'deploy_mcms_for_cll' changeset)
-	contractVersion := sequence.ContractsVersionLatestSupported
+	contractsPackage := utils.ContractsPackageLatestSupported
 	if in.Config.ContractVersion != "" {
-		contractVersion = in.Config.ContractVersion
+		contractsPackage = in.Config.ContractVersion
 	}
 
-	retrieveContractsInput := sequence.RetrieveCompiledContractsSeqInput{
-		ContractsVersionSha: contractVersion,
-		Contracts: []cldfds.ContractType{
-			state.Timelock,
-			state.MCMS, // Notice: this is the type we use to load contract code, vs. deployment types
+	retrieveContractsInput := utils.RetrieveCompiledContractsOpts{
+		Package: contractsPackage,
+		Contracts: []string{
+			bindings.TypeTimelock,
+			bindings.TypeMCMS,
 		},
 	}
 
-	r, err := cldfops.ExecuteSequence(b, sequence.RetrieveContractsSequence, dp, retrieveContractsInput)
+	compiledContracts, err := utils.RetrieveCompiledTONContracts(b.GetContext(), b.Logger, &retrieveContractsInput)
 	if err != nil {
 		return ccipdseq.OnChainOutput{}, err
 	}
-	compiledContracts := r.Output.CompiledContracts
 
 	// TODO: fix type as tlb.Coins vs. string
-	value := tlb.MustFromTON(DefaultDeployValueTON).String()
+	value := tlb.MustFromTON(DefaultDeployValueTON)
 	if in.Value != nil {
-		value = in.Value.String()
+		value = *in.Value
 	}
 
 	// Notice: we increment the id for each deployment to avoid address collision
@@ -173,7 +175,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 		version := in.ContractsSemverMCMS
 		// Notice: storage.id acts as a series ID and makes the input unique per deployment
-		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.MCMS], storage, body, value, version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeMCMS], storage, body, value.String(), version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
 		}
@@ -182,6 +184,28 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		// Override (output) addr type with specific MCMS deployment type
 		outputAddr.Type = contractType
 		b.Logger.Infof("Deployed MCMS type %s at address %s on chain %s", outputAddr.Type, outputAddr.Address, chain.Name)
+
+		// Notice: we fund MCMS contract with a separate (empty) message as setConfig will return excess to sender
+		outputAddrTON, err := utils.ToTONAddress(*outputAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert output address to TON format: %w", err)
+		}
+
+		mcell, err := tlbe.NewCellFrom(tlb.InternalMessage{
+			Bounce:  true,
+			DstAddr: outputAddrTON,
+			Amount:  value, // attach the same value as deployment
+			Body:    nil,   // empty body for funding message
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create message cell: %w", err)
+		}
+
+		msgs := []*tlbe.Cell[tlb.InternalMessage]{mcell}
+		_, err = cldfops.ExecuteOperation(b, opston.SendMessagesRaw, dp, opston.SendMessagesRawInput{Messages: msgs})
+		if err != nil {
+			return nil, fmt.Errorf("failed to send MCMS funding message: %w", err)
+		}
 
 		return outputAddr, nil
 	}
@@ -262,6 +286,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to generate random query ID: %w", err)
 		}
 
+		// Notice: no need to separately fund Timelock contract as the attached Init doesn't return excess to sender
 		body := timelock.Init{
 			QueryID:  qID,
 			MinDelay: minDelay,
@@ -278,7 +303,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 
 		version := in.ContractsSemverTimelock
-		outputAddr, err := utils.InvokeDeployContractOperation(b, dp, selector, compiledContracts[state.Timelock], storage, body, value, version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeTimelock], storage, body, value.String(), version)
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, err
 		}
