@@ -88,13 +88,18 @@ jobs:
           set -euo pipefail
           CURRENT_VERSION="$(jq -r '.version' contracts/package.json)"
 
-          # A release is signalled by a version bump in contracts/package.json.
-          # For push-to-main: compare with the previous commit.
+          # A release is signalled by a version bump in contracts/package.json,
+          # provided the corresponding tag does not already exist in the remote.
+          # The tag check prevents re-triggering a release when this workflow is
+          # first introduced alongside an already-released version (e.g. 1.6.0).
+          # For push-to-main: compare with the previous commit and check tag.
           # For workflow_dispatch: honour the create_release input explicitly.
           # For pull_request and other events: never a release.
           if [[ "${{ github.event_name }}" == "push" ]]; then
             PREV_VERSION="$(git show HEAD~1:contracts/package.json | jq -r '.version' 2>/dev/null || echo '')"
-            if [[ "$CURRENT_VERSION" != "$PREV_VERSION" ]]; then
+            TAG_NAME="contracts/${CURRENT_VERSION}"
+            TAG_EXISTS="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}" | grep -c . || true)"
+            if [[ "$CURRENT_VERSION" != "$PREV_VERSION" ]] && [[ "$TAG_EXISTS" == "0" ]]; then
               IS_RELEASE="true"
             else
               IS_RELEASE="false"
