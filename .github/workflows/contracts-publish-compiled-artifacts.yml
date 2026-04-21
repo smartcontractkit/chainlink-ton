@@ -1,6 +1,9 @@
-name: TON - Publish contract artifacts release
+name: TON - Build and tag contract artifacts
 
-# This is a custom temporary solution to get the contract build artifacts on other repos and workflows
+# Builds contracts on every push to main (and labeled PRs / manual runs), uploads a
+# GitHub Actions artifact, and pushes a dirty tag contracts/<version>+<sha> that
+# triggers the release workflow.  For clean releases, push a tag manually:
+#   git tag contracts/1.6.1 && git push origin contracts/1.6.1
 
 permissions:
   contents: read
@@ -12,13 +15,8 @@ on:
     types: [labeled, opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
-      create_release:
-        description: "Publish a GitHub release on this manual run?"
-        type: boolean
-        default: false
-        required: false
       sha:
-        description: "Commit SHA to build/release (optional)"
+        description: "Commit SHA to build (optional)"
         type: string
         required: false
 
@@ -55,8 +53,8 @@ jobs:
             echo "ton_changes=${{ steps.paths.outputs.ton_changes }}" >> "$GITHUB_OUTPUT"
           fi
 
-  publish:
-    name: Build Nix pkg and publish tarball
+  build:
+    name: Build Nix pkg and push dirty tag
     needs: [ changes ]
     if: |
       needs.changes.outputs.ton_changes == 'true' ||
@@ -71,7 +69,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get Long and Short SHAs
+      - name: Get long and short SHAs
         id: get_sha
         run: |
           set -euo pipefail
@@ -82,37 +80,14 @@ jobs:
             echo "full_sha=${FULL_SHA}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Detect package version and release signal
-        id: version_check
+      - name: Get package version
+        id: version
         run: |
           set -euo pipefail
-          CURRENT_VERSION="$(jq -r '.version' contracts/package.json)"
-
-          # A release is signalled by a version bump in contracts/package.json,
-          # provided the corresponding tag does not already exist in the remote.
-          # The tag check prevents re-triggering a release when this workflow is
-          # first introduced alongside an already-released version (e.g. 1.6.0).
-          # For push-to-main: compare with the previous commit and check tag.
-          # For workflow_dispatch: honour the create_release input explicitly.
-          # For pull_request and other events: never a release.
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            PREV_VERSION="$(git show "${{ github.event.before }}":contracts/package.json | jq -r '.version' 2>/dev/null || echo '')"
-            TAG_NAME="contracts/${CURRENT_VERSION}"
-            TAG_EXISTS="$(git ls-remote --tags origin "refs/tags/${TAG_NAME}" | grep -c . || true)"
-            if [[ "$CURRENT_VERSION" != "$PREV_VERSION" ]] && [[ "$TAG_EXISTS" == "0" ]]; then
-              IS_RELEASE="true"
-            else
-              IS_RELEASE="false"
-            fi
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            IS_RELEASE="${{ github.event.inputs.create_release }}"
-          else
-            IS_RELEASE="false"
-          fi
-
-          echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "is_release=${IS_RELEASE}" >> "$GITHUB_OUTPUT"
-          echo "Package version: ${CURRENT_VERSION}, is_release: ${IS_RELEASE}"
+          VERSION="$(jq -r '.version' contracts/package.json)"
+          TAG_NAME="contracts/${VERSION}+${{ steps.get_sha.outputs.short_sha }}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
@@ -127,45 +102,19 @@ jobs:
           echo "out_path=${OUT_PATH}" >> "$GITHUB_OUTPUT"
           echo "Nix out path: ${OUT_PATH}"
 
-      - name: Stage build and set contracts-pkg.json version
-        id: stage
-        run: |
-          set -euo pipefail
-          BUILD_DIR="${{ steps.nix_build.outputs.out_path }}/lib/node_modules/@chainlink/contracts-ton/build"
-          test -d "${BUILD_DIR}" # hard fail if layout changes
-
-          # Nix store is read-only; copy to a writable staging directory.
-          STAGING_DIR="$(mktemp -d)"
-          cp -r "${BUILD_DIR}/." "${STAGING_DIR}/"
-
-          # Determine the package version to embed in contracts-pkg.json.
-          # Releases use the clean version from package.json; all other builds append
-          # the short SHA as semver build metadata so consumers can tell them apart.
-          PKG_VERSION="${{ steps.version_check.outputs.version }}"
-          if [[ "${{ steps.version_check.outputs.is_release }}" != "true" ]]; then
-            PKG_VERSION="${PKG_VERSION}+${{ steps.get_sha.outputs.short_sha }}"
-          fi
-
-          # Patch the package version in contracts-pkg.json.
-          # Individual contract versions (written by the build from Tolk sources) stay untouched.
-          jq --arg v "${PKG_VERSION}" '.version = $v' \
-            "${STAGING_DIR}/contracts-pkg.json" > "${STAGING_DIR}/contracts-pkg.json.tmp"
-          mv "${STAGING_DIR}/contracts-pkg.json.tmp" "${STAGING_DIR}/contracts-pkg.json"
-
-          echo "staging_dir=${STAGING_DIR}" >> "$GITHUB_OUTPUT"
-          echo "pkg_version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "contracts-pkg.json package version: ${PKG_VERSION}"
-
       - name: Package contracts tarball
         id: package
         run: |
           set -euo pipefail
+          BUILD_DIR="${{ steps.nix_build.outputs.out_path }}/lib/node_modules/@chainlink/contracts-ton/build"
+          test -d "${BUILD_DIR}" # hard fail if layout changes
           mkdir -p dist
-          PKG_VERSION="${{ steps.stage.outputs.pkg_version }}"
-          # Replace '+' with '-' for the filename since '+' is valid semver build metadata
-          # but can cause issues in some download tools and URLs.
-          TAR_NAME="contracts-${PKG_VERSION//+/-}.tar.gz"
-          tar -C "${{ steps.stage.outputs.staging_dir }}" \
+          TAG_NAME="${{ steps.version.outputs.tag_name }}"
+          # Replace / and + with - for the filename.
+          TAR_STEM="${TAG_NAME//\//-}"
+          TAR_STEM="${TAR_STEM//+/-}"
+          TAR_NAME="${TAR_STEM}.tar.gz"
+          tar -C "${BUILD_DIR}" \
               --exclude="examples.*" \
               -czf "dist/${TAR_NAME}" .
           echo "tar_path=dist/${TAR_NAME}" >> "$GITHUB_OUTPUT"
@@ -173,22 +122,17 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: contracts-${{ steps.stage.outputs.pkg_version }}
+          name: ${{ steps.version.outputs.tag_name }}
           path: ${{ steps.package.outputs.tar_path }}
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish Release
-        if: |
-          (github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.version_check.outputs.is_release == 'true') ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: contracts/${{ steps.version_check.outputs.version }}
-          target_commitish: ${{ steps.get_sha.outputs.full_sha }}
-          name: TON Contracts ${{ steps.version_check.outputs.version }}
-          draft: false
-          prerelease: false
-          files: |
-            ${{ steps.package.outputs.tar_path }}
+      - name: Push dirty tag
+        # Tags are only pushed on non-PR events; PRs just build and upload the artifact.
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag "${{ steps.version.outputs.tag_name }}" "${{ steps.get_sha.outputs.full_sha }}"
+          git push origin "${{ steps.version.outputs.tag_name }}"
