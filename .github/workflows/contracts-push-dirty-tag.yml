@@ -85,6 +85,8 @@ jobs:
           set -euo pipefail
           VERSION="$(jq -r '.version' contracts/package.json)"
           TAG_NAME="contracts/${VERSION}+${{ steps.get_sha.outputs.short_sha }}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
