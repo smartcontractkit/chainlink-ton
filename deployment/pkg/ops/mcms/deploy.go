@@ -56,10 +56,6 @@ type DeployMCMSSeqInput struct {
 	// which is not compatible with TON address, so we have a separate field for TON address type.
 	TimelockAdmin                    *address.Address `json:"timelockAdmin"`                    // optional, if not provided, deployer address will be used as initial admin
 	TimelockExecutorRoleCheckEnabled bool             `json:"timelockExecutorRoleCheckEnabled"` // optional, if not provided, defaults to false (TON does not have a CallProxy, so we disable executor role check by default)
-
-	// Deployment metadata
-	ContractsSemverMCMS     *semver.Version `json:"contractsSemverMCMS"`     // used as DS addr version metadata for the deployed MCMS contracts
-	ContractsSemverTimelock *semver.Version `json:"contractsSemverTimelock"` // used as DS addr version metadata for the deployed Timelock contracts
 }
 
 var DeployMCMSSequence = cldfops.NewSequence(
@@ -173,9 +169,8 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 		}
 		body := msg.Body
 
-		version := in.ContractsSemverMCMS
 		// Notice: storage.id acts as a series ID and makes the input unique per deployment
-		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeMCMS], storage, body, value.String(), version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeMCMS], storage, body, value.String())
 		if err != nil {
 			return nil, fmt.Errorf("failed to deploy MCMS contract of type %s: %w", contractType, err)
 		}
@@ -302,8 +297,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 			OpFinalizationTimeout:    opFinalizationTimeout, // 30 seconds default, can be updated later
 		}
 
-		version := in.ContractsSemverTimelock
-		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeTimelock], storage, body, value.String(), version)
+		outputAddr, err := operation.InvokeDeployContractOperation(b, dp, selector, compiledContracts[bindings.TypeTimelock], storage, body, value.String())
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, err
 		}

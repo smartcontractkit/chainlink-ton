@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/Masterminds/semver/v3"
-
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -49,7 +47,6 @@ type FeeToken struct {
 
 type FeeQuoterParams struct {
 	ID                           uint32
-	ContractsSemver              *semver.Version
 	Coin                         string
 	MaxFeeJuelsPerMsg            *big.Int
 	TokenPriceStalenessThreshold uint32
@@ -71,7 +68,6 @@ func (f FeeQuoterParams) Validate() error {
 
 type OffRampParams struct {
 	ID                               uint32
-	ContractsSemver                  *semver.Version
 	Coin                             string
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
@@ -89,7 +85,6 @@ func (o OffRampParams) Validate() error {
 
 type OnRampParams struct {
 	ID              uint32
-	ContractsSemver *semver.Version
 	Coin            string
 	ChainSelector   uint64
 	AllowlistAdmin  *address.Address
@@ -107,7 +102,6 @@ func (o OnRampParams) Validate() error {
 type RouterParams struct {
 	ID              uint32
 	Coin            string
-	ContractsSemver *semver.Version
 }
 
 func (r RouterParams) Validate() error {
@@ -117,7 +111,6 @@ func (r RouterParams) Validate() error {
 
 type ReceiverParams struct {
 	ID              uint32
-	ContractsSemver *semver.Version
 	Coin            string
 }
 

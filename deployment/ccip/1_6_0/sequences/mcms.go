@@ -63,8 +63,6 @@ var DeployMCMSContracts = cldfops.NewSequence(
 		r, err := cldfops.ExecuteSequence(b, opsmcms.DeployMCMSSequence, dp, opsmcms.DeployMCMSSeqInput{
 			Config:                  input.MCMSDeploymentConfigPerChain,
 			ContractID:              uint32(contractID),
-			ContractsSemverMCMS:     &state.MCMSVersion,
-			ContractsSemverTimelock: &state.TimelockVersion,
 		})
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
