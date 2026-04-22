@@ -18,9 +18,25 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
-interface ContractDefinition {
-  /** Fully-qualified contract name, e.g. link.chain.ton.ccip.Router */
-  fqn: string
+/** Per-contract entry in contracts-pkg.json. */
+interface ContractEntry {
+  path: string
+  version: string
+}
+
+/**
+ * Schema of the generated contracts-pkg.json file.
+ * Consumed by deployment/utils/compiled_contracts.go (ContractPackageMetadata).
+ */
+interface ContractPackageMetadata {
+  version: string
+  contracts: Record<string, ContractEntry>
+}
+
+/** Describes where to find a contract's source and compiled artifact. */
+interface ContractSource {
+  /** Contract type identifier, e.g. link.chain.ton.ccip.Router */
+  contractType: string
   /** Filename relative to the build directory, e.g. Router.compiled.json */
   compiledFile: string
   /**
@@ -37,59 +53,59 @@ interface ContractDefinition {
  * pkg/bindings/index.go and the entries in deployment/utils/compiled_contracts.go.
  * When adding a new production contract, add an entry here AND to those Go files.
  */
-const CONTRACTS: ContractDefinition[] = [
+const CONTRACTS: ContractSource[] = [
   {
-    fqn: 'link.chain.ton.ccip.Router',
+    contractType: 'link.chain.ton.ccip.Router',
     compiledFile: 'Router.compiled.json',
     tolkSource: 'contracts/ccip/router/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.FeeQuoter',
+    contractType: 'link.chain.ton.ccip.FeeQuoter',
     compiledFile: 'FeeQuoter.compiled.json',
     tolkSource: 'contracts/ccip/fee_quoter/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.OnRamp',
+    contractType: 'link.chain.ton.ccip.OnRamp',
     compiledFile: 'OnRamp.compiled.json',
     tolkSource: 'contracts/ccip/onramp/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.OffRamp',
+    contractType: 'link.chain.ton.ccip.OffRamp',
     compiledFile: 'OffRamp.compiled.json',
     tolkSource: 'contracts/ccip/offramp/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.CCIPSendExecutor',
+    contractType: 'link.chain.ton.ccip.CCIPSendExecutor',
     compiledFile: 'CCIPSendExecutor.compiled.json',
     tolkSource: 'contracts/ccip/ccipsend_executor/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.Deployable',
+    contractType: 'link.chain.ton.ccip.Deployable',
     compiledFile: 'Deployable.compiled.json',
     tolkSource: 'contracts/lib/deployable/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.MerkleRoot',
+    contractType: 'link.chain.ton.ccip.MerkleRoot',
     compiledFile: 'MerkleRoot.compiled.json',
     tolkSource: 'contracts/ccip/merkle_root/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.ReceiveExecutor',
+    contractType: 'link.chain.ton.ccip.ReceiveExecutor',
     compiledFile: 'ReceiveExecutor.compiled.json',
     tolkSource: 'contracts/ccip/receive_executor/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.ccip.test.Receiver',
+    contractType: 'link.chain.ton.ccip.test.Receiver',
     compiledFile: 'ccip.test.receiver.compiled.json',
     tolkSource: 'contracts/ccip/test/receiver/contract.tolk',
   },
   {
-    fqn: 'link.chain.ton.mcms.Timelock',
+    contractType: 'link.chain.ton.mcms.Timelock',
     compiledFile: 'mcms.RBACTimelock.compiled.json',
     tolkSource: 'contracts/mcms/rbac_timelock.tolk',
   },
   {
-    fqn: 'link.chain.ton.mcms.MCMS',
+    contractType: 'link.chain.ton.mcms.MCMS',
     compiledFile: 'mcms.MCMS.compiled.json',
     tolkSource: 'contracts/mcms/mcms.tolk',
   },
@@ -136,13 +152,13 @@ function main(): void {
   const pkgJson = JSON.parse(fs.readFileSync('package.json', 'utf-8')) as { version: string }
   const packageVersion = sha ? `${pkgJson.version}+${sha}` : pkgJson.version
 
-  const contracts: Record<string, { path: string; version: string }> = {}
-  for (const { fqn, compiledFile, tolkSource } of CONTRACTS) {
+  const contracts: Record<string, ContractEntry> = {}
+  for (const { contractType, compiledFile, tolkSource } of CONTRACTS) {
     const version = extractContractVersion(tolkSource)
-    contracts[fqn] = { path: compiledFile, version }
+    contracts[contractType] = { path: compiledFile, version }
   }
 
-  const output = { version: packageVersion, contracts }
+  const output: ContractPackageMetadata = { version: packageVersion, contracts }
 
   const outDir = path.dirname(out)
   if (!fs.existsSync(outDir)) {
