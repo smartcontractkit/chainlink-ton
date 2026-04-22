@@ -1,0 +1,102 @@
+name: TON - Push dirty tags to trigger contract releases
+
+# Pushes a dirty tag contracts/<version>+<sha> that triggers the release workflow.
+# For clean releases, push a tag manually instead:
+# git tag contracts/1.6.1 && git push origin contracts/1.6.1
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to build (optional)"
+        type: string
+        required: false
+
+jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      ton_changes: ${{ steps.compute.outputs.ton_changes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Detect changes (paths)
+        id: paths
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          list-files: "shell"
+          filters: |
+            ton_changes:
+              - 'contracts/**'
+              - '.github/workflows/contracts-build.yml'
+
+      - name: Compute ton_changes
+        id: compute
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && \
+             [[ "${{ contains(github.event.pull_request.labels.*.name, 'build-publish-contracts') }}" == "true" ]]; then
+            echo "ton_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ton_changes=${{ steps.paths.outputs.ton_changes }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build Nix pkg and push dirty tag
+    needs: [ changes ]
+    if: |
+      (github.event_name == 'push' && needs.changes.outputs.ton_changes == 'true') ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-contracts'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Get long and short SHAs
+        id: get_sha
+        run: |
+          set -euo pipefail
+          TARGET_SHA="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sha != '' && github.event.inputs.sha || github.sha }}"
+          FULL_SHA="$(git rev-parse "${TARGET_SHA}")"
+          {
+            echo "short_sha=${FULL_SHA:0:12}"
+            echo "full_sha=${FULL_SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Get package version
+        id: version
+        run: |
+          set -euo pipefail
+          VERSION="$(jq -r '.version' contracts/package.json)"
+          TAG_NAME="contracts/${VERSION}+${{ steps.get_sha.outputs.short_sha }}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Push dirty tag
+        run: |
+          set -euo pipefail
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag "${{ steps.version.outputs.tag_name }}" "${{ steps.get_sha.outputs.full_sha }}"
+          git push origin "${{ steps.version.outputs.tag_name }}"
