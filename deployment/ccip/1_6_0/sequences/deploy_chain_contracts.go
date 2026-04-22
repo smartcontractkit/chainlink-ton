@@ -222,7 +222,6 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 		CCIPConfig: ccipConfig.ChainContractParams{
 			FeeQuoterParams: ccipConfig.FeeQuoterParams{
 				ID:                           contractID,
-				ContractsSemver:              cfg.Version,
 				Coin:                         defaultCCIPContractCoin,
 				MaxFeeJuelsPerMsg:            cfg.MaxFeeJuelsPerMsg,
 				TokenPriceStalenessThreshold: cfg.TokenPriceStalenessThreshold,
@@ -236,28 +235,24 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 			},
 			OffRampParams: ccipConfig.OffRampParams{
 				ID:                               contractID,
-				ContractsSemver:                  cfg.Version,
 				Coin:                             defaultCCIPContractCoin,
 				ChainSelector:                    cfg.ChainSelector,
 				PermissionlessExecutionThreshold: cfg.PermissionLessExecutionThresholdSeconds,
 			},
 			OnRampParams: ccipConfig.OnRampParams{
-				ID:              contractID,
-				ContractsSemver: cfg.Version,
-				Coin:            defaultCCIPContractCoin,
-				ChainSelector:   cfg.ChainSelector,
-				FeeAggregator:   deployer, // defaults to deployer, can be updated later via SetDynamicConfig
-				Reserve:         defaultReserveAmount,
+				ID:            contractID,
+				Coin:          defaultCCIPContractCoin,
+				ChainSelector: cfg.ChainSelector,
+				FeeAggregator: deployer, // defaults to deployer, can be updated later via SetDynamicConfig
+				Reserve:       defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{
-				ID:              contractID,
-				ContractsSemver: cfg.Version,
-				Coin:            defaultCCIPContractCoin,
+				ID:   contractID,
+				Coin: defaultCCIPContractCoin,
 			},
 			ReceiverParams: ccipConfig.ReceiverParams{
-				ID:              contractID,
-				ContractsSemver: cfg.Version,
-				Coin:            defaultCCIPContractCoin,
+				ID:   contractID,
+				Coin: defaultCCIPContractCoin,
 			},
 		},
 		ChainSelector: cfg.ChainSelector,
