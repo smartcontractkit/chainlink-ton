@@ -138,10 +138,10 @@ func TestTransferOwnershipWithDeployerAPI(t *testing.T) {
 
 	// Step 4: Build contract refs for the contracts to transfer
 	contractRefs := []cldfds.AddressRef{
-		{Address: stateCCIPChain.Router.String(), Type: state.Router, ChainSelector: selector, Version: &state.Version1_6_0},
-		{Address: stateCCIPChain.OnRamp.String(), Type: state.OnRamp, ChainSelector: selector, Version: &state.Version1_6_0},
-		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector, Version: &state.Version1_6_0},
-		{Address: stateCCIPChain.FeeQuoter.String(), Type: state.FeeQuoter, ChainSelector: selector, Version: &state.Version1_6_0},
+		{Address: stateCCIPChain.Router.String(), Type: state.Router, ChainSelector: selector},
+		{Address: stateCCIPChain.OnRamp.String(), Type: state.OnRamp, ChainSelector: selector},
+		{Address: stateCCIPChain.OffRamp.String(), Type: state.OffRamp, ChainSelector: selector},
+		{Address: stateCCIPChain.FeeQuoter.String(), Type: state.FeeQuoter, ChainSelector: selector},
 		// MCMS contracts
 		{Address: stateMCMSChainQ.Proposer.String(), Type: cldfds.ContractType(ccipdutils.ProposerManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},
 		{Address: stateMCMSChainQ.Canceller.String(), Type: cldfds.ContractType(ccipdutils.CancellerManyChainMultisig), ChainSelector: selector, Version: &state.MCMSVersion},

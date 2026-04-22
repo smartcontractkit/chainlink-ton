@@ -64,7 +64,7 @@ func (i *DeployContractInput) Validate() error {
 
 // InvokeDeployContractOperation invokes the generic TON contract deployment operation.
 // It always executes the deployment operation and returns an error if the deployment fails.
-func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract ton.CompiledContract, storage any, messageBody any, coin string, semver *semver.Version) (*ds.AddressRef, error) {
+func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider, chainSelector uint64, compiledContract ton.CompiledContract, storage any, messageBody any, coin string) (*ds.AddressRef, error) {
 	deployContractInput := DeployContractInput{
 		Name:         compiledContract.Metadata.ID,
 		Storage:      storage,
@@ -85,9 +85,6 @@ func InvokeDeployContractOperation(b cldfops.Bundle, dp *dep.DependencyProvider,
 		return nil, fmt.Errorf("unknown contract fully qualified name %q: no datastore type mapping found", compiledContract.Metadata.ID)
 	}
 
-	if !semver.Equal(compiledContract.Version) {
-		return nil, errors.New("specified version for deployment does not match the version from contract metadata")
-	}
 	contractAddress := *deployContractReport.Output.Address
 	// TODO: Qualifier not used here (fix)
 	return &ds.AddressRef{

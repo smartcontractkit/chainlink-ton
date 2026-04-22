@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -92,19 +91,16 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 		contractVersion = utils.ContractsVersionLocal
 	}
 
-	ccipContractSemver := semver.MustParse("1.6.0")
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
 			RouterParams: config.RouterParams{
-				ID:              idForContracts,
-				Coin:            "0.05",
-				ContractsSemver: ccipContractSemver,
+				ID:   idForContracts,
+				Coin: "0.05",
 			},
 			FeeQuoterParams: config.FeeQuoterParams{
 				ID:                           idForContracts,
 				Coin:                         "0.05",
-				ContractsSemver:              ccipContractSemver,
 				MaxFeeJuelsPerMsg:            big.NewInt(0).Mul(big.NewInt(2e2), big.NewInt(1e18)),
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
@@ -117,24 +113,21 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			OffRampParams: config.OffRampParams{
 				ID:                               idForContracts,
 				Coin:                             "0.05",
-				ContractsSemver:                  ccipContractSemver,
 				ChainSelector:                    chain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
-				ID:              idForContracts,
-				Coin:            "0.05",
-				ContractsSemver: ccipContractSemver,
-				ChainSelector:   ChainSelEVMTest90000001,
+				ID:            idForContracts,
+				Coin:          "0.05",
+				ChainSelector: ChainSelEVMTest90000001,
 				// TODO:
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 				Reserve:       "0.5",
 			},
 			ReceiverParams: config.ReceiverParams{
-				ID:              idForContracts,
-				Coin:            "0.05",
-				ContractsSemver: ccipContractSemver,
+				ID:   idForContracts,
+				Coin: "0.05",
 			},
 		},
 		ContractsVersion: contractVersion,
