@@ -1,9 +1,8 @@
-name: TON - Build and tag contract artifacts
+name: TON - Push dirty tags to trigger contract releases
 
-# Builds contracts on every push to main (and labeled PRs / manual runs), uploads a
-# GitHub Actions artifact, and pushes a dirty tag contracts/<version>+<sha> that
-# triggers the release workflow.  For clean releases, push a tag manually:
-#   git tag contracts/1.6.1 && git push origin contracts/1.6.1
+# Pushes a dirty tag contracts/<version>+<sha> that triggers the release workflow.
+# For clean releases, push a tag manually instead:
+# git tag contracts/1.6.1 && git push origin contracts/1.6.1
 
 permissions:
   contents: read
@@ -86,54 +85,13 @@ jobs:
           set -euo pipefail
           VERSION="$(jq -r '.version' contracts/package.json)"
           TAG_NAME="contracts/${VERSION}+${{ steps.get_sha.outputs.short_sha }}"
-          # Sanitize tag name for use as an artifact name (/ and + are not allowed).
-          ARTIFACT_NAME="${TAG_NAME//\//-}"
-          ARTIFACT_NAME="${ARTIFACT_NAME//+/-}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Build contracts (Nix) and capture out path
-        id: nix_build
-        run: |
-          set -euo pipefail
-          OUT_PATH="$(nix build --print-out-paths .#contracts)"
-          echo "out_path=${OUT_PATH}" >> "$GITHUB_OUTPUT"
-          echo "Nix out path: ${OUT_PATH}"
-
-      - name: Package contracts tarball
-        id: package
-        run: |
-          set -euo pipefail
-          BUILD_DIR="${{ steps.nix_build.outputs.out_path }}/lib/node_modules/@chainlink/contracts-ton/build"
-          test -d "${BUILD_DIR}" # hard fail if layout changes
-          mkdir -p dist
-          TAG_NAME="${{ steps.version.outputs.tag_name }}"
-          # Replace / and + with - for the filename.
-          TAR_STEM="${TAG_NAME//\//-}"
-          TAR_STEM="${TAR_STEM//+/-}"
-          TAR_NAME="${TAR_STEM}.tar.gz"
-          tar -C "${BUILD_DIR}" \
-              --exclude="examples.*" \
-              -czf "dist/${TAR_NAME}" .
-          echo "tar_path=dist/${TAR_NAME}" >> "$GITHUB_OUTPUT"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.version.outputs.artifact_name }}
-          path: ${{ steps.package.outputs.tar_path }}
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Push dirty tag
-        # Tags are only pushed on non-PR events; PRs just build and upload the artifact.
-        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           git config user.email "github-actions[bot]@users.noreply.github.com"
