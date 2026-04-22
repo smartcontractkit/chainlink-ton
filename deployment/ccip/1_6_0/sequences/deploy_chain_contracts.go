@@ -240,19 +240,19 @@ func intoDeployCCIPSeqInput(cfg deploy.ContractDeploymentConfigPerChainWithAddre
 				PermissionlessExecutionThreshold: cfg.PermissionLessExecutionThresholdSeconds,
 			},
 			OnRampParams: ccipConfig.OnRampParams{
-				ID:              contractID,
-				Coin:            defaultCCIPContractCoin,
-				ChainSelector:   cfg.ChainSelector,
-				FeeAggregator:   deployer, // defaults to deployer, can be updated later via SetDynamicConfig
-				Reserve:         defaultReserveAmount,
+				ID:            contractID,
+				Coin:          defaultCCIPContractCoin,
+				ChainSelector: cfg.ChainSelector,
+				FeeAggregator: deployer, // defaults to deployer, can be updated later via SetDynamicConfig
+				Reserve:       defaultReserveAmount,
 			},
 			RouterParams: ccipConfig.RouterParams{
-				ID:              contractID,
-				Coin:            defaultCCIPContractCoin,
+				ID:   contractID,
+				Coin: defaultCCIPContractCoin,
 			},
 			ReceiverParams: ccipConfig.ReceiverParams{
-				ID:              contractID,
-				Coin:            defaultCCIPContractCoin,
+				ID:   contractID,
+				Coin: defaultCCIPContractCoin,
 			},
 		},
 		ChainSelector: cfg.ChainSelector,

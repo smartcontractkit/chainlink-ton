@@ -84,12 +84,12 @@ func (o OffRampParams) Validate() error {
 }
 
 type OnRampParams struct {
-	ID              uint32
-	Coin            string
-	ChainSelector   uint64
-	AllowlistAdmin  *address.Address
-	FeeAggregator   *address.Address
-	Reserve         string
+	ID             uint32
+	Coin           string
+	ChainSelector  uint64
+	AllowlistAdmin *address.Address
+	FeeAggregator  *address.Address
+	Reserve        string
 }
 
 func (o OnRampParams) Validate() error {
@@ -100,8 +100,8 @@ func (o OnRampParams) Validate() error {
 }
 
 type RouterParams struct {
-	ID              uint32
-	Coin            string
+	ID   uint32
+	Coin string
 }
 
 func (r RouterParams) Validate() error {
@@ -110,8 +110,8 @@ func (r RouterParams) Validate() error {
 }
 
 type ReceiverParams struct {
-	ID              uint32
-	Coin            string
+	ID   uint32
+	Coin string
 }
 
 func (r ReceiverParams) Validate() error {

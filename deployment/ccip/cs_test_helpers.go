@@ -95,8 +95,8 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
 			RouterParams: config.RouterParams{
-				ID:              idForContracts,
-				Coin:            "0.05",
+				ID:   idForContracts,
+				Coin: "0.05",
 			},
 			FeeQuoterParams: config.FeeQuoterParams{
 				ID:                           idForContracts,
@@ -117,17 +117,17 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
-				ID:              idForContracts,
-				Coin:            "0.05",
-				ChainSelector:   ChainSelEVMTest90000001,
+				ID:            idForContracts,
+				Coin:          "0.05",
+				ChainSelector: ChainSelEVMTest90000001,
 				// TODO:
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 				Reserve:       "0.5",
 			},
 			ReceiverParams: config.ReceiverParams{
-				ID:              idForContracts,
-				Coin:            "0.05",
+				ID:   idForContracts,
+				Coin: "0.05",
 			},
 		},
 		ContractsVersion: contractVersion,

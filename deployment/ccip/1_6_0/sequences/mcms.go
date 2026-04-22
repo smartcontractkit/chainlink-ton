@@ -61,8 +61,8 @@ var DeployMCMSContracts = cldfops.NewSequence(
 		b.Logger.Infof("in.TimelockAdmin - using deployer address %s as initial admin", chain.WalletAddress)
 
 		r, err := cldfops.ExecuteSequence(b, opsmcms.DeployMCMSSequence, dp, opsmcms.DeployMCMSSeqInput{
-			Config:                  input.MCMSDeploymentConfigPerChain,
-			ContractID:              uint32(contractID),
+			Config:     input.MCMSDeploymentConfigPerChain,
+			ContractID: uint32(contractID),
 		})
 		if err != nil {
 			return ccipdseq.OnChainOutput{}, fmt.Errorf("failed to deploy MCMS for TON chain %d: %w", input.ChainSelector, err)
