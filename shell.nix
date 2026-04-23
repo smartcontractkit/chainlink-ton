@@ -3,6 +3,15 @@
   pkgs,
   lib,
 }:
+let
+  go_1_26_2 = pkgs.go_1_26.overrideAttrs (_old: rec {
+    version = "1.26.2";
+    src = pkgs.fetchurl {
+      url = "https://go.dev/dl/go${version}.src.tar.gz";
+      hash = "sha256-LpHrtpR6lulDb7KzkmqIAu/mOm03Xf/sT4Kqnb1v1Ds=";
+    };
+  });
+in
 pkgs.mkShell {
   buildInputs = with pkgs;
     [
@@ -10,7 +19,7 @@ pkgs.mkShell {
       alejandra
 
       # Go 1.26 + tools
-      go_1_26
+      go_1_26_2
       gopls
       delve
       golangci-lint
@@ -42,6 +51,10 @@ pkgs.mkShell {
     ];
 
   shellHook = ''
+    unset GOROOT
+    unset GOTOOLDIR
+    export GOTOOLCHAIN=local
+
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
     alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
   '';
