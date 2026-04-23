@@ -23,7 +23,7 @@ func ExecuteOperation[IN, OUT, DEP any](
 	deps DEP,
 	input IN,
 	seriesID string,
-	opts ...cldfops.ExecuteOption[IN, DEP],
+	opts ...cldfops.ExecuteOperationNOption[IN, DEP],
 ) (cldfops.Report[IN, OUT], error) {
 	// Set seriesID in context for the duration of the operation execution,
 	// so that it can be sourced and used by underlying operations.
