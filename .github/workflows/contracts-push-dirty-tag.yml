@@ -40,6 +40,8 @@ jobs:
             ton_changes:
               - 'contracts/**'
               - '.github/workflows/contracts-build.yml'
+              - '.github/workflows/contracts-push-dirty-tag.yml'
+              - '.github/workflows/contracts-release.yml'
 
       - name: Compute ton_changes
         id: compute
@@ -88,11 +90,6 @@ jobs:
           TAG_NAME="contracts/${VERSION}+${{ steps.get_sha.outputs.short_sha }}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Setup GitHub Token for Infrastructure Updates
         id: setup-github-token

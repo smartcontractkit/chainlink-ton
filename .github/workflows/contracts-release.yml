@@ -79,10 +79,19 @@ jobs:
               -czf "dist/${{ steps.meta.outputs.tar_name }}" .
           echo "tar_path=dist/${{ steps.meta.outputs.tar_name }}" >> "$GITHUB_OUTPUT"
 
+      - name: Setup GitHub Token for Infrastructure Updates
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-duration-seconds: "1800"
+
       - name: Publish Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda #v3.0.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.setup-github-token.outputs.access-token }}
           tag_name: ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
           name: TON Contracts ${{ steps.meta.outputs.version }}
