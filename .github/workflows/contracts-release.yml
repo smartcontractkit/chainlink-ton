@@ -80,7 +80,7 @@ jobs:
               -czf "dist/${{ steps.meta.outputs.tar_name }}" .
           echo "tar_path=dist/${{ steps.meta.outputs.tar_name }}" >> "$GITHUB_OUTPUT"
 
-      - name: Setup GitHub Token for Infrastructure Updates
+      - name: Setup GitHub Token 
         id: setup-github-token
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
         with:

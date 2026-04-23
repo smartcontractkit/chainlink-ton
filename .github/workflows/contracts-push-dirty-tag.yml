@@ -91,7 +91,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Setup GitHub Token for Infrastructure Updates
+      - name: Setup GitHub Token
         id: setup-github-token
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
         with:
