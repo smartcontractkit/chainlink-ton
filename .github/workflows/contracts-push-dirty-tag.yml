@@ -100,6 +100,10 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
           aws-role-duration-seconds: "1800"
 
+      - name: Debug token type
+        run: curl -sH "Authorization: Bearer ${{ steps.setup-github-token.outputs.access-token }}" \
+          https://api.github.com/app/installations | jq '.[] | .permissions'
+
       - name: Push dirty tag
         run: |
           set -euo pipefail
