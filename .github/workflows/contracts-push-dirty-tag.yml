@@ -66,10 +66,20 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - name: Setup GitHub Token
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-duration-seconds: "1800"
+
       - name: Check out code
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ steps.setup-github-token.outputs.access-token }}
 
       - name: Get long and short SHAs
         id: get_sha
@@ -91,20 +101,12 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Setup GitHub Token
-        id: setup-github-token
-        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
-        with:
-          aws-role-arn: ${{ secrets.AWS_OIDC_CHAINLINK_TON_CHANGESETS_TOKEN_ISSUER_ROLE_ARN }}
-          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
-          aws-region: ${{ vars.AWS_REGION }}
-          aws-role-duration-seconds: "1800"
+
 
       - name: Push dirty tag
         run: |
           set -euo pipefail
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git remote set-url origin "https://x-access-token:${{ steps.setup-github-token.outputs.access-token }}@github.com/${{ github.repository }}.git"
           git tag "${{ steps.version.outputs.tag_name }}" "${{ steps.get_sha.outputs.full_sha }}"
           git push origin "${{ steps.version.outputs.tag_name }}"
