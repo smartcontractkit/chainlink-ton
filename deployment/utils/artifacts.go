@@ -105,10 +105,12 @@ func sanitizePackageName(s string) string {
 }
 
 // AssetNameFromReleaseTag derives the release asset filename from a release tag.
-// Convention: replace "/" with "-" and append ".tar.gz".
-// For example, "contracts/v1.6.0" → "contracts-v1.6.0.tar.gz".
+// Convention: replace "/" and "+" with "-" and append ".tar.gz".
+// For example, "contracts/1.6.0" → "contracts-1.6.0.tar.gz".
+// For example, "contracts/1.6.0+abc123" → "contracts-1.6.0-abc123.tar.gz".
 func AssetNameFromReleaseTag(tag string) string {
 	tag = strings.ReplaceAll(tag, "/", "-")
+	tag = strings.ReplaceAll(tag, "+", "-")
 	return tag + ".tar.gz"
 }
 

@@ -111,7 +111,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			OnRamps: nil, // set afterward
 		}
 
-		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeRouter], routerStorage, nil, in.CCIPConfig.RouterParams.Coin, in.CCIPConfig.RouterParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeRouter], routerStorage, nil, in.CCIPConfig.RouterParams.Coin)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -162,7 +162,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 		}
 
 		// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
-		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeFeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin, in.CCIPConfig.FeeQuoterParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeFeeQuoter], feeQuoterStorage, nil, in.CCIPConfig.FeeQuoterParams.Coin)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -199,7 +199,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			},
 		}
 
-		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin, in.CCIPConfig.OnRampParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOnRamp], onRampStorage, nil, in.CCIPConfig.OnRampParams.Coin)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -231,7 +231,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			LatestPriceSequenceNumber: 0,
 		}
 
-		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin, in.CCIPConfig.OffRampParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeOffRamp], offRampStorage, nil, in.CCIPConfig.OffRampParams.Coin)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -252,7 +252,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 			Behavior:         receiver.BehaviorAccept,
 		}
 
-		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTestReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin, in.CCIPConfig.ReceiverParams.ContractsSemver)
+		outputAddr, err = operation.InvokeDeployContractOperation(b, dp, in.ChainSelector, tonCompiledContracts[bindings.TypeTestReceiver], receiverStorage, nil, in.CCIPConfig.ReceiverParams.Coin)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
