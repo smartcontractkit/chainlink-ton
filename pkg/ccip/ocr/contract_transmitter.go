@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -39,6 +40,17 @@ type ccipTransmitter struct {
 	toEd25519CalldataFn ToEd25519CalldataFunc
 	lggr                logger.Logger
 	cfg                 *Config
+}
+
+type ErrInsuficcientBalance struct {
+	Balance   tlb.Coins
+	MsgAmount tlb.Coins
+}
+
+var _ error = ErrInsuficcientBalance{}
+
+func (e ErrInsuficcientBalance) Error() string {
+	return fmt.Sprintf("insufficient balance for transmission: have %s, need %s", e.Balance.String(), e.MsgAmount.String())
 }
 
 func NewCCIPTransmitter(
@@ -110,6 +122,27 @@ func (c *ccipTransmitter) Transmit(
 	txID, finalAmount, gasLimit, err := getReportTxInfo(reportWithInfo.Report, seqNr, c.cfg)
 	if err != nil {
 		return fmt.Errorf("failed to extract report metadata: %w", err)
+	}
+
+	{
+		ctxTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		block, err := client.Client.CurrentMasterchainInfo(ctxTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to get current masterchain info: %w", err)
+		}
+		transmitterAccount, err := client.Client.GetAccount(ctxTimeout, block, w.WalletAddress())
+		if err != nil {
+			return fmt.Errorf("failed to get transmitter account info: %w", err)
+		}
+		if transmitterAccount.State.Balance.Nano().Cmp(finalAmount.Nano()) == -1 {
+			return ErrInsuficcientBalance{
+				Balance:   transmitterAccount.State.Balance,
+				MsgAmount: *finalAmount,
+			}
+		}
+		c.lggr.Debugf("transmitter balance: %s", transmitterAccount.State.Balance.String())
+		c.lggr.Debugf("final amount: %s", finalAmount.String())
 	}
 
 	request := txm.Request{

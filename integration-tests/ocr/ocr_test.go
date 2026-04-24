@@ -192,6 +192,9 @@ func TestTransmitterLocal(t *testing.T) {
 					nil,
 				)
 				require.Error(t, err)
+				err, ok := errors.AsType[ocr.ErrInsuficcientBalance](err)
+				require.True(t, ok, "expected error of type ErrInsuficcientBalance, got %T", err)
+				t.Logf("Transmit error due to insufficient balance (expected): %v", err)
 			},
 		},
 	}
