@@ -47,10 +47,29 @@ type ErrInsuficcientBalance struct {
 	MsgAmount tlb.Coins
 }
 
-var _ error = ErrInsuficcientBalance{}
+type ErrRPC struct {
+	Msg string
+	Err error
+}
+
+var (
+	_ error = ErrInsuficcientBalance{}
+	_ error = ErrRPC{}
+)
 
 func (e ErrInsuficcientBalance) Error() string {
 	return fmt.Sprintf("insufficient balance for transmission: have %s, need %s", e.Balance.String(), e.MsgAmount.String())
+}
+
+func NewErrRPC(s string, err error) error {
+	return ErrRPC{
+		Msg: s,
+		Err: err,
+	}
+}
+
+func (e ErrRPC) Error() string {
+	return fmt.Sprintf("%s: %v", e.Msg, e.Err)
 }
 
 func NewCCIPTransmitter(
@@ -129,7 +148,7 @@ func (c *ccipTransmitter) Transmit(
 		defer cancel()
 		block, err := client.Client.CurrentMasterchainInfo(ctxTimeout)
 		if err != nil {
-			return fmt.Errorf("failed to get current masterchain info: %w", err)
+			return NewErrRPC("failed to get current masterchain info: %w", err)
 		}
 		transmitterAccount, err := client.Client.GetAccount(ctxTimeout, block, w.WalletAddress())
 		if err != nil {

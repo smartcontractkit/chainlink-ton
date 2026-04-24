@@ -12,16 +12,20 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/connection"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
-
-	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	ocrbindings "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
+	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -30,10 +34,7 @@ import (
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
 	ocrtypes "github.com/smartcontractkit/libocr/offchainreporting2plus/types"
 
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
+	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 )
 
 func TestTransmitterLocal(t *testing.T) {
@@ -66,10 +67,19 @@ func TestTransmitterLocal(t *testing.T) {
 				w, err := tvm.NewRandomV5R1TestWallet(tonChain.Client, -217)
 				require.NoError(t, err)
 
+				// Each account gets its own independent client connection so that
+				// tests (e.g. UnhealthyRPC) can close a pool without affecting others.
+				client := func() ton.APIClientWrapped {
+					pool, err := tonchainpkg.CreateLiteserverConnectionPool(t.Context(), tonChain.URL)
+					require.NoError(t, err, "failed to create connection pool from URL")
+
+					return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry()
+				}()
+
 				recipients[i] = w.Address()
 				amounts[i] = tlb.FromNanoTON(initialAmount)
 
-				accounts[i] = tracetracking.NewSignedAPIClient(tonChain.Client, *w)
+				accounts[i] = tracetracking.NewSignedAPIClient(client, *w)
 
 				keystore.AddKey(w.PrivateKey())
 				require.NotNil(t, keystore)
@@ -161,6 +171,38 @@ func TestTransmitterLocal(t *testing.T) {
 					nil,
 				)
 				require.NoError(t, err, "expected Transmit to succeed with valid setup, got error: %v", err)
+			},
+		},
+		{
+			name: "UnhealthyRPC",
+			test: func(t *testing.T, setup TestSetup) {
+				transmitter, tonTxm := getTransmitter(setup.apiClient, &ocr.DefaultConfigSet)
+				defer func() {
+					_ = tonTxm.Close()
+				}()
+
+				// Close RPC connection
+				{
+					p := connection.UnwrapToConnectionPool(t, setup.apiClient.Client.Client())
+					p.Stop()
+				}
+
+				reportBytes := buildCommitReportBOC(t)
+
+				// Transmit after RPC is closed — should fail due to unhealthy connection
+				err := transmitter.Transmit(
+					t.Context(),
+					ocrtypes.ConfigDigest{},
+					1,
+					ocr3types.ReportWithInfo[[]byte]{Report: reportBytes},
+					nil,
+				)
+				t.Logf("Transmit error with closed RPC: %v", err)
+				require.Error(t, err)
+				err, ok := errors.AsType[ocr.ErrRPC](err)
+				require.True(t, ok, "expected error of type ErrRPC, got %T", err)
+				t.Logf("Transmit error due to RPC failure (expected): %v", err)
+
 			},
 		},
 		{
