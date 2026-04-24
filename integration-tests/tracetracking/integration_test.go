@@ -13,6 +13,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreply"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/twomsgchain"
@@ -82,13 +83,13 @@ func TestIntegration(t *testing.T) {
 		t.Logf("Transaction finalized\n")
 		t.Logf("\n==========================\nFinalized msg: %+v\n==========================\n", externalMessageReceived)
 
-		aliceBalance := testutils.MustGetBalance(t, alice)
-		testutils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance)
+		aliceBalance := balance.MustGet(t, alice)
+		testutils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance.Nano())
 
 		internalMessagedReceivedByBob := externalMessageReceived.OutgoingInternalReceivedMessages[0]
 		require.NotNil(t, internalMessagedReceivedByBob, "Internal message not received by Bob")
-		bobBalance := testutils.MustGetBalance(t, bob)
-		testutils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance)
+		bobBalance := balance.MustGet(t, bob)
+		testutils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance.Nano())
 	})
 
 	t.Run("TestCounter", func(t *testing.T) {

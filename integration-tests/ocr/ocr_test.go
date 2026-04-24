@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
@@ -26,7 +25,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	tonchainpkg "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -39,7 +37,6 @@ import (
 
 func TestTransmitterLocal(t *testing.T) {
 	type TestSetup struct {
-		debugger  debug.DebuggerEnvironment
 		apiClient tracetracking.SignedAPIClient
 	}
 
@@ -199,8 +196,8 @@ func TestTransmitterLocal(t *testing.T) {
 				)
 				t.Logf("Transmit error with closed RPC: %v", err)
 				require.Error(t, err)
-				err, ok := errors.AsType[ocr.ErrRPC](err)
-				require.True(t, ok, "expected error of type ErrRPC, got %T", err)
+				err, ok := errors.AsType[ocr.RPCError](err)
+				require.True(t, ok, "expected error of type RPCError, got %T", err)
 				t.Logf("Transmit error due to RPC failure (expected): %v", err)
 			},
 		},
@@ -233,8 +230,8 @@ func TestTransmitterLocal(t *testing.T) {
 					nil,
 				)
 				require.Error(t, err)
-				err, ok := errors.AsType[ocr.ErrInsuficcientBalance](err)
-				require.True(t, ok, "expected error of type ErrInsuficcientBalance, got %T", err)
+				err, ok := errors.AsType[ocr.InsufficientBalanceError](err)
+				require.True(t, ok, "expected error of type InsufficientBalanceError, got %T", err)
 				t.Logf("Transmit error due to insufficient balance (expected): %v", err)
 			},
 		},
@@ -251,12 +248,8 @@ func TestTransmitterLocal(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			transmitterAccount := getAccount()
-			addresses := map[string]debug.TypeAndVersion{
-				transmitterAccount.Wallet.WalletAddress().Bounce(true).String(): {Type: "Transmitter", Version: *semver.MustParse("1.0.0")},
-			}
 
 			tc.test(t, TestSetup{
-				debugger:  debug.NewDebuggerTreeTrace(addresses),
 				apiClient: transmitterAccount,
 			})
 		})

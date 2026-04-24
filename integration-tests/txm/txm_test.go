@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
@@ -19,7 +18,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -35,7 +33,6 @@ import (
 
 func TestTxmLocal(t *testing.T) {
 	type TestSetup struct {
-		debugger  debug.DebuggerEnvironment
 		apiClient tracetracking.SignedAPIClient
 	}
 
@@ -173,12 +170,8 @@ func TestTxmLocal(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			transmitterAccount := getAccount()
-			addresses := map[string]debug.TypeAndVersion{
-				transmitterAccount.Wallet.WalletAddress().Bounce(true).String(): {Type: "Transmitter", Version: *semver.MustParse("1.0.0")},
-			}
 
 			tc.test(t, TestSetup{
-				debugger:  debug.NewDebuggerTreeTrace(addresses),
 				apiClient: transmitterAccount,
 			})
 		})

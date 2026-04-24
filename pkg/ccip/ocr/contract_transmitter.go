@@ -42,34 +42,38 @@ type ccipTransmitter struct {
 	cfg                 *Config
 }
 
-type ErrInsuficcientBalance struct {
+type InsufficientBalanceError struct {
 	Balance   tlb.Coins
 	MsgAmount tlb.Coins
 }
 
-type ErrRPC struct {
+type RPCError struct {
 	Msg string
 	Err error
 }
 
 var (
-	_ error = ErrInsuficcientBalance{}
-	_ error = ErrRPC{}
+	_ error = InsufficientBalanceError{}
+	_ error = RPCError{}
 )
 
-func (e ErrInsuficcientBalance) Error() string {
+func (e InsufficientBalanceError) Error() string {
 	return fmt.Sprintf("insufficient balance for transmission: have %s, need %s", e.Balance.String(), e.MsgAmount.String())
 }
 
-func NewErrRPC(s string, err error) error {
-	return ErrRPC{
+func NewRPCError(s string, err error) error {
+	return RPCError{
 		Msg: s,
 		Err: err,
 	}
 }
 
-func (e ErrRPC) Error() string {
+func (e RPCError) Error() string {
 	return fmt.Sprintf("%s: %v", e.Msg, e.Err)
+}
+
+func (e RPCError) Unwrap() error {
+	return e.Err
 }
 
 func NewCCIPTransmitter(
@@ -148,11 +152,11 @@ func (c *ccipTransmitter) Transmit(
 		defer cancel()
 		block, err := client.Client.CurrentMasterchainInfo(ctxTimeout)
 		if err != nil {
-			return NewErrRPC("failed to get current masterchain info: %w", err)
+			return NewRPCError("failed to get current masterchain info", err)
 		}
 		transmitterAccount, err := client.Client.GetAccount(ctxTimeout, block, w.WalletAddress())
 		if err != nil {
-			return NewErrRPC("failed to get transmitter account info: %w", err)
+			return NewRPCError("failed to get transmitter account info", err)
 		}
 
 		// If account is not active, balance is 0
@@ -161,7 +165,7 @@ func (c *ccipTransmitter) Transmit(
 		}
 
 		if transmitterAccount.State.Balance.Nano().Cmp(finalAmount.Nano()) == -1 {
-			return ErrInsuficcientBalance{
+			return InsufficientBalanceError{
 				Balance:   transmitterAccount.State.Balance,
 				MsgAmount: *finalAmount,
 			}
