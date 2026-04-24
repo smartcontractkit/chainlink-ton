@@ -113,7 +113,7 @@ func TestTxmLocal(t *testing.T) {
 				// Check current state
 				current, err := counter.GetValue(t.Context(), setup.apiClient.Client, counterAddr)
 				require.NoError(t, err)
-				require.Equal(t, current, initialValue)
+				require.Equal(t, initialValue, current)
 
 				// Increment multiple times
 				queryID := uint64(0)
@@ -164,7 +164,7 @@ func TestTxmLocal(t *testing.T) {
 
 	accounts := createAndFundAccounts(10)
 	getAccount := func() tracetracking.SignedAPIClient {
-		require.Greater(t, len(accounts), 0, "No pre-funded accounts available")
+		require.NotEmpty(t, accounts, "No pre-funded accounts available")
 		acc := accounts[0]
 		accounts = accounts[1:]
 		return acc

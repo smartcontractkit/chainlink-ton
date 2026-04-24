@@ -202,7 +202,6 @@ func TestTransmitterLocal(t *testing.T) {
 				err, ok := errors.AsType[ocr.ErrRPC](err)
 				require.True(t, ok, "expected error of type ErrRPC, got %T", err)
 				t.Logf("Transmit error due to RPC failure (expected): %v", err)
-
 			},
 		},
 		{
@@ -243,7 +242,7 @@ func TestTransmitterLocal(t *testing.T) {
 
 	accounts := createAndFundAccounts(10)
 	getAccount := func() tracetracking.SignedAPIClient {
-		require.Greater(t, len(accounts), 0, "No pre-funded accounts available")
+		require.NotEmpty(t, accounts, "No pre-funded accounts available")
 		acc := accounts[0]
 		accounts = accounts[1:]
 		return acc

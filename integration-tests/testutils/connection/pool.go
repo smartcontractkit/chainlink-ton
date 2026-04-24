@@ -22,7 +22,6 @@ func UnwrapToConnectionPool(t *testing.T, client ton.LiteClient) *liteclient.Con
 			v = v.Elem()
 		}
 		if v.Type() == poolPtrType {
-			//nolint:gosec // unsafe needed to extract pointer from reflect.Value tainted by unexported fields
 			return (*liteclient.ConnectionPool)(v.UnsafePointer())
 		}
 		for v.Kind() == reflect.Ptr {
@@ -34,7 +33,6 @@ func UnwrapToConnectionPool(t *testing.T, client ton.LiteClient) *liteclient.Con
 		}
 		// Use unsafe to bypass the unexported field restriction so subsequent
 		// reflect operations (Elem, Type, etc.) don't panic.
-		//nolint:gosec
 		v = reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
 	}
 	require.Fail(t, "failed to unwrap LiteClient to *liteclient.ConnectionPool", "final type: %s", v.Type())
