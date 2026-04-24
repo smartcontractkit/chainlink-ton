@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -148,13 +147,11 @@ func (c *ccipTransmitter) Transmit(
 	}
 
 	{
-		ctxTimeout, cancel := context.WithTimeout(ctx, 3*time.Second)
-		defer cancel()
-		block, err := client.Client.CurrentMasterchainInfo(ctxTimeout)
+		block, err := client.Client.CurrentMasterchainInfo(ctx)
 		if err != nil {
 			return NewRPCError("failed to get current masterchain info", err)
 		}
-		transmitterAccount, err := client.Client.GetAccount(ctxTimeout, block, w.WalletAddress())
+		transmitterAccount, err := client.Client.GetAccount(ctx, block, w.WalletAddress())
 		if err != nil {
 			return NewRPCError("failed to get transmitter account info", err)
 		}
