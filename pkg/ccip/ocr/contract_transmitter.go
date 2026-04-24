@@ -152,8 +152,14 @@ func (c *ccipTransmitter) Transmit(
 		}
 		transmitterAccount, err := client.Client.GetAccount(ctxTimeout, block, w.WalletAddress())
 		if err != nil {
-			return fmt.Errorf("failed to get transmitter account info: %w", err)
+			return NewErrRPC("failed to get transmitter account info: %w", err)
 		}
+
+		// If account is not active, balance is 0
+		if !transmitterAccount.IsActive || transmitterAccount.State == nil {
+			return fmt.Errorf("failed to get account status: account.IsActive: %v, account.State == nil: %v", transmitterAccount.IsActive, transmitterAccount.State == nil)
+		}
+
 		if transmitterAccount.State.Balance.Nano().Cmp(finalAmount.Nano()) == -1 {
 			return ErrInsuficcientBalance{
 				Balance:   transmitterAccount.State.Balance,
