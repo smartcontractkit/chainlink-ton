@@ -2,20 +2,16 @@ package txm_test
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math/big"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
 
 	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -37,18 +33,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
 
-// This logger prevents testing framework from printing the path and line number inside the logger package, which is not useful and clutters the logs. Instead, it will print the caller of the logger (i.e. the line in this test file where the log was called).
-func testLogger() logger.Logger {
-	cfg := zap.NewDevelopmentEncoderConfig()
-	cfg.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.000000000")
-	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(cfg),
-		zapcore.Lock(os.Stderr),
-		zapcore.DebugLevel,
-	)
-	return logger.WithOptions(logger.NewWithCores(core), zap.AddCaller())
-}
-
 func TestTxmLocal(t *testing.T) {
 	type TestSetup struct {
 		debugger  debug.DebuggerEnvironment
@@ -59,14 +43,13 @@ func TestTxmLocal(t *testing.T) {
 		name string
 		test func(t *testing.T, setup TestSetup)
 	}
-	logger := testLogger()
+	logger := test_logger.New()
 	keystore := relayer_utils.NewTestKeystore(t)
 
 	createAndFundAccounts := func() func(count uint) []tracetracking.SignedAPIClient {
 		var setupOnce sync.Once
 		tonChain, err := utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
 		require.NoError(t, err)
-
 		keystore.AddKey(tonChain.Wallet.PrivateKey())
 		require.NotNil(t, keystore)
 
@@ -251,32 +234,4 @@ func deployCounterContract(t *testing.T, wallet wallet.Wallet, initialValue uint
 	require.NoError(t, err)
 
 	return counterAddr
-}
-
-// TODO duplicate from "github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils/test_utils"
-
-func MustGetBalance(t *testing.T, apiClient tracetracking.SignedAPIClient) *tlb.Coins {
-	balance, err := GetBalance(apiClient)
-	require.NoError(t, err, "failed to get balance: %w", err)
-	return balance
-}
-
-// returns balance of the account in nanotons
-func GetBalance(apiClient tracetracking.SignedAPIClient) (*tlb.Coins, error) {
-	ctx := apiClient.Client.Client().StickyContext(context.Background())
-	master, err := apiClient.Client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
-	}
-
-	// we use WaitForBlock to make sure block is ready,
-	// it is optional but escapes us from liteserver block not ready errors
-	res, err := apiClient.Client.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
-	if err != nil {
-		return nil, fmt.Errorf("get account err: %w", err)
-	}
-	if res.IsActive {
-		return &res.State.Balance, nil
-	}
-	return nil, errors.New("account is not active")
 }
