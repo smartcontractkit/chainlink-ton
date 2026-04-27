@@ -2,7 +2,6 @@ package testutils
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/big"
 	"sync"
@@ -86,26 +85,6 @@ func UintFrom(res *ton.ExecutionResult, err error) (uint, error) {
 	return uint(val.Int64()), nil //nolint:gosec // test purpose
 }
 
-// returns balance of the account in nanotons
-func GetBalance(apiClient tracetracking.SignedAPIClient) (*big.Int, error) {
-	ctx := apiClient.Client.Client().StickyContext(context.Background())
-	master, err := apiClient.Client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
-	}
-
-	// we use WaitForBlock to make sure block is ready,
-	// it is optional but escapes us from liteserver block not ready errors
-	res, err := apiClient.Client.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
-	if err != nil {
-		return nil, fmt.Errorf("get account err: %w", err)
-	}
-	if res.IsActive {
-		return res.State.Balance.Nano(), nil
-	}
-	return nil, errors.New("account is not active")
-}
-
 func VerifyTransaction(t *testing.T, m *tracetracking.ReceivedMessage, initialBalance *big.Int, expectedNetTransfer *big.Int, finalBalance *big.Int) {
 	expectedBalance := big.NewInt(0).Sub(tracetracking.Sum(initialBalance, m.NetCreditResult()), tracetracking.Sum(m.StorageFeeCharged, m.TotalTransactionExecutionFee()))
 	t.Logf(`================
@@ -153,10 +132,4 @@ Final balance    %14d
 	)
 	require.Equal(t, expectedBalance, finalBalance, "Expected balance does not match actual balance: %d != %d: Expected - Actual = %d", expectedBalance, finalBalance, big.NewInt(0).Sub(expectedBalance, finalBalance))
 	require.Equal(t, expectedNetTransfer, m.NetCreditResult(), "Expected transferred amount does not match actual net transaction result: %d != %d: Expected - Actual = %d", expectedNetTransfer, m.NetCreditResult(), big.NewInt(0).Sub(expectedNetTransfer, m.NetCreditResult()))
-}
-
-func MustGetBalance(t *testing.T, apiClient tracetracking.SignedAPIClient) *big.Int {
-	finalBalance, err := GetBalance(apiClient)
-	require.NoError(t, err, "failed to get balance: %w", err)
-	return finalBalance
 }

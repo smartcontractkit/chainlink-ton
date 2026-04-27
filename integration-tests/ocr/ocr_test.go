@@ -3,7 +3,6 @@ package ocr_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"strconv"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/connection"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	ocrbindings "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
@@ -207,7 +207,7 @@ func TestTransmitterLocal(t *testing.T) {
 				// Set commit cost higher than the account balance
 				// so the balance check in Transmit fails.
 				ocrCfg := func() ocr.Config {
-					transmittersBalance, err := strconv.ParseFloat(MustGetBalance(t, setup.apiClient).String(), 64)
+					transmittersBalance, err := strconv.ParseFloat(balance.MustGet(t, setup.apiClient).String(), 64)
 					require.NoError(t, err, "failed to parse transmitter balance as float64")
 					transmitAmount := transmittersBalance + 1 // add 1 TON to ensure it's above the balance
 
@@ -254,30 +254,4 @@ func TestTransmitterLocal(t *testing.T) {
 			})
 		})
 	}
-}
-
-func MustGetBalance(t *testing.T, apiClient tracetracking.SignedAPIClient) *tlb.Coins {
-	balance, err := GetBalance(apiClient)
-	require.NoError(t, err, "failed to get balance: %w", err)
-	return balance
-}
-
-// returns balance of the account in nanotons
-func GetBalance(apiClient tracetracking.SignedAPIClient) (*tlb.Coins, error) {
-	ctx := apiClient.Client.Client().StickyContext(context.Background())
-	master, err := apiClient.Client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
-	}
-
-	// we use WaitForBlock to make sure block is ready,
-	// it is optional but escapes us from liteserver block not ready errors
-	res, err := apiClient.Client.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
-	if err != nil {
-		return nil, fmt.Errorf("get account err: %w", err)
-	}
-	if res.IsActive {
-		return &res.State.Balance, nil
-	}
-	return nil, errors.New("account is not active")
 }

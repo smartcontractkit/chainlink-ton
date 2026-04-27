@@ -12,8 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-// TODO duplicate from "github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils/test_utils"
-
 func MustGet(t *testing.T, apiClient tracetracking.SignedAPIClient) *tlb.Coins {
 	balance, err := Get(apiClient)
 	require.NoError(t, err, "failed to get balance: %w", err)
