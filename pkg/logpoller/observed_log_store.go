@@ -34,9 +34,20 @@ func (o *ObservedLogStore) SaveLogs(ctx context.Context, logs []models.Log, batc
 	start := time.Now()
 	count, err := o.LogStore.SaveLogs(ctx, logs, batchInsertSize, minBatchSize)
 
-	o.metrics.RecordQueryDuration(ctx, "SaveLogs", frameworkmetrics.Create, time.Since(start))
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "SaveLogs", frameworkmetrics.Create, time.Since(start).Seconds())
 	if err == nil && count > 0 {
-		o.metrics.AddLogsInserted(ctx, count)
+		o.metrics.frameworkMetrics.IncrementLogsInserted(ctx, count)
+
+		// Record discovery latency using the newest log's TxTimestamp.
+		// TxTimestamp is set from tx.Transaction.Now (uint32 Unix seconds) during parsing.
+		// Latency = wall clock now - transaction timestamp, in seconds.
+		newestTimestamp := logs[0].TxTimestamp
+		for _, l := range logs[1:] {
+			if l.TxTimestamp.After(newestTimestamp) {
+				newestTimestamp = l.TxTimestamp
+			}
+		}
+		o.metrics.frameworkMetrics.RecordLogDiscoveryLatency(ctx, time.Since(newestTimestamp).Seconds())
 	}
 
 	return count, err
@@ -47,9 +58,9 @@ func (o *ObservedLogStore) QueryLogs(ctx context.Context, logQuery *query.LogQue
 	start := time.Now()
 	logs, hasMore, nextCursor, err := o.LogStore.QueryLogs(ctx, logQuery)
 
-	o.metrics.RecordQueryDuration(ctx, "QueryLogs", frameworkmetrics.Read, time.Since(start))
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "QueryLogs", frameworkmetrics.Read, time.Since(start).Seconds())
 	if err == nil {
-		o.metrics.SetQueryResultSize(ctx, "QueryLogs", len(logs))
+		o.metrics.frameworkMetrics.RecordQueryDatasetSize(ctx, "QueryLogs", frameworkmetrics.Read, int64(len(logs)))
 	}
 
 	return logs, hasMore, nextCursor, err
@@ -60,7 +71,7 @@ func (o *ObservedLogStore) GetHighestMCBlockSeqno(ctx context.Context) (uint32, 
 	start := time.Now()
 	seqno, exists, err := o.LogStore.GetHighestMCBlockSeqno(ctx)
 
-	o.metrics.RecordQueryDuration(ctx, "GetHighestMCBlockSeqno", frameworkmetrics.Read, time.Since(start))
+	o.metrics.frameworkMetrics.RecordQueryDuration(ctx, "GetHighestMCBlockSeqno", frameworkmetrics.Read, time.Since(start).Seconds())
 
 	return seqno, exists, err
 }

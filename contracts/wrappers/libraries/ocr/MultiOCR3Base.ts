@@ -3,14 +3,15 @@ import { KeyPair, sign } from '@ton/crypto'
 import { uint8ArrayToBigInt } from '../../../src/utils'
 
 import { crc32 } from 'zlib'
+import { errorCode, facilityId } from '../../utils'
 import { asSnakedCell, fromSnakeData } from '../../../src/utils'
 
-export const FACILITY_NAME = 'com.chainlink.ton.lib.ocr.MultiOCR3Base'
-export const FACILITY_ID = 31
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.lib.ocr.MultiOCR3Base'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum Errors {
-  BigFMustBePositive = ERROR_CODE,
+  BigFMustBePositive = 54500,
   StaticConfigCannotBeChanged,
   TooManySigners,
   BigFTooHigh,

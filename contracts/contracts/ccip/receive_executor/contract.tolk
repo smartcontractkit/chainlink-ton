@@ -7,7 +7,7 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);
@@ -117,5 +117,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.ReceiveExecutor"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.ReceiveExecutor"), local);
 }

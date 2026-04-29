@@ -4,7 +4,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -20,7 +20,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 
 // ContractType implements lib.ContractDecoder.
 func (d *decoder) ContractType() string {
-	return "com.chainlink.ton.ccip"
+	return bindings.PkgCCIP
 }
 
 // EventInfo implements lib.ContractDecoder.
@@ -30,12 +30,7 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 
 // ExitCodeInfo implements lib.ContractDecoder.
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	ec, err := common.ExitCodeCodec.NewFrom(exitCode)
-	if err != nil {
-		return "", codec.ErrUnknownMessage
-	}
-
-	return ec.String(), nil
+	return "", codec.ErrUnknownMessage
 }
 
 // ExternalMessageInfo implements lib.ContractDecoder.

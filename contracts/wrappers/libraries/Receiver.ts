@@ -1,14 +1,15 @@
 import { beginCell, Builder, Contract, ContractProvider, Sender, Slice } from '@ton/core'
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
 
-import { CellCodec } from '../utils'
 import { Any2TVMMessage, builder as OffRampBuilder } from '../ccip/OffRamp'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.lib.Receiver'
-export const FACILITY_ID = 235
-export const ERROR_CODE = 23500 //FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.lib.Receiver'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum error {
-  Unauthorized = ERROR_CODE,
+  Unauthorized = 5400,
   LowValue,
 }
 

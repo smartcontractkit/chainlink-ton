@@ -8,12 +8,12 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[UnknownDestChainSelector-18100]
-	_ = x[Unauthorized-18101]
-	_ = x[SenderNotAllowed-18102]
-	_ = x[InvalidConfig-18103]
-	_ = x[UnknownToken-18104]
-	_ = x[InsufficientValue-18105]
+	_ = x[UnknownDestChainSelector-13400]
+	_ = x[Unauthorized-13401]
+	_ = x[SenderNotAllowed-13402]
+	_ = x[InvalidConfig-13403]
+	_ = x[UnknownToken-13404]
+	_ = x[InsufficientValue-13405]
 }
 
 const _ExitCode_name = "UnknownDestChainSelectorUnauthorizedSenderNotAllowedInvalidConfigUnknownTokenInsufficientValue"
@@ -21,8 +21,8 @@ const _ExitCode_name = "UnknownDestChainSelectorUnauthorizedSenderNotAllowedInva
 var _ExitCode_index = [...]uint8{0, 24, 36, 52, 65, 77, 94}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 18100
-	if i < 18100 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 13400
+	if i < 13400 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

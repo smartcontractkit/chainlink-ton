@@ -68,6 +68,8 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.OffRampRemoved]: CCIPLogs.OffRampRemoved
   [CCIPLogs.LogTypes.Cursed]: CCIPLogs.Cursed
   [CCIPLogs.LogTypes.Uncursed]: CCIPLogs.Uncursed
+  [CCIPLogs.LogTypes.UsdPerTokenUpdated]: DeepPartial<CCIPLogs.UsdPerTokenUpdated>
+  [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>
   [CCIPLogs.LogTypes
     .ReceiveExecutorInitExecuteBounced]: DeepPartial<CCIPLogs.ReceiveExecutorInitExecuteBounced>
   [CCIPLogs.LogTypes.DeployableInitializeBounced]: DeepPartial<CCIPLogs.DeployableInitializeBounced>
@@ -134,6 +136,11 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [CCIPLogs.LogTypes.Uncursed]: (x, from, match) =>
     testLogRMNRemoteUncursed(x, from, match as CCIPLogs.Uncursed),
 
+  [CCIPLogs.LogTypes.UsdPerTokenUpdated]: (x, from, match) =>
+    testLogUsdPerTokenUpdated(x, from, match as DeepPartial<CCIPLogs.UsdPerTokenUpdated>),
+
+  [CCIPLogs.LogTypes.UsdPerUnitGasUpdated]: (x, from, match) =>
+    testLogUsdPerUnitGasUpdated(x, from, match as DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>),
   [CCIPLogs.LogTypes.ReceiveExecutorInitExecuteBounced]: (x, from, match) =>
     testLogReceiveExecutorInitExecuteBounced(
       x,
@@ -268,9 +275,7 @@ export const testConfigSetLogMessage = (
     const ocrPluginType = cs.loadUint(16)
     const configDigest = cs.loadUintBig(256)
     const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
-    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
-      .map((x) => x.toString())
-      .sort()
+    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress()).sort()
     const bigF = cs.loadUint(8)
 
     const msg = {
@@ -284,7 +289,7 @@ export const testConfigSetLogMessage = (
       ocrPluginType: match.ocrPluginType,
       configDigest: match.configDigest,
       signers: match.signers.sort(),
-      transmitters: match.transmitters.map((x) => x.toString()).sort(),
+      transmitters: match.transmitters.sort(),
       bigF: match.bigF,
     }
 
@@ -436,7 +441,29 @@ export const testLogSourceChainConfigUpdated = (
       sourceChainSelector: cs.loadUintBig(64),
       config: offRamp.builder.data.sourceChainConfig.load(cs),
     }
-    equalsObject(msg, match)
+    const modifiedMsg = {
+      sourceChainSelector: msg.sourceChainSelector,
+      config: {
+        router: msg.config.router.toString(),
+        isEnabled: msg.config.isEnabled,
+        minSeqNr: msg.config.minSeqNr,
+        isRMNVerificationDisabled: msg.config.isRMNVerificationDisabled,
+        onRamp: msg.config.onRamp,
+      },
+    }
+
+    const modifiedMatch = {
+      sourceChainSelector: match.sourceChainSelector,
+      config: {
+        router: match.config.router.toString(),
+        isEnabled: match.config.isEnabled,
+        minSeqNr: match.config.minSeqNr,
+        isRMNVerificationDisabled: match.config.isRMNVerificationDisabled,
+        onRamp: match.config.onRamp,
+      },
+    }
+
+    equalsObject(modifiedMsg, modifiedMatch)
     return true
   })
 }
@@ -466,6 +493,47 @@ export const testLogDestChainConfigUpdated = (
     const msg = {
       destChainSelector: cs.loadUintBig(64),
       config: onramp.builder.data.destChainConfig.load(cs),
+    }
+    matchesObject(msg, match)
+    return true
+  })
+}
+
+export const testLogUsdPerTokenUpdated = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.UsdPerTokenUpdated>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.UsdPerTokenUpdated, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      sourceToken: cs.loadAddress().toString(),
+      usdPerToken: cs.loadUintBig(224),
+      timestamp: cs.loadUintBig(64),
+    }
+
+    const modifiedMatch = { ...match }
+    if (match.sourceToken && match.sourceToken instanceof Address) {
+      modifiedMatch.sourceToken = match.sourceToken.toString()
+    }
+
+    matchesObject(msg, modifiedMatch)
+    return true
+  })
+}
+
+export const testLogUsdPerUnitGasUpdated = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.UsdPerUnitGasUpdated>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.UsdPerUnitGasUpdated, (x) => {
+    const cs = x.beginParse()
+    const msg: CCIPLogs.UsdPerUnitGasUpdated = {
+      destChainSelector: cs.loadUintBig(64),
+      executionGasPrice: cs.loadUintBig(112),
+      dataAvailabilityGasPrice: cs.loadUintBig(112),
+      timestamp: cs.loadUintBig(64),
     }
     matchesObject(msg, match)
     return true

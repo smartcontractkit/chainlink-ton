@@ -350,7 +350,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	expirationTimestampMs := uint64(tx.Expiration.UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
+	expirationTimestampMs := uint64(tx.Expiration.UnixMilli())
 	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
@@ -523,7 +523,7 @@ func (t *Txm) cleanupLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			currentTimeMs := uint64(time.Now().UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
+			currentTimeMs := uint64(time.Now().UnixMilli())
 			finalizedLTs, expiredLTs := t.accountStore.CleanupAll(currentTimeMs)
 
 			if len(finalizedLTs) > 0 || len(expiredLTs) > 0 {

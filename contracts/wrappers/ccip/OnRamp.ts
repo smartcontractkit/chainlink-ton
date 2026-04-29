@@ -13,27 +13,23 @@ import {
   TupleItem,
 } from '@ton/core'
 
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
+
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import { asSnakedCell, fromSnakeData } from '../../src/utils'
-import { CellCodec } from '../utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { loadContractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
-export const FACILITY_ID = 181
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.OnRamp'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export const CONTRACT_VERSION = '1.6.0'
-
-export enum OnRampError {
-  UnknownDestChainSelector = ERROR_CODE,
-  Unauthorized,
-  SenderNotAllowed,
-}
 
 export type OnRampStorage = {
   id: bigint
@@ -661,7 +657,7 @@ export const opcodes = {
 }
 
 export enum Errors {
-  UnknownDestChainSelector = 18100, // Facility ID * 100
+  UnknownDestChainSelector = 13400, // Facility ID * 100
   Unauthorized,
   SenderNotAllowed,
   InvalidConfig,

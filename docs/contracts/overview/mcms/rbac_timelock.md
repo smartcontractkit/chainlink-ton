@@ -1,4 +1,11 @@
-# Chainlink TON - MCMCS - RBACTimelock
+---
+id: contracts-overview-mcms-rbac-timelock
+title: RBACTimelock
+sidebar_label: RBACTimelock
+sidebar_position: 2
+---
+
+# MCMCS - RBACTimelock
 
 ## Interface
 

@@ -1,0 +1,7 @@
+position: 4
+label: Libraries
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-overview-libraries-index

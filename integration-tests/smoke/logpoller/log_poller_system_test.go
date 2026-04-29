@@ -326,7 +326,7 @@ func Test_LogPoller_System(t *testing.T) {
 				// Verify each log has unique (TxHash, TxLT, MsgIndex)
 				seen := make(map[string]struct{})
 				for _, log := range logs {
-					key := string(log.TxHash[:]) + "-" + string(rune(log.TxLT)) + "-" + string(rune(log.MsgIndex))
+					key := string(log.TxHash[:]) + "-" + string(rune(log.TxLT)) + "-" + string(rune(log.MsgIndex)) //nolint:gosec // G115 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 					require.NotContains(t, seen, key, "duplicate log found")
 					seen[key] = struct{}{}
 				}

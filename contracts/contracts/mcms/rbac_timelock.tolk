@@ -575,7 +575,7 @@ const DEFAULT_FINALIZATION_TIMEOUT = 10; // in seconds
 /// Error codes used by the Timelock contract.
 enum Timelock_Error {
     /// Thrown when trying to schedule an operation which contains a blocked function selector.
-    SelectorIsBlocked = 19300 // Timelock<T>.errorCode(0)
+    SelectorIsBlocked = 60600 // Timelock<T>.errorCode(0)
 
     /// Thrown when trying to execute an operation which is not ready yet.
     OperationNotReady
@@ -619,9 +619,9 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
-///     errorCode(0) == 19300
+///     errorCode(0) == 60600
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.mcms.Timelock"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.mcms.Timelock"), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.
@@ -1247,7 +1247,6 @@ fun Timelock<T>.submitErrorReport(
     // Mark op in error state (recover with new op + bypass)
     self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
-    // TODO: notify everyone in the batch about the error (message)
     //   - opportunity to rollback, not currently supported
 
     // Check the reported error against the stored pending operation
@@ -1471,7 +1470,6 @@ fun onBouncedMessage(in: InMessageBounced) {
     timelock.data.opPendingInfo.validAfter = blockchain.now(); // mark op as final
     timelock.data.opPendingInfo.opPendingCalls.set(fingerprint, false); // mark op pendingCalls as final/bounced
 
-    // TODO: notify everyone in the batch about the error (message)
     //   - opportunity to rollback, not currently supported
 
     // Store the updated contract data
@@ -1544,7 +1542,7 @@ fun Timelock_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.mcms.Timelock", CONTRACT_VERSION);
+    return ("link.chain.ton.mcms.Timelock", CONTRACT_VERSION);
 }
 
 /// @see <Timelock<T>.getId>

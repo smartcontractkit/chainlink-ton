@@ -3,22 +3,22 @@ package changesets
 import (
 	"fmt"
 
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	utilscs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
-	utilsmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+	ccipdcs "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
+	ccipdmcms "github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	resolversd "github.com/smartcontractkit/chainlink-ton/deployment/pkg/codec/resolvers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opston "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 var _ cldf.ChangeSetV2[OpsAnySequence] = opsAnySequence{}
@@ -29,21 +29,25 @@ type OpsAnySequence struct {
 	Options       opsmcms.TimelockOpts    `json:"options"`
 
 	// MCMS input configuration required to create proposals
-	MCMS utilsmcms.Input `json:"mcms"`
+	MCMS ccipdmcms.Input `json:"mcms"`
 }
 
 // opsAnySequence deploys MCMS packages and modules
 type opsAnySequence struct {
-	rregistry codec.ResolverRegistry
+	rregistry        codec.ResolverRegistry
+	contractProvider opston.ContractCodeProvider
 }
 
 func NewOpsAnySequence(registry tvm.ContractTLBRegistry, provider opston.ContractCodeProvider) cldf.ChangeSetV2[OpsAnySequence] {
 	return opsAnySequence{
+		// Register static resolvers
 		rregistry: *codec.NewResolverRegistry(
+			codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(registry)),
 			codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(registry)),
 			codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(registry)),
 			codec.NewTypedResolver(resolversd.NewContractToCellResolver(provider)),
 		),
+		contractProvider: provider,
 	}
 }
 
@@ -53,6 +57,16 @@ func (cs opsAnySequence) VerifyPreconditions(_ cldf.Environment, _ OpsAnySequenc
 
 func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.ChangesetOutput, error) {
 	selector := in.Options.ChainSelector
+
+	chain := env.BlockChains.TonChains()[uint64(selector)]
+
+	// Register environment-specific resolvers
+	cs.rregistry.Register(
+		codec.NewTypedResolver(resolversd.NewTonAddrResolver(uint64(selector), env.DataStore)),
+	)
+	cs.rregistry.Register(
+		codec.NewTypedResolver(resolversd.NewTopUpResolver(uint64(selector), env.DataStore, chain)),
+	)
 
 	stateCCIP, err := state.LoadOnchainState(env)
 	if err != nil {
@@ -65,13 +79,12 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load MCMS onchain state: %w", err)
 	}
 
-	chain := env.BlockChains.TonChains()[uint64(selector)]
-
 	// Create the dependencies provider - supplies chain and other dependencies to ops/sequences
 	dp, err := dep.NewDependencyProvider(
 		dep.Provide(chain),
 		dep.Provide(stateCCIP[uint64(selector)]),
 		dep.Provide(stateMCMS[uint64(selector)]),
+		dep.Provide(cs.contractProvider),
 	)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to create dependency provider: %w", err)
@@ -89,7 +102,7 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 
 	// Execute the (any) sequence based on the provided input
 	b := env.OperationsBundle
-	r, err := operations.ExecuteSequence(b, opsmcms.TimelockAnySequence, dp, opsmcms.TimelockAnySequenceInput{
+	r, err := cldfops.ExecuteSequence(b, opsmcms.TimelockAnySequence, dp, opsmcms.TimelockAnySequenceInput{
 		AnySequenceIn: in.AnySequenceIn,
 		Options:       in.Options,
 	})
@@ -99,9 +112,9 @@ func (cs opsAnySequence) Apply(env cldf.Environment, in OpsAnySequence) (cldf.Ch
 
 	// TODO (ops/deploy): check outputs for deployed addresses and update dataStore.Addresses()
 	// Use data store to track new deployed addresses
-	dataStore := ds.NewMemoryDataStore()
+	dataStore := cldfds.NewMemoryDataStore()
 
-	return utilscs.NewOutputBuilder(env, utilscs.GetRegistry()).
+	return ccipdcs.NewOutputBuilder(env, ccipdcs.GetRegistry()).
 		WithReports(r.ExecutionReports).
 		WithDataStore(dataStore).
 		WithBatchOps(r.Output.GetPlans()).

@@ -52,7 +52,7 @@ func ManyCellsFrom[T any](values []T) ([]*Cell[T], error) {
 // a pointer to a value type, not a pointer to a pointer.
 func (c *Cell[T]) ToValue() (T, error) {
 	var v T
-	err := tlb.LoadFromCell(&v, c.ToCell().BeginParse())
+	err := tlb.LoadFromCell(&v, c.MustToCell().BeginParse())
 	if err != nil {
 		// Provide a hint if the error might be due to using a pointer type
 		if reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Ptr {
@@ -64,8 +64,28 @@ func (c *Cell[T]) ToValue() (T, error) {
 	return v, nil
 }
 
-func (c *Cell[T]) ToCell() *cell.Cell {
+// ToCell implements the tlb.Marshaller interface
+func (c *Cell[T]) ToCell() (*cell.Cell, error) {
+	return (*cell.Cell)(c), nil
+}
+
+func (c *Cell[T]) MustToCell() *cell.Cell {
 	return (*cell.Cell)(c)
+}
+
+// LoadFromCell implements the tlb.Unmarshaller interface
+func (c *Cell[T]) LoadFromCell(loader *cell.Slice) error {
+	if loader == nil {
+		return nil
+	}
+
+	_c, err := loader.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+
+	*c = Cell[T](*_c)
+	return nil
 }
 
 func (c *Cell[T]) UnmarshalJSON(data []byte) error {
@@ -79,5 +99,5 @@ func (c *Cell[T]) UnmarshalJSON(data []byte) error {
 }
 
 func (c *Cell[T]) MarshalJSON() ([]byte, error) {
-	return c.ToCell().MarshalJSON()
+	return c.MustToCell().MarshalJSON()
 }

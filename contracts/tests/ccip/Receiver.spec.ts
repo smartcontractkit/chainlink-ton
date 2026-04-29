@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, toNano } from '@ton/core'
+import { Address, beginCell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
@@ -13,6 +13,28 @@ import * as rt from '../../wrappers/ccip/Router'
 import { assertLog } from '../Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+
+async function deployReceiverContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+) {
+  const code = await tr.Receiver.code()
+  let data: tr.Storage = {
+    id: generateRandomContractId(),
+    ownable: {
+      owner: owner.address,
+      pendingOwner: null,
+    },
+    authorizedCaller: owner.address,
+    behavior: tr.ReceiverBehavior.Accept,
+  }
+
+  const contract = blockchain.openContract(tr.Receiver.createFromConfig(data, code))
+  const deployer = await blockchain.treasury('deployer')
+  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+  return contract
+}
 
 const ccipReceiveSampleMessage: r.CCIPReceive = {
   rootId: BigInt(1),
@@ -37,6 +59,17 @@ describe('Receiver - Opcodes', () => {
     expect(tr.opcodes.in.updateBehavior).toBe(crc32('TestReceiver_UpdateBehavior'))
     expect(tr.opcodes.in.updateAuthorizedCaller).toBe(crc32('TestReceiver_UpdateAuthorizedCaller'))
   })
+})
+
+describe('Receiver - Current Version Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: tr.Receiver.type(),
+    currentVersion: tr.Receiver.version(),
+    getCurrentCode: () => tr.Receiver.code(),
+    CurrentVersionConstructor: tr.Receiver,
+    deployCurrentContract: deployReceiverContract,
+  })
+  currentVersionSpec.run()
 })
 
 describe('Receiver', () => {
@@ -90,7 +123,7 @@ describe('Receiver', () => {
     const errorCode = await receiver.getErrorCode(0n)
 
     expect(id).toBeDefined()
-    expect(authorizedCaller.toString()).toEqual(deployer.address.toString())
+    expect(authorizedCaller).toEqual(deployer.address)
     expect(facilityId).toEqual(BigInt(tr.FACILITY_ID))
     expect(errorCode).toEqual(BigInt(tr.ERROR_CODE))
   })
@@ -257,5 +290,41 @@ describe('Receiver', () => {
       aborted: true,
       exitCode: -14,
     })
+  })
+
+  it('should keep original balance after succesfully receiving', async () => {
+    const contract = await blockchain.getContract(receiver.address)
+    const initialBalance = contract.balance
+
+    const result = await receiver.sendCCIPReceive(
+      deployer.getSender(),
+      toNano('1'),
+      ccipReceiveSampleMessage,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+      deploy: false,
+      body: tr.builder.message.in.ccipReceive.encode(ccipReceiveSampleMessage).asCell(),
+    })
+
+    const tx = result.transactions.find(
+      (tx) =>
+        tx.inMessage &&
+        tx.inMessage.info.src &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(deployer.address) &&
+        tx.inMessage.info.dest &&
+        tx.inMessage.info.dest instanceof Address &&
+        tx.inMessage.info.dest.equals(receiver.address),
+    )
+    if (!tx || tx.description.type != 'generic') {
+      throw new Error('Expected an internal message')
+    }
+    const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
+
+    const finalBalance = (await blockchain.getContract(receiver.address)).balance
+    expect(finalBalance).toEqual(initialBalance - storageFees)
   })
 })

@@ -8,16 +8,17 @@ import "storage"
 import "../common/types";
 import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
-import "../../deployable/types";
+import "../../lib/deployable/types";
+import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 import "../../lib/utils";
 import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
-import "../../lib/funding/withdrawable"
-import "../../lib/versioning/upgradeable"
 
-const CONTRACT_VERSION = "1.6.0";
-const RESERVE = ton("1"); // TODO: set correct value
+const CONTRACT_VERSION_PREV = "1.6.0";
+const CONTRACT_VERSION = "1.6.1";
+const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -387,8 +388,6 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             // plus remaining accounts specified in Sui extraArgs. Each receiverObjectId is 32 bytes.
             suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
         }
-
-        // TODO: tokenReceiver validation
          
         assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
@@ -418,8 +417,6 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
             // plus remaining accounts specified in SVM extraArgs. Each account is 32 bytes.
             svmExpandedDataLength += ((accountsLength + SVM_MESSAGING_ACCOUNTS_OVERHEAD) * SVM_ACCOUNT_BYTE_SIZE);
         }
-         
-        // TODO: tokenReceiver validation
 
         assert (accountsLength <= SVM_EXTRA_ARGS_MAX_ACCOUNTS) throw FeeQuoter_Error.TooManySuiExtraArgsReceiverObjectIds;
 
@@ -536,7 +533,8 @@ fun sendExcessesTo(sendExcessesTo: address?, sender: address) {
         dest: receiver,
         body: createEmptyCell(),
     });
-    returnExcesses.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reserveToncoinsOnBalance(0, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    returnExcesses.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 get fun tokenPrice(token: address): TimestampedPrice {
@@ -648,7 +646,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.FeeQuoter"), local);
 }
 
 get fun destChainSelectors(): tuple? {
@@ -662,7 +660,15 @@ get fun reserve(): coins {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell {
+    val NEW_THRESHOLD = 24 * 60 * 60; //  86400 seconds = 24 hours
+
+    assert (version.bitsEqual(CONTRACT_VERSION_PREV)) throw Upgradeable_Error.VersionMismatch;
+    var st = Storage.fromCell(storage);
+    st.tokenPriceStalenessThreshold = NEW_THRESHOLD; 
+    
+    return st.toCell();
+}
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

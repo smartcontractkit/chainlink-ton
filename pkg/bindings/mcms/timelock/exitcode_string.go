@@ -8,18 +8,18 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorSelectorIsBlocked-19300]
-	_ = x[ErrorOperationNotReady-19301]
-	_ = x[ErrorOperationMissingDependency-19302]
-	_ = x[ErrorOperationCannotBeCancelled-19303]
-	_ = x[ErrorOperationAlreadyScheduled-19304]
-	_ = x[ErrorInsufficientDelay-19305]
-	_ = x[ErrorPendingOperationNotFinal-19306]
-	_ = x[ErrorInsufficientValue-19307]
-	_ = x[ErrorOperationNotDone-19308]
-	_ = x[ErrorContractAlreadyInitialized-19309]
-	_ = x[ErrorContractNotInitialized-19310]
-	_ = x[InsufficientFee-19311]
+	_ = x[ErrorSelectorIsBlocked-60600]
+	_ = x[ErrorOperationNotReady-60601]
+	_ = x[ErrorOperationMissingDependency-60602]
+	_ = x[ErrorOperationCannotBeCancelled-60603]
+	_ = x[ErrorOperationAlreadyScheduled-60604]
+	_ = x[ErrorInsufficientDelay-60605]
+	_ = x[ErrorPendingOperationNotFinal-60606]
+	_ = x[ErrorInsufficientValue-60607]
+	_ = x[ErrorOperationNotDone-60608]
+	_ = x[ErrorContractAlreadyInitialized-60609]
+	_ = x[ErrorContractNotInitialized-60610]
+	_ = x[InsufficientFee-60611]
 }
 
 const _ExitCode_name = "ErrorSelectorIsBlockedErrorOperationNotReadyErrorOperationMissingDependencyErrorOperationCannotBeCancelledErrorOperationAlreadyScheduledErrorInsufficientDelayErrorPendingOperationNotFinalErrorInsufficientValueErrorOperationNotDoneErrorContractAlreadyInitializedErrorContractNotInitializedInsufficientFee"
@@ -27,8 +27,8 @@ const _ExitCode_name = "ErrorSelectorIsBlockedErrorOperationNotReadyErrorOperati
 var _ExitCode_index = [...]uint16{0, 22, 44, 75, 106, 136, 158, 187, 209, 230, 261, 288, 303}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 19300
-	if i < 19300 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 60600
+	if i < 60600 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

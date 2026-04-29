@@ -65,7 +65,7 @@ describe('OnRamp - Get Fee', () => {
     // 3. get validated fee from fee quoter
 
     const queriedFeeQuoter = await onramp.getFeeQuoter(CHAINSEL_EVM_TEST_90000002) // We don't validate chain selector here yet. We might enable different fee quoters per chain later.
-    expect(queriedFeeQuoter.equals(mockFeeQuoter.address)).toBe(true)
+    expect(queriedFeeQuoter).toEqual(mockFeeQuoter.address)
   })
 
   it('should forward get fee to fee quoter', async () => {

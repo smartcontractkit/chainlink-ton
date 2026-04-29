@@ -11,18 +11,20 @@ import {
   Slice,
 } from '@ton/core'
 
-import { CellCodec } from '../utils'
-import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { crc32 } from 'zlib'
+import { errorCode, facilityId, CellCodec } from '../utils'
 import { loadContractCode } from '../codeLoader'
+
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
 export const CONTRACT_VERSION = '1.6.0'
 
-export const FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
-export const FACILITY_ID = 479
-export const ERROR_CODE = FACILITY_ID * 100
+export const FACILITY_NAME = 'link.chain.ton.ccip.MerkleRoot'
+export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
+export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
 export enum MerkleRootError {
-  AlreadyExecuted = ERROR_CODE, // Facility ID * 100
+  AlreadyExecuted = 18600, // Facility ID * 100
   NotOwner,
   ManualExecutionNotYetEnabled,
   SkippedAlreadyExecutedMessage,

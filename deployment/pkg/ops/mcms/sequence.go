@@ -55,40 +55,31 @@ func (o TimelockAnySequenceOutput) GetPlans() []types.BatchOperation {
 }
 
 func timelockAnySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in TimelockAnySequenceInput) (TimelockAnySequenceOutput, error) {
-	// Check if any of the inputs requests planning only (this requires MCMS state)
-	plannerOptionSet := false
-	for _, input := range in.AnySequenceIn.Inputs {
-		po, ok := input.(opston.PlannerOption)
-		if ok && po.IsPlan() {
-			plannerOptionSet = true
-			break
-		}
-	}
-
 	// Execute the (any) sequence based on the provided input
 	r, err := operations.ExecuteSequence(b, opston.AnySequence, dp, in.AnySequenceIn)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to execute (underlying) any sequence: %w", err)
 	}
 
-	// Return early if no planning requested
-	if !plannerOptionSet {
-		return TimelockAnySequenceOutput{
-			BatchOps:     []types.BatchOperation{},
-			Transactions: r.Output.Transactions,
-		}, nil
+	out := TimelockAnySequenceOutput{
+		BatchOps:     []types.BatchOperation{},
+		Transactions: r.Output.Transactions,
 	}
 
-	msgs := opston.AsCells(r.Output.GetPlans())
+	plans := r.Output.GetPlans()
+	if len(plans) == 0 {
+		return out, nil
+	}
+
+	msgs := opston.AsCells(plans)
 	batchOp, err := RawPlanCellsToBatch(in.Options.ChainSelector, msgs, in.Options.OpsMetadata)
 	if err != nil {
 		return TimelockAnySequenceOutput{}, fmt.Errorf("failed to convert plans to batch operation: %w", err)
 	}
 
-	return TimelockAnySequenceOutput{
-		BatchOps:     []types.BatchOperation{batchOp},
-		Transactions: nil,
-	}, nil
+	out.BatchOps = append(out.BatchOps, batchOp)
+
+	return out, nil
 }
 
 // RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.

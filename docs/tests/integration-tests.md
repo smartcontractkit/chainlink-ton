@@ -1,3 +1,10 @@
+---
+id: tests-integration-tests
+title: Integration Tests
+sidebar_label: Integration Tests
+sidebar_position: 3
+---
+
 # Chainlink-TON Integration Tests
 
 <!-- TODO: Document the setup process for Chainlink-TON chain component integration tests -->

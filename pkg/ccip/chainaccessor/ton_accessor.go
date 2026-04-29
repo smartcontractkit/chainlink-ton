@@ -62,10 +62,10 @@ const (
 )
 
 type TONAccessor struct {
-	lggr          logger.Logger
-	chainSelector ccipocr3.ChainSelector
-	client        ton.APIClientWrapped
-	logPoller     logpoller.Service
+	lggr           logger.Logger
+	chainSelector  ccipocr3.ChainSelector
+	clientProvider func(context.Context) (ton.APIClientWrapped, error)
+	logPoller      logpoller.Service
 	// Note: we might need to update this in the future to map[string][]address.Address
 	// to support multi-bind addresses for the price aggregator contract: smartcontractkit/chainlink-ccip@main/pkg/contractreader/extended.go#L77-L79
 	bindings   map[string]*address.Address
@@ -78,19 +78,19 @@ var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
 func NewTONAccessor(
 	lggr logger.Logger,
 	chainSelector ccipocr3.ChainSelector,
-	client ton.APIClientWrapped,
+	clientProvider func(context.Context) (ton.APIClientWrapped, error),
 	logPoller logpoller.Service,
 	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	sLggr := logger.Sugared(lggr).Named("TONAccessor").Named(chainSelector.String())
 	return &TONAccessor{
-		lggr:          sLggr,
-		chainSelector: chainSelector,
-		client:        client,
-		logPoller:     logPoller,
-		bindings:      make(map[string]*address.Address),
-		bindingsMu:    sync.RWMutex{},
-		addrCodec:     addrCodec,
+		lggr:           sLggr,
+		chainSelector:  chainSelector,
+		clientProvider: clientProvider,
+		logPoller:      logPoller,
+		bindings:       make(map[string]*address.Address),
+		bindingsMu:     sync.RWMutex{},
+		addrCodec:      addrCodec,
 	}, nil
 }
 
@@ -98,7 +98,11 @@ func NewTONAccessor(
 // It ensures the returned block belongs to the masterchain (workchain -1) to prevent
 // a compromised TON node from injecting base workchain data.
 func (a *TONAccessor) getCurrentMasterchainBlock(ctx context.Context) (*ton.BlockIDExt, error) {
-	block, err := a.client.CurrentMasterchainInfo(ctx)
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
@@ -411,7 +415,12 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
+
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	result, err := client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
 	if err != nil {
 		return 0, err
 	}
@@ -448,8 +457,12 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
 
-	timestampedPrice, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetTokenPrice, tokenAddress)
+	timestampedPrice, err := tvm.CallGetter(ctx, client, block, addr, feequoter.GetTokenPrice, tokenAddress)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
@@ -468,7 +481,13 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
-	cfg, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetDestChainConfig, uint64(dest))
+
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return ccipocr3.FeeQuoterDestChainConfig{}, fmt.Errorf("failed to get TON client: %w", err)
+	}
+
+	cfg, err := tvm.CallGetter(ctx, client, block, addr, feequoter.GetDestChainConfig, uint64(dest))
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
@@ -780,8 +799,13 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TON client: %w", err)
+	}
+
 	for _, selector := range selectors {
-		gasPrice, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetDestinationChainGasPrice, uint64(selector))
+		gasPrice, err := tvm.CallGetter(ctx, client, block, addr, feequoter.GetDestinationChainGasPrice, uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		var execError ton.ContractExecError
 		if errors.As(err, &execError) && execError.Code == int32(feequoter.ErrorUnknownDestChainSelector) {
@@ -829,7 +853,11 @@ func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (ccipocr3.SeqNum,
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber")
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get TON client: %w", err)
+	}
+	result, err := client.RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber")
 	if err != nil {
 		return 0, err
 	}
@@ -873,6 +901,11 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
+	client, err := a.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TON client: %w", err)
+	}
+
 	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
 	for _, token := range tokens {
 		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
@@ -884,7 +917,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 			return nil, fmt.Errorf("failed to ParseAddr %s for encodedTokens: %w", strAddr, err2)
 		}
 
-		tokenPrice, err := tvm.CallGetter(ctx, a.client, block, addr, feequoter.GetTokenPrice, addrParsed)
+		tokenPrice, err := tvm.CallGetter(ctx, client, block, addr, feequoter.GetTokenPrice, addrParsed)
 		if err != nil {
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 			var execError ton.ContractExecError

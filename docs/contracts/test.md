@@ -1,4 +1,11 @@
-# Chainlink TON - Smart Contracts - Test
+---
+id: contracts-test
+title: Test
+sidebar_label: Test
+sidebar_position: 5
+---
+
+# Running Contract Tests
 
 ## Run the unit tests
 
@@ -12,5 +19,5 @@ yarn build
 # If skipped, test will fall back to just-in-time compilation
 
 # Run the Blueprint unit tests
-yarn test
+nix develop .#contracts -c yarn test
 ```

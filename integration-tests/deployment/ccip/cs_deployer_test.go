@@ -16,6 +16,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"google.golang.org/grpc"
 
+	evmdeploy "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/deploy"
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	cs_ccip "github.com/smartcontractkit/chainlink-ccip/deployment/utils/changesets"
@@ -46,13 +47,13 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/common/types"
 
+	"github.com/smartcontractkit/chainlink-common/keystore/corekeys/p2pkey"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	ccipcaptypes "github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/types"
-	"github.com/smartcontractkit/chainlink/v2/core/services/keystore/keys/p2pkey"
 
 	mocks "github.com/smartcontractkit/chainlink-ton/deployment/mocks/client"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils/sequence"
+	deployutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	_ "github.com/smartcontractkit/chainlink-ton/deployment/ccip/1_6_0/sequences" // Register TON adapter
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -197,7 +198,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	t.Log("EVM Chain Selector:", evmSelector)
 	t.Log("TON Chain Selector:", tonSelector)
 
-	version := sequence.ContractsVersionLocal
+	version := deployutils.ContractsVersionLocal
 
 	// Testing DeployContracts from Tooling API, and SetOCR3Config, without calling AddLane
 	dReg := deployops.GetRegistry()
@@ -395,7 +396,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 
 	// Finally, test SetOCR3Config from tooling deployer API
 	mcmsRegistry := cs_ccip.GetRegistry()
-	_, err = deployops.SetOCR3Config(dReg, mcmsRegistry).Apply(env, deployops.SetOCR3ConfigArgs{
+	_, err = evmdeploy.SetOCR3Config(dReg, mcmsRegistry).Apply(env, deployops.SetOCR3ConfigArgs{
 		HomeChainSel:    evmSelector,
 		RemoteChainSels: tonChainSelectors,
 		ConfigType:      utils.ConfigTypeActive,
@@ -423,7 +424,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 	)
 	require.NoError(t, err)
 	addrCodec := codec.NewAddressCodec()
-	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(tonSelector), tonChain.Client, lp, addrCodec)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(tonSelector), clientProvider, lp, addrCodec)
 	require.NoError(t, err)
 
 	state, err := tonstate.LoadOnchainState(env)

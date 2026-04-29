@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import "../../deployable/types"
+import "types"
 
 const DeployableNamespace_CCIPSendExecutor: Namespace = 0;
 const DeployableNamespace_ReceiveExecutor: Namespace = 1;

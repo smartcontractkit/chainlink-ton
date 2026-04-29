@@ -2,12 +2,15 @@ package sequences
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms/types"
@@ -23,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
@@ -31,6 +35,8 @@ import (
 
 // TonLaneAdapter implements the lanes.LaneAdapter interface for TON chains.
 type TonLaneAdapter struct{}
+
+var _ lanes.LaneAdapter = &TonLaneAdapter{}
 
 func (a *TonLaneAdapter) GetOnRampAddress(ds datastore.DataStore, chainSelector uint64) ([]byte, error) {
 	return getOnRampAddress(ds, chainSelector)
@@ -48,12 +54,60 @@ func (a *TonLaneAdapter) GetRouterAddress(ds datastore.DataStore, chainSelector 
 	return getRouterAddress(ds, chainSelector)
 }
 
+func (a *TonLaneAdapter) GetFeeQuoterDestChainConfig() lanes.FeeQuoterDestChainConfig {
+	return lanes.FeeQuoterDestChainConfig{
+		IsEnabled:                   true,
+		MaxDataBytes:                2_000,
+		MaxPerMsgGasLimit:           4_200_000_000, // 4_200_000_000 nano TON = 4.2 TON
+		DestGasOverhead:             242_500,
+		DestGasPerPayloadByteBase:   42,
+		ChainFamilySelector:         config.TVMFamilySelector,
+		DefaultTokenFeeUSDCents:     0,
+		DefaultTokenDestGasOverhead: 0,
+		DefaultTxGasLimit:           100_000_000,
+		NetworkFeeUSDCents:          10,
+		V1Params: &lanes.FeeQuoterV1Params{
+			MaxNumberOfTokensPerMsg:           1,
+			DestGasPerPayloadByteHigh:         42,
+			DestGasPerPayloadByteThreshold:    0,
+			DestDataAvailabilityOverheadGas:   0,
+			DestGasPerDataAvailabilityByte:    0,
+			DestDataAvailabilityMultiplierBps: 0,
+			GasMultiplierWeiPerEth:            1e18,
+			GasPriceStalenessThreshold:        90_000,
+			EnforceOutOfOrder:                 true, // NOTE: TON's on-chain feequoter.DestChainConfig has no EnforceOutOfOrder field; this value is not propagated and TON effectively always enforces out-of-order.
+		},
+		V2Params: &lanes.FeeQuoterV2Params{
+			LinkFeeMultiplierPercent: 1,             // no-op for TON, but required non-zero for v2 config
+			USDPerUnitGas:            big.NewInt(1), // also no-op for TON, but required for v2 config
+		},
+	}
+}
+
+func (a *TonLaneAdapter) GetDefaultGasPrice() *big.Int {
+	// 1 TON ~2.13 USD -> 1 nanoTON = 2.13e-9 USD -> 1 nanoTON expressed in 1e18 (1 USD) = 2.13e9
+	return big.NewInt(2.12e9)
+}
+
+func (a *TonLaneAdapter) GetDefaultTokenPrices() map[datastore.ContractType]*big.Int {
+	defaultLinkPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(20), big.NewInt(1e18)), big.NewInt(1e9)) // 20 * 2e18 * 1e9 = 2e28
+	defaultTONPrice := new(big.Int).Mul(new(big.Int).Mul(big.NewInt(2), big.NewInt(1e18)), big.NewInt(1e9))   // 2e18 * 1e9 = 2e27, 2 is approx USD price of TON
+	return map[datastore.ContractType]*big.Int{
+		state.LinkToken: defaultLinkPrice,
+		state.TONNative: defaultTONPrice,
+	}
+}
+
 func (a *TonLaneAdapter) ConfigureLaneLegAsSource() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource
 }
 
 func (a *TonLaneAdapter) ConfigureLaneLegAsDest() *cldf_ops.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsDest
+}
+
+func (a *TonLaneAdapter) DisableRemoteChain() *cldf_ops.Sequence[lanes.DisableRemoteChainInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+	panic("DisableRemoteChain not implemented for TON")
 }
 
 var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
@@ -338,28 +392,33 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 
 // TODO change the operation input to lanes.UpdateLanesInput
 func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) []feequoter.UpdateDestChainConfig {
+	fqc := input.Dest.FeeQuoterDestChainConfig
+	var v1 lanes.FeeQuoterV1Params
+	if fqc.V1Params != nil {
+		v1 = *fqc.V1Params
+	}
 	return []feequoter.UpdateDestChainConfig{
 		{
 			DestinationChainSelector: input.Dest.Selector,
 			DestChainConfig: feequoter.DestChainConfig{
-				IsEnabled:                         input.Dest.FeeQuoterDestChainConfig.IsEnabled,
-				MaxNumberOfTokensPerMsg:           input.Dest.FeeQuoterDestChainConfig.MaxNumberOfTokensPerMsg,
-				MaxDataBytes:                      input.Dest.FeeQuoterDestChainConfig.MaxDataBytes,
-				MaxPerMsgGasLimit:                 input.Dest.FeeQuoterDestChainConfig.MaxPerMsgGasLimit,
-				DestGasOverhead:                   input.Dest.FeeQuoterDestChainConfig.DestGasOverhead,
-				DestGasPerPayloadByteBase:         input.Dest.FeeQuoterDestChainConfig.DestGasPerPayloadByteBase,
-				DestGasPerPayloadByteHigh:         input.Dest.FeeQuoterDestChainConfig.DestGasPerPayloadByteHigh,
-				DestGasPerPayloadByteThreshold:    input.Dest.FeeQuoterDestChainConfig.DestGasPerPayloadByteThreshold,
-				DestDataAvailabilityOverheadGas:   input.Dest.FeeQuoterDestChainConfig.DestDataAvailabilityOverheadGas,
-				DestGasPerDataAvailabilityByte:    input.Dest.FeeQuoterDestChainConfig.DestGasPerDataAvailabilityByte,
-				DestDataAvailabilityMultiplierBps: input.Dest.FeeQuoterDestChainConfig.DestDataAvailabilityMultiplierBps,
-				ChainFamilySelector:               input.Dest.FeeQuoterDestChainConfig.ChainFamilySelector,
-				DefaultTokenFeeUsdCents:           input.Dest.FeeQuoterDestChainConfig.DefaultTokenFeeUSDCents,
-				DefaultTokenDestGasOverhead:       input.Dest.FeeQuoterDestChainConfig.DefaultTokenDestGasOverhead,
-				DefaultTxGasLimit:                 input.Dest.FeeQuoterDestChainConfig.DefaultTxGasLimit,
-				GasMultiplierWeiPerEth:            input.Dest.FeeQuoterDestChainConfig.GasMultiplierWeiPerEth,
-				GasPriceStalenessThreshold:        input.Dest.FeeQuoterDestChainConfig.GasPriceStalenessThreshold,
-				NetworkFeeUsdCents:                input.Dest.FeeQuoterDestChainConfig.NetworkFeeUSDCents,
+				IsEnabled:                         fqc.IsEnabled,
+				MaxNumberOfTokensPerMsg:           v1.MaxNumberOfTokensPerMsg,
+				MaxDataBytes:                      fqc.MaxDataBytes,
+				MaxPerMsgGasLimit:                 fqc.MaxPerMsgGasLimit,
+				DestGasOverhead:                   fqc.DestGasOverhead,
+				DestGasPerPayloadByteBase:         fqc.DestGasPerPayloadByteBase,
+				DestGasPerPayloadByteHigh:         v1.DestGasPerPayloadByteHigh,
+				DestGasPerPayloadByteThreshold:    v1.DestGasPerPayloadByteThreshold,
+				DestDataAvailabilityOverheadGas:   v1.DestDataAvailabilityOverheadGas,
+				DestGasPerDataAvailabilityByte:    v1.DestGasPerDataAvailabilityByte,
+				DestDataAvailabilityMultiplierBps: v1.DestDataAvailabilityMultiplierBps,
+				ChainFamilySelector:               fqc.ChainFamilySelector,
+				DefaultTokenFeeUsdCents:           fqc.DefaultTokenFeeUSDCents,
+				DefaultTokenDestGasOverhead:       fqc.DefaultTokenDestGasOverhead,
+				DefaultTxGasLimit:                 fqc.DefaultTxGasLimit,
+				GasMultiplierWeiPerEth:            v1.GasMultiplierWeiPerEth,
+				GasPriceStalenessThreshold:        v1.GasPriceStalenessThreshold,
+				NetworkFeeUsdCents:                uint32(fqc.NetworkFeeUSDCents),
 			},
 		},
 	}
@@ -426,5 +485,3 @@ func intoUpdateRouterOfframpsConfig(input lanes.UpdateLanesInput) (operation.App
 		OffRampRemoves: nil,
 	}, nil
 }
-
-var _ lanes.LaneAdapter = &TonLaneAdapter{}

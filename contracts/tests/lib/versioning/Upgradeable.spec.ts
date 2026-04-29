@@ -5,7 +5,7 @@ import { errorCode } from '../../../wrappers/utils'
 describe('Upgradeable', () => {
   it('should compute error code', async () => {
     expect(upgradeable.Error.VersionMismatch).toBe(
-      errorCode(crc32('com.chainlink.ton.lib.versioning.Upgradeable'), 0),
+      errorCode(crc32('link.chain.ton.lib.versioning.Upgradeable')),
     )
   })
 

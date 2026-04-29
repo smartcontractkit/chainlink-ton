@@ -1,6 +1,7 @@
 package resolvers_test
 
 import (
+	"context"
 	"encoding/json"
 	"math/big"
 	"reflect"
@@ -11,10 +12,13 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	cldfds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/resolvers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
@@ -33,7 +37,7 @@ func must[E any](out E, err error) E {
 
 type fakeContractProvider struct{}
 
-func (f fakeContractProvider) GetContract(meta opston.ContractMetadata) (opston.CompiledContract, error) {
+func (f fakeContractProvider) GetContract(ctx context.Context, meta opston.ContractMetadata) (opston.CompiledContract, error) {
 	switch meta.Key() {
 	case "testpkg@1.0.0:Foo":
 		cell := cell.BeginCell().MustStoreInt(1, 32).EndCell()
@@ -72,7 +76,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -93,7 +97,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -119,7 +123,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -136,7 +140,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -157,7 +161,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -174,7 +178,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -182,6 +186,140 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 							Value: &ownable2step.TransferOwnership{
 								QueryID:  663255246267367818,
 								NewOwner: address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"),
+							},
+						},
+					},
+				},
+				Plan: false,
+			},
+		},
+
+		{
+			name: "should resolve router.RMNOwnableMessage[AcceptOwnership] msg",
+			input: map[string]any{
+				"messages": []any{
+					map[string]any{
+						"bounce":  false,
+						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001").String(),
+						"amount":  "0",
+						"body": map[string]any{
+							"resolver": "codec.resolvers.msg-envelope",
+							"data": map[string]any{
+								"contract": bindings.TypeRouter,
+								"type":     "RMNOwnableMessage",
+								"opcode":   "0xaf7a9ac6",
+								"payload": map[string]any{
+									"Content": map[string]any{
+										"resolver": "codec.resolvers.msg-envelope",
+										"data": map[string]any{
+											"contract": bindings.TypeOwnable,
+											"type":     "AcceptOwnership",
+											"opcode":   "0xf9e29e4a",
+											"payload": map[string]any{
+												"QueryID": 42,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"plan": false,
+			},
+			want: opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  false,
+						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
+						Amount:  tlb.MustFromTON("0"),
+						Body: &codec.MessageEnvelope[any]{
+							Metadata: codec.MessageMeta{
+								Contract: bindings.TypeRouter,
+								Opcode:   0xaf7a9ac6,
+								TypeName: "RMNOwnableMessage",
+								GoType:   reflect.TypeOf(&router.RMNOwnableMessage[ownable2step.AcceptOwnership]{}),
+							},
+							Value: router.RMNOwnableMessage[ownable2step.AcceptOwnership]{
+								Content: &codec.MessageEnvelope[ownable2step.AcceptOwnership]{
+									Metadata: codec.MessageMeta{
+										Contract: bindings.TypeOwnable,
+										Opcode:   0xf9e29e4a,
+										TypeName: "AcceptOwnership",
+										GoType:   reflect.TypeOf(ownable2step.AcceptOwnership{}),
+									},
+									Value: ownable2step.AcceptOwnership{
+										QueryID: 42,
+									},
+								},
+							},
+						},
+					},
+				},
+				Plan: false,
+			},
+		},
+
+		{
+			name: "should resolve router.RMNOwnableMessage[TransferOwnership] msg",
+			input: map[string]any{
+				"messages": []any{
+					map[string]any{
+						"bounce":  false,
+						"dstAddr": address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001").String(),
+						"amount":  "0",
+						"body": map[string]any{
+							"resolver": "codec.resolvers.msg-envelope",
+							"data": map[string]any{
+								"contract": bindings.TypeRouter,
+								"type":     "RMNOwnableMessage",
+								"opcode":   "0xaf7a9ac6",
+								"payload": map[string]any{
+									"Content": map[string]any{
+										"resolver": "codec.resolvers.msg-envelope",
+										"data": map[string]any{
+											"contract": bindings.TypeOwnable,
+											"type":     "TransferOwnership",
+											"opcode":   "0xf21b7da1",
+											"payload": map[string]any{
+												"QueryID":  42,
+												"NewOwner": "UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"plan": false,
+			},
+			want: opston.SendMessagesInput{
+				Messages: []opston.InternalMessage[any]{
+					{
+						Bounce:  false,
+						DstAddr: address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
+						Amount:  tlb.MustFromTON("0"),
+						Body: &codec.MessageEnvelope[any]{
+							Metadata: codec.MessageMeta{
+								Contract: bindings.TypeRouter,
+								Opcode:   0xaf7a9ac6,
+								TypeName: "RMNOwnableMessage",
+								GoType:   reflect.TypeOf(&router.RMNOwnableMessage[ownable2step.TransferOwnership]{}),
+							},
+							Value: router.RMNOwnableMessage[ownable2step.TransferOwnership]{
+								Content: &codec.MessageEnvelope[ownable2step.TransferOwnership]{
+									Metadata: codec.MessageMeta{
+										Contract: bindings.TypeOwnable,
+										Opcode:   0xf21b7da1,
+										TypeName: "TransferOwnership",
+										GoType:   reflect.TypeOf(ownable2step.TransferOwnership{}),
+									},
+									Value: ownable2step.TransferOwnership{
+										QueryID:  42,
+										NewOwner: address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ"),
+									},
+								},
 							},
 						},
 					},
@@ -200,7 +338,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.lib.access.Ownable",
+								"contract": bindings.TypeOwnable,
 								"type":     "TransferOwnership",
 								"opcode":   "0xf21b7da1",
 								"payload": map[string]any{
@@ -213,14 +351,13 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 							"code": map[string]any{
 								"resolver": "codec.resolvers.contract-meta-to-code-cell",
 								"data": map[string]any{
-									"package": "testpkg",
-									"version": "1.0.0",
+									"package": "testpkg@1.0.0",
 									"id":      "Foo",
 								},
 							},
 							"data": map[string]any{
 								"resolver": "codec.resolvers.contract-data-to-cell",
-								"contract": "com.chainlink.ton.mcms.Timelock",
+								"contract": bindings.TypeTimelock,
 								"data": map[string]any{
 									"ID":                       42,
 									"MinDelay":                 0,
@@ -232,6 +369,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 										"ValidAfter":            0,
 										"OpFinalizationTimeout": 0,
 										"OpPendingID":           0,
+										"OpPendingCalls":        tlbe.NewEmptyDict[*tlbe.Uint256, bool](),
 									},
 									"RBAC": map[string]any{
 										"Roles": []any{},
@@ -251,7 +389,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.lib.access.Ownable",
+								Contract: bindings.TypeOwnable,
 								Opcode:   0xf21b7da1,
 								TypeName: "TransferOwnership",
 								GoType:   reflect.TypeOf(&ownable2step.TransferOwnership{}),
@@ -281,7 +419,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						"body": map[string]any{
 							"resolver": "codec.resolvers.msg-envelope",
 							"data": map[string]any{
-								"contract": "com.chainlink.ton.mcms.MCMS",
+								"contract": bindings.TypeMCMS,
 								"type":     "Execute",
 								"opcode":   "0x9b9ce96a",
 								"payload": map[string]any{
@@ -295,15 +433,21 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 										"Data": map[string]any{
 											"resolver": "codec.resolvers.msg-envelope-to-cell",
 											"data": map[string]any{
-												"contract": "com.chainlink.ton.mcms.Timelock",
+												"contract": bindings.TypeTimelock,
 												"type":     "ScheduleBatch",
 												"opcode":   "0x094718f4",
 												"payload": map[string]any{
 													"QueryID": float64(31),
 													"Calls": []any{
 														map[string]any{
-															"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
-															"Value":  "500000000",
+															"Target": map[string]any{
+																"resolver": "codec.resolvers.address-ref-to-ton-addr",
+																"data": map[string]any{
+																	"type":      "RBACTimelock",
+																	"qualifier": "RMNMCMS",
+																},
+															},
+															"Value": "500000000",
 															"Data": must(
 																tlb.ToCell(Foo{
 																	Any: must(tlb.ToCell(Bar{Val: big.NewInt(42)})),
@@ -356,7 +500,7 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 						Amount:  tlb.MustFromTON("0"),
 						Body: &codec.MessageEnvelope[any]{
 							Metadata: codec.MessageMeta{
-								Contract: "com.chainlink.ton.mcms.MCMS",
+								Contract: bindings.TypeMCMS,
 								Opcode:   0x9b9ce96a,
 								TypeName: "Execute",
 								GoType:   reflect.TypeOf(&mcms.Execute{}),
@@ -399,11 +543,22 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			selector := uint64(13879075125137744094) // TON Localnet chain selector
+			ds := cldfds.NewMemoryDataStore()
+			err := ds.AddressRefStore.Add(cldfds.AddressRef{
+				Address:       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+				ChainSelector: selector,
+				Qualifier:     "RMNMCMS",
+				Type:          "RBACTimelock",
+			})
+			require.NoError(t, err)
+
 			registry := codec.NewResolverRegistry(
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewMsgEnvelopeToCellResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolvers.NewContractDataToCellResolver(bindings.Registry)),
 				codec.NewTypedResolver(resolversd.NewContractToCellResolver(fakeContractProvider{})),
+				codec.NewTypedResolver(resolversd.NewTonAddrResolver(selector, ds.Seal())),
 			)
 
 			resolved, err := registry.Resolve(tc.input)
@@ -417,10 +572,15 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 
 			// TODO: envelope Value fields are lost on marshal/unmarshal, need to load again for comparison
 			for i := range actual.Messages {
-				require.NoError(t, actual.Messages[i].Body.LoadDecoded(bindings.Registry), "load decoded message body")
 				// compare cell hashes to avoid comparing cell objects directly
 				// Notice: we do this b/c slight mismatch in Cell serialization refs: ([]*cell.Cell) <nil> vs {}
-				require.Equal(t, must(tc.want.Messages[i].Body.ToCell()).Hash(), must(actual.Messages[i].Body.ToCell()).Hash(), "message body cell hash mismatch")
+				a := must(tc.want.Messages[i].ToMessage())
+				b := must(actual.Messages[i].ToMessage())
+
+				t.Logf("WANTED: %+v\n", tc.want.Messages[i].Body)
+				t.Logf("ACTUAL: %+v\n", actual.Messages[i].Body)
+
+				require.Equal(t, a.Payload().Hash(), b.Payload().Hash(), "message body cell hash mismatch")
 				// zero out Body for comparison
 				tc.want.Messages[i].Body = &codec.MessageEnvelope[any]{}
 				actual.Messages[i].Body = &codec.MessageEnvelope[any]{}

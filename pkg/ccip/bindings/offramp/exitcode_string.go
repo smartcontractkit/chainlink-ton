@@ -8,24 +8,24 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorMessageNotFromOwnedContract-8400]
-	_ = x[ErrorSourceChainNotEnabled-8401]
-	_ = x[ErrorEmptyExecutionReport-8402]
-	_ = x[ErrorInvalidMessageDestChainSelector-8403]
-	_ = x[ErrorSourceChainSelectorMismatch-8404]
-	_ = x[ErrorInvalidOnRampUpdate-8405]
-	_ = x[ErrorInsufficientFee-8406]
-	_ = x[ErrorSubjectCursed-8407]
-	_ = x[ErrorUnauthorized-8408]
-	_ = x[ErrorZeroAddressNotAllowed-8409]
-	_ = x[ErrorTooManyMessagesInReport-8410]
-	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-8411]
-	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-8412]
-	_ = x[ErrorInvalidInterval-8413]
-	_ = x[ErrorBatchingNotSupported-8414]
-	_ = x[ErrorOnRampAddressMismatch-8415]
-	_ = x[ErrorEmptyCommitReport-8416]
-	_ = x[ErrorMerkleRootCannotBeZero-8417]
+	_ = x[ErrorMessageNotFromOwnedContract-22100]
+	_ = x[ErrorSourceChainNotEnabled-22101]
+	_ = x[ErrorEmptyExecutionReport-22102]
+	_ = x[ErrorInvalidMessageDestChainSelector-22103]
+	_ = x[ErrorSourceChainSelectorMismatch-22104]
+	_ = x[ErrorInvalidOnRampUpdate-22105]
+	_ = x[ErrorInsufficientFee-22106]
+	_ = x[ErrorSubjectCursed-22107]
+	_ = x[ErrorUnauthorized-22108]
+	_ = x[ErrorZeroAddressNotAllowed-22109]
+	_ = x[ErrorTooManyMessagesInReport-22110]
+	_ = x[ErrorSignatureVerificationRequiredInCommitPlugin-22111]
+	_ = x[ErrorSignatureVerificationNotAllowedInExecutionPlugin-22112]
+	_ = x[ErrorInvalidInterval-22113]
+	_ = x[ErrorBatchingNotSupported-22114]
+	_ = x[ErrorOnRampAddressMismatch-22115]
+	_ = x[ErrorEmptyCommitReport-22116]
+	_ = x[ErrorMerkleRootCannotBeZero-22117]
 }
 
 const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabledErrorEmptyExecutionReportErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorInvalidOnRampUpdateErrorInsufficientFeeErrorSubjectCursedErrorUnauthorizedErrorZeroAddressNotAllowedErrorTooManyMessagesInReportErrorSignatureVerificationRequiredInCommitPluginErrorSignatureVerificationNotAllowedInExecutionPluginErrorInvalidIntervalErrorBatchingNotSupportedErrorOnRampAddressMismatchErrorEmptyCommitReportErrorMerkleRootCannotBeZero"
@@ -33,8 +33,8 @@ const _ExitCode_name = "ErrorMessageNotFromOwnedContractErrorSourceChainNotEnabl
 var _ExitCode_index = [...]uint16{0, 32, 58, 83, 119, 151, 175, 195, 213, 230, 256, 284, 332, 385, 405, 430, 456, 478, 505}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 8400
-	if i < 8400 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 22100
+	if i < 22100 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

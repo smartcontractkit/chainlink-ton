@@ -1,15 +1,19 @@
 package ton // alias: opston
 
 import (
-	"errors"
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/config"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tlbe"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -23,13 +27,14 @@ var (
 	_ PlannerOption           = SendMessagesInput{}
 	_ Planner[MessagePlanRaw] = SendMessagesOutput{}
 	_ MessageSender           = SendMessagesOutput{}
+
+	DefaultWaitDuration = config.MustNewDuration(60 * time.Second)
 )
 
 type SendMessagesInput struct {
 	Messages []InternalMessage[any] `json:"messages"`
 	Plan     bool                   `json:"plan"`
-
-	// TODO: add WaitTrace option
+	Wait     *config.Duration       `json:"wait,omitempty"` // optional wait time after sending messages (trace tracking)
 }
 
 func (in SendMessagesInput) IsPlan() bool {
@@ -64,6 +69,10 @@ var SendMessages = cldf_ops.NewOperation(
 				return SendMessagesOutput{}, fmt.Errorf("failed to convert internal message to message: %w", err)
 			}
 
+			if _im.Amount.IsZero() {
+				continue // skip zero-value messages (no-op)
+			}
+
 			opcode, err := tvm.ExtractOpcode(_im.Body)
 			if err != nil {
 				return SendMessagesOutput{}, fmt.Errorf("failed to extract opcode from message body: %w", err)
@@ -71,12 +80,6 @@ var SendMessages = cldf_ops.NewOperation(
 
 			if _im.DstAddr == nil || _im.DstAddr.IsAddrNone() || _im.DstAddr.Equals(tvm.ZeroAddress) {
 				return SendMessagesOutput{}, fmt.Errorf("internal message (%x) destination cannot be nil or zero address", opcode)
-			}
-
-			if _im.Body == nil || tvm.CellEquals(_im.Body, tvm.EmptyCell) {
-				if !m.Bounce {
-					return SendMessagesOutput{}, errors.New("empty body messages must have bounce enabled")
-				}
 			}
 
 			_imc, err := tlbe.NewCellFrom(*_im)
@@ -99,7 +102,7 @@ var SendMessages = cldf_ops.NewOperation(
 			return SendMessagesOutput{Plans: plans}, nil // return early on plan
 		}
 
-		out, err := cldf_ops.ExecuteOperation(b, SendMessagesRaw, dp, SendMessagesRawInput{Messages: msgs})
+		out, err := cldf_ops.ExecuteOperation(b, SendMessagesRaw, dp, SendMessagesRawInput{Messages: msgs, Wait: in.Wait})
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to send messages: %w", err)
 		}
@@ -110,6 +113,7 @@ var SendMessages = cldf_ops.NewOperation(
 
 type SendMessagesRawInput struct {
 	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
+	Wait     *config.Duration                  `json:"wait,omitempty"` // optional wait time after sending messages (trace tracking)
 }
 
 var SendMessagesRaw = cldf_ops.NewOperation(
@@ -122,6 +126,14 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 		n := len(in.Messages)
 		msgs := make([]*wallet.Message, 0, n)
 
+		wait := DefaultWaitDuration
+		if in.Wait != nil {
+			wait = in.Wait
+		}
+
+		// Check total value against account balance before sending
+		valueTotal := &tlb.ZeroCoins
+
 		for _, m := range in.Messages {
 			_im, err := m.ToValue()
 			if err != nil {
@@ -132,11 +144,30 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 				Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
 				InternalMessage: &_im,
 			})
+
+			valueTotal, err = valueTotal.Add(&_im.Amount)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to add message amount: %w", err)
+			}
 		}
 
 		chain, err := dep.Resolve[cldf_ton.Chain](dp)
 		if err != nil {
 			return SendMessagesOutput{}, fmt.Errorf("failed to resolve chain: %w", err)
+		}
+
+		block, err := chain.Client.CurrentMasterchainInfo(ctx)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to get masterchain info: %w", err)
+		}
+
+		balance, err := chain.Wallet.GetBalance(ctx, block)
+		if err != nil {
+			return SendMessagesOutput{}, fmt.Errorf("failed to get wallet balance: %w", err)
+		}
+
+		if balance.Compare(valueTotal) < 0 {
+			return SendMessagesOutput{}, fmt.Errorf("insufficient account balance to send messages: balance %s, total value %s", balance.String(), valueTotal.String())
 		}
 
 		b.Logger.Infow("Sending messages", "msgs", msgs)
@@ -148,9 +179,19 @@ var SendMessagesRaw = cldf_ops.NewOperation(
 
 		b.Logger.Infow("Transaction sent", "blockID", block, "tx", _tx)
 
-		err = tracetracking.WaitForTrace(ctx, chain.Client, _tx)
-		if err != nil {
-			return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
+		// Wait for the transaction to be processed, if wait time is specified (trace tracking)
+		if !wait.IsInstant() {
+			// Timeout context to prevent waiting indefinitely
+			// Notice: on timeout, we return an error
+			ctxWithTimeout, cancel := context.WithTimeout(ctx, wait.Duration())
+			defer cancel()
+
+			// Notice: we use the default trace stop condition which won't error on compute phase skip (uninitialized accounts),
+			// for a few specific cases (e.g. empty messages, access control forward notifications)
+			err = tracetracking.WaitForTrace(ctxWithTimeout, chain.Client, _tx, bindings.DefaultTraceStopCondition)
+			if err != nil {
+				return SendMessagesOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
+			}
 		}
 
 		tx, err := tlbe.NewCellFrom(*_tx)

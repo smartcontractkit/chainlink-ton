@@ -8,22 +8,22 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrorBigFMustBePositive-3100]
-	_ = x[ErrorStaticConfigCannotBeChanged-3101]
-	_ = x[ErrorTooManySigners-3102]
-	_ = x[ErrorBigFTooHigh-3103]
-	_ = x[ErrorTooManyTransmitters-3104]
-	_ = x[ErrorNoTransmitters-3105]
-	_ = x[ErrorRepeatedSigners-3106]
-	_ = x[ErrorRepeatedTransmitters-3107]
-	_ = x[ErrorConfigDigestMismatch-3108]
-	_ = x[ErrorUnauthorizedTransmitter-3109]
-	_ = x[ErrorWrongNumberOfSignatures-3110]
-	_ = x[ErrorUnauthorizedSigner-3111]
-	_ = x[ErrorNonUniqueSignatures-3112]
-	_ = x[ErrorInvalidSignature-3113]
-	_ = x[ErrorNonExistentOcrPluginType-3114]
-	_ = x[ErrorNoSigners-3115]
+	_ = x[ErrorBigFMustBePositive-54500]
+	_ = x[ErrorStaticConfigCannotBeChanged-54501]
+	_ = x[ErrorTooManySigners-54502]
+	_ = x[ErrorBigFTooHigh-54503]
+	_ = x[ErrorTooManyTransmitters-54504]
+	_ = x[ErrorNoTransmitters-54505]
+	_ = x[ErrorRepeatedSigners-54506]
+	_ = x[ErrorRepeatedTransmitters-54507]
+	_ = x[ErrorConfigDigestMismatch-54508]
+	_ = x[ErrorUnauthorizedTransmitter-54509]
+	_ = x[ErrorWrongNumberOfSignatures-54510]
+	_ = x[ErrorUnauthorizedSigner-54511]
+	_ = x[ErrorNonUniqueSignatures-54512]
+	_ = x[ErrorInvalidSignature-54513]
+	_ = x[ErrorNonExistentOcrPluginType-54514]
+	_ = x[ErrorNoSigners-54515]
 }
 
 const _ExitCode_name = "ErrorBigFMustBePositiveErrorStaticConfigCannotBeChangedErrorTooManySignersErrorBigFTooHighErrorTooManyTransmittersErrorNoTransmittersErrorRepeatedSignersErrorRepeatedTransmittersErrorConfigDigestMismatchErrorUnauthorizedTransmitterErrorWrongNumberOfSignaturesErrorUnauthorizedSignerErrorNonUniqueSignaturesErrorInvalidSignatureErrorNonExistentOcrPluginTypeErrorNoSigners"
@@ -31,8 +31,8 @@ const _ExitCode_name = "ErrorBigFMustBePositiveErrorStaticConfigCannotBeChangedE
 var _ExitCode_index = [...]uint16{0, 23, 55, 74, 90, 114, 133, 153, 178, 203, 231, 259, 282, 306, 327, 356, 370}
 
 func (i ExitCode) String() string {
-	idx := int(i) - 3100
-	if i < 3100 || idx >= len(_ExitCode_index)-1 {
+	idx := int(i) - 54500
+	if i < 54500 || idx >= len(_ExitCode_index)-1 {
 		return "ExitCode(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ExitCode_name[_ExitCode_index[idx]:_ExitCode_index[idx+1]]

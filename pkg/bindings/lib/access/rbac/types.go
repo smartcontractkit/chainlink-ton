@@ -176,6 +176,6 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorUnauthorizedAccount ExitCode = iota + 60900
+	ErrorUnauthorizedAccount ExitCode = iota + 60900 // Facility ID * 100
 	ErrorBadConfirmation
 )

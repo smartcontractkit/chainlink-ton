@@ -5,7 +5,7 @@
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
   package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
 in
-  pkgs.buildGo125Module rec {
+  pkgs.buildGo126Module rec {
     inherit (package-info) version;
     pname = "chainlink-ton";
 

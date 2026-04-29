@@ -1,0 +1,7 @@
+position: 4
+label: Nix
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: dev-guides-nix-index

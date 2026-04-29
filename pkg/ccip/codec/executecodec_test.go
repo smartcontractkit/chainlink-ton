@@ -53,7 +53,6 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 				}
 			}
 
-			//nolint:gosec // j is bounded by msgsPerReport and reportMessages has len msgsPerReport
 			reportMessages[j] = ccipocr3.Message{
 				Header: ccipocr3.RampMessageHeader{
 					MessageID:           [32]byte{},

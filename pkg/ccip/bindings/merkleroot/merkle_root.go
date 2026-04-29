@@ -32,7 +32,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 }
 
 const (
-	ErrorAlreadyExecuted ExitCode = iota + 47900
+	ErrorAlreadyExecuted ExitCode = iota + 18600 // Facility ID * 100
 	ErrorNotOwner
 	ErrorManualExecutionNotYetEnabled
 	ErrorSkippedAlreadyExecutedMessage

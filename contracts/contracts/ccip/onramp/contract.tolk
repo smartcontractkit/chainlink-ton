@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: BUSL-1.1
 tolk 1.2
 
+import "../../lib/access/ownable_2step";
+import "../../lib/utils";
+import "../../lib/versioning/upgradeable"
+import "../../lib/deployable/types"
+
+import "../common/types";
+
+import "../ccipsend_executor/storage"
+import "../ccipsend_executor/types"
+import "../ccipsend_executor/messages"
+import "../router/messages"
+import "../fee_quoter/messages"
+import "../fee_quoter/types"
+
+import "events"
 import "types"
 import "events"
 import "storage"
 import "errors"
 import "messages"
-
-import "../common/types";
-import "../../lib/access/ownable_2step";
-import "../../lib/utils";
-import "../ccipsend_executor/storage"
-import "../ccipsend_executor/types"
-import "../ccipsend_executor/messages"
-import "../router/messages"
-import "../../lib/versioning/upgradeable"
-import "events"
-import "../../deployable/types"
-import "../fee_quoter/messages"
-import "../fee_quoter/types"
 
 const CONTRACT_VERSION = "1.6.0";
 
@@ -555,7 +557,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OnRamp"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.OnRamp"), local);
 }
 
 get fun reserve(): coins {

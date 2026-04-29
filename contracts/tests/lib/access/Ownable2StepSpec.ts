@@ -40,7 +40,7 @@ export async function ownable2StepSpec(
   })
   const pendingOwner = await contract.getPendingOwner()
   expect(pendingOwner).toBeDefined()
-  expect(pendingOwner && pendingOwner.equals(other.address)).toBe(true)
+  expect(pendingOwner).toEqual(other.address)
 
   const resultAcceptOwnership = await contract.sendAcceptOwnership(
     other.getSender(),
@@ -57,7 +57,7 @@ export async function ownable2StepSpec(
 
   // Check that the owner is now the new one
   const newOwner = await contract.getOwner()
-  expect(newOwner.toString()).toBe(other.address.toString())
+  expect(newOwner).toEqual(other.address)
 
   if (process.env['COVERAGE'] === 'true' && opts.coverage) {
     await coverage.generateCoverageArtifacts(

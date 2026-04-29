@@ -128,24 +128,24 @@ func FormatEventSig(eventSig uint32) string {
 
 func (l Log) String() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("  Filter ID:    %d\n", l.FilterID))
-	sb.WriteString(fmt.Sprintf("  Address:      %s\n", l.Address))
-	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash[:])))
-	sb.WriteString(fmt.Sprintf("  Tx LT:        %d\n", l.TxLT))
-	sb.WriteString(fmt.Sprintf("  Tx Timestamp: %s\n", l.TxTimestamp.Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("  Event Sig:    %s\n", FormatEventSig(l.EventSig)))
+	sb.WriteString(fmt.Sprintf("  Filter ID:    %d\n", l.FilterID))                         //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+	sb.WriteString(fmt.Sprintf("  Address:      %s\n", l.Address))                          //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash[:])))    //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+	sb.WriteString(fmt.Sprintf("  Tx LT:        %d\n", l.TxLT))                             //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+	sb.WriteString(fmt.Sprintf("  Tx Timestamp: %s\n", l.TxTimestamp.Format(time.RFC3339))) //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+	sb.WriteString(fmt.Sprintf("  Event Sig:    %s\n", FormatEventSig(l.EventSig)))         //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	if l.Data != nil {
-		sb.WriteString(fmt.Sprintf("  Data (BOC):   %s\n", hex.EncodeToString(l.Data.ToBOC())))
+		sb.WriteString(fmt.Sprintf("  Data (BOC):   %s\n", hex.EncodeToString(l.Data.ToBOC()))) //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	} else {
 		sb.WriteString("  Data (BOC):   <nil>\n")
 	}
 	if l.Block != nil {
-		sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+		sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo)) //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	} else {
 		sb.WriteString("  Shard Block:  nil\n")
 	}
-	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MCBlockSeqno))
-	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
+	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MCBlockSeqno)) //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
+	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))               //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 
 	return sb.String()
 }
@@ -153,7 +153,7 @@ func (l Log) String() string {
 func (l TypedLog[T]) String() string {
 	var sb strings.Builder
 	sb.WriteString(l.Log.String())
-	sb.WriteString(fmt.Sprintf("  Typed Data:   %v\n", l.TypedData))
+	sb.WriteString(fmt.Sprintf("  Typed Data:   %v\n", l.TypedData)) //nolint:staticcheck // QF1012 - TODO(lint-migration): golangci-lint 2.11 rule tightened
 	return sb.String()
 }
 

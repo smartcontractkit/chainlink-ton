@@ -156,7 +156,7 @@ describe('Router - Ownable Tests', () => {
     const errorCodeVal = await router.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(rt.ERROR_CODE))
 
-    expect(rt.ERROR_CODE).toEqual(errorCode(crc32(rt.FACILITY_NAME), 0))
+    expect(rt.ERROR_CODE).toEqual(errorCode(crc32(rt.FACILITY_NAME)))
   })
 
   afterAll(async () => {

@@ -2,7 +2,11 @@ import { Address, beginCell, Cell, Contract, Message, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 
-import { CoverageConfigNames, generateCoverageArtifacts } from '../../coverage/coverage'
+import {
+  ContractCoverageConfig,
+  CoverageConfigNames,
+  generateCoverageArtifacts,
+} from '../../coverage/coverage'
 
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
@@ -12,7 +16,7 @@ import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndV
  * Configuration for testing upgrades between two versions of an upgradeable contract.
  */
 export type UpgradeTestConfig<TCurrentVersionContract> = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
+  /** The expected contract type name (e.g., 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
   /** Version string for previous version contract */
   prevVersion: string
@@ -40,7 +44,7 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
  * Configuration for testing the current version of an upgradeable contract.
  */
 export type CurrentVersionTestConfig<TCurrentVersionContract> = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
+  /** The expected contract type name (e.g., 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
   /** Version string for current version contract */
   currentVersion: string
@@ -86,7 +90,7 @@ interface TestSetup {
  * @example
  * ```typescript
  * const upgradeSpec = newUpgradeSpec({
- *   contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+ *   contractType: 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
  *   prevVersion: '1.0.0',
  *   currentVersion: '2.0.0',
  *   getPrevCode: () => UpgradeableCounterV1.code(),
@@ -142,7 +146,7 @@ export function newUpgradeSpec<
   const amount = config.upgradeValue ?? toNano('0.05')
 
   return {
-    run: (contractName?: CoverageConfigNames) => {
+    run: (coverageConfigs?: ContractCoverageConfig[]) => {
       let blockchain: Blockchain
       let testSetup: TestSetup
 
@@ -163,7 +167,7 @@ export function newUpgradeSpec<
 
       beforeEach(async () => {
         testSetup = await setup(blockchain)
-      })
+      }, 90000) // Setup may download releases
 
       /**
        * Test that the contract deploys on the correct version (previous version)
@@ -252,13 +256,8 @@ export function newUpgradeSpec<
       }
 
       afterAll(async () => {
-        if (process.env['COVERAGE'] === 'true' && contractName) {
-          await generateCoverageArtifacts(blockchain, 'upgradeable_tests', [
-            {
-              code: await config.getCurrentCode(),
-              name: contractName,
-            },
-          ])
+        if (process.env['COVERAGE'] === 'true' && coverageConfigs) {
+          await generateCoverageArtifacts(blockchain, 'upgradeable_tests', coverageConfigs)
         }
       })
     },
@@ -282,7 +281,7 @@ interface CurrentVersionTestSetup {
  * @example
  * ```typescript
  * const currentVersionSpec = newCurrentVersionSpec({
- *   contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+ *   contractType: 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
  *   currentVersion: '2.0.0',
  *   getCurrentCode: () => UpgradeableCounterV2.code(),
  *   CurrentVersionConstructor: UpgradeableCounterV2,

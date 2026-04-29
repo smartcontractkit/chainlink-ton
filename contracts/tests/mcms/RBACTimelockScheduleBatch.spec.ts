@@ -195,7 +195,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       expect(callScheduled.queryId).toEqual(1)
       expect(callScheduled.id).toEqual(batchedOperationID)
       expect(callScheduled.index).toEqual(i)
-      expect(callScheduled.call.equals(call)).toBeTruthy()
+      expect(callScheduled.call).toEqual(call)
       expect(callScheduled.predecessor).toEqual(BaseTestSetup.NO_PREDECESSOR)
       expect(callScheduled.salt).toEqual(BaseTestSetup.EMPTY_SALT)
       expect(callScheduled.delay).toEqual(Number(BaseTestSetup.MIN_DELAY))

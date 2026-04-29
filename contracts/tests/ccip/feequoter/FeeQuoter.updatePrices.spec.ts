@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 
 import { FeeQuoterSetup } from './FeeQuoterSetup'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
@@ -317,6 +317,50 @@ describe('FeeQuoter UpdatePrices', () => {
       to: setup.bind.feeQuoter.address,
       success: false,
     })
+  })
+
+  it('should not end up with lower balance than initial balance after returning excess', async () => {
+    const contract = await blockchain.getContract(setup.bind.feeQuoter.address)
+    const initialBalance = contract.balance
+
+    const priceUpdates: feeQuoter.PriceUpdates = {
+      tokenPricesUpdates: [{ token: FeeQuoterSetup.NATIVE_TON.token, price: 4000000000000000000n }],
+      gasPricesUpdates: [],
+    }
+
+    const updateResult = await setup.bind.feeQuoter.sendUpdatePrices(setup.acc.owner.getSender(), {
+      value: toNano('0.03'),
+      msg: { updates: priceUpdates, sendExcessesTo: setup.acc.deployer.address },
+    })
+
+    expect(updateResult.transactions).toHaveTransaction({
+      to: setup.bind.feeQuoter.address,
+      success: true,
+    })
+
+    expect(updateResult.transactions).toHaveTransaction({
+      from: setup.bind.feeQuoter.address,
+      to: setup.acc.deployer.address,
+      success: true,
+    })
+
+    const tx = updateResult.transactions.find(
+      (tx) =>
+        tx.inMessage &&
+        tx.inMessage.info.src &&
+        tx.inMessage.info.src instanceof Address &&
+        tx.inMessage.info.src.equals(setup.acc.owner.address) &&
+        tx.inMessage.info.dest &&
+        tx.inMessage.info.dest instanceof Address &&
+        tx.inMessage.info.dest.equals(setup.bind.feeQuoter.address),
+    )
+    if (!tx || tx.description.type != 'generic') {
+      throw new Error('Expected an internal message')
+    }
+    const storageFees = tx.description.storagePhase?.storageFeesCollected || toNano('0')
+
+    const finalBalance = (await blockchain.getContract(setup.bind.feeQuoter.address)).balance
+    expect(finalBalance).toEqual(initialBalance - storageFees)
   })
 
   afterAll(async () => {

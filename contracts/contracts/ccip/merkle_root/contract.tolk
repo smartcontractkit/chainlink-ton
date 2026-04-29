@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
+import "../../lib/utils"
+import "../../lib/deployable/types"
+import "../../lib/funding/withdrawable"
+import "../offramp/messages"
+import "../offramp/types"
+import "../receive_executor/storage"
+import "../router/storage"
 import "messages"
 import "errors"
 import "storage"
-import "../offramp/messages"
-import "../offramp/types"
-import "../../lib/utils"
-import "../../deployable/types.tolk"
-import "../receive_executor/storage"
-import "../router/storage"
-import "../../lib/funding/withdrawable"
 import "types"
 
 // MerkleRoot contract
@@ -121,5 +121,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.MerkleRoot"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.ccip.MerkleRoot"), local);
 }

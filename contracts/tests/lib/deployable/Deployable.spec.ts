@@ -78,7 +78,7 @@ describe('Deployable - Unit Tests', () => {
     const errorCodeVal = await deployable.getErrorCode(0n)
     expect(errorCodeVal).toBe(BigInt(dep.ERROR_CODE))
 
-    expect(dep.ERROR_CODE).toEqual(errorCode(crc32(dep.FACILITY_NAME), 0))
+    expect(dep.ERROR_CODE).toEqual(errorCode(crc32(dep.FACILITY_NAME)))
   })
 
   it('should initialize and replace code and data', async () => {

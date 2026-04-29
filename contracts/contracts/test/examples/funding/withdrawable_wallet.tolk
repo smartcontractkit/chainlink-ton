@@ -3,7 +3,7 @@ import "../../../lib/utils";
 import "../../../lib/access/ownable_2step";
 import "../../../lib/funding/withdrawable";
 
-const WithdrawableWallet_FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
+const WithdrawableWallet_FACILITY_NAME = "link.chain.ton.examples.funding.WithdrawableWallet";
 const CONTRACT_VERSION = "1.0.1";
 
 struct Storage {
@@ -60,15 +60,15 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.examples.funding.WithdrawableWallet", CONTRACT_VERSION);
+    return ("link.chain.ton.examples.funding.WithdrawableWallet", CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.examples.funding.WithdrawableWallet"));
+    return getFacilityId(stringCrc32("link.chain.ton.examples.funding.WithdrawableWallet"));
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.examples.funding.WithdrawableWallet"), local);
+    return getErrorCode(stringCrc32("link.chain.ton.examples.funding.WithdrawableWallet"), local);
 }
 
 get fun reserve(): coins {
