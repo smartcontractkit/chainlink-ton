@@ -65,7 +65,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 				return [32]byte{}, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			destPoolTonAddr := AddressBytesToStringWithBurning(tokenAmount.DestTokenAddress)
+			destPoolTonAddr := AddressBytesToTONAddressWithBurning(tokenAmount.DestTokenAddress)
 			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
 				SourcePoolAddress: poolAddrCell,
 				ExtraData:         extraData,
@@ -84,7 +84,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		Nonce:               msg.Header.Nonce,
 	}
 
-	receiver := AddressBytesToStringWithBurning(msg.Receiver)
+	receiver := AddressBytesToTONAddressWithBurning(msg.Receiver)
 	var err error
 	var gasLimit *big.Int
 	var extraArgsDecodeMap map[string]any

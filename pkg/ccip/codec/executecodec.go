@@ -100,7 +100,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				return nil, fmt.Errorf("pack extra data: %w", err)
 			}
 
-			destPoolTonAddr := AddressBytesToStringWithBurning(tokenAmount.DestTokenAddress)
+			destPoolTonAddr := AddressBytesToTONAddressWithBurning(tokenAmount.DestTokenAddress)
 			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
 				SourcePoolAddress: poolAddrCell,
 				ExtraData:         extraData,
@@ -111,7 +111,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		}
 	}
 
-	tonReceiverAddr := AddressBytesToStringWithBurning(msg.Receiver)
+	tonReceiverAddr := AddressBytesToTONAddressWithBurning(msg.Receiver)
 	header := ocr.RampMessageHeader{
 		MessageID:           msg.Header.MessageID[:],
 		SourceChainSelector: uint64(msg.Header.SourceChainSelector),
@@ -223,10 +223,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 				return executeReport, fmt.Errorf("unpack extra data: %w", err)
 			}
 
-			destTokenAddr, err := e.addressCodec.AddressStringToBytes(tokenAmount.DestPoolAddress.String())
+			destTokenRaw, err := ToRawAddr(tokenAmount.DestPoolAddress)
 			if err != nil {
-				return executeReport, err
+				return executeReport, fmt.Errorf("failed to convert dest token address to raw format: %w", err)
 			}
+			destTokenAddr := destTokenRaw[:]
 
 			// big endian encoding for dest gas amount
 			destGasAmount := make([]byte, 4)
@@ -246,10 +247,11 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			})
 		}
 
-		receiverAddr, err := e.addressCodec.AddressStringToBytes(msg.Receiver.String())
+		receiverRaw, err := ToRawAddr(msg.Receiver)
 		if err != nil {
-			return executeReport, err
+			return executeReport, fmt.Errorf("failed to convert receiver address to raw format: %w", err)
 		}
+		receiverAddr := receiverRaw[:]
 
 		extraArgs := onramp.GenericExtraArgsV2{
 			GasLimit:                 msg.GasLimit.Nano(),

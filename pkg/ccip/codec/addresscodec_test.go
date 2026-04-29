@@ -162,7 +162,7 @@ func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
 	}
 }
 
-func TestAddressBytesToStringWithBurning(t *testing.T) {
+func TestAddressBytesToTONAddressWithBurning(t *testing.T) {
 	// Valid address
 	validAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
@@ -225,7 +225,7 @@ func TestAddressBytesToStringWithBurning(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := AddressBytesToStringWithBurning(tc.input)
+			result := AddressBytesToTONAddressWithBurning(tc.input)
 			require.NotNil(t, result)
 			if tc.wantZero {
 				require.Equal(t, int32(0), result.Workchain())
