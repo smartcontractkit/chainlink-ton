@@ -12,12 +12,12 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/connection"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -36,8 +36,13 @@ import (
 )
 
 func TestTransmitterLocal(t *testing.T) {
+	type connection struct {
+		SignedAPIClient tracetracking.SignedAPIClient
+		ConnectionPool  *liteclient.ConnectionPool
+	}
+
 	type TestSetup struct {
-		apiClient tracetracking.SignedAPIClient
+		account connection
 	}
 
 	type testCase struct {
@@ -47,18 +52,18 @@ func TestTransmitterLocal(t *testing.T) {
 	logger := test_logger.New()
 	keystore := relayer_utils.NewTestKeystore(t)
 
-	createAndFundAccounts := func() func(count uint) []tracetracking.SignedAPIClient {
+	createAndFundAccounts := func() func(count int) []connection {
 		var setupOnce sync.Once
 		tonChain, err := utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
 		require.NoError(t, err)
 		keystore.AddKey(tonChain.Wallet.PrivateKey())
 		require.NotNil(t, keystore)
 
-		return func(count uint) []tracetracking.SignedAPIClient {
+		return func(count int) []connection {
 			initialAmount := big.NewInt(10_000_000_000) // 10k TON
 			recipients := make([]*address.Address, count)
 			amounts := make([]tlb.Coins, count)
-			accounts := make([]tracetracking.SignedAPIClient, count)
+			accounts := make([]connection, count)
 
 			for i := range count {
 				w, err := tvm.NewRandomV5R1TestWallet(tonChain.Client, -217)
@@ -66,17 +71,19 @@ func TestTransmitterLocal(t *testing.T) {
 
 				// Each account gets its own independent client connection so that
 				// tests (e.g. UnhealthyRPC) can close a pool without affecting others.
-				client := func() ton.APIClientWrapped {
-					pool, err := tonchainpkg.CreateLiteserverConnectionPool(t.Context(), tonChain.URL)
-					require.NoError(t, err, "failed to create connection pool from URL")
 
-					return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry()
-				}()
+				pool, err := tonchainpkg.CreateLiteserverConnectionPool(t.Context(), tonChain.URL)
+				require.NoError(t, err, "failed to create connection pool from URL")
+
+				client := ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry()
 
 				recipients[i] = w.Address()
 				amounts[i] = tlb.FromNanoTON(initialAmount)
 
-				accounts[i] = tracetracking.NewSignedAPIClient(client, *w)
+				accounts[i] = connection{
+					SignedAPIClient: tracetracking.NewSignedAPIClient(client, *w),
+					ConnectionPool:  pool,
+				}
 
 				keystore.AddKey(w.PrivateKey())
 				require.NotNil(t, keystore)
@@ -153,8 +160,9 @@ func TestTransmitterLocal(t *testing.T) {
 			name: "BaseSetup",
 			test: func(t *testing.T, setup TestSetup) {
 				ocrCfg := ocr.DefaultConfigSet
-				transmitter, tonTxm := getTransmitter(setup.apiClient, &ocrCfg)
+				transmitter, tonTxm := getTransmitter(setup.account.SignedAPIClient, &ocrCfg)
 				defer func() {
+					setup.account.ConnectionPool.Stop()
 					_ = tonTxm.Close()
 				}()
 
@@ -173,16 +181,13 @@ func TestTransmitterLocal(t *testing.T) {
 		{
 			name: "UnhealthyRPC",
 			test: func(t *testing.T, setup TestSetup) {
-				transmitter, tonTxm := getTransmitter(setup.apiClient, &ocr.DefaultConfigSet)
+				transmitter, tonTxm := getTransmitter(setup.account.SignedAPIClient, &ocr.DefaultConfigSet)
 				defer func() {
 					_ = tonTxm.Close()
 				}()
 
 				// Close RPC connection
-				{
-					p := connection.UnwrapToConnectionPool(t, setup.apiClient.Client.Client())
-					p.Stop()
-				}
+				setup.account.ConnectionPool.Stop()
 
 				reportBytes := buildCommitReportBOC(t)
 
@@ -207,7 +212,7 @@ func TestTransmitterLocal(t *testing.T) {
 				// Set commit cost higher than the account balance
 				// so the balance check in Transmit fails.
 				ocrCfg := func() ocr.Config {
-					transmittersBalance, err := strconv.ParseFloat(balance.MustGet(t, setup.apiClient).String(), 64)
+					transmittersBalance, err := strconv.ParseFloat(balance.MustGet(t, setup.account.SignedAPIClient).String(), 64)
 					require.NoError(t, err, "failed to parse transmitter balance as float64")
 					transmitAmount := transmittersBalance + 1 // add 1 TON to ensure it's above the balance
 
@@ -215,8 +220,9 @@ func TestTransmitterLocal(t *testing.T) {
 					ocrCfg.CommitPriceUpdateOnlyCostTON = transmitAmount
 					return ocrCfg
 				}()
-				transmitter, tonTxm := getTransmitter(setup.apiClient, &ocrCfg)
+				transmitter, tonTxm := getTransmitter(setup.account.SignedAPIClient, &ocrCfg)
 				defer func() {
+					setup.account.ConnectionPool.Stop()
 					_ = tonTxm.Close()
 				}()
 
@@ -237,20 +243,12 @@ func TestTransmitterLocal(t *testing.T) {
 		},
 	}
 
-	accounts := createAndFundAccounts(10)
-	getAccount := func() tracetracking.SignedAPIClient {
-		require.NotEmpty(t, accounts, "No pre-funded accounts available")
-		acc := accounts[0]
-		accounts = accounts[1:]
-		return acc
-	}
+	accounts := createAndFundAccounts(len(testCases))
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			transmitterAccount := getAccount()
-
 			tc.test(t, TestSetup{
-				apiClient: transmitterAccount,
+				account: accounts[i],
 			})
 		})
 	}
