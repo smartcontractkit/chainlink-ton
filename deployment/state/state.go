@@ -7,16 +7,18 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/address"
 	"golang.org/x/sync/errgroup"
+
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
@@ -47,7 +49,7 @@ var (
 
 // TODO: Currently we cannot unify to use only the long format from pkg/bindings/index.go everywhere,
 // Is there a cleaner way to manage these two types together?
-var LongToShortContractType = map[string]ds.ContractType{
+var LongToShortContractType = map[tvm.FullyQualifiedType]ds.ContractType{
 	bindings.TypeRouter:          Router,
 	bindings.TypeFeeQuoter:       FeeQuoter,
 	bindings.TypeOnRamp:          OnRamp,

@@ -18,6 +18,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Sample compiled contract JSON (minimal valid Tolk compiled contract)
@@ -417,7 +418,7 @@ func writePkgDir(t *testing.T, pkgMeta *ContractPackageMetadata) string {
 func testReceiverMeta(version string) *ContractPackageMetadata {
 	return &ContractPackageMetadata{
 		Version: version,
-		Contracts: map[string]ContractEntryMetadata{
+		Contracts: map[tvm.FullyQualifiedType]ContractEntryMetadata{
 			bindings.TypeTestReceiver: {Path: "ccip.test.receiver.compiled.json", Version: version},
 		},
 	}
@@ -471,7 +472,7 @@ func TestReadCompiledContract_InvalidVersionInMetadata(t *testing.T) {
 	dir := t.TempDir()
 	meta := &ContractPackageMetadata{
 		Version: "1.6.3",
-		Contracts: map[string]ContractEntryMetadata{
+		Contracts: map[tvm.FullyQualifiedType]ContractEntryMetadata{
 			bindings.TypeTestReceiver: {Path: "ccip.test.receiver.compiled.json", Version: "not-a-version"},
 		},
 	}

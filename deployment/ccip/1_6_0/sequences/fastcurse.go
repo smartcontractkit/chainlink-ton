@@ -309,7 +309,10 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 
 			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
-				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
+				{
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
+					Tags:         []string{},
+				}, // TODO: add appropriate tags
 			}
 
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
@@ -401,7 +404,10 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 
 			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
-				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
+				{
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
+					Tags:         []string{},
+				}, // TODO: add appropriate tags
 			}
 
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)

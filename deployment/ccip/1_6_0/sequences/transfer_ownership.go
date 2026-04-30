@@ -139,7 +139,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				plan := !deployerAddr.Equals(currentOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
+						ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 						Tags:         []string{},
 					},
 				})
@@ -218,7 +218,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				plan := !sender.Equals(proposedOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
+						ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 						Tags:         []string{},
 					},
 				})

@@ -169,7 +169,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				plan := !sender.Equals(owner) // plan if sender is not owner
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
+						ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 						Tags:         []string{},
 					},
 				})
@@ -228,7 +228,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				plan := !sender.Equals(owner) // plan if sender is not owner
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
+						ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 						Tags:         []string{},
 					},
 				})
@@ -256,7 +256,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 					Tags:         []string{},
 				},
 			})
@@ -286,7 +286,7 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 					Tags:         []string{},
 				},
 			})
@@ -344,7 +344,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 					Tags:         []string{},
 				},
 			})
@@ -371,7 +371,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 					Tags:         []string{},
 				},
 			})

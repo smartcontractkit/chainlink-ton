@@ -101,7 +101,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 					Tags:         []string{},
 				},
 			})
@@ -152,7 +152,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 					Tags:         []string{},
 				},
 			})
@@ -179,7 +179,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
-				ContractType: contractType,
+				ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 				Tags:         []string{},
 			},
 		})
@@ -207,7 +207,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
-				ContractType: contractType,
+				ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 				Tags:         []string{},
 			},
 		})
@@ -233,7 +233,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
-				ContractType: contractType,
+				ContractType: string(contractType), // TODO: Is this a place where we are mixing types? Should we convert to string or map to short type?
 				Tags:         []string{},
 			},
 		})
