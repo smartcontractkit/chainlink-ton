@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
@@ -210,5 +211,76 @@ func TestExecutePluginCodecV1_TON(t *testing.T) {
 		_, err = codec.Decode(ctx, boc)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "negative token amount decoded")
+	})
+
+	t.Run("Address validation", func(t *testing.T) {
+		// Helper: encode a valid report and parse into on-chain struct for field modification
+		baseReport := randomTONExecuteReport(t, 5009297550715157269)
+		encoded, err := codec.Encode(ctx, baseReport)
+		require.NoError(t, err)
+
+		parseBOC := func(t *testing.T, boc []byte) ocr.ExecuteReport {
+			c, err := cell.FromBOC(boc)
+			require.NoError(t, err)
+			var report ocr.ExecuteReport
+			err = tlb.LoadFromCell(&report, c.BeginParse())
+			require.NoError(t, err)
+			return report
+		}
+
+		serializeBOC := func(t *testing.T, report ocr.ExecuteReport) []byte {
+			reportCell, err := tlb.ToCell(report)
+			require.NoError(t, err)
+			return reportCell.ToBOC()
+		}
+
+		onChainReport := parseBOC(t, encoded)
+
+		t.Run("decode fails with NoneAddress receiver", func(t *testing.T) {
+			modified := onChainReport
+			modified.Message.Receiver = address.NewAddressNone()
+
+			_, err := codec.Decode(ctx, serializeBOC(t, modified))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot convert none address to raw format")
+		})
+
+		t.Run("decode fails with NoneAddress dest pool in token transfer", func(t *testing.T) {
+			modified := onChainReport
+			tokenAmounts := make(common.SnakedCell[ocr.Any2TVMTokenTransfer], len(onChainReport.Message.TokenAmounts))
+			copy(tokenAmounts, onChainReport.Message.TokenAmounts)
+			tokenAmounts[0].DestPoolAddress = address.NewAddressNone()
+			modified.Message.TokenAmounts = tokenAmounts
+
+			_, err := codec.Decode(ctx, serializeBOC(t, modified))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot convert none address to raw format")
+		})
+
+		t.Run("decode fails with ExternalAddress receiver", func(t *testing.T) {
+			modified := onChainReport
+			addressData := make([]byte, 32)
+			addressData[0] = 0x01
+			copy(addressData[28:], []byte{0x01, 0x02, 0x03, 0x04})
+			modified.Message.Receiver = address.NewAddressExt(0, 32, addressData)
+
+			_, err := codec.Decode(ctx, serializeBOC(t, modified))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to convert receiver address to raw format")
+		})
+
+		t.Run("decode fails with ExternalAddress dest pool in token transfer", func(t *testing.T) {
+			modified := onChainReport
+			tokenAmounts := make(common.SnakedCell[ocr.Any2TVMTokenTransfer], len(onChainReport.Message.TokenAmounts))
+			copy(tokenAmounts, onChainReport.Message.TokenAmounts)
+			addressData := make([]byte, 32)
+			copy(addressData[28:], []byte{0x01, 0x02, 0x03, 0x04})
+			tokenAmounts[0].DestPoolAddress = address.NewAddressExt(0, 32, addressData)
+			modified.Message.TokenAmounts = tokenAmounts
+
+			_, err := codec.Decode(ctx, serializeBOC(t, modified))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "failed to convert dest token address to raw format")
+		})
 	})
 }
