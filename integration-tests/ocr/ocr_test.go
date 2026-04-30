@@ -212,7 +212,7 @@ func TestTransmitterLocal(t *testing.T) {
 				// Set commit cost higher than the account balance
 				// so the balance check in Transmit fails.
 				ocrCfg := func() ocr.Config {
-					transmittersBalance, err := strconv.ParseFloat(balance.MustGet(t, setup.account.SignedAPIClient).String(), 64)
+					transmittersBalance, err := strconv.ParseFloat(balance.MustGet(t, setup.account.SignedAPIClient.Client, setup.account.SignedAPIClient.Wallet.WalletAddress()).String(), 64)
 					require.NoError(t, err, "failed to parse transmitter balance as float64")
 					transmitAmount := transmittersBalance + 1 // add 1 TON to ensure it's above the balance
 

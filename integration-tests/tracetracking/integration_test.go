@@ -83,12 +83,12 @@ func TestIntegration(t *testing.T) {
 		t.Logf("Transaction finalized\n")
 		t.Logf("\n==========================\nFinalized msg: %+v\n==========================\n", externalMessageReceived)
 
-		aliceBalance := balance.MustGet(t, alice)
+		aliceBalance := balance.MustGet(t, alice.Client, alice.Wallet.WalletAddress())
 		testutils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance.Nano())
 
 		internalMessagedReceivedByBob := externalMessageReceived.OutgoingInternalReceivedMessages[0]
 		require.NotNil(t, internalMessagedReceivedByBob, "Internal message not received by Bob")
-		bobBalance := balance.MustGet(t, bob)
+		bobBalance := balance.MustGet(t, bob.Client, bob.Wallet.WalletAddress())
 		testutils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance.Nano())
 	})
 
