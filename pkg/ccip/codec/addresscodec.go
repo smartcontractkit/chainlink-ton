@@ -48,6 +48,9 @@ func ToRawAddr(addr *address.Address) (RawAddr, error) {
 	if addr.IsAddrNone() {
 		return RawAddr{}, errors.New("cannot convert none address to raw format")
 	}
+	if addr.Type() == address.ExtAddress {
+		return RawAddr{}, fmt.Errorf("unsupported ExtAddress type")
+	}
 	// Standard TON addresses have exactly 32 bytes of data
 	if len(addr.Data()) != tvm.AddressDataLength {
 		return RawAddr{}, fmt.Errorf("invalid address data length: expected %d bytes, got %d", tvm.AddressDataLength, len(addr.Data()))
