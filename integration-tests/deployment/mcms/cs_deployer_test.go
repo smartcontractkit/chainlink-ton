@@ -10,8 +10,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -199,7 +200,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsAddr := suiteState.Proposer
 	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, toncommon.GetTypeAndVersion)
 	require.NoError(t, err)
-	require.Equal(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
+	require.EqualValues(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
 
 	config, err := tvm.CallGetterLatest(ctx, chain.Client, mcmsAddr, mcms.GetConfig)
@@ -227,7 +228,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsAddr = suiteState.Proposer
 	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, toncommon.GetTypeAndVersion)
 	require.NoError(t, err)
-	require.Equal(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
+	require.EqualValues(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
 
 	timelockAddr = suiteState.Timelock
