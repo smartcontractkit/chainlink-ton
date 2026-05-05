@@ -25,6 +25,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
+// walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
+var walletGas = tlb.MustFromTON("0.01")
+
 type ToEd25519CalldataFunc func(
 	rawReportCtxBytes [64]byte,
 	report ocr3types.ReportWithInfo[[]byte],
@@ -160,8 +163,12 @@ func (c *ccipTransmitter) Transmit(
 		if !transmitterAccount.IsActive || transmitterAccount.State == nil {
 			return fmt.Errorf("failed to get account status: account.IsActive: %v, account.State == nil: %v", transmitterAccount.IsActive, transmitterAccount.State == nil)
 		}
+		maxAmount, err := finalAmount.Add(&walletGas)
+		if err != nil {
+			return fmt.Errorf("failed to add wallet gas: %w", err)
+		}
 
-		if transmitterAccount.State.Balance.Nano().Cmp(finalAmount.Nano()) == -1 {
+		if transmitterAccount.State.Balance.Nano().Cmp(maxAmount.Nano()) == -1 {
 			return InsufficientBalanceError{
 				Balance:   transmitterAccount.State.Balance,
 				MsgAmount: *finalAmount,
