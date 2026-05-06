@@ -18,6 +18,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		assert.Equal(t, DefaultConfigSet.ConfirmPollInterval, cfg.ConfirmPollInterval)
 		assert.Equal(t, DefaultConfigSet.SendRetryDelay, cfg.SendRetryDelay)
 		assert.Equal(t, DefaultConfigSet.MaxSendRetryAttempts, cfg.MaxSendRetryAttempts)
+		assert.Equal(t, DefaultConfigSet.MaxSendRetryDelay, cfg.MaxSendRetryDelay)
 		assert.Equal(t, DefaultConfigSet.TxExpiration, cfg.TxExpiration)
 		assert.Equal(t, DefaultConfigSet.CleanupInterval, cfg.CleanupInterval)
 	})
@@ -39,6 +40,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 		// Defaults
 		assert.Equal(t, DefaultConfigSet.ConfirmPollInterval, cfg.ConfirmPollInterval)
 		assert.Equal(t, DefaultConfigSet.MaxSendRetryAttempts, cfg.MaxSendRetryAttempts)
+		assert.Equal(t, DefaultConfigSet.MaxSendRetryDelay, cfg.MaxSendRetryDelay)
 		assert.Equal(t, DefaultConfigSet.TxExpiration, cfg.TxExpiration)
 		assert.Equal(t, DefaultConfigSet.CleanupInterval, cfg.CleanupInterval)
 	})
@@ -49,6 +51,7 @@ func TestConfig_ApplyDefaults(t *testing.T) {
 			ConfirmPollInterval:  config.MustNewDuration(1 * time.Second),
 			SendRetryDelay:       config.MustNewDuration(2 * time.Second),
 			MaxSendRetryAttempts: 10,
+			MaxSendRetryDelay:    config.MustNewDuration(1 * time.Minute),
 			TxExpiration:         config.MustNewDuration(10 * time.Minute),
 			CleanupInterval:      config.MustNewDuration(120 * time.Minute),
 		}

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jpillora/backoff"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -291,6 +292,7 @@ func (t *Txm) broadcastLoop() {
 
 // broadcastWithRetry Attempts to broadcast a transaction with retries on failure. We only retry if there was a
 // failure to send the transaction, not if the transaction was broadcast but failed to execute (non-zero exit code).
+// Retries use exponential backoff starting from SendRetryDelay, doubling the delay each attempt.
 func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message, txID string) error {
 	var receivedMessage *tracetracking.ReceivedMessage
 	var err error
@@ -299,6 +301,14 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	client, cerr := t.clientProvider(ctx)
 	if cerr != nil {
 		return fmt.Errorf("failed to get client: %w", cerr)
+	}
+
+	// retryDelay := t.config.SendRetryDelay.Duration()
+	b := backoff.Backoff{
+		Min:    t.config.SendRetryDelay.Duration(),
+		Max:    5 * time.Second,
+		Factor: 2,
+		Jitter: true,
 	}
 
 	// try to broadcast transaction
@@ -353,11 +363,13 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				"err", err)
 		}
 
-		select {
-		case <-time.After(t.config.SendRetryDelay.Duration()):
-		case <-t.stop:
-			t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
-			return errors.New("broadcast aborted")
+		if attempt < t.config.MaxSendRetryAttempts {
+			select {
+			case <-time.After(b.Duration()):
+			case <-t.stop:
+				t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
+				return errors.New("broadcast aborted")
+			}
 		}
 	}
 

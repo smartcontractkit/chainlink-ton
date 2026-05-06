@@ -24,8 +24,9 @@ NetworkName = 'testnet'
 [TransactionManager]
 BroadcastChanSize = 101
 ConfirmPollInterval = '9s'
-SendRetryDelay = '8s'
-MaxSendRetryAttempts = 7
+SendRetryDelay = '1s'
+MaxSendRetryAttempts = 6
+MaxSendRetryDelay = '1m'
 TxExpiration = '6h'
 CleanupInterval = '15m'
 SendTimeout = '45s'
@@ -62,8 +63,9 @@ URL = 'http://localhost:8081'
 		require.NotNil(t, cfg.TransactionManager)
 		assert.Equal(t, uint(101), cfg.TransactionManager.BroadcastChanSize)
 		assert.Equal(t, 9*time.Second, cfg.TransactionManager.ConfirmPollInterval.Duration())
-		assert.Equal(t, 8*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
-		assert.Equal(t, uint(7), cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, 1*time.Second, cfg.TransactionManager.SendRetryDelay.Duration())
+		assert.Equal(t, uint(6), cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, 1*time.Minute, cfg.TransactionManager.MaxSendRetryDelay.Duration())
 		assert.Equal(t, 6*time.Hour, cfg.TransactionManager.TxExpiration.Duration())
 		assert.Equal(t, 15*time.Minute, cfg.TransactionManager.CleanupInterval.Duration())
 		assert.Equal(t, 45*time.Second, cfg.TransactionManager.SendTimeout.Duration())
@@ -108,6 +110,7 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendRetryDelay, cfg.TransactionManager.SendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryDelay, cfg.TransactionManager.MaxSendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
@@ -161,6 +164,7 @@ URL = 'http://localhost:8081'
 		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendRetryDelay, cfg.TransactionManager.SendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryDelay, cfg.TransactionManager.MaxSendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
@@ -204,6 +208,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendRetryDelay, cfg.TransactionManager.SendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryDelay, cfg.TransactionManager.MaxSendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
@@ -266,6 +271,7 @@ func TestTOMLConfig_SetDefaults(t *testing.T) {
 		// Verify missing fields got defaults
 		assert.Equal(t, txm.DefaultConfigSet.ConfirmPollInterval, cfg.TransactionManager.ConfirmPollInterval)
 		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryAttempts, cfg.TransactionManager.MaxSendRetryAttempts)
+		assert.Equal(t, txm.DefaultConfigSet.MaxSendRetryDelay, cfg.TransactionManager.MaxSendRetryDelay)
 		assert.Equal(t, txm.DefaultConfigSet.TxExpiration, cfg.TransactionManager.TxExpiration)
 		assert.Equal(t, txm.DefaultConfigSet.CleanupInterval, cfg.TransactionManager.CleanupInterval)
 		assert.Equal(t, txm.DefaultConfigSet.SendTimeout, cfg.TransactionManager.SendTimeout)
