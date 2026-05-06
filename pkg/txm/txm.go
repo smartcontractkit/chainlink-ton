@@ -302,6 +302,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	}
 
 	// try to broadcast transaction
+retryLoop:
 	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
 		t.logger.Debugw("sending transaction to TON",
 			"txID", txID,
@@ -346,22 +347,23 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		}
 
 		// Transaction failed to broadcast. Log error as a warning for now and fall through to retry delay below.
-		if errors.Is(err, context.DeadlineExceeded) {
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
 			t.logger.Warnw("broadcast timed out, will retry",
 				"txID", txID,
 				"attempt", attempt,
 				"to", tx.To.String(),
 				"timeout", t.config.SendTimeout.Duration(),
 				"err", err)
-		} else if tracetracking.IsInboundExternalMessageRejectedByAccountError(err) {
+		case tracetracking.IsInboundExternalMessageRejectedByAccountError(err):
 			err = fmt.Errorf("transaction rejected by TON node, likely due to insufficient balance: %w", err)
 			t.logger.Warnw(err.Error(),
 				"txID", txID,
 				"attempt", attempt,
 				"to", tx.To.String(),
 				"err", err)
-			break
-		} else {
+			break retryLoop
+		default:
 			t.logger.Warnw("failed to broadcast tx, will retry",
 				"txID", txID,
 				"attempt", attempt,
