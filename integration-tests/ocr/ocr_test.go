@@ -71,17 +71,18 @@ func TestTransmitterLocal(t *testing.T) {
 				// Each account gets its own independent client connection so that
 				// tests (e.g. UnhealthyRPC) can close a pool without affecting others.
 
-				pool, err := tonchainpkg.CreateLiteserverConnectionPool(t.Context(), tonChain.URL)
+				connectionPool, err := tonchainpkg.CreateLiteserverConnectionPool(t.Context(), tonChain.URL)
 				require.NoError(t, err, "failed to create connection pool from URL")
 
-				client := ton.NewAPIClient(pool, ton.ProofCheckPolicyFast).WithRetry()
+				client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast).WithRetry()
 
 				recipients[i] = w.Address()
 				amounts[i] = tlb.FromNanoTON(initialAmount)
 
+				signedAPIClient := tracetracking.NewSignedAPIClient(client, *w)
 				accounts[i] = connection{
-					SignedAPIClient: tracetracking.NewSignedAPIClient(client, *w),
-					ConnectionPool:  pool,
+					signedAPIClient,
+					connectionPool,
 				}
 
 				keystore.AddKey(w.PrivateKey())

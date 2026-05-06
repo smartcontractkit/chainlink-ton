@@ -3,6 +3,7 @@ package tracetracking
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -26,6 +27,11 @@ func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) Signe
 	}
 }
 
+func IsInboundExternalMessageRejectedByAccountError(err error) bool {
+	return strings.HasPrefix(err.Error(), "wallet transaction error for destination") &&
+		strings.Contains(err.Error(), "failed to send message: lite server error, code -701")
+}
+
 // SendWaitTransaction sends a transaction to the specified address and waits for
 // it to be confirmed on the blockchain. It returns the resulting ReceivedMessage
 // with outgoing messages (if any) and the block sequence number where the
@@ -36,7 +42,7 @@ func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) Signe
 func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, *ton.BlockIDExt, error) {
 	tx, block, err := c.Wallet.SendWaitTransaction(ctx, messageToSend)
 	if err != nil {
-		return nil, nil, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
+		return nil, nil, fmt.Errorf("wallet transaction error for destination %s: %w", dstAddr.String(), err)
 	}
 
 	receivedMessage, err := MapToReceivedMessage(tx)

@@ -37,7 +37,7 @@ sequenceDiagram
 
     
     
-    Note over OR: RECEIVES from OCR transmiter Commit<br>{ queryId, reportContext, report, signatures }
+    Note over OR: RECEIVES from OCR transmitter Commit<br>{ queryId, reportContext, report, signatures }
     activate OR
 
     create participant MR as MerkleRoot{id}
