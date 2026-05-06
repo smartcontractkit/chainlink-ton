@@ -77,8 +77,14 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 
 		c.wallet = w
 
-		mc, _ := client.CurrentMasterchainInfo(ctx)
-		balance, _ := w.GetBalance(ctx, mc)
+		mc, merr := client.CurrentMasterchainInfo(ctx)
+		if merr != nil {
+			return nil, fmt.Errorf("failed to get masterchain info: %w", merr)
+		}
+		balance, berr := w.GetBalance(ctx, mc)
+		if berr != nil {
+			return nil, fmt.Errorf("failed to get wallet balance: %w", berr)
+		}
 		lggr.Infow("TON wallet initialized",
 			"balance", balance.String())
 	}
@@ -312,7 +318,7 @@ func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error)
 		return "", fmt.Errorf("failed to get masterchain info: %w", err)
 	}
 
-	acc, err := c.client.GetAccount(ctx, mc, addr)
+	acc, err := c.client.WaitForBlock(mc.SeqNo).GetAccount(ctx, mc, addr)
 	if err != nil {
 		return "", fmt.Errorf("failed to get account: %w", err)
 	}
