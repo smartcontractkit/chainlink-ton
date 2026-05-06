@@ -118,6 +118,7 @@ func (c *ccipTransmitter) Transmit(
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
 		Amount:          *finalAmount,
+		Bounce:          true,
 		ID:              &txID,
 	}
 
