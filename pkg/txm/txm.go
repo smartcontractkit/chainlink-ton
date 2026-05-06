@@ -229,20 +229,6 @@ func (t *Txm) broadcastLoop() {
 				return
 			}
 
-			txID := "none"
-			if tx.ID != nil {
-				txID = *tx.ID
-			}
-
-			if !time.Now().Before(tx.Expiration) {
-				t.logger.Warnw("transaction expired before broadcast, skipping",
-					"txID", txID,
-					"to", tx.To.String(),
-					"amount", tx.Amount.Nano().String(),
-					"expiration", tx.Expiration.String())
-				continue
-			}
-
 			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
 			var st tlb.StateInit
@@ -271,6 +257,10 @@ func (t *Txm) broadcastLoop() {
 			}
 
 			// 3. Sign and send
+			txID := "none"
+			if tx.ID != nil {
+				txID = *tx.ID
+			}
 			bodyBOC := "none"
 			if tx.Body != nil {
 				bodyBOC = hex.EncodeToString(tx.Body.ToBOC())
@@ -314,6 +304,15 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	// try to broadcast transaction
 retryLoop:
 	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
+		if !time.Now().Before(tx.Expiration) {
+			t.logger.Warnw("transaction expired",
+				"txID", txID,
+				"to", tx.To.String(),
+				"amount", tx.Amount.Nano().String(),
+				"expiration", tx.Expiration.String())
+			return errors.New("transaction expired, not broadcasting")
+		}
+
 		t.logger.Debugw("sending transaction to TON",
 			"txID", txID,
 			"attempt", attempt,
