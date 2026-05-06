@@ -19,7 +19,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -172,32 +171,31 @@ func TestTxmLocal(t *testing.T) {
 				const initialValue uint32 = 0
 				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
 
-				// Drain the transmitter's balance
+				unblockSend := make(chan struct{})
+				step := func() { unblockSend <- struct{}{} }
+				// Assert that SendWaitTransaction is called only once, which means Txm is not retrying the transaction after the first failure
+				setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).
+					Run(func(args mock.Arguments) {
+						ext := args.Get(1).(*tlb.ExternalMessage)
+						t.Logf("Mock SendWaitTransaction called with dstAddr: %s", ext.DstAddr.String())
+						<-unblockSend
+					}).Twice() // drain tx + tx expected to fail
+
+				// Enqueue tx that will drain the transmitter's balance
 				{
-					msgTrace, err := setup.setupClient.SendAndWaitForTrace(t.Context(), *tvm.ZeroAddress, &wallet.Message{
-						Mode: wallet.IgnoreErrors | wallet.CarryAllRemainingBalance,
-						InternalMessage: &tlb.InternalMessage{
-							DstAddr: tvm.ZeroAddress,
-							Amount:  tlb.MustFromTON("0.1"),
-							Body:    tvm.EmptyCell,
-						},
+					err := tonTxm.Enqueue(txm.Request{
+						Mode:            wallet.IgnoreErrors | wallet.CarryAllRemainingBalance,
+						FromWallet:      setup.setupClient.Wallet,
+						ContractAddress: *tvm.ZeroAddress,
+						Amount:          tlb.MustFromTON("0.1"),
+						Bounce:          false,
+						Body:            tvm.EmptyCell,
 					})
 					require.NoError(t, err)
-
-					t.Logf("Drain trace:\n%s", debug.NewDebuggerTreeTrace(nil).DumpReceived(msgTrace))
-
-					tb := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
-					require.Truef(t, tb.IsZero(), "Transmitter balance should be zero after depletion, but it is %s", tb.String())
 				}
 
 				// Enqueue valid tx which should now fail due to insufficient funds
 				{
-					// Assert that SendWaitTransaction is called only once, which means Txm is not retrying the transaction after the first failure
-					setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).
-						Run(func(args mock.Arguments) {
-							ext := args.Get(1).(*tlb.ExternalMessage)
-							t.Logf("Mock SendWaitTransaction called with dstAddr: %s", ext.DstAddr.String())
-						}).Once()
 					incrementBody, incErr := tlb.ToCell(counter.IncreaseCount{QueryID: 1})
 					require.NoError(t, incErr)
 
@@ -210,8 +208,23 @@ func TestTxmLocal(t *testing.T) {
 						Body:            incrementBody,
 					})
 					require.NoError(t, err)
+				}
 
-					waitForStableInflightCount(lggr, tonTxm, 30*time.Second)
+				{
+					// TMP sleep 3 seconds
+					time.Sleep(3 * time.Second)
+					tbb := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
+					require.Falsef(t, tbb.IsZero(), "Transmitter balance should not be zero before any tx, but it is %s", tbb.String())
+
+					// Drain balance
+					step()
+					waitForStableInflightCount(lggr, tonTxm, 10*time.Second)
+					tb := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
+					require.Truef(t, tb.IsZero(), "Transmitter balance should be zero after depletion, but it is %s", tb.String())
+
+					// Unblock SendWaitTransaction for the tx with zero balance and wait for it to process, which should result in an error and not be retried
+					step()
+					waitForStableInflightCount(lggr, tonTxm, 10*time.Second)
 
 					currentValue, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
 					require.NoError(t, err)
@@ -230,14 +243,33 @@ func TestTxmLocal(t *testing.T) {
 				const initialValue uint32 = 0
 				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
 
-				// Enqueue valid tx which should now fail due to insufficient funds
+				unblockSend := make(chan struct{})
+				step := func() { unblockSend <- struct{}{} }
+
+				setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					ext := args.Get(1).(*tlb.ExternalMessage)
+					t.Logf("Mock SendWaitTransaction called with dstAddr: %s", ext.DstAddr.String())
+					<-unblockSend
+				}).Twice()
+
+				// Enqueue tx that will drain most of the transmitter's balance, leaving insufficient for the next tx
 				{
-					amount := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
-					// Assert that SendWaitTransaction is called only once, which means Txm is not retrying the transaction after the first failure
-					setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-						ext := args.Get(1).(*tlb.ExternalMessage)
-						t.Logf("Mock SendWaitTransaction called with dstAddr: %s", ext.DstAddr.String())
-					}).Once()
+					currentBalance := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
+					drainAmount := tlb.FromNanoTON(new(big.Int).Sub(currentBalance.Nano(), tlb.MustFromTON("0.02").Nano()))
+
+					err := tonTxm.Enqueue(txm.Request{
+						Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
+						FromWallet:      setup.setupClient.Wallet,
+						ContractAddress: *tvm.ZeroAddress,
+						Amount:          drainAmount,
+						Bounce:          false,
+						Body:            tvm.EmptyCell,
+					})
+					require.NoError(t, err)
+				}
+
+				// Enqueue tx which should be rejected by Enqueue due to insufficient funds
+				{
 					incrementBody, incErr := tlb.ToCell(counter.IncreaseCount{QueryID: 1})
 					require.NoError(t, incErr)
 
@@ -245,13 +277,16 @@ func TestTxmLocal(t *testing.T) {
 						Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
 						FromWallet:      setup.setupClient.Wallet,
 						ContractAddress: *counterAddr,
-						Amount:          *amount,
+						Amount:          tlb.MustFromTON("0.05"),
 						Bounce:          true,
 						Body:            incrementBody,
 					})
 					require.NoError(t, err)
-
-					waitForStableInflightCount(lggr, tonTxm, 30*time.Second)
+				}
+				{
+					step()
+					step()
+					waitForStableInflightCount(lggr, tonTxm, 10*time.Second)
 
 					currentValue, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
 					require.NoError(t, err)
