@@ -26,6 +26,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
+// TODO calculate this based on message body and StateInit
+func walletGas(request Request) *tlb.Coins {
+	tonValue := tlb.MustFromTON("0.01")
+	return &tonValue
+}
+
 type TxManager interface {
 	services.Service
 	Enqueue(request Request) error
@@ -151,6 +158,37 @@ func (t *Txm) Enqueue(request Request) error {
 	// if _, err := t.keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
 	// 	return fmt.Errorf("failed to sign: %w", err)
 	// }
+
+	ctx, cancel := context.WithTimeout(context.TODO(), time.Second*10)
+	defer cancel()
+
+	{
+		client, err := t.clientProvider(context.TODO())
+		if err != nil {
+			return fmt.Errorf("failed to get client: %w", err)
+		}
+		block, err := client.Client.CurrentMasterchainInfo(ctx)
+		if err != nil {
+			return fmt.Errorf("RPC error: failed to get current masterchain info: %w", err)
+		}
+		transmitterAccount, err := client.Client.GetAccount(ctx, block, client.Wallet.WalletAddress())
+		if err != nil {
+			return fmt.Errorf("RPC error: failed to get transmitter account info: %w", err)
+		}
+
+		// If account is not active, balance is 0
+		if !transmitterAccount.IsActive || transmitterAccount.State == nil {
+			return fmt.Errorf("failed to get account status: account.IsActive: %v, account.State == nil: %v", transmitterAccount.IsActive, transmitterAccount.State == nil)
+		}
+		maxAmount, err := request.Amount.Add(walletGas(request))
+		if err != nil {
+			return fmt.Errorf("failed to add wallet gas: %w", err)
+		}
+
+		if transmitterAccount.State.Balance.Nano().Cmp(maxAmount.Nano()) == -1 {
+			return fmt.Errorf("insufficient balance for transmission: have %s, need %s", transmitterAccount.State.Balance, maxAmount)
+		}
+	}
 
 	txExpiration := t.config.TxExpiration.Duration()
 	tx := &Tx{

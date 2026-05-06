@@ -2,7 +2,6 @@ package ocr_test
 
 import (
 	"context"
-	"errors"
 	"math/big"
 	"strconv"
 	"sync"
@@ -200,10 +199,7 @@ func TestTransmitterLocal(t *testing.T) {
 					nil,
 				)
 				t.Logf("Transmit error with closed RPC: %v", err)
-				require.Error(t, err)
-				err, ok := errors.AsType[ocr.RPCError](err)
-				require.True(t, ok, "expected error of type RPCError, got %T", err)
-				t.Logf("Transmit error due to RPC failure (expected): %v", err)
+				require.ErrorContains(t, err, "RPC error:")
 			},
 		},
 		{
@@ -235,9 +231,7 @@ func TestTransmitterLocal(t *testing.T) {
 					ocr3types.ReportWithInfo[[]byte]{Report: reportBytes},
 					nil,
 				)
-				require.Error(t, err)
-				err, ok := errors.AsType[ocr.InsufficientBalanceError](err)
-				require.True(t, ok, "expected error of type InsufficientBalanceError, got %T", err)
+				require.ErrorContains(t, err, "insufficient balance for transmission")
 				t.Logf("Transmit error due to insufficient balance (expected): %v", err)
 			},
 		},

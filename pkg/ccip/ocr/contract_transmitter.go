@@ -25,9 +25,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
-// walletGas accounts for the extra balance used when sending a message with [wallet.PayGasSeparately] mode.
-var walletGas = tlb.MustFromTON("0.01")
-
 type ToEd25519CalldataFunc func(
 	rawReportCtxBytes [64]byte,
 	report ocr3types.ReportWithInfo[[]byte],
@@ -42,40 +39,6 @@ type ccipTransmitter struct {
 	toEd25519CalldataFn ToEd25519CalldataFunc
 	lggr                logger.Logger
 	cfg                 *Config
-}
-
-type InsufficientBalanceError struct {
-	Balance   tlb.Coins
-	MsgAmount tlb.Coins
-}
-
-type RPCError struct {
-	Msg string
-	Err error
-}
-
-var (
-	_ error = InsufficientBalanceError{}
-	_ error = RPCError{}
-)
-
-func (e InsufficientBalanceError) Error() string {
-	return fmt.Sprintf("insufficient balance for transmission: have %s, need %s", e.Balance.String(), e.MsgAmount.String())
-}
-
-func NewRPCError(s string, err error) error {
-	return RPCError{
-		Msg: s,
-		Err: err,
-	}
-}
-
-func (e RPCError) Error() string {
-	return fmt.Sprintf("%s: %v", e.Msg, e.Err)
-}
-
-func (e RPCError) Unwrap() error {
-	return e.Err
 }
 
 func NewCCIPTransmitter(
@@ -147,35 +110,6 @@ func (c *ccipTransmitter) Transmit(
 	txID, finalAmount, gasLimit, err := getReportTxInfo(reportWithInfo.Report, seqNr, c.cfg)
 	if err != nil {
 		return fmt.Errorf("failed to extract report metadata: %w", err)
-	}
-
-	{
-		block, err := client.Client.CurrentMasterchainInfo(ctx)
-		if err != nil {
-			return NewRPCError("failed to get current masterchain info", err)
-		}
-		transmitterAccount, err := client.Client.GetAccount(ctx, block, w.WalletAddress())
-		if err != nil {
-			return NewRPCError("failed to get transmitter account info", err)
-		}
-
-		// If account is not active, balance is 0
-		if !transmitterAccount.IsActive || transmitterAccount.State == nil {
-			return fmt.Errorf("failed to get account status: account.IsActive: %v, account.State == nil: %v", transmitterAccount.IsActive, transmitterAccount.State == nil)
-		}
-		maxAmount, err := finalAmount.Add(&walletGas)
-		if err != nil {
-			return fmt.Errorf("failed to add wallet gas: %w", err)
-		}
-
-		if transmitterAccount.State.Balance.Nano().Cmp(maxAmount.Nano()) == -1 {
-			return InsufficientBalanceError{
-				Balance:   transmitterAccount.State.Balance,
-				MsgAmount: *finalAmount,
-			}
-		}
-		c.lggr.Debugf("transmitter balance: %s", transmitterAccount.State.Balance.String())
-		c.lggr.Debugf("final amount: %s", finalAmount.String())
 	}
 
 	request := txm.Request{
