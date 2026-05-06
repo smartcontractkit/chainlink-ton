@@ -10,6 +10,7 @@ require (
 	github.com/gagliardetto/solana-go v1.13.0
 	github.com/hashicorp/go-plugin v1.7.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/jpillora/backoff v1.0.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/lo v1.52.0
@@ -83,7 +84,6 @@ require (
 	github.com/jmank88/gomods v0.1.6 // indirect
 	github.com/jmank88/modgraph v0.1.1 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
-	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
