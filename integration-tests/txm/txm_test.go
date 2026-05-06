@@ -44,7 +44,7 @@ func TestTxmLocal(t *testing.T) {
 	}
 
 	type TestSetup struct {
-		startTXM         func(logger.Logger) *txm.Txm
+		startTXM         func(logger.Logger, ...txm.Config) *txm.Txm
 		txmTestingClient *testingAPIClientWrapped
 		setupClient      tracetracking.SignedAPIClient
 	}
@@ -297,6 +297,37 @@ func TestTxmLocal(t *testing.T) {
 					entries := logs.FilterMessage("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account").FilterLevelExact(zapcore.ErrorLevel)
 					require.GreaterOrEqual(t, entries.Len(), 1, "expected TXM to log error")
 				}
+			}}, {
+			name: "ExpiredTransaction",
+			test: func(t *testing.T, setup TestSetup) {
+				lggr := test_logger.New()
+				// Use a very short TxExpiration so the transaction expires before broadcast
+				config := txm.DefaultConfigSet
+				config.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
+				config.TxExpiration = commonconfig.MustNewDuration(0)
+
+				tonTxm := setup.startTXM(lggr, config)
+				t.Cleanup(func() { require.NoError(t, tonTxm.Close(), "Fail to close TXM") })
+
+				setup.txmTestingClient.On("SendWaitTransaction", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					t.Fatal("Mock SendWaitTransaction called. This should not happen because the transaction should expire before it is sent.")
+				}).Maybe()
+
+				// Deploy counter contract
+				const initialValue uint32 = 0
+				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
+
+				err := tonTxm.Enqueue(txm.Request{
+					Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
+					FromWallet:      setup.setupClient.Wallet,
+					ContractAddress: *counterAddr,
+					Amount:          tlb.MustFromTON("0.05"),
+					Bounce:          true,
+					Body:            tvm.EmptyCell,
+				})
+				require.NoError(t, err)
+
+				waitForStableInflightCount(lggr, tonTxm, 5*time.Second)
 			}},
 	}
 
@@ -307,16 +338,24 @@ func TestTxmLocal(t *testing.T) {
 			tc.test(t, TestSetup{
 				setupClient:      accounts[i].setupClient,
 				txmTestingClient: accounts[i].txmTestingClient,
-				startTXM: func(lggr logger.Logger) *txm.Txm {
-					config := txm.DefaultConfigSet
-					config.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
+				startTXM: func(lggr logger.Logger, config ...txm.Config) *txm.Txm {
+					configToBeSet := txm.Config{
+						ConfirmPollInterval: commonconfig.MustNewDuration(2 * time.Second),
+					}
+					if len(config) > 0 {
+						configToBeSet = config[0]
+						if configToBeSet.ConfirmPollInterval == nil {
+							configToBeSet.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
+						}
+					}
+					configToBeSet.ApplyDefaults()
 
 					chainID := string(chainsel.TON_LOCALNET.ChainID)
 
 					signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
 						return accounts[i].txmSignedAPIClient, nil
 					}
-					tonTxm, err := txm.New(lggr, chainID, keystore, signedClientProvider, config)
+					tonTxm, err := txm.New(lggr, chainID, keystore, signedClientProvider, configToBeSet)
 					require.NoError(t, err)
 					err = tonTxm.Start(t.Context())
 					require.NoError(t, err)
