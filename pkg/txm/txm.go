@@ -353,18 +353,13 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				"to", tx.To.String(),
 				"timeout", t.config.SendTimeout.Duration(),
 				"err", err)
-		} else if werr, ok := func() (e *tracetracking.WalletTXError, ok bool) {
-			e = &tracetracking.WalletTXError{}
-			return e, errors.As(err, &e)
-		}(); ok && werr.IsInboundExternalMessageRejectedByAccountError() {
-			// TODO change the above inline function for errors.AsType when we update to Go 1.26:
-			// } else if err, ok := errors.AsType[tracetracking.WalletTXError{}](err); ok && werr.IsInboundExternalMessageRejectedByAccountError() {
-			err = fmt.Errorf("transaction rejected by TON node, likely due to insufficient balance: %w", werr)
+		} else if tracetracking.IsInboundExternalMessageRejectedByAccountError(err) {
+			err = fmt.Errorf("transaction rejected by TON node, likely due to insufficient balance: %w", err)
 			t.logger.Warnw(err.Error(),
 				"txID", txID,
 				"attempt", attempt,
 				"to", tx.To.String(),
-				"err", werr)
+				"err", err)
 			break
 		} else {
 			t.logger.Warnw("failed to broadcast tx, will retry",
