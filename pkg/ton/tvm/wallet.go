@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"math/big"
@@ -40,6 +41,16 @@ func NewRandomV5R1TestWallet(api wallet.TonAPI, networkGlobalID int32) (*wallet.
 	}
 
 	return wallet.FromSeed(api, wallet.NewSeed(), v5r1Config)
+}
+
+// NewV5R1Wallet creates a new V5R1 wallet by using the provided private key.
+func NewV5R1Wallet(api wallet.TonAPI, networkGlobalID int32, privateKey ed25519.PrivateKey) (*wallet.Wallet, error) {
+	v5r1Config := wallet.ConfigV5R1Final{
+		NetworkGlobalID: networkGlobalID,
+		Workchain:       0,
+	}
+
+	return wallet.FromPrivateKey(api, privateKey, v5r1Config)
 }
 
 func NewRandomHighloadV3TestWallet(client ton.APIClientWrapped) (*wallet.Wallet, error) {

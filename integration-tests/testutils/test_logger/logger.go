@@ -5,12 +5,27 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
 // This logger prevents testing framework from printing the path and line number inside the logger package, which is not useful and clutters the logs. Instead, it will print the caller of the logger (i.e. the line in this test file where the log was called).
 func New() logger.Logger {
+	core := loggerCore()
+	return logger.WithOptions(logger.NewWithCores(core), zap.AddCaller())
+}
+
+// This logger is used for tests that need to assert on the logs. It combines the console logger with an observer core, which allows us to capture the logs and make assertions on them in the tests.
+func NewObserved() (logger.Logger, *observer.ObservedLogs) {
+	consoleCore := loggerCore()
+	observerCore, logs := observer.New(zapcore.DebugLevel)
+
+	combined := zapcore.NewTee(consoleCore, observerCore)
+	return logger.WithOptions(logger.NewWithCores(combined), zap.AddCaller()), logs
+}
+
+func loggerCore() zapcore.Core {
 	cfg := zap.NewDevelopmentEncoderConfig()
 	cfg.EncodeTime = zapcore.TimeEncoderOfLayout("15:04:05.000000000")
 	core := zapcore.NewCore(
@@ -18,5 +33,5 @@ func New() logger.Logger {
 		zapcore.Lock(os.Stderr),
 		zapcore.DebugLevel,
 	)
-	return logger.WithOptions(logger.NewWithCores(core), zap.AddCaller())
+	return core
 }

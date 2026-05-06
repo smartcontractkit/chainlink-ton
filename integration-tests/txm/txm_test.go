@@ -8,64 +8,87 @@ import (
 	"time"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
+	"go.uber.org/zap/zapcore"
 
 	commonconfig "github.com/smartcontractkit/chainlink-common/pkg/config"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/test_logger"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/testutils/ton/balance"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
 
+const networkGlobalID int32 = -217
+
 func TestTxmLocal(t *testing.T) {
+	type connection struct {
+		txmSignedAPIClient tracetracking.SignedAPIClient
+		txmTestingClient   *testingAPIClientWrapped
+		setupClient        tracetracking.SignedAPIClient
+	}
+
 	type TestSetup struct {
-		apiClient tracetracking.SignedAPIClient
+		startTXM         func(logger.Logger) *txm.Txm
+		txmTestingClient *testingAPIClientWrapped
+		setupClient      tracetracking.SignedAPIClient
 	}
 
 	type testCase struct {
 		name string
 		test func(t *testing.T, setup TestSetup)
 	}
-	logger := test_logger.New()
 	keystore := relayer_utils.NewTestKeystore(t)
 
-	createAndFundAccounts := func() func(count uint) []tracetracking.SignedAPIClient {
+	createAndFundAccounts := func() func(count int) []connection {
 		var setupOnce sync.Once
 		tonChain, err := utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
 		require.NoError(t, err)
 		keystore.AddKey(tonChain.Wallet.PrivateKey())
 		require.NotNil(t, keystore)
 
-		return func(count uint) []tracetracking.SignedAPIClient {
+		return func(count int) []connection {
 			initialAmount := big.NewInt(10_000_000_000) // 10k TON
 			recipients := make([]*address.Address, count)
 			amounts := make([]tlb.Coins, count)
-			accounts := make([]tracetracking.SignedAPIClient, count)
+			accounts := make([]connection, count)
 
 			for i := range count {
-				w, err := tvm.NewRandomV5R1TestWallet(tonChain.Client, -217)
+				txmClient := &testingAPIClientWrapped{
+					APIClientWrapped: tonChain.Client,
+				}
+				txmWallet, err := tvm.NewRandomV5R1TestWallet(txmClient, networkGlobalID)
 				require.NoError(t, err)
 
-				recipients[i] = w.Address()
+				setupWallet, err := tvm.NewV5R1Wallet(tonChain.Client, networkGlobalID, txmWallet.PrivateKey())
+				require.NoError(t, err)
+
+				recipients[i] = setupWallet.WalletAddress()
 				amounts[i] = tlb.FromNanoTON(initialAmount)
 
-				accounts[i] = tracetracking.NewSignedAPIClient(tonChain.Client, *w)
+				accounts[i] = connection{
+					txmSignedAPIClient: tracetracking.NewSignedAPIClient(txmClient, *txmWallet),
+					txmTestingClient:   txmClient,
+					setupClient:        tracetracking.NewSignedAPIClient(tonChain.Client, *setupWallet),
+				}
 
-				keystore.AddKey(w.PrivateKey())
+				keystore.AddKey(txmWallet.PrivateKey())
 				require.NotNil(t, keystore)
 			}
 
@@ -76,39 +99,22 @@ func TestTxmLocal(t *testing.T) {
 		}
 	}()
 
-	getTxm := func(account tracetracking.SignedAPIClient) *txm.Txm {
-		config := txm.DefaultConfigSet
-		config.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
-
-		chainID := string(chainsel.TON_LOCALNET.ChainID)
-
-		signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
-			return account, nil
-		}
-		tonTxm, err := txm.New(logger, chainID, keystore, signedClientProvider, config)
-		require.NoError(t, err)
-		err = tonTxm.Start(t.Context())
-		require.NoError(t, err)
-
-		return tonTxm
-	}
-
 	testCases := []testCase{
 		{
 			name: "Counter contract interactions",
 			test: func(t *testing.T, setup TestSetup) {
-				tonTxm := getTxm(setup.apiClient)
-				defer func() {
-					_ = tonTxm.Close()
-				}()
+				lggr := test_logger.New()
+				tonTxm := setup.startTXM(lggr)
+				t.Cleanup(func() { require.NoError(t, tonTxm.Close(), "Fail to close TXM") })
 
 				const iterations int = 5
 				// Deploy counter contract
 				const initialValue uint32 = 0
-				counterAddr := deployCounterContract(t, setup.apiClient.Wallet, initialValue)
+				setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {})
+				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
 
 				// Check current state
-				current, err := counter.GetValue(t.Context(), setup.apiClient.Client, counterAddr)
+				current, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
 				require.NoError(t, err)
 				require.Equal(t, initialValue, current)
 
@@ -121,7 +127,7 @@ func TestTxmLocal(t *testing.T) {
 
 					incErr = tonTxm.Enqueue(txm.Request{
 						Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
-						FromWallet:      setup.apiClient.Wallet,
+						FromWallet:      setup.setupClient.Wallet,
 						ContractAddress: *counterAddr,
 						Amount:          tlb.MustFromTON("0.05"),
 						Bounce:          true,
@@ -136,7 +142,7 @@ func TestTxmLocal(t *testing.T) {
 
 					incErr = tonTxm.Enqueue(txm.Request{
 						Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
-						FromWallet:      setup.apiClient.Wallet,
+						FromWallet:      setup.setupClient.Wallet,
 						ContractAddress: *counterAddr,
 						Amount:          tlb.MustFromTON("0.05"),
 						Bounce:          true,
@@ -148,37 +154,146 @@ func TestTxmLocal(t *testing.T) {
 				}
 
 				// Wait for all txs
-				waitForStableInflightCount(logger, tonTxm, 30*time.Second)
+				waitForStableInflightCount(lggr, tonTxm, 30*time.Second)
 
 				// Check final value
-				final, err := counter.GetValue(t.Context(), setup.apiClient.Client, counterAddr)
+				final, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
 				require.NoError(t, err)
-				logger.Infow("Final counter value", "value", final)
+				lggr.Infow("Final counter value", "value", final)
 				require.Equal(t, expected, final)
-			},
-		},
+			}}, {
+			name: "ZeroBalance",
+			test: func(t *testing.T, setup TestSetup) {
+				lggr := test_logger.New()
+				tonTxm := setup.startTXM(lggr)
+				t.Cleanup(func() { require.NoError(t, tonTxm.Close(), "Fail to close TXM") })
+
+				// Deploy counter contract
+				const initialValue uint32 = 0
+				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
+
+				// Drain the transmitter's balance
+				{
+					msgTrace, err := setup.setupClient.SendAndWaitForTrace(t.Context(), *tvm.ZeroAddress, &wallet.Message{
+						Mode: wallet.IgnoreErrors | wallet.CarryAllRemainingBalance,
+						InternalMessage: &tlb.InternalMessage{
+							DstAddr: tvm.ZeroAddress,
+							Amount:  tlb.MustFromTON("0.1"),
+							Body:    tvm.EmptyCell,
+						},
+					})
+					require.NoError(t, err)
+
+					t.Logf("Drain trace:\n%s", debug.NewDebuggerTreeTrace(nil).DumpReceived(msgTrace))
+
+					tb := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
+					require.Truef(t, tb.IsZero(), "Transmitter balance should be zero after depletion, but it is %s", tb.String())
+				}
+
+				// Enqueue valid tx which should now fail due to insufficient funds
+				{
+					// Assert that SendWaitTransaction is called only once, which means Txm is not retrying the transaction after the first failure
+					setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).
+						Run(func(args mock.Arguments) {
+							ext := args.Get(1).(*tlb.ExternalMessage)
+							t.Logf("Mock SendWaitTransaction called with dstAddr: %s", ext.DstAddr.String())
+						}).Once()
+					incrementBody, incErr := tlb.ToCell(counter.IncreaseCount{QueryID: 1})
+					require.NoError(t, incErr)
+
+					err := tonTxm.Enqueue(txm.Request{
+						Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
+						FromWallet:      setup.setupClient.Wallet,
+						ContractAddress: *counterAddr,
+						Amount:          tlb.MustFromTON("0.05"),
+						Bounce:          true,
+						Body:            incrementBody,
+					})
+					require.NoError(t, err)
+
+					waitForStableInflightCount(lggr, tonTxm, 30*time.Second)
+
+					currentValue, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
+					require.NoError(t, err)
+					require.Equal(t, initialValue, currentValue, "Counter should remain unchanged after tx with insufficient funds")
+					setup.txmTestingClient.AssertExpectations(t)
+				}
+			}}, {
+			name: "InsufficientBalance",
+			test: func(t *testing.T, setup TestSetup) {
+				// txm should log that wallet didn't output any message
+				lggr, logs := test_logger.NewObserved()
+				tonTxm := setup.startTXM(lggr)
+				t.Cleanup(func() { require.NoError(t, tonTxm.Close(), "Fail to close TXM") })
+
+				// Deploy counter contract
+				const initialValue uint32 = 0
+				counterAddr := deployCounterContract(t, setup.setupClient.Wallet, initialValue)
+
+				// Enqueue valid tx which should now fail due to insufficient funds
+				{
+					amount := balance.MustGet(t, setup.setupClient.Client, setup.setupClient.Wallet.WalletAddress())
+					// Assert that SendWaitTransaction is called only once, which means Txm is not retrying the transaction after the first failure
+					setup.txmTestingClient.On("SendExternalMessageWaitTransaction", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+						ext := args.Get(1).(*tlb.ExternalMessage)
+						t.Logf("Mock SendWaitTransaction called with dstAddr: %s", ext.DstAddr.String())
+					}).Once()
+					incrementBody, incErr := tlb.ToCell(counter.IncreaseCount{QueryID: 1})
+					require.NoError(t, incErr)
+
+					err := tonTxm.Enqueue(txm.Request{
+						Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
+						FromWallet:      setup.setupClient.Wallet,
+						ContractAddress: *counterAddr,
+						Amount:          *amount,
+						Bounce:          true,
+						Body:            incrementBody,
+					})
+					require.NoError(t, err)
+
+					waitForStableInflightCount(lggr, tonTxm, 30*time.Second)
+
+					currentValue, err := counter.GetValue(t.Context(), setup.setupClient.Client, counterAddr)
+					require.NoError(t, err)
+					require.Equal(t, initialValue, currentValue, "Counter should remain unchanged after tx with insufficient funds")
+					setup.txmTestingClient.AssertExpectations(t)
+
+					// TODO TXM should enabling getting TX results with error. Testing logs is not reliable. https://smartcontract-it.atlassian.net/browse/NONEVM-4956
+					entries := logs.FilterMessage("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account").FilterLevelExact(zapcore.ErrorLevel)
+					require.GreaterOrEqual(t, entries.Len(), 1, "expected TXM to log error")
+				}
+			}},
 	}
 
-	accounts := createAndFundAccounts(10)
-	getAccount := func() tracetracking.SignedAPIClient {
-		require.NotEmpty(t, accounts, "No pre-funded accounts available")
-		acc := accounts[0]
-		accounts = accounts[1:]
-		return acc
-	}
+	accounts := createAndFundAccounts(len(testCases))
 
-	for _, tc := range testCases {
+	for i, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			transmitterAccount := getAccount()
-
 			tc.test(t, TestSetup{
-				apiClient: transmitterAccount,
+				setupClient:      accounts[i].setupClient,
+				txmTestingClient: accounts[i].txmTestingClient,
+				startTXM: func(lggr logger.Logger) *txm.Txm {
+					config := txm.DefaultConfigSet
+					config.ConfirmPollInterval = commonconfig.MustNewDuration(2 * time.Second)
+
+					chainID := string(chainsel.TON_LOCALNET.ChainID)
+
+					signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+						return accounts[i].txmSignedAPIClient, nil
+					}
+					tonTxm, err := txm.New(lggr, chainID, keystore, signedClientProvider, config)
+					require.NoError(t, err)
+					err = tonTxm.Start(t.Context())
+					require.NoError(t, err)
+
+					return tonTxm
+				},
 			})
 		})
 	}
 }
 
-func waitForStableInflightCount(logger logger.Logger, txm *txm.Txm, duration time.Duration) {
+func waitForStableInflightCount(lggr logger.Logger, txm *txm.Txm, duration time.Duration) {
 	const checkInterval = 200 * time.Millisecond
 	stableSince := time.Now()
 	stabilityReached := false
@@ -188,16 +303,16 @@ func waitForStableInflightCount(logger logger.Logger, txm *txm.Txm, duration tim
 
 		if queueLen == 0 && unconfirmedLen == 0 {
 			if !stabilityReached {
-				logger.Debugw("Inflight count stable at zero, starting timer")
+				lggr.Debugw("Inflight count stable at zero, starting timer")
 				stabilityReached = true
 			}
 			if time.Since(stableSince) >= duration {
-				logger.Debugw("Inflight count was stable for full duration", "duration", duration)
+				lggr.Debugw("Inflight count was stable for full duration", "duration", duration)
 				return
 			}
 		} else {
 			if stabilityReached {
-				logger.Warnw("Inflight count was stable but changed", "queueLen", queueLen, "unconfirmedLen", unconfirmedLen, "elapsed", time.Since(stableSince))
+				lggr.Warnw("Inflight count was stable but changed", "queueLen", queueLen, "unconfirmedLen", unconfirmedLen, "elapsed", time.Since(stableSince))
 			}
 			stableSince = time.Now()
 			stabilityReached = false
@@ -227,4 +342,14 @@ func deployCounterContract(t *testing.T, wallet wallet.Wallet, initialValue uint
 	require.NoError(t, err)
 
 	return counterAddr
+}
+
+type testingAPIClientWrapped struct {
+	mock.Mock
+	ton.APIClientWrapped
+}
+
+func (m *testingAPIClientWrapped) SendExternalMessageWaitTransaction(ctx context.Context, ext *tlb.ExternalMessage) (*tlb.Transaction, *ton.BlockIDExt, []byte, error) {
+	m.Called(ctx, ext)
+	return m.APIClientWrapped.SendExternalMessageWaitTransaction(ctx, ext)
 }

@@ -3,6 +3,7 @@ package tracetracking
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -26,6 +27,28 @@ func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) Signe
 	}
 }
 
+type WalletTXError struct {
+	Err         error
+	Destination address.Address
+}
+
+var (
+	_ error = (*WalletTXError)(nil)
+)
+
+func (e *WalletTXError) Error() string {
+	return fmt.Sprintf("wallet transaction error for destination %s: %v", e.Destination.String(), e.Err)
+}
+
+func (e *WalletTXError) Unwrap() error {
+	return e.Err
+}
+
+func (e *WalletTXError) IsInboundExternalMessageRejectedByAccountError() bool {
+	const errPrefix = "failed to send message: lite server error, code -701"
+	return strings.HasPrefix(e.Err.Error(), errPrefix)
+}
+
 // SendWaitTransaction sends a transaction to the specified address and waits for
 // it to be confirmed on the blockchain. It returns the resulting ReceivedMessage
 // with outgoing messages (if any) and the block sequence number where the
@@ -36,7 +59,7 @@ func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) Signe
 func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, *ton.BlockIDExt, error) {
 	tx, block, err := c.Wallet.SendWaitTransaction(ctx, messageToSend)
 	if err != nil {
-		return nil, nil, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
+		return nil, nil, &WalletTXError{Err: err, Destination: dstAddr}
 	}
 
 	receivedMessage, err := MapToReceivedMessage(tx)

@@ -331,6 +331,14 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				t.logger.Errorw("transaction failed", "exitcode", exitCode, "description", exitCode.Describe())
 			}
 
+			if len(receivedMessage.OutgoingInternalSentMessages) == 0 && len(receivedMessage.OutgoingInternalReceivedMessages) == 0 {
+				t.logger.Errorw("transaction did not produce any outgoing messages, this may indicate that the value of the enqueued message was higher than the balance of the account",
+					"txID", txID,
+					"to", tx.To.String(),
+					"amount", tx.Amount.Nano().String(),
+				)
+			}
+
 			if *t.config.EnableTraceLogging {
 				t.gatherAndLogTrace(ctx, client, receivedMessage, txID)
 			}
@@ -345,6 +353,19 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 				"to", tx.To.String(),
 				"timeout", t.config.SendTimeout.Duration(),
 				"err", err)
+		} else if werr, ok := func() (e *tracetracking.WalletTXError, ok bool) {
+			e = &tracetracking.WalletTXError{}
+			return e, errors.As(err, &e)
+		}(); ok && werr.IsInboundExternalMessageRejectedByAccountError() {
+			// TODO change the above inline function for errors.AsType when we update to Go 1.26:
+			// } else if err, ok := errors.AsType[tracetracking.WalletTXError{}](err); ok && werr.IsInboundExternalMessageRejectedByAccountError() {
+			err = fmt.Errorf("transaction rejected by TON node, likely due to insufficient balance: %w", werr)
+			t.logger.Warnw(err.Error(),
+				"txID", txID,
+				"attempt", attempt,
+				"to", tx.To.String(),
+				"err", werr)
+			break
 		} else {
 			t.logger.Warnw("failed to broadcast tx, will retry",
 				"txID", txID,
