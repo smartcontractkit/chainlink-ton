@@ -376,9 +376,10 @@ func TestReadPackageMetadata_WithValidFile(t *testing.T) {
 	result, err := LoadPackageMetadata(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "1.6.3", result.Version)
-	require.Contains(t, result.Contracts, "link.chain.ton.ccip.Router")
-	assert.Equal(t, "Router.compiled.json", result.Contracts["link.chain.ton.ccip.Router"].Path)
-	assert.Equal(t, "1.6.3", result.Contracts["link.chain.ton.ccip.Router"].Version)
+	const rtType = tvm.FullyQualifiedType("link.chain.ton.ccip.Router")
+	require.Contains(t, result.Contracts, rtType)
+	assert.Equal(t, "Router.compiled.json", result.Contracts[rtType].Path)
+	assert.Equal(t, "1.6.3", result.Contracts[rtType].Version)
 }
 
 func TestReadPackageMetadata_MissingFileUsesFallback(t *testing.T) {
