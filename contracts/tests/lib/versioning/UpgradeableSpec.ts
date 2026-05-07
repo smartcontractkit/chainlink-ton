@@ -18,12 +18,12 @@ import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndV
 export type UpgradeTestConfig<TCurrentVersionContract> = {
   /** The expected contract type name (e.g., 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
-  /** Version string for previous version contract */
-  prevVersion: string
+  /** Version strings for previous version contracts (one per supported previous version) */
+  prevVersions: string[]
   /** Version string for current version contract */
   currentVersion: string
   /** Function to get the code for previous version contract */
-  getPrevCode: () => Promise<Cell>
+  getPrevCode: () => Promise<Cell[]>
   /** Function to get the code for current version contract */
   getCurrentCode: () => Promise<Cell>
   /** Constructor for current version contract */
@@ -34,10 +34,10 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
   /** Amount of TON to use on sendUpgrade */
   upgradeValue?: bigint
   /** Function to deploy and setup the previous version contract */
-  deployPrevContract: (
+  deployPrevContracts: (
     blockchain: Blockchain,
     owner: SandboxContract<TreasuryContract>,
-  ) => Promise<SandboxContract<UpgradeableContract>>
+  ) => Promise<SandboxContract<UpgradeableContract>[]>
 }
 
 /**
@@ -76,8 +76,8 @@ interface TestSetup {
   blockchain: Blockchain
   owner: SandboxContract<TreasuryContract>
   nonOwner: SandboxContract<TreasuryContract>
-  prevContract: SandboxContract<UpgradeableContract>
-  prevCode: Cell
+  prevContracts: SandboxContract<UpgradeableContract>[]
+  prevVersionsCode: Cell[]
   currentCode: Cell
 }
 
@@ -91,12 +91,12 @@ interface TestSetup {
  * ```typescript
  * const upgradeSpec = newUpgradeSpec({
  *   contractType: 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
- *   prevVersion: '1.0.0',
+ *   prevVersions: ['1.0.0'],
  *   currentVersion: '2.0.0',
- *   getPrevCode: () => UpgradeableCounterV1.code(),
+ *   getPrevCode: async () => [await UpgradeableCounterV1.code()],
  *   getCurrentCode: () => UpgradeableCounterV2.code(),
  *   CurrentVersionConstructor: UpgradeableCounterV2,
- *   deployPrevContract: async (blockchain, owner) => {
+ *   deployPrevContracts: async (blockchain, owner) => {
  *     const codeV1 = await UpgradeableCounterV1.code()
  *     const contract = blockchain.openContract(
  *       UpgradeableCounterV1.createFromConfig(
@@ -110,7 +110,7 @@ interface TestSetup {
  *     )
  *     const deployer = await blockchain.treasury('deployer')
  *     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
- *     return contract
+ *     return [contract]
  *   }
  * })
  *
@@ -128,7 +128,7 @@ export function newUpgradeSpec<
     const nonOwner = await blockchain.treasury('nonOwner')
     const prevCode = await config.getPrevCode()
     const currentCode = await config.getCurrentCode()
-    const prevContract: SandboxContract<UpgradeableContract> = await config.deployPrevContract(
+    const prevContracts: SandboxContract<UpgradeableContract>[] = await config.deployPrevContracts(
       blockchain,
       owner,
     )
@@ -137,8 +137,8 @@ export function newUpgradeSpec<
       blockchain,
       owner,
       nonOwner,
-      prevContract,
-      prevCode,
+      prevContracts,
+      prevVersionsCode: prevCode,
       currentCode,
     }
   }
@@ -173,18 +173,23 @@ export function newUpgradeSpec<
        * Test that the contract deploys on the correct version (previous version)
        */
       it('should deploy on correct version', async () => {
-        const { prevContract, prevCode } = testSetup
+        const { prevContracts, prevVersionsCode } = testSetup
 
-        const typeAndVersion = await prevContract.getTypeAndVersion()
-        expect(typeAndVersion.type).toBe(config.contractType)
-        expect(typeAndVersion.version).toBe(config.prevVersion)
+        for (let i = 0; i < prevContracts.length; i++) {
+          const prevContract = prevContracts[i]
+          const prevCode = prevVersionsCode[i]
 
-        const currentCode = await prevContract.getCode()
-        expect(currentCode.toString('hex')).toBe(prevCode.toString('hex'))
+          const typeAndVersion = await prevContract.getTypeAndVersion()
+          expect(typeAndVersion.type).toBe(config.contractType)
+          expect(typeAndVersion.version).toBe(config.prevVersions[i])
 
-        const expectedHash = BigInt('0x' + prevCode.hash().toString('hex'))
-        const hash = await prevContract.getCodeHash()
-        expect(hash).toBe(expectedHash)
+          const currentCode = await prevContract.getCode()
+          expect(currentCode.toString('hex')).toBe(prevCode.toString('hex'))
+
+          const expectedHash = BigInt('0x' + prevCode.hash().toString('hex'))
+          const hash = await prevContract.getCodeHash()
+          expect(hash).toBe(expectedHash)
+        }
       })
 
       /**
@@ -196,63 +201,73 @@ export function newUpgradeSpec<
 
       async function upgradePrevToCurrent(testSetup: TestSetup): Promise<
         {
-          currentVersionContract: SandboxContract<UpgradeableContract>
+          currentVersionContracts: SandboxContract<UpgradeableContract>[]
         } & TestSetup
       > {
-        // Verify initial version
-        const typeAndVersionPrev = await testSetup.prevContract.getTypeAndVersion()
-        expect(typeAndVersionPrev.type).toBe(config.contractType)
-        expect(typeAndVersionPrev.version).toBe(config.prevVersion)
+        const currentVersionContracts: SandboxContract<UpgradeableContract>[] = []
 
-        // Perform upgrade
-        const { upgradeResult, newVersionInstance } =
-          await upgradeable.sendUpgradeAndReturnNewVersion(
-            testSetup.prevContract,
-            testSetup.owner.getSender(),
-            amount,
-            config.CurrentVersionConstructor,
-            testSetup.currentCode,
+        for (let i = 0; i < testSetup.prevContracts.length; i++) {
+          const prevContract = testSetup.prevContracts[i]
+          const prevVersion = config.prevVersions[i]
+
+          // Verify initial version
+          const typeAndVersionPrev = await prevContract.getTypeAndVersion()
+          expect(typeAndVersionPrev.type).toBe(config.contractType)
+          expect(typeAndVersionPrev.version).toBe(prevVersion)
+
+          // Perform upgrade
+          const { upgradeResult, newVersionInstance } =
+            await upgradeable.sendUpgradeAndReturnNewVersion(
+              prevContract,
+              testSetup.owner.getSender(),
+              amount,
+              config.CurrentVersionConstructor,
+              testSetup.currentCode,
+            )
+
+          expect(upgradeResult.transactions).toHaveTransaction({
+            from: testSetup.owner.address,
+            to: prevContract.address,
+            success: true,
+          })
+
+          const currentVersionContract: SandboxContract<UpgradeableContract> =
+            testSetup.blockchain.openContract(newVersionInstance)
+
+          // Verify code changed
+          const code = await currentVersionContract.getCode()
+          expect(code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
+
+          const expectedHash = BigInt('0x' + testSetup.currentCode.hash().toString('hex'))
+          const hash = await currentVersionContract.getCodeHash()
+          expect(hash).toBe(expectedHash)
+
+          // Verify version changed
+          const typeAndVersionCurrent = await currentVersionContract.getTypeAndVersion()
+          expect(typeAndVersionCurrent.type).toBe(config.contractType)
+          expect(typeAndVersionCurrent.version).toBe(config.currentVersion)
+
+          // Verify upgrade event was emitted
+          const upgradeTransaction = upgradeResult.transactions.find(
+            (tx) =>
+              tx.inMessage?.info.type === 'internal' &&
+              tx.inMessage.info.src.equals(testSetup.owner.address) &&
+              tx.inMessage.info.dest.equals(prevContract.address),
           )
+          const event = upgradeTransaction?.outMessages.values().find((msg: Message) => {
+            return msg.info.type === 'external-out'
+          })
+          expect(event).toBeDefined()
 
-        expect(upgradeResult.transactions).toHaveTransaction({
-          from: testSetup.owner.address,
-          to: testSetup.prevContract.address,
-          success: true,
-        })
+          const upgradedEvent = upgradeable.builder.event.upgraded.load(event!.body.beginParse())
+          expect(upgradedEvent.version).toBe(config.currentVersion)
+          expect(upgradedEvent.code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
+          expect(upgradedEvent.codeHash).toBe(expectedHash)
 
-        const currentVersionContract: SandboxContract<UpgradeableContract> =
-          testSetup.blockchain.openContract(newVersionInstance)
+          currentVersionContracts.push(currentVersionContract)
+        }
 
-        // Verify code changed
-        const code = await currentVersionContract.getCode()
-        expect(code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
-
-        const expectedHash = BigInt('0x' + testSetup.currentCode.hash().toString('hex'))
-        const hash = await currentVersionContract.getCodeHash()
-        expect(hash).toBe(expectedHash)
-
-        // Verify version changed
-        const typeAndVersionCurrent = await currentVersionContract.getTypeAndVersion()
-        expect(typeAndVersionCurrent.type).toBe(config.contractType)
-        expect(typeAndVersionCurrent.version).toBe(config.currentVersion)
-
-        // Verify upgrade event was emitted
-        const upgradeTransaction = upgradeResult.transactions.find(
-          (tx) =>
-            tx.inMessage?.info.type === 'internal' &&
-            tx.inMessage.info.src.equals(testSetup.owner.address) &&
-            tx.inMessage.info.dest.equals(testSetup.prevContract.address),
-        )
-        const event = upgradeTransaction?.outMessages.values().find((msg: Message) => {
-          return msg.info.type === 'external-out'
-        })
-        expect(event).toBeDefined()
-
-        const upgradedEvent = upgradeable.builder.event.upgraded.load(event!.body.beginParse())
-        expect(upgradedEvent.version).toBe(config.currentVersion)
-        expect(upgradedEvent.code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
-        expect(upgradedEvent.codeHash).toBe(expectedHash)
-        return { currentVersionContract, ...testSetup }
+        return { currentVersionContracts, ...testSetup }
       }
 
       afterAll(async () => {

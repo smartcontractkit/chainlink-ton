@@ -25,6 +25,7 @@ import "types"
 import "storage"
 import "events"
 
+const CONTRACT_VERSION_PREV_160 = "1.6.0";
 const CONTRACT_VERSION_PREV = "1.6.1";
 const CONTRACT_VERSION = "1.6.2";
 const RESERVE = ton("5");
@@ -238,7 +239,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual(CONTRACT_VERSION_PREV)) throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual(CONTRACT_VERSION_PREV) || version.bitsEqual(CONTRACT_VERSION_PREV_160)) throw Upgradeable_Error.VersionMismatch;
     return storage;
 }
 

@@ -64,12 +64,12 @@ async function setUpTest(i: number): Promise<{
 describe('UpgradeableCounter - Upgrade Tests', () => {
   const upgradeSpec = newUpgradeSpec({
     contractType: upCounterV1.ContractClient.type(),
-    prevVersion: upCounterV1.ContractClient.version(),
+    prevVersions: [upCounterV1.ContractClient.version()],
     currentVersion: upCounterV2.ContractClient.version(),
-    getPrevCode: () => upCounterV1.ContractClient.code(),
+    getPrevCode: async () => [await upCounterV1.ContractClient.code()],
     getCurrentCode: () => upCounterV2.ContractClient.code(),
     CurrentVersionConstructor: upCounterV2.ContractClient,
-    deployPrevContract: async (blockchain, owner) => {
+    deployPrevContracts: async (blockchain, owner) => {
       const codeV1 = await upCounterV1.ContractClient.code()
       const contract = blockchain.openContract(
         upCounterV1.ContractClient.createFromConfig(
@@ -83,7 +83,7 @@ describe('UpgradeableCounter - Upgrade Tests', () => {
       )
       const deployer = await blockchain.treasury('deployer')
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-      return contract
+      return [contract]
     },
   })
   upgradeSpec.run()

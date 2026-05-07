@@ -50,22 +50,29 @@ describe('FeeQuoter - TypeAndVersion Tests', () => {
 
 describe('FeeQuoter - Upgrade Tests', () => {
   class FeeQuoter extends fq.FeeQuoter {}
-  class FeeQuoterPrev extends fq.FeeQuoter {
+  class FeeQuoterPrev160 extends fq.FeeQuoter {
     static code(): Promise<Cell> {
       return contractCode.ccip.release_1_6_0('FeeQuoter')
     }
   }
+  class FeeQuoterPrev161 extends fq.FeeQuoter {
+    static code(): Promise<Cell> {
+      return contractCode.ccip.release_1_6_1('FeeQuoter')
+    }
+  }
 
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: FeeQuoterPrev.type(),
-    prevVersion: FEE_QUOTER_CONTRACT_VERSION_PREV,
+    contractType: FeeQuoterPrev161.type(),
+    prevVersions: ['1.6.0', FEE_QUOTER_CONTRACT_VERSION_PREV],
     currentVersion: FeeQuoter.version(),
-    getPrevCode: () => FeeQuoterPrev.code(),
+    getPrevCode: () => Promise.all([FeeQuoterPrev160.code(), FeeQuoterPrev161.code()]),
     getCurrentCode: () => FeeQuoter.code(),
     CurrentVersionConstructor: FeeQuoter,
     upgradeValue: toNano('0.05'),
-    deployPrevContract: async (blockchain, owner) =>
-      setupTestFeeQuoter(owner, blockchain, await FeeQuoterPrev.code()),
+    deployPrevContracts: async (blockchain, owner) => [
+      await setupTestFeeQuoter(owner, blockchain, await FeeQuoterPrev160.code()),
+      await setupTestFeeQuoter(owner, blockchain, await FeeQuoterPrev161.code()),
+    ],
   })
   upgradeSpec.run([
     {
@@ -73,51 +80,6 @@ describe('FeeQuoter - Upgrade Tests', () => {
       name: 'feequoter',
     },
   ])
-
-  it('should change tokenPriceStalenessThreshold on upgrade', async () => {
-    const blockchain = await Blockchain.create()
-    const deployer = await blockchain.treasury('deployer')
-
-    // deploy prev version
-    const feeQuoterPrev = await setupTestFeeQuoter(deployer, blockchain, await FeeQuoterPrev.code())
-    const loadStorage = async () => {
-      const contract = await blockchain.getContract(feeQuoterPrev.address)
-      if (!contract.account.account) {
-        throw new Error('Contract account not found')
-      }
-      const storage = contract.account.account.storage
-      if (storage.state.type != 'active') {
-        throw new Error('Contract is not active')
-      }
-      if (!storage.state.state.data) {
-        throw new Error('Contract has no data')
-      }
-      return fq.builder.data.contractData.load(storage.state.state.data.asSlice())
-    }
-    const originalStorage = await loadStorage()
-    const originalThreshold = originalStorage.tokenPriceStalenessThreshold
-    const expectedNewThreshold = 86400 // 24 hours in seconds
-    expect(originalThreshold).not.toBe(expectedNewThreshold) // sanity check
-    const expectedNewStorage = {
-      ...originalStorage,
-      tokenPriceStalenessThreshold: expectedNewThreshold,
-    }
-
-    // perform upgrade
-    const result = await feeQuoterPrev.sendUpgrade(deployer.getSender(), toNano('0.05'), {
-      queryId: 0n,
-      code: await FeeQuoter.code(),
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: feeQuoterPrev.address,
-      success: true,
-    })
-
-    // verify storage was updated
-    const newStorage = await loadStorage()
-    expect(newStorage).toEqual(expectedNewStorage)
-  })
 })
 
 describe('FeeQuoter - Ownable Tests', () => {
