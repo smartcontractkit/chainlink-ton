@@ -239,8 +239,16 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual(CONTRACT_VERSION_PREV) || version.bitsEqual(CONTRACT_VERSION_PREV_160)) throw Upgradeable_Error.VersionMismatch;
+    requireSupportedVersion(version);
     return storage;
+}
+
+fun requireSupportedVersion(version: slice) {
+    assert (
+        version.bitsEqual("1.6.0")
+        || version.bitsEqual("1.6.1")
+    ) 
+    throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)

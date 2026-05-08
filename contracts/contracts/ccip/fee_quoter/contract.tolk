@@ -662,9 +662,19 @@ get fun reserve(): coins {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
-    assert (version.bitsEqual(CONTRACT_VERSION_PREV) || version.bitsEqual(CONTRACT_VERSION_PREV_160)) throw Upgradeable_Error.VersionMismatch;
+    val NEW_THRESHOLD = 24 * 60 * 60; //  86400 seconds = 24 hours
+    requireSupportedVersion(version);
     var st = Storage.fromCell(storage);
+    st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
     return st.toCell();
+}
+
+fun requireSupportedVersion(version: slice) {
+    assert (
+        version.bitsEqual("1.6.0")
+        || version.bitsEqual("1.6.1")
+    ) 
+    throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)

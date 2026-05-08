@@ -13,17 +13,30 @@ import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersio
 import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
 
 /**
+ * Configuration for a single previous version to test upgrades from.
+ */
+export type PrevVersionConfig = {
+  /** Version string for this previous version */
+  version: string
+  /** Function to get the code for this previous version */
+  getCode: () => Promise<Cell>
+  /** Function to deploy and setup a contract at this previous version */
+  deploy: (
+    blockchain: Blockchain,
+    owner: SandboxContract<TreasuryContract>,
+  ) => Promise<SandboxContract<UpgradeableContract>>
+}
+
+/**
  * Configuration for testing upgrades between two versions of an upgradeable contract.
  */
 export type UpgradeTestConfig<TCurrentVersionContract> = {
   /** The expected contract type name (e.g., 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
-  /** Version strings for previous version contracts (one per supported previous version) */
-  prevVersions: string[]
+  /** Configurations for each supported previous version to test upgrades from */
+  prevVersionConfigs: PrevVersionConfig[]
   /** Version string for current version contract */
   currentVersion: string
-  /** Function to get the code for previous version contract */
-  getPrevCode: () => Promise<Cell[]>
   /** Function to get the code for current version contract */
   getCurrentCode: () => Promise<Cell>
   /** Constructor for current version contract */
@@ -33,11 +46,6 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
   ) => TCurrentVersionContract
   /** Amount of TON to use on sendUpgrade */
   upgradeValue?: bigint
-  /** Function to deploy and setup the previous version contract */
-  deployPrevContracts: (
-    blockchain: Blockchain,
-    owner: SandboxContract<TreasuryContract>,
-  ) => Promise<SandboxContract<UpgradeableContract>[]>
 }
 
 /**
@@ -72,12 +80,17 @@ export interface UpgradeableContract
     typeAndVersion.Interface,
     Contract {}
 
+interface PrevVersionSetup {
+  version: string
+  code: Cell
+  contract: SandboxContract<UpgradeableContract>
+}
+
 interface TestSetup {
   blockchain: Blockchain
   owner: SandboxContract<TreasuryContract>
   nonOwner: SandboxContract<TreasuryContract>
-  prevContracts: SandboxContract<UpgradeableContract>[]
-  prevVersionsCode: Cell[]
+  prevEntries: PrevVersionSetup[]
   currentCode: Cell
 }
 
@@ -91,27 +104,31 @@ interface TestSetup {
  * ```typescript
  * const upgradeSpec = newUpgradeSpec({
  *   contractType: 'link.chain.ton.examples.versioning.upgrades.UpgradeableCounter',
- *   prevVersions: ['1.0.0'],
+ *   prevVersionConfigs: [
+ *     {
+ *       version: '1.0.0',
+ *       getCode: () => UpgradeableCounterV1.code(),
+ *       deploy: async (blockchain, owner) => {
+ *         const codeV1 = await UpgradeableCounterV1.code()
+ *         const contract = blockchain.openContract(
+ *           UpgradeableCounterV1.createFromConfig(
+ *             {
+ *               id: 0,
+ *               value: 0,
+ *               ownable: { owner: owner.address, pendingOwner: null },
+ *             },
+ *             codeV1,
+ *           ),
+ *         )
+ *         const deployer = await blockchain.treasury('deployer')
+ *         await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+ *         return contract
+ *       },
+ *     },
+ *   ],
  *   currentVersion: '2.0.0',
- *   getPrevCode: async () => [await UpgradeableCounterV1.code()],
  *   getCurrentCode: () => UpgradeableCounterV2.code(),
  *   CurrentVersionConstructor: UpgradeableCounterV2,
- *   deployPrevContracts: async (blockchain, owner) => {
- *     const codeV1 = await UpgradeableCounterV1.code()
- *     const contract = blockchain.openContract(
- *       UpgradeableCounterV1.createFromConfig(
- *         {
- *           id: 0,
- *           value: 0,
- *           ownable: { owner: owner.address, pendingOwner: null },
- *         },
- *         codeV1,
- *       ),
- *     )
- *     const deployer = await blockchain.treasury('deployer')
- *     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
- *     return [contract]
- *   }
  * })
  *
  * describe('UpgradeableCounter - Upgrade Tests', () => {
@@ -126,19 +143,20 @@ export function newUpgradeSpec<
   async function setup(blockchain: Blockchain): Promise<TestSetup> {
     const owner = await blockchain.treasury('owner')
     const nonOwner = await blockchain.treasury('nonOwner')
-    const prevCode = await config.getPrevCode()
     const currentCode = await config.getCurrentCode()
-    const prevContracts: SandboxContract<UpgradeableContract>[] = await config.deployPrevContracts(
-      blockchain,
-      owner,
-    )
+
+    const prevEntries: PrevVersionSetup[] = []
+    for (const pvc of config.prevVersionConfigs) {
+      const code = await pvc.getCode()
+      const contract = await pvc.deploy(blockchain, owner)
+      prevEntries.push({ version: pvc.version, code, contract })
+    }
 
     return {
       blockchain,
       owner,
       nonOwner,
-      prevContracts,
-      prevVersionsCode: prevCode,
+      prevEntries,
       currentCode,
     }
   }
@@ -173,21 +191,18 @@ export function newUpgradeSpec<
        * Test that the contract deploys on the correct version (previous version)
        */
       it('should deploy on correct version', async () => {
-        const { prevContracts, prevVersionsCode } = testSetup
+        const { prevEntries } = testSetup
 
-        for (let i = 0; i < prevContracts.length; i++) {
-          const prevContract = prevContracts[i]
-          const prevCode = prevVersionsCode[i]
-
-          const typeAndVersion = await prevContract.getTypeAndVersion()
+        for (const { version, code, contract } of prevEntries) {
+          const typeAndVersion = await contract.getTypeAndVersion()
           expect(typeAndVersion.type).toBe(config.contractType)
-          expect(typeAndVersion.version).toBe(config.prevVersions[i])
+          expect(typeAndVersion.version).toBe(version)
 
-          const currentCode = await prevContract.getCode()
-          expect(currentCode.toString('hex')).toBe(prevCode.toString('hex'))
+          const deployedCode = await contract.getCode()
+          expect(deployedCode.toString('hex')).toBe(code.toString('hex'))
 
-          const expectedHash = BigInt('0x' + prevCode.hash().toString('hex'))
-          const hash = await prevContract.getCodeHash()
+          const expectedHash = BigInt('0x' + code.hash().toString('hex'))
+          const hash = await contract.getCodeHash()
           expect(hash).toBe(expectedHash)
         }
       })
@@ -206,10 +221,7 @@ export function newUpgradeSpec<
       > {
         const currentVersionContracts: SandboxContract<UpgradeableContract>[] = []
 
-        for (let i = 0; i < testSetup.prevContracts.length; i++) {
-          const prevContract = testSetup.prevContracts[i]
-          const prevVersion = config.prevVersions[i]
-
+        for (const { contract: prevContract, version: prevVersion } of testSetup.prevEntries) {
           // Verify initial version
           const typeAndVersionPrev = await prevContract.getTypeAndVersion()
           expect(typeAndVersionPrev.type).toBe(config.contractType)
@@ -235,8 +247,8 @@ export function newUpgradeSpec<
             testSetup.blockchain.openContract(newVersionInstance)
 
           // Verify code changed
-          const code = await currentVersionContract.getCode()
-          expect(code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
+          const upgradedCode = await currentVersionContract.getCode()
+          expect(upgradedCode.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
 
           const expectedHash = BigInt('0x' + testSetup.currentCode.hash().toString('hex'))
           const hash = await currentVersionContract.getCodeHash()
