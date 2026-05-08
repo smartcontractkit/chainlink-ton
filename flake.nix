@@ -19,19 +19,6 @@
           builtins.elem (nixpkgs.lib.getName pkg) [
             "chainlink-contracts-ton" # BUSL-1.1 license
           ];
-        overlays = [
-          # go.mod requires go >= 1.26.2; nixpkgs may still ship 1.26.1. Without this,
-          # buildGoModule fails with GOTOOLCHAIN=local (see cmd/*/default.nix, scripts/oplint).
-          (final: prev: {
-            go_1_26 = prev.go_1_26.overrideAttrs (_old: rec {
-              version = "1.26.2";
-              src = prev.fetchurl {
-                url = "https://go.dev/dl/go${version}.src.tar.gz";
-                hash = "sha256-LpHrtpR6lulDb7KzkmqIAu/mOm03Xf/sT4Kqnb1v1Ds=";
-              };
-            });
-          })
-        ];
       };
 
       # The rev (git commit hash) of the current flake

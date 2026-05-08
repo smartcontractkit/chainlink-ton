@@ -3,14 +3,23 @@
   pkgs,
   lib,
 }:
+let
+  go_1_26_2 = pkgs.go_1_26.overrideAttrs (_old: rec {
+    version = "1.26.2";
+    src = pkgs.fetchurl {
+      url = "https://go.dev/dl/go${version}.src.tar.gz";
+      hash = "sha256-LpHrtpR6lulDb7KzkmqIAu/mOm03Xf/sT4Kqnb1v1Ds=";
+    };
+  });
+in
 pkgs.mkShell {
   buildInputs = with pkgs;
     [
       # nix tooling
       alejandra
 
-      # Go 1.26 + tools (flake overlays bump go_1_26 to match root go.mod)
-      go_1_26
+      # Go 1.26 + tools
+      go_1_26_2
       gopls
       delve
       golangci-lint
