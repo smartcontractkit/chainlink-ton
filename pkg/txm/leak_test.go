@@ -3,7 +3,9 @@ package txm_test
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -114,9 +116,12 @@ func TestTxmLeak(t *testing.T) {
 }
 
 func newSignedClient(api ton.APIClientWrapped, ks core.Keystore) (tracetracking.SignedAPIClient, error) {
-	pubBytes, err := ed25519PubFromHex(stubAccountHex)
+	pubBytes, err := hex.DecodeString(stubAccountHex)
 	if err != nil {
-		return tracetracking.SignedAPIClient{}, err
+		return tracetracking.SignedAPIClient{}, fmt.Errorf("decode stub public key: %w", err)
+	}
+	if len(pubBytes) != ed25519.PublicKeySize {
+		return tracetracking.SignedAPIClient{}, fmt.Errorf("stub public key: expected %d bytes, got %d", ed25519.PublicKeySize, len(pubBytes))
 	}
 	signer := func(ctx context.Context, toSign *cell.Cell, _ uint32) ([]byte, error) {
 		return ks.Sign(ctx, stubAccountHex, toSign.Hash())
@@ -126,29 +131,4 @@ func newSignedClient(api ton.APIClientWrapped, ks core.Keystore) (tracetracking.
 		return tracetracking.SignedAPIClient{}, err
 	}
 	return tracetracking.NewSignedAPIClient(api, *w), nil
-}
-
-func ed25519PubFromHex(hexStr string) (ed25519.PublicKey, error) {
-	if len(hexStr) != ed25519.PublicKeySize*2 {
-		return nil, errors.New("invalid hex length")
-	}
-	out := make([]byte, ed25519.PublicKeySize)
-	for i := 0; i < ed25519.PublicKeySize; i++ {
-		var b byte
-		for j := 0; j < 2; j++ {
-			c := hexStr[i*2+j]
-			switch {
-			case c >= '0' && c <= '9':
-				b = b<<4 | (c - '0')
-			case c >= 'a' && c <= 'f':
-				b = b<<4 | (c - 'a' + 10)
-			case c >= 'A' && c <= 'F':
-				b = b<<4 | (c - 'A' + 10)
-			default:
-				return nil, errors.New("invalid hex digit")
-			}
-		}
-		out[i] = b
-	}
-	return ed25519.PublicKey(out), nil
 }
