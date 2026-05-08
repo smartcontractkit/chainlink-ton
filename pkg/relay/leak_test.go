@@ -169,6 +169,8 @@ func TestChainSubservicesLeak(t *testing.T) {
 	txmCfg.EnableTraceLogging = &off
 	txmCfg.ApplyDefaults()
 	require.NoError(t, txmCfg.ValidateConfig())
+	txmConfirmPoll := txmCfg.ConfirmPollInterval.Duration()
+	txmCleanupTick := txmCfg.CleanupInterval.Duration()
 
 	ks := leakKeystore{
 		accountHex: "4d8e0a179e6262068f0a6fa9f7e63e3a4baa7be52c687f8ee5b9a73e02660e9a",
@@ -206,6 +208,7 @@ func TestChainSubservicesLeak(t *testing.T) {
 	lpCfg.MCBlockResolveBaseDelay = commonconfig.MustNewDuration(time.Millisecond)
 	lpCfg.ApplyDefaults()
 	require.NoError(t, lpCfg.ValidateConfig())
+	lpPoll := lpCfg.PollPeriod.Duration()
 
 	lpOpts := &lp.ServiceOptions{
 		Config:      lpCfg,
@@ -228,6 +231,8 @@ func TestChainSubservicesLeak(t *testing.T) {
 	require.NoError(t, err)
 
 	// --- Balance monitor ---
+	balancePollCfg := commonconfig.MustNewDuration(80 * time.Millisecond)
+	balancePoll := balancePollCfg.Duration()
 	bm, err := monitor.NewBalanceMonitor(monitor.BalanceMonitorOpts{
 		ChainInfo: balance.ChainInfo{
 			ChainFamilyName: "ton",
@@ -236,7 +241,7 @@ func TestChainSubservicesLeak(t *testing.T) {
 			NetworkNameFull: "TonMainnet",
 		},
 		Config: balance.GenericBalanceConfig{
-			BalancePollPeriod: *commonconfig.MustNewDuration(80 * time.Millisecond),
+			BalancePollPeriod: *balancePollCfg,
 		},
 		Logger:   lggr,
 		Keystore: ks,
@@ -255,8 +260,10 @@ func TestChainSubservicesLeak(t *testing.T) {
 
 	servicetest.RunHealthy(t, bundle)
 
-	// Let the polling/pruning/balance loops tick at least once.
-	time.Sleep(250 * time.Millisecond)
+	// Wait until each periodic subsystem has had time to tick (max of CleanupInterval, a few
+	// log-poller / balance polls, and several txm confirm passes).
+	initialWait := max(txmCleanupTick, 3*lpPoll, 3*balancePoll, 5*txmConfirmPoll)
+	time.Sleep(initialWait)
 
 	// Exercise Txm.Enqueue against real preflight; should fail with insufficient balance (account has 0 balance).
 	enqErr := txMgr.Enqueue(txm.Request{
@@ -275,7 +282,8 @@ func TestChainSubservicesLeak(t *testing.T) {
 	require.True(t, exists)
 	require.NoError(t, poller.UnregisterFilter(context.Background(), "leak-bundle-filter"))
 
-	time.Sleep(150 * time.Millisecond)
+	// Log poller observes filter changes on subsequent ticks.
+	time.Sleep(2 * lpPoll)
 }
 
 func newStubWallet(api ton.APIClientWrapped, ks leakKeystore) (*wallet.Wallet, error) {

@@ -80,6 +80,8 @@ func TestTxmLeak(t *testing.T) {
 	cfg.ApplyDefaults()
 	require.NoError(t, cfg.ValidateConfig())
 
+	confirmPoll := cfg.ConfirmPollInterval.Duration()
+
 	api := stubAPI{}
 	ks := stubKeystore{}
 
@@ -107,8 +109,8 @@ func TestTxmLeak(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "insufficient balance")
 
-	// Give the loops a chance to tick at least once before close runs in cleanup.
-	time.Sleep(300 * time.Millisecond)
+	// confirmLoop ticks on ConfirmPollInterval; wait several intervals so it runs before test cleanup closes the service.
+	time.Sleep(6 * confirmPoll)
 }
 
 func newSignedClient(api ton.APIClientWrapped, ks core.Keystore) (tracetracking.SignedAPIClient, error) {

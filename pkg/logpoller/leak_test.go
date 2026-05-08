@@ -38,6 +38,8 @@ func TestLogPollerServiceLeak(t *testing.T) {
 	cfg.ApplyDefaults()
 	require.NoError(t, cfg.ValidateConfig())
 
+	poll := cfg.PollPeriod.Duration()
+
 	currentMC := &ton.BlockIDExt{Workchain: address.MasterchainID, SeqNo: 100, Shard: 1}
 	lite := &mockLiteClient{
 		queryFunc: func(_ context.Context, _ tl.Serializable, resp tl.Serializable) error {
@@ -81,9 +83,9 @@ func TestLogPollerServiceLeak(t *testing.T) {
 
 	servicetest.RunHealthy(t, svc)
 
-	// Let the polling loop tick at least once so processBlockRange runs (which fans out per-address
+	// Wait several poll periods so processBlockRange runs at least once (fans out per-address
 	// loader goroutines and the resolveTxsMCBlock goroutine).
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(3 * poll)
 
 	// Exercise additional public service methods while the engine is running.
 	exists, err := svc.HasFilter(ctx, "leak-filter")
@@ -102,6 +104,6 @@ func TestLogPollerServiceLeak(t *testing.T) {
 
 	require.NoError(t, svc.UnregisterFilter(ctx, "leak-filter"))
 
-	// Allow more ticks to occur after the filter changes.
-	time.Sleep(200 * time.Millisecond)
+	// Give the poller time for more ticks after filter and replay mutations.
+	time.Sleep(2 * poll)
 }
