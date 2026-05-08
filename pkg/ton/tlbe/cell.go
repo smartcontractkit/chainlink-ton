@@ -18,7 +18,7 @@ type Cell[T any] cell.Cell
 func NewCellFrom[T any](v T) (*Cell[T], error) {
 	// Check if T is a pointer type and fail fast with a clear error
 	var zero T
-	if reflect.TypeOf(zero) != nil && reflect.TypeOf(zero).Kind() == reflect.Ptr {
+	if reflect.TypeOf(zero) != nil && reflect.TypeOf(zero).Kind() == reflect.Pointer {
 		return nil, fmt.Errorf("Cell type parameter T must be a value type, not a pointer type (got %T)", zero)
 	}
 
