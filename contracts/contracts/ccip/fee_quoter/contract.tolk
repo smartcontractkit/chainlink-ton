@@ -16,8 +16,6 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION_PREV_160 = "1.6.0";
-const CONTRACT_VERSION_PREV = "1.6.1";
 const CONTRACT_VERSION = "1.6.2";
 const RESERVE = ton("1");
 
