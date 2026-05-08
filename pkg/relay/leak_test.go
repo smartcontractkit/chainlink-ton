@@ -126,10 +126,7 @@ func (b *threeLeakBundle) Start(ctx context.Context) error {
 		if err := ms.Start(ctx, b.lp); err != nil {
 			return err
 		}
-		if err := ms.Start(ctx, b.bm); err != nil {
-			return err
-		}
-		return nil
+		return ms.Start(ctx, b.bm)
 	})
 }
 
@@ -294,5 +291,5 @@ func newStubWallet(api ton.APIClientWrapped, ks leakKeystore) (*wallet.Wallet, e
 	signer := func(ctx context.Context, toSign *cell.Cell, subwallet uint32) ([]byte, error) {
 		return ks.Sign(ctx, ks.accountHex, toSign.Hash())
 	}
-	return wallet.FromSigner(api, ed25519.PublicKey(pubBytes), tonconfig.WalletVersion, signer)
+	return wallet.FromSigner(api, pubBytes, tonconfig.WalletVersion, signer)
 }
