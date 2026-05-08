@@ -218,7 +218,7 @@ fun onBouncedRouterRouteMessage(msg: Router_RouteMessage, senderAddress: address
 
     // Send ReceiveBounced to initiate the failure notification trace 
     val receiveBounced = createMessage({
-        bounce: true,
+        bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
@@ -271,7 +271,7 @@ fun onBouncedCCIPReceive(msg: OffRamp_CCIPReceiveBounced) {
     val st = Storage.load();
 
     val receiveBounced = createMessage({
-        bounce: true,
+        bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, msg.execId),
         body: ReceiveExecutor_Bounced{
@@ -418,7 +418,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
 
 fun blockMsg(st: Storage, execId: uint192, receiver: address) {
     val receiveBounced = createMessage({
-        bounce: true,
+        bounce: false,
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, execId),
         body: ReceiveExecutor_Bounced{
