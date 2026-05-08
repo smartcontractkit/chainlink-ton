@@ -195,7 +195,7 @@ func DecodeTLBStructKeys(v any, tlbs tvm.TLBMap) ([]string, error) {
 	default:
 		// Iterate over the fields of the struct (reflect)
 		rv := reflect.ValueOf(v)
-		if rv.Kind() == reflect.Ptr {
+		if rv.Kind() == reflect.Pointer {
 			rv = rv.Elem()
 		}
 		if !rv.IsValid() {

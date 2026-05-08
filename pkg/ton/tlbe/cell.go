@@ -55,7 +55,7 @@ func (c *Cell[T]) ToValue() (T, error) {
 	err := tlb.LoadFromCell(&v, c.MustToCell().BeginParse())
 	if err != nil {
 		// Provide a hint if the error might be due to using a pointer type
-		if reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Ptr {
+		if reflect.TypeOf(v) != nil && reflect.TypeOf(v).Kind() == reflect.Pointer {
 			return v, fmt.Errorf("failed to load value from cell (hint: T should be a value type, not a pointer): %w", err)
 		}
 		return v, fmt.Errorf("failed to load value from cell: %w", err)
