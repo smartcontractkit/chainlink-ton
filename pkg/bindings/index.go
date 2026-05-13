@@ -18,48 +18,47 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
-// TODO we should use a type alias for these, sometihng like ContractTypeLong
 const (
-	PkgLib  = "link.chain.ton.lib"
-	PkgCCIP = "link.chain.ton.ccip"
-	PkgMCMS = "link.chain.ton.mcms"
+	PkgLib  tvm.FullyQualifiedType = "link.chain.ton.lib"
+	PkgCCIP tvm.FullyQualifiedType = "link.chain.ton.ccip"
+	PkgMCMS tvm.FullyQualifiedType = "link.chain.ton.mcms"
 
 	// Third-party contract types
-	PkgJetton = "com.github.ton-blockchain.jetton-contract"
+	PkgJetton tvm.FullyQualifiedType = "com.github.ton-blockchain.jetton-contract"
 
 	// TODO: move these constants to their respective packages
 	// Contract types
 
 	// Libs and traits
-	TypeOwnable      = PkgLib + ".access.Ownable"
-	TypeRBAC         = PkgLib + ".access.RBAC"
-	TypeWithdrawable = PkgLib + ".funding.Withdrawable"
-	TypeUpgradeable  = PkgLib + ".versioning.Upgradeable"
+	TypeOwnable      tvm.FullyQualifiedType = PkgLib + ".access.Ownable"
+	TypeRBAC         tvm.FullyQualifiedType = PkgLib + ".access.RBAC"
+	TypeWithdrawable tvm.FullyQualifiedType = PkgLib + ".funding.Withdrawable"
+	TypeUpgradeable  tvm.FullyQualifiedType = PkgLib + ".versioning.Upgradeable"
 
 	// MCMS
-	TypeMCMS     = PkgMCMS + ".MCMS"
-	TypeTimelock = PkgMCMS + ".Timelock"
+	TypeMCMS     tvm.FullyQualifiedType = PkgMCMS + ".MCMS"
+	TypeTimelock tvm.FullyQualifiedType = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter          = PkgCCIP + ".Router"
-	TypeOnRamp          = PkgCCIP + ".OnRamp"
-	TypeOffRamp         = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter       = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor    = PkgCCIP + ".CCIPSendExecutor"
-	TypeDeployable      = PkgCCIP + ".Deployable"
-	TypeMerkleRoot      = PkgCCIP + ".MerkleRoot"
-	TypeReceiveExecutor = PkgCCIP + ".ReceiveExecutor"
-	TypeTestReceiver    = PkgCCIP + ".test.Receiver"
+	TypeRouter          tvm.FullyQualifiedType = PkgCCIP + ".Router"
+	TypeOnRamp          tvm.FullyQualifiedType = PkgCCIP + ".OnRamp"
+	TypeOffRamp         tvm.FullyQualifiedType = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter       tvm.FullyQualifiedType = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor    tvm.FullyQualifiedType = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable      tvm.FullyQualifiedType = PkgCCIP + ".Deployable"
+	TypeMerkleRoot      tvm.FullyQualifiedType = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor tvm.FullyQualifiedType = PkgCCIP + ".ReceiveExecutor"
+	TypeTestReceiver    tvm.FullyQualifiedType = PkgCCIP + ".test.Receiver"
 
 	// Jetton
-	TypeJettonWallet = PkgJetton + ".contracts.jetton-wallet"
-	TypeJettonMinter = PkgJetton + ".contracts.jetton-minter"
+	TypeJettonWallet tvm.FullyQualifiedType = PkgJetton + ".contracts.jetton-wallet"
+	TypeJettonMinter tvm.FullyQualifiedType = PkgJetton + ".contracts.jetton-minter"
 )
 
 // AllContractTypes lists every fully qualified name for contracts present in the bindings
 var AllContractTypes = []struct {
 	SimpleName   string
-	ContractType string
+	ContractType tvm.FullyQualifiedType
 }{
 	{"Router", TypeRouter},
 	{"FeeQuoter", TypeFeeQuoter},
