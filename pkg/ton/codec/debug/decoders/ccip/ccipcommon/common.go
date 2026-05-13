@@ -19,7 +19,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 // ContractType implements lib.ContractDecoder.
-func (d *decoder) ContractType() string {
+func (d *decoder) ContractType() tvm.FullyQualifiedName {
 	return bindings.PkgCCIP
 }
 
