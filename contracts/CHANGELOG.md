@@ -1,5 +1,13 @@
 # @chainlink/contracts-ton
 
+## 1.6.2
+
+### Patch Changes
+
+- [#738](https://github.com/smartcontractkit/chainlink-ton/pull/738) [`82dc5f0`](https://github.com/smartcontractkit/chainlink-ton/commit/82dc5f0b8de3aaa0a8f944e9f967588a84529ffd) Thanks [@vicentevieytes](https://github.com/vicentevieytes)! - - Reverted value bump on UpdatePrices
+  - ReceiveExecutor_Bounced is no longer a bounceable message
+  - Supported prev versions for upgrade 1.6.0 and 1.6.1
+
 ## 1.6.1
 
 ### Patch Changes
