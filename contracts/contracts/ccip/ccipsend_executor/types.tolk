@@ -1,18 +1,12 @@
-// SPDX-License-Identifier: BUSL-1.1
 import "../onramp/messages.tolk";
-
-const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
-const CCIPSendExecutor_FACILITY_ID = 178;  // (crc32(<facility>) % 640) + 10
-
-type CCIPSendExecutor_ID = uint224
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    id: CCIPSendExecutor_ID,
+    messageID: uint224,
 }
 
 struct CCIPSendExecutor_Data {
-    id: CCIPSendExecutor_ID,
+    messageId: uint224,
     onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
@@ -25,20 +19,30 @@ struct CCIPSendExecutor_Addresses {
 
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
+    | Cell<CCIPSendExecutor_State_WaitingForJettons>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
-    | Cell<CCIPSendExecutor_State_Finalized>
 
 struct CCIPSendExecutor_State_Initialized {
+    tokenRegistry: address?,
+}
+
+struct CCIPSendExecutor_State_WaitingForJettons {
+    tokenRegistry: address,
 }
 
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
+    pendingJettonLock: CCIPSendExecutor_PendingJettonLock?
 }
 
-struct CCIPSendExecutor_State_Finalized {
+struct CCIPSendExecutor_PendingJettonLock {
+    tokenRegistry: address,
+    jettonWallet: address,
+    tokenPool: address,
 }
 
 struct CCIPSendExecutor_Config {
     feeQuoter: address,
+    tokenRegistry: address?,
 }
 
 

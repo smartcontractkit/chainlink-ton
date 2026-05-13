@@ -1,12 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
-import "../ccipsend_executor/types"
 import "../../lib/utils"
-import "../../lib/deployable/types"
-import "../../lib/deployable/namespace"
-
-const OnRamp_FACILITY_NAME = "link.chain.ton.ccip.OnRamp";
-const OnRamp_FACILITY_ID = 134;  // (crc32(<facility>) % 640) + 10
 
 struct OnRamp_DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.
@@ -20,32 +13,12 @@ struct OnRamp_DynamicConfig {
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;
     allowlistAdmin: address;
-    reserve: coins;
 }
 
 struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
     router: address;
     allowlistEnabled: bool;
-}
-
-struct ExecutorDeployment {
-    deployableCode: cell;
-    executorCode: cell; // code for SendExecutor
-}
-
-@inline
-fun ExecutorDeployment.autoDeployAddress(self, executorID: CCIPSendExecutor_ID): AutoDeployAddress {
-    return AutoDeployAddress {
-        stateInit: ContractState {
-            code: self.deployableCode,
-            data: NamespacedDeployableData({
-                namespace: DeployableNamespace_CCIPSendExecutor,
-                owner: contract.getAddress(),
-                id: executorID,
-            }),
-        }
-    }
 }
 
 struct UpdateAllowlist {
@@ -89,4 +62,5 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .endCell()
         .hash()
 }
+
 
