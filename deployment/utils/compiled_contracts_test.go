@@ -18,6 +18,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Sample compiled contract JSON (minimal valid Tolk compiled contract)
@@ -375,9 +376,10 @@ func TestReadPackageMetadata_WithValidFile(t *testing.T) {
 	result, err := LoadPackageMetadata(dir)
 	require.NoError(t, err)
 	assert.Equal(t, "1.6.3", result.Version)
-	require.Contains(t, result.Contracts, "link.chain.ton.ccip.Router")
-	assert.Equal(t, "Router.compiled.json", result.Contracts["link.chain.ton.ccip.Router"].Path)
-	assert.Equal(t, "1.6.3", result.Contracts["link.chain.ton.ccip.Router"].Version)
+	const rtType = bindings.TypeRouter
+	require.Contains(t, result.Contracts, rtType)
+	assert.Equal(t, "Router.compiled.json", result.Contracts[rtType].Path)
+	assert.Equal(t, "1.6.3", result.Contracts[rtType].Version)
 }
 
 func TestReadPackageMetadata_MissingFileUsesFallback(t *testing.T) {
@@ -417,7 +419,7 @@ func writePkgDir(t *testing.T, pkgMeta *ContractPackageMetadata) string {
 func testReceiverMeta(version string) *ContractPackageMetadata {
 	return &ContractPackageMetadata{
 		Version: version,
-		Contracts: map[string]ContractEntryMetadata{
+		Contracts: map[tvm.FullyQualifiedName]ContractEntryMetadata{
 			bindings.TypeTestReceiver: {Path: "ccip.test.receiver.compiled.json", Version: version},
 		},
 	}
@@ -471,7 +473,7 @@ func TestReadCompiledContract_InvalidVersionInMetadata(t *testing.T) {
 	dir := t.TempDir()
 	meta := &ContractPackageMetadata{
 		Version: "1.6.3",
-		Contracts: map[string]ContractEntryMetadata{
+		Contracts: map[tvm.FullyQualifiedName]ContractEntryMetadata{
 			bindings.TypeTestReceiver: {Path: "ccip.test.receiver.compiled.json", Version: "not-a-version"},
 		},
 	}

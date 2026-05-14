@@ -7,16 +7,18 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
-	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/address"
 	"golang.org/x/sync/errgroup"
+
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
@@ -28,38 +30,30 @@ var (
 	// Core contracts
 	LinkToken ds.ContractType = "LinkToken"
 	TONNative ds.ContractType = "TONNative"
-	Router    ds.ContractType = "Router"
-	OnRamp    ds.ContractType = "OnRamp"
-	OffRamp   ds.ContractType = "OffRamp"
-	FeeQuoter ds.ContractType = "FeeQuoter"
+	Router    ds.ContractType = bindings.ShortRouter
+	OnRamp    ds.ContractType = bindings.ShortOnRamp
+	OffRamp   ds.ContractType = bindings.ShortOffRamp
+	FeeQuoter ds.ContractType = bindings.ShortFeeQuoter
 	// Internal contracts
-	Deployer        ds.ContractType = "Deployer"
-	MerkleRoot      ds.ContractType = "MerkleRoot"
-	SendExecutor    ds.ContractType = "SendExecutor"
-	ReceiveExecutor ds.ContractType = "ReceiveExecutor"
+	Deployer        ds.ContractType = bindings.ShortDeployer
+	MerkleRoot      ds.ContractType = bindings.ShortMerkleRoot
+	SendExecutor    ds.ContractType = bindings.ShortSendExecutor
+	ReceiveExecutor ds.ContractType = bindings.ShortReceiveExecutor
 	// Utilities
-	TonReceiver ds.ContractType = "Receiver"
+	TonReceiver ds.ContractType = bindings.ShortReceiver
 	Counter     ds.ContractType = "Counter"
 )
 
 // LongToShortContractType maps the fully qualified contract name (as used in contracts-pkg.json
 // and pkg/bindings/index.go) to the ds.ContractType value used in the datastore.
-
-// TODO: Currently we cannot unify to use only the long format from pkg/bindings/index.go everywhere,
-// Is there a cleaner way to manage these two types together?
-var LongToShortContractType = map[string]ds.ContractType{
-	bindings.TypeRouter:          Router,
-	bindings.TypeFeeQuoter:       FeeQuoter,
-	bindings.TypeOnRamp:          OnRamp,
-	bindings.TypeOffRamp:         OffRamp,
-	bindings.TypeSendExecutor:    SendExecutor,
-	bindings.TypeDeployable:      Deployer,
-	bindings.TypeMerkleRoot:      MerkleRoot,
-	bindings.TypeReceiveExecutor: ReceiveExecutor,
-	bindings.TypeTestReceiver:    TonReceiver,
-	bindings.TypeTimelock:        Timelock,
-	bindings.TypeMCMS:            MCMS,
-}
+// The authoritative short names are defined in pkg/bindings/index.go as Short* constants.
+var LongToShortContractType = func() map[tvm.FullyQualifiedName]ds.ContractType {
+	m := make(map[tvm.FullyQualifiedName]ds.ContractType, len(bindings.ShortToFQT))
+	for short, fqt := range bindings.ShortToFQT {
+		m[fqt] = ds.ContractType(short)
+	}
+	return m
+}()
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
 // on a chain. If a binding is nil, it means there is no such contract on the chain.

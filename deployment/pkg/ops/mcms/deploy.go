@@ -113,7 +113,7 @@ func deployMCMSSequence(b cldfops.Bundle, dp *dep.DependencyProvider, in DeployM
 
 	retrieveContractsInput := utils.RetrieveCompiledContractsOpts{
 		Package: contractsPackage,
-		Contracts: []string{
+		Contracts: []tvm.FullyQualifiedName{
 			bindings.TypeTimelock,
 			bindings.TypeMCMS,
 		},

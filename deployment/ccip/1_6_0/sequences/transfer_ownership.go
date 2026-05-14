@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/mcms/types"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -93,7 +94,6 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 					return sequences.OnChainOutput{}, fmt.Errorf("timelock address not initialized for chain %d, cannot plan transfer ownership to non-deployer", in.ChainSelector)
 				}
 
-				contractType := bindings.PkgLib + ".access.Ownable"
 				//nolint:govet // allow shadowing
 				contractAddr, err := address.ParseAddr(contractRef.Address)
 				if err != nil {
@@ -126,7 +126,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 							Bounce:  true,
 							DstAddr: contractAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body:    codec.MustWrapMessage[any](contractType, body),
+							Body:    codec.MustWrapMessage[any](bindings.TypeOwnable, body),
 						},
 					},
 					Plan: true,
@@ -139,8 +139,11 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				plan := !deployerAddr.Equals(currentOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
-						Tags:         []string{},
+						ContractType: bindings.ShortOwnable,
+						ContractTypeAndVersion: deployment.TypeAndVersion{
+							Type: deployment.ContractType(bindings.TypeOwnable),
+						}.String(),
+						Tags: []string{},
 					},
 				})
 			}
@@ -218,8 +221,11 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				plan := !sender.Equals(proposedOwner)
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
-						Tags:         []string{},
+						ContractType: bindings.ShortOwnable,
+						ContractTypeAndVersion: deployment.TypeAndVersion{
+							Type: deployment.ContractType(bindings.TypeOwnable),
+						}.String(),
+						Tags: []string{},
 					},
 				})
 			}

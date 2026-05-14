@@ -12,6 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -309,7 +310,11 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 
 			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
-				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
+				{
+					ContractType:           bindings.ShortRouter,
+					ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.ShortRouter)}.String(),
+					Tags:                   []string{},
+				}, // TODO: add appropriate tags
 			}
 
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)
@@ -401,7 +406,11 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 
 			out := sequences.OnChainOutput{}
 			meta := []types.OperationMetadata{
-				{ContractType: contractType, Tags: []string{}}, // TODO: add appropriate tags
+				{
+					ContractType:           bindings.ShortRouter,
+					ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.ShortRouter)}.String(),
+					Tags:                   []string{},
+				}, // TODO: add appropriate tags
 			}
 
 			return mcms.WithOperationOutput(out, r.Output, types.ChainSelector(in.ChainSelector), meta)

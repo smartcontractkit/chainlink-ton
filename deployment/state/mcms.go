@@ -9,11 +9,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 )
 
 var (
-	Timelock ds.ContractType = "RBACTimelock"
-	MCMS     ds.ContractType = "MCMS"
+	Timelock ds.ContractType = bindings.ShortTimelock
+	MCMS     ds.ContractType = bindings.ShortMCMS
 )
 
 // MCMSChainState holds a Go binding for all the currently deployed MCMS contracts

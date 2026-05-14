@@ -11,6 +11,7 @@ import (
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
+	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms/types"
@@ -150,14 +151,13 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get feequoter owner: %w", err)
 				}
 
-				contractType := bindings.PkgCCIP + ".FeeQuoter"
 				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
 							DstAddr: &addr,
 							Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
-							Body:    codec.MustWrapMessage[any](contractType, body),
+							Body:    codec.MustWrapMessage[any](bindings.TypeFeeQuoter, body),
 						},
 					},
 					Plan: true, // plan to construct a batch
@@ -169,8 +169,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				plan := !sender.Equals(owner) // plan if sender is not owner
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
-						Tags:         []string{},
+						ContractType: bindings.ShortFeeQuoter,
+						ContractTypeAndVersion: deployment.TypeAndVersion{
+							Type: deployment.ContractType(bindings.TypeFeeQuoter),
+						}.String(),
+						Tags: []string{},
 					},
 				})
 			}
@@ -209,14 +212,13 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 					return sequences.OnChainOutput{}, fmt.Errorf("failed to get onramp owner: %w", err)
 				}
 
-				contractType := bindings.PkgCCIP + ".OnRamp"
 				r, err := cldf_ops.ExecuteOperation(b, opston.SendMessages, dp, opston.SendMessagesInput{
 					Messages: []opston.InternalMessage[any]{
 						{
 							Bounce:  true,
 							DstAddr: &addr,
 							Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
-							Body:    codec.MustWrapMessage[any](contractType, body),
+							Body:    codec.MustWrapMessage[any](bindings.TypeOnRamp, body),
 						},
 					},
 					Plan: true,
@@ -228,8 +230,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				plan := !sender.Equals(owner) // plan if sender is not owner
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
-						ContractType: contractType,
-						Tags:         []string{},
+						ContractType: bindings.ShortOnRamp,
+						ContractTypeAndVersion: deployment.TypeAndVersion{
+							Type: deployment.ContractType(bindings.TypeOnRamp),
+						}.String(),
+						Tags: []string{},
 					},
 				})
 			}
@@ -246,7 +251,6 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			}
 
 			addr := stateCCIP.FeeQuoter
-			contractType := bindings.PkgCCIP + ".FeeQuoter"
 
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
@@ -256,8 +260,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
-					Tags:         []string{},
+					ContractType: bindings.ShortFeeQuoter,
+					ContractTypeAndVersion: deployment.TypeAndVersion{
+						Type: deployment.ContractType(bindings.TypeFeeQuoter),
+					}.String(),
+					Tags: []string{},
 				},
 			})
 		}
@@ -276,7 +283,6 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			}
 
 			addr := stateCCIP.Router
-			contractType := bindings.PkgCCIP + ".Router"
 
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
@@ -286,8 +292,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
-					Tags:         []string{},
+					ContractType: bindings.ShortRouter,
+					ContractTypeAndVersion: deployment.TypeAndVersion{
+						Type: deployment.ContractType(bindings.TypeRouter),
+					}.String(),
+					Tags: []string{},
 				},
 			})
 		}
@@ -335,7 +344,6 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
 			}
 
-			contractType := bindings.PkgCCIP + ".OffRamp"
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &stateCCIP.OffRamp, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get offramp owner: %w", err)
@@ -344,8 +352,11 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
-					Tags:         []string{},
+					ContractType: bindings.ShortOffRamp,
+					ContractTypeAndVersion: deployment.TypeAndVersion{
+						Type: deployment.ContractType(bindings.TypeOffRamp),
+					}.String(),
+					Tags: []string{},
 				},
 			})
 		}
@@ -362,7 +373,6 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 			}
 
-			contractType := bindings.PkgCCIP + ".Router"
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &stateCCIP.Router, ownable2step.GetOwner)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
@@ -371,7 +381,7 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
-					ContractType: contractType,
+					ContractType: bindings.ShortRouter,
 					Tags:         []string{},
 				},
 			})

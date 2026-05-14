@@ -108,15 +108,16 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 
 		// Extract metadata for the transaction
 		m := types.OperationMetadata{
-			ContractType: "",
-			Tags:         []string{},
+			ContractType:           "",
+			ContractTypeAndVersion: "",
+			Tags:                   []string{},
 		}
 		if len(meta) > i {
 			m = meta[i]
 		}
 
 		value := msg.Amount.Nano()
-		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
+		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.ContractTypeAndVersion, m.Tags)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
 		}
