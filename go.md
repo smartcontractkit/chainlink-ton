@@ -48,9 +48,11 @@ flowchart LR
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
 	freeport
 	click freeport href "https://github.com/smartcontractkit/freeport"
+	go-sumtype2
+	click go-sumtype2 href "https://github.com/smartcontractkit/go-sumtype2"
 	grpc-proxy
 	click grpc-proxy href "https://github.com/smartcontractkit/grpc-proxy"
-	libocr
+	libocr --> go-sumtype2
 	click libocr href "https://github.com/smartcontractkit/libocr"
 
 	subgraph chainlink-common-repo[chainlink-common]
