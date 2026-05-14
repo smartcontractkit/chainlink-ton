@@ -200,7 +200,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsAddr := suiteState.Proposer
 	tv, err := tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, toncommon.GetTypeAndVersion)
 	require.NoError(t, err)
-	require.Equal(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
+	require.EqualValues(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
 
 	config, err := tvm.CallGetterLatest(ctx, chain.Client, mcmsAddr, mcms.GetConfig)
@@ -228,7 +228,7 @@ func TestDeployMCMSWithDeployerAPI(t *testing.T) {
 	mcmsAddr = suiteState.Proposer
 	tv, err = tvm.CallGetter(ctx, chain.Client, mc, mcmsAddr, toncommon.GetTypeAndVersion)
 	require.NoError(t, err)
-	require.Equal(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
+	require.EqualValues(t, bindings.TypeMCMS, tv.Type, "MCMS contract type should match")
 	t.Log("Verified MCMS contract type and version")
 
 	timelockAddr = suiteState.Timelock
