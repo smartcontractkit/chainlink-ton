@@ -2,7 +2,6 @@ module github.com/smartcontractkit/chainlink-ton/deployment
 
 go 1.25.7
 
-// TODO temporarily disabled to unblock split-bumping
 replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
