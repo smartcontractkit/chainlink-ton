@@ -10,7 +10,6 @@ import (
 	"github.com/smartcontractkit/mcms/types"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -140,8 +139,8 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: bindings.ShortOwnable,
-						ContractTypeAndVersion: deployment.TypeAndVersion{
-							Type: deployment.ContractType(bindings.TypeOwnable),
+						ContractTypeAndVersion: cldf.TypeAndVersion{
+							Type: cldf.ContractType(bindings.TypeOwnable),
 						}.String(),
 						Tags: []string{},
 					},
@@ -222,8 +221,8 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: bindings.ShortOwnable,
-						ContractTypeAndVersion: deployment.TypeAndVersion{
-							Type: deployment.ContractType(bindings.TypeOwnable),
+						ContractTypeAndVersion: cldf.TypeAndVersion{
+							Type: cldf.ContractType(bindings.TypeOwnable),
 						}.String(),
 						Tags: []string{},
 					},

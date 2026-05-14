@@ -17,7 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
@@ -95,14 +95,14 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get fee quoter owner: %w", err)
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 				{
 					ContractType:           bindings.ShortFeeQuoter,
-					ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.TypeFeeQuoter)}.String(),
+					ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeFeeQuoter)}.String(),
 					Tags:                   []string{},
 				},
 			})
@@ -146,14 +146,14 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get onramp owner: %w", err)
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
 			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 				{
 					ContractType:           bindings.ShortOnRamp,
-					ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.TypeOnRamp)}.String(),
+					ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeOnRamp)}.String(),
 					Tags:                   []string{},
 				},
 			})
@@ -173,14 +173,14 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 		owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get offramp owner: %w", err)
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
 				ContractType:           bindings.ShortOffRamp,
-				ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.TypeOffRamp)}.String(),
+				ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeOffRamp)}.String(),
 				Tags:                   []string{},
 			},
 		})
@@ -201,14 +201,14 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 		owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get fee quoter owner: %w", err)
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
 				ContractType:           bindings.ShortFeeQuoter,
-				ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.TypeFeeQuoter)}.String(),
+				ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeFeeQuoter)}.String(),
 				Tags:                   []string{},
 			},
 		})
@@ -234,7 +234,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 			{
 				ContractType:           bindings.ShortRouter,
-				ContractTypeAndVersion: deployment.TypeAndVersion{Type: deployment.ContractType(bindings.TypeRouter)}.String(),
+				ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeRouter)}.String(),
 				Tags:                   []string{},
 			},
 		})

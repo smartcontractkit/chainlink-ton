@@ -11,7 +11,7 @@ import (
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms/types"
@@ -170,8 +170,8 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: bindings.ShortFeeQuoter,
-						ContractTypeAndVersion: deployment.TypeAndVersion{
-							Type: deployment.ContractType(bindings.TypeFeeQuoter),
+						ContractTypeAndVersion: cldf.TypeAndVersion{
+							Type: cldf.ContractType(bindings.TypeFeeQuoter),
 						}.String(),
 						Tags: []string{},
 					},
@@ -231,8 +231,8 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
 					{
 						ContractType: bindings.ShortOnRamp,
-						ContractTypeAndVersion: deployment.TypeAndVersion{
-							Type: deployment.ContractType(bindings.TypeOnRamp),
+						ContractTypeAndVersion: cldf.TypeAndVersion{
+							Type: cldf.ContractType(bindings.TypeOnRamp),
 						}.String(),
 						Tags: []string{},
 					},
@@ -261,8 +261,8 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: bindings.ShortFeeQuoter,
-					ContractTypeAndVersion: deployment.TypeAndVersion{
-						Type: deployment.ContractType(bindings.TypeFeeQuoter),
+					ContractTypeAndVersion: cldf.TypeAndVersion{
+						Type: cldf.ContractType(bindings.TypeFeeQuoter),
 					}.String(),
 					Tags: []string{},
 				},
@@ -293,8 +293,8 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: bindings.ShortRouter,
-					ContractTypeAndVersion: deployment.TypeAndVersion{
-						Type: deployment.ContractType(bindings.TypeRouter),
+					ContractTypeAndVersion: cldf.TypeAndVersion{
+						Type: cldf.ContractType(bindings.TypeRouter),
 					}.String(),
 					Tags: []string{},
 				},
@@ -353,8 +353,8 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: bindings.ShortOffRamp,
-					ContractTypeAndVersion: deployment.TypeAndVersion{
-						Type: deployment.ContractType(bindings.TypeOffRamp),
+					ContractTypeAndVersion: cldf.TypeAndVersion{
+						Type: cldf.ContractType(bindings.TypeOffRamp),
 					}.String(),
 					Tags: []string{},
 				},
@@ -382,8 +382,8 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: bindings.ShortRouter,
-					ContractTypeAndVersion: deployment.TypeAndVersion{
-						Type: deployment.ContractType(bindings.TypeRouter),
+					ContractTypeAndVersion: cldf.TypeAndVersion{
+						Type: cldf.ContractType(bindings.TypeRouter),
 					}.String(),
 					Tags: []string{},
 				},
