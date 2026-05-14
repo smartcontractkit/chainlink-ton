@@ -2,13 +2,6 @@ module github.com/smartcontractkit/chainlink-ton/staging-monitor
 
 go 1.25.5
 
-// Use local chainlink-ton/deployment module,
-// but pin chainlink-ton root module to avoid conflicts with indirect dependency via CLDF.
-replace (
-	github.com/smartcontractkit/chainlink-ton => ../
-	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
-)
-
 require (
 	github.com/ethereum/go-ethereum v1.17.2
 	github.com/joho/godotenv v1.5.1
@@ -16,8 +9,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/chains/evm v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260406055916-9aa6b6c0ae81
 	github.com/smartcontractkit/chainlink-deployments-framework v0.98.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20260415120434-cecc380f8d87
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260209205928-e7e034ed7976
+	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260513143859-5836cab366c3
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
 	github.com/xssnick/tonutils-go v1.14.1
 )
 
