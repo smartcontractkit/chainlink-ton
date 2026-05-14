@@ -51,7 +51,7 @@ func (m TLBMap) MustWithStorageType(storage any) TLBMap {
 	return tlbMap
 }
 
-// FullyQualifiedName is a identifier for a contract type following a reverse domain name notation.
+// FullyQualifiedName is an identifier for a contract type following a reverse domain name notation.
 //
 // (e.g., "link.chain.ton.mcms.RBACTimelock")
 type FullyQualifiedName string

@@ -73,7 +73,7 @@ const (
 
 	// Trait short names (used as ContractType when encoding trait-level messages)
 	ShortOwnable      = "Ownable"
-	ShortRBAC         = "RBAC" // ShortType for Roll-Based Access Control trait
+	ShortRBAC         = "RBAC" // ShortType for Role-Based Access Control trait
 	ShortWithdrawable = "Withdrawable"
 	ShortUpgradeable  = "Upgradeable"
 
