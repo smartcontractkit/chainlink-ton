@@ -382,7 +382,10 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
 				{
 					ContractType: bindings.ShortRouter,
-					Tags:         []string{},
+					ContractTypeAndVersion: deployment.TypeAndVersion{
+						Type: deployment.ContractType(bindings.TypeRouter),
+					}.String(),
+					Tags: []string{},
 				},
 			})
 		}
