@@ -22,7 +22,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
 	github.com/smartcontractkit/chainlink-common/keystore v1.0.2
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
-	github.com/smartcontractkit/chainlink-deployments-framework v0.101.2-0.20260515111147-c7c1ef5deb74
+	github.com/smartcontractkit/chainlink-deployments-framework v0.102.1-0.20260515122419-45f61cd706b8
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260127143834-21d7db9955ee
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.18.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.5

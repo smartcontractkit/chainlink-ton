@@ -13,7 +13,7 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.99
 	github.com/smartcontractkit/chainlink-ccip/chains/evm v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
-	github.com/smartcontractkit/chainlink-deployments-framework v0.101.2-0.20260515111147-c7c1ef5deb74
+	github.com/smartcontractkit/chainlink-deployments-framework v0.102.1-0.20260515122419-45f61cd706b8
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260514223130-48bc90aca745
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20260513143859-5836cab366c3
 	github.com/xssnick/tonutils-go v1.14.1
