@@ -15,14 +15,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pelletier/go-toml/v2 v2.3.0
-	github.com/smartcontractkit/chain-selectors v1.0.99
+	github.com/smartcontractkit/chain-selectors v1.0.100
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20260428205619-2db1389501a1
 	github.com/smartcontractkit/chainlink-ccip/chains/evm v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
 	github.com/smartcontractkit/chainlink-common/keystore v1.0.2
 	github.com/smartcontractkit/chainlink-common/pkg/monitoring v0.0.0-20251215152504-b1e41f508340
-	github.com/smartcontractkit/chainlink-deployments-framework v0.102.1-0.20260515122419-45f61cd706b8
+	github.com/smartcontractkit/chainlink-deployments-framework v0.102.1-0.20260515152444-3b03bb5939ff
 	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20260127143834-21d7db9955ee
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.18.0
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.8
@@ -31,7 +31,7 @@ require (
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20260422202036-5de86080ceb5
 	github.com/smartcontractkit/chainlink/v2 v2.29.1-cre-beta.0.0.20260422202036-5de86080ceb5
 	github.com/smartcontractkit/libocr v0.0.0-20260403184524-b6409238958d
-	github.com/smartcontractkit/mcms v0.43.1-0.20260514223307-a66dc27f4ca2
+	github.com/smartcontractkit/mcms v0.43.1-0.20260515150551-16b18dab10da
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	go.uber.org/zap v1.28.0

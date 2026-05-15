@@ -4,8 +4,15 @@
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
   package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
+  go_1_26_2 = pkgs.go_1_26.overrideAttrs (_old: rec {
+    version = "1.26.2";
+    src = pkgs.fetchurl {
+      url = "https://go.dev/dl/go${version}.src.tar.gz";
+      hash = "sha256-LpHrtpR6lulDb7KzkmqIAu/mOm03Xf/sT4Kqnb1v1Ds=";
+    };
+  });
 in
-  pkgs.buildGo126Module rec {
+  pkgs.buildGo126Module.override {go = go_1_26_2;} rec {
     inherit (package-info) version;
     pname = "chainlink-ton";
 
