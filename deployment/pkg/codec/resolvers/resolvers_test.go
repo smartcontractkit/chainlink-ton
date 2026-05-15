@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -549,7 +550,8 @@ func TestResolvingSendMessagesInputs(t *testing.T) {
 				Address:       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
 				ChainSelector: selector,
 				Qualifier:     "RMNMCMS",
-				Type:          "RBACTimelock",
+				Type:          bindings.ShortTimelock,
+				Version:       semver.MustParse("1.0.0"),
 			})
 			require.NoError(t, err)
 

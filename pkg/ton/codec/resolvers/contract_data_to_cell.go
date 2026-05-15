@@ -42,11 +42,10 @@ func (r *contractDataToCellResolver) Resolve(input map[string]any) (*cell.Cell, 
 		return nil, fmt.Errorf("missing 'contract' field in input: %v", input)
 	}
 
-	contractStr, ok := contract.(string)
+	contractFQN, ok := contract.(tvm.FullyQualifiedName)
 	if !ok {
 		return nil, fmt.Errorf("invalid 'contract' field type: %T", contract)
 	}
-	contractFQN := tvm.FullyQualifiedName(contractStr)
 
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
