@@ -15,15 +15,15 @@ var TLBs = jetton.TLBs
 type decoder struct {
 	tlbsCtx tvm.TLBMap
 
-	contractType string
+	contractType tvm.FullyQualifiedName
 }
 
-func NewDecoder(tlbsCtx tvm.TLBMap, t string) lib.ContractDecoder {
+func NewDecoder(tlbsCtx tvm.TLBMap, t tvm.FullyQualifiedName) lib.ContractDecoder {
 	return &decoder{tlbsCtx: tlbsCtx, contractType: t}
 }
 
 // ContractType implements lib.ContractDecoder.
-func (d *decoder) ContractType() string {
+func (d *decoder) ContractType() tvm.FullyQualifiedName {
 	return d.contractType
 }
 

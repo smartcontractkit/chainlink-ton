@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // GetterMap is a map of getter method names to their Getter definitions.
@@ -19,7 +20,7 @@ type GetterMap map[string]interface{}
 // The outer map keys are contract type identifiers (e.g., "link.chain.ton.ccip.Router").
 // The inner map keys are getter method names (e.g., "owner", "onRamp").
 // The values are Getter[A, R] instances representing typed getter methods.
-var TypeToGetterMap = map[string]GetterMap{
+var TypeToGetterMap = map[tvm.FullyQualifiedName]GetterMap{
 	// CCIP contract types
 	TypeRouter: {
 		"owner":              router.GetOwner,

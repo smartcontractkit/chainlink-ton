@@ -25,7 +25,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
 
-func (d *decoder) ContractType() string {
+func (d *decoder) ContractType() tvm.FullyQualifiedName {
 	return bindings.TypeOnRamp
 }
 

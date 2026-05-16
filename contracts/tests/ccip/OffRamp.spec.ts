@@ -172,22 +172,24 @@ describe('OffRamp - Withdrawable Tests', () => {
 
 describe('OffRamp - Upgrade Tests', () => {
   class OffRamp extends of.OffRamp {}
-  class OffRampPrev extends of.OffRamp {
-    static code(): Promise<Cell> {
-      return contractCode.ccip.release_1_6_0('OffRamp')
-    }
-  }
+
+  const codeLoaders = {
+    '1.6.0': () => contractCode.ccip.release_1_6_0('OffRamp'),
+    '1.6.1': () => contractCode.ccip.release_1_6_1('OffRamp'),
+  } as Record<string, () => Promise<Cell>>
 
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
-    contractType: OffRampPrev.type(),
-    prevVersion: of.OFFRAMP_CONTRACT_VERSION_PREV,
+    contractType: of.OffRamp.type(),
+    prevVersionConfigs: of.OFFRAMP_SUPPORTED_PREV_VERSIONS.map((version) => ({
+      version,
+      getCode: codeLoaders[version],
+      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+        deployOffRampContract(blockchain, owner, await codeLoaders[version]()),
+    })),
     currentVersion: OffRamp.version(),
-    getPrevCode: () => OffRampPrev.code(),
     getCurrentCode: () => OffRamp.code(),
     CurrentVersionConstructor: OffRamp,
     upgradeValue: toNano('0.05'),
-    deployPrevContract: async (blockchain, owner) =>
-      deployOffRampContract(blockchain, owner, await OffRampPrev.code()),
   })
   upgradeSpec.run([
     {

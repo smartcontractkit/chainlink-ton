@@ -46,15 +46,16 @@ func (r *contractDataToCellResolver) Resolve(input map[string]any) (*cell.Cell, 
 	if !ok {
 		return nil, fmt.Errorf("invalid 'contract' field type: %T", contract)
 	}
+	contractFQN := tvm.FullyQualifiedName(contractStr)
 
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal 'data' field: %w", err)
 	}
 
-	typ, ok := r.registry.Lookup(contractStr, tvm.TLBMapKeyStorage) // special key for storage types, per contract
+	typ, ok := r.registry.Lookup(contractFQN, tvm.TLBMapKeyStorage) // special key for storage types, per contract
 	if !ok {
-		return nil, fmt.Errorf("type not found in registry for contract=%s opcode=0x%08x (storage key)", contractStr, tvm.TLBMapKeyStorage)
+		return nil, fmt.Errorf("type not found in registry for contract=%s opcode=0x%08x (storage key)", contractFQN, tvm.TLBMapKeyStorage)
 	}
 
 	// Create new instance of the candidate type

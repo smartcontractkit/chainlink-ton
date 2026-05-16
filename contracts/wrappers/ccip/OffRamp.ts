@@ -41,8 +41,8 @@ export const opcodes = {
   },
 }
 
-export const OFFRAMP_CONTRACT_VERSION_PREV = '1.6.0'
-export const OFFRAMP_CONTRACT_VERSION = '1.6.1'
+export const OFFRAMP_SUPPORTED_PREV_VERSIONS = ['1.6.0', '1.6.1'] as const
+export const OFFRAMP_CONTRACT_VERSION = '1.6.2'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))

@@ -64,27 +64,31 @@ async function setUpTest(i: number): Promise<{
 describe('UpgradeableCounter - Upgrade Tests', () => {
   const upgradeSpec = newUpgradeSpec({
     contractType: upCounterV1.ContractClient.type(),
-    prevVersion: upCounterV1.ContractClient.version(),
+    prevVersionConfigs: [
+      {
+        version: upCounterV1.ContractClient.version(),
+        getCode: () => upCounterV1.ContractClient.code(),
+        deploy: async (blockchain, owner) => {
+          const codeV1 = await upCounterV1.ContractClient.code()
+          const contract = blockchain.openContract(
+            upCounterV1.ContractClient.createFromConfig(
+              {
+                id: 0,
+                value: 0,
+                ownable: { owner: owner.address, pendingOwner: null },
+              },
+              codeV1,
+            ),
+          )
+          const deployer = await blockchain.treasury('deployer')
+          await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+          return contract
+        },
+      },
+    ],
     currentVersion: upCounterV2.ContractClient.version(),
-    getPrevCode: () => upCounterV1.ContractClient.code(),
     getCurrentCode: () => upCounterV2.ContractClient.code(),
     CurrentVersionConstructor: upCounterV2.ContractClient,
-    deployPrevContract: async (blockchain, owner) => {
-      const codeV1 = await upCounterV1.ContractClient.code()
-      const contract = blockchain.openContract(
-        upCounterV1.ContractClient.createFromConfig(
-          {
-            id: 0,
-            value: 0,
-            ownable: { owner: owner.address, pendingOwner: null },
-          },
-          codeV1,
-        ),
-      )
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-      return contract
-    },
   })
   upgradeSpec.run()
 })

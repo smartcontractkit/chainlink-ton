@@ -18,61 +18,105 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
-// TODO we should use a type alias for these, sometihng like ContractTypeLong
 const (
-	PkgLib  = "link.chain.ton.lib"
-	PkgCCIP = "link.chain.ton.ccip"
-	PkgMCMS = "link.chain.ton.mcms"
+	PkgLib  tvm.FullyQualifiedName = "link.chain.ton.lib"
+	PkgCCIP tvm.FullyQualifiedName = "link.chain.ton.ccip"
+	PkgMCMS tvm.FullyQualifiedName = "link.chain.ton.mcms"
 
 	// Third-party contract types
-	PkgJetton = "com.github.ton-blockchain.jetton-contract"
+	PkgJetton tvm.FullyQualifiedName = "com.github.ton-blockchain.jetton-contract"
 
 	// TODO: move these constants to their respective packages
 	// Contract types
 
 	// Libs and traits
-	TypeOwnable      = PkgLib + ".access.Ownable"
-	TypeRBAC         = PkgLib + ".access.RBAC"
-	TypeWithdrawable = PkgLib + ".funding.Withdrawable"
-	TypeUpgradeable  = PkgLib + ".versioning.Upgradeable"
+	TypeOwnable      tvm.FullyQualifiedName = PkgLib + ".access.Ownable"
+	TypeRBAC         tvm.FullyQualifiedName = PkgLib + ".access.RBAC"
+	TypeWithdrawable tvm.FullyQualifiedName = PkgLib + ".funding.Withdrawable"
+	TypeUpgradeable  tvm.FullyQualifiedName = PkgLib + ".versioning.Upgradeable"
 
 	// MCMS
-	TypeMCMS     = PkgMCMS + ".MCMS"
-	TypeTimelock = PkgMCMS + ".Timelock"
+	TypeMCMS     tvm.FullyQualifiedName = PkgMCMS + ".MCMS"
+	TypeTimelock tvm.FullyQualifiedName = PkgMCMS + ".Timelock"
 
 	// CCIP
-	TypeRouter          = PkgCCIP + ".Router"
-	TypeOnRamp          = PkgCCIP + ".OnRamp"
-	TypeOffRamp         = PkgCCIP + ".OffRamp"
-	TypeFeeQuoter       = PkgCCIP + ".FeeQuoter"
-	TypeSendExecutor    = PkgCCIP + ".CCIPSendExecutor"
-	TypeDeployable      = PkgCCIP + ".Deployable"
-	TypeMerkleRoot      = PkgCCIP + ".MerkleRoot"
-	TypeReceiveExecutor = PkgCCIP + ".ReceiveExecutor"
-	TypeTestReceiver    = PkgCCIP + ".test.Receiver"
+	TypeRouter          tvm.FullyQualifiedName = PkgCCIP + ".Router"
+	TypeOnRamp          tvm.FullyQualifiedName = PkgCCIP + ".OnRamp"
+	TypeOffRamp         tvm.FullyQualifiedName = PkgCCIP + ".OffRamp"
+	TypeFeeQuoter       tvm.FullyQualifiedName = PkgCCIP + ".FeeQuoter"
+	TypeSendExecutor    tvm.FullyQualifiedName = PkgCCIP + ".CCIPSendExecutor"
+	TypeDeployable      tvm.FullyQualifiedName = PkgCCIP + ".Deployable"
+	TypeMerkleRoot      tvm.FullyQualifiedName = PkgCCIP + ".MerkleRoot"
+	TypeReceiveExecutor tvm.FullyQualifiedName = PkgCCIP + ".ReceiveExecutor"
+	TypeTestReceiver    tvm.FullyQualifiedName = PkgCCIP + ".test.Receiver"
 
 	// Jetton
-	TypeJettonWallet = PkgJetton + ".contracts.jetton-wallet"
-	TypeJettonMinter = PkgJetton + ".contracts.jetton-minter"
+	TypeJettonWallet tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-wallet"
+	TypeJettonMinter tvm.FullyQualifiedName = PkgJetton + ".contracts.jetton-minter"
+)
+
+// ShortName constants are the CLD-compatible short contract type names.
+// These are used in types.Transaction.ContractType and the CLD datastore.
+// They must match the ds.ContractType values defined in deployment/state/.
+const (
+	ShortRouter          = "Router"
+	ShortFeeQuoter       = "FeeQuoter"
+	ShortOnRamp          = "OnRamp"
+	ShortOffRamp         = "OffRamp"
+	ShortSendExecutor    = "SendExecutor"
+	ShortDeployer        = "Deployer"
+	ShortMerkleRoot      = "MerkleRoot"
+	ShortReceiveExecutor = "ReceiveExecutor"
+	ShortReceiver        = "Receiver"
+	ShortTimelock        = "RBACTimelock"
+	ShortMCMS            = "MCMS"
+
+	// Trait short names (used as ContractType when encoding trait-level messages)
+	ShortOwnable      = "Ownable"
+	ShortRBAC         = "RBAC" // ShortType for Role-Based Access Control trait
+	ShortWithdrawable = "Withdrawable"
+	ShortUpgradeable  = "Upgradeable"
+
+	// Jetton short names
+	ShortJettonWallet = "JettonWallet"
+	ShortJettonMinter = "JettonMinter"
 )
 
 // AllContractTypes lists every fully qualified name for contracts present in the bindings
 var AllContractTypes = []struct {
 	SimpleName   string
-	ContractType string
+	ContractType tvm.FullyQualifiedName
 }{
-	{"Router", TypeRouter},
-	{"FeeQuoter", TypeFeeQuoter},
-	{"OnRamp", TypeOnRamp},
-	{"OffRamp", TypeOffRamp},
-	{"SendExecutor", TypeSendExecutor},
-	{"Deployable", TypeDeployable},
-	{"MerkleRoot", TypeMerkleRoot},
-	{"ReceiveExecutor", TypeReceiveExecutor},
-	{"TestReceiver", TypeTestReceiver},
-	{"Timelock", TypeTimelock},
-	{"MCMS", TypeMCMS},
+	{ShortRouter, TypeRouter},
+	{ShortFeeQuoter, TypeFeeQuoter},
+	{ShortOnRamp, TypeOnRamp},
+	{ShortOffRamp, TypeOffRamp},
+	{ShortSendExecutor, TypeSendExecutor},
+	{ShortDeployer, TypeDeployable},
+	{ShortMerkleRoot, TypeMerkleRoot},
+	{ShortReceiveExecutor, TypeReceiveExecutor},
+	{ShortReceiver, TypeTestReceiver},
+	{ShortTimelock, TypeTimelock},
+	{ShortMCMS, TypeMCMS},
 }
+
+// ShortToFQT maps CLD short contract type names to their fully qualified types.
+var ShortToFQT = func() map[string]tvm.FullyQualifiedName {
+	m := map[string]tvm.FullyQualifiedName{
+		// Traits (not in AllContractTypes)
+		ShortOwnable:      TypeOwnable,
+		ShortRBAC:         TypeRBAC,
+		ShortWithdrawable: TypeWithdrawable,
+		ShortUpgradeable:  TypeUpgradeable,
+		// Jetton
+		ShortJettonWallet: TypeJettonWallet,
+		ShortJettonMinter: TypeJettonMinter,
+	}
+	for _, ct := range AllContractTypes {
+		m[ct.SimpleName] = ct.ContractType
+	}
+	return m
+}()
 
 // Map of TLBs keyed by contract type
 var Registry = tvm.ContractTLBRegistry{

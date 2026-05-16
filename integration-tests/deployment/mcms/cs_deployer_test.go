@@ -10,8 +10,9 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfops "github.com/smartcontractkit/chainlink-deployments-framework/operations"

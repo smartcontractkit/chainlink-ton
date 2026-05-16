@@ -29,8 +29,8 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as rt from './Router'
 
-export const FEE_QUOTER_CONTRACT_VERSION_PREV = '1.6.0'
-export const FEE_QUOTER_CONTRACT_VERSION = '1.6.1'
+export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.0', '1.6.1'] as const
+export const FEE_QUOTER_CONTRACT_VERSION = '1.6.2'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))

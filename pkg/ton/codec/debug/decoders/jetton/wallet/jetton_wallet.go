@@ -23,7 +23,7 @@ func NewDecoder(tlbsCtx tvm.TLBMap) lib.ContractDecoder {
 }
 
 // ContractType implements lib.ContractDecoder.
-func (d *decoder) ContractType() string {
+func (d *decoder) ContractType() tvm.FullyQualifiedName {
 	return "com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet"
 }
 

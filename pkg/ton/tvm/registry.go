@@ -51,10 +51,15 @@ func (m TLBMap) MustWithStorageType(storage any) TLBMap {
 	return tlbMap
 }
 
+// FullyQualifiedName is an identifier for a contract type following a reverse domain name notation.
+//
+// (e.g., "link.chain.ton.mcms.RBACTimelock")
+type FullyQualifiedName string
+
 // ContractTLBRegistry is a registry of TL-B types for decoding contract storage, messages, and events.
 //
-// It maps contract types (string) to their corresponding TLBMap.
-type ContractTLBRegistry map[string]TLBMap
+// It maps contract types (FullyQualifiedName) to their corresponding TLBMap.
+type ContractTLBRegistry map[FullyQualifiedName]TLBMap
 
 // SnapshotTLBMap creates a combined TLBMap from all registered contract types.
 // This is useful for decoding messages when the contract type is not known in advance.
@@ -70,7 +75,7 @@ func (r ContractTLBRegistry) Snapshot() TLBMap {
 }
 
 // Lookup retrieves the TL-B type for the given contract and opcode.
-func (r ContractTLBRegistry) Lookup(contract string, opcode uint64) (any, bool) {
+func (r ContractTLBRegistry) Lookup(contract FullyQualifiedName, opcode uint64) (any, bool) {
 	tlbs, ok := r[contract]
 	if !ok {
 		return nil, false

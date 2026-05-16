@@ -18,7 +18,7 @@ import (
 
 // MessageMeta keeps the information required to serialize/deserialize TL-B messages.
 type MessageMeta struct {
-	Contract string
+	Contract tvm.FullyQualifiedName
 	Opcode   uint64
 
 	// Go runtime type information
@@ -26,7 +26,7 @@ type MessageMeta struct {
 	GoType   reflect.Type
 }
 
-func NewMessageMetaFromValue(contract string, v any) (MessageMeta, error) {
+func NewMessageMetaFromValue(contract tvm.FullyQualifiedName, v any) (MessageMeta, error) {
 	v, err := EnsureTLBStructPointer(v)
 	if err != nil {
 		return MessageMeta{}, fmt.Errorf("failed to ensure TL-B struct pointer: %w", err)
@@ -72,7 +72,7 @@ func EnsureTLBStructPointer(value any) (any, error) {
 	return ptr.Interface(), nil
 }
 
-func NewMessageMeta(contract string, typ reflect.Type) (MessageMeta, error) {
+func NewMessageMeta(contract tvm.FullyQualifiedName, typ reflect.Type) (MessageMeta, error) {
 	opcode, err := tvm.ExtractMagic(typ)
 	if err != nil {
 		return MessageMeta{}, fmt.Errorf("failed to parse opcode for %s: %w", typ, err)
@@ -97,10 +97,10 @@ func (m MessageMeta) QualifiedKey() string {
 
 // messageJSON is the JSON representation of a MessageEnvelope, used in marshaling/unmarshaling.
 type messageJSON struct {
-	Contract string          `json:"contract"`
-	Type     string          `json:"type"`
-	Opcode   string          `json:"opcode"`
-	Payload  json.RawMessage `json:"payload"`
+	Contract tvm.FullyQualifiedName `json:"contract"`
+	Type     string                 `json:"type"`
+	Opcode   string                 `json:"opcode"`
+	Payload  json.RawMessage        `json:"payload"`
 }
 
 // MessageEnvelope is the JSON-friendly representation of a TL-B message.
@@ -113,7 +113,7 @@ type MessageEnvelope[T any] struct {
 }
 
 // WrapMessage prepares a type-safe envelope for the provided TL-B message.
-func WrapMessage[T any](contract string, val T) (*MessageEnvelope[T], error) {
+func WrapMessage[T any](contract tvm.FullyQualifiedName, val T) (*MessageEnvelope[T], error) {
 	meta, err := NewMessageMetaFromValue(contract, val)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func WrapMessage[T any](contract string, val T) (*MessageEnvelope[T], error) {
 	}, nil
 }
 
-func MustWrapMessage[T any](contract string, val T) *MessageEnvelope[T] {
+func MustWrapMessage[T any](contract tvm.FullyQualifiedName, val T) *MessageEnvelope[T] {
 	env, err := WrapMessage(contract, val)
 	if err != nil {
 		panic(fmt.Sprintf("failed to wrap message: %v", err))

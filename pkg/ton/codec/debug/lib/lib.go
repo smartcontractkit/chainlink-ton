@@ -35,7 +35,7 @@ type BodyInfo interface {
 }
 
 type ContractDecoder interface {
-	ContractType() string
+	ContractType() tvm.FullyQualifiedName
 	InternalMessageInfo(body *cell.Cell) (MessageInfo, error)
 	ExternalMessageInfo(body *cell.Cell) (MessageInfo, error)
 	EventInfo(dstAddr *address.Address, msg *cell.Cell) (MessageInfo, error)
@@ -59,7 +59,7 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 }
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func NewMessageInfoFromCell(t string, msg *cell.Cell, tlbs tvm.TLBMap, tlbsCtx tvm.TLBMap) (MessageInfo, error) {
+func NewMessageInfoFromCell(t tvm.FullyQualifiedName, msg *cell.Cell, tlbs tvm.TLBMap, tlbsCtx tvm.TLBMap) (MessageInfo, error) {
 	typeName, norm, err := codec.DecodeTLBValToJSON(msg, tlbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)

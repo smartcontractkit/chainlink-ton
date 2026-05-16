@@ -37,7 +37,7 @@ type TypeAndVersion struct {
 
 type DebuggerEnvironment struct {
 	existingAddresses map[string]TypeAndVersion
-	contracts         map[string]lib.ContractDecoder
+	contracts         map[tvm.FullyQualifiedName]lib.ContractDecoder
 	writerFactory     func(DebuggerEnvironment) lib.DebuggerVisualization
 }
 
@@ -69,7 +69,7 @@ func NewDebuggerSequenceTrace(addresses map[string]TypeAndVersion, outputFmt seq
 	}
 }
 
-func defaultDecoders() map[string]lib.ContractDecoder {
+func defaultDecoders() map[tvm.FullyQualifiedName]lib.ContractDecoder {
 	tlbs := make(tvm.TLBMap)
 	// Jetton contract types
 	maps.Copy(tlbs, wallet.TLBs)
@@ -84,7 +84,7 @@ func defaultDecoders() map[string]lib.ContractDecoder {
 	maps.Copy(tlbs, mcms.TLBs)
 	maps.Copy(tlbs, timelock.TLBs)
 
-	t := make(map[string]lib.ContractDecoder)
+	t := make(map[tvm.FullyQualifiedName]lib.ContractDecoder)
 	registerDecoder(t, wallet.NewDecoder(tlbs))
 	registerDecoder(t, minter.NewDecoder(tlbs))
 	registerDecoder(t, router.NewDecoder(tlbs))
@@ -98,7 +98,7 @@ func defaultDecoders() map[string]lib.ContractDecoder {
 	return t
 }
 
-func registerDecoder(t map[string]lib.ContractDecoder, decoder lib.ContractDecoder) {
+func registerDecoder(t map[tvm.FullyQualifiedName]lib.ContractDecoder, decoder lib.ContractDecoder) {
 	t[decoder.ContractType()] = decoder
 }
 
