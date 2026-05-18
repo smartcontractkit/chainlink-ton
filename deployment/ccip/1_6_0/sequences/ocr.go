@@ -5,8 +5,9 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/mcms/types"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	deployops "github.com/smartcontractkit/chainlink-ccip/deployment/deploy"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -68,7 +69,7 @@ var SetOCR3Config = cldf_ops.NewSequence(
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
 
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
+			_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{})
 		}
 
 		r, err := cldf_ops.ExecuteOperation(b, mcms.SendOrPlan, dp, _inputMCMS)

@@ -17,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
@@ -99,11 +98,11 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcms.OperationMetadata{
 				{
-					ContractType:           bindings.ShortFeeQuoter,
-					ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeFeeQuoter)}.String(),
-					Tags:                   []string{},
+					ContractType:     bindings.ShortFeeQuoter,
+					ContractTypeFull: bindings.TypeFeeQuoter,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -150,11 +149,11 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcms.OperationMetadata{
 				{
-					ContractType:           bindings.ShortOnRamp,
-					ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeOnRamp)}.String(),
-					Tags:                   []string{},
+					ContractType:     bindings.ShortOnRamp,
+					ContractTypeFull: bindings.TypeOnRamp,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -177,11 +176,11 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+		_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 			{
-				ContractType:           bindings.ShortOffRamp,
-				ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeOffRamp)}.String(),
-				Tags:                   []string{},
+				ContractType:     bindings.ShortOffRamp,
+				ContractTypeFull: bindings.TypeOffRamp,
+				Tags:             []string{},
 			},
 		})
 	}
@@ -205,11 +204,11 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+		_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 			{
-				ContractType:           bindings.ShortFeeQuoter,
-				ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeFeeQuoter)}.String(),
-				Tags:                   []string{},
+				ContractType:     bindings.ShortFeeQuoter,
+				ContractTypeFull: bindings.TypeFeeQuoter,
+				Tags:             []string{},
 			},
 		})
 	}
@@ -231,11 +230,11 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+		_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 			{
-				ContractType:           bindings.ShortRouter,
-				ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeRouter)}.String(),
-				Tags:                   []string{},
+				ContractType:     bindings.ShortRouter,
+				ContractTypeFull: bindings.TypeRouter,
+				Tags:             []string{},
 			},
 		})
 	}

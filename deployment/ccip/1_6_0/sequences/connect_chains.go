@@ -11,7 +11,6 @@ import (
 
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	cldf_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/mcms/types"
@@ -167,13 +166,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				}
 
 				plan := !sender.Equals(owner) // plan if sender is not owner
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcms.OperationMetadata{
 					{
-						ContractType: bindings.ShortFeeQuoter,
-						ContractTypeAndVersion: cldf.TypeAndVersion{
-							Type: cldf.ContractType(bindings.TypeFeeQuoter),
-						}.String(),
-						Tags: []string{},
+						ContractType:     bindings.ShortFeeQuoter,
+						ContractTypeFull: bindings.TypeFeeQuoter,
+						Tags:             []string{},
 					},
 				})
 			}
@@ -228,13 +225,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 				}
 
 				plan := !sender.Equals(owner) // plan if sender is not owner
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcms.OperationMetadata{
 					{
-						ContractType: bindings.ShortOnRamp,
-						ContractTypeAndVersion: cldf.TypeAndVersion{
-							Type: cldf.ContractType(bindings.TypeOnRamp),
-						}.String(),
-						Tags: []string{},
+						ContractType:     bindings.ShortOnRamp,
+						ContractTypeFull: bindings.TypeOnRamp,
+						Tags:             []string{},
 					},
 				})
 			}
@@ -258,13 +253,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 				{
-					ContractType: bindings.ShortFeeQuoter,
-					ContractTypeAndVersion: cldf.TypeAndVersion{
-						Type: cldf.ContractType(bindings.TypeFeeQuoter),
-					}.String(),
-					Tags: []string{},
+					ContractType:     bindings.ShortFeeQuoter,
+					ContractTypeFull: bindings.TypeFeeQuoter,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -290,13 +283,11 @@ var ConfigureLaneLegAsSource = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 				{
-					ContractType: bindings.ShortRouter,
-					ContractTypeAndVersion: cldf.TypeAndVersion{
-						Type: cldf.ContractType(bindings.TypeRouter),
-					}.String(),
-					Tags: []string{},
+					ContractType:     bindings.ShortRouter,
+					ContractTypeFull: bindings.TypeRouter,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -350,13 +341,11 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 				{
-					ContractType: bindings.ShortOffRamp,
-					ContractTypeAndVersion: cldf.TypeAndVersion{
-						Type: cldf.ContractType(bindings.TypeOffRamp),
-					}.String(),
-					Tags: []string{},
+					ContractType:     bindings.ShortOffRamp,
+					ContractTypeFull: bindings.TypeOffRamp,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -379,13 +368,11 @@ var ConfigureLaneLegAsDest = cldf_ops.NewSequence(
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+			_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 				{
-					ContractType: bindings.ShortRouter,
-					ContractTypeAndVersion: cldf.TypeAndVersion{
-						Type: cldf.ContractType(bindings.TypeRouter),
-					}.String(),
-					Tags: []string{},
+					ContractType:     bindings.ShortRouter,
+					ContractTypeFull: bindings.TypeRouter,
+					Tags:             []string{},
 				},
 			})
 		}

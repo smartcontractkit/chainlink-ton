@@ -308,11 +308,11 @@ func (a *TonCurseAdapter) Curse() *cldf_ops.Sequence[api.CurseInput, sequences.O
 			}
 
 			out := sequences.OnChainOutput{}
-			meta := []types.OperationMetadata{
+			meta := []mcms.OperationMetadata{
 				{
-					ContractType:           bindings.ShortRouter,
-					ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeRouter)}.String(),
-					Tags:                   []string{},
+					ContractType:     bindings.ShortRouter,
+					Tags:             []string{},
+					ContractTypeFull: bindings.TypeRouter,
 				}, // TODO: add appropriate tags
 			}
 
@@ -404,11 +404,11 @@ func (a *TonCurseAdapter) Uncurse() *cldf_ops.Sequence[api.CurseInput, sequences
 			}
 
 			out := sequences.OnChainOutput{}
-			meta := []types.OperationMetadata{
+			meta := []mcms.OperationMetadata{
 				{
-					ContractType:           bindings.ShortRouter,
-					ContractTypeAndVersion: cldf.TypeAndVersion{Type: cldf.ContractType(bindings.TypeRouter)}.String(),
-					Tags:                   []string{},
+					ContractType:     bindings.ShortRouter,
+					Tags:             []string{},
+					ContractTypeFull: bindings.TypeRouter,
 				}, // TODO: add appropriate tags
 			}
 
