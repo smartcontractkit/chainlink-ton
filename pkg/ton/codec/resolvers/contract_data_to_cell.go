@@ -44,7 +44,11 @@ func (r *contractDataToCellResolver) Resolve(input map[string]any) (*cell.Cell, 
 
 	contractFQN, ok := contract.(tvm.FullyQualifiedName)
 	if !ok {
-		return nil, fmt.Errorf("invalid 'contract' field type: %T", contract)
+		contractStr, ok := contract.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid 'contract' field type: %T", contract)
+		}
+		contractFQN = tvm.FullyQualifiedName(contractStr)
 	}
 
 	dataBytes, err := json.Marshal(data)

@@ -13,10 +13,10 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/chains/evm v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20260415165642-49f23e4d76cc
 	github.com/smartcontractkit/chainlink-common v0.11.2-0.20260506120607-7f10be016c89
-	github.com/smartcontractkit/chainlink-deployments-framework v0.104.1-0.20260518180328-651039c2bf5d
+	github.com/smartcontractkit/chainlink-deployments-framework v0.104.1-0.20260518202209-4d69cd71d8cb
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.18.0
 	github.com/smartcontractkit/chainlink-ton v1.0.5-0.20260514223130-48bc90aca745
-	github.com/smartcontractkit/mcms v0.44.1-0.20260518174700-847bc3b851b7
+	github.com/smartcontractkit/mcms v0.45.0
 	github.com/stretchr/testify v1.11.1
 	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/sync v0.20.0
