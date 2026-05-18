@@ -18,7 +18,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/mcms"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 
-	tonmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ownable2step"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/codec"
@@ -137,7 +136,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 
 				// Send directly if deployer is the current owner, otherwise plan through MCMS
 				plan := !deployerAddr.Equals(currentOwner)
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []tonmcms.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []opsmcms.OperationMetadata{
 					{
 						ContractType:     bindings.ShortOwnable,
 						ContractTypeFull: bindings.TypeOwnable,
@@ -217,7 +216,7 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				// AcceptOwnership must be called by the proposed owner.
 				// Plan through MCMS if the proposed owner is not the deployer (i.e., timelock needs to accept).
 				plan := !sender.Equals(proposedOwner)
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []tonmcms.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []opsmcms.OperationMetadata{
 					{
 						ContractType:     bindings.ShortOwnable,
 						ContractTypeFull: bindings.TypeOwnable,

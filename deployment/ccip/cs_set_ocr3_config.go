@@ -19,7 +19,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/dep"
-	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	opsmcms "github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/mcms"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
@@ -95,7 +94,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
 
-			_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{})
+			_inputMCMS.Add(r.Output, plan, []opsmcms.OperationMetadata{})
 		}
 
 		r, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, dp, _inputMCMS)
