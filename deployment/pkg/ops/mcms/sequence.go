@@ -23,6 +23,16 @@ var (
 	_ opston.Planner[types.BatchOperation] = TimelockAnySequenceOutput{}
 )
 
+type OperationMetadata struct {
+	/// From "github.com/smartcontractkit/mcms/types"
+	ContractType    string          `json:"contractType"`              // ContractType is the short type used in data store e.g. "Router".
+	ContractVersion *semver.Version `json:"contractVersion,omitempty"` // ContractVersion is the version of the deployed contract e.g. "1.0.0".
+	Tags            []string        `json:"tags"`
+
+	/// Extra ton metadata fields
+	ContractTypeFull tvm.FullyQualifiedName `json:"contractTypeFull,omitempty"` // ContractTypeFull is the fully qualified name of the contract e.g. "chainlink.ccip.Router".
+}
+
 const (
 	DefaultMinDelayHours   = 3
 	DefaultValidUntilHours = 72
@@ -41,8 +51,8 @@ type TimelockAnySequenceInput struct {
 }
 
 type TimelockOpts struct {
-	ChainSelector types.ChainSelector       `json:"chainSelector"`
-	OpsMetadata   []types.OperationMetadata `json:"opsMetadata"`
+	ChainSelector types.ChainSelector `json:"chainSelector"`
+	OpsMetadata   []OperationMetadata `json:"opsMetadata"`
 }
 
 type TimelockAnySequenceOutput struct {
@@ -83,7 +93,7 @@ func timelockAnySeqHandler(b operations.Bundle, dp *dep.DependencyProvider, in T
 }
 
 // RawPlansToBatch converts raw message plans (TON) to MCMS batch operation type.
-func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw, meta []types.OperationMetadata) (types.BatchOperation, error) {
+func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw, meta []OperationMetadata) (types.BatchOperation, error) {
 	cells := make([]*tlbe.Cell[tlb.InternalMessage], len(plans))
 	for i, p := range plans {
 		cells[i] = p.Cell
@@ -92,7 +102,7 @@ func RawPlansToBatch(selector types.ChainSelector, plans []opston.MessagePlanRaw
 }
 
 // RawPlanCellsToBatch converts raw message plan cells (TON) to MCMS batch operation type.
-func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.InternalMessage], meta []types.OperationMetadata) (types.BatchOperation, error) {
+func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.InternalMessage], meta []OperationMetadata) (types.BatchOperation, error) {
 	mcmsTxs := make([]types.Transaction, len(plans))
 	for i, p := range plans {
 		body := tvm.EmptyCell // empty body by default
@@ -107,16 +117,19 @@ func RawPlanCellsToBatch(selector types.ChainSelector, plans []*tlbe.Cell[tlb.In
 		}
 
 		// Extract metadata for the transaction
-		m := types.OperationMetadata{
-			ContractType: "",
-			Tags:         []string{},
+		m := OperationMetadata{
+
+			ContractType:     "",
+			ContractVersion:  nil,
+			Tags:             []string{},
+			ContractTypeFull: "",
 		}
 		if len(meta) > i {
 			m = meta[i]
 		}
 
 		value := msg.Amount.Nano()
-		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.Tags)
+		mcmsTxs[i], err = mcmston.NewTransaction(msg.DstAddr, body.BeginParse(), value, m.ContractType, m.ContractVersion, m.ContractTypeFull, m.Tags)
 		if err != nil {
 			return types.BatchOperation{}, fmt.Errorf("failed to create mcms transaction: %w", err)
 		}

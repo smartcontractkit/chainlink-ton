@@ -19,6 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/pkg/ops/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -47,8 +48,8 @@ type ContractEntryMetadata struct {
 
 // ContractPackageMetadata is the schema for contracts-pkg.json bundled in each release.
 type ContractPackageMetadata struct {
-	Version   string                           `json:"version"`
-	Contracts map[string]ContractEntryMetadata `json:"contracts"`
+	Version   string                                           `json:"version"`
+	Contracts map[tvm.FullyQualifiedName]ContractEntryMetadata `json:"contracts"`
 }
 
 // defaultPackageMetadata is used as a fallback for releases prior to the introduction of
@@ -56,7 +57,7 @@ type ContractPackageMetadata struct {
 // original filenames.
 var defaultPackageMetadata = &ContractPackageMetadata{
 	Version: "1.6.0",
-	Contracts: map[string]ContractEntryMetadata{
+	Contracts: map[tvm.FullyQualifiedName]ContractEntryMetadata{
 		bindings.TypeRouter:          {Path: "Router.compiled.json", Version: "1.6.0"},
 		bindings.TypeFeeQuoter:       {Path: "FeeQuoter.compiled.json", Version: "1.6.0"},
 		bindings.TypeOnRamp:          {Path: "OnRamp.compiled.json", Version: "1.6.0"},
@@ -77,15 +78,14 @@ var defaultPackageMetadata = &ContractPackageMetadata{
 //   - local (maps to {repo-root}/contracts/build)
 type RetrieveCompiledContractsOpts struct {
 	Package   string
-	Contracts []string // Fully qualified contract names from pkg/bindings/index.go (e.g. bindings.TypeRouter)
-	PkgsDir   string   // optional base directory for the local package cache (passed through to DownloadArtifacts)
+	Contracts []tvm.FullyQualifiedName // Fully qualified contract names from pkg/bindings/index.go (e.g. bindings.TypeRouter)
+	PkgsDir   string                   // optional base directory for the local package cache (passed through to DownloadArtifacts)
 }
 
 // RetrieveCompiledTONContracts resolves the package path, reads the package metadata,
 // and loads each requested contract individually from disk.
-// returns map[string]ton.CompiledContract, keyed by Fully Qualified Name (e.g. bindings.TypeRouter = link.chain.ton.ccip.Router)
-
-func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in *RetrieveCompiledContractsOpts) (map[string]ton.CompiledContract, error) {
+// returns map[tvm.FullyQualifiedName]ton.CompiledContract, keyed by Fully Qualified Name (e.g. bindings.TypeRouter = link.chain.ton.ccip.Router)
+func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in *RetrieveCompiledContractsOpts) (map[tvm.FullyQualifiedName]ton.CompiledContract, error) {
 	if in == nil {
 		return nil, errors.New("input options cannot be nil")
 	}
@@ -104,22 +104,22 @@ func RetrieveCompiledTONContracts(ctx context.Context, log logger.Logger, in *Re
 		return nil, err
 	}
 
-	contractNames := in.Contracts
-	if len(contractNames) == 0 {
+	contractFQNs := in.Contracts
+	if len(contractFQNs) == 0 {
 		// No filter: collect all contract names from metadata.
-		contractNames = make([]string, 0, len(meta.Contracts))
+		contractFQNs = make([]tvm.FullyQualifiedName, 0, len(meta.Contracts))
 		for contractName := range meta.Contracts {
-			contractNames = append(contractNames, contractName)
+			contractFQNs = append(contractFQNs, contractName)
 		}
 	}
 
-	compiledContracts := make(map[string]ton.CompiledContract, len(contractNames))
-	for _, contractName := range contractNames {
-		contract, err := ReadCompiledContract(ton.ContractMetadata{Package: in.Package, ID: contractName}, pkgPath, meta)
+	compiledContracts := make(map[tvm.FullyQualifiedName]ton.CompiledContract, len(contractFQNs))
+	for _, contractFQN := range contractFQNs {
+		contract, err := ReadCompiledContract(ton.ContractMetadata{Package: in.Package, ID: contractFQN}, pkgPath, meta)
 		if err != nil {
 			return nil, err
 		}
-		compiledContracts[contractName] = contract
+		compiledContracts[contractFQN] = contract
 	}
 
 	return compiledContracts, nil

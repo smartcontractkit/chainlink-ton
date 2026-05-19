@@ -73,8 +73,7 @@ var Upgrade = operations.NewOperation(
 			body := m.Body
 			// Create a new upgrade message (default) if none provided
 			if body == nil {
-				contractType := bindings.PkgLib + ".versioning.Upgradeable"
-				body, err = codec.WrapMessage(contractType, upgradeable.Upgrade{QueryID: 0, Code: c.Code})
+				body, err = codec.WrapMessage(bindings.TypeUpgradeable, upgradeable.Upgrade{QueryID: 0, Code: c.Code})
 				if err != nil {
 					return UpgradeOutput{}, fmt.Errorf("failed to wrap upgrade message: %w", err)
 				}

@@ -150,7 +150,7 @@ func (s *Service) GetTxExecutionFees(ctx context.Context, lt uint64) (*tontypes.
 	}
 
 	if status != commontypes.Finalized && status != commontypes.Failed {
-		return nil, fmt.Errorf("unexpected transaction status %q for lt %d: transaction not finalized", status, lt)
+		return nil, fmt.Errorf("unexpected transaction status %d for lt %d: transaction not finalized", status, lt)
 	}
 
 	return &tontypes.TransactionFee{

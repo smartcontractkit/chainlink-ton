@@ -68,7 +68,7 @@ func deployCCIPSequence(b operations.Bundle, dp *dep.DependencyProvider, in Depl
 	// Fetch the contract code using the Fully Qualified Name of the contracts instead of the types used in the datastore
 	retrieveContractsOpts := utils.RetrieveCompiledContractsOpts{
 		Package: contractsPackage,
-		Contracts: []string{
+		Contracts: []tvm.FullyQualifiedName{
 			bindings.TypeRouter,
 			bindings.TypeFeeQuoter,
 			bindings.TypeOffRamp,

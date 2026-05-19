@@ -93,7 +93,6 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 					return sequences.OnChainOutput{}, fmt.Errorf("timelock address not initialized for chain %d, cannot plan transfer ownership to non-deployer", in.ChainSelector)
 				}
 
-				contractType := bindings.PkgLib + ".access.Ownable"
 				//nolint:govet // allow shadowing
 				contractAddr, err := address.ParseAddr(contractRef.Address)
 				if err != nil {
@@ -126,7 +125,7 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 							Bounce:  true,
 							DstAddr: contractAddr,
 							Amount:  tlb.MustFromTON("0.1"),
-							Body:    codec.MustWrapMessage[any](contractType, body),
+							Body:    codec.MustWrapMessage[any](bindings.TypeOwnable, body),
 						},
 					},
 					Plan: true,
@@ -137,10 +136,11 @@ func (a *TonTransferOwnershipAdapter) SequenceTransferOwnershipViaMCMS() *cldfop
 
 				// Send directly if deployer is the current owner, otherwise plan through MCMS
 				plan := !deployerAddr.Equals(currentOwner)
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []opsmcms.OperationMetadata{
 					{
-						ContractType: contractType,
-						Tags:         []string{},
+						ContractType:     bindings.ShortOwnable,
+						ContractTypeFull: bindings.TypeOwnable,
+						Tags:             []string{},
 					},
 				})
 			}
@@ -216,10 +216,11 @@ func (a *TonTransferOwnershipAdapter) SequenceAcceptOwnership() *cldfops.Sequenc
 				// AcceptOwnership must be called by the proposed owner.
 				// Plan through MCMS if the proposed owner is not the deployer (i.e., timelock needs to accept).
 				plan := !sender.Equals(proposedOwner)
-				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+				_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []opsmcms.OperationMetadata{
 					{
-						ContractType: contractType,
-						Tags:         []string{},
+						ContractType:     bindings.ShortOwnable,
+						ContractTypeFull: bindings.TypeOwnable,
+						Tags:             []string{},
 					},
 				})
 			}

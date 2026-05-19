@@ -73,7 +73,6 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 		// Skip if there's no updates
 		if len(updates) != 0 {
-			contractType := bindings.PkgCCIP + ".FeeQuoter"
 			addr := stateCCIP.FeeQuoter
 			body := feequoter.UpdateDestChainConfigs{Updates: updates}
 
@@ -84,7 +83,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 						Bounce:  true,
 						DstAddr: &addr,
 						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
-						Body:    codec.MustWrapMessage[any](contractType, body),
+						Body:    codec.MustWrapMessage[any](bindings.TypeFeeQuoter, body),
 					},
 				},
 				Plan: true,
@@ -95,14 +94,15 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get fee quoter owner: %w", err)
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcms.OperationMetadata{
 				{
-					ContractType: contractType,
-					Tags:         []string{},
+					ContractType:     bindings.ShortFeeQuoter,
+					ContractTypeFull: bindings.TypeFeeQuoter,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -124,7 +124,6 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 				}
 			}
 
-			contractType := bindings.PkgCCIP + ".OnRamp"
 			addr := stateCCIP.OnRamp
 			body := onramp.UpdateDestChainConfigsMessage{Updates: updates}
 
@@ -135,7 +134,7 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 						Bounce:  true,
 						DstAddr: &addr,
 						Amount:  tlb.MustFromTON("0.1"), // TODO (ops/gas): static, should allow overrides?
-						Body:    codec.MustWrapMessage[any](contractType, body),
+						Body:    codec.MustWrapMessage[any](bindings.TypeOnRamp, body),
 					},
 				},
 				Plan: true,
@@ -146,14 +145,15 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 
 			owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to get onramp owner: %w", err)
 			}
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
-			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []types.OperationMetadata{
+			_inputMCMS.Add(opston.AsCells(r.Output.Plans), plan, []mcms.OperationMetadata{
 				{
-					ContractType: contractType,
-					Tags:         []string{},
+					ContractType:     bindings.ShortOnRamp,
+					ContractTypeFull: bindings.TypeOnRamp,
+					Tags:             []string{},
 				},
 			})
 		}
@@ -168,19 +168,19 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
 		}
 
-		contractType := bindings.PkgCCIP + ".OffRamp"
 		addr := stateCCIP.OffRamp
 
 		owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get offramp owner: %w", err)
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+		_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 			{
-				ContractType: contractType,
-				Tags:         []string{},
+				ContractType:     bindings.ShortOffRamp,
+				ContractTypeFull: bindings.TypeOffRamp,
+				Tags:             []string{},
 			},
 		})
 	}
@@ -196,19 +196,19 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
 		}
 
-		contractType := bindings.PkgCCIP + ".FeeQuoter"
 		addr := stateCCIP.FeeQuoter
 
 		owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to get router owner: %w", err)
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to get fee quoter owner: %w", err)
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+		_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 			{
-				ContractType: contractType,
-				Tags:         []string{},
+				ContractType:     bindings.ShortFeeQuoter,
+				ContractTypeFull: bindings.TypeFeeQuoter,
+				Tags:             []string{},
 			},
 		})
 	}
@@ -222,7 +222,6 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router onramps: %w", err)
 		}
 
-		contractType := bindings.PkgCCIP + ".Router"
 		addr := stateCCIP.Router
 
 		owner, err := tvm.CallGetterLatest(b.GetContext(), chain.Client, &addr, ownable2step.GetOwner)
@@ -231,10 +230,11 @@ func updateLanes(b cldf_ops.Bundle, dp *dep.DependencyProvider, in UpdateTonLane
 		}
 
 		plan := !sender.Equals(owner) // plan if sender is not owner
-		_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{
+		_inputMCMS.Add(r.Output, plan, []mcms.OperationMetadata{
 			{
-				ContractType: contractType,
-				Tags:         []string{},
+				ContractType:     bindings.ShortRouter,
+				ContractTypeFull: bindings.TypeRouter,
+				Tags:             []string{},
 			},
 		})
 	}

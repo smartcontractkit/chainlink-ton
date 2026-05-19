@@ -21,7 +21,7 @@ import (
 type Messages struct {
 	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
 	Plans    []*tlbe.Cell[tlb.InternalMessage] `json:"plans"`
-	Metadata []types.OperationMetadata         `json:"metadata"`
+	Metadata []OperationMetadata               `json:"metadata"`
 }
 
 type SendOrPlanInput struct {
@@ -29,7 +29,7 @@ type SendOrPlanInput struct {
 
 	Messages []*tlbe.Cell[tlb.InternalMessage] `json:"messages"`
 	Plans    []*tlbe.Cell[tlb.InternalMessage] `json:"plans"`
-	Metadata []types.OperationMetadata         `json:"metadata"`
+	Metadata []OperationMetadata               `json:"metadata"`
 }
 
 func NewSendOrPlanInput(chainSelector types.ChainSelector) SendOrPlanInput {
@@ -37,11 +37,11 @@ func NewSendOrPlanInput(chainSelector types.ChainSelector) SendOrPlanInput {
 		ChainSelector: chainSelector,
 		Messages:      make([]*tlbe.Cell[tlb.InternalMessage], 0),
 		Plans:         make([]*tlbe.Cell[tlb.InternalMessage], 0),
-		Metadata:      make([]types.OperationMetadata, 0),
+		Metadata:      make([]OperationMetadata, 0),
 	}
 }
 
-func (in *SendOrPlanInput) Add(msgs []*tlbe.Cell[tlb.InternalMessage], plan bool, meta []types.OperationMetadata) {
+func (in *SendOrPlanInput) Add(msgs []*tlbe.Cell[tlb.InternalMessage], plan bool, meta []OperationMetadata) {
 	if plan {
 		in.Plans = append(in.Plans, msgs...)
 		in.Metadata = append(in.Metadata, meta...)
@@ -69,7 +69,7 @@ var SendOrPlan = cldf_ops.NewOperation(
 )
 
 // WithOperationOutput is a helper to extract plans from operation output and map them to batch operations.
-func WithOperationOutput(out sequences.OnChainOutput, _out any, selector types.ChainSelector, meta []types.OperationMetadata) (sequences.OnChainOutput, error) {
+func WithOperationOutput(out sequences.OnChainOutput, _out any, selector types.ChainSelector, meta []OperationMetadata) (sequences.OnChainOutput, error) {
 	// Try to extract the plans and map to batch operation
 	if planer, ok := _out.(opston.Planner[opston.MessagePlanRaw]); ok {
 		plans := planer.GetPlans()

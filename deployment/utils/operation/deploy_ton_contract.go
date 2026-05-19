@@ -27,7 +27,7 @@ import (
 )
 
 type DeployContractInput struct {
-	Name         string
+	Name         tvm.FullyQualifiedName
 	Storage      any
 	MessageBody  any
 	ContractCode *cell.Cell
@@ -46,7 +46,7 @@ var DeployTONContractOp = cldfops.NewOperation(
 )
 
 func (i *DeployContractInput) Validate() error {
-	if strings.TrimSpace(i.Name) == "" {
+	if strings.TrimSpace(string(i.Name)) == "" {
 		return errors.New("name field is required")
 	}
 	if i.ContractCode == nil {

@@ -94,7 +94,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, cfg SetOCR3OffRampConfig) (c
 
 			plan := !sender.Equals(owner) // plan if sender is not owner
 
-			_inputMCMS.Add(r.Output, plan, []types.OperationMetadata{})
+			_inputMCMS.Add(r.Output, plan, []opsmcms.OperationMetadata{})
 		}
 
 		r, err := operations.ExecuteOperation(env.OperationsBundle, opsmcms.SendOrPlan, dp, _inputMCMS)

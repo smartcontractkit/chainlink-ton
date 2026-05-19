@@ -1,6 +1,6 @@
 module github.com/smartcontractkit/chainlink-ton
 
-go 1.25.5
+go 1.26.2
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -82,7 +82,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.3 // indirect
 	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jmank88/gomods v0.1.6 // indirect
-	github.com/jmank88/modgraph v0.1.1 // indirect
+	github.com/jmank88/modgraph v0.1.4 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
