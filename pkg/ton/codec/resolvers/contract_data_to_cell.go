@@ -44,8 +44,8 @@ func (r *contractDataToCellResolver) Resolve(input map[string]any) (*cell.Cell, 
 
 	contractFQN, ok := contract.(tvm.FullyQualifiedName)
 	if !ok {
-		contractStr, ok := contract.(string)
-		if !ok {
+		contractStr, okStr := contract.(string)
+		if !okStr {
 			return nil, fmt.Errorf("invalid 'contract' field type: %T", contract)
 		}
 		contractFQN = tvm.FullyQualifiedName(contractStr)
