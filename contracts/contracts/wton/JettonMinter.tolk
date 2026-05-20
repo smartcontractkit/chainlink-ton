@@ -110,7 +110,7 @@ fun onInternalMessage(in: InMessage) {
 
         ChangeMinterMetadataUri => {
             var storage = lazy MinterStorage.load();
-            assert (storage.newMetadataUri != null) throw ERROR_ALREADY_INITIALIZED;
+            assert (storage.metadataUri == null) throw ERROR_ALREADY_INITIALIZED;
             // convert "inlined snake string" to a normal (ref) string, bypassing the type system
             storage.metadataUri = msg.newMetadataUri.toCell() as unknown as string;
             storage.save();
