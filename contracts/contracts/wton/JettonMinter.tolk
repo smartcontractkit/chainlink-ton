@@ -15,12 +15,11 @@ type AllowedMessageToMinter =
     | MintNewJettons
     | BurnNotificationForMinter
     | RequestWalletAddress
-    | ChangeMinterAdmin
-    | ClaimMinterAdmin
-    | DropMinterAdmin
     | ChangeMinterMetadataUri
     | UpgradeMinterCode
     | TopUpTons
+
+const ERROR_ALREADY_INITIALIZED = 75
 
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
@@ -111,7 +110,7 @@ fun onInternalMessage(in: InMessage) {
 
         ChangeMinterMetadataUri => {
             var storage = lazy MinterStorage.load();
-            assert (storage.newMetadataUri != null) throw 75; // TODO: error code
+            assert (storage.newMetadataUri != null) throw ERROR_ALREADY_INITIALIZED;
             // convert "inlined snake string" to a normal (ref) string, bypassing the type system
             storage.metadataUri = msg.newMetadataUri.toCell() as unknown as string;
             storage.save();

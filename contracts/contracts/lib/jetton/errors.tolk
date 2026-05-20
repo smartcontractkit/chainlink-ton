@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 
 const ERROR_INVALID_OP = 72
 const ERROR_WRONG_OP = 0xffff

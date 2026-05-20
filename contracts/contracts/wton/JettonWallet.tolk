@@ -19,6 +19,8 @@ type AllowedMessageToWallet =
 
 type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
 
+const ERROR_INVALID_BURN_DESTINATION = 76
+
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
 
@@ -61,8 +63,8 @@ fun onInternalMessage(in: InMessage) {
             }
 
             if (msg.sendExcessesTo != null) {
-                // TODO: need to account for msg.jettonAmount of TON
-                var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + contract.getStorageDuePayment();
+                // Notice: need to account for msg.jettonAmount of TON (we leave on balance)
+                var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + msg.jettonAmount + contract.getStorageDuePayment();
                 reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
 
                 val excessesMsg = createMessage({
@@ -80,6 +82,7 @@ fun onInternalMessage(in: InMessage) {
         AskToTransfer => {
             msg.forwardPayload.checkIsCorrectTLBEither();
             assert (msg.transferRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+
             checkAmountIsEnoughToTransfer(in.valueCoins, msg.forwardTonAmount, in.originalForwardFee);
 
             var storage = lazy WalletStorage.load();
@@ -88,10 +91,14 @@ fun onInternalMessage(in: InMessage) {
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
+            // Notice: need to account for msg.jettonAmount of TON (we send from balance - to transfer)
+            var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins - msg.jettonAmount + contract.getStorageDuePayment();
+            reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
+
             val deployMsg = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
                 dest: calcDeployedJettonWallet(msg.transferRecipient, storage.minterAddress, contract.getCode()),
-                value: 0, // TODO: send TON amount as value
+                value: 0,
                 body: InternalTransferStep {
                     queryId: msg.queryId,
                     jettonAmount: msg.jettonAmount,
@@ -101,7 +108,7 @@ fun onInternalMessage(in: InMessage) {
                     forwardPayload: msg.forwardPayload,
                 }
             });
-            deployMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+            deployMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
         AskToBurn => {
@@ -110,8 +117,13 @@ fun onInternalMessage(in: InMessage) {
             var storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
+            assert (msg.sendExcessesTo == null) throw ERROR_INVALID_BURN_DESTINATION;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
+
+            // Notice: need to account for msg.jettonAmount of TON (we send from balance - to burn/withdraw)
+            var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins - msg.jettonAmount + contract.getStorageDuePayment();
+            reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
 
             val notifyMinterMsg = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
@@ -124,7 +136,7 @@ fun onInternalMessage(in: InMessage) {
                     sendExcessesTo: msg.sendExcessesTo,
                 }
             });
-            notifyMinterMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+            notifyMinterMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
         TopUpTons => {
