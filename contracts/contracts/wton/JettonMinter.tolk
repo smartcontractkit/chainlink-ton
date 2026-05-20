@@ -16,7 +16,6 @@ type AllowedMessageToMinter =
     | BurnNotificationForMinter
     | RequestWalletAddress
     | ChangeMinterMetadataUri
-    | UpgradeMinterCode
     | TopUpTons
 
 const ERROR_ALREADY_INITIALIZED = 75
