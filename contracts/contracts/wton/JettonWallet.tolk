@@ -24,7 +24,7 @@ type AllowedMessageToWallet =
 type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
 
 const ERROR_UNSUFFICIENT_AMOUNT = 76
-const ERROR_INVALID_BURN_DESTINATION = 77
+const ERROR_INVALID_EXCESSES_DESTINATION = 77
 const ERROR_TOP_UP_TOO_LARGE = 78
 
 fun reserveModeExactFail() {
@@ -138,7 +138,7 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
             // AUDIT(WTON-4): burn must name a refund destination so the minter can return the withdrawn TON instead of trapping it.
-            assert (msg.sendExcessesTo != null) throw ERROR_INVALID_BURN_DESTINATION;
+            assert (msg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 

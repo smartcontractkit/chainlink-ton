@@ -3,9 +3,13 @@ import { compile } from '@ton/blueprint'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { JettonMinter } from '../wrappers/jetton/JettonMinter'
-import { JettonWallet, opcodes as walletOpcodes } from '../wrappers/jetton/JettonWallet'
-import * as bouncer from '../wrappers/test/mock/Bouncer'
+import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
+import { JettonWallet, opcodes as walletOpcodes } from '../../wrappers/jetton/JettonWallet'
+import {
+  ERROR_INVALID_EXCESSES_DESTINATION,
+  ERROR_TOP_UP_TOO_LARGE,
+} from '../../wrappers/wton'
+import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
 const JETTON_DATA_URI = 'wton.test'
 const WTON_TOP_UP_OPCODE = 0xd372158c
@@ -14,8 +18,6 @@ const INTERNAL_TRANSFER_OPCODE = 0x178d4519
 const ERROR_INVALID_OP = 72
 const ERROR_NOT_OWNER = 73
 const ERROR_NOT_VALID_WALLET = 74
-const ERROR_INVALID_BURN_DESTINATION = 77
-const ERROR_TOP_UP_TOO_LARGE = 78
 
 type MintOptions = {
   minterContract?: SandboxContract<JettonMinter>
@@ -359,7 +361,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_INVALID_BURN_DESTINATION,
+        exitCode: ERROR_INVALID_EXCESSES_DESTINATION,
       })
       expect((await minter.getJettonData()).totalSupply).toEqual(0n)
     })
@@ -533,7 +535,7 @@ describe('wTON', () => {
         from: alice.address,
         to: aliceWallet.address,
         success: false,
-        exitCode: ERROR_INVALID_BURN_DESTINATION,
+        exitCode: ERROR_INVALID_EXCESSES_DESTINATION,
       })
       expect(await walletBalance(alice.address)).toEqual(mintAmount)
       expect((await minter.getJettonData()).totalSupply).toEqual(mintAmount)
