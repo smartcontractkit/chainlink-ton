@@ -17,7 +17,7 @@ import "../../../lib/versioning/upgradeable"
 
 import "../../router/messages"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.0".literalSlice();
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
@@ -149,7 +149,7 @@ get fun getBehavior(): int {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (TestReceiver_FACILITY_NAME, CONTRACT_VERSION);
+    return (TestReceiver_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

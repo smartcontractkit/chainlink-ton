@@ -16,7 +16,7 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.2";
+const CONTRACT_VERSION = "1.6.2".literalSlice();
 const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
@@ -636,7 +636,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (FeeQuoter_FACILITY_NAME, CONTRACT_VERSION);
+    return (FeeQuoter_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

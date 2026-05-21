@@ -131,5 +131,5 @@ get fun cursedSubjects(): lisp_list<uint128> {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("link.chain.ton.ccip.firedrill.firedrillOffRamp", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillOffRamp".literalSlice(), "1.6.0".literalSlice());
 }

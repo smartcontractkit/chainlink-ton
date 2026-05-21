@@ -14,7 +14,7 @@ import "types"
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -113,7 +113,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (MerkleRoot_FACILITY_NAME, CONTRACT_VERSION);
+    return (MerkleRoot_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

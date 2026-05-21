@@ -6,7 +6,8 @@ import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
-const CONTRACT_VERSION = "0.0.4";
+const MCMS_FACILITY_NAME = "link.chain.ton.mcms.MCMS";
+const CONTRACT_VERSION = "0.0.4".literalSlice();
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
@@ -679,7 +680,7 @@ struct RootDescriptor {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 10400
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.mcms.MCMS"), local);
+    return getErrorCode(stringCrc32(MCMS_FACILITY_NAME), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.
@@ -1696,7 +1697,7 @@ fun MCMS_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.mcms.MCMS", CONTRACT_VERSION);
+    return (MCMS_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 /// @see <MCMS<T>.getId>

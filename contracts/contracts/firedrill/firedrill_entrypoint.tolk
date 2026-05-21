@@ -309,5 +309,5 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("link.chain.ton.ccip.firedrill.firedrillEntrypoint.Router.FeeQuoter", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillEntrypoint.Router.FeeQuoter".literalSlice(), "1.6.0".literalSlice())
 }

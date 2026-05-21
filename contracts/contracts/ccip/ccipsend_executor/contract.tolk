@@ -11,7 +11,7 @@ import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -153,7 +153,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (CCIPSendExecutor_FACILITY_NAME, CONTRACT_VERSION);
+    return (CCIPSendExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

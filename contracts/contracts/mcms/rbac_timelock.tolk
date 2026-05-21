@@ -4,7 +4,8 @@ tolk 1.3
 import "../lib/utils";
 import "../lib/access/access_control";
 
-const CONTRACT_VERSION = "0.0.3";
+const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
+const CONTRACT_VERSION = "0.0.3".literalSlice();
 
 /**
  * Contract module which acts as a timelocked controller with role-based
@@ -621,7 +622,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 60600
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.mcms.Timelock"), local);
+    return getErrorCode(stringCrc32(Timelock_FACILITY_NAME), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.
@@ -1542,7 +1543,7 @@ fun Timelock_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.mcms.Timelock", CONTRACT_VERSION);
+    return (Timelock_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 /// @see <Timelock<T>.getId>
