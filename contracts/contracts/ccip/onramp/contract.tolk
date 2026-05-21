@@ -512,7 +512,7 @@ get fun feeQuoter(destChainSelector: int): address {
 }
 
 // vec<address>
-get fun allowedSendersList(destChainSelector: uint64): tuple? {
+get fun allowedSendersList(destChainSelector: uint64): lisp_list<address> {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
@@ -520,7 +520,7 @@ get fun allowedSendersList(destChainSelector: uint64): tuple? {
     return keysLispList(allowedSenders);
 }
 
-get fun destChainSelectors(): tuple? {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;

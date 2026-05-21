@@ -631,7 +631,7 @@ get fun verifyNotCursed(subject: uint128): bool {
     return !rmn.cursedSubjects.isCursed(subject);
 }
 
-get fun cursedSubjects(): tuple? {
+get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     var rmn = st.rmnRemote.load();
     return keysLispList(rmn.cursedSubjects.data)!;
@@ -688,38 +688,39 @@ struct Ramp {
     ramp: address
 }
 
-get fun onRamps() {
+/// TODO returns lisp_list<OnRamp>
+get fun onRamps(): lisp_list<Cell<Ramp>> {
     val st = lazy Storage.load();
-    var list: tuple? = null;
+    var onRamps: lisp_list<Cell<Ramp>> = [];
     var r = st.onRamps.findFirst();
     while (r.isFound) {
         val ramp = Ramp {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
         };
-        list = listPrepend(ramp.toCell(), list);
+        onRamps.prependHead(ramp.toCell());
         r = st.onRamps.iterateNext(r);
     }
-    return list;
+    return onRamps;
 }
 
-//returns lispList<OffRamp>
-get fun offRamps() {
+/// TODO returns lisp_list<OffRamp>
+get fun offRamps(): lisp_list<Cell<Ramp>> {
     val st = lazy Storage.load();
-    var list: tuple? = null;
+    var offRamps: lisp_list<Cell<Ramp>> = [];
     var r = st.offRamps.findFirst();
     while (r.isFound) {
         val ramp = Ramp {
             chainSelector: r.getKey(),
             ramp: r.loadValue(),
         };
-        list = listPrepend(ramp.toCell(), list);
+        offRamps.prependHead(ramp.toCell());
         r = st.offRamps.iterateNext(r);
     }
-    return list;
+    return offRamps;
 }
 
-get fun destChainSelectors(): tuple {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     var d = st.onRamps;
     return keysLispList(d)!;

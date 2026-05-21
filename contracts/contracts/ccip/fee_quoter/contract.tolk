@@ -543,23 +543,22 @@ get fun tokenPrice(token: address): TimestampedPrice {
     return entry.loadValue();
 }
 
-// vec<TimestampedPrice>
-get fun tokenPrices(tokens: tuple): tuple {
+get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
     val st = lazy Storage.load();
-    var list: tuple = createEmptyTuple();
-    var iter = TupleIterator<address>.new(tokens);
+    var prices: array<Cell<TimestampedPrice>?> = [];
+    var tokenIterator = ArrayIterator<address>.new(tokens);
 
-    while(!iter.empty()) {
-        val token = iter.next();
+    while(!tokenIterator.empty()) {
+        val token = tokenIterator.next();
         val entry = st.usdPerToken.get(token);
         // NOTE: Need to skip missing items as nil entries rather than fail the query
         if (entry.isFound) {
-            list.push(entry.loadValue().toCell());
+            prices.push(entry.loadValue().toCell());
         } else {
-            list.push(null);
+            prices.push(null);
         }
     }
-    return list;
+    return prices;
 }
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
@@ -580,7 +579,7 @@ get fun premiumMultiplierWeiPerEth(token: address): uint256 {
 }
 
 // vec<address>
-get fun feeTokens(): tuple? {
+get fun feeTokens(): lisp_list<address> {
     val st = lazy Storage.load();
     var feeTokens = st.premiumMultiplierWeiPerEth;
     return keysLispList(feeTokens);
@@ -648,7 +647,7 @@ get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("link.chain.ton.ccip.FeeQuoter"), local);
 }
 
-get fun destChainSelectors(): tuple? {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
