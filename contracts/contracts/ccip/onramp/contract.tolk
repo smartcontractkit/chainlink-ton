@@ -22,7 +22,7 @@ import "storage"
 import "errors"
 import "messages"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.0".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -549,7 +549,7 @@ get fun sendExecutorCodeHash(): uint256 {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OnRamp_FACILITY_NAME, CONTRACT_VERSION);
+    return (OnRamp_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

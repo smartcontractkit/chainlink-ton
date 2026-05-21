@@ -5,7 +5,7 @@ import "@stdlib/common.tolk"
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 
-const CONTRACT_VERSION = "1.1.2";
+const CONTRACT_VERSION = "1.1.2".literalSlice();
 
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
@@ -157,5 +157,5 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.examples.Counter", CONTRACT_VERSION)
+    return ("link.chain.ton.examples.Counter".literalSlice(), CONTRACT_VERSION)
 }

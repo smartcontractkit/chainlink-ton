@@ -7,7 +7,7 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "1.6.1";
+const CONTRACT_VERSION = "1.6.1".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);
@@ -109,7 +109,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (ReceiveExecutor_FACILITY_NAME, CONTRACT_VERSION);
+    return (ReceiveExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

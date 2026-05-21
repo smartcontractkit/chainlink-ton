@@ -16,7 +16,7 @@ fun saveData(data: StorageV2) {
 }
 
 const FACILITY_NAME= "link.chain.ton.examples.versioning.upgrades.UpgradeableCounter";
-const CONTRACT_VERSION = "2.0.0";
+const CONTRACT_VERSION = "2.0.0".literalSlice();
 
 struct (0x00000001) Step {
     queryId: uint64;
@@ -69,7 +69,7 @@ get fun pendingOwner(): address? {
     return storage.ownable2Step.get_pendingOwner();
 }
 
-const COUNTER_V1_CONTRACT_VERSION = "1.0.0";
+const COUNTER_V1_CONTRACT_VERSION = "1.0.0".literalSlice();
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell {
@@ -90,7 +90,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter", CONTRACT_VERSION);
+    return ("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter".literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

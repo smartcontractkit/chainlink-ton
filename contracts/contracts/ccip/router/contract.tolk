@@ -20,7 +20,7 @@ import "storage"
 import "errors"
 import "events"
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.0".literalSlice();
 const RESERVE = ton("1");
 
 fun onInternalMessage(in: InMessage) {
@@ -662,7 +662,7 @@ get fun rmn_pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (Router_FACILITY_NAME, CONTRACT_VERSION);
+    return (Router_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {

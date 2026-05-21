@@ -25,7 +25,7 @@ import "types"
 import "storage"
 import "events"
 
-const CONTRACT_VERSION = "1.6.2";
+const CONTRACT_VERSION = "1.6.2".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
 
@@ -243,8 +243,8 @@ fun migrate(storage: cell, version: slice): cell {
 
 fun requireSupportedVersion(version: slice) {
     assert (
-        version.bitsEqual("1.6.0")
-        || version.bitsEqual("1.6.1")
+        version.bitsEqual("1.6.0".literalSlice())
+        || version.bitsEqual("1.6.1".literalSlice())
     ) 
     throw Upgradeable_Error.VersionMismatch;
 }
@@ -1005,7 +1005,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OffRamp_FACILITY_NAME, CONTRACT_VERSION);
+    return (OffRamp_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
