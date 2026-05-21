@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import "./utils.tolk"
+import "jetton-utils"
 import "messages"
 
 struct JettonClient {
@@ -9,7 +9,7 @@ struct JettonClient {
 
 @inline
 fun JettonClient.walletAddress(self): address {
-    return calculateUserJettonWalletAddress(
+    return calcAddressOfJettonWallet(
         contract.getAddress(),
         self.masterAddress,
         self.jettonWalletCode

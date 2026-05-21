@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/messages.tolk
 import "@stdlib/gas-payments"
-import "errors"
+import "../lib/jetton/errors"
 
 // we're working in basechain, but theoretically, a jetton might even work in masterchain
 const MY_WORKCHAIN = BASECHAIN

@@ -1,15 +1,18 @@
+tolk 1.2
+
 import "@stdlib/gas-payments"
 import "../lib/jetton/errors"
 import "../lib/jetton/jetton-utils"
-import "../lib/jetton/fees-management"
 import "../lib/jetton/storage"
 import "../lib/jetton/messages"
+import "fees-management"
 
-contract JettonWallet {
-    author: "Chainlink"
-    incomingMessages: AllowedMessageToWallet
-    storage: WalletStorage
-}
+// TODO: update to 1.4
+// contract JettonWallet {
+//     author: "Chainlink Labs"
+//     incomingMessages: AllowedMessageToWallet
+//     storage: WalletStorage
+// }
 
 type AllowedMessageToWallet =
     | AskToTransfer

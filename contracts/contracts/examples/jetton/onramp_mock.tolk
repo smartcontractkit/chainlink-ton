@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
+tolk 1.2
+
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
 import "../../lib/jetton/messages.tolk"
-import "../../lib/jetton/jetton-utils"
+import "../../lib/jetton/jetton-utils.tolk"
 import "../../lib/utils.tolk"
 
 // OnrampMock contract in Tolk
@@ -52,13 +54,13 @@ fun OnrampMock.handleJettonTransferNotification(
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {
-        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator });
+        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator! });
     } else {
         emit(
             JETTON_TOPIC,
             AcceptedRequest {
                 queryId: msg.queryId,
-                sender: msg.transferInitiator,
+                sender: msg.transferInitiator!,
                 payload: forwardPayloadCell!,
             }
         );

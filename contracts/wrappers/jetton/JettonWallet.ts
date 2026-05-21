@@ -75,7 +75,7 @@ export type AskToTransferWithFwdPayload<T> = {
 export type BurnMessage = {
   queryId: bigint
   jettonAmount: bigint
-  responseDestination: Address | null
+  responseDestination: Address
   customPayload: Cell | null
 }
 

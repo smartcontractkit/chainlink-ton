@@ -71,13 +71,15 @@ export const MinterOpcodes = {
   EXCESSES: JettonOpcodes.EXCESSES,
 }
 
+const WTON_TOP_UP_OPCODE = 0xd372158c
+
 export type MintMessage = {
   queryId: bigint
   destination: Address
   tonAmount: bigint
   jettonAmount: bigint
   from: Maybe<Address>
-  responseDestination: Maybe<Address>
+  responseDestination: Address
   customPayload?: Cell | null
   forwardTonAmount?: bigint
 }
@@ -113,6 +115,14 @@ export class JettonMinter implements Contract {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: Cell.EMPTY,
+    })
+  }
+
+  async sendTopUpTons(provider: ContractProvider, via: Sender, value: bigint) {
+    await provider.internal(via, {
+      value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell().storeUint(WTON_TOP_UP_OPCODE, 32).endCell(),
     })
   }
 

@@ -102,7 +102,8 @@ struct (0x2508d66a) UpgradeMinterCode {
 // nolint:opcode
 struct (0xcb862902) ChangeMinterMetadataUri {
     queryId: uint64
-    newMetadataUri: RemainingBitsAndRefs   // by standard, it's "inlined snake string" (but not in a ref, that's why not `string`)
+    // TODO: update to 1.4
+    newMetadataUri: SnakeString
 }
 
 // nolint:opcode

@@ -1,15 +1,19 @@
-import "@stdlib/strings"
+tolk 1.2
+
+// TODO: update to 1.4
+// import "@stdlib/strings"
 import "../lib/jetton/errors"
 import "../lib/jetton/jetton-utils"
-import "../lib/jetton/fees-management"
 import "../lib/jetton/storage"
 import "../lib/jetton/messages"
+import "fees-management"
 
-contract JettonMinter {
-    author: "Chainlink"
-    incomingMessages: AllowedMessageToMinter
-    storage: MinterStorage
-}
+// TODO: update to 1.4
+// contract JettonMinter {
+//     author: "Chainlink Labs"
+//     incomingMessages: AllowedMessageToMinter
+//     storage: MinterStorage
+// }
 
 type AllowedMessageToMinter =
     | MintNewJettons
@@ -43,7 +47,7 @@ fun refundMintBounce(msg: InternalTransferStep) {
         // AUDIT(WTON-17): mint-bounce refund is a forced TON deposit to the caller-chosen refund address.
         // If the destination throws, NoBounce keeps the TON there instead of looping another bounce.
         bounce: BounceMode.NoBounce,
-        dest: msg.sendExcessesTo,
+        dest: msg.sendExcessesTo!,
         value: 0,
         body: ReturnExcessesBack {
             queryId: msg.queryId
@@ -57,9 +61,14 @@ fun refundMintBounce(msg: InternalTransferStep) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    in.bouncedBody.skipBouncedPrefix();
-    // process only mint bounces; on other messages, an exception will be thrown, it's okay
-    val msg = lazy InternalTransferStep.fromSlice(in.bouncedBody);
+    // AUDIT(WTON-21): refundMintBounce needs sendExcessesTo from the original mint payload, so the
+    // bounced body must preserve the full root cell rather than the old 256-bit truncation.
+    val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
+    var originalBody = rich.originalBody.beginParse();
+    if (originalBody.preloadUint(32) != InternalTransferStep.getDeclaredPackPrefix()) {
+        return;
+    }
+    val msg = lazy InternalTransferStep.fromCell(rich.originalBody);
 
     var storage = lazy MinterStorage.load();
     storage.totalSupply -= msg.jettonAmount;
@@ -88,7 +97,7 @@ fun onInternalMessage(in: InMessage) {
                 // If the recipient contract throws, NoBounce makes the TON stay there; the critical property is that
                 // sender-side action failures MUST NOT be ignored, so the burn rolls back through the wallet bounce path.
                 bounce: BounceMode.NoBounce,
-                dest: msg.sendExcessesTo,
+                dest: msg.sendExcessesTo!,
                 value: 0,
                 body: ReturnExcessesBack {
                     queryId: msg.queryId
@@ -153,7 +162,9 @@ fun onInternalMessage(in: InMessage) {
             reserveToncoinsOnBalance(requiredReserve, reserveModeExactFail());
 
             val deployMsg = createMessage({
-                bounce: BounceMode.Only256BitsOfBody,
+                // AUDIT(WTON-22): mint-bounce refunds need the original InternalTransferStep root cell, not
+                // a truncated 256-bit prefix, otherwise sendExcessesTo/query data become unavailable on bounce.
+                bounce: BounceMode.RichBounceOnlyRootCell,
                 dest: calcDeployedJettonWallet(msg.mintRecipient, contract.getAddress(), storage.jettonWalletCode),
                 value: jettonAmount + msg.tonAmount,
                 body: msg.internalTransferMsg,
@@ -185,8 +196,13 @@ struct JettonDataReply {
     jettonWalletCode: cell
 }
 
+// TODO: update to 1.4
 struct (0x00) OnchainMetadataReply {
-    contentDict: map<uint256, string_prefixed0x>
+    contentDict: map<uint256, Cell<SnakeDataReply>>
+}
+
+struct (0x00) SnakeDataReply {
+    string: SnakeString
 }
 
 // --- Getters ---
@@ -195,13 +211,14 @@ get fun typeAndVersion(): (slice, slice) {
     return ("link.chain.ton.wton.JettonMinter", "0.0.1");
 }
 
+// TODO: update to 1.4
 get fun get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
     var metadata: OnchainMetadataReply = {
-        contentDict: []
+        contentDict: createEmptyMap()
     };
-    metadata.contentDict.set("uri".sha256(), storage.metadataUri.prefixWith00());
-    metadata.contentDict.set("decimals".sha256(), "9".prefixWith00());
+    metadata.contentDict.set(stringSha256("uri"), SnakeDataReply{string: storage.metadataUri.load()}.toCell());
+    metadata.contentDict.set(stringSha256("decimals"), SnakeDataReply{string: "9"}.toCell());
 
     return {
         totalSupply: storage.totalSupply,
