@@ -19,7 +19,21 @@ type AllowedMessageToWallet =
 
 type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
 
-const ERROR_INVALID_BURN_DESTINATION = 76
+const ERROR_UNSUFFICIENT_AMOUNT = 76
+const ERROR_INVALID_BURN_DESTINATION = 77
+const ERROR_TOP_UP_TOO_LARGE = 78
+
+fun reserveModeExactFail() {
+    return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
+}
+
+fun requiredWalletReserve(backedTonAmount: coins) {
+    return backedTonAmount + calculateJettonWalletMinStorageFee() + contract.getStorageDuePayment();
+}
+
+fun walletTopUpCap() {
+    return calculateJettonWalletMinStorageFee() + contract.getStorageDuePayment();
+}
 
 fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
@@ -44,7 +58,14 @@ fun onInternalMessage(in: InMessage) {
             if (in.senderAddress != storage.minterAddress) {
                 assert (in.senderAddress == calcAddressOfJettonWallet(msg.transferInitiator!, storage.minterAddress, contract.getCode())) throw ERROR_NOT_VALID_WALLET;
             }
-            storage.jettonBalance += msg.jettonAmount;
+            val nextJettonBalance = storage.jettonBalance + msg.jettonAmount;
+            val requiredReserve = requiredWalletReserve(nextJettonBalance);
+            // AUDIT(WTON-1): require the incoming transfer to carry the full hosted TON backing before we credit wTON.
+            assert (contract.getOriginalBalance() >= requiredReserve + msg.forwardTonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
+            // AUDIT(WTON-2): lock backing + storage reserve before any notification/excess send can spend value.
+            reserveToncoinsOnBalance(requiredReserve, reserveModeExactFail());
+
+            storage.jettonBalance = nextJettonBalance;
             storage.save();
 
             if (msg.forwardTonAmount != 0) {
@@ -63,10 +84,6 @@ fun onInternalMessage(in: InMessage) {
             }
 
             if (msg.sendExcessesTo != null) {
-                // Notice: need to account for msg.jettonAmount of TON (we leave on balance)
-                var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins + msg.jettonAmount + contract.getStorageDuePayment();
-                reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
-
                 val excessesMsg = createMessage({
                     bounce: BounceMode.NoBounce,
                     dest: msg.sendExcessesTo,
@@ -91,9 +108,8 @@ fun onInternalMessage(in: InMessage) {
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
-            // Notice: need to account for msg.jettonAmount of TON (we send from balance - to transfer)
-            var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins - msg.jettonAmount + contract.getStorageDuePayment();
-            reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
+            // AUDIT(WTON-3): preserve the remaining wTON backing plus storage reserve exactly, or abort the transfer.
+            reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val deployMsg = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
@@ -117,13 +133,13 @@ fun onInternalMessage(in: InMessage) {
             var storage = lazy WalletStorage.load();
             assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
-            assert (msg.sendExcessesTo == null) throw ERROR_INVALID_BURN_DESTINATION;
+            // AUDIT(WTON-4): burn must name a refund destination so the minter can return the withdrawn TON instead of trapping it.
+            assert (msg.sendExcessesTo != null) throw ERROR_INVALID_BURN_DESTINATION;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 
-            // Notice: need to account for msg.jettonAmount of TON (we send from balance - to burn/withdraw)
-            var toLeaveOnBalance = contract.getOriginalBalance() - in.valueCoins - msg.jettonAmount + contract.getStorageDuePayment();
-            reserveToncoinsOnBalance(max(toLeaveOnBalance, calculateJettonWalletMinStorageFee()), RESERVE_MODE_AT_MOST);
+            // AUDIT(WTON-5): preserve the remaining backing exactly before sending the withdrawn TON to the minter.
+            reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
 
             val notifyMinterMsg = createMessage({
                 bounce: BounceMode.Only256BitsOfBody,
@@ -140,7 +156,8 @@ fun onInternalMessage(in: InMessage) {
         }
 
         TopUpTons => {
-            // just accept tons
+            // AUDIT(WTON-6): cap rent top-ups so arbitrary TON cannot be mixed into the hosted asset accounting.
+            assert (in.valueCoins <= walletTopUpCap()) throw ERROR_TOP_UP_TOO_LARGE;
         }
 
         else => throw 0xFFFF
