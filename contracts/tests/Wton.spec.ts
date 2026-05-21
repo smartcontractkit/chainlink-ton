@@ -107,14 +107,21 @@ describe('wTON', () => {
     return (await blockchain.getContract(address)).balance
   }
 
-  async function expectBalanceIncreaseAtLeast(address: Address, balanceBefore: bigint, minimumDelta: bigint) {
+  async function expectBalanceIncreaseAtLeast(
+    address: Address,
+    balanceBefore: bigint,
+    minimumDelta: bigint,
+  ) {
     const balanceAfter = await contractBalance(address)
     expect(balanceAfter - balanceBefore).toBeGreaterThanOrEqual(minimumDelta)
   }
 
   function internalTransactionTo(result: { transactions: Array<any> }, address: Address) {
     const tx = result.transactions.find((candidate) => {
-      return candidate.inMessage?.info.type === 'internal' && candidate.inMessage.info.dest.equals(address)
+      return (
+        candidate.inMessage?.info.type === 'internal' &&
+        candidate.inMessage.info.dest.equals(address)
+      )
     })
 
     if (!tx) {
@@ -451,7 +458,9 @@ describe('wTON', () => {
 
       const bobReceiveTx = internalTransactionTo(transferResult, bob.address)
       const bobBalanceAfter = await contractBalance(bob.address)
-      expect(bobBalanceAfter - bobBalanceBefore).toEqual(forwardTonAmount - bobReceiveTx.totalFees.coins)
+      expect(bobBalanceAfter - bobBalanceBefore).toEqual(
+        forwardTonAmount - bobReceiveTx.totalFees.coins,
+      )
     })
 
     it('rejects transfers from non-owners', async () => {

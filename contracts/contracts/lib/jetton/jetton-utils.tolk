@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-import "@stdlib/gas-payments"
 import "storage"
 
 fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell): AutoDeployAddress {

@@ -4,11 +4,11 @@ A token escrow protocol to make TON behave as Jetton in a new asset called wTON.
 
 **Features:**
 
-* Standard Jetton [TEP #74](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md) minimal deviation
-* No admin:
-  * Mint (new) wTON by providing TON
-  * Burn wTON to withdraw TON
-* Base Jetton Tolk implementation from <https://github.com/ton-blockchain/tolk-bench/tree/master/contracts_Tolk/03_notcoin> at [57e1009](https://github.com/ton-blockchain/tolk-bench/commit/57e1009743bfc19748caa95d76180d9e9793e4c5)
+- Standard Jetton [TEP #74](https://github.com/ton-blockchain/TEPs/blob/master/text/0074-jettons-standard.md) minimal deviation
+- No admin:
+  - Mint (new) wTON by providing TON
+  - Burn wTON to withdraw TON
+- Base Jetton Tolk implementation from <https://github.com/ton-blockchain/tolk-bench/tree/master/contracts_Tolk/03_notcoin> at [57e1009](https://github.com/ton-blockchain/tolk-bench/commit/57e1009743bfc19748caa95d76180d9e9793e4c5)
 
 **Why this version?**
 
