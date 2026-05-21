@@ -3,13 +3,12 @@ import { compile } from '@ton/blueprint'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
+import { JettonMinter, MinterOpcodes } from '../../wrappers/jetton/JettonMinter'
 import { JettonWallet, opcodes as walletOpcodes } from '../../wrappers/jetton/JettonWallet'
 import { ERROR_INVALID_EXCESSES_DESTINATION, ERROR_TOP_UP_TOO_LARGE } from '../../wrappers/wton'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
 const JETTON_DATA_URI = 'wton.test'
-const WTON_TOP_UP_OPCODE = 0xd372158c
 const WTON_MINT_OPCODE = 0x00000015
 const INTERNAL_TRANSFER_OPCODE = 0x178d4519
 const ERROR_INVALID_OP = 72
@@ -131,7 +130,7 @@ describe('wTON', () => {
   }
 
   function topUpBody() {
-    return beginCell().storeUint(WTON_TOP_UP_OPCODE, 32).endCell()
+    return beginCell().storeUint(MinterOpcodes.TOP_UP, 32).endCell()
   }
 
   function mintBody({

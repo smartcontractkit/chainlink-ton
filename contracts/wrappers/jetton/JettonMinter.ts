@@ -66,12 +66,10 @@ export const MinterOpcodes = {
   DROP_ADMIN: JettonOpcodes.DROP_ADMIN,
   CHANGE_METADATA_URL: JettonOpcodes.CHANGE_METADATA_URL,
   UPGRADE: JettonOpcodes.UPGRADE,
-  // TOP_UP: JettonOpcodes.TOP_UP,
+  TOP_UP: JettonOpcodes.TOP_UP,
   INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
   EXCESSES: JettonOpcodes.EXCESSES,
 }
-
-const WTON_TOP_UP_OPCODE = 0xd372158c
 
 export type MintMessage = {
   queryId: bigint
@@ -122,7 +120,7 @@ export class JettonMinter implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(WTON_TOP_UP_OPCODE, 32).endCell(),
+      body: beginCell().storeUint(MinterOpcodes.TOP_UP, 32).endCell(),
     })
   }
 

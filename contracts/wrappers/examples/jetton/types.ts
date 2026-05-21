@@ -46,7 +46,7 @@ export const JettonOpcodes = {
   DROP_ADMIN: 0x7431f221,
   CHANGE_METADATA_URL: 0xcb862902,
   UPGRADE: 0x2508d66a,
-  // TOP_UP: 0x8,
+  TOP_UP: 0xd372158c,
 }
 
 export const ErrorCodes = {

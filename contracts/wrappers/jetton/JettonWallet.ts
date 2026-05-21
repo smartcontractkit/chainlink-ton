@@ -43,6 +43,7 @@ export const opcodes = {
   in: {
     TRANSFER: JettonOpcodes.TRANSFER,
     TRANSFER_NOTIFICATION: JettonOpcodes.TRANSFER_NOTIFICATION,
+    TOP_UP: JettonOpcodes.TOP_UP,
     INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
     EXCESSES: JettonOpcodes.EXCESSES,
     BURN: JettonOpcodes.BURN,
