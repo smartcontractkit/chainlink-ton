@@ -5,10 +5,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import { JettonWallet, opcodes as walletOpcodes } from '../../wrappers/jetton/JettonWallet'
-import {
-  ERROR_INVALID_EXCESSES_DESTINATION,
-  ERROR_TOP_UP_TOO_LARGE,
-} from '../../wrappers/wton'
+import { ERROR_INVALID_EXCESSES_DESTINATION, ERROR_TOP_UP_TOO_LARGE } from '../../wrappers/wton'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
 const JETTON_DATA_URI = 'wton.test'
