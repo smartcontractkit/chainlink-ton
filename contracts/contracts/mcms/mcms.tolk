@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.2
+tolk 1.3
 
 import "../lib/utils";
 import "../lib/secp256k1";
