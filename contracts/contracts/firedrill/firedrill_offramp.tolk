@@ -119,15 +119,15 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 	};
 }
 
-get fun sourceChainSelectors(): tuple? {
+get fun sourceChainSelectors(): array<uint64> {
     val st = lazy FiredrillOffRamp_Storage.load();
-    var res = createEmptyTuple();
+    var res: array<uint64> = [];
     res.push(st.chainSelector);
-    return res ;
+    return res;
 }
 
-get fun cursedSubjects(): tuple? {
-	return null;
+get fun cursedSubjects(): lisp_list<uint128> {
+	return [];
 }
 
 get fun typeAndVersion(): (slice, slice) {

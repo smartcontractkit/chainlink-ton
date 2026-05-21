@@ -18,13 +18,13 @@ enum MerkleMultiProof_Error {
 const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
 /// @notice Maximum number of hashes that can be computed in a single Merkle root calculation.
-/// Capped to 255 because a TVM tuple can only hold at most 255 elements.
+/// Capped to 255 because a TVM array can only hold at most 255 elements.
 const MAX_NUM_HASHES: int = 255;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
 fun merkleRoot<I>(
-    leaves: I, // Iterator or TupleIterator<uint256>
+    leaves: I, // Iterator or ArrayIterator<uint256>
     proofs: Iterator<uint256>,
     proofFlagBits: uint256,
 ): uint256 {
@@ -42,9 +42,9 @@ fun merkleRoot<I>(
         return leaves.next();
     }
 
-    var hashes = createEmptyTuple();
+    var hashes: array<uint256> = [];
 
-    // index over the hashes tuple
+    // index over the hashes array
     var hashPos: int = 0;
     var i: int = 0;
     while (i < totalHashes) {

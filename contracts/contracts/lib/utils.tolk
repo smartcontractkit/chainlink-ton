@@ -167,31 +167,31 @@ fun Iterator<T>.size(self, elemSize: int): int {
 // https://github.com/ton-org/ton-core/blob/213fed91d6f63d978c27588509e15ab53c8bafdb/src/dict/Dictionary.ts#L425
 const ADDR_KEY_LEN = 267;
 
-struct TupleIterator<T> {
+struct ArrayIterator<T> {
     pos: int = 0;
     len: int; // TLEN is 26 gas, we cache the value for minimal savings
-    data: tuple;
+    data: array<T>;
 }
 
 @inline
-fun TupleIterator<T>.new(data: tuple) {
-    return TupleIterator<T> { data, len: data.size() };
+fun ArrayIterator<T>.new(data: array<T>) {
+    return ArrayIterator<T> { data, len: data.size() };
 }
 
 @inline
-fun TupleIterator<T>.empty(self): bool {
+fun ArrayIterator<T>.empty(self): bool {
     return self.pos >= self.len
 }
 
 @inline
-fun TupleIterator<T>.next(mutate self): T {
+fun ArrayIterator<T>.next(mutate self): T {
     var offset = self.pos;
     self.pos += 1;
-    return self.data.get<T>(offset);
+    return self.data.get(offset);
 }
 
 @inline
-fun TupleIterator<T>.size(self, elemSize: int): int {
+fun ArrayIterator<T>.size(self, elemSize: int): int {
     // elemSize is ignored since we know exact size,
     // param is there for interface compatibility
     return self.len;
@@ -228,15 +228,15 @@ fun countAddresses(data: cell): int {
 }
 
 // Returns a lisp-list with the keys of the map
-fun keysLispList<K, V>(dict: map<K, V>): tuple? {
-    var list: tuple? = null;
+fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
+    var lisplist: lisp_list<K> = [];
     var entry = dict.findFirst();
     while (entry.isFound) {
         var key = entry.getKey();
-        list = listPrepend(key, list);
+        lisplist.prependHead(key);
         entry = dict.iterateNext(entry);
     } ;
-    return list;
+    return lisplist;
 }
 
 // This type works as a wrapper for RemainingBitsAndRefs that implements

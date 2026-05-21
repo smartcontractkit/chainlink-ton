@@ -691,10 +691,10 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
     assert(message.header.sourceChainSelector == report.sourceChainSelector, Error.SourceChainSelectorMismatch);
 
-    var leafTuple: tuple = createEmptyTuple();
-    leafTuple.push(message.generateMessageId(metadataHash));
+    var leaves: array<uint256> = [];
+    leaves.push(message.generateMessageId(metadataHash));
 
-    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), report.proofs.iter(), report.proofFlagBits);
+    val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
@@ -936,7 +936,7 @@ get fun latestPriceSequenceNumber(): uint64 {
     return st.latestPriceSequenceNumber
 }
 
-get fun sourceChainSelectors(): tuple? {
+get fun sourceChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     var d = st.sourceChainConfigs;
     return keysLispList(d)!;
@@ -971,7 +971,7 @@ get fun verifyNotCursed(subject: uint128): bool {
     return !st.cursedSubjects.isCursed(subject);
 }
 
-get fun cursedSubjects(): tuple? {
+get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     return keysLispList(st.cursedSubjects.data)!;
 }
