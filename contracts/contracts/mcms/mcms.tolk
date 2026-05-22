@@ -390,18 +390,18 @@ struct MCMS_Hooks<T> {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP =
-    stringSha256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON");
+    "MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON".sha256();
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
-    stringSha256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON");
+    "MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON".sha256();
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
 
-const TOPIC_BOUNCE_HANDLED = stringCrc32("MCMS_BounceHandled");
+const TOPIC_BOUNCE_HANDLED = "MCMS_BounceHandled".crc32();
 
 // --- Constants - storage ---
 
@@ -680,7 +680,7 @@ struct RootDescriptor {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 10400
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32(MCMS_FACILITY_NAME), local);
+    return getErrorCode(MCMS_FACILITY_NAME.crc32(), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.
@@ -1464,7 +1464,7 @@ fun MCMS<T>._hashRoot(self, root: uint256, validUntil: uint64): uint256 {
 
     // EIP191 Signed Message Hash wrapping
     // Format: "\x19Ethereum Signed Message:\n32" + messageHash
-    val eip191Prefix = stringHexToSlice("19457468657265756d205369676e6564204d6573736167653a0a3332");
+    val eip191Prefix = "19457468657265756d205369676e6564204d6573736167653a0a3332". hexToSlice();
     val eip191Data = beginCell()
         .storeSlice(eip191Prefix)
         .storeUint(_hash, 256);

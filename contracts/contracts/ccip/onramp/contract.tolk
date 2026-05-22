@@ -312,7 +312,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = beginCell()
-        .storeUint(stringSha256("TVM2AnyMessageHashV1"), 256)
+        .storeUint("TVM2AnyMessageHashV1".sha256(), 256)
         .storeUint(st.chainSelector, 64)
         .storeUint(ccipsend.destChainSelector, 64)
         .storeAddress(contract.getAddress())
@@ -557,7 +557,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.OnRamp"), local);
+    return getErrorCode("link.chain.ton.ccip.OnRamp".crc32(), local);
 }
 
 get fun reserve(): coins {

@@ -78,9 +78,9 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter"));
+    return getFacilityId("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter".crc32());
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter"), local);
+    return getErrorCode("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter".crc32(), local);
 }

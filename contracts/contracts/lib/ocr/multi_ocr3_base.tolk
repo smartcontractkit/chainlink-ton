@@ -4,8 +4,8 @@ import "types.tolk";
 import "errors";
 
 
-const OCR3BASE_CONFIG_SET_TOPIC: int = stringCrc32("OCR3Base_ConfigSet");
-const OCR3BASE_TRANSMITTED: int = stringCrc32("OCR3Base_Transmitted");
+const OCR3BASE_CONFIG_SET_TOPIC: int = "OCR3Base_ConfigSet".crc32();
+const OCR3BASE_TRANSMITTED: int = "OCR3Base_Transmitted".crc32();
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.
 /// @param ocrPluginType OCR plugin type for which the config was set.

@@ -552,10 +552,10 @@ struct Timelock_Hooks<T> {
 
 // --- Constants ---
 
-const TOPIC_BYPASSER_CALL_EXECUTED = stringCrc32("Timelock_BypasserCallExecuted");
-const TOPIC_CALL_SCHEDULED = stringCrc32("Timelock_CallScheduled");
-const TOPIC_CALL_EXECUTED = stringCrc32("Timelock_CallExecuted");
-const TOPIC_BOUNCE_HANDLED = stringCrc32("Timelock_BounceHandled");
+const TOPIC_BYPASSER_CALL_EXECUTED = "Timelock_BypasserCallExecuted".crc32();
+const TOPIC_CALL_SCHEDULED = "Timelock_CallScheduled".crc32();
+const TOPIC_CALL_EXECUTED = "Timelock_CallExecuted".crc32();
+const TOPIC_BOUNCE_HANDLED = "Timelock_BounceHandled".crc32();
 
 /// Notice: role constants are kept as original Ethereum implementation (keccak256)
 const ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;     // keccak256('ADMIN_ROLE')
@@ -622,7 +622,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 60600
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32(Timelock_FACILITY_NAME), local);
+    return getErrorCode(Timelock_FACILITY_NAME.crc32(), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.

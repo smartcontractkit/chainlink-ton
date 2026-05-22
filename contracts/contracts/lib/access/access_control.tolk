@@ -226,7 +226,7 @@ enum AccessControl_Error {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 60900
 fun AccessControl<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.lib.access.AccessControl"), local);
+    return getErrorCode("link.chain.ton.lib.access.AccessControl".crc32(), local);
 }
 
 /// @dev Returns the sender of the message.
