@@ -401,7 +401,7 @@ fun AccessControl<T>.getRoleMembers(self, role: uint256): map<address, bool> {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
-        return createEmptyMap(); // role does not exist
+        return []; // role does not exist
     }
 
     val d = lazy AccessControl_RoleData.fromCell(data.loadValue());
@@ -594,7 +594,7 @@ fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: uint256): Acce
     var _data: AccessControl_RoleData = {
         adminRole: DEFAULT_ADMIN_ROLE,
         // Initialize hasRole as an empty map
-        hasRole: createEmptyMap(),
+        hasRole: [],
         membersLen: 0,
     };
     self.roles.set(role, _data.toCell());

@@ -770,7 +770,7 @@ fun MCMS<T>.setRoot(
         var signer: Signer;
         var prevSigner: uint256 = 0; // start with zero address
         var ss = signatures.iter();
-        var groupVoteCounts: map<uint8, uint8> = createEmptyMap(); // number of votes per group, map<uint8, uint8> (indexed)
+        var groupVoteCounts: map<uint8, uint8> = []; // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
             val signerAddress = evm_ecrecoverFrom(signedHash, s.toCell().beginParse());
@@ -1103,7 +1103,7 @@ fun MCMS<T>.setConfig(
     {
         // Validate group structure
         // counts the number of children of each group
-        var groupChildrenCounts: map<uint8, uint8> = createEmptyMap();
+        var groupChildrenCounts: map<uint8, uint8> = [];
         // first, we count the signers as children
         while (!signerGroupIterator.empty()) {
             var g = signerGroupIterator.next();
@@ -1194,7 +1194,7 @@ fun MCMS<T>.setConfig(
         self.data.signers.delete(s.address);
         oldSigner = config.signers.findFirst();
     }
-    config.signers = createEmptyMap(); // reset signers
+    config.signers = []; // reset signers
 
     config.groupQuorums = groupQuorums;
     config.groupParents = groupParents;

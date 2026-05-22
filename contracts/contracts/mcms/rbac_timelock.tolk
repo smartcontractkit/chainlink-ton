@@ -779,7 +779,7 @@ fun Timelock<T>.init(
         validAfter: blockchain.now(),
         opFinalizationTimeout,
         opPendingId: 0,
-        opPendingCalls: createEmptyMap()
+        opPendingCalls: []
     };
 
     // Reply back to sender
@@ -984,7 +984,7 @@ fun Timelock<T>.getCallFingerprint(self, target: address, truncatedBody: uint256
 
 /// Resets the pending operation tracking info.
 fun Timelock<T>.resetPendingOpTracking(mutate self): void {
-    self.data.opPendingInfo.opPendingCalls = createEmptyMap();
+    self.data.opPendingInfo.opPendingCalls = [];
     self.data.opPendingInfo.opPendingId = 0;
 }
 
