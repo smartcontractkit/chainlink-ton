@@ -29,7 +29,7 @@ struct RampMessageHeader { // 512
     nonce: uint64;
 }
 
-const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
+const LEAF_DOMAIN_SEPARATOR: slice = "0000000000000000000000000000000000000000000000000000000000000000".hexToSlice();
 
 // nolint:opcode : hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2"))
 struct (0x181dcf10) GenericExtraArgsV2 {

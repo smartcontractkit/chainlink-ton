@@ -22,7 +22,7 @@ struct CommitReport {
 }
 
 struct MessageMetadata {
-    _header: uint256 = stringSha256("Any2TVMMessageHashV1");
+    _header: uint256 = "Any2TVMMessageHashV1".sha256();
     sourceChainSelector: uint64;
     destChainSelector: uint64;
     onRamp: Cell<CrossChainAddress>;

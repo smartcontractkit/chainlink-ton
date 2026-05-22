@@ -64,11 +64,11 @@ get fun typeAndVersion(): (slice, slice) {
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("link.chain.ton.examples.funding.WithdrawableWallet"));
+    return getFacilityId("link.chain.ton.examples.funding.WithdrawableWallet".crc32());
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.examples.funding.WithdrawableWallet"), local);
+    return getErrorCode("link.chain.ton.examples.funding.WithdrawableWallet".crc32(), local);
 }
 
 get fun reserve(): coins {
