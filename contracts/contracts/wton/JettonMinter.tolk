@@ -26,7 +26,6 @@ type AllowedMessageToMinter =
 const ERROR_ALREADY_INITIALIZED = 75
 const ERROR_UNSUFFICIENT_AMOUNT = 76
 const ERROR_INVALID_EXCESSES_DESTINATION = 77
-const ERROR_TOP_UP_TOO_LARGE = 78
 
 fun reserveModeExactFail() {
     return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
@@ -36,17 +35,14 @@ fun requiredMinterReserve() {
     return ton("0.01") + contract.getStorageDuePayment();
 }
 
-fun minterTopUpCap() {
-    return requiredMinterReserve();
-}
-
+/// Refund the mint on bounce, reuses sendExcessesTo as the bounce refund destination, so a failed wallet deploy/credit returns TON.
 fun refundMintBounce(msg: InternalTransferStep) {
-    // AUDIT(WTON-7): mint reuses sendExcessesTo as the bounce refund destination, so a failed wallet deploy/credit returns TON.
-    reserveToncoinsOnBalance(requiredMinterReserve(), reserveModeExactFail());
+    // We're already in the mint recovery path after supply rollback, so keep the minter reserve
+    // if possible but never fail the bounce handler itself.
+    reserveToncoinsOnBalance(requiredMinterReserve(), RESERVE_MODE_AT_MOST);
 
     val refundMsg = createMessage({
-        // AUDIT(WTON-17): mint-bounce refund is a forced TON deposit to the caller-chosen refund address.
-        // If the destination throws, NoBounce keeps the TON there instead of looping another bounce.
+        // The mint-bounce refund is a forced TON deposit to the caller-chosen refund address.
         bounce: BounceMode.NoBounce,
         dest: msg.sendExcessesTo!,
         value: 0,
@@ -54,21 +50,15 @@ fun refundMintBounce(msg: InternalTransferStep) {
             queryId: msg.queryId
         }
     });
-    // AUDIT(WTON-18): IGNORE_ERRORS is kept only on the mint-bounce refund path because we are already in
-    // onBouncedMessage after rolling supply back. If the send action itself fails here, reverting this tx would
-    // resurrect supply without restoring the recipient wallet. The security-grade long-term fix is a pending-refund
-    // ledger/claim flow; until then this path is intentionally best-effort and never a final accounting transition.
+    // IGNORE_ERRORS is used in the mint-bounce refund path because we are already in
+    // onBouncedMessage after rolling supply back, so we make a forced deposit
     refundMsg.send(SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    // AUDIT(WTON-21): refundMintBounce needs sendExcessesTo from the original mint payload, so the
+    // We require sendExcessesTo for refundMintBounce from the original mint payload, so the
     // bounced body must preserve the full root cell rather than the old 256-bit truncation.
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
-    var originalBody = rich.originalBody.beginParse();
-    if (originalBody.preloadUint(32) != InternalTransferStep.getDeclaredPackPrefix()) {
-        return;
-    }
     val msg = lazy InternalTransferStep.fromCell(rich.originalBody);
 
     var storage = lazy MinterStorage.load();
@@ -84,13 +74,14 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         BurnNotificationForMinter => {
             var storage = lazy MinterStorage.load();
-            assert (in.senderAddress == calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode)) throw ERROR_NOT_VALID_WALLET;
-            // reject burns without a refund destination so the withdrawn TON never gets stranded here
+            val calcAddress = calcAddressOfJettonWallet(msg.burnInitiator, contract.getAddress(), storage.jettonWalletCode);
+            assert (in.senderAddress == calcAddress) throw ERROR_NOT_VALID_WALLET;
+            // Reject burns without a refund destination so the withdrawn TON never gets stranded here.
             assert (msg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
             storage.totalSupply -= msg.jettonAmount;
             storage.save();
 
-            // keep only the minter rent reserve before withdrawing TON
+            // Keep only the minter rent reserve before withdrawing TON.
             reserveToncoinsOnBalance(requiredMinterReserve(), reserveModeExactFail());
 
             val excessesMsg = createMessage({
@@ -104,8 +95,8 @@ fun onInternalMessage(in: InMessage) {
                     queryId: msg.queryId
                 }
             });
-            // AUDIT(WTON-20): burn withdrawal is not "best effort". If this send action cannot be executed,
-            // the minter tx must fail so BurnNotificationForMinter bounces back to the wallet and restores wTON.
+            // Burn withdrawal is not "best effort". If this send action cannot be executed, the minter tx must fail
+            // so BurnNotificationForMinter bounces back to the wallet and restores wTON.
             excessesMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
 
@@ -144,11 +135,11 @@ fun onInternalMessage(in: InMessage) {
             internalTransferMsg.forwardPayload.checkIsCorrectTLBEither();
 
             val jettonAmount = internalTransferMsg.jettonAmount;
-            // AUDIT(WTON-10): mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
+            // Mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
             assert (internalTransferMsg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
-            // AUDIT(WTON-11): minting must not impersonate a peer wallet transfer initiator.
+            // Minting must not impersonate a peer wallet transfer initiator.
             assert (internalTransferMsg.transferInitiator == null) throw ERROR_INVALID_OP;
-            // AUDIT(WTON-12): the caller must fund both the new hosted TON backing and the extra transfer budget.
+            // The caller must fund both the new hosted TON backing and the extra transfer budget.
             assert (in.valueCoins >= jettonAmount + msg.tonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
 
             // AUDIT(WTON-13): the extra mint budget must independently cover the receiver-side transfer/forward flow.
@@ -179,8 +170,7 @@ fun onInternalMessage(in: InMessage) {
         }
 
         TopUpTons => {
-            // AUDIT(WTON-15): cap rent top-ups so arbitrary TON cannot silently accumulate outside mint/burn accounting.
-            assert (in.valueCoins <= minterTopUpCap()) throw ERROR_TOP_UP_TOO_LARGE;
+            // Accept TONs
         }
 
         else => throw 0xFFFF

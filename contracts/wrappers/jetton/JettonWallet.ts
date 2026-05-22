@@ -118,6 +118,14 @@ export class JettonWallet implements Contract {
     })
   }
 
+  async sendTopUpTons(provider: ContractProvider, via: Sender, value: bigint) {
+    await provider.internal(via, {
+      value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell().storeUint(opcodes.in.TOP_UP, 32).endCell(),
+    })
+  }
+
   async sendTransfer(
     provider: ContractProvider,
     via: Sender,
