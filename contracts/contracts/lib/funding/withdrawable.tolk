@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 tolk 1.3
 
+const Withdrawable_FACILITY_NAME = "link.chain.ton.lib.funding.Withdrawable";
+const Withdrawable_FACILITY_ID = Withdrawable_FACILITY_NAME.crc32() % 640 + 10;  // 571
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const Withdrawable_ERROR_CODE = Withdrawable_FACILITY_ID * 100;
+
 struct Withdrawable {
     reserve: coins;
 }
 
 enum Withdrawable_Error {
     // Trying to withdraw more TON than available in balance.
-    InsufficientBalance = 57100; // Facility ID * 100
+    InsufficientBalance = Withdrawable_ERROR_CODE; // 57100,
     // Trying to withdraw more TON than available in balance above reserve.
     HitReserve;
     // Invalid withdrawal request: Amount is non-zero and drain is true or Amount is zero and drain is false.

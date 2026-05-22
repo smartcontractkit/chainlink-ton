@@ -2,7 +2,8 @@
 import "../../lib/utils"
 
 const Router_FACILITY_NAME = "link.chain.ton.ccip.Router";
-const Router_FACILITY_ID = 571;  // (crc32(<facility>) % 640) + 10
+const Router_FACILITY_ID = Router_FACILITY_NAME.crc32() % 640 + 10;  // 571
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 struct OnRamps {
     destChainSelectors: SnakedCell<uint64>;

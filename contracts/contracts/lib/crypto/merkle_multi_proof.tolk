@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 import "../utils.tolk"
 
-const MerkleMultiProof_FACILITY_ID= 120;  // (crc32(<facility>) % 640) + 10
-const MerkleMultiProof_ERROR_CODE= MerkleMultiProof_FACILITY_ID * 100;
+const MerkleMultiProof_FACILITY_NAME = "link.chain.ton.lib.crypto.MerkleMultiProof";
+const MerkleMultiProof_FACILITY_ID = MerkleMultiProof_FACILITY_NAME.crc32() % 640 + 10;  // 120
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const MerkleMultiProof_ERROR_CODE = MerkleMultiProof_FACILITY_ID * 100;
 
 // --- Errror Codes ---
 

@@ -2,6 +2,12 @@
 import "@stdlib/tvm-lowlevel";
 import "../utils.tolk";
 
+const Upgradeable_FACILITY_NAME = "link.chain.ton.lib.versioning.Upgradeable";
+const Upgradeable_FACILITY_ID = Upgradeable_FACILITY_NAME.crc32() % 640 + 10;  // 199
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const Upgradeable_ERROR_CODE = Upgradeable_FACILITY_ID * 100;
+
 /// Upgradeable contract interface.
 /// This interface defines the structure and methods required for a contract to
 /// be upgradeable.
@@ -100,7 +106,7 @@ struct Upgradeable {
 }
 
 enum Upgradeable_Error {
-    VersionMismatch = 19900; // Facility ID * 100
+    VersionMismatch = Upgradeable_ERROR_CODE, // 19900
 }
 
 /// Message for upgrading a contract.
