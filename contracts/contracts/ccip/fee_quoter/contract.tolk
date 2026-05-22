@@ -159,7 +159,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_Upd
                     dataAvailabilityGasPrice: 0,
                     timestamp: 0,
                 }.toCell(),
-                tokenTransferFeeConfigs: createEmptyMap()
+                tokenTransferFeeConfigs: []
             })
         }
     }

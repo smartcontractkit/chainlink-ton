@@ -99,7 +99,7 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 		router: st.controlAddress,
 		sequenceNumber: 0,
 		allowlistEnabled: false,
-		allowedSenders: createEmptyMap()
+		allowedSenders: []
 	};
 }
 

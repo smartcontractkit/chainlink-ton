@@ -406,7 +406,7 @@ fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: SnakedCell
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
-                allowedSenders: createEmptyMap(),
+                allowedSenders: [],
             };
             st.destChainConfigs.set(update.destChainSelector, config);
             emit(DEST_CHAIN_SELECTOR_ADDED_TOPIC, DestChainSelectorAdded {

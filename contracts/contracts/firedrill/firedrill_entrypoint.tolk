@@ -265,7 +265,7 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
 	dataAvailabilityGasPrice: 1000000000,
 	timestamp: blockchain.now()
     }.toCell(),
-    tokenTransferFeeConfigs: createEmptyMap(),
+    tokenTransferFeeConfigs: [],
   };
   return destChainConfig;
 }
