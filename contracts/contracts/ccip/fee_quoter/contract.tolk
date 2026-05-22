@@ -360,8 +360,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
-        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
+        val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
@@ -427,8 +426,12 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int?{
-    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int {
+    val gasLimit = parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
+    if (gasLimit != null) {
+        return gasLimit as int
+    }
+    return 0;
 }
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
@@ -668,8 +671,8 @@ fun migrate(storage: cell, version: slice): cell {
 
 fun requireSupportedVersion(version: slice) {
     assert (
-        version.bitsEqual("1.6.0")
-        || version.bitsEqual("1.6.1")
+        version.bitsEqual("1.6.0".literalSlice())
+        || version.bitsEqual("1.6.1".literalSlice())
     ) 
     throw Upgradeable_Error.VersionMismatch;
 }
