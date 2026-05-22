@@ -8,6 +8,7 @@ import "../../lib/utils"
 import "../../lib/versioning/upgradeable"
 import "../../lib/receiver/types"
 import "../../lib/receiver/messages"
+import "../rmn_remote/lib.tolk"
 
 import "../onramp/messages"
 import "../onramp/types"

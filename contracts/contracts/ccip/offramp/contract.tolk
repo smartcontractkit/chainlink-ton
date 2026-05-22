@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
+import "../../lib/deployable/namespace"
 import "../../lib/access/ownable_2step.tolk"
 import "../../lib/funding/withdrawable.tolk"
 import "../../lib/crypto/merkle_multi_proof.tolk"
@@ -8,7 +9,7 @@ import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
 import "../../lib/receiver/types"
-import "../../lib/deployable/namespace"
+import "../rmn_remote/lib.tolk"
 
 import "../common/types.tolk"
 
