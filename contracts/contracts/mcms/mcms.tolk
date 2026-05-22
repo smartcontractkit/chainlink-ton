@@ -7,6 +7,10 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
 const MCMS_FACILITY_NAME = "link.chain.ton.mcms.MCMS";
+const MCMS_FACILITY_ID = MCMS_FACILITY_NAME.crc32() % 640 + 10;  // 104
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const MCMS_ERROR_CODE = MCMS_FACILITY_ID * 100;
 const CONTRACT_VERSION = "0.0.4".literalSlice();
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
@@ -411,7 +415,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-    OutOfBoundsNumSigners = 10400 // MCMS<T>.errorCode(0)
+    OutOfBoundsNumSigners = MCMS_ERROR_CODE // 10400
 
     /// Thrown when signerAddresses and signerGroups have different lengths.
     SignerGroupsLengthMismatch

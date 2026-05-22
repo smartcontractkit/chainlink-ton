@@ -2,7 +2,8 @@
 import "../onramp/messages.tolk";
 
 const CCIPSendExecutor_FACILITY_NAME = "link.chain.ton.ccip.CCIPSendExecutor";
-const CCIPSendExecutor_FACILITY_ID = 178;  // (crc32(<facility>) % 640) + 10
+const CCIPSendExecutor_FACILITY_ID = CCIPSendExecutor_FACILITY_NAME.crc32() % 640 + 10;  // 178
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 type CCIPSendExecutor_ID = uint224
 

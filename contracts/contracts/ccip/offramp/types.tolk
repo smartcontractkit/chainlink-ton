@@ -5,7 +5,8 @@ import "../../lib/utils"
 import "../../lib/deployable/types"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
-const OffRamp_FACILITY_ID = 221;  // (crc32(<facility>) % 640) + 10
+const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 struct ExecutionReport {
     sourceChainSelector: uint64;

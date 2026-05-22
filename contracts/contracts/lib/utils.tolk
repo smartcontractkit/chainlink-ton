@@ -3,7 +3,8 @@ import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
-const Utils_FACILITY_ID = 135;  // (crc32(<facility>) % 640) + 10
+const Utils_FACILITY_ID = Utils_FACILITY_NAME.crc32() % 640 + 10; // 135
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 enum Utils_Error {
     InvalidData = Utils_FACILITY_ID * 100

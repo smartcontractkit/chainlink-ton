@@ -5,6 +5,10 @@ import "../lib/utils";
 import "../lib/access/access_control";
 
 const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
+const Timelock_FACILITY_ID = Timelock_FACILITY_NAME.crc32() % 640 + 10;  // 606
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const Timelock_ERROR_CODE = Timelock_FACILITY_ID * 100;
 const CONTRACT_VERSION = "0.0.3".literalSlice();
 
 /**
@@ -576,7 +580,7 @@ const DEFAULT_FINALIZATION_TIMEOUT = 10; // in seconds
 /// Error codes used by the Timelock contract.
 enum Timelock_Error {
     /// Thrown when trying to schedule an operation which contains a blocked function selector.
-    SelectorIsBlocked = 60600 // Timelock<T>.errorCode(0)
+    SelectorIsBlocked = Timelock_ERROR_CODE, // 60600
 
     /// Thrown when trying to execute an operation which is not ready yet.
     OperationNotReady
