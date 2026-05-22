@@ -14,6 +14,7 @@ import {
   Slice,
   TupleItem,
   Tuple,
+  TupleItemSlice,
 } from '@ton/core'
 
 import { crc32 } from 'zlib'
@@ -921,12 +922,13 @@ export class FeeQuoter
   ): Promise<(TimestampedPrice | undefined)[]> {
     const tupleItems: TupleItem[] = []
     for (const token of tokens) {
-      tupleItems.push({
+      const item: TupleItemSlice = {
         type: 'slice',
         cell: beginCell().storeAddress(token).endCell(),
-      } as TupleItem)
+      }
+      tupleItems.push(item)
     }
-    const tuple = { type: 'tuple', items: tupleItems } as Tuple
+    const tuple: Tuple = { type: 'tuple', items: tupleItems }
     const result = await provider.get('tokenPrices', [tuple])
     const resultTuple = result.stack.readTuple()
     const prices: (TimestampedPrice | undefined)[] = []
