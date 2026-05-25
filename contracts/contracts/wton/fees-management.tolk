@@ -19,6 +19,8 @@ const STORAGE_SIZE_InitStateWallet_cells  = 3
 
 const MESSAGE_SIZE_BurnNotification_bits  = 754   // body = 32+64+124+(3+8+256)+(3+8+256)
 const MESSAGE_SIZE_BurnNotification_cells = 1     // body always in ref
+const MESSAGE_SIZE_ReturnExcesses_bits    = 96    // body = 32+64
+const MESSAGE_SIZE_ReturnExcesses_cells   = 1     // body fits in a single cell
 
 const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
@@ -35,7 +37,7 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
 const GAS_CONSUMPTION_JettonTransfer    = 6948
 const GAS_CONSUMPTION_JettonReceive     = 7295
-const GAS_CONSUMPTION_BurnRequest       = 5291
+const GAS_CONSUMPTION_BurnRequest       = 5397
 const GAS_CONSUMPTION_BurnNotification  = 4462
 
 
@@ -72,6 +74,10 @@ fun checkAmountIsEnoughToBurn(msgValue: int) {
 
     assert (msgValue >
         calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_BurnNotification_bits, MESSAGE_SIZE_BurnNotification_cells) +
+        // The burn sender must also budget the minter's final ReturnExcessesBack payout send.
+        // Without this extra forward fee, a tiny burn can succeed while sender-side payout costs
+        // shave the delivered principal before the payout even reaches the recipient.
+        calculateForwardFee(MY_WORKCHAIN, MESSAGE_SIZE_ReturnExcesses_bits, MESSAGE_SIZE_ReturnExcesses_cells) +
         calculateGasFee(MY_WORKCHAIN, sendBurnGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, GAS_CONSUMPTION_BurnNotification)
     ) throw ERROR_NOT_ENOUGH_GAS;

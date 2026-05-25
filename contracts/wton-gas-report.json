@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-05-25T11:43:23.024Z",
+    "createdAt": "2026-05-25T12:26:52.412Z",
     "result": {
       "JettonMinter": {
         "sendTopUpTons": {
@@ -15,7 +15,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "12911"
+            "value": "12967"
           }
         },
         "0xd372158c": {
@@ -29,7 +29,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "12911"
+            "value": "12967"
           }
         }
       },
@@ -117,7 +117,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "0xf8a7ea5": {
@@ -131,7 +131,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "0x178d4519": {
@@ -145,7 +145,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "0x7362d09c": {
@@ -159,7 +159,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "0xd53276db": {
@@ -173,7 +173,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "sendBurn": {
@@ -187,13 +187,13 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "0x595f07bc": {
           "gasUsed": {
             "kind": "init",
-            "value": "5291"
+            "value": "5397"
           },
           "cells": {
             "kind": "init",
@@ -201,7 +201,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         },
         "0x7bdd97de": {
@@ -215,7 +215,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "6725"
+            "value": "6781"
           }
         }
       }

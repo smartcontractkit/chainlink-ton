@@ -12,6 +12,9 @@ import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
 const JETTON_DATA_URI = 'wton.gas'
 const WTON_MINT_OPCODE = 0x00000015
 const INTERNAL_TRANSFER_OPCODE = 0x178d4519
+const TRANSFER_NOTIFICATION_OPCODE = 0x7362d09c
+const BURN_NOTIFICATION_OPCODE = 0x7bdd97de
+const RETURN_EXCESSES_OPCODE = 0xd53276db
 
 type ConfiguredGasConstants = {
   GAS_CONSUMPTION_JettonTransfer: number
@@ -20,23 +23,66 @@ type ConfiguredGasConstants = {
   GAS_CONSUMPTION_BurnNotification: number
 }
 
-function readConfiguredGasConstants(): ConfiguredGasConstants {
-  const feesFile = path.join(__dirname, '../../../contracts/wton/fees-management.tolk')
-  const source = fs.readFileSync(feesFile, 'utf8')
+type ConfiguredShapeConstants = {
+  MESSAGE_SIZE_BurnNotification_bits: number
+  MESSAGE_SIZE_BurnNotification_cells: number
+  MESSAGE_SIZE_ReturnExcesses_bits: number
+  MESSAGE_SIZE_ReturnExcesses_cells: number
+}
 
-  const readConstant = (name: keyof ConfiguredGasConstants) => {
-    const match = source.match(new RegExp(`const\\s+${name}\\s*=\\s*(\\d+)`))
-    if (!match) {
-      throw new Error(`Missing gas constant ${name} in fees-management.tolk`)
-    }
-    return Number(match[1])
+function readFeesManagementConstant(source: string, name: string) {
+  const match = source.match(new RegExp(`const\\s+${name}\\s*=\\s*(\\d+)`))
+  if (!match) {
+    throw new Error(`Missing constant ${name} in fees-management.tolk`)
   }
+  return Number(match[1])
+}
+
+function readFeesManagementSource() {
+  const feesFile = path.join(__dirname, '../../../contracts/wton/fees-management.tolk')
+  return fs.readFileSync(feesFile, 'utf8')
+}
+
+function readConfiguredGasConstants(): ConfiguredGasConstants {
+  const source = readFeesManagementSource()
 
   return {
-    GAS_CONSUMPTION_JettonTransfer: readConstant('GAS_CONSUMPTION_JettonTransfer'),
-    GAS_CONSUMPTION_JettonReceive: readConstant('GAS_CONSUMPTION_JettonReceive'),
-    GAS_CONSUMPTION_BurnRequest: readConstant('GAS_CONSUMPTION_BurnRequest'),
-    GAS_CONSUMPTION_BurnNotification: readConstant('GAS_CONSUMPTION_BurnNotification'),
+    GAS_CONSUMPTION_JettonTransfer: readFeesManagementConstant(
+      source,
+      'GAS_CONSUMPTION_JettonTransfer',
+    ),
+    GAS_CONSUMPTION_JettonReceive: readFeesManagementConstant(
+      source,
+      'GAS_CONSUMPTION_JettonReceive',
+    ),
+    GAS_CONSUMPTION_BurnRequest: readFeesManagementConstant(source, 'GAS_CONSUMPTION_BurnRequest'),
+    GAS_CONSUMPTION_BurnNotification: readFeesManagementConstant(
+      source,
+      'GAS_CONSUMPTION_BurnNotification',
+    ),
+  }
+}
+
+function readConfiguredShapeConstants(): ConfiguredShapeConstants {
+  const source = readFeesManagementSource()
+
+  return {
+    MESSAGE_SIZE_BurnNotification_bits: readFeesManagementConstant(
+      source,
+      'MESSAGE_SIZE_BurnNotification_bits',
+    ),
+    MESSAGE_SIZE_BurnNotification_cells: readFeesManagementConstant(
+      source,
+      'MESSAGE_SIZE_BurnNotification_cells',
+    ),
+    MESSAGE_SIZE_ReturnExcesses_bits: readFeesManagementConstant(
+      source,
+      'MESSAGE_SIZE_ReturnExcesses_bits',
+    ),
+    MESSAGE_SIZE_ReturnExcesses_cells: readFeesManagementConstant(
+      source,
+      'MESSAGE_SIZE_ReturnExcesses_cells',
+    ),
   }
 }
 
@@ -78,6 +124,91 @@ function mintBody({
     .storeCoins(tonAmount)
     .storeRef(internalTransferMsg.endCell())
     .endCell()
+}
+
+function internalTransferBody({
+  queryId,
+  jettonAmount,
+  transferInitiator,
+  responseDestination,
+  forwardTonAmount,
+  forwardPayload,
+}: {
+  queryId: bigint
+  jettonAmount: bigint
+  transferInitiator: Address
+  responseDestination: Address
+  forwardTonAmount: bigint
+  forwardPayload: Cell
+}) {
+  return beginCell()
+    .storeUint(INTERNAL_TRANSFER_OPCODE, 32)
+    .storeUint(queryId, 64)
+    .storeCoins(jettonAmount)
+    .storeAddress(transferInitiator)
+    .storeAddress(responseDestination)
+    .storeCoins(forwardTonAmount)
+    .storeBit(1)
+    .storeRef(forwardPayload)
+    .endCell()
+}
+
+function transferNotificationBody({
+  queryId,
+  jettonAmount,
+  transferInitiator,
+  forwardPayload,
+}: {
+  queryId: bigint
+  jettonAmount: bigint
+  transferInitiator: Address
+  forwardPayload: Cell
+}) {
+  return beginCell()
+    .storeUint(TRANSFER_NOTIFICATION_OPCODE, 32)
+    .storeUint(queryId, 64)
+    .storeCoins(jettonAmount)
+    .storeAddress(transferInitiator)
+    .storeBit(1)
+    .storeRef(forwardPayload)
+    .endCell()
+}
+
+function burnNotificationBody({
+  queryId,
+  jettonAmount,
+  burnInitiator,
+  responseDestination,
+}: {
+  queryId: bigint
+  jettonAmount: bigint
+  burnInitiator: Address
+  responseDestination: Address
+}) {
+  return beginCell()
+    .storeUint(BURN_NOTIFICATION_OPCODE, 32)
+    .storeUint(queryId, 64)
+    .storeCoins(jettonAmount)
+    .storeAddress(burnInitiator)
+    .storeAddress(responseDestination)
+    .endCell()
+}
+
+function returnExcessesBody(queryId: bigint) {
+  return beginCell().storeUint(RETURN_EXCESSES_OPCODE, 32).storeUint(queryId, 64).endCell()
+}
+
+function cellStats(cell: Cell): { bits: number; cells: number } {
+  return cell.refs.reduce(
+    (stats, ref) => {
+      const nested = cellStats(ref)
+      return {
+        bits: stats.bits + nested.bits,
+        cells: stats.cells + nested.cells,
+      }
+    },
+    { bits: cell.bits.length, cells: 1 },
+  )
 }
 
 function vmGasUsed(tx: any) {
@@ -228,7 +359,9 @@ describe('wTON gas calibration', () => {
     const transferReceiveGas = vmGasUsed(internalTxTo(transferResult, bobWallet.address))
     const burnRequestGas = vmGasUsed(internalTxTo(burnResult, bobWallet.address))
     const burnNotificationGas = vmGasUsed(internalTxTo(burnResult, minter.address))
-    const maxSendTransferGas = Number(transferSendGas > mintMinterGas ? transferSendGas : mintMinterGas)
+    const maxSendTransferGas = Number(
+      transferSendGas > mintMinterGas ? transferSendGas : mintMinterGas,
+    )
     const maxReceiveTransferGas = Number(
       transferReceiveGas > mintReceiveGas ? transferReceiveGas : mintReceiveGas,
     )
@@ -253,4 +386,63 @@ describe('wTON gas calibration', () => {
       GAS_CONSUMPTION_BurnNotification: Number(burnNotificationGas),
     }).toEqual(configured)
   })
+
+  it('keeps fee-shape constants aligned with live transfer and burn message bodies', () => {
+    const configured = readConfiguredShapeConstants()
+    const forwardPayload = beginCell().storeStringTail('wton.gas.shape').endCell()
+    const maxCoins = (1n << 120n) - 1n
+
+    const transferBodyStats = cellStats(
+      internalTransferBody({
+        queryId: 1n,
+        jettonAmount: toNano('0.7'),
+        transferInitiator: alice.address,
+        responseDestination: deployer.address,
+        forwardTonAmount: toNano('0.05'),
+        forwardPayload,
+      }),
+    )
+    const notificationBodyStats = cellStats(
+      transferNotificationBody({
+        queryId: 1n,
+        jettonAmount: toNano('0.7'),
+        transferInitiator: alice.address,
+        forwardPayload,
+      }),
+    )
+    const burnNotificationLiveStats = cellStats(
+      burnNotificationBody({
+        queryId: 1n,
+        jettonAmount: toNano('0.3'),
+        burnInitiator: bob.address,
+        responseDestination: recipient.address,
+      }),
+    )
+    const burnNotificationWorstCaseStats = cellStats(
+      burnNotificationBody({
+        queryId: 1n,
+        jettonAmount: maxCoins,
+        burnInitiator: bob.address,
+        responseDestination: recipient.address,
+      }),
+    )
+    const returnExcessesStats = cellStats(returnExcessesBody(1n))
+
+    expect(burnNotificationWorstCaseStats).toEqual({
+      bits: configured.MESSAGE_SIZE_BurnNotification_bits,
+      cells: configured.MESSAGE_SIZE_BurnNotification_cells,
+    })
+    expect(returnExcessesStats).toEqual({
+      bits: configured.MESSAGE_SIZE_ReturnExcesses_bits,
+      cells: configured.MESSAGE_SIZE_ReturnExcesses_cells,
+    })
+    expect(burnNotificationLiveStats.bits).toBeLessThanOrEqual(
+      configured.MESSAGE_SIZE_BurnNotification_bits,
+    )
+    expect(burnNotificationLiveStats.cells).toBeLessThanOrEqual(
+      configured.MESSAGE_SIZE_BurnNotification_cells,
+    )
+    expect(notificationBodyStats.bits).toBeLessThan(transferBodyStats.bits)
+    expect(notificationBodyStats.cells).toBeLessThanOrEqual(transferBodyStats.cells)
   })
+})

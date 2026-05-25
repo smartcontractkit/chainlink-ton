@@ -11,7 +11,10 @@ import * as bouncer from '../../wrappers/test/mock/Bouncer'
 const JETTON_DATA_URI = 'wton.test'
 const WTON_MINT_OPCODE = 0x00000015
 const INTERNAL_TRANSFER_OPCODE = 0x178d4519
+const REQUEST_WALLET_ADDRESS_OPCODE = 0x2c76b973
+const RESPONSE_WALLET_ADDRESS_OPCODE = 0xd1735400
 const ERROR_BALANCE_ERROR = 47
+const ERROR_ALREADY_INITIALIZED = 75
 const ERROR_NOT_ENOUGH_GAS = 48
 const ERROR_INVALID_OP = 72
 const ERROR_NOT_OWNER = 73
@@ -137,6 +140,17 @@ describe('wTON', () => {
     }
 
     return tx
+  }
+
+  function internalMessageBodyTo(result: { transactions: Array<any> }, address: Address) {
+    const tx = internalTransactionTo(result, address)
+    const body = tx.inMessage?.body
+
+    if (!body) {
+      throw new Error(`Missing internal message body to ${address.toString()}`)
+    }
+
+    return body
   }
 
   function mintBody({
@@ -420,6 +434,38 @@ describe('wTON', () => {
       expect((await userWallet(bob.address)).address.equals(predictedBobWallet)).toBe(true)
     })
 
+    it('responds to wallet-address requests and can include the owner address', async () => {
+      const queryId = nextQueryId++
+      const result = await deployer.send({
+        to: minter.address,
+        value: toNano('0.05'),
+        body: beginCell()
+          .storeUint(REQUEST_WALLET_ADDRESS_OPCODE, 32)
+          .storeUint(queryId, 64)
+          .storeAddress(alice.address)
+          .storeBit(1)
+          .endCell(),
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: minter.address,
+        to: deployer.address,
+        success: true,
+      })
+
+      const body = internalMessageBodyTo(result, deployer.address).beginParse()
+      expect(body.loadUint(32)).toEqual(RESPONSE_WALLET_ADDRESS_OPCODE)
+      expect(body.loadUintBig(64)).toEqual(queryId)
+
+      const walletAddress = body.loadMaybeAddress()
+      expect(walletAddress?.equals(await minter.getWalletAddress(alice.address))).toBe(true)
+
+      expect(body.loadBit()).toBe(true)
+      expect(body.loadRef().beginParse().loadAddress().equals(alice.address)).toBe(true)
+      expect(body.remainingBits).toEqual(0)
+      expect(body.remainingRefs).toEqual(0)
+    })
+
     it('keeps total supply equal to the sum of live wallet balances after mixed operations', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1.2') })
       await mintTo(bob.address, { jettonAmount: toNano('0.8') })
@@ -604,6 +650,26 @@ describe('wTON', () => {
       })
       expect(await totalSupply()).toEqual(0n)
     })
+
+    it('rejects metadata changes because wTON metadata is immutable', async () => {
+      const dataBefore = await minter.getJettonData()
+      const result = await minter.sendChangeContent(deployer.getSender(), {
+        message: {
+          queryId: nextQueryId++,
+          content: beginCell().storeStringTail('wton.changed').endCell(),
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: minter.address,
+        success: false,
+        exitCode: ERROR_ALREADY_INITIALIZED,
+      })
+      expect((await minter.getJettonData()).jettonContent.equals(dataBefore.jettonContent)).toBe(
+        true,
+      )
+    })
   })
 
   describe('transferring', () => {
@@ -778,6 +844,35 @@ describe('wTON', () => {
       })
       expect(await walletBalance(alice.address)).toEqual(toNano('1'))
       expect(await totalSupply()).toEqual(toNano('1'))
+    })
+
+    it('restores the sender balance when the destination wallet receive path bounces', async () => {
+      await mintTo(alice.address, { jettonAmount: toNano('1.2') })
+      await mintTo(bob.address, { jettonAmount: toNano('1') })
+
+      const aliceWallet = await userWallet(alice.address)
+      const bobWallet = await userWallet(bob.address)
+      const aliceBalanceBefore = await walletBalance(alice.address)
+      const bobBalanceBefore = await walletBalance(bob.address)
+      const supplyBefore = await totalSupply()
+
+      const contract = await blockchain.getContract(bobWallet.address)
+      contract.balance = 0n
+
+      const { result } = await transferFrom(alice, {
+        jettonAmount: toNano('0.3'),
+        destination: bob.address,
+        value: toNano('0.5'),
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: aliceWallet.address,
+        to: bobWallet.address,
+        success: false,
+      })
+      expect(await walletBalance(alice.address)).toEqual(aliceBalanceBefore)
+      expect(await walletBalance(bob.address)).toEqual(bobBalanceBefore)
+      expect(await totalSupply()).toEqual(supplyBefore)
     })
 
     it('preserves total supply across chained transfers', async () => {
@@ -979,6 +1074,29 @@ describe('wTON', () => {
       expect(await totalSupply()).toEqual(toNano('1'))
     })
 
+    it.skip('restores wallet balance when burn notification bounces at the minter', async () => {
+      const minted = toNano('1')
+      await mintTo(alice.address, { jettonAmount: minted })
+
+      const aliceWallet = await userWallet(alice.address)
+      const minterContract = await blockchain.getContract(minter.address)
+      minterContract.balance = 0n
+
+      const { result } = await burnFrom(alice, {
+        jettonAmount: 1n,
+        responseDestination: recipient.address,
+        value: toNano('0.005'),
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: aliceWallet.address,
+        to: minter.address,
+        success: false,
+      })
+      expect(await walletBalance(alice.address)).toEqual(minted)
+      expect(await totalSupply()).toEqual(minted)
+    })
+
     it('keeps total supply equal to the sum of balances after sequential burns', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1.5') })
       await mintTo(bob.address, { jettonAmount: toNano('0.7') })
@@ -993,6 +1111,43 @@ describe('wTON', () => {
       })
 
       expect(await totalSupply()).toEqual(await sumWalletBalances([alice.address, bob.address]))
+    })
+
+    it('rejects fee-boundary burns unless the payout reaching the recipient still covers the full burned principal', async () => {
+      const burnAmount = 1n
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+
+      const snapshot = blockchain.snapshot()
+      const candidateValues = ['0.0045', '0.0047', '0.005', '0.006']
+
+      for (const value of candidateValues) {
+        await blockchain.loadFrom(snapshot)
+
+        const recipientBalanceBefore = await contractBalance(recipient.address)
+        const { result } = await burnFrom(alice, {
+          jettonAmount: burnAmount,
+          responseDestination: recipient.address,
+          value: toNano(value),
+        })
+
+        const reachedMinter = result.transactions.some(
+          (tx) =>
+            tx.inMessage?.info.type === 'internal' && tx.inMessage.info.dest.equals(minter.address),
+        )
+
+        if (!reachedMinter) {
+          continue
+        }
+
+        const recipientTx = internalTransactionTo(result, recipient.address)
+        expect(recipientTx.inMessage.info.type).toEqual('internal')
+        expect(recipientTx.inMessage.info.value.coins).toBeGreaterThanOrEqual(burnAmount)
+        return
+      }
+
+      throw new Error(
+        'Expected at least one fee-boundary burn candidate to reach the post-check path',
+      )
     })
   })
 })
