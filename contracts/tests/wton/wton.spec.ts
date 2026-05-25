@@ -1074,7 +1074,7 @@ describe('wTON', () => {
       expect(await totalSupply()).toEqual(toNano('1'))
     })
 
-    it.skip('restores wallet balance when burn notification bounces at the minter', async () => {
+    it('restores wallet balance when burn notification bounces at the minter', async () => {
       const minted = toNano('1')
       await mintTo(alice.address, { jettonAmount: minted })
 
@@ -1085,7 +1085,7 @@ describe('wTON', () => {
       const { result } = await burnFrom(alice, {
         jettonAmount: 1n,
         responseDestination: recipient.address,
-        value: toNano('0.005'),
+        value: toNano('0.01'),
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -1093,6 +1093,15 @@ describe('wTON', () => {
         to: minter.address,
         success: false,
       })
+
+      const bounceTx = result.transactions.find(
+        (tx: any) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.src?.equals(minter.address) &&
+          tx.inMessage.info.dest.equals(aliceWallet.address),
+      )
+
+      expect(bounceTx).toBeDefined()
       expect(await walletBalance(alice.address)).toEqual(minted)
       expect(await totalSupply()).toEqual(minted)
     })
