@@ -564,6 +564,46 @@ describe('wTON', () => {
       expect(mintRefundBalance).toBeGreaterThanOrEqual(mintAmount) // second mint refunded
     })
 
+    it('refunds bounced mint dispatches even for dust principal near the transfer-budget floor', async () => {
+      const rejector = await deployRejector()
+      const setupMintAmount = toNano('1')
+
+      await sendMint({
+        destination: rejector.address,
+        jettonAmount: setupMintAmount,
+        responseDestination: rejector.address,
+      })
+
+      const rejectorWallet = await userWallet(rejector.address)
+      const rejectorWalletContract = await blockchain.getContract(rejectorWallet.address)
+      rejectorWalletContract.balance = 0n
+
+      const dustMintAmount = toNano('0.000001')
+      const dustTonAmount = toNano('0.0131') // slightly above the 0.013 TONS transfer budget floor to trigger the mint but cause a bounce on the internal transfer
+      const refundBalanceBefore = await contractBalance(rejector.address)
+
+      const { result } = await sendMint({
+        destination: rejector.address,
+        jettonAmount: dustMintAmount,
+        tonAmount: dustTonAmount,
+        responseDestination: rejector.address,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: minter.address,
+        to: rejectorWallet.address,
+        success: false,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: minter.address,
+        to: rejector.address,
+        success: false,
+      })
+      expect(await walletBalance(rejector.address)).toEqual(setupMintAmount)
+      expect((await minter.getJettonData()).totalSupply).toEqual(setupMintAmount)
+      expect(await contractBalance(rejector.address)).toBeGreaterThan(refundBalanceBefore)
+    })
+
     it('accumulates repeated mints into the same wallet', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1.25') })
       await mintTo(alice.address, { jettonAmount: toNano('0.75') })
