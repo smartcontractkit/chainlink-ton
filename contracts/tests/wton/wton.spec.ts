@@ -644,7 +644,28 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_UNSUFFICIENT_AMOUNT,
+        exitCode: ERROR_NOT_ENOUGH_GAS,
+      })
+      expect(await totalSupply()).toEqual(0n)
+    })
+
+    it('rejects mint calls that leave no room for the minter dispatch fee', async () => {
+      const jettonAmount = toNano('1')
+      const tonAmount = toNano('0.2')
+      await minter.sendTopUpTons(deployer.getSender(), toNano('0.01'))
+
+      const { result } = await sendMint({
+        destination: alice.address,
+        jettonAmount,
+        tonAmount,
+        value: jettonAmount + tonAmount,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: minter.address,
+        success: false,
+        exitCode: ERROR_NOT_ENOUGH_GAS,
       })
       expect(await totalSupply()).toEqual(0n)
     })

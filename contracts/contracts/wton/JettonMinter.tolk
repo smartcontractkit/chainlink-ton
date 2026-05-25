@@ -139,8 +139,9 @@ fun onInternalMessage(in: InMessage) {
             assert (internalTransferMsg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
             // Minting must not impersonate a peer wallet transfer initiator.
             assert (internalTransferMsg.transferInitiator == null) throw ERROR_INVALID_OP;
-            // The caller must fund both the new hosted TON backing and the extra transfer budget.
-            assert (in.valueCoins >= jettonAmount + msg.tonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
+            // The caller must fund the hosted TON backing, the extra transfer budget, and the
+            // minter's own outbound deploy/forward fee rather than borrowing it from minter surplus.
+            checkAmountIsEnoughToMint(in.valueCoins, jettonAmount, msg.tonAmount, in.originalForwardFee);
 
             // AUDIT(WTON-13): the extra mint budget must independently cover the receiver-side transfer/forward flow.
             checkAmountIsEnoughToTransfer(msg.tonAmount, forwardTonAmount, in.originalForwardFee);

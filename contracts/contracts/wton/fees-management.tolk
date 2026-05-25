@@ -61,10 +61,21 @@ fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: 
         // 3 messages: wal1->wal2,  wal2->owner, wal2->response
         // but last one is optional (it is ok if it fails)
         fwdCount * fwdFee +
-        forwardInitStateOverhead() + // additional fwd fees related to initstate in iternal_transfer
+        forwardInitStateOverhead() + // additional fwd fees related to initstate in internal_transfer
         calculateGasFee(MY_WORKCHAIN, sendTransferGasConsumption) +
         calculateGasFee(MY_WORKCHAIN, receiveTransferGasConsumption) +
         calculateJettonWalletMinStorageFee()
+    ) throw ERROR_NOT_ENOUGH_GAS;
+}
+
+fun checkAmountIsEnoughToMint(msgValue: int, jettonAmount: int, tonAmount: int, fwdFee: int) {
+    // Mint sends InternalTransferStep with PAY_FEES_SEPARATELY, so the caller must fund
+    // both the hosted TON/backing value and the minter's own outbound auto-deploy fee.
+    assert (msgValue >
+        jettonAmount +
+        tonAmount +
+        fwdFee +
+        forwardInitStateOverhead() // additional fwd fees related to initstate in internal_transfer
     ) throw ERROR_NOT_ENOUGH_GAS;
 }
 
