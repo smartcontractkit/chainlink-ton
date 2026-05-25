@@ -25,13 +25,18 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
 // Gas costs
 // these constants are used to estimate gas fee (how much we should remain on balance for a swap to succeed);
-// they must be absolutely equal to consumed gas; if not, tests fail;
-// actual consumed gas (desired value of these constants) are printed to console after tests run
+// they must stay exactly equal to the calibrated measured gas values for the covered live paths;
+// if those measured values drift, tests fail.
+// actual consumed gas is measured by tests/gas-report/wton/Wton.spec.ts via yarn wton-gas-report
+// GAS_CONSUMPTION_JettonTransfer is calibrated against the max sender-side path that reuses
+// checkAmountIsEnoughToTransfer (wallet transfer sender vs mint sender candidate).
+// GAS_CONSUMPTION_JettonReceive is calibrated against the max live receive branch with both
+// recipient notification and excess handling enabled.
 
-const GAS_CONSUMPTION_JettonTransfer    = 6153
-const GAS_CONSUMPTION_JettonReceive     = 7253
-const GAS_CONSUMPTION_BurnRequest       = 4368
-const GAS_CONSUMPTION_BurnNotification  = 3855
+const GAS_CONSUMPTION_JettonTransfer    = 6948
+const GAS_CONSUMPTION_JettonReceive     = 7295
+const GAS_CONSUMPTION_BurnRequest       = 5291
+const GAS_CONSUMPTION_BurnNotification  = 4462
 
 
 fun calculateJettonWalletMinStorageFee() {
