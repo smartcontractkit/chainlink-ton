@@ -3,14 +3,17 @@ import { compile } from '@ton/blueprint'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { JettonMinter, MinterOpcodes } from '../../wrappers/jetton/JettonMinter'
-import { JettonWallet, opcodes as walletOpcodes } from '../../wrappers/jetton/JettonWallet'
+import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
+import {
+  JettonWallet,
+  internalTransferBody,
+  opcodes as walletOpcodes,
+} from '../../wrappers/jetton/JettonWallet'
 import { ERROR_INVALID_EXCESSES_DESTINATION } from '../../wrappers/wton'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
 const JETTON_DATA_URI = 'wton.test'
 const WTON_MINT_OPCODE = 0x00000015
-const INTERNAL_TRANSFER_OPCODE = 0x178d4519
 const REQUEST_WALLET_ADDRESS_OPCODE = 0x2c76b973
 const RESPONSE_WALLET_ADDRESS_OPCODE = 0xd1735400
 const ERROR_BALANCE_ERROR = 47
@@ -153,40 +156,13 @@ describe('wTON', () => {
     return body
   }
 
-  function mintBody({
-    destination,
-    queryId,
-    jettonAmount,
-    tonAmount,
-    responseDestination,
-    transferInitiator,
-    forwardTonAmount,
-  }: {
-    destination: Address
-    queryId: bigint
-    jettonAmount: bigint
-    tonAmount: bigint
-    responseDestination: Address | null
-    transferInitiator: Address | null
-    forwardTonAmount: bigint
-  }) {
-    const internalTransferMsg = beginCell()
-      .storeUint(INTERNAL_TRANSFER_OPCODE, 32)
-      .storeUint(queryId, 64)
-      .storeCoins(jettonAmount)
-      .storeAddress(transferInitiator)
-      .storeAddress(responseDestination)
-      .storeCoins(forwardTonAmount)
-      .storeBit(0)
-      .endCell()
-
-    return beginCell()
-      .storeUint(WTON_MINT_OPCODE, 32)
-      .storeUint(queryId, 64)
-      .storeAddress(destination)
-      .storeCoins(tonAmount)
-      .storeRef(internalTransferMsg)
-      .endCell()
+  function hasInternalTransactionTo(result: { transactions: Array<any> }, address: Address) {
+    return result.transactions.some((candidate) => {
+      return (
+        candidate.inMessage?.info.type === 'internal' &&
+        candidate.inMessage.info.dest.equals(address)
+      )
+    })
   }
 
   async function sendMint({
@@ -200,20 +176,19 @@ describe('wTON', () => {
     value,
   }: MintOptions) {
     const queryId = nextQueryId++
-    const body = mintBody({
-      destination,
-      queryId,
-      jettonAmount,
-      tonAmount,
-      responseDestination,
-      transferInitiator,
-      forwardTonAmount,
-    })
-
-    const result = await deployer.send({
-      to: minterContract.address,
+    const result = await minterContract.sendMint(deployer.getSender(), {
       value: value ?? jettonAmount + tonAmount + toNano('0.3'),
-      body,
+      mintOpcode: WTON_MINT_OPCODE,
+      message: {
+        queryId,
+        destination,
+        tonAmount,
+        jettonAmount,
+        from: transferInitiator,
+        responseDestination,
+        forwardTonAmount,
+        customPayload: null,
+      },
     })
 
     return { queryId, result }
@@ -229,65 +204,6 @@ describe('wTON', () => {
     })
 
     return result
-  }
-
-  function burnBody(queryId: bigint, jettonAmount: bigint, responseDestination: Address | null) {
-    return beginCell()
-      .storeUint(walletOpcodes.in.BURN, 32)
-      .storeUint(queryId, 64)
-      .storeCoins(jettonAmount)
-      .storeAddress(responseDestination)
-      .storeBit(0)
-      .endCell()
-  }
-
-  function transferBody({
-    queryId,
-    jettonAmount,
-    destination,
-    responseDestination,
-    forwardTonAmount = 0n,
-  }: {
-    queryId: bigint
-    jettonAmount: bigint
-    destination: Address
-    responseDestination: Address | null
-    forwardTonAmount?: bigint
-  }) {
-    return beginCell()
-      .storeUint(walletOpcodes.in.TRANSFER, 32)
-      .storeUint(queryId, 64)
-      .storeCoins(jettonAmount)
-      .storeAddress(destination)
-      .storeAddress(responseDestination)
-      .storeBit(0)
-      .storeCoins(forwardTonAmount)
-      .storeBit(0)
-      .endCell()
-  }
-
-  function internalTransferBody({
-    queryId,
-    jettonAmount,
-    transferInitiator,
-    responseDestination,
-    forwardTonAmount = 0n,
-  }: {
-    queryId: bigint
-    jettonAmount: bigint
-    transferInitiator: Address | null
-    responseDestination: Address | null
-    forwardTonAmount?: bigint
-  }) {
-    return beginCell()
-      .storeUint(INTERNAL_TRANSFER_OPCODE, 32)
-      .storeUint(queryId, 64)
-      .storeCoins(jettonAmount)
-      .storeAddress(transferInitiator)
-      .storeAddress(responseDestination)
-      .storeCoins(forwardTonAmount)
-      .storeBit(0)
-      .endCell()
   }
 
   async function deployRejector() {
@@ -313,16 +229,17 @@ describe('wTON', () => {
     },
   ) {
     const wallet = await userWallet(owner.address)
-    const result = await owner.send({
-      to: wallet.address,
+    const result = await wallet.sendTransfer(owner.getSender(), {
       value,
-      body: transferBody({
-        queryId: nextQueryId++,
+      message: {
+        queryId: Number(nextQueryId++),
         jettonAmount,
         destination,
         responseDestination,
+        customPayload: null,
         forwardTonAmount,
-      }),
+        forwardPayload: null,
+      },
     })
 
     return { wallet, result }
@@ -341,10 +258,14 @@ describe('wTON', () => {
     },
   ) {
     const wallet = await userWallet(owner.address)
-    const result = await owner.send({
-      to: wallet.address,
+    const result = await wallet.sendBurn(owner.getSender(), {
       value,
-      body: burnBody(nextQueryId++, jettonAmount, responseDestination),
+      message: {
+        queryId: nextQueryId++,
+        jettonAmount,
+        responseDestination,
+        customPayload: null,
+      },
     })
 
     return { wallet, result }
@@ -579,7 +500,36 @@ describe('wTON', () => {
       rejectorWalletContract.balance = 0n
 
       const dustMintAmount = toNano('0.000001')
-      const dustTonAmount = toNano('0.0131') // slightly above the 0.013 TONS transfer budget floor to trigger the mint but cause a bounce on the internal transfer
+
+      async function dispatchesAt(tonAmount: bigint) {
+        const { result } = await sendMint({
+          destination: rejector.address,
+          jettonAmount: dustMintAmount,
+          tonAmount,
+          responseDestination: rejector.address,
+        })
+
+        return hasInternalTransactionTo(result, rejectorWallet.address)
+      }
+
+      // Finding fix: derive the first dispatching dust amount from the live fee model
+      // instead of pinning the regression to a stale magic boundary literal.
+      let lowerBound = 1n
+      let upperBound = toNano('0.05')
+
+      expect(await dispatchesAt(upperBound)).toBe(true)
+
+      while (lowerBound + 1n < upperBound) {
+        const candidate = lowerBound + (upperBound - lowerBound) / 2n
+        if (await dispatchesAt(candidate)) {
+          upperBound = candidate
+        } else {
+          lowerBound = candidate
+        }
+      }
+
+      const dustTonAmount = upperBound
+      rejectorWalletContract.balance = 0n
       const refundBalanceBefore = await contractBalance(rejector.address)
 
       const { result } = await sendMint({
@@ -836,6 +786,7 @@ describe('wTON', () => {
         jettonAmount: toNano('0.1'),
         transferInitiator: alice.address,
         responseDestination: deployer.address,
+        forwardPayload: null,
       })
 
       const forgedResult = await deployer.send({
@@ -960,10 +911,14 @@ describe('wTON', () => {
       await mintTo(alice.address, { jettonAmount: mintAmount })
 
       const aliceWallet = await userWallet(alice.address)
-      const burnResult = await alice.send({
-        to: aliceWallet.address,
+      const burnResult = await aliceWallet.sendBurn(alice.getSender(), {
         value: toNano('0.2'),
-        body: burnBody(nextQueryId++, mintAmount, null),
+        message: {
+          queryId: nextQueryId++,
+          jettonAmount: mintAmount,
+          responseDestination: null,
+          customPayload: null,
+        },
       })
 
       expect(burnResult.transactions).toHaveTransaction({

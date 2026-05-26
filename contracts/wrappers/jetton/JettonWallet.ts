@@ -57,7 +57,7 @@ export type AskToTransfer = {
   queryId: number
   jettonAmount: bigint
   destination: Address
-  responseDestination: Address
+  responseDestination: Address | null
   customPayload: Cell | null
   forwardTonAmount: bigint
   forwardPayload: Cell | Slice | null
@@ -67,7 +67,7 @@ export type AskToTransferWithFwdPayload<T> = {
   queryId: number
   jettonAmount: bigint
   destination: Address
-  responseDestination: Address
+  responseDestination: Address | null
   customPayload: Cell | null
   forwardTonAmount: bigint
   forwardPayload: T
@@ -76,8 +76,17 @@ export type AskToTransferWithFwdPayload<T> = {
 export type BurnMessage = {
   queryId: bigint
   jettonAmount: bigint
-  responseDestination: Address
+  responseDestination: Address | null
   customPayload: Cell | null
+}
+
+export type InternalTransferMessage = {
+  queryId: bigint
+  jettonAmount: bigint
+  transferInitiator: Address | null
+  responseDestination: Address | null
+  forwardTonAmount?: bigint
+  forwardPayload?: Cell | Slice | null
 }
 
 export type TransferNotificationForRecipient = {
@@ -134,12 +143,10 @@ export class JettonWallet implements Contract {
       message: AskToTransfer
     },
   ) {
-    const body = builder.messages.in.askToTransfer.encode(opts.message)
-
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: body.endCell(),
+      body: transferBody(opts.message),
     })
   }
 
@@ -151,22 +158,10 @@ export class JettonWallet implements Contract {
       message: BurnMessage
     },
   ) {
-    const body = beginCell()
-      .storeUint(opcodes.in.BURN, 32)
-      .storeUint(opts.message.queryId, 64)
-      .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.responseDestination)
-
-    if (opts.message.customPayload) {
-      body.storeBit(1).storeRef(opts.message.customPayload)
-    } else {
-      body.storeBit(0)
-    }
-
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: body.endCell(),
+      body: burnBody(opts.message),
     })
   }
 
@@ -344,4 +339,45 @@ export const builder = {
       }
     })(),
   },
+}
+
+export function transferBody(message: AskToTransfer): Cell {
+  return builder.messages.in.askToTransfer.encode(message).endCell()
+}
+
+export function burnBody(message: BurnMessage): Cell {
+  const body = beginCell()
+    .storeUint(opcodes.in.BURN, 32)
+    .storeUint(message.queryId, 64)
+    .storeCoins(message.jettonAmount)
+    .storeAddress(message.responseDestination)
+
+  if (message.customPayload) {
+    body.storeBit(1).storeRef(message.customPayload)
+  } else {
+    body.storeBit(0)
+  }
+
+  return body.endCell()
+}
+
+export function internalTransferBody(message: InternalTransferMessage): Cell {
+  const body = beginCell()
+    .storeUint(opcodes.in.INTERNAL_TRANSFER, 32)
+    .storeUint(message.queryId, 64)
+    .storeCoins(message.jettonAmount)
+    .storeAddress(message.transferInitiator)
+    .storeAddress(message.responseDestination)
+    .storeCoins(message.forwardTonAmount ?? 0n)
+
+  const forwardPayload = message.forwardPayload ?? null
+  const byRef = forwardPayload instanceof Cell
+  body.storeBit(byRef)
+  if (byRef) {
+    body.storeRef(forwardPayload)
+  } else if (forwardPayload) {
+    body.storeSlice(forwardPayload)
+  }
+
+  return body.endCell()
 }

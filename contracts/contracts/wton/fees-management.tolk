@@ -35,7 +35,7 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 // GAS_CONSUMPTION_JettonReceive is calibrated against the max live receive branch with both
 // recipient notification and excess handling enabled.
 
-const GAS_CONSUMPTION_JettonTransfer    = 6948
+const GAS_CONSUMPTION_JettonTransfer    = 7028
 const GAS_CONSUMPTION_JettonReceive     = 7295
 const GAS_CONSUMPTION_BurnRequest       = 5397
 const GAS_CONSUMPTION_BurnNotification  = 4462

@@ -35,7 +35,8 @@ fun requiredMinterReserve() {
     return ton("0.01") + contract.getStorageDuePayment();
 }
 
-/// Refund the mint on bounce, reuses sendExcessesTo as the bounce refund destination, so a failed wallet deploy/credit returns TON.
+/// Refund the mint on bounce, reuses sendExcessesTo as the bounce refund destination,
+/// so a failed wallet deploy/credit returns TON.
 fun refundMintBounce(msg: InternalTransferStep) {
     // We're already in the mint recovery path after supply rollback, so keep the minter reserve
     // if possible but never fail the bounce handler itself.

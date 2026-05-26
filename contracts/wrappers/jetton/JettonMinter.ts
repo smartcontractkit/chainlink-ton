@@ -77,9 +77,42 @@ export type MintMessage = {
   tonAmount: bigint
   jettonAmount: bigint
   from: Maybe<Address>
-  responseDestination: Address
+  responseDestination: Maybe<Address>
   customPayload?: Cell | null
   forwardTonAmount?: bigint
+}
+
+export function mintInternalTransferBody(message: MintMessage): Cell {
+  const mintMsg = beginCell()
+    .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
+    .storeUint(message.queryId, 64)
+    .storeCoins(message.jettonAmount)
+    .storeAddress(message.from)
+    .storeAddress(message.responseDestination)
+    .storeCoins(message.forwardTonAmount ?? 0n)
+
+  if (message.customPayload) {
+    mintMsg.storeBit(1).storeRef(message.customPayload)
+  } else {
+    mintMsg.storeBit(0)
+  }
+
+  return mintMsg.endCell()
+}
+
+export function mintBody(
+  message: MintMessage,
+  opts: {
+    mintOpcode?: number
+  } = {},
+): Cell {
+  return beginCell()
+    .storeUint(opts.mintOpcode ?? MinterOpcodes.MINT, 32)
+    .storeUint(message.queryId, 64)
+    .storeAddress(message.destination)
+    .storeCoins(message.tonAmount)
+    .storeRef(mintInternalTransferBody(message))
+    .endCell()
 }
 
 export type ChangeAdminMessage = {
@@ -134,29 +167,10 @@ export class JettonMinter implements Contract {
     opts: {
       value: bigint
       message: MintMessage
+      mintOpcode?: number
     },
   ) {
-    const mintMsg = beginCell()
-      .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
-      .storeUint(opts.message.queryId, 64)
-      .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.from)
-      .storeAddress(opts.message.responseDestination)
-      .storeCoins(opts.message.forwardTonAmount ?? 0n)
-
-    if (opts.message.customPayload) {
-      mintMsg.storeBit(1).storeRef(opts.message.customPayload)
-    } else {
-      mintMsg.storeBit(0)
-    }
-
-    const body = beginCell()
-      .storeUint(MinterOpcodes.MINT, 32)
-      .storeUint(opts.message.queryId, 64)
-      .storeAddress(opts.message.destination)
-      .storeCoins(opts.message.tonAmount)
-      .storeRef(mintMsg.endCell())
-      .endCell()
+    const body = mintBody(opts.message, { mintOpcode: opts.mintOpcode })
 
     await provider.internal(via, {
       value: opts.value,

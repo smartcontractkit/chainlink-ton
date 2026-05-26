@@ -6,12 +6,11 @@ import { compile } from '@ton/blueprint'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton/sandbox'
 
-import { JettonMinter } from '../../../wrappers/jetton/JettonMinter'
-import { JettonWallet } from '../../../wrappers/jetton/JettonWallet'
+import { JettonMinter, mintBody } from '../../../wrappers/jetton/JettonMinter'
+import { internalTransferBody, JettonWallet } from '../../../wrappers/jetton/JettonWallet'
 
 const JETTON_DATA_URI = 'wton.gas'
 const WTON_MINT_OPCODE = 0x00000015
-const INTERNAL_TRANSFER_OPCODE = 0x178d4519
 const TRANSFER_NOTIFICATION_OPCODE = 0x7362d09c
 const BURN_NOTIFICATION_OPCODE = 0x7bdd97de
 const RETURN_EXCESSES_OPCODE = 0xd53276db
@@ -84,73 +83,6 @@ function readConfiguredShapeConstants(): ConfiguredShapeConstants {
       'MESSAGE_SIZE_ReturnExcesses_cells',
     ),
   }
-}
-
-function mintBody({
-  destination,
-  queryId,
-  jettonAmount,
-  tonAmount,
-  responseDestination,
-  forwardTonAmount,
-  forwardPayload,
-}: {
-  destination: Address
-  queryId: bigint
-  jettonAmount: bigint
-  tonAmount: bigint
-  responseDestination: Address
-  forwardTonAmount: bigint
-  forwardPayload: Cell | null
-}) {
-  const internalTransferMsg = beginCell()
-    .storeUint(INTERNAL_TRANSFER_OPCODE, 32)
-    .storeUint(queryId, 64)
-    .storeCoins(jettonAmount)
-    .storeAddress(null)
-    .storeAddress(responseDestination)
-    .storeCoins(forwardTonAmount)
-
-  if (forwardPayload) {
-    internalTransferMsg.storeBit(1).storeRef(forwardPayload)
-  } else {
-    internalTransferMsg.storeBit(0)
-  }
-
-  return beginCell()
-    .storeUint(WTON_MINT_OPCODE, 32)
-    .storeUint(queryId, 64)
-    .storeAddress(destination)
-    .storeCoins(tonAmount)
-    .storeRef(internalTransferMsg.endCell())
-    .endCell()
-}
-
-function internalTransferBody({
-  queryId,
-  jettonAmount,
-  transferInitiator,
-  responseDestination,
-  forwardTonAmount,
-  forwardPayload,
-}: {
-  queryId: bigint
-  jettonAmount: bigint
-  transferInitiator: Address
-  responseDestination: Address
-  forwardTonAmount: bigint
-  forwardPayload: Cell
-}) {
-  return beginCell()
-    .storeUint(INTERNAL_TRANSFER_OPCODE, 32)
-    .storeUint(queryId, 64)
-    .storeCoins(jettonAmount)
-    .storeAddress(transferInitiator)
-    .storeAddress(responseDestination)
-    .storeCoins(forwardTonAmount)
-    .storeBit(1)
-    .storeRef(forwardPayload)
-    .endCell()
 }
 
 function transferNotificationBody({
@@ -297,15 +229,19 @@ describe('wTON gas calibration', () => {
     } = {},
   ) {
     const queryId = nextQueryId++
-    const body = mintBody({
-      destination,
-      queryId,
-      jettonAmount,
-      tonAmount,
-      responseDestination: deployer.address,
-      forwardTonAmount,
-      forwardPayload,
-    })
+    const body = mintBody(
+      {
+        queryId,
+        destination,
+        tonAmount,
+        jettonAmount,
+        from: null,
+        responseDestination: deployer.address,
+        forwardTonAmount,
+        customPayload: forwardPayload,
+      },
+      { mintOpcode: WTON_MINT_OPCODE },
+    )
 
     return await deployer.send({
       to: minter.address,
