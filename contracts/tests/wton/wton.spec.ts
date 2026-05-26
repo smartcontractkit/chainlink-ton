@@ -3,27 +3,26 @@ import { compile } from '@ton/blueprint'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import {
+  JettonMinter,
+  MinterOpcodes,
+  walletAddressRequestBody,
+} from '../../wrappers/jetton/JettonMinter'
+import { JettonErrorCodes } from '../../wrappers/jetton/constants'
+import {
+  burnNotificationBody,
   JettonWallet,
   internalTransferBody,
   opcodes as walletOpcodes,
 } from '../../wrappers/jetton/JettonWallet'
-import { ERROR_INVALID_EXCESSES_DESTINATION } from '../../wrappers/wton'
+import {
+  ERROR_ALREADY_INITIALIZED,
+  ERROR_INVALID_EXCESSES_DESTINATION,
+  WTON_MINT_OPCODE,
+} from '../../wrappers/wton'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
 const JETTON_DATA_URI = 'wton.test'
-const WTON_MINT_OPCODE = 0x00000015
-const REQUEST_WALLET_ADDRESS_OPCODE = 0x2c76b973
-const RESPONSE_WALLET_ADDRESS_OPCODE = 0xd1735400
-const ERROR_BALANCE_ERROR = 47
-const ERROR_ALREADY_INITIALIZED = 75
-const ERROR_NOT_ENOUGH_GAS = 48
-const ERROR_INVALID_OP = 72
-const ERROR_NOT_OWNER = 73
-const ERROR_NOT_VALID_WALLET = 74
-const ERROR_WRONG_WORKCHAIN = 333
-const ERROR_UNSUFFICIENT_AMOUNT = 76
 
 type MintOptions = {
   minterContract?: SandboxContract<JettonMinter>
@@ -361,12 +360,11 @@ describe('wTON', () => {
       const result = await deployer.send({
         to: minter.address,
         value: toNano('0.05'),
-        body: beginCell()
-          .storeUint(REQUEST_WALLET_ADDRESS_OPCODE, 32)
-          .storeUint(queryId, 64)
-          .storeAddress(alice.address)
-          .storeBit(1)
-          .endCell(),
+        body: walletAddressRequestBody({
+          queryId,
+          ownerAddress: alice.address,
+          includeOwnerAddress: true,
+        }),
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -376,7 +374,7 @@ describe('wTON', () => {
       })
 
       const body = internalMessageBodyTo(result, deployer.address).beginParse()
-      expect(body.loadUint(32)).toEqual(RESPONSE_WALLET_ADDRESS_OPCODE)
+      expect(body.loadUint(32)).toEqual(MinterOpcodes.TAKE_WALLET_ADDRESS)
       expect(body.loadUintBig(64)).toEqual(queryId)
 
       const walletAddress = body.loadMaybeAddress()
@@ -443,7 +441,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_INVALID_OP,
+        exitCode: JettonErrorCodes.INVALID_OP,
       })
       expect((await minter.getJettonData()).totalSupply).toEqual(0n)
     })
@@ -595,7 +593,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_NOT_ENOUGH_GAS,
+        exitCode: JettonErrorCodes.NOT_ENOUGH_GAS,
       })
       expect(await totalSupply()).toEqual(0n)
     })
@@ -616,7 +614,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_NOT_ENOUGH_GAS,
+        exitCode: JettonErrorCodes.NOT_ENOUGH_GAS,
       })
       expect(await totalSupply()).toEqual(0n)
     })
@@ -634,7 +632,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_NOT_ENOUGH_GAS,
+        exitCode: JettonErrorCodes.NOT_ENOUGH_GAS,
       })
       expect(await totalSupply()).toEqual(0n)
     })
@@ -658,7 +656,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_INVALID_OP,
+        exitCode: JettonErrorCodes.INVALID_OP,
       })
       expect(await totalSupply()).toEqual(0n)
     })
@@ -772,7 +770,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: aliceWallet.address,
         success: false,
-        exitCode: ERROR_NOT_OWNER,
+        exitCode: JettonErrorCodes.NOT_OWNER,
       })
       expect(await walletBalance(alice.address)).toEqual(toNano('1'))
     })
@@ -800,7 +798,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: bobWallet.address,
         success: false,
-        exitCode: ERROR_NOT_VALID_WALLET,
+        exitCode: JettonErrorCodes.NOT_VALID_WALLET,
       })
       expect(await walletBalance(bob.address)).toEqual(bobMint)
     })
@@ -834,7 +832,7 @@ describe('wTON', () => {
         from: alice.address,
         to: (await userWallet(alice.address)).address,
         success: false,
-        exitCode: ERROR_BALANCE_ERROR,
+        exitCode: JettonErrorCodes.BALANCE_ERROR,
       })
       expect(await walletBalance(alice.address)).toEqual(toNano('0.2'))
       expect(await totalSupply()).toEqual(toNano('0.2'))
@@ -952,7 +950,7 @@ describe('wTON', () => {
         from: alice.address,
         to: aliceWallet.address,
         success: false,
-        exitCode: ERROR_WRONG_WORKCHAIN,
+        exitCode: JettonErrorCodes.WRONG_WORKCHAIN,
       })
       expect(await walletBalance(alice.address)).toEqual(mintAmount)
       expect((await minter.getJettonData()).totalSupply).toEqual(mintAmount)
@@ -977,7 +975,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: aliceWallet.address,
         success: false,
-        exitCode: ERROR_NOT_OWNER,
+        exitCode: JettonErrorCodes.NOT_OWNER,
       })
       expect(await walletBalance(alice.address)).toEqual(mintAmount)
     })
@@ -1040,13 +1038,12 @@ describe('wTON', () => {
     it('rejects forged burn notifications sent directly to the minter', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1') })
 
-      const forgedBurn = beginCell()
-        .storeUint(walletOpcodes.in.BURN_NOTIFICATION, 32)
-        .storeUint(nextQueryId++, 64)
-        .storeCoins(toNano('0.5'))
-        .storeAddress(alice.address)
-        .storeAddress(recipient.address)
-        .endCell()
+      const forgedBurn = burnNotificationBody({
+        queryId: nextQueryId++,
+        jettonAmount: toNano('0.5'),
+        burnInitiator: alice.address,
+        responseDestination: recipient.address,
+      })
 
       const forgedResult = await deployer.send({
         to: minter.address,
@@ -1058,7 +1055,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_NOT_VALID_WALLET,
+        exitCode: JettonErrorCodes.NOT_VALID_WALLET,
       })
       expect((await minter.getJettonData()).totalSupply).toEqual(toNano('1'))
     })
@@ -1092,7 +1089,7 @@ describe('wTON', () => {
         from: alice.address,
         to: (await userWallet(alice.address)).address,
         success: false,
-        exitCode: ERROR_BALANCE_ERROR,
+        exitCode: JettonErrorCodes.BALANCE_ERROR,
       })
       expect(await walletBalance(alice.address)).toEqual(toNano('0.4'))
       expect(await totalSupply()).toEqual(toNano('0.4'))

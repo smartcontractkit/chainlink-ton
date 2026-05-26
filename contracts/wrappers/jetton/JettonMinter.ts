@@ -10,7 +10,7 @@ import {
   SendMode,
   toNano,
 } from '@ton/core'
-import { JettonOpcodes } from '../examples/jetton/types'
+import { JettonOpcodes } from './constants'
 import { JettonMinterCode } from './JettonCode'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 
@@ -59,8 +59,8 @@ export function parseJettonMinterData(data: Cell) {
 export const MinterOpcodes = {
   MINT: JettonOpcodes.MINT,
   BURN_NOTIFICATION: JettonOpcodes.BURN_NOTIFICATION,
-  // PROVIDE_WALLET_ADDRESS: JettonOpcodes.PROVIDE_WALLET_ADDRESS,
-  // TAKE_WALLET_ADDRESS: JettonOpcodes.TAKE_WALLET_ADDRESS,
+  PROVIDE_WALLET_ADDRESS: JettonOpcodes.PROVIDE_WALLET_ADDRESS,
+  TAKE_WALLET_ADDRESS: JettonOpcodes.TAKE_WALLET_ADDRESS,
   CHANGE_ADMIN: JettonOpcodes.CHANGE_ADMIN,
   CLAIM_ADMIN: JettonOpcodes.CLAIM_ADMIN,
   DROP_ADMIN: JettonOpcodes.DROP_ADMIN,
@@ -80,6 +80,12 @@ export type MintMessage = {
   responseDestination: Maybe<Address>
   customPayload?: Cell | null
   forwardTonAmount?: bigint
+}
+
+export type WalletAddressRequestMessage = {
+  queryId: bigint
+  ownerAddress: Address
+  includeOwnerAddress: boolean
 }
 
 export function mintInternalTransferBody(message: MintMessage): Cell {
@@ -112,6 +118,15 @@ export function mintBody(
     .storeAddress(message.destination)
     .storeCoins(message.tonAmount)
     .storeRef(mintInternalTransferBody(message))
+    .endCell()
+}
+
+export function walletAddressRequestBody(message: WalletAddressRequestMessage): Cell {
+  return beginCell()
+    .storeUint(MinterOpcodes.PROVIDE_WALLET_ADDRESS, 32)
+    .storeUint(message.queryId, 64)
+    .storeAddress(message.ownerAddress)
+    .storeBit(message.includeOwnerAddress)
     .endCell()
 }
 

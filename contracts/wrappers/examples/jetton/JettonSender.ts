@@ -8,7 +8,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { JettonClientConfig, builder, JettonOpcodes } from './types'
+import { JettonClientConfig, builder } from './types'
 import { crc32 } from 'zlib'
 import { loadContractCode } from '../../codeLoader'
 

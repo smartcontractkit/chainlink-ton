@@ -7,13 +7,16 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton/sandbox'
 
 import { JettonMinter, mintBody } from '../../../wrappers/jetton/JettonMinter'
-import { internalTransferBody, JettonWallet } from '../../../wrappers/jetton/JettonWallet'
+import {
+  burnNotificationBody,
+  internalTransferBody,
+  JettonWallet,
+  returnExcessesBody,
+  transferNotificationBody,
+} from '../../../wrappers/jetton/JettonWallet'
+import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
 
 const JETTON_DATA_URI = 'wton.gas'
-const WTON_MINT_OPCODE = 0x00000015
-const TRANSFER_NOTIFICATION_OPCODE = 0x7362d09c
-const BURN_NOTIFICATION_OPCODE = 0x7bdd97de
-const RETURN_EXCESSES_OPCODE = 0xd53276db
 
 type ConfiguredGasConstants = {
   GAS_CONSUMPTION_JettonTransfer: number
@@ -83,51 +86,6 @@ function readConfiguredShapeConstants(): ConfiguredShapeConstants {
       'MESSAGE_SIZE_ReturnExcesses_cells',
     ),
   }
-}
-
-function transferNotificationBody({
-  queryId,
-  jettonAmount,
-  transferInitiator,
-  forwardPayload,
-}: {
-  queryId: bigint
-  jettonAmount: bigint
-  transferInitiator: Address
-  forwardPayload: Cell
-}) {
-  return beginCell()
-    .storeUint(TRANSFER_NOTIFICATION_OPCODE, 32)
-    .storeUint(queryId, 64)
-    .storeCoins(jettonAmount)
-    .storeAddress(transferInitiator)
-    .storeBit(1)
-    .storeRef(forwardPayload)
-    .endCell()
-}
-
-function burnNotificationBody({
-  queryId,
-  jettonAmount,
-  burnInitiator,
-  responseDestination,
-}: {
-  queryId: bigint
-  jettonAmount: bigint
-  burnInitiator: Address
-  responseDestination: Address
-}) {
-  return beginCell()
-    .storeUint(BURN_NOTIFICATION_OPCODE, 32)
-    .storeUint(queryId, 64)
-    .storeCoins(jettonAmount)
-    .storeAddress(burnInitiator)
-    .storeAddress(responseDestination)
-    .endCell()
-}
-
-function returnExcessesBody(queryId: bigint) {
-  return beginCell().storeUint(RETURN_EXCESSES_OPCODE, 32).storeUint(queryId, 64).endCell()
 }
 
 function cellStats(cell: Cell): { bits: number; cells: number } {
@@ -340,9 +298,9 @@ describe('wTON gas calibration', () => {
     )
     const notificationBodyStats = cellStats(
       transferNotificationBody({
-        queryId: 1n,
+        queryId: 1,
         jettonAmount: toNano('0.7'),
-        transferInitiator: alice.address,
+        senderAddress: alice.address,
         forwardPayload,
       }),
     )

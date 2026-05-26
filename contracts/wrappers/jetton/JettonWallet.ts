@@ -10,7 +10,7 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { JettonOpcodes } from '../examples/jetton/types'
+import { JettonOpcodes } from './constants'
 import { CellCodec } from '../utils'
 
 export type JettonWalletConfig = {
@@ -90,17 +90,24 @@ export type InternalTransferMessage = {
 }
 
 export type TransferNotificationForRecipient = {
-  queryId: number
+  queryId: number | bigint
   jettonAmount: bigint
   senderAddress: Address
   forwardPayload: Cell | null
 }
 
 export type TransferNotificationWithFwdPayload<T> = {
-  queryId: number
+  queryId: number | bigint
   jettonAmount: bigint
   senderAddress: Address
   forwardPayload: T
+}
+
+export type BurnNotificationMessage = {
+  queryId: bigint
+  jettonAmount: bigint
+  burnInitiator: Address
+  responseDestination: Address | null
 }
 
 export class JettonWallet implements Contract {
@@ -345,6 +352,10 @@ export function transferBody(message: AskToTransfer): Cell {
   return builder.messages.in.askToTransfer.encode(message).endCell()
 }
 
+export function transferNotificationBody(message: TransferNotificationForRecipient): Cell {
+  return builder.messages.out.transferNotificationForRecipient.encode(message).endCell()
+}
+
 export function burnBody(message: BurnMessage): Cell {
   const body = beginCell()
     .storeUint(opcodes.in.BURN, 32)
@@ -359,6 +370,20 @@ export function burnBody(message: BurnMessage): Cell {
   }
 
   return body.endCell()
+}
+
+export function burnNotificationBody(message: BurnNotificationMessage): Cell {
+  return beginCell()
+    .storeUint(opcodes.in.BURN_NOTIFICATION, 32)
+    .storeUint(message.queryId, 64)
+    .storeCoins(message.jettonAmount)
+    .storeAddress(message.burnInitiator)
+    .storeAddress(message.responseDestination)
+    .endCell()
+}
+
+export function returnExcessesBody(queryId: bigint): Cell {
+  return beginCell().storeUint(opcodes.in.EXCESSES, 32).storeUint(queryId, 64).endCell()
 }
 
 export function internalTransferBody(message: InternalTransferMessage): Cell {
