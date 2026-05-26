@@ -136,6 +136,7 @@ fun onInternalMessage(in: InMessage) {
             val jettonAmount = internalTransferMsg.jettonAmount;
             // Mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
             assert (internalTransferMsg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
+            assert (internalTransferMsg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
             // Minting must not impersonate a peer wallet transfer initiator.
             assert (internalTransferMsg.transferInitiator == null) throw ERROR_INVALID_OP;
             // The caller must fund the hosted TON backing, the extra transfer budget, and the

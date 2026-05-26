@@ -23,6 +23,7 @@ import {
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
 const JETTON_DATA_URI = 'wton.test'
+const MASTERCHAIN_ZERO_ADDRESS = Address.parse(`-1:${'0'.repeat(64)}`)
 
 type MintOptions = {
   minterContract?: SandboxContract<JettonMinter>
@@ -386,6 +387,34 @@ describe('wTON', () => {
       expect(body.remainingRefs).toEqual(0)
     })
 
+    it('returns a null wallet address for non-basechain owners while preserving the echoed owner', async () => {
+      const queryId = nextQueryId++
+      const result = await deployer.send({
+        to: minter.address,
+        value: toNano('0.05'),
+        body: walletAddressRequestBody({
+          queryId,
+          ownerAddress: MASTERCHAIN_ZERO_ADDRESS,
+          includeOwnerAddress: true,
+        }),
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: minter.address,
+        to: deployer.address,
+        success: true,
+      })
+
+      const body = internalMessageBodyTo(result, deployer.address).beginParse()
+      expect(body.loadUint(32)).toEqual(MinterOpcodes.TAKE_WALLET_ADDRESS)
+      expect(body.loadUintBig(64)).toEqual(queryId)
+      expect(body.loadMaybeAddress()).toBeNull()
+      expect(body.loadBit()).toBe(true)
+      expect(body.loadRef().beginParse().loadAddress().equals(MASTERCHAIN_ZERO_ADDRESS)).toBe(true)
+      expect(body.remainingBits).toEqual(0)
+      expect(body.remainingRefs).toEqual(0)
+    })
+
     it('keeps total supply equal to the sum of live wallet balances after mixed operations', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1.2') })
       await mintTo(bob.address, { jettonAmount: toNano('0.8') })
@@ -427,6 +456,35 @@ describe('wTON', () => {
         to: minter.address,
         success: false,
         exitCode: ERROR_INVALID_EXCESSES_DESTINATION,
+      })
+      expect((await minter.getJettonData()).totalSupply).toEqual(0n)
+    })
+
+    it('rejects mint messages to non-basechain recipients', async () => {
+      const { result } = await sendMint({
+        destination: MASTERCHAIN_ZERO_ADDRESS,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: minter.address,
+        success: false,
+        exitCode: JettonErrorCodes.WRONG_WORKCHAIN,
+      })
+      expect((await minter.getJettonData()).totalSupply).toEqual(0n)
+    })
+
+    it('rejects mint messages with non-basechain refund destinations', async () => {
+      const { result } = await sendMint({
+        destination: alice.address,
+        responseDestination: MASTERCHAIN_ZERO_ADDRESS,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: minter.address,
+        success: false,
+        exitCode: JettonErrorCodes.WRONG_WORKCHAIN,
       })
       expect((await minter.getJettonData()).totalSupply).toEqual(0n)
     })
@@ -749,6 +807,33 @@ describe('wTON', () => {
       )
     })
 
+    it('rejects transfers to non-basechain recipients', async () => {
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+
+      const aliceWallet = await userWallet(alice.address)
+      const transferResult = await aliceWallet.sendTransfer(alice.getSender(), {
+        value: toNano('0.5'),
+        message: {
+          queryId: Number(nextQueryId++),
+          jettonAmount: toNano('0.25'),
+          destination: MASTERCHAIN_ZERO_ADDRESS,
+          responseDestination: alice.address,
+          customPayload: null,
+          forwardTonAmount: 0n,
+          forwardPayload: null,
+        },
+      })
+
+      expect(transferResult.transactions).toHaveTransaction({
+        from: alice.address,
+        to: aliceWallet.address,
+        success: false,
+        exitCode: JettonErrorCodes.WRONG_WORKCHAIN,
+      })
+      expect(await walletBalance(alice.address)).toEqual(toNano('1'))
+      expect(await totalSupply()).toEqual(toNano('1'))
+    })
+
     it('rejects transfers from non-owners', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1') })
 
@@ -803,6 +888,33 @@ describe('wTON', () => {
       expect(await walletBalance(bob.address)).toEqual(bobMint)
     })
 
+    it('rejects malformed forged internal transfers with a null initiator', async () => {
+      const bobMint = toNano('0.5')
+      await mintTo(bob.address, { jettonAmount: bobMint })
+
+      const bobWallet = await userWallet(bob.address)
+      const forgedTransfer = internalTransferBody({
+        queryId: nextQueryId++,
+        jettonAmount: toNano('0.1'),
+        transferInitiator: null,
+        responseDestination: deployer.address,
+        forwardPayload: null,
+      })
+
+      const forgedResult = await deployer.send({
+        to: bobWallet.address,
+        value: toNano('0.2'),
+        body: forgedTransfer,
+      })
+
+      expect(forgedResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: bobWallet.address,
+        success: false,
+      })
+      expect(await walletBalance(bob.address)).toEqual(bobMint)
+    })
+
     it('supports transfers without a response destination', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1') })
 
@@ -841,6 +953,26 @@ describe('wTON', () => {
     it('rejects underfunded transfer value before moving balance', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1') })
       const aliceWallet = await userWallet(alice.address)
+
+      const { result } = await transferFrom(alice, {
+        jettonAmount: toNano('0.25'),
+        destination: bob.address,
+        value: 1n,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: alice.address,
+        to: aliceWallet.address,
+        success: false,
+      })
+      expect(await walletBalance(alice.address)).toEqual(toNano('1'))
+      expect(await totalSupply()).toEqual(toNano('1'))
+    })
+
+    it('still rejects underfunded transfers after wallet top-ups', async () => {
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+      const aliceWallet = await userWallet(alice.address)
+      await aliceWallet.sendTopUpTons(deployer.getSender(), toNano('5'))
 
       const { result } = await transferFrom(alice, {
         jettonAmount: toNano('0.25'),
@@ -1098,6 +1230,26 @@ describe('wTON', () => {
     it('rejects underfunded burn value before moving balance', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1') })
       const aliceWallet = await userWallet(alice.address)
+
+      const { result } = await burnFrom(alice, {
+        jettonAmount: toNano('0.25'),
+        responseDestination: recipient.address,
+        value: 1n,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: alice.address,
+        to: aliceWallet.address,
+        success: false,
+      })
+      expect(await walletBalance(alice.address)).toEqual(toNano('1'))
+      expect(await totalSupply()).toEqual(toNano('1'))
+    })
+
+    it('still rejects underfunded burns after wallet top-ups', async () => {
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+      const aliceWallet = await userWallet(alice.address)
+      await aliceWallet.sendTopUpTons(deployer.getSender(), toNano('5'))
 
       const { result } = await burnFrom(alice, {
         jettonAmount: toNano('0.25'),
