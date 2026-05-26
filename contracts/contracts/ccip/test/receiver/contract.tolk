@@ -17,7 +17,9 @@ import "../../../lib/versioning/upgradeable"
 
 import "../../router/messages"
 
-const CONTRACT_VERSION = "1.6.0".literalSlice();
+tolk 1.3
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
@@ -126,7 +128,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell { 
-    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
+    assert(version.bitsEqual("1.6.0".literalSlice()), Upgradeable_Error.VersionMismatch);
     return storage;
 }
 

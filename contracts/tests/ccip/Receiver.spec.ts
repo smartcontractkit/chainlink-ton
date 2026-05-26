@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
@@ -18,8 +18,9 @@ import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 async function deployReceiverContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
+  codeOverride?: Cell,
 ) {
-  const code = await tr.Receiver.code()
+  const code = codeOverride ?? (await tr.Receiver.code())
   let data: tr.Storage = {
     id: generateRandomContractId(),
     ownable: {
@@ -70,6 +71,25 @@ describe('Receiver - Current Version Tests', () => {
     deployCurrentContract: deployReceiverContract,
   })
   currentVersionSpec.run()
+})
+
+describe('Receiver - Upgrade Tests', () => {
+  class Receiver extends tr.Receiver {}
+
+  const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
+    contractType: tr.Receiver.type(),
+    prevVersionConfigs: Object.entries(tr.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+      version,
+      getCode,
+      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+        deployReceiverContract(blockchain, owner, await getCode()),
+    })),
+    currentVersion: Receiver.version(),
+    getCurrentCode: () => Receiver.code(),
+    CurrentVersionConstructor: Receiver,
+    upgradeValue: toNano('0.05'),
+  })
+  upgradeSpec.run()
 })
 
 describe('Receiver', () => {

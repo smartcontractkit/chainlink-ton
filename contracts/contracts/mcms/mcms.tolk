@@ -11,7 +11,7 @@ const MCMS_FACILITY_ID = MCMS_FACILITY_NAME.crc32() % 640 + 10;  // 104
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 const MCMS_ERROR_CODE = MCMS_FACILITY_ID * 100;
-const CONTRACT_VERSION = "0.0.4".literalSlice();
+const CONTRACT_VERSION = "0.0.5".literalSlice();
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)

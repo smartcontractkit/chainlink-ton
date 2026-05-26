@@ -22,14 +22,18 @@ import { asSnakedCell, fromSnakeData } from '../../src/utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { loadContractCode } from '../codeLoader'
+import { contractCode, loadContractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
 
+export const ARTIFACT_NAME = 'OnRamp'
 export const FACILITY_NAME = 'link.chain.ton.ccip.OnRamp'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
 
-export const CONTRACT_VERSION = '1.6.0'
+export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
+  '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
+}
+export const CONTRACT_VERSION = '1.6.1'
 
 export type OnRampStorage = {
   id: bigint
@@ -791,7 +795,7 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('OnRamp')
+    return loadContractCode(ARTIFACT_NAME)
   }
 
   async sendSetDynamicConfig(

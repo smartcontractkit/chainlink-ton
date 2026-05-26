@@ -26,7 +26,9 @@ import "types"
 import "storage"
 import "events"
 
-const CONTRACT_VERSION = "1.6.2".literalSlice();
+tolk 1.3
+
+const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
 
@@ -243,11 +245,7 @@ fun migrate(storage: cell, version: slice): cell {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (
-        version.bitsEqual("1.6.0".literalSlice())
-        || version.bitsEqual("1.6.1".literalSlice())
-    ) 
-    throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)

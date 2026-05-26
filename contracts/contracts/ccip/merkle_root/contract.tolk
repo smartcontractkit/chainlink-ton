@@ -11,10 +11,12 @@ import "errors"
 import "storage"
 import "types"
 
+tolk 1.3
+
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "1.6.0".literalSlice();
+const CONTRACT_VERSION = "1.6.1".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);

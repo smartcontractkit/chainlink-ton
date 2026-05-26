@@ -7,7 +7,9 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+tolk 1.3
+
+const CONTRACT_VERSION = "1.6.2".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);

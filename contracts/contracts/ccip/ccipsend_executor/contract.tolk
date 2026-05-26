@@ -11,7 +11,9 @@ import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 
-const CONTRACT_VERSION = "1.6.0".literalSlice();
+tolk 1.3
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);

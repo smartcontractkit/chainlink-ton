@@ -13,6 +13,7 @@ import { ownable2StepSpec } from '../../lib/access/Ownable2StepSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as rt from '../../../wrappers/ccip/Router'
 import { contractsCoverageConfig, deployRouterContract, setup } from './Router.Setup'
+import { toNano } from '@ton/core'
 
 describe('rt.Router - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
@@ -44,33 +45,29 @@ describe('Router - Withdrawable Tests', () => {
   ])
 })
 
-// TODO when we have a new version
-// describe('Router - Upgrade Tests', () => {
-//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
-//     {
-//       contractType: RouterPrev.type(),
-//       prevVersion: RouterPrev.version(),
-//       currentVersion: Router.version(),
-//       getPrevCode: () => RouterPrev.code(),
-//       getCurrentCode: () => Router.code(),
-//       CurrentVersionConstructor: Router,
-//     },
-//     async (blockchain, owner) => {
-//       const codeV1 = await RouterPrev.code()
-//       const data = {} as any // TODO fill with valid data
-//       const contract = blockchain.openContract(
-//         RouterPrev.createFromConfig(
-//           data,
-//           codeV1,
-//         ),
-//       )
-//       const deployer = await blockchain.treasury('deployer')
-//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-//       return contract
-//     },
-//   )
-//   upgradeSpec.run()
-// })
+describe('Router - Upgrade Tests', () => {
+  class Router extends rt.Router {}
+
+  const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
+    contractType: rt.Router.type(),
+    prevVersionConfigs: Object.entries(rt.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
+      version,
+      getCode,
+      deploy: async (blockchain: Blockchain, owner: SandboxContract<TreasuryContract>) =>
+        deployRouterContract(blockchain, owner, await getCode()),
+    })),
+    currentVersion: Router.version(),
+    getCurrentCode: () => Router.code(),
+    CurrentVersionConstructor: Router,
+    upgradeValue: toNano('0.05'),
+  })
+  upgradeSpec.run([
+    {
+      code: 'Router',
+      name: 'router',
+    },
+  ])
+})
 
 describe('Router - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
