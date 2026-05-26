@@ -135,6 +135,7 @@ fun onInternalMessage(in: InMessage) {
             assert (storage.jettonBalance >= msg.jettonAmount) throw ERROR_BALANCE_ERROR;
             // Burn must name a refund destination so the minter can return the withdrawn TON instead of trapping it
             assert (msg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
+            assert (msg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
             storage.jettonBalance -= msg.jettonAmount;
             storage.save();
 

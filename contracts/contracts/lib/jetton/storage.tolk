@@ -14,11 +14,11 @@ fun SnakeString.unpackFromSlice(mutate s: slice) {
     // but since here we're matching the original FunC implementation, leave no checks
     val snakeRemainder = s;
     s = createEmptySlice();     // no more left to read
-    return snakeRemainder
+    return snakeRemainder;
 }
 
 fun SnakeString.packToBuilder(self, mutate b: builder) {
-    b.storeSlice(self)
+    b.storeSlice(self);
 }
 
 struct WalletStorage {
@@ -40,18 +40,18 @@ struct MinterStorage {
 
 
 fun MinterStorage.load() {
-    return MinterStorage.fromCell(contract.getData())
+    return MinterStorage.fromCell(contract.getData());
 }
 
 fun MinterStorage.save(self) {
-    contract.setData(self.toCell())
+    contract.setData(self.toCell());
 }
 
 
 fun WalletStorage.load() {
-    return WalletStorage.fromCell(contract.getData())
+    return WalletStorage.fromCell(contract.getData());
 }
 
 fun WalletStorage.save(self) {
-    contract.setData(self.toCell())
+    contract.setData(self.toCell());
 }

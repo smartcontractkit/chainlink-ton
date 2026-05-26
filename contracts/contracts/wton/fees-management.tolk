@@ -37,8 +37,8 @@ const MIN_STORAGE_DURATION = 5 * 365 * 24 * 3600  // 5 years
 
 const GAS_CONSUMPTION_JettonTransfer    = 7028
 const GAS_CONSUMPTION_JettonReceive     = 7295
-const GAS_CONSUMPTION_BurnRequest       = 5397
-const GAS_CONSUMPTION_BurnNotification  = 4462
+const GAS_CONSUMPTION_BurnRequest       = 5613
+const GAS_CONSUMPTION_BurnNotification  = 4558
 
 
 fun calculateJettonWalletMinStorageFee() {

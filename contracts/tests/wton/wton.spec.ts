@@ -22,6 +22,7 @@ const ERROR_NOT_ENOUGH_GAS = 48
 const ERROR_INVALID_OP = 72
 const ERROR_NOT_OWNER = 73
 const ERROR_NOT_VALID_WALLET = 74
+const ERROR_WRONG_WORKCHAIN = 333
 const ERROR_UNSUFFICIENT_AMOUNT = 76
 
 type MintOptions = {
@@ -926,6 +927,32 @@ describe('wTON', () => {
         to: aliceWallet.address,
         success: false,
         exitCode: ERROR_INVALID_EXCESSES_DESTINATION,
+      })
+      expect(await walletBalance(alice.address)).toEqual(mintAmount)
+      expect((await minter.getJettonData()).totalSupply).toEqual(mintAmount)
+    })
+
+    it('rejects burns to non-basechain payout destinations', async () => {
+      const mintAmount = toNano('1')
+      const masterchainRecipient = Address.parse(`-1:${'0'.repeat(64)}`)
+      await mintTo(alice.address, { jettonAmount: mintAmount })
+
+      const aliceWallet = await userWallet(alice.address)
+      const burnResult = await aliceWallet.sendBurn(alice.getSender(), {
+        value: toNano('0.2'),
+        message: {
+          queryId: nextQueryId++,
+          jettonAmount: mintAmount,
+          responseDestination: masterchainRecipient,
+          customPayload: null,
+        },
+      })
+
+      expect(burnResult.transactions).toHaveTransaction({
+        from: alice.address,
+        to: aliceWallet.address,
+        success: false,
+        exitCode: ERROR_WRONG_WORKCHAIN,
       })
       expect(await walletBalance(alice.address)).toEqual(mintAmount)
       expect((await minter.getJettonData()).totalSupply).toEqual(mintAmount)

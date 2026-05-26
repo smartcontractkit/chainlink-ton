@@ -117,6 +117,6 @@ fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
     var mutableCopy = self;
     if (mutableCopy.loadMaybeRef() != null) {
         // throw "cell underflow" if there is data besides a ref
-        mutableCopy.assertEnd()
+        mutableCopy.assertEnd();
     }
 }

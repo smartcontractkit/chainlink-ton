@@ -20,5 +20,5 @@ fun calcDeployedJettonWallet(ownerAddress: address, minterAddress: address, jett
 
 fun calcAddressOfJettonWallet(ownerAddress: address, minterAddress: address, jettonWalletCode: cell) {
     val jwDeployed = calcDeployedJettonWallet(ownerAddress, minterAddress, jettonWalletCode);
-    return jwDeployed.calculateAddress()
+    return jwDeployed.calculateAddress();
 }
