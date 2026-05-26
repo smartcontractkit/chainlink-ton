@@ -16,8 +16,14 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.2".literalSlice();
+tolk 1.3
+
+const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("1");
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -668,14 +674,6 @@ fun migrate(storage: cell, version: slice): cell {
     var st = Storage.fromCell(storage);
     st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
     return st.toCell();
-}
-
-fun requireSupportedVersion(version: slice) {
-    assert (
-        version.bitsEqual("1.6.0".literalSlice())
-        || version.bitsEqual("1.6.1".literalSlice())
-    ) 
-    throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)

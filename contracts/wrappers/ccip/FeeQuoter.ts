@@ -20,7 +20,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
 import { asSnakedCell } from '../../src/utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode, loadContractCode } from '../codeLoader'
 
 import { Maybe } from '@ton/core/dist/utils/maybe'
 
@@ -30,8 +30,12 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as rt from './Router'
 
-export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.0', '1.6.1'] as const
-export const FEE_QUOTER_CONTRACT_VERSION = '1.6.2'
+export const ARTIFACT_NAME = 'FeeQuoter'
+export const FEE_QUOTER_SUPPORTED_PREV_VERSIONS = ['1.6.2'] as const
+export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
+  '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
+}
+export const FEE_QUOTER_CONTRACT_VERSION = '1.6.3'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.FeeQuoter'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
@@ -675,7 +679,7 @@ export class FeeQuoter
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('FeeQuoter')
+    return loadContractCode(ARTIFACT_NAME)
   }
 
   async sendUpdateDestChainConfigs(

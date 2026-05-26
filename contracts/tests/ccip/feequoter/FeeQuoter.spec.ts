@@ -51,18 +51,12 @@ describe('FeeQuoter - TypeAndVersion Tests', () => {
 describe('FeeQuoter - Upgrade Tests', () => {
   class FeeQuoter extends fq.FeeQuoter {}
 
-  const codeLoaders = {
-    '1.6.0': () => contractCode.ccip.release_1_6_0('FeeQuoter'),
-    '1.6.1': () => contractCode.ccip.release_1_6_1('FeeQuoter'),
-  } as Record<string, () => Promise<Cell>>
-
   const upgradeSpec = UpgradeableSpec.newUpgradeSpec({
     contractType: fq.FeeQuoter.type(),
-    prevVersionConfigs: FEE_QUOTER_SUPPORTED_PREV_VERSIONS.map((version) => ({
+    prevVersionConfigs: Object.entries(fq.SUPPORTED_PREV_VERSIONS).map(([version, getCode]) => ({
       version,
-      getCode: codeLoaders[version],
-      deploy: async (blockchain, owner) =>
-        setupTestFeeQuoter(owner, blockchain, await codeLoaders[version]()),
+      getCode,
+      deploy: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain, await getCode()),
     })),
     currentVersion: FeeQuoter.version(),
     getCurrentCode: () => FeeQuoter.code(),

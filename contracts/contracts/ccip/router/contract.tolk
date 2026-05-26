@@ -21,8 +21,14 @@ import "storage"
 import "errors"
 import "events"
 
-const CONTRACT_VERSION = "1.6.0".literalSlice();
+tolk 1.3
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
 const RESERVE = ton("1");
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Router_InMsg.fromSlice(in.body);
@@ -621,7 +627,10 @@ fun assertSenderIsOnRamp(st: Storage, destChainSelector: uint64, sender: address
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell {
+    requireSupportedVersion(version);
+    return storage;
+}
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

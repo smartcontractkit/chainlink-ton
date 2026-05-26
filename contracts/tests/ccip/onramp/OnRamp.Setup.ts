@@ -1,4 +1,4 @@
-import { Address, Dictionary, beginCell, toNano } from '@ton/core'
+import { Address, Cell, Dictionary, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { generateRandomContractId } from '../../../src/utils'
@@ -15,12 +15,25 @@ export const CHAINSEL_EVM_TEST = 909606746561742123n
 export const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
 export const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
+// Deprecated, use deployOnRampContractW instead for more flexibility in tests. Will be removed in a future version.
+// TODO: refactor existing tests to use deployOnRampContractW and remove this function.
 export async function deployOnRampContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
   overrides: OnRampOverrides = {},
 ) {
-  const code = await or.OnRamp.code()
+  return deployOnRampContractW(blockchain, owner, { overrides })
+}
+
+export async function deployOnRampContractW(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+  opt: {
+    code?: Cell
+    overrides?: OnRampOverrides
+  } = {},
+) {
+  const code = opt.code ?? (await or.OnRamp.code())
   const defaults: or.OnRampStorage = {
     id: generateRandomContractId(),
     ownable: {
@@ -43,20 +56,20 @@ export async function deployOnRampContract(
 
   const config = {
     ...defaults.config,
-    ...(overrides.config ?? {}),
+    ...(opt.overrides?.config ?? {}),
   }
 
   const data: or.OnRampStorage = {
     ...defaults,
-    ...overrides,
+    ...(opt.overrides ?? {}),
     ownable: {
       ...defaults.ownable,
-      ...(overrides.ownable ?? {}),
+      ...(opt.overrides?.ownable ?? {}),
     },
     config,
     executor: {
       ...defaults.executor,
-      ...(overrides.executor ?? {}),
+      ...(opt.overrides?.executor ?? {}),
     },
   }
   const onramp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))

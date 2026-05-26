@@ -9,7 +9,7 @@ const Timelock_FACILITY_ID = Timelock_FACILITY_NAME.crc32() % 640 + 10;  // 606
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 const Timelock_ERROR_CODE = Timelock_FACILITY_ID * 100;
-const CONTRACT_VERSION = "0.0.3".literalSlice();
+const CONTRACT_VERSION = "0.0.4".literalSlice();
 
 /**
  * Contract module which acts as a timelocked controller with role-based

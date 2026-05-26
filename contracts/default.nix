@@ -124,6 +124,32 @@
         changelog = "https://github.com/smartcontractkit/chainlink-ton/releases/tag/v${finalAttrs.version}";
       };
     });
+    contracts_1_6_2 = pkgs.stdenv.mkDerivation (finalAttrs: rec {
+      pname = "chainlink-contracts-ton";
+
+      src = builtins.fetchurl {
+        url = "https://github.com/smartcontractkit/chainlink-ton/releases/download/contracts/${finalAttrs.version}/contracts-${finalAttrs.version}.tar.gz";
+        sha256 = "sha256:1gbvagivlzf0jwrshhq903ijrfxwqssbd255asjfi81924cyvayl";
+      };
+      version = "1.6.2";
+      sourceRoot = "."; # pin source root to avoid issues with unpacker (produced multiple directories)
+
+      skipBuild = true;
+      installPhase = ''
+        mkdir -p $out
+        cp -r * $out/
+      '';
+
+      meta = with pkgs.lib; {
+        description = "Chainlink TON smart contracts";
+
+        # TODO: update to MIT after March 12, 2029 as per LICENSE file
+        license = licenses.bsl11;
+
+        # TODO: update to contracts project-specific tag
+        changelog = "https://github.com/smartcontractkit/chainlink-ton/releases/tag/v${finalAttrs.version}";
+      };
+    });
   };
 in {
   # Output a set of specifc shells
@@ -132,6 +158,7 @@ in {
       inherit pkgs;
       contracts_1_6 = packages.contracts_1_6;
       contracts_1_6_1 = packages.contracts_1_6_1;
+      contracts_1_6_2 = packages.contracts_1_6_2;
       jetton-contracts = packages.contracts-jetton-func;
       inherit oplint;
     };

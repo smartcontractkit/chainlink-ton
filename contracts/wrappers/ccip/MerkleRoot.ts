@@ -17,7 +17,7 @@ import { loadContractCode } from '../codeLoader'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
-export const CONTRACT_VERSION = '1.6.0'
+export const CONTRACT_VERSION = '1.6.1'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.MerkleRoot'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
