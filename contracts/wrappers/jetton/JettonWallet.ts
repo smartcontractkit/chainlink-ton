@@ -20,23 +20,11 @@ export type JettonWalletConfig = {
   status?: number
 }
 
-export function jettonWalletConfigToCell(config: JettonWalletConfig): Cell {
-  return beginCell()
-    .storeUint(config.status ?? 0, 4) // status
-    .storeCoins(config.balance ?? 0n) // jetton balance
-    .storeAddress(config.ownerAddress)
-    .storeAddress(config.jettonMasterAddress)
-    .endCell()
-}
-
-export function parseJettonWalletData(data: Cell) {
-  const sc = data.beginParse()
-  return {
-    status: sc.loadUint(4),
-    balance: sc.loadCoins(),
-    ownerAddress: sc.loadAddress(),
-    jettonMasterAddress: sc.loadAddress(),
-  }
+export type JettonWalletData = {
+  ownerAddress: Address
+  jettonMasterAddress: Address
+  balance: bigint
+  status: number
 }
 
 export const opcodes = {
@@ -73,14 +61,14 @@ export type AskToTransferWithFwdPayload<T> = {
   forwardPayload: T
 }
 
-export type BurnMessage = {
+export type AskToBurn = {
   queryId: bigint
   jettonAmount: bigint
   responseDestination: Address | null
   customPayload: Cell | null
 }
 
-export type InternalTransferMessage = {
+export type InternalTransferStep = {
   queryId: bigint
   jettonAmount: bigint
   transferInitiator: Address | null
@@ -103,11 +91,42 @@ export type TransferNotificationWithFwdPayload<T> = {
   forwardPayload: T
 }
 
-export type BurnNotificationMessage = {
+export type BurnNotificationForMinter = {
   queryId: bigint
   jettonAmount: bigint
   burnInitiator: Address
   responseDestination: Address | null
+}
+
+export type ReturnExcessesBack = {
+  queryId: bigint
+}
+
+export type TopUpTons = Record<never, never>
+
+export type WithdrawTonsMessage = {
+  queryId: bigint
+}
+
+function toContractData(config: JettonWalletConfig): JettonWalletData {
+  return {
+    ownerAddress: config.ownerAddress,
+    jettonMasterAddress: config.jettonMasterAddress,
+    balance: config.balance ?? 0n,
+    status: config.status ?? 0,
+  }
+}
+
+function loadForwardPayload(src: Slice): Cell | Slice | null {
+  const byRef = src.loadBit()
+  if (byRef) {
+    return src.loadRef()
+  }
+  return src.remainingBits > 0 || src.remainingRefs > 0 ? src : null
+}
+
+function toForwardPayloadSlice(payload: Cell | Slice): Slice {
+  return payload instanceof Cell ? payload.beginParse() : payload
 }
 
 export class JettonWallet implements Contract {
@@ -121,7 +140,7 @@ export class JettonWallet implements Contract {
   }
 
   static createFromConfig(config: JettonWalletConfig, code: Cell, workchain = 0) {
-    const data = jettonWalletConfigToCell(config)
+    const data = builder.data.contractData.encode(toContractData(config)).asCell()
     const init = { code, data }
     return new JettonWallet(contractAddress(workchain, init), init)
   }
@@ -138,7 +157,7 @@ export class JettonWallet implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(opcodes.in.TOP_UP, 32).endCell(),
+      body: builder.messages.in.topUpTons.encode({}).asCell(),
     })
   }
 
@@ -153,7 +172,7 @@ export class JettonWallet implements Contract {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: transferBody(opts.message),
+      body: builder.messages.in.askToTransfer.encode(opts.message).asCell(),
     })
   }
 
@@ -162,13 +181,13 @@ export class JettonWallet implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      message: BurnMessage
+      message: AskToBurn
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: burnBody(opts.message),
+      body: builder.messages.in.askToBurn.encode(opts.message).asCell(),
     })
   }
 
@@ -176,10 +195,7 @@ export class JettonWallet implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.WITHDRAW_TONS, 32)
-        .storeUint(0, 64) // query_id
-        .endCell(),
+      body: builder.messages.in.withdrawTons.encode({ queryId: 0n }).asCell(),
     })
   }
 
@@ -205,6 +221,27 @@ export class JettonWallet implements Contract {
 }
 
 export const builder = {
+  data: {
+    contractData: ((): CellCodec<JettonWalletData> => {
+      return {
+        encode: (data: JettonWalletData): Builder => {
+          return beginCell()
+            .storeUint(data.status, 4)
+            .storeCoins(data.balance)
+            .storeAddress(data.ownerAddress)
+            .storeAddress(data.jettonMasterAddress)
+        },
+        load: (src: Slice): JettonWalletData => {
+          return {
+            status: src.loadUint(4),
+            balance: src.loadCoins(),
+            ownerAddress: src.loadAddress(),
+            jettonMasterAddress: src.loadAddress(),
+          }
+        },
+      }
+    })(),
+  },
   messages: {
     in: (() => {
       const askToTransfer: CellCodec<AskToTransfer> = {
@@ -233,22 +270,16 @@ export const builder = {
           if (op !== opcodes.in.TRANSFER) {
             throw new Error(`Invalid opcode, expected ${opcodes.in.TRANSFER}, got ${op}`)
           }
-          const askToTransfer = {
+          const parsed = {
             queryId: src.loadUint(64),
             jettonAmount: src.loadCoins(),
             destination: src.loadAddress(),
             responseDestination: src.loadAddress(),
             customPayload: src.loadMaybeRef(),
             forwardTonAmount: src.loadCoins(),
-            forwardPayload: null as Cell | Slice | null,
+            forwardPayload: loadForwardPayload(src),
           }
-          const byRef = src.loadBit()
-          if (byRef) {
-            askToTransfer.forwardPayload = src.loadRef()
-          } else if (src.remainingBits > 0) {
-            askToTransfer.forwardPayload = src
-          }
-          return askToTransfer
+          return parsed
         },
       }
       const askToTransferWithFwdPayload = <T>(
@@ -267,15 +298,7 @@ export const builder = {
             if (!transferRequest.forwardPayload) {
               throw new Error('forwardPayload is null')
             }
-            let payload = payloadCodec.load(
-              ((forwardPayload: Cell | Slice): Slice => {
-                if (forwardPayload instanceof Cell) {
-                  return forwardPayload.beginParse()
-                } else {
-                  return forwardPayload
-                }
-              })(transferRequest.forwardPayload),
-            )
+            let payload = payloadCodec.load(toForwardPayloadSlice(transferRequest.forwardPayload))
             return {
               ...transferRequest,
               forwardPayload: payload,
@@ -283,9 +306,60 @@ export const builder = {
           },
         }
       }
+      const askToBurn: CellCodec<AskToBurn> = {
+        encode: function (data: AskToBurn): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.BURN, 32)
+            .storeUint(data.queryId, 64)
+            .storeCoins(data.jettonAmount)
+            .storeAddress(data.responseDestination)
+            .storeMaybeRef(data.customPayload)
+        },
+        load: function (src: Slice): AskToBurn {
+          const op = src.loadUint(32)
+          if (op !== opcodes.in.BURN) {
+            throw new Error(`Invalid opcode, expected ${opcodes.in.BURN}, got ${op}`)
+          }
+          return {
+            queryId: src.loadUintBig(64),
+            jettonAmount: src.loadCoins(),
+            responseDestination: src.loadMaybeAddress(),
+            customPayload: src.loadMaybeRef(),
+          }
+        },
+      }
+      const topUpTons: CellCodec<TopUpTons> = {
+        encode: function (): Builder {
+          return beginCell().storeUint(opcodes.in.TOP_UP, 32)
+        },
+        load: function (src: Slice): TopUpTons {
+          const op = src.loadUint(32)
+          if (op !== opcodes.in.TOP_UP) {
+            throw new Error(`Invalid opcode, expected ${opcodes.in.TOP_UP}, got ${op}`)
+          }
+          return {}
+        },
+      }
+      const withdrawTons: CellCodec<WithdrawTonsMessage> = {
+        encode: function (data: WithdrawTonsMessage): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.WITHDRAW_TONS, 32)
+            .storeUint(data.queryId, 64)
+        },
+        load: function (src: Slice): WithdrawTonsMessage {
+          const op = src.loadUint(32)
+          if (op !== opcodes.in.WITHDRAW_TONS) {
+            throw new Error(`Invalid opcode, expected ${opcodes.in.WITHDRAW_TONS}, got ${op}`)
+          }
+          return { queryId: src.loadUintBig(64) }
+        },
+      }
       return {
         askToTransfer,
         askToTransferWithFwdPayload,
+        askToBurn,
+        topUpTons,
+        withdrawTons,
       }
     })(),
     out: (() => {
@@ -324,15 +398,7 @@ export const builder = {
             if (!tn.forwardPayload) {
               throw new Error('forwardPayload is null')
             }
-            let payload = payloadCodec.load(
-              ((forwardPayload: Cell | Slice): Slice => {
-                if (forwardPayload instanceof Cell) {
-                  return forwardPayload.beginParse()
-                } else {
-                  return forwardPayload
-                }
-              })(tn.forwardPayload),
-            )
+            let payload = payloadCodec.load(toForwardPayloadSlice(tn.forwardPayload))
             return {
               ...tn,
               forwardPayload: payload,
@@ -340,69 +406,86 @@ export const builder = {
           },
         }
       }
+      const burnNotificationForMinter: CellCodec<BurnNotificationForMinter> = {
+        encode: function (data: BurnNotificationForMinter): Builder {
+          return beginCell()
+            .storeUint(opcodes.in.BURN_NOTIFICATION, 32)
+            .storeUint(data.queryId, 64)
+            .storeCoins(data.jettonAmount)
+            .storeAddress(data.burnInitiator)
+            .storeAddress(data.responseDestination)
+        },
+        load: function (src: Slice): BurnNotificationForMinter {
+          const op = src.loadUint(32)
+          if (op !== opcodes.in.BURN_NOTIFICATION) {
+            throw new Error(
+              `Invalid opcode, expected ${opcodes.in.BURN_NOTIFICATION}, got ${op}`,
+            )
+          }
+          return {
+            queryId: src.loadUintBig(64),
+            jettonAmount: src.loadCoins(),
+            burnInitiator: src.loadAddress(),
+            responseDestination: src.loadMaybeAddress(),
+          }
+        },
+      }
+      const returnExcessesBack: CellCodec<ReturnExcessesBack> = {
+        encode: function (data: ReturnExcessesBack): Builder {
+          return beginCell().storeUint(opcodes.in.EXCESSES, 32).storeUint(data.queryId, 64)
+        },
+        load: function (src: Slice): ReturnExcessesBack {
+          const op = src.loadUint(32)
+          if (op !== opcodes.in.EXCESSES) {
+            throw new Error(`Invalid opcode, expected ${opcodes.in.EXCESSES}, got ${op}`)
+          }
+          return { queryId: src.loadUintBig(64) }
+        },
+      }
+      const internalTransferStep: CellCodec<InternalTransferStep> = {
+        encode: function (data: InternalTransferStep): Builder {
+          const body = beginCell()
+            .storeUint(opcodes.in.INTERNAL_TRANSFER, 32)
+            .storeUint(data.queryId, 64)
+            .storeCoins(data.jettonAmount)
+            .storeAddress(data.transferInitiator)
+            .storeAddress(data.responseDestination)
+            .storeCoins(data.forwardTonAmount ?? 0n)
+
+          const forwardPayload = data.forwardPayload ?? null
+          const byRef = forwardPayload instanceof Cell
+          body.storeBit(byRef)
+          if (byRef) {
+            body.storeRef(forwardPayload)
+          } else if (forwardPayload) {
+            body.storeSlice(forwardPayload)
+          }
+
+          return body
+        },
+        load: function (src: Slice): InternalTransferStep {
+          const op = src.loadUint(32)
+          if (op !== opcodes.in.INTERNAL_TRANSFER) {
+            throw new Error(`Invalid opcode, expected ${opcodes.in.INTERNAL_TRANSFER}, got ${op}`)
+          }
+          return {
+            queryId: src.loadUintBig(64),
+            jettonAmount: src.loadCoins(),
+            transferInitiator: src.loadMaybeAddress(),
+            responseDestination: src.loadMaybeAddress(),
+            forwardTonAmount: src.loadCoins(),
+            forwardPayload: loadForwardPayload(src),
+          }
+        },
+      }
       return {
         transferNotificationForRecipient,
         transferNotificationWithFwdPayload,
+        burnNotificationForMinter,
+        returnExcessesBack,
+        internalTransferStep,
       }
     })(),
   },
 }
 
-export function transferBody(message: AskToTransfer): Cell {
-  return builder.messages.in.askToTransfer.encode(message).endCell()
-}
-
-export function transferNotificationBody(message: TransferNotificationForRecipient): Cell {
-  return builder.messages.out.transferNotificationForRecipient.encode(message).endCell()
-}
-
-export function burnBody(message: BurnMessage): Cell {
-  const body = beginCell()
-    .storeUint(opcodes.in.BURN, 32)
-    .storeUint(message.queryId, 64)
-    .storeCoins(message.jettonAmount)
-    .storeAddress(message.responseDestination)
-
-  if (message.customPayload) {
-    body.storeBit(1).storeRef(message.customPayload)
-  } else {
-    body.storeBit(0)
-  }
-
-  return body.endCell()
-}
-
-export function burnNotificationBody(message: BurnNotificationMessage): Cell {
-  return beginCell()
-    .storeUint(opcodes.in.BURN_NOTIFICATION, 32)
-    .storeUint(message.queryId, 64)
-    .storeCoins(message.jettonAmount)
-    .storeAddress(message.burnInitiator)
-    .storeAddress(message.responseDestination)
-    .endCell()
-}
-
-export function returnExcessesBody(queryId: bigint): Cell {
-  return beginCell().storeUint(opcodes.in.EXCESSES, 32).storeUint(queryId, 64).endCell()
-}
-
-export function internalTransferBody(message: InternalTransferMessage): Cell {
-  const body = beginCell()
-    .storeUint(opcodes.in.INTERNAL_TRANSFER, 32)
-    .storeUint(message.queryId, 64)
-    .storeCoins(message.jettonAmount)
-    .storeAddress(message.transferInitiator)
-    .storeAddress(message.responseDestination)
-    .storeCoins(message.forwardTonAmount ?? 0n)
-
-  const forwardPayload = message.forwardPayload ?? null
-  const byRef = forwardPayload instanceof Cell
-  body.storeBit(byRef)
-  if (byRef) {
-    body.storeRef(forwardPayload)
-  } else if (forwardPayload) {
-    body.storeSlice(forwardPayload)
-  }
-
-  return body.endCell()
-}

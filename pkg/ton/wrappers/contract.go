@@ -204,7 +204,7 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 //
 // ```
 //
-// msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+// msg, err := tlb.ToCell(jetton_wrappers.TopUpTons{})
 //
 // require.NoError(t, err, "failed to create top-up message")
 //

@@ -6,13 +6,10 @@ import { compile } from '@ton/blueprint'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton/sandbox'
 
-import { JettonMinter, mintBody } from '../../../wrappers/jetton/JettonMinter'
+import { JettonMinter, builder as minterBuilder } from '../../../wrappers/jetton/JettonMinter'
 import {
-  burnNotificationBody,
-  internalTransferBody,
   JettonWallet,
-  returnExcessesBody,
-  transferNotificationBody,
+  builder as walletBuilder,
 } from '../../../wrappers/jetton/JettonWallet'
 import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
 
@@ -187,8 +184,9 @@ describe('wTON gas calibration', () => {
     } = {},
   ) {
     const queryId = nextQueryId++
-    const body = mintBody(
-      {
+    const body = minterBuilder.messages.in
+      .mintNewJettons({ opcode: WTON_MINT_OPCODE })
+      .encode({
         queryId,
         destination,
         tonAmount,
@@ -197,9 +195,8 @@ describe('wTON gas calibration', () => {
         responseDestination: deployer.address,
         forwardTonAmount,
         customPayload: forwardPayload,
-      },
-      { mintOpcode: WTON_MINT_OPCODE },
-    )
+      })
+      .asCell()
 
     return await deployer.send({
       to: minter.address,
@@ -287,40 +284,50 @@ describe('wTON gas calibration', () => {
     const maxCoins = (1n << 120n) - 1n
 
     const transferBodyStats = cellStats(
-      internalTransferBody({
-        queryId: 1n,
-        jettonAmount: toNano('0.7'),
-        transferInitiator: alice.address,
-        responseDestination: deployer.address,
-        forwardTonAmount: toNano('0.05'),
-        forwardPayload,
-      }),
+      walletBuilder.messages.out.internalTransferStep
+        .encode({
+          queryId: 1n,
+          jettonAmount: toNano('0.7'),
+          transferInitiator: alice.address,
+          responseDestination: deployer.address,
+          forwardTonAmount: toNano('0.05'),
+          forwardPayload,
+        })
+        .asCell(),
     )
     const notificationBodyStats = cellStats(
-      transferNotificationBody({
-        queryId: 1,
-        jettonAmount: toNano('0.7'),
-        senderAddress: alice.address,
-        forwardPayload,
-      }),
+      walletBuilder.messages.out.transferNotificationForRecipient
+        .encode({
+          queryId: 1,
+          jettonAmount: toNano('0.7'),
+          senderAddress: alice.address,
+          forwardPayload,
+        })
+        .asCell(),
     )
     const burnNotificationLiveStats = cellStats(
-      burnNotificationBody({
-        queryId: 1n,
-        jettonAmount: toNano('0.3'),
-        burnInitiator: bob.address,
-        responseDestination: recipient.address,
-      }),
+      walletBuilder.messages.out.burnNotificationForMinter
+        .encode({
+          queryId: 1n,
+          jettonAmount: toNano('0.3'),
+          burnInitiator: bob.address,
+          responseDestination: recipient.address,
+        })
+        .asCell(),
     )
     const burnNotificationWorstCaseStats = cellStats(
-      burnNotificationBody({
-        queryId: 1n,
-        jettonAmount: maxCoins,
-        burnInitiator: bob.address,
-        responseDestination: recipient.address,
-      }),
+      walletBuilder.messages.out.burnNotificationForMinter
+        .encode({
+          queryId: 1n,
+          jettonAmount: maxCoins,
+          burnInitiator: bob.address,
+          responseDestination: recipient.address,
+        })
+        .asCell(),
     )
-    const returnExcessesStats = cellStats(returnExcessesBody(1n))
+    const returnExcessesStats = cellStats(
+      walletBuilder.messages.out.returnExcessesBack.encode({ queryId: 1n }).asCell(),
+    )
 
     expect(burnNotificationWorstCaseStats).toEqual({
       bits: configured.MESSAGE_SIZE_BurnNotification_bits,

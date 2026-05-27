@@ -118,17 +118,17 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Minting jettons to sender contract\n")
 		queryID := rand.Uint64()
-		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
-			QueryID:     queryID,
-			Destination: Sender.Contract.Address,
-			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: wallet.InternalTransferMessage{
-				QueryID:          queryID,
-				Amount:           jettonMintingAmount,
-				From:             setup.deployer.Wallet.WalletAddress(),
-				ResponseAddress:  setup.deployer.Wallet.WalletAddress(),
-				ForwardTonAmount: tlb.ZeroCoins,
-				ForwardPayload:   nil,
+		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+			QueryID:       queryID,
+			MintRecipient: Sender.Contract.Address,
+			TonAmount:     tlb.MustFromTON("0.05"),
+			InternalTransferMsg: wallet.InternalTransferStep{
+				QueryID:           queryID,
+				JettonAmount:      jettonMintingAmount,
+				TransferInitiator: setup.deployer.Wallet.WalletAddress(),
+				SendExcessesTo:    setup.deployer.Wallet.WalletAddress(),
+				ForwardTonAmount:  tlb.ZeroCoins,
+				ForwardPayload:    nil,
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons")
@@ -194,17 +194,17 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("OnrampMock contract deployed at %s\n", onrampMock.Contract.Address.String())
 
 		queryID := rand.Uint64()
-		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintMessage{
-			QueryID:     queryID,
-			Destination: setup.sender.Contract.Address,
-			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: wallet.InternalTransferMessage{
-				QueryID:          queryID,
-				Amount:           tlb.MustFromTON("1"),
-				From:             setup.common.deployer.Wallet.WalletAddress(),
-				ResponseAddress:  setup.common.deployer.Wallet.WalletAddress(),
-				ForwardTonAmount: tlb.ZeroCoins,
-				ForwardPayload:   nil,
+		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+			QueryID:       queryID,
+			MintRecipient: setup.sender.Contract.Address,
+			TonAmount:     tlb.MustFromTON("0.05"),
+			InternalTransferMsg: wallet.InternalTransferStep{
+				QueryID:           queryID,
+				JettonAmount:      tlb.MustFromTON("1"),
+				TransferInitiator: setup.common.deployer.Wallet.WalletAddress(),
+				SendExcessesTo:    setup.common.deployer.Wallet.WalletAddress(),
+				ForwardTonAmount:  tlb.ZeroCoins,
+				ForwardPayload:    nil,
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint additional jettons for onramp tests")
@@ -238,17 +238,17 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("SimpleJettonReceiver contract deployed at %s\n", simpleJettonReceiver.Contract.Address.String())
 
 		queryID := rand.Uint64()
-		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintMessage{
-			QueryID:     queryID,
-			Destination: setup.sender.Contract.Address,
-			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: wallet.InternalTransferMessage{
-				QueryID:          queryID,
-				Amount:           tlb.MustFromTON("1"),
-				From:             setup.common.deployer.Wallet.WalletAddress(),
-				ResponseAddress:  setup.common.deployer.Wallet.WalletAddress(),
-				ForwardTonAmount: tlb.ZeroCoins,
-				ForwardPayload:   nil,
+		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+			QueryID:       queryID,
+			MintRecipient: setup.sender.Contract.Address,
+			TonAmount:     tlb.MustFromTON("0.05"),
+			InternalTransferMsg: wallet.InternalTransferStep{
+				QueryID:           queryID,
+				JettonAmount:      tlb.MustFromTON("1"),
+				TransferInitiator: setup.common.deployer.Wallet.WalletAddress(),
+				SendExcessesTo:    setup.common.deployer.Wallet.WalletAddress(),
+				ForwardTonAmount:  tlb.ZeroCoins,
+				ForwardPayload:    nil,
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint additional jettons for receiver tests")
@@ -270,17 +270,17 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Minting jettons to sender contract\n")
 		queryID := rand.Uint64()
-		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
-			QueryID:     queryID,
-			Destination: setup.deployer.Wallet.WalletAddress(),
-			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: wallet.InternalTransferMessage{
-				QueryID:          queryID,
-				Amount:           jettonMintingAmount,
-				From:             setup.deployer.Wallet.WalletAddress(),
-				ResponseAddress:  setup.deployer.Wallet.WalletAddress(),
-				ForwardTonAmount: tlb.ZeroCoins,
-				ForwardPayload:   nil,
+		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+			QueryID:       queryID,
+			MintRecipient: setup.deployer.Wallet.WalletAddress(),
+			TonAmount:     tlb.MustFromTON("0.05"),
+			InternalTransferMsg: wallet.InternalTransferStep{
+				QueryID:           queryID,
+				JettonAmount:      jettonMintingAmount,
+				TransferInitiator: setup.deployer.Wallet.WalletAddress(),
+				SendExcessesTo:    setup.deployer.Wallet.WalletAddress(),
+				ForwardTonAmount:  tlb.ZeroCoins,
+				ForwardPayload:    nil,
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons")
@@ -357,9 +357,9 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("Testing change content\n")
 		const newContentURI = "new_content_uri"
 		newContent := createStringCell(t, newContentURI)
-		changeContentMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeContentMessage{
-			QueryID: rand.Uint64(),
-			Content: newContent,
+		changeContentMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeMinterMetadataURI{
+			QueryID:        rand.Uint64(),
+			NewMetadataURI: newContent,
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to change content")
 		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
@@ -397,17 +397,17 @@ func TestJettonAll(t *testing.T) {
 		jettonAmount := tlb.MustFromTON("0.5")
 		queryID := rand.Uint64()
 
-		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
-			QueryID:     queryID,
-			Destination: recipient,
-			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: wallet.InternalTransferMessage{
-				QueryID:          queryID,
-				Amount:           jettonAmount,
-				From:             setup.deployer.Wallet.WalletAddress(),
-				ResponseAddress:  setup.deployer.Wallet.WalletAddress(),
-				ForwardTonAmount: tlb.ZeroCoins,
-				ForwardPayload:   nil,
+		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+			QueryID:       queryID,
+			MintRecipient: recipient,
+			TonAmount:     tlb.MustFromTON("0.05"),
+			InternalTransferMsg: wallet.InternalTransferStep{
+				QueryID:           queryID,
+				JettonAmount:      jettonAmount,
+				TransferInitiator: setup.deployer.Wallet.WalletAddress(),
+				SendExcessesTo:    setup.deployer.Wallet.WalletAddress(),
+				ForwardTonAmount:  tlb.ZeroCoins,
+				ForwardPayload:    nil,
 			},
 		}, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to mint jettons")
@@ -430,9 +430,9 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing change admin\n")
-		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeAdminMessage{
-			QueryID:  rand.Uint64(),
-			NewAdmin: setup.receiver.Wallet.Address(),
+		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeMinterAdmin{
+			QueryID:         rand.Uint64(),
+			NewAdminAddress: setup.receiver.Wallet.Address(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to change admin")
 		debugger := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
@@ -447,7 +447,7 @@ func TestJettonAll(t *testing.T) {
 			Client:  &setup.receiver,
 		}
 		require.NoError(t, err, "failed to open jetton minter as new admin")
-		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(minter.ClaimAdminMessage{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
+		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(minter.ClaimMinterAdmin{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to claim admin")
 		debugger2 := debug.NewDebuggerTreeTrace(map[string]debug.TypeAndVersion{
 			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
@@ -467,7 +467,7 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing drop admin\n")
-		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.DropAdminMessage{
+		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.DropMinterAdmin{
 			QueryID: rand.Uint64(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to drop admin")
@@ -488,17 +488,17 @@ func TestJettonAll(t *testing.T) {
 		require.Empty(t, msgToMinter.OutgoingInternalReceivedMessages, "Msg to minter should have no outgoing messages")
 
 		queryID := rand.Uint64()
-		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
-			QueryID:     queryID,
-			Destination: setup.receiver.Wallet.Address(),
-			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: wallet.InternalTransferMessage{
-				QueryID:          queryID,
-				Amount:           jettonMintingAmount,
-				From:             setup.deployer.Wallet.WalletAddress(),
-				ResponseAddress:  setup.deployer.Wallet.WalletAddress(),
-				ForwardTonAmount: tlb.ZeroCoins,
-				ForwardPayload:   nil,
+		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintNewJettons{
+			QueryID:       queryID,
+			MintRecipient: setup.receiver.Wallet.Address(),
+			TonAmount:     tlb.MustFromTON("0.05"),
+			InternalTransferMsg: wallet.InternalTransferStep{
+				QueryID:           queryID,
+				JettonAmount:      jettonMintingAmount,
+				TransferInitiator: setup.deployer.Wallet.WalletAddress(),
+				SendExcessesTo:    setup.deployer.Wallet.WalletAddress(),
+				ForwardTonAmount:  tlb.ZeroCoins,
+				ForwardPayload:    nil,
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons after admin drop")
@@ -555,7 +555,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpTons{})
 		require.NoError(t, err, "failed to create top-up message")
 		receiverJettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -804,7 +804,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpTons{})
 		require.NoError(t, err, "failed to create top-up message")
 		jettonWalletCode, err := wallet.Code()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -869,7 +869,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpTons{})
 		require.NoError(t, err, "failed to create top-up message")
 		deployerJettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -929,7 +929,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpTons{})
 		require.NoError(t, err, "failed to create top-up message")
 		jettonWallet, deployMsg, err := wrappers.Deploy(t.Context(), &setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -978,9 +978,7 @@ func TestJettonAll(t *testing.T) {
 func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initData minter.InitData) *wrappers.Contract {
 	minterCode, err := minter.Code()
 	require.NoError(t, err, "failed to load JettonMinter code")
-	topUpMsg, err := tlb.ToCell(jetton_common.TopUpMessage{
-		QueryID: rand.Uint64(),
-	})
+	topUpMsg, err := tlb.ToCell(jetton_common.TopUpTons{})
 	require.NoError(t, err, "failed to create TopUp message")
 	minterInitCell, err := tlb.ToCell(initData)
 	require.NoError(t, err, "failed to create JettonMinter init data cell")

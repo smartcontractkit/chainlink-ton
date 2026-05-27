@@ -35,46 +35,62 @@ func Code() (*cell.Cell, error) {
 
 // JettonMinter opcodes
 const (
-	OpcodeMinterMint              = 0x642b7d07
-	OpcodeMinterChangeAdmin       = 0x6501f354
-	OpcodeMinterClaimAdmin        = 0xfb88e119
-	OpcodeMinterDropAdmin         = 0x7431f221
-	OpcodeMinterBurnNotification  = 0x7bdd97de
-	OpcodeMinterChangeMetadataURL = 0xcb862902
-	OpcodeWalletBurnNotification  = 0x7bdd97de
+	OpcodeMintNewJettons            = 0x642b7d07
+	OpcodeRequestWalletAddress      = 0x2c76b973
+	OpcodeResponseWalletAddress     = 0xd1735400
+	OpcodeChangeMinterAdmin         = 0x6501f354
+	OpcodeClaimMinterAdmin          = 0xfb88e119
+	OpcodeDropMinterAdmin           = 0x7431f221
+	OpcodeBurnNotificationForMinter = 0x7bdd97de
+	OpcodeChangeMinterMetadataURI   = 0xcb862902
+	OpcodeUpgradeMinterCode         = 0x2508d66a
 )
 
-type MintMessage struct {
-	_           tlb.Magic                      `tlb:"#642b7d07" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID     uint64                         `tlb:"## 64"`
-	Destination *address.Address               `tlb:"addr"`
-	TonAmount   tlb.Coins                      `tlb:"."`
-	MasterMsg   wallet.InternalTransferMessage `tlb:"^"`
+type MintNewJettons struct {
+	_                   tlb.Magic                   `tlb:"#642b7d07" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID             uint64                      `tlb:"## 64"`
+	MintRecipient       *address.Address            `tlb:"addr"`
+	TonAmount           tlb.Coins                   `tlb:"."`
+	InternalTransferMsg wallet.InternalTransferStep `tlb:"^"`
 }
 
-type ChangeAdminMessage struct {
-	_        tlb.Magic        `tlb:"#6501f354" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID  uint64           `tlb:"## 64"`
-	NewAdmin *address.Address `tlb:"addr"`
+type RequestWalletAddress struct {
+	_                   tlb.Magic        `tlb:"#2c76b973" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID             uint64           `tlb:"## 64"`
+	OwnerAddress        *address.Address `tlb:"addr"`
+	IncludeOwnerAddress bool             `tlb:"bool"`
 }
 
-type ClaimAdminMessage struct {
+type ResponseWalletAddress struct {
+	_                   tlb.Magic        `tlb:"#d1735400" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID             uint64           `tlb:"## 64"`
+	JettonWalletAddress *address.Address `tlb:"addr"`
+	OwnerAddress        *cell.Cell       `tlb:"maybe ^"`
+}
+
+type ChangeMinterAdmin struct {
+	_               tlb.Magic        `tlb:"#6501f354" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID         uint64           `tlb:"## 64"`
+	NewAdminAddress *address.Address `tlb:"addr"`
+}
+
+type ClaimMinterAdmin struct {
 	_       tlb.Magic `tlb:"#fb88e119" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
-type DropAdminMessage struct {
+type DropMinterAdmin struct {
 	_       tlb.Magic `tlb:"#7431f221" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
-type ChangeContentMessage struct {
-	_       tlb.Magic  `tlb:"#cb862902" json:"-"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64     `tlb:"## 64"`
-	Content *cell.Cell `tlb:"^"`
+type ChangeMinterMetadataURI struct {
+	_              tlb.Magic  `tlb:"#cb862902" json:"-"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID        uint64     `tlb:"## 64"`
+	NewMetadataURI *cell.Cell `tlb:"^"`
 }
 
-type UpgradeMessage struct {
+type UpgradeMinterCode struct {
 	_       tlb.Magic  `tlb:"#2508d66a" json:"-"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	NewData *cell.Cell `tlb:"^"`
@@ -82,10 +98,14 @@ type UpgradeMessage struct {
 }
 
 var TLBs = tvm.MustNewTLBMap([]any{
-	MintMessage{},
-	ChangeAdminMessage{},
-	ClaimAdminMessage{},
-	DropAdminMessage{},
-	ChangeContentMessage{},
-	UpgradeMessage{},
+	MintNewJettons{},
+	RequestWalletAddress{},
+	ResponseWalletAddress{},
+	ChangeMinterAdmin{},
+	ClaimMinterAdmin{},
+	DropMinterAdmin{},
+	ChangeMinterMetadataURI{},
+	UpgradeMinterCode{},
+	jetton.TopUpTons{},
+	wallet.BurnNotificationForMinter{},
 }).MustWithStorageType(InitData{})

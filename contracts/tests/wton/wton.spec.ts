@@ -6,13 +6,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import {
   JettonMinter,
   MinterOpcodes,
-  walletAddressRequestBody,
+  builder as minterBuilder,
 } from '../../wrappers/jetton/JettonMinter'
 import { JettonErrorCodes } from '../../wrappers/jetton/constants'
 import {
-  burnNotificationBody,
   JettonWallet,
-  internalTransferBody,
+  builder as walletBuilder,
   opcodes as walletOpcodes,
 } from '../../wrappers/jetton/JettonWallet'
 import {
@@ -361,11 +360,13 @@ describe('wTON', () => {
       const result = await deployer.send({
         to: minter.address,
         value: toNano('0.05'),
-        body: walletAddressRequestBody({
-          queryId,
-          ownerAddress: alice.address,
-          includeOwnerAddress: true,
-        }),
+        body: minterBuilder.messages.in.requestWalletAddress
+          .encode({
+            queryId,
+            ownerAddress: alice.address,
+            includeOwnerAddress: true,
+          })
+          .asCell(),
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -392,11 +393,13 @@ describe('wTON', () => {
       const result = await deployer.send({
         to: minter.address,
         value: toNano('0.05'),
-        body: walletAddressRequestBody({
-          queryId,
-          ownerAddress: MASTERCHAIN_ZERO_ADDRESS,
-          includeOwnerAddress: true,
-        }),
+        body: minterBuilder.messages.in.requestWalletAddress
+          .encode({
+            queryId,
+            ownerAddress: MASTERCHAIN_ZERO_ADDRESS,
+            includeOwnerAddress: true,
+          })
+          .asCell(),
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -866,13 +869,15 @@ describe('wTON', () => {
       await mintTo(bob.address, { jettonAmount: bobMint })
 
       const bobWallet = await userWallet(bob.address)
-      const forgedTransfer = internalTransferBody({
-        queryId: nextQueryId++,
-        jettonAmount: toNano('0.1'),
-        transferInitiator: alice.address,
-        responseDestination: deployer.address,
-        forwardPayload: null,
-      })
+      const forgedTransfer = walletBuilder.messages.out.internalTransferStep
+        .encode({
+          queryId: nextQueryId++,
+          jettonAmount: toNano('0.1'),
+          transferInitiator: alice.address,
+          responseDestination: deployer.address,
+          forwardPayload: null,
+        })
+        .asCell()
 
       const forgedResult = await deployer.send({
         to: bobWallet.address,
@@ -894,13 +899,15 @@ describe('wTON', () => {
       await mintTo(bob.address, { jettonAmount: bobMint })
 
       const bobWallet = await userWallet(bob.address)
-      const forgedTransfer = internalTransferBody({
-        queryId: nextQueryId++,
-        jettonAmount: toNano('0.1'),
-        transferInitiator: null,
-        responseDestination: deployer.address,
-        forwardPayload: null,
-      })
+      const forgedTransfer = walletBuilder.messages.out.internalTransferStep
+        .encode({
+          queryId: nextQueryId++,
+          jettonAmount: toNano('0.1'),
+          transferInitiator: null,
+          responseDestination: deployer.address,
+          forwardPayload: null,
+        })
+        .asCell()
 
       const forgedResult = await deployer.send({
         to: bobWallet.address,
@@ -1171,12 +1178,14 @@ describe('wTON', () => {
     it('rejects forged burn notifications sent directly to the minter', async () => {
       await mintTo(alice.address, { jettonAmount: toNano('1') })
 
-      const forgedBurn = burnNotificationBody({
-        queryId: nextQueryId++,
-        jettonAmount: toNano('0.5'),
-        burnInitiator: alice.address,
-        responseDestination: recipient.address,
-      })
+      const forgedBurn = walletBuilder.messages.out.burnNotificationForMinter
+        .encode({
+          queryId: nextQueryId++,
+          jettonAmount: toNano('0.5'),
+          burnInitiator: alice.address,
+          responseDestination: recipient.address,
+        })
+        .asCell()
 
       const forgedResult = await deployer.send({
         to: minter.address,
