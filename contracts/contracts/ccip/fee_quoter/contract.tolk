@@ -16,7 +16,7 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-tolk 1.3
+tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("1");

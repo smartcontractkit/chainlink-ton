@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.3
-
 import "../../lib/access/ownable_2step";
 import "../../lib/utils";
 import "../../lib/versioning/upgradeable"
@@ -22,7 +20,7 @@ import "storage"
 import "errors"
 import "messages"
 
-tolk 1.3
+tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 

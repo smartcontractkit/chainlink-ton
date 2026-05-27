@@ -7,7 +7,7 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-tolk 1.3
+tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.2".literalSlice();
 
