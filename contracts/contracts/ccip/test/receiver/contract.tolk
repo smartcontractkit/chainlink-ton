@@ -21,6 +21,15 @@ tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
+contract TestReceiver {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.test.Receiver"
+
+    storage: Storage
+    incomingMessages: TestReceiver_InMessage
+}
+
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
 struct CCIPMessageReceived {

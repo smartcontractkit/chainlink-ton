@@ -18,6 +18,15 @@ import "../ccipsend_executor/messages"
 
 tolk 1.4.1
 
+contract FeeQuoter {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.3"
+    description: "link.chain.ton.ccip.FeeQuoter"
+
+    storage: Storage
+    incomingMessages: FeeQuoter_InMessage
+}
+
 const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("1");
 

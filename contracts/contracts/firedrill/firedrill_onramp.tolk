@@ -1,5 +1,16 @@
 tolk 1.4.1
 
+contract FiredrillOnRamp {
+	author: "SmartContract Chainlink Limited SEZC"
+
+	version: "1.6.0"
+
+	description: "link.chain.ton.ccip.firedrill.firedrillOnRamp"
+
+	storage: FiredrillOnRamp_Storage
+	incomingMessages: FiredrillOnRamp_InMessage
+}
+
 import "../lib/utils.tolk"
 import "../ccip/onramp/events.tolk"
 import "../ccip/onramp/types.tolk"

@@ -11,6 +11,15 @@ tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.2".literalSlice();
 
+contract ReceiveExecutor {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.2"
+    description: "link.chain.ton.ccip.ReceiveExecutor"
+
+    storage: ReceiveExecutor_Storage
+    incomingMessages: ReceiveExecutor_InMessage
+}
+
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);
     match (msg) {
