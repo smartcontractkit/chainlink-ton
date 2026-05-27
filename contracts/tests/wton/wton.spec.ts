@@ -884,6 +884,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: bobWallet.address,
         success: false,
+        exitCode: JettonErrorCodes.NOT_VALID_WALLET,
       })
       expect(await walletBalance(bob.address)).toEqual(bobMint)
     })
@@ -911,7 +912,6 @@ describe('wTON', () => {
         from: deployer.address,
         to: bobWallet.address,
         success: false,
-        exitCode: JettonErrorCodes.NOT_VALID_WALLET,
       })
       expect(await walletBalance(bob.address)).toEqual(bobMint)
     })
