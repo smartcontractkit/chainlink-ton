@@ -71,7 +71,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body); // 63 error code is thrown if the message opcode is unknown
     match (msg) {
         SetCount => {
-            /// Instructs the contract to set the counter.
+            // Instructs the contract to set the counter.
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.value = msg.newCount;
@@ -94,7 +94,7 @@ fun onInternalMessage(in: InMessage) {
             reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         IncreaseCount => {
-            /// Instructs the contract to increase the counter.
+            // Instructs the contract to increase the counter.
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.value = st.value + 1;

@@ -1428,7 +1428,7 @@ fun MCMS<T>.cleanExpiredRoots(
         val rd = rootsIter.next();
         assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
 
-        /// Construct the ID (hash) of the root
+        // Construct the ID (hash) of the root
         val signedHash = self._hashRoot(rd.root, rd.validUntil);
         self.data.seenSignedHashes.delete(signedHash);
     }

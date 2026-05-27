@@ -43,7 +43,7 @@ fun onInternalMessage(in: InMessage) {
             Upgradeable{ migrate, version }.upgrade(msg);
         }
         Step => {
-            /// Instructs the contract to step the counter.
+            // Instructs the contract to step the counter.
             storage.value += 1;
             saveData(storage);
         }
