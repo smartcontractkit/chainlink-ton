@@ -7,10 +7,7 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract, printTransactionFees } from '@ton/sandbox'
 
 import { JettonMinter, builder as minterBuilder } from '../../../wrappers/jetton/JettonMinter'
-import {
-  JettonWallet,
-  builder as walletBuilder,
-} from '../../../wrappers/jetton/JettonWallet'
+import { JettonWallet, builder as walletBuilder } from '../../../wrappers/jetton/JettonWallet'
 import { WTON_MINT_OPCODE } from '../../../wrappers/wton'
 
 const JETTON_DATA_URI = 'wton.gas'

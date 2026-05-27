@@ -172,14 +172,18 @@ export const builder = {
               .storeUint(data.queryId, 64)
               .storeAddress(data.destination)
               .storeCoins(data.tonAmount)
-                .storeRef(builder.messages.out.internalTransferStep.encode(toInternalTransferStep(data)))
+              .storeRef(
+                builder.messages.out.internalTransferStep.encode(toInternalTransferStep(data)),
+              )
           },
           load: (src: Slice): MintNewJettons => {
             src.skip(32)
             const queryId = src.loadUintBig(64)
             const destination = src.loadAddress()
             const tonAmount = src.loadCoins()
-            const internalTransfer = builder.messages.out.internalTransferStep.load(src.loadRef().beginParse())
+            const internalTransfer = builder.messages.out.internalTransferStep.load(
+              src.loadRef().beginParse(),
+            )
 
             return {
               queryId,
@@ -233,9 +237,7 @@ export const builder = {
       claimMinterAdmin: ((): CellCodec<ClaimMinterAdmin> => {
         return {
           encode: (data: ClaimMinterAdmin): Builder => {
-            return beginCell()
-              .storeUint(MinterOpcodes.CLAIM_ADMIN, 32)
-              .storeUint(data.queryId, 64)
+            return beginCell().storeUint(MinterOpcodes.CLAIM_ADMIN, 32).storeUint(data.queryId, 64)
           },
           load: (src: Slice): ClaimMinterAdmin => {
             src.skip(32)
@@ -246,9 +248,7 @@ export const builder = {
       dropMinterAdmin: ((): CellCodec<DropMinterAdmin> => {
         return {
           encode: (data: DropMinterAdmin): Builder => {
-            return beginCell()
-              .storeUint(MinterOpcodes.DROP_ADMIN, 32)
-              .storeUint(data.queryId, 64)
+            return beginCell().storeUint(MinterOpcodes.DROP_ADMIN, 32).storeUint(data.queryId, 64)
           },
           load: (src: Slice): DropMinterAdmin => {
             src.skip(32)
@@ -443,9 +443,7 @@ export class JettonMinter implements Contract {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.1'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.claimMinterAdmin
-        .encode({ queryId: opts.queryId ?? 0n })
-        .asCell(),
+      body: builder.messages.in.claimMinterAdmin.encode({ queryId: opts.queryId ?? 0n }).asCell(),
     })
   }
 
@@ -460,9 +458,7 @@ export class JettonMinter implements Contract {
     await provider.internal(via, {
       value: opts.value ?? toNano('0.05'),
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.messages.in.dropMinterAdmin
-        .encode({ queryId: opts.queryId ?? 0n })
-        .asCell(),
+      body: builder.messages.in.dropMinterAdmin.encode({ queryId: opts.queryId ?? 0n }).asCell(),
     })
   }
 

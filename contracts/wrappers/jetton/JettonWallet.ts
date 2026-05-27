@@ -342,9 +342,7 @@ export const builder = {
       }
       const withdrawTons: CellCodec<WithdrawTonsMessage> = {
         encode: function (data: WithdrawTonsMessage): Builder {
-          return beginCell()
-            .storeUint(opcodes.in.WITHDRAW_TONS, 32)
-            .storeUint(data.queryId, 64)
+          return beginCell().storeUint(opcodes.in.WITHDRAW_TONS, 32).storeUint(data.queryId, 64)
         },
         load: function (src: Slice): WithdrawTonsMessage {
           const op = src.loadUint(32)
@@ -418,9 +416,7 @@ export const builder = {
         load: function (src: Slice): BurnNotificationForMinter {
           const op = src.loadUint(32)
           if (op !== opcodes.in.BURN_NOTIFICATION) {
-            throw new Error(
-              `Invalid opcode, expected ${opcodes.in.BURN_NOTIFICATION}, got ${op}`,
-            )
+            throw new Error(`Invalid opcode, expected ${opcodes.in.BURN_NOTIFICATION}, got ${op}`)
           }
           return {
             queryId: src.loadUintBig(64),
@@ -488,4 +484,3 @@ export const builder = {
     })(),
   },
 }
-
