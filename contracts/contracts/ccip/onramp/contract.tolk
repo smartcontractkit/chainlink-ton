@@ -24,6 +24,15 @@ tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
+contract OnRamp {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.OnRamp"
+
+    storage: OnRamp_Storage
+    incomingMessages: OnRamp_InMessage
+}
+
 fun requireSupportedVersion(version: slice) {
     assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
 }

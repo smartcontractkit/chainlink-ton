@@ -1,5 +1,16 @@
 tolk 1.4.1
 
+contract FiredrillEntrypoint {
+	author: "SmartContract Chainlink Limited SEZC"
+
+	version: "1.6.0"
+
+	description: "link.chain.ton.ccip.firedrill.firedrillEntrypoint.Router.FeeQuoter"
+
+	storage: FiredrillEntrypoint_Storage
+	incomingMessages: FiredrillEntrypoint_InMessage
+}
+
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 import "../ccip/router/types.tolk"

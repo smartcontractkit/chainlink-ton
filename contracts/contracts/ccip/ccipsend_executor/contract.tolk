@@ -15,6 +15,16 @@ tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
+contract CCIPSendExecutor {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.CCIPSendExecutor"
+
+    storage: CCIPSendExecutor_Data
+    storageAtDeployment: CCIPSendExecutor_InitialData
+    incomingMessages: CCIPSendExecutor_InMessage
+}
+
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
     match (msg) {

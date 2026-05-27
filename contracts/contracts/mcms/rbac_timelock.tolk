@@ -11,6 +11,15 @@ const Timelock_FACILITY_ID = Timelock_FACILITY_NAME.crc32() % 640 + 10;  // 606
 const Timelock_ERROR_CODE = Timelock_FACILITY_ID * 100;
 const CONTRACT_VERSION = "0.0.4".literalSlice();
 
+contract Timelock {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.4"
+    description: "link.chain.ton.mcms.Timelock"
+
+    storage: Timelock_Data
+    incomingMessages: Timelock_InMessage
+}
+
 /**
  * Contract module which acts as a timelocked controller with role-based
  * access control. When set as the owner of an `Ownable` smart contract, it

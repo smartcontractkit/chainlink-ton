@@ -18,6 +18,15 @@ tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 
+contract MerkleRoot {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.MerkleRoot"
+
+    storage: MerkleRoot_Storage
+    incomingMessages: MerkleRoot_InMessage
+}
+
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
     match (msg) {

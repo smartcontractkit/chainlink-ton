@@ -28,6 +28,16 @@ import "events"
 
 tolk 1.4.1
 
+contract OffRamp {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.3"
+    description: "link.chain.ton.ccip.OffRamp"
+
+    storage: Storage
+    incomingMessages: OffRamp_InMessage
+}
+
+
 const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
