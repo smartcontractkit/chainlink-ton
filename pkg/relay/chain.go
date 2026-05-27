@@ -87,7 +87,7 @@ type chain struct {
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
-	pool        *liteclient.ConnectionPool
+	pools       map[int]*liteclient.ConnectionPool
 }
 
 func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
@@ -112,6 +112,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		lggr:        logger.Named(lggr, "Chain"),
 		ds:          ds,
 		clientCache: make(map[int]*cachedClient),
+		pools:       make(map[int]*liteclient.ConnectionPool),
 	}
 
 	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
@@ -214,10 +215,12 @@ func (c *chain) Close() error {
 		err := services.CloseAll(c.txm, c.lp, c.bm)
 
 		c.cacheMu.Lock()
-		if c.pool != nil {
-			c.pool.Stop()
-			c.pool = nil
+		for _, pool := range c.pools {
+			if pool != nil {
+				pool.Stop()
+			}
 		}
+		c.pools = make(map[int]*liteclient.ConnectionPool)
 		c.cacheMu.Unlock()
 
 		return err
@@ -454,9 +457,9 @@ func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped
 // getOrCreatePool returns the long-lived ConnectionPool, creating it on first call.
 // Caller must NOT hold cacheMu — this method locks it internally.
 func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient.ConnectionPool, error) {
-	c.cacheMu.RLock()
-	pool := c.pool
-	c.cacheMu.RUnlock()
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	pool := c.pools[nodeIndex]
 	if pool != nil {
 		return pool, nil
 	}
@@ -467,15 +470,7 @@ func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient
 		return nil, err
 	}
 
-	c.cacheMu.Lock()
-	// Double-check: another goroutine may have created it
-	if c.pool != nil {
-		c.cacheMu.Unlock()
-		pool.Stop() // discard the one we just made
-		return c.pool, nil
-	}
-	c.pool = pool
-	c.cacheMu.Unlock()
+	c.pools[nodeIndex] = pool
 
 	return pool, nil
 }
