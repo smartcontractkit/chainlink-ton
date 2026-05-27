@@ -17,7 +17,7 @@ import "../../../lib/versioning/upgradeable"
 
 import "../../router/messages"
 
-tolk 1.3
+tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 

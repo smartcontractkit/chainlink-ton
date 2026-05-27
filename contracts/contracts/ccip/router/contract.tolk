@@ -21,7 +21,7 @@ import "storage"
 import "errors"
 import "events"
 
-tolk 1.3
+tolk 1.4.1
 
 const CONTRACT_VERSION = "1.6.1".literalSlice();
 const RESERVE = ton("1");
