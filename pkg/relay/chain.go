@@ -215,13 +215,14 @@ func (c *chain) Close() error {
 		err := services.CloseAll(c.txm, c.lp, c.bm)
 
 		c.cacheMu.Lock()
-		for _, pool := range c.pools {
+		poolsToBeClosed := c.pools
+		c.pools = make(map[int]*liteclient.ConnectionPool)
+		c.cacheMu.Unlock()
+		for _, pool := range poolsToBeClosed {
 			if pool != nil {
 				pool.Stop()
 			}
 		}
-		c.pools = make(map[int]*liteclient.ConnectionPool)
-		c.cacheMu.Unlock()
 
 		return err
 	})
@@ -471,13 +472,15 @@ func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient
 	}
 
 	c.cacheMu.Lock()
-	defer c.cacheMu.Unlock()
 
 	// Double-check: another goroutine may have created it
 	cachedPool = c.pools[nodeIndex]
 	if cachedPool != nil {
+		c.cacheMu.Unlock()
+		pool.Stop() // discard the one we just made
 		return cachedPool, nil
 	}
+	defer c.cacheMu.Unlock()
 
 	c.pools[nodeIndex] = pool
 
