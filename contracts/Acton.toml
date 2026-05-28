@@ -1,0 +1,25 @@
+[package]
+name = "@chainlink/contracts-ton"
+description = "Chainlink TON smart contracts"
+version = "1.6.2"
+license = "see LICENSE in LICENSE"
+
+[wrappers.typescript]
+output-dir = "wrappers/gen"
+
+[contracts.Router]
+display-name = "link.chain.ton.ccip.Router"
+src = "contracts/ccip/router/contract.tolk"
+depends = []
+
+[contracts.OnRamp]
+display-name = "link.chain.ton.ccip.OnRamp"
+src = "contracts/ccip/onramp/contract.tolk"
+depends = []
+
+[fmt]
+width = 100
+ignore = []
+
+[import-mappings]
+acton = ".acton"
