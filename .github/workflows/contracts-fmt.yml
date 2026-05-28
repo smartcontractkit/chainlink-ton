@@ -26,6 +26,16 @@ jobs:
             yarn fmt-contracts:check && \
             yarn fmt-typescript:check
 
+      - name: Check generated TypeScript wrappers
+        run: |
+          nix run .#abigen
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Generated TypeScript wrappers are out of date. Run 'nix run .#abigen' and commit the result."
+            git status --short
+            git --no-pager diff -- contracts/wrappers/gen
+            exit 1
+          fi
+
   check-empty-cells:
     name: Check for beginCell().endCell() usage in *.tolk files
     runs-on: ubuntu-latest
