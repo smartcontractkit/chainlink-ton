@@ -7,6 +7,7 @@
   contracts_1_6_2,
   jetton-contracts,
   acton,
+  abigen,
   oplint,
 }:
 pkgs.mkShell {
@@ -26,6 +27,7 @@ pkgs.mkShell {
     git
     jq
     acton
+    abigen
     oplint
   ];
 

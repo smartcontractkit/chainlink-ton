@@ -10,11 +10,13 @@ output-dir = "wrappers/gen"
 [contracts.Router]
 display-name = "link.chain.ton.ccip.Router"
 src = "contracts/ccip/router/contract.tolk"
+domain = "ccip"
 depends = []
 
 [contracts.OnRamp]
 display-name = "link.chain.ton.ccip.OnRamp"
 src = "contracts/ccip/onramp/contract.tolk"
+domain = "ccip"
 depends = []
 
 [fmt]
