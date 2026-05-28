@@ -457,13 +457,11 @@ func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped
 // getOrCreatePool returns the long-lived ConnectionPool, creating it on first call.
 // Caller must NOT hold cacheMu — this method locks it internally.
 func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient.ConnectionPool, error) {
-	{ // restrict scope of read lock
-		c.cacheMu.RLock()
-		defer c.cacheMu.RUnlock()
-		cachedPool := c.pools[nodeIndex]
-		if cachedPool != nil {
-			return cachedPool, nil
-		}
+	c.cacheMu.RLock()
+	cachedPool := c.pools[nodeIndex]
+	c.cacheMu.RUnlock()
+	if cachedPool != nil {
+		return cachedPool, nil
 	}
 
 	liteServerURL := c.cfg.Nodes[nodeIndex].URL.String()
@@ -476,7 +474,7 @@ func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient
 	defer c.cacheMu.Unlock()
 
 	// Double-check: another goroutine may have created it
-	cachedPool := c.pools[nodeIndex]
+	cachedPool = c.pools[nodeIndex]
 	if cachedPool != nil {
 		return cachedPool, nil
 	}
