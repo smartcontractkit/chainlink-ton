@@ -342,5 +342,54 @@ describe('wTON gas calibration', () => {
     )
     expect(notificationBodyStats.bits).toBeLessThan(transferBodyStats.bits)
     expect(notificationBodyStats.cells).toBeLessThanOrEqual(transferBodyStats.cells)
+
+    // checkAmountIsEnoughToTransfer and checkAmountIsEnoughToMint both reuse in.originalForwardFee
+    // (the fwd-fee for the *incoming* message) as the budget for the *outgoing* message. That is
+    // only safe while every outgoing body remains <= its incoming counterpart in both bits and
+    // cells. These assertions lock that invariant: a future change that grows InternalTransferStep
+    // beyond AskToTransfer (transfer flow) or beyond MintNewJettons (mint flow) will break the
+    // budget silently in gas terms, so we catch it here at the shape level.
+    const askToTransferBodyStats = cellStats(
+      walletBuilder.messages.in.askToTransfer
+        .encode({
+          queryId: 1,
+          jettonAmount: toNano('0.7'),
+          // SMALLEST realistic incoming: customPayload is null (one bit, no ref). Any real call
+          // is at least this big.
+          customPayload: null,
+          destination: alice.address,
+          responseDestination: deployer.address,
+          forwardTonAmount: toNano('0.05'),
+          forwardPayload,
+        })
+        .asCell(),
+    )
+    expect(transferBodyStats.bits).toBeLessThan(askToTransferBodyStats.bits)
+    expect(transferBodyStats.cells).toBeLessThanOrEqual(askToTransferBodyStats.cells)
+
+    const mintNewJettonsBodyStats = cellStats(
+      minterBuilder.messages.in
+        .mintNewJettons({ opcode: WTON_MINT_OPCODE })
+        .encode({
+          queryId: 1n,
+          destination: alice.address,
+          tonAmount: toNano('0.3'),
+          jettonAmount: toNano('0.7'),
+          // The wTON minter enforces transferInitiator == null on mint, so the actual outgoing
+          // InternalTransferStep is smaller than transferBodyStats. We use transferBodyStats as
+          // a strict upper bound for the outgoing — if that bound fits inside the incoming,
+          // the real outgoing fits too.
+          from: null,
+          responseDestination: deployer.address,
+          // The minter wrapper's `customPayload` field maps to the inner InternalTransferStep's
+          // forwardPayload position in the wire layout. Reuse the same forwardPayload here so
+          // the comparison is apples-to-apples with transferBodyStats above.
+          customPayload: forwardPayload,
+          forwardTonAmount: toNano('0.05'),
+        })
+        .asCell(),
+    )
+    expect(transferBodyStats.bits).toBeLessThan(mintNewJettonsBodyStats.bits)
+    expect(transferBodyStats.cells).toBeLessThan(mintNewJettonsBodyStats.cells)
   })
 })
