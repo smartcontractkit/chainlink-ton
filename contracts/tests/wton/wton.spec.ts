@@ -62,7 +62,8 @@ describe('wTON', () => {
     const contract = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
-          admin: deployer.address,
+          // wTON has no admin runtime path; deploy storage matches the get_jetton_data null admin.
+          admin: null,
           transferAdmin: null,
           walletCode: customWalletCode,
           jettonContent: content,
@@ -280,6 +281,20 @@ describe('wTON', () => {
       expect(data.mintable).toBe(true)
       expect(data.admin).toBeNull()
       expect(data.jettonWalletCode.equals(walletCode)).toBe(true)
+    })
+
+    it('deploys with admin and transferAdmin set to null in raw storage', async () => {
+      const contract = await blockchain.getContract(minter.address)
+      const accountState = contract.accountState
+      expect(accountState?.type).toEqual('active')
+      if (accountState?.type !== 'active') {
+        throw new Error('Minter account is not active')
+      }
+      const dataCell = accountState.state.data
+      expect(dataCell).toBeDefined()
+      const storage = minterBuilder.data.contractData.load(dataCell!.beginParse())
+      expect(storage.admin).toBeNull()
+      expect(storage.transferAdmin).toBeNull()
     })
 
     it('completes a mint-transfer-burn lifecycle', async () => {

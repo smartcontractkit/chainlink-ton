@@ -30,7 +30,7 @@ export type JettonMinterData = {
 
 export type JettonMinterConfig = {
   totalSupply: bigint
-  admin: Address
+  admin: Maybe<Address>
   walletCode: Cell
   jettonContent: Cell | JettonMinterContent
   transferAdmin: Maybe<Address>
@@ -110,7 +110,7 @@ function contentToCell(content: Cell | JettonMinterContent): Cell {
 function toContractData(config: JettonMinterConfig): JettonMinterData {
   return {
     totalSupply: config.totalSupply,
-    admin: config.admin,
+    admin: config.admin ?? null,
     transferAdmin: config.transferAdmin,
     walletCode: config.walletCode,
     jettonContent: contentToCell(config.jettonContent),

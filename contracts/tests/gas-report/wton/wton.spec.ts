@@ -148,7 +148,7 @@ describe('wTON gas calibration', () => {
     minter = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
-          admin: deployer.address,
+          admin: null,
           transferAdmin: null,
           walletCode,
           jettonContent: content,

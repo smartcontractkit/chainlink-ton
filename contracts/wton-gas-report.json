@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-05-28T11:04:53.562Z",
+    "createdAt": "2026-05-28T11:45:06.923Z",
     "result": {
       "JettonMinter": {
         "sendTopUpTons": {
@@ -15,7 +15,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "13375"
+            "value": "13110"
           }
         },
         "0xd372158c": {
@@ -29,7 +29,7 @@
           },
           "bits": {
             "kind": "init",
-            "value": "13375"
+            "value": "13110"
           }
         }
       },
