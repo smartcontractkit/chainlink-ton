@@ -20,10 +20,8 @@ type AllowedMessageToMinter =
     | MintNewJettons
     | BurnNotificationForMinter
     | RequestWalletAddress
-    | ChangeMinterMetadataUri
     | TopUpTons
 
-const ERROR_ALREADY_INITIALIZED = 75
 const ERROR_UNSUFFICIENT_AMOUNT = 76
 const ERROR_INVALID_EXCESSES_DESTINATION = 77
 const ERROR_INVALID_RECIPIENT = 78
@@ -166,11 +164,6 @@ fun onInternalMessage(in: InMessage) {
                 body: msg.internalTransferMsg,
             });
             deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
-        }
-
-        ChangeMinterMetadataUri => {
-            // wTON has no admin path, so metadata is immutable and this opcode throws
-            throw ERROR_ALREADY_INITIALIZED;
         }
 
         TopUpTons => {

@@ -15,7 +15,6 @@ import {
   opcodes as walletOpcodes,
 } from '../../wrappers/jetton/JettonWallet'
 import {
-  ERROR_ALREADY_INITIALIZED,
   ERROR_INVALID_EXCESSES_DESTINATION,
   ERROR_INVALID_RECIPIENT,
   WTON_MINT_OPCODE,
@@ -768,7 +767,7 @@ describe('wTON', () => {
       expect(await totalSupply()).toEqual(0n)
     })
 
-    it('rejects metadata changes because wTON metadata is immutable', async () => {
+    it('rejects metadata changes because wTON has no admin opcode surface', async () => {
       const dataBefore = await minter.getJettonData()
       const result = await minter.sendChangeContent(deployer.getSender(), {
         message: {
@@ -781,7 +780,7 @@ describe('wTON', () => {
         from: deployer.address,
         to: minter.address,
         success: false,
-        exitCode: ERROR_ALREADY_INITIALIZED,
+        exitCode: JettonErrorCodes.WRONG_OP,
       })
       expect((await minter.getJettonData()).jettonContent.equals(dataBefore.jettonContent)).toBe(
         true,
