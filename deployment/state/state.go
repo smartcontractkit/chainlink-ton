@@ -25,8 +25,8 @@ import (
 var (
 	Version1_6_0 = *semver.MustParse("1.6.0")
 	// MCMS contract versions
-	TimelockVersion = *semver.MustParse("0.0.3")
-	MCMSVersion     = *semver.MustParse("0.0.4")
+	TimelockVersion = *semver.MustParse("0.0.4")
+	MCMSVersion     = *semver.MustParse("0.0.5")
 	// Core contracts
 	LinkToken ds.ContractType = "LinkToken"
 	TONNative ds.ContractType = "TONNative"
