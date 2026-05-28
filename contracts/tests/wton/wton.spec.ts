@@ -1328,6 +1328,8 @@ describe('wTON', () => {
       const minterContract = await blockchain.getContract(minter.address)
       minterContract.balance = 0n
 
+      // Tiny inbound: post-msg balance (~0.005 TON) is below the minter rent reserve (~0.01 TON),
+      // so the action-phase failure that triggers the bounce is RAWRESERVE, not the send action.
       const { result } = await burnFrom(alice, {
         jettonAmount: 1n,
         responseDestination: recipient.address,
@@ -1348,6 +1350,51 @@ describe('wTON', () => {
       )
 
       expect(bounceTx).toBeDefined()
+      expect(await walletBalance(alice.address)).toEqual(minted)
+      expect(await totalSupply()).toEqual(minted)
+    })
+
+    it('restores wallet balance when the minter payout fails at the send action specifically', async () => {
+      const minted = toNano('2')
+      await mintTo(alice.address, { jettonAmount: minted })
+
+      const aliceWallet = await userWallet(alice.address)
+      const minterContract = await blockchain.getContract(minter.address)
+      const recipientBalanceBefore = await contractBalance(recipient.address)
+      // Drop the minter balance to zero so the contract has no own funds, but burn the full
+      // backing so the wallet's CARRY_ALL_BALANCE notification arrives with ~2 TON of inbound.
+      // Post-msg balance now far exceeds requiredMinterReserve, so RAWRESERVE succeeds.
+      // The subsequent SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE wants to forward the entire
+      // inbound — which would push the contract balance below the just-set reserve floor — so
+      // BOUNCE_ON_ACTION_FAIL triggers on the *send* action rather than RAWRESERVE.
+      minterContract.balance = 0n
+
+      const { result } = await burnFrom(alice, {
+        jettonAmount: minted,
+        responseDestination: recipient.address,
+        value: toNano('0.2'),
+      })
+
+      // Compute phase on the minter succeeded; the bounce comes from BOUNCE_ON_ACTION_FAIL.
+      expect(result.transactions).toHaveTransaction({
+        from: aliceWallet.address,
+        to: minter.address,
+        success: false,
+      })
+
+      const bounceTx = result.transactions.find(
+        (tx: any) =>
+          tx.inMessage?.info.type === 'internal' &&
+          tx.inMessage.info.src?.equals(minter.address) &&
+          tx.inMessage.info.dest.equals(aliceWallet.address),
+      )
+      expect(bounceTx).toBeDefined()
+
+      // No payout reached the nominated recipient because the send action never executed.
+      expect(await contractBalance(recipient.address)).toEqual(recipientBalanceBefore)
+
+      // The wallet's onBouncedMessage restored the burned principal, and the minter's compute-phase
+      // totalSupply decrement was reverted along with the failed transaction.
       expect(await walletBalance(alice.address)).toEqual(minted)
       expect(await totalSupply()).toEqual(minted)
     })
