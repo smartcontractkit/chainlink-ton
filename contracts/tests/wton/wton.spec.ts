@@ -17,6 +17,7 @@ import {
 import {
   ERROR_ALREADY_INITIALIZED,
   ERROR_INVALID_EXCESSES_DESTINATION,
+  ERROR_INVALID_RECIPIENT,
   WTON_MINT_OPCODE,
 } from '../../wrappers/wton'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
@@ -488,6 +489,35 @@ describe('wTON', () => {
         to: minter.address,
         success: false,
         exitCode: JettonErrorCodes.WRONG_WORKCHAIN,
+      })
+      expect((await minter.getJettonData()).totalSupply).toEqual(0n)
+    })
+
+    it('rejects mint messages whose recipient is the minter itself', async () => {
+      const { result } = await sendMint({
+        destination: minter.address,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: minter.address,
+        success: false,
+        exitCode: ERROR_INVALID_RECIPIENT,
+      })
+      expect((await minter.getJettonData()).totalSupply).toEqual(0n)
+    })
+
+    it('rejects mint messages whose refund destination is the minter itself', async () => {
+      const { result } = await sendMint({
+        destination: alice.address,
+        responseDestination: minter.address,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: minter.address,
+        success: false,
+        exitCode: ERROR_INVALID_RECIPIENT,
       })
       expect((await minter.getJettonData()).totalSupply).toEqual(0n)
     })

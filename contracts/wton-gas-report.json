@@ -1,7 +1,7 @@
 [
   {
     "label": "current",
-    "createdAt": "2026-05-25T14:15:19.824Z",
+    "createdAt": "2026-05-28T11:04:53.562Z",
     "result": {
       "JettonMinter": {
         "sendTopUpTons": {
@@ -11,11 +11,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "29"
+            "value": "31"
           },
           "bits": {
             "kind": "init",
-            "value": "12967"
+            "value": "13375"
           }
         },
         "0xd372158c": {
@@ -25,11 +25,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "29"
+            "value": "31"
           },
           "bits": {
             "kind": "init",
-            "value": "12967"
+            "value": "13375"
           }
         }
       },
@@ -51,7 +51,7 @@
         "0x15": {
           "gasUsed": {
             "kind": "init",
-            "value": "6724"
+            "value": "7332"
           },
           "cells": {
             "kind": "init",
@@ -113,11 +113,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "0xf8a7ea5": {
@@ -127,11 +127,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "0x178d4519": {
@@ -141,11 +141,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "0x7362d09c": {
@@ -155,11 +155,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "0xd53276db": {
@@ -169,11 +169,11 @@
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "sendBurn": {
@@ -183,39 +183,39 @@
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "0x595f07bc": {
           "gasUsed": {
             "kind": "init",
-            "value": "5397"
+            "value": "5613"
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         },
         "0x7bdd97de": {
           "gasUsed": {
             "kind": "init",
-            "value": "4462"
+            "value": "4558"
           },
           "cells": {
             "kind": "init",
-            "value": "15"
+            "value": "16"
           },
           "bits": {
             "kind": "init",
-            "value": "6781"
+            "value": "6845"
           }
         }
       }

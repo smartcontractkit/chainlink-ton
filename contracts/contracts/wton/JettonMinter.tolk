@@ -26,6 +26,7 @@ type AllowedMessageToMinter =
 const ERROR_ALREADY_INITIALIZED = 75
 const ERROR_UNSUFFICIENT_AMOUNT = 76
 const ERROR_INVALID_EXCESSES_DESTINATION = 77
+const ERROR_INVALID_RECIPIENT = 78
 
 fun reserveModeExactFail() {
     return RESERVE_MODE_EXACT_AMOUNT | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL;
@@ -126,6 +127,7 @@ fun onInternalMessage(in: InMessage) {
         MintNewJettons => {
             var storage = lazy MinterStorage.load();
             assert (msg.mintRecipient.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            assert (msg.mintRecipient != contract.getAddress()) throw ERROR_INVALID_RECIPIENT;
 
             val internalTransferMsg = lazy msg.internalTransferMsg.load({
                 throwIfOpcodeDoesNotMatch: ERROR_INVALID_OP
@@ -137,6 +139,7 @@ fun onInternalMessage(in: InMessage) {
             // Mint must name the same excess/refund destination for both the happy path and a bounced wallet deployment.
             assert (internalTransferMsg.sendExcessesTo != null) throw ERROR_INVALID_EXCESSES_DESTINATION;
             assert (internalTransferMsg.sendExcessesTo!.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            assert (internalTransferMsg.sendExcessesTo! != contract.getAddress()) throw ERROR_INVALID_RECIPIENT;
             // Minting must not impersonate a peer wallet transfer initiator.
             assert (internalTransferMsg.transferInitiator == null) throw ERROR_INVALID_OP;
             // The caller must fund the hosted TON backing, the extra transfer budget, and the
