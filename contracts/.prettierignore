@@ -1,3 +1,5 @@
 build
 // for some reason it tries to validate tact files as javascript
 **/*.tact
+// Don't check generated TypeScript wrappers
+wrappers/gen/**
