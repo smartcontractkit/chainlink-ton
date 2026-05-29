@@ -20,7 +20,7 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-fun MerkleRoot_Storage.expectedMessages(self) {
+fun MerkleRoot_Storage.expectedMessages(self): int {
     return self.maxMsgNr - self.minMsgNr + 1
 }
 

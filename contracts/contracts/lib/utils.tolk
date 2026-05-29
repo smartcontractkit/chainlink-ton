@@ -175,7 +175,7 @@ struct ArrayIterator<T> {
 }
 
 @inline
-fun ArrayIterator<T>.new(data: array<T>) {
+fun ArrayIterator<T>.new(data: array<T>): ArrayIterator<T> {
     return ArrayIterator<T> { data, len: data.size() };
 }
 
