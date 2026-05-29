@@ -645,9 +645,9 @@ fun Timelock<T>.load(context: T? = null, hooks: Timelock_Hooks<T>? = null): Time
 
     // Return the Timelock instance with loaded data and hooks
     return Timelock<T> {
-        data: data,
-        context: context,
-        hooks: hooks,
+        data,
+        context,
+        hooks,
     };
 }
 
@@ -1146,7 +1146,7 @@ fun Timelock<T>.unblockFunctionSelector(
         bounce: false,
         value: 0,
         dest: sender,
-        body: body,
+        body,
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 

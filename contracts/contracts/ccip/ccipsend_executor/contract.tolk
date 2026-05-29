@@ -66,7 +66,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         id: st.id,
-        onrampSend: onrampSend,
+        onrampSend,
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
@@ -155,7 +155,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
         dest: self.addresses.load().onramp,
         body: OnRamp_ExecutorFinishedWithError {
             executorID: self.id,
-            error: error,
+            error,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
         }

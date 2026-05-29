@@ -77,7 +77,7 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
                 dest: createAddressNone(),
                 body: Ownable2Step_OwnershipTransferred {
                     queryId: msg.queryId,
-                    oldOwner: oldOwner,
+                    oldOwner,
                     newOwner: sender
                 }
             });

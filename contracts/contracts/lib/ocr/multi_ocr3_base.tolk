@@ -159,7 +159,7 @@ fun OCR3Base.transmit(
     }
 
     emit(OCR3BASE_TRANSMITTED, OCR3Base_Transmitted {
-	    ocrPluginType: ocrPluginType,
+	    ocrPluginType,
 	    configDigest: reportContext.configDigest,
 	    sequenceNumber: reportContext.sequenceBytes
     });

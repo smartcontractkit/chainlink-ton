@@ -703,9 +703,9 @@ fun MCMS<T>.load(context: T? = null, hooks: MCMS_Hooks<T>? = null): MCMS<T> {
 
     // Return the MCMS instance with loaded data and hooks
     return MCMS<T> {
-        data: data,
-        context: context,
-        hooks: hooks,
+        data,
+        context,
+        hooks,
     };
 }
 

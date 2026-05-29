@@ -418,7 +418,7 @@ fun onDispatchValidated(st: Storage, msg: OffRamp_DispatchValidated) {
             }.toCell(),
             execId: msg.execId,
             receiver: message.receiver,
-            gasLimit: gasLimit,
+            gasLimit,
         }
     });
 
@@ -431,7 +431,7 @@ fun blockMsg(st: Storage, execId: uint192, receiver: address) {
         value: 0,
         dest: getReceiverExecutorDeployAddress(st, execId),
         body: ReceiveExecutor_Bounced{
-            receiver: receiver,
+            receiver,
             reason: ReceiveExecutor_BouncedReason.NotEnoughGas,
         }
     });
@@ -712,7 +712,7 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
         dest: getMerkleRootDeployAddress(st, root),
         body: MerkleRoot_Validate {
             message: report.messages as Cell<Any2TVMRampMessage>,
-            metadataHash: metadataHash,
+            metadataHash,
             permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
             gasOverride,
         },
@@ -814,7 +814,7 @@ fun onExecuteValidated(st: Storage, msg: OffRamp_ExecuteValidated, sender: addre
                         owner: contract.getAddress(),
                         message: message.toCell(),
                         root: sender,
-                        execId: execId,
+                        execId,
                     }.toCell(),
                 }
             },

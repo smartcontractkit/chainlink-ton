@@ -351,7 +351,7 @@ fun onCCIPReceiveBounced(execId: ReceiveExecutorId, sender: address) {
         value: OffRamp_Costs.receiveConfirmOrDeny(),
         dest: offRamp,
         body: OffRamp_CCIPReceiveBounced {
-            execId: execId,
+            execId,
             receiver: sender,
         }
     });
@@ -459,8 +459,8 @@ fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<
         value: 0,
         dest: userAddress,
         body: Router_MessageValidationFailed {
-            error: error,
-            msg: msg,
+            error,
+            msg,
             context: userContext,
         }
     });
@@ -507,7 +507,7 @@ fun onRMNRemoteCurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteCurse) {
         emit(
             CURSED_TOPIC,
             Cursed {
-                subject: subject,
+                subject,
             }
         )
     }
@@ -541,7 +541,7 @@ fun onRMNRemoteUncurse(st: Storage, rmn: RMNRemote, msg: Router_RMNRemoteUncurse
         emit(
             UNCURSED_TOPIC,
             Uncursed {
-                subject: subject,
+                subject,
             }
         )
     }
@@ -611,8 +611,8 @@ fun sendMessageRejected(sender: address, queryID: uint64, error: uint256) {
         value: 0,
         dest: sender,
         body: Router_CCIPSendNACK {
-            queryID: queryID,
-            error: error,
+            queryID,
+            error,
         }
     });
 
