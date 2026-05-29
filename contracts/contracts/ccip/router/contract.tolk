@@ -32,6 +32,7 @@ contract Router {
 
     storage: Storage
     incomingMessages: Router_InMsg
+    forceAbiExport: (Router_MessageValidationFailed_RemainingBitsOrRef, Router_MessageValidated_RemainingBitsOrRef)
 }
 
 fun requireSupportedVersion(version: slice) {

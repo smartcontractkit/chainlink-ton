@@ -1082,6 +1082,88 @@ export const OffRamps = {
 }
 
 /**
+ > type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+ */
+export type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+
+export const Router_GetValidatedFee_RemainingBitsAndRefs = {
+    fromSlice(s: c.Slice): Router_GetValidatedFee_RemainingBitsAndRefs {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x4dd6aa82, 'Router_GetValidatedFee');
+            return {
+                $: 'Router_GetValidatedFee',
+                ccipSend: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: Router_GetValidatedFee_RemainingBitsAndRefs, b: c.Builder): void {
+        b.storeUint(0x4dd6aa82, 32);
+        storeCellRef<Router_CCIPSend>(self.ccipSend, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: Router_GetValidatedFee_RemainingBitsAndRefs): c.Cell {
+        return makeCellFrom<Router_GetValidatedFee_RemainingBitsAndRefs>(self, Router_GetValidatedFee_RemainingBitsAndRefs.store);
+    }
+}
+
+/**
+ > type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
+ */
+export type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
+
+export const OnRamp_MessageValidated_GetValidatedFeeContext = {
+    fromSlice(s: c.Slice): OnRamp_MessageValidated_GetValidatedFeeContext {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x2afb11bd, 'OnRamp_MessageValidated');
+            return {
+                $: 'OnRamp_MessageValidated',
+                fee: s.loadCoins(),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: Router_GetValidatedFeeContext.fromSlice(s),
+            }
+        })();
+    },
+    store(self: OnRamp_MessageValidated_GetValidatedFeeContext, b: c.Builder): void {
+        b.storeUint(0x2afb11bd, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        Router_GetValidatedFeeContext.store(self.context, b);
+    },
+    toCell(self: OnRamp_MessageValidated_GetValidatedFeeContext): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidated_GetValidatedFeeContext>(self, OnRamp_MessageValidated_GetValidatedFeeContext.store);
+    }
+}
+
+/**
+ > type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
+ */
+export type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
+
+export const OnRamp_MessageValidationFailed_GetValidatedFeeContext = {
+    fromSlice(s: c.Slice): OnRamp_MessageValidationFailed_GetValidatedFeeContext {
+        return (() => {
+            loadAndCheckPrefix32(s, 0xac1dd12e, 'OnRamp_MessageValidationFailed');
+            return {
+                $: 'OnRamp_MessageValidationFailed',
+                error: s.loadUintBig(256),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: Router_GetValidatedFeeContext.fromSlice(s),
+            }
+        })();
+    },
+    store(self: OnRamp_MessageValidationFailed_GetValidatedFeeContext, b: c.Builder): void {
+        b.storeUint(0xac1dd12e, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        Router_GetValidatedFeeContext.store(self.context, b);
+    },
+    toCell(self: OnRamp_MessageValidationFailed_GetValidatedFeeContext): c.Cell {
+        return makeCellFrom<OnRamp_MessageValidationFailed_GetValidatedFeeContext>(self, OnRamp_MessageValidationFailed_GetValidatedFeeContext.store);
+    }
+}
+
+/**
  > struct (0x7db6745d) Router_ApplyRampUpdates {
  >     queryId: uint64
  >     onRampUpdates: OnRamps?
@@ -1764,6 +1846,34 @@ export const Router_GetValidatedFeeContext = {
 }
 
 /**
+ > type Router_MessageValidated_RemainingBitsOrRef = Router_MessageValidated<RemainingBitsOrRef<RemainingBitsAndRefs>>
+ */
+export type Router_MessageValidated_RemainingBitsOrRef = Router_MessageValidated<RemainingBitsOrRef<RemainingBitsAndRefs>>
+
+export const Router_MessageValidated_RemainingBitsOrRef = {
+    fromSlice(s: c.Slice): Router_MessageValidated_RemainingBitsOrRef {
+        return (() => {
+            loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated');
+            return {
+                $: 'Router_MessageValidated',
+                fee: s.loadCoins(),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: Router_MessageValidated_RemainingBitsOrRef, b: c.Builder): void {
+        b.storeUint(0x9e2155ec, 32);
+        b.storeCoins(self.fee);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: Router_MessageValidated_RemainingBitsOrRef): c.Cell {
+        return makeCellFrom<Router_MessageValidated_RemainingBitsOrRef>(self, Router_MessageValidated_RemainingBitsOrRef.store);
+    }
+}
+
+/**
  > struct (0x9e2155ec) Router_MessageValidated<T> {
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
@@ -1790,6 +1900,34 @@ export const Router_MessageValidated = {
             ...args
         }
     },
+}
+
+/**
+ > type Router_MessageValidationFailed_RemainingBitsOrRef = Router_MessageValidationFailed<RemainingBitsOrRef<RemainingBitsAndRefs>>
+ */
+export type Router_MessageValidationFailed_RemainingBitsOrRef = Router_MessageValidationFailed<RemainingBitsOrRef<RemainingBitsAndRefs>>
+
+export const Router_MessageValidationFailed_RemainingBitsOrRef = {
+    fromSlice(s: c.Slice): Router_MessageValidationFailed_RemainingBitsOrRef {
+        return (() => {
+            loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed');
+            return {
+                $: 'Router_MessageValidationFailed',
+                error: s.loadUintBig(256),
+                msg: loadCellRef<Router_CCIPSend>(s, Router_CCIPSend.fromSlice),
+                context: loadTolkRemaining(s),
+            }
+        })();
+    },
+    store(self: Router_MessageValidationFailed_RemainingBitsOrRef, b: c.Builder): void {
+        b.storeUint(0xec23c562, 32);
+        b.storeUint(self.error, 256);
+        storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
+        storeTolkRemaining(self.context, b);
+    },
+    toCell(self: Router_MessageValidationFailed_RemainingBitsOrRef): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed_RemainingBitsOrRef>(self, Router_MessageValidationFailed_RemainingBitsOrRef.store);
+    }
 }
 
 /**
@@ -2487,41 +2625,16 @@ export class Router implements c.Contract {
         return Router_ApplyRampUpdates.toCell(Router_ApplyRampUpdates.create(body));
     }
 
-    static createCellOfRouterGetValidatedFeeRemainingBitsAndRefs_(body: {
-        ccipSend: CellRef<Router_CCIPSend>
-        context: RemainingBitsAndRefs
-    }) {
-        return makeCellFrom<Router_GetValidatedFee<RemainingBitsAndRefs>>(Router_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-            (v,b) => { b.storeUint(0x4dd6aa82, 32);
-            storeCellRef<Router_CCIPSend>(v.ccipSend, b, Router_CCIPSend.store);
-            storeTolkRemaining(v.context, b); }
-        );
+    static createCellOfRouterGetValidatedFeeRemainingBitsAndRefs(body: Router_GetValidatedFee_RemainingBitsAndRefs) {
+        return Router_GetValidatedFee_RemainingBitsAndRefs.toCell(body);
     }
 
-    static createCellOfOnRampMessageValidatedRouterGetValidatedFeeContext_(body: {
-        fee: coins
-        msg: CellRef<Router_CCIPSend>
-        context: Router_GetValidatedFeeContext
-    }) {
-        return makeCellFrom<OnRamp_MessageValidated<Router_GetValidatedFeeContext>>(OnRamp_MessageValidated.create<Router_GetValidatedFeeContext>(body),
-            (v,b) => { b.storeUint(0x2afb11bd, 32);
-            b.storeCoins(v.fee);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            Router_GetValidatedFeeContext.store(v.context, b); }
-        );
+    static createCellOfOnRampMessageValidatedGetValidatedFeeContext(body: OnRamp_MessageValidated_GetValidatedFeeContext) {
+        return OnRamp_MessageValidated_GetValidatedFeeContext.toCell(body);
     }
 
-    static createCellOfOnRampMessageValidationFailedRouterGetValidatedFeeContext_(body: {
-        error: uint256
-        msg: CellRef<Router_CCIPSend>
-        context: Router_GetValidatedFeeContext
-    }) {
-        return makeCellFrom<OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>>(OnRamp_MessageValidationFailed.create<Router_GetValidatedFeeContext>(body),
-            (v,b) => { b.storeUint(0xac1dd12e, 32);
-            b.storeUint(v.error, 256);
-            storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-            Router_GetValidatedFeeContext.store(v.context, b); }
-        );
+    static createCellOfOnRampMessageValidationFailedGetValidatedFeeContext(body: OnRamp_MessageValidationFailed_GetValidatedFeeContext) {
+        return OnRamp_MessageValidationFailed_GetValidatedFeeContext.toCell(body);
     }
 
     static createCellOfRouterRouteMessage(body: {
@@ -2638,51 +2751,26 @@ export class Router implements c.Contract {
         });
     }
 
-    async sendRouterGetValidatedFeeRemainingBitsAndRefs_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        ccipSend: CellRef<Router_CCIPSend>
-        context: RemainingBitsAndRefs
-    }, extraOptions?: ExtraSendOptions) {
+    async sendRouterGetValidatedFeeRemainingBitsAndRefs(provider: ContractProvider, via: Sender, msgValue: coins, body: Router_GetValidatedFee_RemainingBitsAndRefs, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<Router_GetValidatedFee<RemainingBitsAndRefs>>(Router_GetValidatedFee.create<RemainingBitsAndRefs>(body),
-                (v,b) => { b.storeUint(0x4dd6aa82, 32);
-                storeCellRef<Router_CCIPSend>(v.ccipSend, b, Router_CCIPSend.store);
-                storeTolkRemaining(v.context, b); }
-            ),
+            body: Router_GetValidatedFee_RemainingBitsAndRefs.toCell(body),
             ...extraOptions
         });
     }
 
-    async sendOnRampMessageValidatedRouterGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        fee: coins
-        msg: CellRef<Router_CCIPSend>
-        context: Router_GetValidatedFeeContext
-    }, extraOptions?: ExtraSendOptions) {
+    async sendOnRampMessageValidatedGetValidatedFeeContext(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_MessageValidated_GetValidatedFeeContext, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<OnRamp_MessageValidated<Router_GetValidatedFeeContext>>(OnRamp_MessageValidated.create<Router_GetValidatedFeeContext>(body),
-                (v,b) => { b.storeUint(0x2afb11bd, 32);
-                b.storeCoins(v.fee);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                Router_GetValidatedFeeContext.store(v.context, b); }
-            ),
+            body: OnRamp_MessageValidated_GetValidatedFeeContext.toCell(body),
             ...extraOptions
         });
     }
 
-    async sendOnRampMessageValidationFailedRouterGetValidatedFeeContext_(provider: ContractProvider, via: Sender, msgValue: coins, body: {
-        error: uint256
-        msg: CellRef<Router_CCIPSend>
-        context: Router_GetValidatedFeeContext
-    }, extraOptions?: ExtraSendOptions) {
+    async sendOnRampMessageValidationFailedGetValidatedFeeContext(provider: ContractProvider, via: Sender, msgValue: coins, body: OnRamp_MessageValidationFailed_GetValidatedFeeContext, extraOptions?: ExtraSendOptions) {
         return provider.internal(via, {
             value: msgValue,
-            body: makeCellFrom<OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>>(OnRamp_MessageValidationFailed.create<Router_GetValidatedFeeContext>(body),
-                (v,b) => { b.storeUint(0xac1dd12e, 32);
-                b.storeUint(v.error, 256);
-                storeCellRef<Router_CCIPSend>(v.msg, b, Router_CCIPSend.store);
-                Router_GetValidatedFeeContext.store(v.context, b); }
-            ),
+            body: OnRamp_MessageValidationFailed_GetValidatedFeeContext.toCell(body),
             ...extraOptions
         });
     }

@@ -13,9 +13,9 @@ import "../onramp/messages"
 type Router_InMsg =
     | Router_CCIPSend
     | Router_ApplyRampUpdates
-    | Router_GetValidatedFee<RemainingBitsAndRefs>
-    | OnRamp_MessageValidated<Router_GetValidatedFeeContext>
-    | OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
+    | Router_GetValidatedFee_RemainingBitsAndRefs
+    | OnRamp_MessageValidated_GetValidatedFeeContext
+    | OnRamp_MessageValidationFailed_GetValidatedFeeContext
     | Router_RouteMessage
     | Router_CCIPReceiveConfirm
     | Upgradeable_Upgrade
@@ -27,6 +27,10 @@ type Router_InMsg =
     | Router_MessageRejected
     | Router_RMNOwnableMessage
     ;
+
+type Router_GetValidatedFee_RemainingBitsAndRefs = Router_GetValidatedFee<RemainingBitsAndRefs>
+type OnRamp_MessageValidated_GetValidatedFeeContext = OnRamp_MessageValidated<Router_GetValidatedFeeContext>
+type OnRamp_MessageValidationFailed_GetValidatedFeeContext = OnRamp_MessageValidationFailed<Router_GetValidatedFeeContext>
 
 type Router_BouncedMessage = 
     | Receiver_CCIPReceive
@@ -126,12 +130,18 @@ struct Router_GetValidatedFeeContext {
 
 // --- Outgoing messages ---
 
+/// Alias for ABIgen to generate codec
+type Router_MessageValidated_RemainingBitsOrRef = Router_MessageValidated<RemainingBitsOrRef<RemainingBitsAndRefs>>
+
 // crc32('Router_MessageValidated')
 struct (0x9e2155ec) Router_MessageValidated<T> {
     fee: coins
     msg: Cell<Router_CCIPSend>
     context: T
 }
+
+/// Alias for ABIgen to generate codec
+type Router_MessageValidationFailed_RemainingBitsOrRef = Router_MessageValidationFailed<RemainingBitsOrRef<RemainingBitsAndRefs>>
 
 // crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed<T> {
