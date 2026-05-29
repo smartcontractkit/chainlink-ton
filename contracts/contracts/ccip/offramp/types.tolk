@@ -2,7 +2,6 @@
 import "../common/types"
 import "../fee_quoter/types"
 import "../../lib/utils"
-import "../../lib/deployable/types"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
 const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221

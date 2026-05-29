@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-import "./../utils.tolk";
 
 const Ownable2Step_FACILITY_NAME = "link.chain.ton.lib.access.Ownable2Step";
 const Ownable2Step_FACILITY_ID = Ownable2Step_FACILITY_NAME.crc32() % 640 + 10;  // 498

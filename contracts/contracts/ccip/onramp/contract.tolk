@@ -6,7 +6,6 @@ import "../../lib/deployable/types"
 
 import "../common/types";
 
-import "../ccipsend_executor/storage"
 import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
 import "../router/messages"

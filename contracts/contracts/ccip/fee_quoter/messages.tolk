@@ -4,7 +4,6 @@ import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
-import "../ccipsend_executor/messages"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_AddPriceUpdater

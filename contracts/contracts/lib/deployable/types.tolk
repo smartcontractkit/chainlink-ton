@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-import "../utils"
 
 const Deployable_FACILITY_NAME = "link.chain.ton.lib.Deployable";
 const Deployable_FACILITY_ID = Deployable_FACILITY_NAME.crc32() % 640 + 10;  // 92

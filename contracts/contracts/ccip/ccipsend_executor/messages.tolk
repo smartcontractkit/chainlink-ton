@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
-import "storage"
-import "../../lib/versioning/upgradeable"
 
 import "../onramp/messages"
-import "../router/messages"
 import "../fee_quoter/messages"
 
 type CCIPSendExecutor_InMessage =
