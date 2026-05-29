@@ -12,7 +12,6 @@ import { JettonErrorCodes } from '../../wrappers/jetton/constants'
 import {
   JettonWallet,
   builder as walletBuilder,
-  opcodes as walletOpcodes,
 } from '../../wrappers/jetton/JettonWallet'
 import {
   ERROR_INVALID_EXCESSES_DESTINATION,
@@ -26,6 +25,7 @@ const JETTON_DATA_URI = 'wton.test'
 const MASTERCHAIN_ZERO_ADDRESS = Address.parse(`-1:${'0'.repeat(64)}`)
 
 type MintOptions = {
+  sender?: SandboxContract<TreasuryContract>
   minterContract?: SandboxContract<JettonMinter>
   destination: Address
   jettonAmount?: bigint
@@ -33,6 +33,7 @@ type MintOptions = {
   forwardTonAmount?: bigint
   responseDestination?: Address | null
   transferInitiator?: Address | null
+  customPayload?: Cell | null
   value?: bigint
 }
 
@@ -190,6 +191,7 @@ describe('wTON', () => {
   }
 
   async function sendMint({
+    sender = deployer,
     minterContract = minter,
     destination,
     jettonAmount = toNano('1'),
@@ -197,10 +199,11 @@ describe('wTON', () => {
     forwardTonAmount = 0n,
     responseDestination = deployer.address,
     transferInitiator = null,
+    customPayload = null,
     value,
   }: MintOptions) {
     const queryId = nextQueryId++
-    const result = await minterContract.sendMint(deployer.getSender(), {
+    const result = await minterContract.sendMint(sender.getSender(), {
       value: value ?? jettonAmount + tonAmount + toNano('0.3'),
       mintOpcode: WTON_MINT_OPCODE,
       message: {
@@ -211,7 +214,7 @@ describe('wTON', () => {
         from: transferInitiator,
         responseDestination,
         forwardTonAmount,
-        customPayload: null,
+        customPayload,
       },
     })
 
@@ -219,10 +222,11 @@ describe('wTON', () => {
   }
 
   async function mintTo(destination: Address, options: Omit<MintOptions, 'destination'> = {}) {
-    const { result } = await sendMint({ destination, ...options })
+    const sender = options.sender ?? deployer
+    const { result } = await sendMint({ destination, ...options, sender })
 
     expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
+      from: sender.address,
       to: minter.address,
       success: true,
     })
@@ -607,8 +611,8 @@ describe('wTON', () => {
       })
 
       const rejectorWallet = await userWallet(rejector.address)
-      const c = await blockchain.getContract(rejectorWallet.address)
-      c.balance = 0n // Put wallet in debt to trigger the mint bounce
+      const rejectorWalletContract = await blockchain.getContract(rejectorWallet.address)
+      rejectorWalletContract.balance = 0n // Put wallet in debt to trigger the mint bounce
       const rejectorBalanceBefore = await contractBalance(rejector.address)
 
       const { result } = await sendMint({
@@ -1560,19 +1564,13 @@ describe('wTON', () => {
       await aliceWallet.sendTopUpTons(alice.getSender(), toNano('5'))
 
       const walletNativeBefore = await walletNativeBalance(alice.address)
-      const result = await minter.sendMint(bob.getSender(), {
+      const { result } = await sendMint({
+        sender: bob,
+        destination: alice.address,
+        jettonAmount: 1n,
+        tonAmount: toNano('0.2'),
+        responseDestination: bob.address,
         value: 1n + toNano('0.2') + toNano('0.3'),
-        mintOpcode: WTON_MINT_OPCODE,
-        message: {
-          queryId: nextQueryId++,
-          destination: alice.address,
-          tonAmount: toNano('0.2'),
-          jettonAmount: 1n,
-          from: null,
-          responseDestination: bob.address,
-          forwardTonAmount: 0n,
-          customPayload: null,
-        },
       })
 
       const excessTx = internalTransactionFromTo(result, aliceWallet.address, bob.address)
@@ -1603,19 +1601,13 @@ describe('wTON', () => {
       expect(await walletBalance(alice.address)).toEqual(minted)
       const walletNativeAfterBounce = await walletNativeBalance(alice.address)
 
-      const result = await minter.sendMint(recipient.getSender(), {
+      const { result } = await sendMint({
+        sender: recipient,
+        destination: alice.address,
+        jettonAmount: 1n,
+        tonAmount: toNano('0.2'),
+        responseDestination: recipient.address,
         value: 1n + toNano('0.2') + toNano('0.3'),
-        mintOpcode: WTON_MINT_OPCODE,
-        message: {
-          queryId: nextQueryId++,
-          destination: alice.address,
-          tonAmount: toNano('0.2'),
-          jettonAmount: 1n,
-          from: null,
-          responseDestination: recipient.address,
-          forwardTonAmount: 0n,
-          customPayload: null,
-        },
       })
 
       const excessTx = internalTransactionFromTo(result, aliceWallet.address, recipient.address)
@@ -1625,6 +1617,269 @@ describe('wTON', () => {
       expect(await walletBalance(alice.address)).toEqual(minted + 1n)
       expect(await totalSupply()).toEqual(minted + toNano('1') + 1n)
       expect(await walletNativeBalance(alice.address)).toBeGreaterThan(walletNativeAfterBounce)
+    })
+  })
+
+  describe('extra coverage', () => {
+    // This is a tiny deterministic PRNG, not property-test randomness: the fixed seeds keep
+    // the sequence reproducible so a failing step can be replayed exactly.
+    function createDeterministicFuzzer(seed: number) {
+      let state = seed >>> 0
+
+      const nextUint32 = () => {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+        return state
+      }
+
+      return {
+        pick<T>(values: readonly T[]) {
+          return values[nextUint32() % values.length]
+        },
+      }
+    }
+
+    // Bias the spend candidates toward boundary-ish values and full-balance spends while keeping
+    // every sampled operation valid for the current wallet state.
+    function pickSpendAmount(
+      pick: <T>(values: readonly T[]) => T,
+      maxAmount: bigint,
+      operation: 'transfer' | 'burn',
+    ) {
+      const candidates = [
+        1n,
+        maxAmount,
+        maxAmount / 2n,
+        maxAmount / 3n,
+        maxAmount > 1n ? maxAmount - 1n : maxAmount,
+        toNano('0.01'),
+        toNano('0.05'),
+        operation === 'transfer' ? toNano('0.2') : toNano('0.15'),
+        operation === 'transfer' ? toNano('0.45') : toNano('0.3'),
+      ].filter((amount) => amount > 0n && amount <= maxAmount)
+
+      return pick(Array.from(new Set(candidates)))
+    }
+
+    // Exercise only valid mint / transfer / burn sequences and assert the core accounting
+    // invariants after every step. The goal is broad state-space coverage without introducing
+    // random invalid-input failures that belong in dedicated negative tests.
+    async function runDeterministicInvariantSequence(seed: number, steps: number) {
+      const owners = [alice, bob, recipient]
+      const ownerAddresses = owners.map((owner) => owner.address)
+      const { pick } = createDeterministicFuzzer(seed)
+      const mintJettonOptions = [
+        1n,
+        2n,
+        7n,
+        toNano('0.03'),
+        toNano('0.11'),
+        toNano('0.2'),
+        toNano('0.45'),
+        toNano('0.9'),
+      ]
+      const tonBudgetOptions = [
+        toNano('0.2'),
+        toNano('0.23'),
+        toNano('0.27'),
+        toNano('0.31'),
+        toNano('0.37'),
+        toNano('0.5'),
+      ]
+      const forwardTonOptions = [
+        0n,
+        toNano('0.005'),
+        toNano('0.01'),
+        toNano('0.02'),
+        toNano('0.03'),
+      ]
+      const mintMarginOptions = [
+        toNano('0.35'),
+        toNano('0.4'),
+        toNano('0.45'),
+        toNano('0.55'),
+        toNano('0.7'),
+      ]
+      const transferValueOptions = [
+        toNano('0.55'),
+        toNano('0.6'),
+        toNano('0.7'),
+        toNano('0.85'),
+        toNano('1'),
+      ]
+      const burnValueOptions = [
+        toNano('0.2'),
+        toNano('0.23'),
+        toNano('0.27'),
+        toNano('0.3'),
+        toNano('0.35'),
+      ]
+
+      for (const owner of owners) {
+        const jettonAmount = pick(mintJettonOptions)
+        const tonAmount = pick(tonBudgetOptions)
+        await mintTo(owner.address, {
+          jettonAmount,
+          tonAmount,
+          responseDestination: pick(ownerAddresses),
+          forwardTonAmount: pick(forwardTonOptions),
+          value: jettonAmount + tonAmount + pick(mintMarginOptions),
+        })
+      }
+
+      await assertCoreInvariants(ownerAddresses)
+
+      for (let step = 0; step < steps; step++) {
+        const operation = pick(['mint', 'transfer', 'burn'] as const)
+
+        if (operation === 'mint') {
+          const jettonAmount = pick(mintJettonOptions)
+          const tonAmount = pick(tonBudgetOptions)
+          await mintTo(pick(ownerAddresses), {
+            jettonAmount,
+            tonAmount,
+            forwardTonAmount: pick(forwardTonOptions),
+            responseDestination: pick(ownerAddresses),
+            value: jettonAmount + tonAmount + pick(mintMarginOptions),
+          })
+        } else {
+          const spenders = [] as Array<{
+            owner: SandboxContract<TreasuryContract>
+            balance: bigint
+          }>
+
+          for (const owner of owners) {
+            const balance = await walletBalance(owner.address)
+            if (balance > 0n) {
+              spenders.push({ owner, balance })
+            }
+          }
+
+          const senderState = spenders.length > 0 ? pick(spenders) : null
+          if (!senderState) {
+            continue
+          }
+
+          const sender = senderState.owner
+
+          if (operation === 'transfer') {
+            const receiverOptions = owners.filter((owner) => !owner.address.equals(sender.address))
+            const { wallet, result } = await transferFrom(sender, {
+              jettonAmount: pickSpendAmount(pick, senderState.balance, 'transfer'),
+              destination: pick(receiverOptions).address,
+              responseDestination: pick([...ownerAddresses, null] as const),
+              value: pick(transferValueOptions),
+              forwardTonAmount: pick(forwardTonOptions),
+            })
+
+            expect(result.transactions).toHaveTransaction({
+              from: sender.address,
+              to: wallet.address,
+              success: true,
+            })
+          } else {
+            const { wallet, result } = await burnFrom(sender, {
+              jettonAmount: pickSpendAmount(pick, senderState.balance, 'burn'),
+              responseDestination: pick(ownerAddresses),
+              value: pick(burnValueOptions),
+            })
+
+            expect(result.transactions).toHaveTransaction({
+              from: sender.address,
+              to: wallet.address,
+              success: true,
+            })
+          }
+        }
+
+        await assertCoreInvariants(ownerAddresses)
+      }
+    }
+
+    // For wTON solvency we care about two invariants: supply matches wallet balances, and the
+    // minter plus all wallet backings still cover that supply with the minter reserve on top.
+    async function assertCoreInvariants(owners: Address[]) {
+      const supply = await totalSupply()
+      expect(supply).toEqual(await sumWalletBalances(owners))
+
+      let hostedTon = 0n
+      for (const owner of owners) {
+        hostedTon += await walletNativeBalance(owner)
+      }
+
+      const balance = await contractBalance(minter.address)
+      expect(balance + hostedTon).toBeGreaterThanOrEqual(supply + toNano('0.01'))
+    }
+
+    it('keeps core supply and backing invariants across deterministic fuzz sequences', async () => {
+      const snapshot = blockchain.snapshot()
+
+      // Reset to the pristine deployed state before each seed so every sequence stays independent.
+      for (const seed of [0x1badc0de, 0x0ddc0ffe, 0xdecafbad]) {
+        await blockchain.loadFrom(snapshot)
+        nextQueryId = 1n
+        await runDeterministicInvariantSequence(seed, 24)
+      }
+    })
+
+    it('keeps supply whole when bounced mint bodies carry ref-heavy trailing payloads', async () => {
+      const bounceMinter = await deployMinter(bouncerCode)
+      const snapshot = blockchain.snapshot()
+      const payloads = [
+        beginCell().storeStringRefTail('bounce.ref-tail').endCell(),
+        beginCell()
+          .storeRef(
+            beginCell().storeRef(beginCell().storeStringTail('deep-ref').endCell()).endCell(),
+          )
+          .endCell(),
+      ]
+
+      for (const payload of payloads) {
+        await blockchain.loadFrom(snapshot)
+
+        const { result } = await sendMint({
+          minterContract: bounceMinter,
+          destination: alice.address,
+          jettonAmount: 1n,
+          tonAmount: toNano('0.2'),
+          responseDestination: recipient.address,
+          customPayload: payload,
+          value: 1n + toNano('0.2') + toNano('0.35'),
+        })
+
+        // The wrapper's customPayload lands in the inner InternalTransferStep tail, so this is a
+        // focused tripwire for the RichBounceOnlyRootCell assumption used by the mint bounce path.
+        expect((await bounceMinter.getJettonData()).totalSupply).toEqual(0n)
+
+        const refundTx = internalTransactionFromTo(result, bounceMinter.address, recipient.address)
+        expect(refundTx.inMessage.info.type).toEqual('internal')
+        expect(refundTx.inMessage.info.value.coins).toBeGreaterThan(0n)
+      }
+    })
+
+    it('keeps a wallet live across the modeled five-year storage horizon', async () => {
+      const fiveYears = 5 * 365 * 24 * 3600
+      const startTime = blockchain.now ?? Math.floor(Date.now() / 1000)
+      blockchain.now = startTime
+
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+      const aliceWallet = await userWallet(alice.address)
+
+      blockchain.now = startTime + fiveYears - 60
+
+      const { result } = await transferFrom(alice, {
+        jettonAmount: 1n,
+        destination: bob.address,
+        value: toNano('0.5'),
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: alice.address,
+        to: aliceWallet.address,
+        success: true,
+      })
+      expect(await walletBalance(alice.address)).toEqual(toNano('1') - 1n)
+      expect(await walletBalance(bob.address)).toEqual(1n)
+      await assertCoreInvariants([alice.address, bob.address])
     })
   })
 })

@@ -44,7 +44,7 @@ fun refundMintBounce(msg: InternalTransferStep) {
     val refundMsg = createMessage({
         // The mint-bounce refund is a forced TON deposit to the caller-chosen refund address.
         bounce: BounceMode.NoBounce,
-        dest: msg.sendExcessesTo!,
+        dest: msg.sendExcessesTo!, // safe to unwrap as it is required and validated in the minting path
         value: 0,
         body: ReturnExcessesBack {
             queryId: msg.queryId
@@ -57,7 +57,7 @@ fun refundMintBounce(msg: InternalTransferStep) {
 
 fun onBouncedMessage(in: InMessageBounced) {
     // We require sendExcessesTo for refundMintBounce from the original mint payload, so the
-    // bounced body must preserve the full root cell rather than the old 256-bit truncation.
+    // bounced body must preserve the original root cell rather than the old 256-bit truncation.
     val rich = lazy RichBounceBody.fromSlice(in.bouncedBody);
     val msg = lazy InternalTransferStep.fromCell(rich.originalBody);
 
