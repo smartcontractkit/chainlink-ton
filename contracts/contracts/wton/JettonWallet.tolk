@@ -15,11 +15,18 @@ import "fees-management"
 //     storage: WalletStorage
 // }
 
+// Lets the wallet owner withdraw any TON surplus sitting above the strict `jettonBalance + storage_fee`
+struct (0xf2ff646f) AskToWithdrawExcess {
+    queryId: uint64
+    sendExcessesTo: address
+}
+
 type AllowedMessageToWallet =
     | AskToTransfer
     | AskToBurn
     | InternalTransferStep
     | TopUpTons
+    | AskToWithdrawExcess
 
 type BounceOpToHandle = InternalTransferStep | BurnNotificationForMinter
 
@@ -60,10 +67,22 @@ fun onInternalMessage(in: InMessage) {
             }
             val jettonBalanceNext = storage.jettonBalance + msg.jettonAmount;
             val requiredReserve = requiredWalletReserve(jettonBalanceNext);
-            // Require the incoming transfer to carry the full hosted TON backing before we credit wTON.
+            // Hard reserve check: the inbound transfer must fund the full post-credit backing floor
+            // before we credit wTON or allow any forward / excess action to run.
             assert (contract.getOriginalBalance() >= requiredReserve + msg.forwardTonAmount) throw ERROR_UNSUFFICIENT_AMOUNT;
-            // Lock backing + storage reserve before any notification/excess send can spend value.
-            reserveToncoinsOnBalance(requiredReserve, reserveModeExactFail());
+            // Soft reserve check: keep TON that was already on the wallet before this message from
+            // being reclassified as outbound excess. This surplus is best-effort under RESERVE_MODE_AT_MOST.
+            // `requiredWalletReserve(x)` is linear in `x` within this transaction, so subtracting the
+            // credited jetton amount gives the pre-credit reserve without recomputing the helper.
+            val requiredReserveBeforeCredit = requiredReserve - msg.jettonAmount;
+            val balanceBeforeMessage = contract.getOriginalBalance() - in.valueCoins;
+            val preservedSurplus = balanceBeforeMessage > requiredReserveBeforeCredit
+                ? balanceBeforeMessage - requiredReserveBeforeCredit
+                : 0 as coins;
+            reserveToncoinsOnBalance(
+                requiredReserve + preservedSurplus,
+                RESERVE_MODE_AT_MOST | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL
+            );
 
             storage.jettonBalance = jettonBalanceNext;
             storage.save();
@@ -158,6 +177,25 @@ fun onInternalMessage(in: InMessage) {
 
         TopUpTons => {
             // Accept TONs
+        }
+
+        AskToWithdrawExcess => {
+            var storage = lazy WalletStorage.load();
+            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_OWNER;
+            assert (msg.sendExcessesTo.getWorkchain() == MY_WORKCHAIN) throw ERROR_WRONG_WORKCHAIN;
+            // Preserve the strict TON backing for the current jetton balance; anything above
+            // is owner-recoverable surplus (top-ups, bounced-transfer leftovers, mint overfunding).
+            reserveToncoinsOnBalance(requiredWalletReserve(storage.jettonBalance), reserveModeExactFail());
+
+            val excessMsg = createMessage({
+                bounce: BounceMode.NoBounce,
+                dest: msg.sendExcessesTo,
+                value: 0,
+                body: ReturnExcessesBack {
+                    queryId: msg.queryId
+                }
+            });
+            excessMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_IGNORE_ERRORS);
         }
 
         else => throw 0xFFFF

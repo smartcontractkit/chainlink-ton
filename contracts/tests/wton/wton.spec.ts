@@ -18,6 +18,7 @@ import {
   ERROR_INVALID_EXCESSES_DESTINATION,
   ERROR_INVALID_RECIPIENT,
   WTON_MINT_OPCODE,
+  WTON_WITHDRAW_EXCESS_OPCODE,
 } from '../../wrappers/wton'
 import * as bouncer from '../../wrappers/test/mock/Bouncer'
 
@@ -146,6 +147,28 @@ describe('wTON', () => {
     return tx
   }
 
+  function internalTransactionFromTo(
+    result: { transactions: Array<any> },
+    source: Address,
+    destination: Address,
+  ) {
+    const tx = result.transactions.find((candidate) => {
+      return (
+        candidate.inMessage?.info.type === 'internal' &&
+        candidate.inMessage.info.src?.equals(source) &&
+        candidate.inMessage.info.dest.equals(destination)
+      )
+    })
+
+    if (!tx) {
+      throw new Error(
+        `Missing internal transaction from ${source.toString()} to ${destination.toString()}`,
+      )
+    }
+
+    return tx
+  }
+
   function internalMessageBodyTo(result: { transactions: Array<any> }, address: Address) {
     const tx = internalTransactionTo(result, address)
     const body = tx.inMessage?.body
@@ -266,6 +289,29 @@ describe('wTON', () => {
         jettonAmount,
         responseDestination,
         customPayload: null,
+      },
+    })
+
+    return { wallet, result }
+  }
+
+  async function withdrawExcessFrom(
+    owner: SandboxContract<TreasuryContract>,
+    {
+      sendExcessesTo,
+      value = toNano('0.05'),
+    }: {
+      sendExcessesTo: Address
+      value?: bigint
+    },
+  ) {
+    const wallet = await userWallet(owner.address)
+    const result = await wallet.sendWithdrawExcess(owner.getSender(), {
+      value,
+      opcode: WTON_WITHDRAW_EXCESS_OPCODE,
+      message: {
+        queryId: nextQueryId++,
+        sendExcessesTo,
       },
     })
 
@@ -1089,6 +1135,59 @@ describe('wTON', () => {
   })
 
   describe('burning', () => {
+    it('owner can withdraw wallet surplus to a chosen basechain address', async () => {
+      const minted = toNano('1')
+      await mintTo(alice.address, { jettonAmount: minted })
+
+      const aliceWallet = await userWallet(alice.address)
+      await aliceWallet.sendTopUpTons(alice.getSender(), toNano('5'))
+
+      const walletJettonsBefore = await walletBalance(alice.address)
+      const walletNativeBefore = await walletNativeBalance(alice.address)
+      const recipientBefore = await contractBalance(recipient.address)
+
+      const { result } = await withdrawExcessFrom(alice, {
+        sendExcessesTo: recipient.address,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: alice.address,
+        to: aliceWallet.address,
+        success: true,
+      })
+
+      expect(await walletBalance(alice.address)).toEqual(walletJettonsBefore)
+      expect(await totalSupply()).toEqual(walletJettonsBefore)
+      expect((await contractBalance(recipient.address)) - recipientBefore).toBeGreaterThan(
+        toNano('4'),
+      )
+      expect(await walletNativeBalance(alice.address)).toBeLessThan(walletNativeBefore)
+      expect(await walletNativeBalance(alice.address)).toBeGreaterThanOrEqual(minted)
+    })
+
+    it('rejects excess withdrawals from non-owners', async () => {
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+      const aliceWallet = await userWallet(alice.address)
+
+      const result = await aliceWallet.sendWithdrawExcess(deployer.getSender(), {
+        value: toNano('0.05'),
+        opcode: WTON_WITHDRAW_EXCESS_OPCODE,
+        message: {
+          queryId: nextQueryId++,
+          sendExcessesTo: recipient.address,
+        },
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: aliceWallet.address,
+        success: false,
+        exitCode: JettonErrorCodes.NOT_OWNER,
+      })
+      expect(await walletBalance(alice.address)).toEqual(toNano('1'))
+      expect(await totalSupply()).toEqual(toNano('1'))
+    })
+
     it('rejects burns without a refund destination', async () => {
       const mintAmount = toNano('1')
       await mintTo(alice.address, { jettonAmount: mintAmount })
@@ -1450,6 +1549,82 @@ describe('wTON', () => {
       throw new Error(
         'Expected at least one fee-boundary burn candidate to reach the post-check path',
       )
+    })
+  })
+
+  describe('excess preservation', () => {
+    it('keeps pre-existing wallet surplus when a third party mints dust with attacker sendExcessesTo', async () => {
+      await mintTo(alice.address, { jettonAmount: toNano('1') })
+
+      const aliceWallet = await userWallet(alice.address)
+      await aliceWallet.sendTopUpTons(alice.getSender(), toNano('5'))
+
+      const walletNativeBefore = await walletNativeBalance(alice.address)
+      const result = await minter.sendMint(bob.getSender(), {
+        value: 1n + toNano('0.2') + toNano('0.3'),
+        mintOpcode: WTON_MINT_OPCODE,
+        message: {
+          queryId: nextQueryId++,
+          destination: alice.address,
+          tonAmount: toNano('0.2'),
+          jettonAmount: 1n,
+          from: null,
+          responseDestination: bob.address,
+          forwardTonAmount: 0n,
+          customPayload: null,
+        },
+      })
+
+      const excessTx = internalTransactionFromTo(result, aliceWallet.address, bob.address)
+
+      expect(excessTx.inMessage.info.type).toEqual('internal')
+      expect(excessTx.inMessage.info.value.coins).toBeLessThan(toNano('1'))
+      expect(await walletBalance(alice.address)).toEqual(toNano('1') + 1n)
+      expect(await totalSupply()).toEqual(toNano('1') + 1n)
+      expect(await walletNativeBalance(alice.address)).toBeGreaterThan(walletNativeBefore)
+    })
+
+    it('preserves bounced-transfer surplus across a later third-party inbound transfer', async () => {
+      const minted = toNano('1.2')
+      await mintTo(alice.address, { jettonAmount: minted })
+      await mintTo(bob.address, { jettonAmount: toNano('1') })
+
+      const aliceWallet = await userWallet(alice.address)
+      const bobWallet = await userWallet(bob.address)
+      const bobWalletContract = await blockchain.getContract(bobWallet.address)
+      bobWalletContract.balance = 0n
+
+      await transferFrom(alice, {
+        jettonAmount: toNano('0.3'),
+        destination: bob.address,
+        value: toNano('0.5'),
+      })
+
+      expect(await walletBalance(alice.address)).toEqual(minted)
+      const walletNativeAfterBounce = await walletNativeBalance(alice.address)
+
+      const result = await minter.sendMint(recipient.getSender(), {
+        value: 1n + toNano('0.2') + toNano('0.3'),
+        mintOpcode: WTON_MINT_OPCODE,
+        message: {
+          queryId: nextQueryId++,
+          destination: alice.address,
+          tonAmount: toNano('0.2'),
+          jettonAmount: 1n,
+          from: null,
+          responseDestination: recipient.address,
+          forwardTonAmount: 0n,
+          customPayload: null,
+        },
+      })
+
+      const excessTx = internalTransactionFromTo(result, aliceWallet.address, recipient.address)
+
+      expect(excessTx.inMessage.info.type).toEqual('internal')
+      expect(excessTx.inMessage.info.value.coins).toBeLessThan(toNano('1'))
+      expect(await walletBalance(alice.address)).toEqual(minted + 1n)
+      expect(await totalSupply()).toEqual(minted + toNano('1') + 1n)
+      expect(await walletNativeBalance(alice.address)).toBeGreaterThan(walletNativeAfterBounce)
     })
   })
 })

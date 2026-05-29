@@ -108,6 +108,13 @@ export type WithdrawTonsMessage = {
   queryId: bigint
 }
 
+// wTON-specific extension: lets the wallet owner withdraw any TON surplus
+// sitting above the strict `jettonBalance + storage_fee`
+export type AskToWithdrawExcess = {
+  queryId: bigint
+  sendExcessesTo: Address
+}
+
 function toContractData(config: JettonWalletConfig): JettonWalletData {
   return {
     ownerAddress: config.ownerAddress,
@@ -196,6 +203,25 @@ export class JettonWallet implements Contract {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.messages.in.withdrawTons.encode({ queryId: 0n }).asCell(),
+    })
+  }
+
+  async sendWithdrawExcess(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      opcode: number
+      message: AskToWithdrawExcess
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: builder.messages.in
+        .askToWithdrawExcess({ opcode: opts.opcode })
+        .encode(opts.message)
+        .asCell(),
     })
   }
 
@@ -352,12 +378,31 @@ export const builder = {
           return { queryId: src.loadUintBig(64) }
         },
       }
+      const askToWithdrawExcess = (opts: { opcode: number }): CellCodec<AskToWithdrawExcess> => ({
+        encode: function (data: AskToWithdrawExcess): Builder {
+          return beginCell()
+            .storeUint(opts.opcode, 32)
+            .storeUint(data.queryId, 64)
+            .storeAddress(data.sendExcessesTo)
+        },
+        load: function (src: Slice): AskToWithdrawExcess {
+          const op = src.loadUint(32)
+          if (op !== opts.opcode) {
+            throw new Error(`Invalid opcode, expected ${opts.opcode}, got ${op}`)
+          }
+          return {
+            queryId: src.loadUintBig(64),
+            sendExcessesTo: src.loadAddress(),
+          }
+        },
+      })
       return {
         askToTransfer,
         askToTransferWithFwdPayload,
         askToBurn,
         topUpTons,
         withdrawTons,
+        askToWithdrawExcess,
       }
     })(),
     out: (() => {
