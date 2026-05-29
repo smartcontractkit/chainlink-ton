@@ -49,6 +49,7 @@ struct (0x31768d95) Router_CCIPSend {
     data: cell;
     tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address?;
+    @abi.clientType(Cell<GenericExtraArgsV2 | SVMExtraArgsV1 | SuiExtraArgsV1>)
     extraArgs: cell;
 }
 

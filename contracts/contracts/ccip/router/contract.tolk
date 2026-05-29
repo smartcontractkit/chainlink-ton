@@ -2,7 +2,6 @@
 import "@stdlib/lisp-lists"
 
 import "../../lib/funding/withdrawable.tolk"
-import "../../lib/deployable/types"
 import "../../lib/access/ownable_2step"
 import "../../lib/utils"
 import "../../lib/versioning/upgradeable"

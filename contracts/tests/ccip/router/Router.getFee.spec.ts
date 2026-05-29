@@ -1,10 +1,11 @@
-import { toNano, Cell, beginCell } from '@ton/core'
+import { toNano, Cell, beginCell, Builder, Slice } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
-import { WRAPPED_NATIVE } from '../../../src/utils'
+import { asSnakeDataUint, WRAPPED_NATIVE } from '../../../src/utils'
 import * as coverage from '../../coverage/coverage'
 
-import * as rt from '../../../wrappers/ccip/Router'
+import * as rtOld from '../../../wrappers/ccip/Router'
+import * as rt from '../../../wrappers/gen/ccip/Router'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import {
   setup,
@@ -36,34 +37,53 @@ describe('Router', () => {
     }
     feeQuoter = await blockchain.treasury('feeQuoter')
     onRamp = await blockchain.treasury('onRamp')
+
+    function CrossChainAddress__packToBuilder(self: rt.CrossChainAddress, b: Builder): void {
+      const src = self.clone()
+      const buffer = src.loadBuffer(src.remainingBits / 8)
+      b.storeBuilder(rtOld.builder.data.crossChainAddress.encode(buffer))
+    }
+    function CrossChainAddress__unpackFromSlice(s: Slice): rt.CrossChainAddress {
+      const buff = rtOld.builder.data.crossChainAddress.load(s)
+      return beginCell().storeBuffer(buff).asSlice() as rt.CrossChainAddress
+    }
+
+    rt.Router.registerCustomPackUnpack(
+      'CrossChainAddress',
+      CrossChainAddress__packToBuilder,
+      CrossChainAddress__unpackFromSlice,
+    )
   })
 
   beforeEach(async () => {
-    ;({ deployer, sender, router } = await setup(blockchain, { feeQuoter, onRamp }))
+    const res = await setup(blockchain, { feeQuoter, onRamp })
+    ;({ deployer, sender } = res)
+    router = blockchain.openContract(rt.Router.fromAddress(res.router.address))
   })
 
-  const msg = {
-    queryID: 1,
+  const ccipSend = rt.Router_CCIPSend.create({
+    queryID: 1n,
     destChainSelector: CHAINSEL_EVM_TEST_90000001,
-    receiver: EVM_ADDRESS,
+    receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
     data: Cell.EMPTY,
-    tokenAmounts: [],
+    tokenAmounts: beginCell().endCell(),
     feeToken: WRAPPED_NATIVE,
-    extraArgs: rt.builder.data.extraArgs
-      .encode({
-        kind: 'generic-v2',
+    extraArgs: {
+      ref: rt.GenericExtraArgsV2.create({
         gasLimit: 100n,
         allowOutOfOrderExecution: true,
-      })
-      .asCell(),
+      }),
+    },
+  })
+  const msg: rt.CellRef<rt.Router_CCIPSend> = {
+    ref: ccipSend,
   }
 
   it('should forward getValidatedFee to OnRamp', async () => {
-    const result = await router.sendGetValidatedFee(
+    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs_(
       sender.getSender(),
       toNano('0.5'),
-      msg,
-      beginCell().asSlice(),
+      { ccipSend: msg, context: beginCell().asSlice() },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -93,26 +113,27 @@ describe('Router', () => {
   })
 
   it('should reject getValidatedFee for disabled dest chain (missing OnRamp)', async () => {
-    const badMsg = {
-      queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
-      receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
-      tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
-      extraArgs: rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: 100n,
-          allowOutOfOrderExecution: true,
-        })
-        .asCell(),
+    const badMsg: rt.CellRef<rt.Router_CCIPSend> = {
+      ref: {
+        $: 'Router_CCIPSend',
+        queryID: 1n,
+        destChainSelector: CHAINSEL_EVM_TEST_90000001 + 1n,
+        receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
+        data: Cell.EMPTY,
+        tokenAmounts: beginCell().endCell(),
+        feeToken: WRAPPED_NATIVE,
+        extraArgs: {
+          ref: rt.GenericExtraArgsV2.create({
+            gasLimit: 100n,
+            allowOutOfOrderExecution: true,
+          }),
+        },
+      },
     }
-    const result = await router.sendGetValidatedFee(
+    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs_(
       sender.getSender(),
       toNano('0.5'),
-      badMsg,
-      beginCell().asSlice(),
+      { ccipSend: badMsg, context: beginCell().asSlice() },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -124,11 +145,11 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: sender.address,
-      op: rt.opcodes.out.messageValidationFailed,
+      op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
-        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+        const decoded = rtOld.builder.message.out.messageValidationFailed.load(x.beginParse())
+        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
   })
@@ -136,15 +157,15 @@ describe('Router', () => {
   it('should reject getValidatedFee for disabled dest chain (zero address)', async () => {
     // Disable the onRamp for the chain
     {
-      const result = await router.sendApplyRampUpdatesSetRamps(deployer.getSender(), {
-        value: toNano('1'),
-        data: {
-          queryID: 1n,
-          onRamps: {
-            destChainSelectors: [CHAINSEL_EVM_TEST_90000001],
-            onRamp: undefined,
-          },
+      const result = await router.sendRouterApplyRampUpdates(deployer.getSender(), toNano('1'), {
+        queryId: 1n,
+        onRampUpdates: {
+          $: 'OnRamps',
+          destChainSelectors: asSnakeDataUint([CHAINSEL_EVM_TEST_90000001], 64),
+          onRamp: null,
         },
+        offRampAdds: null,
+        offRampRemoves: null,
       })
 
       expect(result.transactions).toHaveTransaction({
@@ -154,26 +175,27 @@ describe('Router', () => {
       })
     }
 
-    const badMsg = {
-      queryID: 1,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
-      receiver: EVM_ADDRESS,
-      data: Cell.EMPTY,
-      tokenAmounts: [],
-      feeToken: WRAPPED_NATIVE,
-      extraArgs: rt.builder.data.extraArgs
-        .encode({
-          kind: 'generic-v2',
-          gasLimit: 100n,
-          allowOutOfOrderExecution: true,
-        })
-        .asCell(),
+    const badMsg: rt.CellRef<rt.Router_CCIPSend> = {
+      ref: {
+        $: 'Router_CCIPSend',
+        queryID: 1n,
+        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        receiver: beginCell().storeBuffer(EVM_ADDRESS).asSlice(),
+        data: Cell.EMPTY,
+        tokenAmounts: beginCell().endCell(),
+        feeToken: WRAPPED_NATIVE,
+        extraArgs: {
+          ref: rt.GenericExtraArgsV2.create({
+            gasLimit: 100n,
+            allowOutOfOrderExecution: true,
+          }),
+        },
+      },
     }
-    const result = await router.sendGetValidatedFee(
+    const result = await router.sendRouterGetValidatedFeeRemainingBitsAndRefs_(
       sender.getSender(),
       toNano('0.5'),
-      badMsg,
-      beginCell().asSlice(),
+      { ccipSend: badMsg, context: beginCell().asSlice() },
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -185,24 +207,28 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: sender.address,
-      op: rt.opcodes.out.messageValidationFailed,
+      op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
-        return decoded.error === BigInt(rt.RouterError.DestChainNotEnabled)
+        const decoded = rtOld.builder.message.out.messageValidationFailed.load(x.beginParse())
+        return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
       },
     })
   })
 
   it('should forward messageValidated from OnRamp', async () => {
-    const result = await router.sendMessageValidated(onRamp.getSender(), toNano('1'), {
-      fee: toNano('0.5'),
-      msg,
-      context: {
-        routerContext: sender.address,
-        userContext: beginCell().asSlice(),
+    const result = await router.sendOnRampMessageValidatedRouterGetValidatedFeeContext_(
+      onRamp.getSender(),
+      toNano('1'),
+      {
+        fee: toNano('0.5'),
+        msg,
+        context: rt.Router_GetValidatedFeeContext.create({
+          routerContext: sender.address,
+          userContext: beginCell().asSlice(),
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
@@ -213,10 +239,10 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: sender.address,
-      op: rt.opcodes.out.messageValidated,
+      op: rt.Router_MessageValidated.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.builder.message.out.messageValidated.load(x.beginParse())
+        const decoded = rtOld.builder.message.out.messageValidated.load(x.beginParse())
         return (
           decoded.fee === toNano('0.5') &&
           decoded.msg.queryID === 1 &&
@@ -231,32 +257,40 @@ describe('Router', () => {
   })
 
   it('should throw on messageValidated from non OnRamp', async () => {
-    const result = await router.sendMessageValidated(sender.getSender(), toNano('1'), {
-      fee: toNano('0.5'),
-      msg,
-      context: {
-        routerContext: sender.address,
-        userContext: beginCell().asSlice(),
+    const result = await router.sendOnRampMessageValidatedRouterGetValidatedFeeContext_(
+      sender.getSender(),
+      toNano('1'),
+      {
+        fee: toNano('0.5'),
+        msg,
+        context: rt.Router_GetValidatedFeeContext.create({
+          routerContext: sender.address,
+          userContext: beginCell().asSlice(),
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.NotOnRamp,
+      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
     })
   })
 
   it('should forward messageValidationFailed from OnRamp', async () => {
-    const result = await router.sendMessageValidationFailed(onRamp.getSender(), toNano('1'), {
-      error: 12345n,
-      msg,
-      context: {
-        routerContext: sender.address,
-        userContext: beginCell().asSlice(),
+    const result = await router.sendOnRampMessageValidationFailedRouterGetValidatedFeeContext_(
+      onRamp.getSender(),
+      toNano('1'),
+      {
+        error: 12345n,
+        msg,
+        context: rt.Router_GetValidatedFeeContext.create({
+          routerContext: sender.address,
+          userContext: beginCell().asSlice(),
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
@@ -267,10 +301,10 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: sender.address,
-      op: rt.opcodes.out.messageValidationFailed,
+      op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.builder.message.out.messageValidationFailed.load(x.beginParse())
+        const decoded = rtOld.builder.message.out.messageValidationFailed.load(x.beginParse())
         return (
           decoded.error === 12345n &&
           decoded.msg.queryID === 1 &&
@@ -285,20 +319,24 @@ describe('Router', () => {
   })
 
   it('should throw on messageValidationFailed from non OnRamp', async () => {
-    const result = await router.sendMessageValidationFailed(sender.getSender(), toNano('1'), {
-      error: 12345n,
-      msg,
-      context: {
-        routerContext: sender.address,
-        userContext: beginCell().asSlice(),
+    const result = await router.sendOnRampMessageValidationFailedRouterGetValidatedFeeContext_(
+      sender.getSender(),
+      toNano('1'),
+      {
+        error: 12345n,
+        msg,
+        context: rt.Router_GetValidatedFeeContext.create({
+          routerContext: sender.address,
+          userContext: beginCell().asSlice(),
+        }),
       },
-    })
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: sender.address,
       to: router.address,
       success: false,
-      exitCode: rt.RouterError.NotOnRamp,
+      exitCode: rt.Router.Errors['Router_Error.NotOnRamp'],
     })
   })
 
