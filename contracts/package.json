@@ -30,7 +30,7 @@
     "get-key-pair": "ts-node scripts/getKeyPair.ts"
   },
   "resolutions": {
-    "axios": "1.15.2"
+    "axios": "v1.16.1"
   },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",

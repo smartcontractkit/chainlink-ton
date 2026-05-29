@@ -12,7 +12,7 @@
     "ci:changeset:version": "yarn changeset version"
   },
   "resolutions": {
-    "axios": "1.15.2"
+    "axios": "v1.16.1"
   },
   "repository": {
     "type": "git",
