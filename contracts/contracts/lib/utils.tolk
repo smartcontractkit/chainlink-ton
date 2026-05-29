@@ -125,7 +125,7 @@ fun Iterator<T>.empty(self): bool {
 
 @inline
 fun Iterator<T>.next(mutate self): T {
-    var (bits, refs) = self.data.remainingBitsAndRefsCount();
+    val (bits, refs) = self.data.remainingBitsAndRefsCount();
     if (bits == 0) {
         // for snakeData to be well formed, there should only be one reference
         assert(refs == 1, Utils_Error.InvalidData);
@@ -186,7 +186,7 @@ fun ArrayIterator<T>.empty(self): bool {
 
 @inline
 fun ArrayIterator<T>.next(mutate self): T {
-    var offset = self.pos;
+    val offset = self.pos;
     self.pos += 1;
     return self.data.get(offset);
 }
@@ -233,7 +233,7 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
     var lisplist: lisp_list<K> = [];
     var entry = dict.findFirst();
     while (entry.isFound) {
-        var key = entry.getKey();
+        val key = entry.getKey();
         lisplist.prependHead(key);
         entry = dict.iterateNext(entry);
     } ;

@@ -38,7 +38,7 @@ fun hashPair(a: uint256, b: uint256): uint256 {
 
 /// Notice: use keccak256 hash function to match Ethereum (+tooling) implementation
 fun hashInternalNode(a: uint256, b: uint256): uint256 {
-    var data = beginCell()
+    val data = beginCell()
         .storeUint(a, 256)
         .storeUint(b, 256);
     return keccak256(data);

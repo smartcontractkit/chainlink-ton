@@ -75,13 +75,13 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedSuccessfully => {
-            var st = lazy OnRamp_Storage.load();
+            val st = lazy OnRamp_Storage.load();
             assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
             onExecutorFinishedSuccessfully(st, msg);
         }
         // Sender must be Send Executor
         OnRamp_ExecutorFinishedWithError => {
-            var st = lazy OnRamp_Storage.load();
+            val st = lazy OnRamp_Storage.load();
             assert(st.executor.autoDeployAddress(msg.executorID).addressMatches(in.senderAddress), Error.Unauthorized);
             onExecutorFinishedWithError(st, msg);
         }
@@ -122,7 +122,7 @@ fun onInternalMessage(in: InMessage) {
         },
         // Sender must be owner
         Upgradeable_Upgrade => {
-            var st = lazy OnRamp_Storage.load();
+            val st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -528,14 +528,14 @@ get fun feeQuoter(destChainSelector: int): address {
 get fun allowedSendersList(destChainSelector: uint64): lisp_list<address> {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
-    var allowedSenders = config.allowedSenders;
+    val allowedSenders = config.allowedSenders;
 
     return keysLispList(allowedSenders);
 }
 
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy OnRamp_Storage.load();
-    var d = st.destChainConfigs;
+    val d = st.destChainConfigs;
     return keysLispList(d)!;
 }
 

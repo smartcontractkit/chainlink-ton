@@ -83,14 +83,14 @@ fun onInternalMessage(in: InMessage) {
             handleGetValidatedFee(msg, in.senderAddress)
         }
         Withdrawable_Withdraw => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
         Upgradeable_Upgrade => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Upgradeable{ migrate, version }.upgrade(msg);
         }
@@ -275,11 +275,11 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
         }
     }
 
-    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
+    val gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg, msgDataLen);
 
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
-    var tokensIter = msg.tokenAmounts.iter();
+    val tokensIter = msg.tokenAmounts.iter();
     val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow as int);
     assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
@@ -368,7 +368,7 @@ fun _dataAvailabilityCost(
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
     // Check that payload is formed correctly.
     assert (msgDataLen <= config.maxDataBytes) throw FeeQuoter_Error.MsgDataTooLarge;
-    var tokenAmounts = message.tokenAmounts.iter();
+    val tokenAmounts = message.tokenAmounts.iter();
     assert (tokenAmounts.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens; 
 
     // NOTE: we could deploy distinct contracts to cut down on code
@@ -599,7 +599,7 @@ get fun premiumMultiplierWeiPerEth(token: address): uint256 {
 // vec<address>
 get fun feeTokens(): lisp_list<address> {
     val st = lazy Storage.load();
-    var feeTokens = st.premiumMultiplierWeiPerEth;
+    val feeTokens = st.premiumMultiplierWeiPerEth;
     return keysLispList(feeTokens);
 }
 
@@ -667,7 +667,7 @@ get fun errorCode(local: uint16): uint16 {
 
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
-    var d = st.destChainConfigs;
+    val d = st.destChainConfigs;
     return keysLispList(d)!;
 }
 

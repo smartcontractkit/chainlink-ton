@@ -641,7 +641,7 @@ fun Timelock<T>.errorCode(local: uint16): uint16 {
 /// Loads the Timelock contract data from persistent storage.
 fun Timelock<T>.load(context: T? = null, hooks: Timelock_Hooks<T>? = null): Timelock<T> {
     // Load the contract data from the persistent storage
-    var data = Timelock_Data.fromContractData();
+    val data = Timelock_Data.fromContractData();
 
     // Return the Timelock instance with loaded data and hooks
     return Timelock<T> {
@@ -1365,7 +1365,7 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
 
     // Load the function selector from the message body
     val selector = data.loadMessageOp(); // 32-bit integer
-    var blocked = self.data.blockedFnSelectors.get(selector);
+    val blocked = self.data.blockedFnSelectors.get(selector);
 
     if (blocked.isFound) {
         throw Timelock_Error.SelectorIsBlocked;

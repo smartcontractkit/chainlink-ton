@@ -136,7 +136,7 @@ fun OCR3Base.transmit(
     var ocrConfig = self.getConfig(ocrPluginType);
     assert(ocrConfig != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     ocrConfig = ocrConfig!;
-    var configInfo: ConfigInfo = ocrConfig.configInfo;
+    val configInfo: ConfigInfo = ocrConfig.configInfo;
     
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
     
@@ -149,11 +149,11 @@ fun OCR3Base.transmit(
     assert(pluginTransmitters.get(transmitter).isFound, MultiOCR3Base_Error.UnauthorizedTransmitter);
 
     if (configInfo.isSignatureVerificationEnabled) {
-    	var expectedSignatures = configInfo.bigF + 1;
+    	val expectedSignatures = configInfo.bigF + 1;
 		val signatures_length = signatures.iter().countBytes() / 96; //expensive
     	assert(signatures_length == expectedSignatures, MultiOCR3Base_Error.WrongNumberOfSignatures);
-    	var hashedReport = self.hashReport(report, reportContext);
-    	var pluginSigners = ocrConfig.signers;
+    	val hashedReport = self.hashReport(report, reportContext);
+    	val pluginSigners = ocrConfig.signers;
 
     	self.verifySignature(pluginSigners, hashedReport, signatures);
     }

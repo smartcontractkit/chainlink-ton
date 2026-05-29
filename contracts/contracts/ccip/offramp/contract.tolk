@@ -56,13 +56,13 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be MerkleRoot
         OffRamp_ExecuteValidated => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsMerkleRoot(st, msg.root, in.senderAddress);
             onExecuteValidated(st, msg, in.senderAddress)
         }
         // Sender must be ReceiveExecutor
         OffRamp_DispatchValidated => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onDispatchValidated(st, msg)
         }
@@ -72,19 +72,19 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be owner
         OCR3Base_SetOCR3Config => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onSetOCR3Config(msg)
         }
         // Sender must be owner
         OffRamp_UpdateDeployables => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpdateDeployables(st, msg)
         }
         // Sender must be owner
         OffRamp_UpdateSourceChainConfigs => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpdateSourceChainConfigs(msg)
         }
@@ -96,37 +96,37 @@ fun onInternalMessage(in:InMessage) {
         },
         // Sender must be router
         OffRamp_CCIPReceiveConfirm => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onCCIPReceiveConfirm(st, msg);
         }
         // Sender must be router
         OffRamp_CCIPReceiveBounced => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsTheRouter(st, msg.execId.getSourceChainSelector(), in.senderAddress);
             onBouncedCCIPReceive(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifySuccess(msg);
         }
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             assertSenderIsReceiverExecutor(st, msg.execId, in.senderAddress);
             onNotifyFailure(msg);
         }
         // Sender must be owner
         OffRamp_SetDynamicConfig => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onSetDynamicConfig(msg);
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
@@ -134,7 +134,7 @@ fun onInternalMessage(in:InMessage) {
         }
         // Sender must be owner
         Upgradeable_Upgrade => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -728,7 +728,7 @@ fun onUpdateSourceChainConfigs(msg: OffRamp_UpdateSourceChainConfigs) {
 
     var configIterator = msg.configs.iter();
     while (!configIterator.empty()) {
-        var configUpdate = configIterator.next();
+        val configUpdate = configIterator.next();
         var config: SourceChainConfig;
         var existingConfigEntry = st.sourceChainConfigs.get(configUpdate.sourceChainSelector);
 
@@ -941,13 +941,13 @@ fun onSetDynamicConfig(msg: OffRamp_SetDynamicConfig) {
 }
 
 get fun latestPriceSequenceNumber(): uint64 {
-    var st = lazy Storage.load();
+    val st = lazy Storage.load();
     return st.latestPriceSequenceNumber
 }
 
 get fun sourceChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
-    var d = st.sourceChainConfigs;
+    val d = st.sourceChainConfigs;
     return keysLispList(d)!;
 }
 

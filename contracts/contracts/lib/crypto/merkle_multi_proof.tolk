@@ -38,7 +38,7 @@ fun merkleRoot<I>(
     assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
     assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
 
-    var totalHashes: int = leavesLen + proofsLen - 1;
+    val totalHashes: int = leavesLen + proofsLen - 1;
     assert (totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
 
     if (totalHashes == 0) {
@@ -96,7 +96,7 @@ fun hashPair(a: uint256, b: uint256): uint256 {
 }
 
 fun hashInternalNode(a: uint256, b: uint256): uint256 {
-    var data = beginCell()
+    val data = beginCell()
         .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
         .storeUint(a, 256)
         .storeUint(b, 256);

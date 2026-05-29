@@ -129,7 +129,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be owner
         Withdrawable_Withdraw => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
@@ -137,7 +137,7 @@ fun onInternalMessage(in: InMessage) {
         }
         // Sender must be owner
         Upgradeable_Upgrade => {
-            var st = lazy Storage.load();
+            val st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             onUpgrade(msg);
         }
@@ -652,7 +652,7 @@ get fun verifyNotCursed(subject: uint128): bool {
 
 get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
-    var rmn = st.rmnRemote.load();
+    val rmn = st.rmnRemote.load();
     return keysLispList(rmn.cursedSubjects.data)!;
 }
 
@@ -741,7 +741,7 @@ get fun offRamps(): lisp_list<Cell<Ramp>> {
 
 get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
-    var d = st.onRamps;
+    val d = st.onRamps;
     return keysLispList(d)!;
 }
 

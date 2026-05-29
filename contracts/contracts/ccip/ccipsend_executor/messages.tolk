@@ -31,7 +31,7 @@ fun SendExecutor_Costs.Deploy(): int {
 // Minimum value for calling SendExecutor_GetValidatedFee
 @inline
 fun SendExecutor_Costs.Execute(): int {
-    var baseFee =
+    val baseFee =
         + ton("0.002") // computeFee
         + ton("0.019") // GetValidatedFee fwdFee
         + FeeQuoter_Costs.GetValidatedFee()

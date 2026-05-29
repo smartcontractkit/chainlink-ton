@@ -57,7 +57,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy CCIPSendExecutor_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
         FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+            val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce as int);
         }
     }
