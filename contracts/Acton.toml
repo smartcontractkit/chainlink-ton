@@ -44,14 +44,32 @@ src = "contracts/ccip/receive_executor/contract.tolk"
 domain = "ccip"
 depends = []
 
+[contracts.MerkleRoot]
+display-name = "link.chain.ton.ccip.MerkleRoot"
+src = "contracts/ccip/merkle_root/contract.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.Timelock]
+display-name = "link.chain.ton.mcms.Timelock"
+src = "contracts/mcms/rbac_timelock.tolk"
+domain = "ccip"
+depends = []
+
+[contracts.MCMS]
+display-name = "link.chain.ton.mcms.MCMS"
+src = "contracts/mcms/mcms.tolk"
+domain = "ccip"
+depends = []
+
 # fmt is not very mature yet
 [fmt]
 width = 100
 ignore = ["*"]
 
 [lint.rules]
-compiler-error = "warn" # C001 - not available	Reports compiler and parse errors.
-unused-variable = "allow" # TODO E001 - always available	Checks for variables and parameters that are declared but never used.
+compiler-error = "warn" # C001 - Reports compiler and parse errors.
+unused-variable = "warn" # E001 - Checks for variables and parameters that are declared but never used.
 mutable-variable-can-be-immutable = "warn" # E002 - sometimes available	Checks for variables that are declared as mutable (var) but are never mutated.
 deprecated-symbol-use = "warn" # E003 - Checks for usage of deprecated symbols in code.
 write-only-variable = "warn" # E004 - Checks for variables that are written to but never read.
@@ -67,13 +85,13 @@ unauthorized-access = "deny" # E013 - Detects storage mutations (contract.setDat
 several-not-null-assertions = "warn" # E014 - Detects repeated not-null assertions like foo!!.
 reserve-mode-literal = "warn" # E015 - Warns when reserve mode is passed as numeric literal instead of RESERVE_MODE_* constants.
 dangerous-send-mode-missing-safety-comment = "warn" # E016 - Requires a SAFETY comment for msg.send(...) calls that use dangerous send-mode flags.
-bless-call-missing-safety-comment = "allow" # TODO E017 - Requires a SAFETY comment for calls to transformSliceToContinuation and for calls to any asm function that uses BLESS.
+bless-call-missing-safety-comment = "warn" # E017 - Requires a SAFETY comment for calls to transformSliceToContinuation and for calls to any asm function that uses BLESS.
 random-requires-initialization = "deny" # E018 - Requires random generator initialization before random value generation calls.
 divide-before-multiply = "warn" # E019 - Detects cases where division is evaluated before multiplication.
 duplicated-condition = "warn" # E020 - Detects duplicated conditions in if / else if chains.
 identical-conditional-branches = "warn" # E021 - Detects conditionals where both branches are structurally identical.
 no-global-variables = "warn" # E022 - Disallows top-level global variable declarations.
-enum-cast-missing-safety-comment = "allow" # TODO E024 - Requires a SAFETY comment for non-literal as casts to enum types.
+enum-cast-missing-safety-comment = "warn" # E024 - Requires a SAFETY comment for non-literal as casts to enum types.
 missing-contract-header = "warn" # E025 - Warns when a contract source defines standard contract entrypoints but omits the contract header.
 unused-expression = "warn" # E026 - Warns when an expression statement computes a value that is immediately discarded.
 dict-type-use = "warn" # E027 - Warns when code uses the low-level dict type.
@@ -85,13 +103,15 @@ throw-requires-documented-error-value = "allow" # TODO E030 - Requires documenta
 name-case-checker = "allow" # S001 - Checks identifier naming style and suggests consistent casing.
 
 explicit-return-type = "warn" # S002 - Requires explicit return types for function declarations.
-
-field-init-can-be-folded = "allow" # S003 - Checks for struct initialization where the field name and the variable used to initialize it are the same.
-method-can-be-static = "allow" # S004 - Checks for instance methods where self is unnecessary.
+field-init-can-be-folded = "warn" # S003 - Checks for struct initialization where the field name and the variable used to initialize it are the same.
+method-can-be-static = "warn" # TODO S004 - Checks for instance methods where self is unnecessary.
 message-should-be-named = "allow" # S005 - Checks for messages created with createMessage(...) but named as generic msg or message.
-create-message-inline-send = "allow" # S006 - Checks for inline sending of newly created messages: createMessage(...).send(...).
+create-message-inline-send = "warn" # S006 - Checks for inline sending of newly created messages: createMessage(...).send(...).
+
+# Blueprint doesn't support @mapping yet
 import-path-can-use-mappings = "allow" # S007 - Warns when a relative import path can be replaced with a configured @mapping/... path.
-negated-is-type-can-use-not-is = "allow" # S008 - Detects negated type checks written as !(a is T).
+
+negated-is-type-can-use-not-is = "warn" # S008 - Detects negated type checks written as !(a is T).
 
 
 [import-mappings]
