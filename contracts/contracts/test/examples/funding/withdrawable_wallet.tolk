@@ -39,7 +39,7 @@ fun onInternalMessage(in: InMessage) {
             storage.ownable2Step.requireOwner(sender);
             Withdrawable{
                 reserve: storage.reserve
-            }.withdraw(msg, in.valueCoins);
+            }.withdraw(msg);
         }
         else => {
             assert (in.body.isEmpty()) throw 63;

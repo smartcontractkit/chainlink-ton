@@ -33,7 +33,7 @@ struct (0xf343fc1b) Withdrawable_Withdraw {
     drainAllAvailable: bool;
 }
 
-fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw, value: coins) {
+fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw) {
     val originalBalance = contract.getOriginalBalance();
     var actualReserve = self.reserve;
     if (msg.reserve != null) {

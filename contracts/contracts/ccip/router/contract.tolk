@@ -133,7 +133,7 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             Withdrawable{
                 reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
+            }.withdraw(msg);
         }
         // Sender must be owner
         Upgradeable_Upgrade => {
