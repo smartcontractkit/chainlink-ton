@@ -23,10 +23,10 @@ enum FeeQuoter_Error {
     InsufficientFee
     TokenTransfersNotSupported
     UnauthorizedPriceUpdater
-    ExecutionCostOverflow // Unreachable
-    PremiumFeeOverflow // Unreachable
+    ExecutionCostOverflow        // Unreachable
+    PremiumFeeOverflow           // Unreachable
     DataAvailabilityCostOverflow // Unreachable
-    FeeCalculationOverflow // Unreachable
+    FeeCalculationOverflow       // Unreachable
     TokenPriceTooLow
     FeeOverflow
     MessageFeeTooHigh

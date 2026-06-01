@@ -1,18 +1,18 @@
-// SPDX-License-Identifier: BUSL-1.1
-import "types"
-import "messages"
-import "storage"
-import "errors"
-import "../fee_quoter/messages"
-import "../onramp/messages"
-import "../../lib/utils"
-import "../router/messages"
-import "../fee_quoter/types"
-import "@stdlib/gas-payments"
-
 tolk 1.4.1
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+import "@stdlib/gas-payments"
+import "errors"
+import "messages"
+import "storage"
+// SPDX-License-Identifier: BUSL-1.1
+import "types"
+import "../fee_quoter/messages"
+import "../fee_quoter/types"
+import "../onramp/messages"
+import "../router/messages"
+import "../../lib/utils"
+
+const CONTRACT_VERSION = "1.6.1".literalSlice()
 
 contract CCIPSendExecutor {
     author: "SmartContract Chainlink Limited SEZC"
@@ -48,7 +48,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
-        },   
+        }
     }
 }
 
@@ -62,7 +62,10 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 }
 
-fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+fun init(
+    onrampSend: OnRamp_Send,
+    config: CCIPSendExecutor_Config,
+): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         id: st.id,
@@ -71,8 +74,7 @@ fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExec
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
         }.toCell(),
-        state: CCIPSendExecutor_State_Initialized{
-        }.toCell(),
+        state: CCIPSendExecutor_State_Initialized {}.toCell(),
     };
 }
 
@@ -82,8 +84,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self) 
         id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
-        state: CCIPSendExecutor_State_OnGoingFeeValidation {
-        }.toCell(),
+        state: CCIPSendExecutor_State_OnGoingFeeValidation {}.toCell(),
     };
     newState.store();
 }
@@ -96,18 +97,21 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
         body: FeeQuoter_GetValidatedFee<slice> {
             msg: onrampSend.msg,
             context: createEmptySlice(),
-        }
+        },
     });
     getValidatedFeeMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(
+    mutate self,
+    msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>,
+) {
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
         self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds);
         return;
     }
     setGasLimitToMaximum();
-    
+
     self.exitSuccessfully(msg.fee);
 }
 
@@ -116,8 +120,7 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
         id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
-        state: CCIPSendExecutor_State_Finalized {
-        }.toCell(),
+        state: CCIPSendExecutor_State_Finalized {}.toCell(),
     };
     newState.store();
 
@@ -130,12 +133,15 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: Fee) {
             executorID: self.id,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-        }
+        },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(mutate self, msg: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidationFailed(
+    mutate self,
+    msg: FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>,
+) {
     self.exitWithError(msg.error as uint256);
 }
 
@@ -144,11 +150,10 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
         id: self.id,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
-        state: CCIPSendExecutor_State_Finalized {
-        }.toCell(),
+        state: CCIPSendExecutor_State_Finalized {}.toCell(),
     };
     newState.store();
-    
+
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
@@ -158,7 +163,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
             error,
             msg: self.onrampSend.msg,
             metadata: self.onrampSend.metadata,
-        }
+        },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
@@ -167,7 +172,7 @@ get fun typeAndVersion(): (slice, slice) {
     return (CCIPSendExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
-get fun facilityId(): uint16  {
+get fun facilityId(): uint16 {
     return CCIPSendExecutor_FACILITY_ID;
 }
 

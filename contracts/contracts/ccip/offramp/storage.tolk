@@ -1,27 +1,27 @@
-// SPDX-License-Identifier: BUSL-1.1
-import "../../lib/ocr/multi_ocr3_base"
-import "../../lib/access/ownable_2step"
 import "types"
 import "../rmn_remote/lib"
+import "../../lib/access/ownable_2step"
+// SPDX-License-Identifier: BUSL-1.1
+import "../../lib/ocr/multi_ocr3_base"
 
 struct Storage {
-    id: uint32;
-    ownable: Ownable2Step;
-    deployables: Cell<OffRamp_Deployables>;
-    feeQuoter: address;
+    id: uint32
+    ownable: Ownable2Step
+    deployables: Cell<OffRamp_Deployables>
+    feeQuoter: address
     ocr3Base: Cell<OCR3Base>
-    cursedSubjects: CursedSubjects;
+    cursedSubjects: CursedSubjects
 
     // static config
-    chainSelector: uint64;
+    chainSelector: uint64
 
     // dynamic config
-    permissionlessExecutionThresholdSeconds: uint32,
+    permissionlessExecutionThresholdSeconds: uint32
 
-    sourceChainConfigs: map<uint64, SourceChainConfig>;
+    sourceChainConfigs: map<uint64, SourceChainConfig>
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
-    latestPriceSequenceNumber: uint64;
+    latestPriceSequenceNumber: uint64
 }
 
 fun Storage.load(): Storage {

@@ -14,56 +14,54 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateDestChainConfigs
     | FeeQuoter_GetValidatedFee<RemainingBitsAndRefs>
     | Withdrawable_Withdraw
-    | Upgradeable_Upgrade;
-    ;
+    | Upgradeable_Upgrade
 
 struct (0xde852b1b) FeeQuoter_UpdatePrices {
     updates: PriceUpdates
-    sendExcessesTo: address?;
+    sendExcessesTo: address?
 }
 
 struct (0x7496FF56) FeeQuoter_GetValidatedFee<T> {
     msg: Cell<Router_CCIPSend>
-    context: T;
+    context: T
 }
 
 struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
-    add: map<address, FeeToken>; // token -> config
-    remove: SnakedCell<address>;
+    add: map<address, FeeToken> // token -> config
+    remove: SnakedCell<address>
 }
 
 // --- Outgoing messages ---
 
 struct (0x1fa60374) FeeQuoter_MessageValidated<T> {
-    fee: Fee,
+    fee: Fee
     msg: Cell<Router_CCIPSend>
     context: T
 }
 
 struct (0xbcf0ab0f) FeeQuoter_MessageValidationFailed<T> {
-    error: uint256,
-    msg: Cell<Router_CCIPSend>,
+    error: uint256
+    msg: Cell<Router_CCIPSend>
     context: T
 }
-
 
 // NOTE: we just merged this into UpdateFeeTokens
 // UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
 
 struct (0xB2826316) FeeQuoter_UpdateTokenTransferFeeConfigs {
-    updates: map<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
+    updates: map<uint64, UpdateTokenTransferFeeConfig> // destChainSelector -> updates
 }
 
 struct (0x2d2410f6) FeeQuoter_UpdateDestChainConfigs {
-    updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>;
+    updates: SnakedCell<FeeQuoter_UpdateDestChainConfig>
 }
 
 struct (0x71DF848A) FeeQuoter_AddPriceUpdater {
-    priceUpdater: address;
+    priceUpdater: address
 }
 
 struct (0x5DFBB1BC) FeeQuoter_RemovePriceUpdater {
-    priceUpdater: address;
+    priceUpdater: address
 }
 
 // Costs associated with FeeQuoter operations

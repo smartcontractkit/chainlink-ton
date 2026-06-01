@@ -4,10 +4,10 @@ import "types"
 import "../onramp/messages"
 
 struct CCIPSendExecutor<T> {
-    id: CCIPSendExecutor_ID,
-    onrampSend: OnRamp_Send,
-    addresses: Cell<CCIPSendExecutor_Addresses>,
-    state: Cell<T>,
+    id: CCIPSendExecutor_ID
+    onrampSend: OnRamp_Send
+    addresses: Cell<CCIPSendExecutor_Addresses>
+    state: Cell<T>
 }
 
 fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
@@ -22,10 +22,12 @@ fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
 }
 
 fun CCIPSendExecutor<T>.store(self) {
-    contract.setData(CCIPSendExecutor_Data {
-        id: self.id,
-        onrampSend: self.onrampSend,
-        addresses: self.addresses,
-        state: self.state,
-    }.toCell());
+    contract.setData(
+        CCIPSendExecutor_Data {
+            id: self.id,
+            onrampSend: self.onrampSend,
+            addresses: self.addresses,
+            state: self.state,
+        }.toCell(),
+    );
 }

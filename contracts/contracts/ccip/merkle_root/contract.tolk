@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
-import "../../lib/utils"
-import "../offramp/messages"
-import "../offramp/types"
-import "messages"
+tolk 1.4.1
+
 import "errors"
+import "messages"
 import "storage"
 import "types"
-
-tolk 1.4.1
+import "../offramp/messages"
+import "../offramp/types"
+import "../../lib/utils"
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "1.6.1".literalSlice();
+const CONTRACT_VERSION = "1.6.1".literalSlice()
 
 contract MerkleRoot {
     author: "SmartContract Chainlink Limited SEZC"
@@ -32,7 +32,6 @@ fun onInternalMessage(in: InMessage) {
             assert(in.senderAddress == st.owner, MerkleRoot_Error.NotOwner);
             onInitExecute(mutate st, msg);
             st.store();
-
         }
         // Sender must be the owner (OffRamp)
         MerkleRoot_MarkState => {
@@ -43,7 +42,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
 }
@@ -55,7 +54,7 @@ delivered by sending remaining balance back to the OffRamp owner.
 */
 fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
     // validate we're transitioning states correctly: success is final
-    val previousState= st.getMessageState(msg.seqNum);
+    val previousState = st.getMessageState(msg.seqNum);
 
     assert(previousState != ExecutionState.Success, MerkleRoot_Error.InvalidState);
     assert(msg.state == ExecutionState.Success || msg.state == ExecutionState.Failure, MerkleRoot_Error.InvalidState);
@@ -72,7 +71,7 @@ fun onMarkState(mutate st: MerkleRoot_Storage, msg: MerkleRoot_MarkState) {
             bounce: true,
             value: 0,
             dest: st.owner,
-            body: createEmptyCell()
+            body: createEmptyCell(),
         });
         freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE);
     }
@@ -88,7 +87,8 @@ This triggers OffRamp deployment of the ReceiveExecutor contract that handles ex
 fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
     val message = lazy msg.message.load();
     val state = st.getMessageState(message.header.sequenceNumber);
-    assert(state == ExecutionState.Failure || state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
+    assert(state == ExecutionState.Failure ||
+    state == ExecutionState.Untouched, MerkleRoot_Error.SkippedAlreadyExecutedMessage);
 
     val isManualExecute = msg.gasOverride != null;
 
@@ -102,7 +102,10 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
         assert(state == ExecutionState.Untouched, MerkleRoot_Error.AlreadyExecuted);
     }
 
-    st.setMessageState(message.header.sequenceNumber, ExecutionState.InProgress);
+    st.setMessageState(
+        message.header.sequenceNumber,
+        ExecutionState.InProgress,
+    );
 
     val executeValidated = createMessage({
         bounce: true,
@@ -114,7 +117,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
             metadataHash: msg.metadataHash,
             gasOverride: msg.gasOverride,
             executionState: state,
-        }
+        },
     });
     executeValidated.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -123,7 +126,7 @@ get fun typeAndVersion(): (slice, slice) {
     return (MerkleRoot_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
-get fun facilityId(): uint16  {
+get fun facilityId(): uint16 {
     return MerkleRoot_FACILITY_ID;
 }
 

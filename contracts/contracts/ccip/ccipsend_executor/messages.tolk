@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "types"
 
-import "../onramp/messages"
 import "../fee_quoter/messages"
+import "../onramp/messages"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated<RemainingBitsAndRefs>
     | FeeQuoter_MessageValidationFailed<RemainingBitsAndRefs>
-    ;
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xaf3c62b3) CCIPSendExecutor_Execute {
-    onrampSend: OnRamp_Send,
-    config: Cell<CCIPSendExecutor_Config>,
+    onrampSend: OnRamp_Send
+    config: Cell<CCIPSendExecutor_Config>
 }
 
 // Costs associated with SendExecutor operations
