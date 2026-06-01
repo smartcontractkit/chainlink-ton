@@ -689,7 +689,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode("link.chain.ton.ccip.Router".crc32(), local);
+    return getErrorCode(Router_FACILITY_NAME.crc32(), local);
 }
 
 get fun onRamp(destChainSelector: uint64): address {

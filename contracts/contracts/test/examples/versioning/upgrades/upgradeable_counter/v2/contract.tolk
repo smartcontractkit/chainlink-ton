@@ -90,13 +90,13 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter".literalSlice(), CONTRACT_VERSION);
+    return (FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter".crc32());
+    return getFacilityId(FACILITY_NAME.crc32());
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode("link.chain.ton.examples.versioning.upgrades.UpgradeableCounter".crc32(), local);
+    return getErrorCode(FACILITY_NAME.crc32(), local);
 }

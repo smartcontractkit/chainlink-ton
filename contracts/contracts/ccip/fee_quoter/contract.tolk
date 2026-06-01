@@ -662,7 +662,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode("link.chain.ton.ccip.FeeQuoter".crc32(), local);
+    return getErrorCode(FeeQuoter_FACILITY_NAME.crc32(), local);
 }
 
 get fun destChainSelectors(): lisp_list<uint64> {
