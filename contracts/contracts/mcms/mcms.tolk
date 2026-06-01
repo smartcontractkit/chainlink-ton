@@ -1279,7 +1279,7 @@ fun MCMS<T>.setConfig(
 fun MCMS<T>.updateOpFinalizationTimeout(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     newOpFinalizationTimeout: uint32
 ): void {
@@ -1402,7 +1402,7 @@ fun MCMS<T>.submitErrorReport(
 fun MCMS<T>.transferOracleRole(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     newOracle: address
 ) {
@@ -1426,7 +1426,7 @@ fun MCMS<T>.transferOracleRole(
 fun MCMS<T>.cleanExpiredRoots(
     mutate self,
     sender: address,
-    value: coins,
+    _value: coins,
     queryId: uint64,
     roots: SnakedCell<RootDescriptor>,
 ) {

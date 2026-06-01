@@ -517,7 +517,7 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 }
 
 // We are taking destChainSelector as param to enable future per-destination feeQuoters
-get fun feeQuoter(destChainSelector: int): address {
+get fun feeQuoter(_destChainSelector: int): address {
     val st = lazy OnRamp_Storage.load();
     val config = st.config.load();
     return config.feeQuoter;

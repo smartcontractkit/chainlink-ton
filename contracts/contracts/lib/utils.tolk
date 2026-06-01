@@ -139,7 +139,7 @@ fun Iterator<T>.next(mutate self): T {
 @inline
 fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
-    val (cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
+    val (_cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, Utils_Error.InvalidData);
     return dataBitsSize / 8;
 }
@@ -192,7 +192,7 @@ fun ArrayIterator<T>.next(mutate self): T {
 }
 
 @inline
-fun ArrayIterator<T>.size(self, elemSize: int): int {
+fun ArrayIterator<T>.size(self, _elemSize: int): int {
     // elemSize is ignored since we know exact size,
     // param is there for interface compatibility
     return self.len;
@@ -223,7 +223,7 @@ fun Bitmap256.has(self, index: int): bool {
 @inline
 fun countAddresses(data: cell): int {
     val maxCells = 128;
-    val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
+    val (_cellsCount, dataBitsSize, _cellRefs) = data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % ADDR_KEY_LEN == 0, Utils_Error.InvalidData);
     return dataBitsSize / ADDR_KEY_LEN;
 }
