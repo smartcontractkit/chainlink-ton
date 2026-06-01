@@ -430,13 +430,10 @@ fun onSetDynamicConfig(
     // feeQuoter and feeAggregator are typed as address, so they're guaranteed not null (vs `address?`)
     st.config = msg.config.toCell();
 
-    emit(
-        CONFIG_SET_TOPIC,
-        ConfigSet {
-            chainSelector: st.chainSelector,
-            dynamicConfig: msg.config,
-        },
-    );
+    emit(CONFIG_SET_TOPIC, ConfigSet {
+        chainSelector: st.chainSelector,
+        dynamicConfig: msg.config,
+    });
 }
 
 /*
@@ -539,9 +536,7 @@ fun onWithdrawFeeTokens(msg: OnRamp_WithdrawFeeTokens) {
         dest: config.feeAggregator,
         body: createEmptyCell(),
     });
-    withdrawMsg.send(
-        SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL,
-    );
+    withdrawMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 get fun isChainSupported(destChainSelector: uint64): bool {

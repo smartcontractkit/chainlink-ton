@@ -1,10 +1,10 @@
+import "./storage.tolk"
 // SPDX-License-Identifier: MIT
-import "../../../../../../lib/utils.tolk";
-import "../../../../../../lib/versioning/upgradeable.tolk";
-import "../../../../../../lib/access/ownable_2step.tolk";
-import "./storage.tolk";
+import "../../../../../../lib/utils.tolk"
+import "../../../../../../lib/access/ownable_2step.tolk"
+import "../../../../../../lib/versioning/upgradeable.tolk"
 
-type IncomingMessage = Upgradeable_Upgrade | Step;
+type IncomingMessage = Upgradeable_Upgrade | Step
 
 fun loadData() {
     return StorageV1.fromCell(contract.getData());
@@ -14,15 +14,16 @@ fun saveData(data: StorageV1) {
     contract.setData(data.toCell());
 }
 
-const FACILITY_NAME= "link.chain.ton.examples.versioning.upgrades.UpgradeableCounter";
-const CONTRACT_VERSION = "1.0.0".literalSlice();
+const FACILITY_NAME = "link.chain.ton.examples.versioning.upgrades.UpgradeableCounter"
+const CONTRACT_VERSION = "1.0.0".literalSlice()
 
 struct (0x00000001) Step {
-    queryId: uint64;
+    queryId: uint64
 }
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) { // ignore all empty messages
+    if (in.body.isEmpty()) {
+        // ignore all empty messages
         return;
     }
 
@@ -35,12 +36,14 @@ fun onInternalMessage(in: InMessage) {
         return;
     }
 
-    val msg = IncomingMessage.fromSlice(in.body);  // 63 error code is thrown if the message opcode is unknown
+    val msg = IncomingMessage.fromSlice(
+        in.body,
+    ); // 63 error code is thrown if the message opcode is unknown
 
     match (msg) {
         Upgradeable_Upgrade => {
             storage.ownable2Step.requireOwner(sender);
-            Upgradeable{ migrate, version }.upgrade(msg);
+            Upgradeable { migrate, version }.upgrade(msg);
         }
         Step => {
             // Instructs the contract to step the counter.
@@ -69,15 +72,20 @@ get fun pendingOwner(): address? {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell {
+    throw Upgradeable_Error.VersionMismatch;
+}
+
 @method_id(1001)
-fun version(): slice { return CONTRACT_VERSION; }
+fun version(): slice {
+    return CONTRACT_VERSION;
+}
 
 get fun typeAndVersion(): (slice, slice) {
     return (FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
-get fun facilityId(): uint16  {
+get fun facilityId(): uint16 {
     return getFacilityId(FACILITY_NAME.crc32());
 }
 

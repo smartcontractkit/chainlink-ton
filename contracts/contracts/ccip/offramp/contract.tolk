@@ -601,10 +601,10 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
         report.toCell(),
         msg.signatures,
     );
-    emit(
-        TOPIC_COMMIT_REPORT_ACCEPTED,
-        CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
-    );
+    emit(TOPIC_COMMIT_REPORT_ACCEPTED, CommitReportAccepted {
+        merkleRoot: root,
+        priceUpdates: report.priceUpdates
+    });
 }
 
 // Manually executes a single cross-chain execution report.

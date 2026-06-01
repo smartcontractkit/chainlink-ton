@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 tolk 1.4.1
 
-import "../utils.tolk";
+import "../utils.tolk"
 
-const AccessControl_FACILITY_NAME = "link.chain.ton.lib.access.AccessControl";
-const AccessControl_FACILITY_ID = AccessControl_FACILITY_NAME.crc32() % 640 + 10;  // 474
+const AccessControl_FACILITY_NAME = "link.chain.ton.lib.access.AccessControl"
+const AccessControl_FACILITY_ID = AccessControl_FACILITY_NAME.crc32() % 640 + 10 // 474
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
-const AccessControl_ERROR_CODE = AccessControl_FACILITY_ID * 100;
+const AccessControl_ERROR_CODE = AccessControl_FACILITY_ID * 100
 
 /**
  * @dev Contract module that allows children to implement role-based access
@@ -61,12 +61,12 @@ const AccessControl_ERROR_CODE = AccessControl_FACILITY_ID * 100;
 ///
 struct (0x95cd540f) AccessControl_GrantRole {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryId: uint64
 
     /// Role definition.
-    role: uint256;
+    role: uint256
     /// New account to add.
-    account: address;
+    account: address
 }
 
 /// @dev Revokes `role` from `account`.
@@ -81,12 +81,12 @@ struct (0x95cd540f) AccessControl_GrantRole {
 ///
 struct (0x969b0db9) AccessControl_RevokeRole {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryId: uint64
 
     /// Role definition.
-    role: uint256;
+    role: uint256
     /// Account to revoke.
-    account: address;
+    account: address
 }
 
 /// @dev Revokes `role` from the calling account.
@@ -106,19 +106,19 @@ struct (0x969b0db9) AccessControl_RevokeRole {
 ///
 struct (0x39452c46) AccessControl_RenounceRole {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryId: uint64
 
     /// Role definition.
-    role: uint256;
+    role: uint256
     /// Account to revoke.
-    callerConfirmation: address;
+    callerConfirmation: address
 }
 
 /// @dev Union of all incoming messages.
 type AccessControl_InMessage =
     | AccessControl_GrantRole
     | AccessControl_RevokeRole
-    | AccessControl_RenounceRole;
+    | AccessControl_RenounceRole
 
 // --- Messages - outgoing ---
 
@@ -129,14 +129,14 @@ type AccessControl_InMessage =
 ///
 struct (0xcf3ca837) AccessControl_RoleGranted {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryId: uint64
 
     /// Role definition.
-    role: uint256;
+    role: uint256
     /// New account added.
-    account: address;
+    account: address
     /// Account that requested the change.
-    sender: address;
+    sender: address
 }
 
 /// @dev Sent when `account` is revoked `role`.
@@ -147,14 +147,14 @@ struct (0xcf3ca837) AccessControl_RoleGranted {
 ///
 struct (0x990fe1c7) AccessControl_RoleRevoked {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryId: uint64
 
     /// Role definition.
-    role: uint256;
+    role: uint256
     /// Account revoked.
-    account: address;
+    account: address
     /// Account that requested the change.
-    sender: address;
+    sender: address
 }
 
 /// @dev Sent when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole`
@@ -164,30 +164,30 @@ struct (0x990fe1c7) AccessControl_RoleRevoked {
 ///
 struct (0xbd7e8bce) AccessControl_RoleAdminChanged {
     /// Query ID of the change request.
-    queryId: uint64;
+    queryId: uint64
 
     /// Role definition.
-    role: uint256;
+    role: uint256
     /// Previous admin role of the specific role.
-    previousAdminRole: uint256;
+    previousAdminRole: uint256
     /// New admin role of the specific role.
-    newAdminRole: uint256;
+    newAdminRole: uint256
 }
 
 // --- Storage ---
 
 /// AccessControl contract struct, host storage and runtime hooks (extensions).
 struct AccessControl<T> {
-    data: AccessControl_Data;
+    data: AccessControl_Data
 
     /// Runtime hooks (extensions)
-    context: T?;
-    hooks: AccessControl_Hooks<T>?;
+    context: T?
+    hooks: AccessControl_Hooks<T>?
 }
 
 /// AccessControl data struct, auto-serialized to/from cell.
 struct AccessControl_Data {
-    roles: map<uint256, Cell<AccessControl_RoleData>>;
+    roles: map<uint256, Cell<AccessControl_RoleData>>
 }
 
 /// Internal storage struct for role data
@@ -195,12 +195,12 @@ struct AccessControl_Data {
 /// Each role has a mapping of accounts that have been granted that role,
 /// and an admin role that can manage that role. 
 struct AccessControl_RoleData {
-    adminRole: uint256;
+    adminRole: uint256
 
     // Number of members in the role
-    membersLen: uint64;
+    membersLen: uint64
     // Members of the role, indexed by their address hash.
-    hasRole: map<address, bool>;
+    hasRole: map<address, bool>
 }
 
 // --- Hooks struct (extensions) ---
@@ -208,18 +208,18 @@ struct AccessControl_RoleData {
 /// @dev Hook extensions exposed by the AccessControl contract.
 struct AccessControl_Hooks<T> {
     /// Hook to get the sender of the message.
-    msgSender: ((T?, address, slice) -> address)?;
+    msgSender: ((T?, address, slice) -> address)?
 
     /// Hook before granting a role.
-    shouldGrantRole: ((T?, uint64, uint256, address) -> void)?;
+    shouldGrantRole: ((T?, uint64, uint256, address) -> void)?
 
     /// Hook before revoking a role.
-    shouldRevokeRole: ((T?, uint64, uint256, address) -> void)?;
+    shouldRevokeRole: ((T?, uint64, uint256, address) -> void)?
 }
 
 // --- Constants ---
 
-const DEFAULT_ADMIN_ROLE = 0x00;
+const DEFAULT_ADMIN_ROLE = 0x00
 
 /// Error codes used by the AccessControl contract.
 enum AccessControl_Error {
@@ -238,9 +238,19 @@ fun AccessControl<T>.errorCode(local: uint16): uint16 {
 /// @dev Returns the sender of the message.
 ///
 /// Override available via {AccessControl_Hooks<T>.msgSender} hook.
-fun AccessControl<T>.msgSender(self, msgSender: address, msgBody: slice): address {
+fun AccessControl<T>.msgSender(
+    self,
+    msgSender: address,
+    msgBody: slice,
+): address {
     if (self.hooks != null && self.hooks.msgSender != null) {
-        return self.hooks.msgSender(self.context, msgSender, msgBody); // extension hook
+        return self
+            .hooks
+            .msgSender(
+                self.context,
+                msgSender,
+                msgBody,
+            ); // extension hook
     }
 
     // Default implementation: return the address from the message sender
@@ -252,7 +262,12 @@ fun AccessControl<T>.msgSender(self, msgSender: address, msgBody: slice): addres
 ///
 /// Format of the revert message is described in {requireRole}.
 @inline
-fun AccessControl<T>.onlyRole(self, role: uint256, msgSender: address, msgBody: slice): void {
+fun AccessControl<T>.onlyRole(
+    self,
+    role: uint256,
+    msgSender: address,
+    msgBody: slice,
+): void {
     self.requireRoleSender(role, msgSender, msgBody);
 }
 
@@ -273,7 +288,12 @@ fun AccessControl<T>.hasRole(self, role: uint256, account: address): bool {
 /// @dev Revert with a standard message if `msgSender()` is missing `role`.
 ///
 /// Format of the revert message is described in {requireRole}.
-fun AccessControl<T>.requireRoleSender(self, role: int, msgSender: address, msgBody: slice): void {
+fun AccessControl<T>.requireRoleSender(
+    self,
+    role: int,
+    msgSender: address,
+    msgBody: slice,
+): void {
     val sender = self.msgSender(msgSender, msgBody);
     self.requireRole(role, sender);
 }
@@ -286,11 +306,7 @@ fun AccessControl<T>.requireRoleSender(self, role: int, msgSender: address, msgB
 ///
 fun AccessControl<T>.requireRole(self, role: uint256, account: address): void {
     if (!self.hasRole(role, account)) {
-        val arg = beginCell()
-            .storeAddress(account)
-            .storeUint(role, 256)
-            .endCell()
-            .beginParse();
+        val arg = beginCell().storeAddress(account).storeUint(role, 256).endCell().beginParse();
         throw (AccessControl_Error.UnauthorizedAccount, arg);
     }
 }
@@ -319,7 +335,11 @@ fun AccessControl<T>.getRoleAdmin(self, role: uint256): uint256 {
 ///
 /// Role bearers are not sorted in any particular way, and their ordering may change at any point.
 @inline
-fun AccessControl<T>.getRoleMember(self, role: uint256, index: uint32): address? {
+fun AccessControl<T>.getRoleMember(
+    self,
+    role: uint256,
+    index: uint32,
+): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -378,7 +398,11 @@ fun AccessControl<T>.getRoleMemberFirst(self, role: uint256): address? {
 }
 
 @inline
-fun AccessControl<T>.getRoleMemberNext(self, role: uint256, pivot: address): address? {
+fun AccessControl<T>.getRoleMemberNext(
+    self,
+    role: uint256,
+    pivot: address,
+): address? {
     // Check if the role is valid
     val data = self.data.roles.get(role);
     if (!data.isFound) {
@@ -422,7 +446,7 @@ fun AccessControl<T>.grantRole(
     sender: address,
     role: uint256,
     account: address,
-    returnExcess: bool = false
+    returnExcess: bool = false,
 ): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account, returnExcess);
@@ -440,7 +464,7 @@ fun AccessControl<T>.revokeRole(
     sender: address,
     role: uint256,
     account: address,
-    returnExcess: bool = false
+    returnExcess: bool = false,
 ): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account, returnExcess);
@@ -465,14 +489,20 @@ fun AccessControl<T>.renounceRole(
     sender: address,
     role: uint256,
     callerConfirmation: address,
-    returnExcess: bool = false
+    returnExcess: bool = false,
 ): bool {
     if (callerConfirmation != sender) {
         throw AccessControl_Error.BadConfirmation;
     }
 
     // Renouncing a role is equivalent to revoking it from the caller
-    return self._revokeRole(queryId, sender, role, callerConfirmation, returnExcess);
+    return self._revokeRole(
+        queryId,
+        sender,
+        role,
+        callerConfirmation,
+        returnExcess,
+    );
 }
 
 /// @dev Sets `adminRole` as `role`'s admin role.
@@ -486,7 +516,7 @@ fun AccessControl<T>._setRoleAdmin(
     sender: address,
     role: uint256,
     adminRole: uint256,
-    returnExcess: bool = false
+    returnExcess: bool = false,
 ): void {
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
     val previousAdminRole = d.adminRole;
@@ -496,8 +526,18 @@ fun AccessControl<T>._setRoleAdmin(
     // Save the updated role data
     self.data.roles.set(role, d.toCell());
 
-    val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole};
-    self.sendReply(sender, body, calculateGasFeeFor(FEE_SIZE_SMALL), returnExcess);
+    val body = AccessControl_RoleAdminChanged {
+        queryId,
+        role,
+        previousAdminRole,
+        newAdminRole: adminRole,
+    };
+    self.sendReply(
+        sender,
+        body,
+        calculateGasFeeFor(FEE_SIZE_SMALL),
+        returnExcess,
+    );
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
@@ -510,10 +550,17 @@ fun AccessControl<T>._grantRole(
     sender: address,
     role: uint256,
     account: address,
-    returnExcess: bool = false
+    returnExcess: bool = false,
 ): bool {
     if (self.hooks != null && self.hooks.shouldGrantRole != null) {
-        self.hooks.shouldGrantRole(self.context, queryId, role, account); // extension hook
+        self
+            .hooks
+            .shouldGrantRole(
+                self.context,
+                queryId,
+                role,
+                account,
+            ); // extension hook
     }
 
     // Default implementation of granting a role
@@ -533,7 +580,7 @@ fun AccessControl<T>._grantRole(
     self.data.roles.set(role, d.toCell());
 
     val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
-    val body = AccessControl_RoleGranted{queryId, role, account, sender};
+    val body = AccessControl_RoleGranted { queryId, role, account, sender };
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
 
@@ -550,10 +597,17 @@ fun AccessControl<T>._revokeRole(
     sender: address,
     role: uint256,
     account: address,
-    returnExcess: bool = false
+    returnExcess: bool = false,
 ): bool {
     if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
-        self.hooks.shouldRevokeRole(self.context, queryId, role, account); // extension hook
+        self
+            .hooks
+            .shouldRevokeRole(
+                self.context,
+                queryId,
+                role,
+                account,
+            ); // extension hook
     }
 
     // Default implementation of revoking a role
@@ -573,7 +627,7 @@ fun AccessControl<T>._revokeRole(
     self.data.roles.set(role, d.toCell());
 
     val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
-    val body = AccessControl_RoleRevoked{queryId, role, account, sender};
+    val body = AccessControl_RoleRevoked { queryId, role, account, sender };
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
 
@@ -583,7 +637,10 @@ fun AccessControl<T>._revokeRole(
 /// --- Helpers ---
 
 @inline
-fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: uint256): AccessControl_RoleData {
+fun AccessControl_Data.getRoleDataOrSetDefault(
+    mutate self,
+    role: uint256,
+): AccessControl_RoleData {
     // Check if the role is valid
     val data = self.roles.get(role);
     if (data.isFound) {
@@ -625,15 +682,15 @@ fun AccessControl<T>.sendReply<B>(
     sender: address,
     body: B,
     value: coins,
-    returnExcess: bool = true
+    returnExcess: bool = true,
 ): void {
     // Create and send the message (reply) to the sender
     value = returnExcess ? ton("0") : value; // return all, or fixed compute budget
 
-    val reply = createMessage({bounce: false, value, dest: sender, body });
-    reply.send(returnExcess
-        ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-        : SEND_MODE_PAY_FEES_SEPARATELY);
+    val reply = createMessage({ bounce: false, value, dest: sender, body });
+    reply.send(
+        returnExcess ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE : SEND_MODE_PAY_FEES_SEPARATELY,
+    );
 }
 
 // --- Getters ---
@@ -641,51 +698,64 @@ fun AccessControl<T>.sendReply<B>(
 /// @dev getter to export by the contract
 @inline
 fun AccessControl<T>.get_hasRole(self, role: uint256, account: address): bool {
-   return self.hasRole(role, account)
+    return self.hasRole(role, account);
 }
 
 /// @dev getter to export by the contract
 @inline
 fun AccessControl<T>.get_getRoleAdmin(self, role: uint256): uint256 {
-   return self.getRoleAdmin(role)
+    return self.getRoleAdmin(role);
 }
 
 // --- Getters - <AccessControl<T>> enumerable extension ---
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMember(self, role: uint256, index: uint32): address {
-   return self.getRoleMember(role, index)
+fun AccessControl<T>.get_getRoleMember(
+    self,
+    role: uint256,
+    index: uint32,
+): address {
+    return self.getRoleMember(role, index);
 }
 
 /// @dev getter to export downstream
 @inline
 fun AccessControl<T>.get_getRoleMemberCount(self, role: uint256): int {
-   return self.getRoleMemberCount(role)
+    return self.getRoleMemberCount(role);
 }
 
 // @dev getter to export downstream
 @inline
 fun AccessControl<T>.get_getRoleMemberFirst(self, role: uint256): address {
-   return self.getRoleMemberFirst(role)
+    return self.getRoleMemberFirst(role);
 }
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMemberNext(self, role: uint256, pivot: address): address {
-   return self.getRoleMemberNext(role, pivot)
+fun AccessControl<T>.get_getRoleMemberNext(
+    self,
+    role: uint256,
+    pivot: address,
+): address {
+    return self.getRoleMemberNext(role, pivot);
 }
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMembers(self, role: uint256): map<address, bool>  {
-   return self.getRoleMembers(role)
+fun AccessControl<T>.get_getRoleMembers(self, role: uint256): map<address, bool> {
+    return self.getRoleMembers(role);
 }
 
 // --- Message handlers ---
 
 @inline
-fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValue: coins, msgBody: slice) {
+fun AccessControl<T>.onInternalMessage(
+    mutate self,
+    msgSender: address,
+    _msgValue: coins,
+    msgBody: slice,
+) {
     // We return excess to sender by default via message handling,
     // but users can change this behavior by setting `returnExcess`
     // to false using AccessControl methods directly.
@@ -694,18 +764,36 @@ fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValu
     val msg = lazy AccessControl_InMessage.fromSlice(msgBody);
     match (msg) {
         AccessControl_GrantRole => {
-            self.grantRole(msg.queryId, sender, msg.role, msg.account, returnExcess);
-        },
+            self.grantRole(
+                msg.queryId,
+                sender,
+                msg.role,
+                msg.account,
+                returnExcess,
+            );
+        }
         AccessControl_RevokeRole => {
-            self.revokeRole(msg.queryId, sender, msg.role, msg.account, returnExcess);
-        },
+            self.revokeRole(
+                msg.queryId,
+                sender,
+                msg.role,
+                msg.account,
+                returnExcess,
+            );
+        }
         AccessControl_RenounceRole => {
-            self.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation, returnExcess);
-        },
+            self.renounceRole(
+                msg.queryId,
+                sender,
+                msg.role,
+                msg.callerConfirmation,
+                returnExcess,
+            );
+        }
         else => {
             return 0; // unknown message, not handled
         }
-    };
+    }
 
     return -1; // handled
 }

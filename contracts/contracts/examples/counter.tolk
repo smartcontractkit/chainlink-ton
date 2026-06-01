@@ -5,12 +5,12 @@ import "@stdlib/common.tolk"
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 
-const CONTRACT_VERSION = "1.1.3".literalSlice();
+const CONTRACT_VERSION = "1.1.3".literalSlice()
 
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
 struct (0x00000004) SetCount {
-    queryId: uint64 // Standard query_id field
+    queryId: uint64  // Standard query_id field
     newCount: uint32 // Argument for the operation
 }
 
@@ -68,7 +68,9 @@ fun Storage.store(self) {
 type Msg = SetCount | IncreaseCount
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body); // 63 error code is thrown if the message opcode is unknown
+    val msg = lazy Msg.fromSlice(
+        in.body,
+    ); // 63 error code is thrown if the message opcode is unknown
     match (msg) {
         SetCount => {
             // Instructs the contract to set the counter.
@@ -78,7 +80,14 @@ fun onInternalMessage(in: InMessage) {
             st.store();
 
             // emit ExtMsgOut
-            emit<CountSet>(COUNT_SET_TOPIC, { id: st.id, value: st.value, sender: in.senderAddress });
+            emit<CountSet>(
+                COUNT_SET_TOPIC,
+                {
+                    id: st.id,
+                    value: st.value,
+                    sender: in.senderAddress,
+                },
+            );
 
             // reply back to sender
             val reply = createMessage({
@@ -107,7 +116,7 @@ fun onInternalMessage(in: InMessage) {
                     id: st.id,
                     value: st.value,
                     sender: in.senderAddress,
-                }
+                },
             );
 
             // reply back to sender
@@ -125,8 +134,7 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             var st = lazy Storage.load();
-            val msgHandled = 0
-                || st.ownable.onInternalMessage(in.senderAddress, in.body);
+            val msgHandled = 0 || st.ownable.onInternalMessage(in.senderAddress, in.body);
             st.store();
 
             if (!msgHandled) {
@@ -157,5 +165,5 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.examples.Counter".literalSlice(), CONTRACT_VERSION)
+    return ("link.chain.ton.examples.Counter".literalSlice(), CONTRACT_VERSION);
 }

@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: MIT
 import "../utils.tolk"
 
-const MerkleMultiProof_FACILITY_NAME = "link.chain.ton.lib.crypto.MerkleMultiProof";
-const MerkleMultiProof_FACILITY_ID = MerkleMultiProof_FACILITY_NAME.crc32() % 640 + 10;  // 120
+const MerkleMultiProof_FACILITY_NAME = "link.chain.ton.lib.crypto.MerkleMultiProof"
+const MerkleMultiProof_FACILITY_ID = MerkleMultiProof_FACILITY_NAME.crc32() % 640 + 10 // 120
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
-const MerkleMultiProof_ERROR_CODE = MerkleMultiProof_FACILITY_ID * 100;
+const MerkleMultiProof_ERROR_CODE = MerkleMultiProof_FACILITY_ID * 100
 
 // --- Errror Codes ---
 
 enum MerkleMultiProof_Error {
-    InvalidProofLeavesCannotBeEmpty = MerkleMultiProof_ERROR_CODE,
-    InvalidProofLeavesTooLarge,
-    InvalidProofProofsTooLarge,
-    InvalidProofTotalHashesExceededMax,
-    InvalidProofDataSizeMismatch,
+    InvalidProofLeavesCannotBeEmpty = MerkleMultiProof_ERROR_CODE
+    InvalidProofLeavesTooLarge
+    InvalidProofProofsTooLarge
+    InvalidProofTotalHashesExceededMax
+    InvalidProofDataSizeMismatch
 }
 
 /// @notice internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
-const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
+const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001
 
 /// @notice Maximum number of hashes that can be computed in a single Merkle root calculation.
 /// Capped to 255 because a TVM array can only hold at most 255 elements.
-const MAX_NUM_HASHES: int = 255;
+const MAX_NUM_HASHES: int = 255
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
@@ -34,12 +34,12 @@ fun merkleRoot<I>(
     val leavesLen = leaves.size(32);
     val proofsLen = proofs.size(32);
 
-    assert (leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
-    assert (leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
-    assert (proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
+    assert(leavesLen != 0, MerkleMultiProof_Error.InvalidProofLeavesCannotBeEmpty);
+    assert(leavesLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofLeavesTooLarge);
+    assert(proofsLen <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofProofsTooLarge);
 
     val totalHashes: int = leavesLen + proofsLen - 1;
-    assert (totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
+    assert(totalHashes <= MAX_NUM_HASHES, MerkleMultiProof_Error.InvalidProofTotalHashesExceededMax);
 
     if (totalHashes == 0) {
         return leaves.next();
@@ -56,29 +56,29 @@ fun merkleRoot<I>(
         var a: int = 0;
         if ((proofFlagBits & (1 << i)) == (1 << i)) {
             // Use a leaf or a previously computed hash.
-            if (! leaves.empty()) {
+            if (!leaves.empty()) {
                 a = leaves.next();
             } else {
-                assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
+                assert(hashPos < i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
                 a = hashes.get(hashPos);
                 hashPos += 1;
             }
         } else {
             // Use the next supplied proof.
-            assert(! proofs.empty(), MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
+            assert(!proofs.empty(), MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             a = proofs.next();
         }
 
         // Find the second hash needed to compute the parent. It is never a proof.
         var b: int = 0;
-        if (! leaves.empty()) {
+        if (!leaves.empty()) {
             b = leaves.next();
         } else {
-            assert(hashPos<i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
+            assert(hashPos < i, MerkleMultiProof_Error.InvalidProofDataSizeMismatch);
             b = hashes.get(hashPos);
             hashPos += 1;
         }
-        
+
         // Hash the two children to get the parent
         hashes.push(hashPair(a, b));
         i += 1;
@@ -96,11 +96,6 @@ fun hashPair(a: uint256, b: uint256): uint256 {
 }
 
 fun hashInternalNode(a: uint256, b: uint256): uint256 {
-    val data = beginCell()
-        .storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
-        .storeUint(a, 256)
-        .storeUint(b, 256);
+    val data = beginCell().storeUint(INTERNAL_DOMAIN_SEPARATOR, 256).storeUint(a, 256).storeUint(b, 256);
     return keccak256(data);
 }
-
-

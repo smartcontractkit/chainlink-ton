@@ -1,15 +1,15 @@
-// SPDX-License-Identifier: BUSL-1.1
-import "../offramp/types"
-import "storage"
-import "messages"
-import "types"
-import "errors"
-import "../offramp/messages"
-import "../../lib/utils"
-
 tolk 1.4.1
 
-const CONTRACT_VERSION = "1.6.2".literalSlice();
+import "errors"
+import "messages"
+import "storage"
+import "types"
+import "../offramp/messages"
+// SPDX-License-Identifier: BUSL-1.1
+import "../offramp/types"
+import "../../lib/utils"
+
+const CONTRACT_VERSION = "1.6.2".literalSlice()
 
 contract ReceiveExecutor {
     author: "SmartContract Chainlink Limited SEZC"
@@ -46,12 +46,15 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
+            assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
 }
 
-fun onInitExecute(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_InitExecute) {
+fun onInitExecute(
+    mutate st: ReceiveExecutor_Storage,
+    msg: ReceiveExecutor_InitExecute,
+) {
     st.lastExecutionTimestamp = blockchain.now();
     execute(mutate st, msg.gasOverride);
 }
@@ -67,18 +70,21 @@ fun execute(mutate st: ReceiveExecutor_Storage, gasOverride: coins?) {
                 message: st.message,
                 execId: st.execId,
                 gasOverride,
-            }
-        }
+            },
+        },
     ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // Finalizes message execution by returning all balance to the OffRamp and freezing the contract
-fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_Confirm) {
+fun onCCIPReceiveConfirm(
+    mutate st: ReceiveExecutor_Storage,
+    msg: ReceiveExecutor_Confirm,
+) {
     assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 
-    assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
+    assert(msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.Success;
 
@@ -96,12 +102,15 @@ fun onCCIPReceiveConfirm(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
-fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecutor_Bounced){
+fun onCCIPReceiveBounced(
+    mutate st: ReceiveExecutor_Storage,
+    msg: ReceiveExecutor_Bounced,
+) {
     assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 
-    assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
+    assert(msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
 
     st.state = ReceiveExecutor_MessageState.ExecuteFailed;
 
@@ -123,7 +132,7 @@ get fun typeAndVersion(): (slice, slice) {
     return (ReceiveExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
-get fun facilityId(): uint16  {
+get fun facilityId(): uint16 {
     return ReceiveExecutor_FACILITY_ID;
 }
 

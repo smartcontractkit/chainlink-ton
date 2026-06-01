@@ -1,9 +1,10 @@
+import "@stdlib/gas-payments"
 // SPDX-License-Identifier: MIT
 import "@stdlib/lisp-lists"
-import "@stdlib/gas-payments";
 
-const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
-const Utils_FACILITY_ID = Utils_FACILITY_NAME.crc32() % 640 + 10; // 135
+const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils"
+const Utils_FACILITY_ID = Utils_FACILITY_NAME.crc32() % 640 + 10 // 135
+
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 enum Utils_Error {
@@ -21,7 +22,7 @@ fun getFacilityId(crc32Key: int): uint16 {
 fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     val code = getFacilityId(crc32Key) * 100 + local;
     assert(code <= 65535, 4); // exit code 4: Integer overflow
-    return code
+    return code;
 }
 
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
@@ -35,7 +36,7 @@ fun getErrorCode(crc32Key: int, local: uint16): uint16 {
 /// For comparison, the Jetton contract requires at least 21k gas units + fwd_fee + storage_fee
 /// to cover the token transaction costs.
 ///
-const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanotons/unit
+const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000 // 0.012 TON at 400 nanotons/unit
 
 /// Maximum size of a bounced message
 ///
@@ -43,31 +44,27 @@ const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanoton
 /// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
 /// Confimred with TON team: 256 is "original body size", so in.bouncedBody is 288 in total
 /// Note: In TVM 12, "rich bounced messages" will be added — containing all the original message that was sent
-const BOUNCE_MSG_SIZE_MAX = 256;
+const BOUNCE_MSG_SIZE_MAX = 256
 
 // Represents the default blockchain (chain ID) - when configParam(19) not set
-const GLOBAL_ID_UNSET = -1;
+const GLOBAL_ID_UNSET = -1
 
 /// Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
     // Notice: configParam(19) should be available (TVM upgrade 04/24)
     val param = blockchain.configParam(19);
-    return param != null
-        ? param!.beginParse().loadInt(32)
-        : GLOBAL_ID_UNSET;
+    return param != null ? param!.beginParse().loadInt(32) : GLOBAL_ID_UNSET;
 }
 
 /// Extracts the (potential) bounced body from the given slice (message body).
 fun extractBouncedBody(body: slice): uint256 {
     val remainingBits = body.remainingBitsCount();
-    return remainingBits < BOUNCE_MSG_SIZE_MAX
-        ? body.loadUint(remainingBits)
-        : body.loadUint(BOUNCE_MSG_SIZE_MAX);
+    return remainingBits < BOUNCE_MSG_SIZE_MAX ? body.loadUint(remainingBits) : body.loadUint(BOUNCE_MSG_SIZE_MAX);
 }
 
-const FEE_SIZE_SMALL = 1;
-const FEE_SIZE_DEFAULT = 2;
-const FEE_SIZE_LARGE = 3;
+const FEE_SIZE_SMALL = 1
+const FEE_SIZE_DEFAULT = 2
+const FEE_SIZE_LARGE = 3
 
 /// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS.
 fun calculateGasFeeDefault(): coins {
@@ -78,7 +75,7 @@ fun calculateGasFeeDefault(): coins {
 /// Calculates the gas fee for the given size (small, default, large).
 fun calculateGasFeeFor(size: int): coins {
     if (size == FEE_SIZE_SMALL) {
-        return calculateGasFeeDefault() / 2
+        return calculateGasFeeDefault() / 2;
     } else if (size == FEE_SIZE_LARGE) {
         return calculateGasFeeDefault() * 2;
     }
@@ -87,21 +84,21 @@ fun calculateGasFeeFor(size: int): coins {
 
 /// Computes the Keccak-256 hash of the given data.
 fun keccak256(data: builder): uint256
-    asm "1 PUSHINT HASHEXT_KECCAK256";
+    asm "1 PUSHINT HASHEXT_KECCAK256"
 
 @inline
 fun emit<T>(topic: int, body: T) {
     val emitMsg = createExternalLogMessage({
         dest: ExtOutLogBucket { topic },
-        body
+        body,
     });
     emitMsg.send(SEND_MODE_REGULAR);
 }
 
-type SnakedCell<T> = cell;
+type SnakedCell<T> = cell
 
 fun SnakedCell<T>.iter(self): Iterator<T> {
-    return Iterator<T>.new(self)
+    return Iterator<T>.new(self);
 }
 
 fun SnakedCell<T>.empty(self): bool {
@@ -110,7 +107,7 @@ fun SnakedCell<T>.empty(self): bool {
 
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
-    data: slice;
+    data: slice
 }
 
 @inline
@@ -120,7 +117,7 @@ fun Iterator<T>.new(data: cell): Iterator<T> {
 
 @inline
 fun Iterator<T>.empty(self): bool {
-    return self.data.isEmpty()
+    return self.data.isEmpty();
 }
 
 @inline
@@ -162,26 +159,29 @@ fun Iterator<T>.countBytesSafe(self): (int, int) {
 
 @inline
 fun Iterator<T>.size(self, elemSize: int): int {
-    return self.countBytes() / elemSize
+    return self.countBytes() / elemSize;
 }
 
 // https://github.com/ton-org/ton-core/blob/213fed91d6f63d978c27588509e15ab53c8bafdb/src/dict/Dictionary.ts#L425
-const ADDR_KEY_LEN = 267;
+const ADDR_KEY_LEN = 267
 
 struct ArrayIterator<T> {
-    pos: int = 0;
-    len: int; // TLEN is 26 gas, we cache the value for minimal savings
-    data: array<T>;
+    pos: int = 0
+    len: int // TLEN is 26 gas, we cache the value for minimal savings
+    data: array<T>
 }
 
 @inline
 fun ArrayIterator<T>.new(data: array<T>): ArrayIterator<T> {
-    return ArrayIterator<T> { data, len: data.size() };
+    return ArrayIterator<T> {
+        data,
+        len: data.size(),
+    };
 }
 
 @inline
 fun ArrayIterator<T>.empty(self): bool {
-    return self.pos >= self.len
+    return self.pos >= self.len;
 }
 
 @inline
@@ -199,7 +199,7 @@ fun ArrayIterator<T>.size(self, _elemSize: int): int {
 }
 
 struct Bitmap256 {
-    bits: uint256;
+    bits: uint256
 }
 
 @inline
@@ -223,7 +223,9 @@ fun Bitmap256.has(self, index: int): bool {
 @inline
 fun countAddresses(data: cell): int {
     val maxCells = 128;
-    val (_cellsCount, dataBitsSize, _cellRefs) = data.calculateSizeStrict(maxCells);
+    val (_cellsCount, dataBitsSize, _cellRefs) = data.calculateSizeStrict(
+        maxCells,
+    );
     assert(dataBitsSize % ADDR_KEY_LEN == 0, Utils_Error.InvalidData);
     return dataBitsSize / ADDR_KEY_LEN;
 }
@@ -236,7 +238,7 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
         val key = entry.getKey();
         lisplist.prependHead(key);
         entry = dict.iterateNext(entry);
-    } ;
+    }
     return lisplist;
 }
 
@@ -244,10 +246,8 @@ fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
 // automatic serialization/deserialization. It determines whether to store the
 // data directly as bits or as a reference to a cell, depending on available
 // space.
-type RemainingBitsOrRef<T> = T;
-
+type RemainingBitsOrRef<T> = T
 // TODO investigate why this was being ignored in 1.2
-
 // fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
 //     val serialized = (self as T).toCell();
 //     val (nBits, _) = serialized.beginParse().remainingBitsAndRefsCount();
@@ -260,7 +260,6 @@ type RemainingBitsOrRef<T> = T;
 //         b.storeSlice(serialized.beginParse());
 //     }
 // }
-
 // fun RemainingBitsOrRef<T>.unpackFromSlice(mutate s: slice): RemainingBitsOrRef<T> {
 //     val isRef = s.loadBool();
 //     if (isRef) {

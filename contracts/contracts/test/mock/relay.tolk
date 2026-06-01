@@ -2,11 +2,11 @@
 tolk 1.4.1
 
 struct (0x527146b1) Relay_Send {
-    bounce: bool,
-    value: coins,
-    to: address,
-    body: cell,
-    sendMode: uint8,
+    bounce: bool
+    value: coins
+    to: address
+    body: cell
+    sendMode: uint8
 }
 
 fun onInternalMessage(in: InMessage) {

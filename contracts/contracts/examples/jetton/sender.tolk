@@ -28,7 +28,10 @@ struct (0x7FDA8110) SendJettonsExtended {
     forwardPayload: cell
 }
 
-type IncomingMessage = SendJettonsFast | SendJettonsExtended | ReturnExcessesBack
+type IncomingMessage =
+    | SendJettonsFast
+    | SendJettonsExtended
+    | ReturnExcessesBack
 
 fun JettonSender.load(): JettonSender {
     return JettonSender.fromCell(contract.getData());
@@ -40,29 +43,33 @@ fun JettonSender.store(self) {
 
 // Send basic jetton transfer
 fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
-    self.JettonClient.sendSimple(
-        { bounce: true, value: 0 },
-        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
-        msg.queryId,
-        msg.amount,
-        msg.destination,
-        contract.getAddress()
-    );
+    self
+        .JettonClient
+        .sendSimple(
+            { bounce: true, value: 0 },
+            SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+            msg.queryId,
+            msg.amount,
+            msg.destination,
+            contract.getAddress(),
+        );
 }
 
 // Send extended jetton transfer with additional parameters
 fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
-    self.JettonClient.sendExtended(
-        { bounce: true, value: 0 },
-        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
-        msg.queryId,
-        msg.amount,
-        msg.destination,
-        contract.getAddress(),
-        msg.customPayload,
-        msg.forwardTonAmount,
-        msg.forwardPayload
-    );
+    self
+        .JettonClient
+        .sendExtended(
+            { bounce: true, value: 0 },
+            SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+            msg.queryId,
+            msg.amount,
+            msg.destination,
+            contract.getAddress(),
+            msg.customPayload,
+            msg.forwardTonAmount,
+            msg.forwardPayload,
+        );
 }
 
 fun onInternalMessage(in: InMessage) {

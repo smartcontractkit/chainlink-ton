@@ -2,7 +2,7 @@
 import "@stdlib/common.tolk"
 
 // Jetton wallet utilities for Tolk
-const JETTON_TOPIC : int = 0x351 // for easier indexing
+const JETTON_TOPIC: int = 0x351 // for easier indexing
 
 // Jetton Wallet state structure  
 struct JettonWalletData {
@@ -27,11 +27,9 @@ fun calculateJettonWalletStateInit(
             balance: 0,
             ownerAddress: ownerAddress,
             jettonMasterAddress: jettonMasterAddress,
-        }
-            .toCell(),
+        }.toCell(),
         library: null,
-    }
-        .toCell();
+    }.toCell();
 }
 
 fun calculateUserJettonWalletAddress(
@@ -42,8 +40,11 @@ fun calculateUserJettonWalletAddress(
     val stateInit = calculateJettonWalletStateInit(
         ownerAddress,
         jettonMasterAddress,
-        jettonWalletCode
+        jettonWalletCode,
     );
-    val addrBuilder = AutoDeployAddress { stateInit: stateInit, toShard: null }.buildAddress();
+    val addrBuilder = AutoDeployAddress {
+        stateInit: stateInit,
+        toShard: null,
+    }.buildAddress();
     return address.fromValidBuilder(addrBuilder);
 }

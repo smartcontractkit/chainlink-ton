@@ -1,41 +1,45 @@
+import "../ccipsend_executor/types"
 // SPDX-License-Identifier: BUSL-1.1
 import "../common/types"
-import "../ccipsend_executor/types"
 import "../../lib/utils"
 import "../../lib/deployable/namespace"
 
-const OnRamp_FACILITY_NAME = "link.chain.ton.ccip.OnRamp";
-const OnRamp_FACILITY_ID = OnRamp_FACILITY_NAME.crc32() % 640 + 10;  // 134
+const OnRamp_FACILITY_NAME = "link.chain.ton.ccip.OnRamp"
+const OnRamp_FACILITY_ID = OnRamp_FACILITY_NAME.crc32() % 640 + 10 // 134
+
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 struct OnRamp_DestChainConfig {
-    router: address; // Local router address that is allowed to send messages to the destination chain.
-    sequenceNumber: uint64;
-    allowlistEnabled: bool;
-    allowedSenders: map<address, bool>;
+    router: address // Local router address that is allowed to send messages to the destination chain.
+    sequenceNumber: uint64
+    allowlistEnabled: bool
+    allowedSenders: map<address, bool>
 }
 
 struct OnRamp_DynamicConfig {
-    feeQuoter: address;
+    feeQuoter: address
     // destination address that will receive tokens on withdrawFees
-    feeAggregator: address;
-    allowlistAdmin: address;
-    reserve: coins;
+    feeAggregator: address
+    allowlistAdmin: address
+    reserve: coins
 }
 
 struct OnRampUpdateDestChainConfig {
-    destChainSelector: uint64;
-    router: address;
-    allowlistEnabled: bool;
+    destChainSelector: uint64
+    router: address
+    allowlistEnabled: bool
 }
 
 struct ExecutorDeployment {
-    deployableCode: cell;
-    executorCode: cell; // code for SendExecutor
+    deployableCode: cell
+    executorCode: cell // code for SendExecutor
 }
 
 @inline
-fun ExecutorDeployment.autoDeployAddress(self, executorID: CCIPSendExecutor_ID): AutoDeployAddress {
+fun ExecutorDeployment.autoDeployAddress(
+    self,
+    executorID: CCIPSendExecutor_ID,
+): AutoDeployAddress {
     return AutoDeployAddress {
         stateInit: ContractState {
             code: self.deployableCode,
@@ -44,35 +48,35 @@ fun ExecutorDeployment.autoDeployAddress(self, executorID: CCIPSendExecutor_ID):
                 owner: contract.getAddress(),
                 id: executorID,
             }),
-        }
-    }
+        },
+    };
 }
 
 struct UpdateAllowlist {
-    destChainSelector: uint64;
-    add: SnakedCell<address>;
+    destChainSelector: uint64
+    add: SnakedCell<address>
     remove: SnakedCell<address>
 }
 
 struct Metadata {
-    sender: address,
-    value: coins,
+    sender: address
+    value: coins
 }
 
 struct TVM2AnyRampMessage {
-    header: RampMessageHeader;
-    sender: address;
-    body: Cell<TVM2AnyRampMessageBody>;
-    feeValueJuels: uint96; // entire supply of LINK always fits into u96
+    header: RampMessageHeader
+    sender: address
+    body: Cell<TVM2AnyRampMessageBody>
+    feeValueJuels: uint96 // entire supply of LINK always fits into u96
 }
 
 struct TVM2AnyRampMessageBody {
-    receiver: Cell<CrossChainAddress>;
-    data: cell;
-    extraArgs: cell;
-    tokenAmounts: cell;
-    feeToken: address;
-    feeTokenAmount: uint256;
+    receiver: Cell<CrossChainAddress>
+    data: cell
+    extraArgs: cell
+    tokenAmounts: cell
+    feeToken: address
+    feeTokenAmount: uint256
 }
 
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
@@ -85,8 +89,9 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .storeUint(self.header.sequenceNumber, 64)
         .storeUint(self.header.nonce, 64)
         // message
-        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
+        .storeRef(
+            self.body,
+        ) // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
         .endCell()
-        .hash()
+        .hash();
 }
-

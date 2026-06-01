@@ -1,6 +1,6 @@
+import "messages"
 // SPDX-License-Identifier: MIT
 import "./utils.tolk"
-import "messages"
 
 struct JettonClient {
     masterAddress: address
@@ -12,7 +12,7 @@ fun JettonClient.walletAddress(self): address {
     return calculateUserJettonWalletAddress(
         contract.getAddress(),
         self.masterAddress,
-        self.jettonWalletCode
+        self.jettonWalletCode,
     );
 }
 
@@ -46,8 +46,7 @@ fun JettonClient.sendSimple(
             forwardTonAmount: 0,
             forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
-    })
-        .send(sendMode);
+    }).send(sendMode);
 }
 
 @inline
@@ -85,8 +84,7 @@ fun JettonClient.sendExtended(
         value: sendOptions.value,
         dest: self.walletAddress(),
         body: body,
-    })
-        .send(sendMode);
+    }).send(sendMode);
 }
 
 // Assert that the sender is the jetton wallet address. Used for validating incoming notifications.
@@ -96,7 +94,9 @@ fun JettonClient.isWallet(self, sender: address): bool {
 }
 
 @inline
-fun loadMaybeForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
+fun loadMaybeForwardPayloadAsCell(
+    forwardPayload: ForwardPayloadRemainder,
+): cell? {
     val forwardPayloadCell = forwardPayload.loadMaybeRef();
     if (forwardPayloadCell != null) {
         forwardPayload.assertEnd();
@@ -110,7 +110,9 @@ fun loadMaybeForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell
 }
 
 @inline
-fun loadMaybeForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
+fun loadMaybeForwardPayloadAsSlice(
+    forwardPayload: ForwardPayloadRemainder,
+): slice? {
     val forwardPayloadCell = forwardPayload.loadMaybeRef();
     if (forwardPayloadCell != null) {
         forwardPayload.assertEnd();

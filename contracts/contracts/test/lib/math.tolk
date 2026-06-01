@@ -4,7 +4,7 @@ import "../../lib/math.tolk"
 // Test wrapper for math library functions
 fun onInternalMessage(in: InMessage) {
     // ignore empty messages, "wrong opcode" for others
-    assert (in.body.isEmpty()) throw 0xFFFF
+    assert (in.body.isEmpty()) throw 0xFFFF;
 }
 
 get fun get_safeAdd(a: int, b: int): (int, int) {

@@ -2,14 +2,14 @@
 import "../../../lib/access/ownable_2step"
 
 struct Storage {
-    id: uint32;
-    ownable: Ownable2Step;
-    authorizedCaller: address; // When using the contract in CCIP, the authorized caller must be the router
-    behavior: TestReceiverBehavior;
+    id: uint32
+    ownable: Ownable2Step
+    authorizedCaller: address // When using the contract in CCIP, the authorized caller must be the router
+    behavior: TestReceiverBehavior
 }
 
-enum TestReceiverBehavior : uint8 {
-    Accept = 0,
+enum TestReceiverBehavior: uint8 {
+    Accept = 0
     RejectAll
     ConsumeAllGas
 }

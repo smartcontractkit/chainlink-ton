@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
-import "../../../lib/utils";
-import "../../../lib/access/ownable_2step";
-import "../../../lib/funding/withdrawable";
+import "../../../lib/utils"
+import "../../../lib/access/ownable_2step"
+import "../../../lib/funding/withdrawable"
 
-const WithdrawableWallet_FACILITY_NAME = "link.chain.ton.examples.funding.WithdrawableWallet";
-const CONTRACT_VERSION = "1.0.1".literalSlice();
+const WithdrawableWallet_FACILITY_NAME = "link.chain.ton.examples.funding.WithdrawableWallet"
+const CONTRACT_VERSION = "1.0.1".literalSlice()
 
 struct Storage {
-    id: uint32;
-    ownable2Step: Ownable2Step;
-    reserve: coins;
+    id: uint32
+    ownable2Step: Ownable2Step
+    reserve: coins
 }
 
 fun loadData() {
@@ -20,7 +20,7 @@ fun saveData(data: Storage) {
     contract.setData(data.toCell());
 }
 
-type IncomingMessage = Withdrawable_Withdraw;
+type IncomingMessage = Withdrawable_Withdraw
 
 fun onInternalMessage(in: InMessage) {
     val sender = in.senderAddress;
@@ -37,13 +37,11 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Withdrawable_Withdraw => {
             storage.ownable2Step.requireOwner(sender);
-            Withdrawable{
-                reserve: storage.reserve
-            }.withdraw(msg);
+            Withdrawable { reserve: storage.reserve }.withdraw(msg);
         }
         else => {
             assert (in.body.isEmpty()) throw 63;
-        },
+        }
     }
 }
 
@@ -63,12 +61,17 @@ get fun typeAndVersion(): (slice, slice) {
     return ("link.chain.ton.examples.funding.WithdrawableWallet".literalSlice(), CONTRACT_VERSION);
 }
 
-get fun facilityId(): uint16  {
-    return getFacilityId("link.chain.ton.examples.funding.WithdrawableWallet".crc32());
+get fun facilityId(): uint16 {
+    return getFacilityId(
+        "link.chain.ton.examples.funding.WithdrawableWallet".crc32(),
+    );
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode("link.chain.ton.examples.funding.WithdrawableWallet".crc32(), local);
+    return getErrorCode(
+        "link.chain.ton.examples.funding.WithdrawableWallet".crc32(),
+        local,
+    );
 }
 
 get fun reserve(): coins {

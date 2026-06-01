@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 
-const Deployable_FACILITY_NAME = "link.chain.ton.lib.Deployable";
-const Deployable_FACILITY_ID = Deployable_FACILITY_NAME.crc32() % 640 + 10;  // 92
+const Deployable_FACILITY_NAME = "link.chain.ton.lib.Deployable"
+const Deployable_FACILITY_ID = Deployable_FACILITY_NAME.crc32() % 640 + 10 // 92
+
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 struct Deployable<T> {
-    owner: address;
+    owner: address
     id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
@@ -20,21 +21,21 @@ fun Deployable<T>.store(self) {
 type Deployable_InMessage =
     | Deployable_Initialize
     | Deployable_InitializeAndSend
-    ;
 
 // Message for Initializing the Deployable contract. It sets the code and data of the contract.
 struct (0xba466447) Deployable_Initialize {
-    stateInit: ContractState;
+    stateInit: ContractState
 }
+
 // This message initializes the Deployable contract and immediately sends a message to itself to execute some logic. It allows to carry the message value.
 struct (0xb0ec5157) Deployable_InitializeAndSend {
-    stateInit: ContractState;
-    selfMessage: Deployable_Message;
+    stateInit: ContractState
+    selfMessage: Deployable_Message
 }
 
 struct Deployable_Message {
-    value: coins;
-    body: cell;
+    value: coins
+    body: cell
 }
 
 enum Deployable_Error {

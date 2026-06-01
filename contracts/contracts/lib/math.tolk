@@ -20,11 +20,11 @@
 // These are its max/min values
 // For a 257-bit signed integer: max = 2^256 - 1, min = -2^256
 // We calculate max as: 2^255 - 1 + 2^255 = 2^256 - 1 (avoiding overflow)
-const INT_MAX: int = ((1 << 255) - 1) + (1 << 255);
-const INT_MIN: int = -(1 << 255) - (1 << 255);
+const INT_MAX: int = ((1 << 255) - 1) + (1 << 255)
+const INT_MIN: int = -(1 << 255) - (1 << 255)
 
 // 2^(15×8) - 1 = 2^120 - 1
-const COIN_MAX: int = (1 << 120) - 1;
+const COIN_MAX: int = (1 << 120) - 1
 
 // Returns (result, errorCode), where errorCode is 0 if no error.
 fun safeAdd(a: int, b: int): (int, int) {
@@ -32,12 +32,12 @@ fun safeAdd(a: int, b: int): (int, int) {
     if (b > 0 && a > INT_MAX - b) {
         return (0, 1); // overflow error
     }
-    
+
     // Check for negative overflow: a < INT_MIN - b
     if (b < 0 && a < INT_MIN - b) {
         return (0, 2); // underflow error
     }
-    
+
     return (a + b, 0); // success
 }
 
@@ -47,7 +47,7 @@ fun safeProd(a: int, b: int): (int, int) {
     if (a == 0 || b == 0) {
         return (0, 0);
     }
-    
+
     // Handle -1 special case to avoid division by zero
     if (a == -1) {
         if (b == INT_MIN) {
@@ -55,20 +55,20 @@ fun safeProd(a: int, b: int): (int, int) {
         }
         return (-b, 0);
     }
-    
+
     if (b == -1) {
         if (a == INT_MIN) {
             return (0, 1); // overflow: INT_MIN * -1 = overflow
         }
         return (-a, 0);
     }
-    
+
     // Check for overflow by division
     // If a > 0 and b > 0: check a <= INT_MAX / b
     // If a < 0 and b < 0: check a >= INT_MAX / b (both negative)
     // If a > 0 and b < 0: check a <= INT_MIN / b (will be negative check)
     // If a < 0 and b > 0: check a >= INT_MIN / b (will be negative check)
-    
+
     if (a > 0 && b > 0) {
         if (a > INT_MAX / b) {
             return (0, 1); // overflow
@@ -81,12 +81,13 @@ fun safeProd(a: int, b: int): (int, int) {
         if (b < INT_MIN / a) {
             return (0, 2); // underflow
         }
-    } else { // a < 0 && b > 0
+    } else {
+        // a < 0 && b > 0
         if (a < INT_MIN / b) {
             return (0, 2); // underflow
         }
     }
-    
+
     return (a * b, 0); // success
 }
 

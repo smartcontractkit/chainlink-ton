@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-import "./utils.tolk";
+import "./utils.tolk"
 
 /// Signature encoding (expected): 1 byte `v` || 32 bytes `r` || 32 bytes `s`.
 /// - `v` can be:
@@ -27,13 +27,13 @@ import "./utils.tolk";
 /// - `status` is non-zero on success, zero on failure (int)
 @inline
 fun ecrecover(hash: int, v: int, r: int, s: int): (int, int, int, int)
-    asm(hash v r s) "ECRECOVER NULLSWAPIFNOT2 NULLSWAPIFNOT";
+    asm(hash v r s) "ECRECOVER NULLSWAPIFNOT2 NULLSWAPIFNOT"
 
 /// High-S value for secp256k1 (half order). Signatures with s >= HIGH_S are invalid per BIP-62 / EIP-2.
-const HIGH_S = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
+const HIGH_S = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
 
 /// Mask to extract lower 160 bits (Ethereum address)
-const ADDRESS_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+const ADDRESS_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 /// Normalize common `v` encodings to TON-compatible parity (0 or 1).
 /// Accepts raw v values: 0/1 (raw recid), 27/28 (legacy Ethereum), or EIP-155 style (>=35).
@@ -67,7 +67,12 @@ fun parityFrom(sig: slice): int {
 /// `parity` is the expected parity (0 or 1) of the recovered Y coordinate.
 ///
 /// Returns true if signature is valid and corresponds to (pubKey, parity).
-fun isSignatureValid_secp256k1(hash: int, sig: slice, pubKey: int, parity: int): bool {
+fun isSignatureValid_secp256k1(
+    hash: int,
+    sig: slice,
+    pubKey: int,
+    parity: int,
+): bool {
     var (_, x, y, status) = ecrecoverFrom(hash, sig);
     if (status != 0) {
         return (parity == (y & 1)) & (x == pubKey);

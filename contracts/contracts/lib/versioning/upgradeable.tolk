@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-import "@stdlib/tvm-lowlevel";
-import "../utils.tolk";
+import "@stdlib/tvm-lowlevel"
+import "../utils.tolk"
 
-const Upgradeable_FACILITY_NAME = "link.chain.ton.lib.versioning.Upgradeable";
-const Upgradeable_FACILITY_ID = Upgradeable_FACILITY_NAME.crc32() % 640 + 10;  // 199
+const Upgradeable_FACILITY_NAME = "link.chain.ton.lib.versioning.Upgradeable"
+const Upgradeable_FACILITY_ID = Upgradeable_FACILITY_NAME.crc32() % 640 + 10 // 199
 // NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
-const Upgradeable_ERROR_CODE = Upgradeable_FACILITY_ID * 100;
+const Upgradeable_ERROR_CODE = Upgradeable_FACILITY_ID * 100
 
 /// Upgradeable contract interface.
 /// This interface defines the structure and methods required for a contract to
@@ -101,30 +101,30 @@ const Upgradeable_ERROR_CODE = Upgradeable_FACILITY_ID * 100;
 ///     }
 /// ```
 struct Upgradeable {
-    migrate: (cell, slice) -> cell;
-    version: () -> slice;
+    migrate: (cell, slice) -> cell
+    version: () -> slice
 }
 
 enum Upgradeable_Error {
-    VersionMismatch = Upgradeable_ERROR_CODE, // 19900
+    VersionMismatch = Upgradeable_ERROR_CODE // 19900
 }
 
 /// Message for upgrading a contract.
 struct (0x0aa811ed) Upgradeable_Upgrade {
-    queryId: uint64;
-    code: cell;
+    queryId: uint64
+    code: cell
 }
 
 struct Upgradeable_UpgradedEvent {
     /// The new code of the contract.
-    code: cell;
+    code: cell
     /// The SHA256 hash of the new code.
-    hash: uint256;
+    hash: uint256
     /// The version of the contract after the upgrade.
-    version: UnsafeBodyNoRef<slice>;
+    version: UnsafeBodyNoRef<slice>
 }
 
-const UPGRADEABLE_UPGRADED_EVENT = 0xa33b498e; // crc32("Upgradeable_UpgradedEvent")
+const UPGRADEABLE_UPGRADED_EVENT = 0xa33b498e // crc32("Upgradeable_UpgradedEvent")
 
 fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
     // Ensure the upgrade requirements are met
@@ -138,11 +138,14 @@ fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
     val c = contract.getData();
     val newStorage = self.migrate(c, currentVersion);
     contract.setData(newStorage);
-    emit(UPGRADEABLE_UPGRADED_EVENT, Upgradeable_UpgradedEvent{
-        code: msg.code,
-        hash: msg.code.hash(),
-        version: UnsafeBodyNoRef {
-            forceInline: self.version(), // This is expected to be the version of the new code
+    emit(
+        UPGRADEABLE_UPGRADED_EVENT,
+        Upgradeable_UpgradedEvent {
+            code: msg.code,
+            hash: msg.code.hash(),
+            version: UnsafeBodyNoRef {
+                forceInline: self.version(), // This is expected to be the version of the new code
             },
-        });
+        },
+    );
 }

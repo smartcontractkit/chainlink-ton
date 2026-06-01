@@ -1,11 +1,10 @@
+import "errors"
+import "types.tolk"
 // SPDX-License-Identifier: BUSL-1.1
-import "./../utils.tolk";
-import "types.tolk";
-import "errors";
+import "./../utils.tolk"
 
-
-const OCR3BASE_CONFIG_SET_TOPIC: int = "OCR3Base_ConfigSet".crc32();
-const OCR3BASE_TRANSMITTED: int = "OCR3Base_Transmitted".crc32();
+const OCR3BASE_CONFIG_SET_TOPIC: int = "OCR3Base_ConfigSet".crc32()
+const OCR3BASE_TRANSMITTED: int = "OCR3Base_Transmitted".crc32()
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.
 /// @param ocrPluginType OCR plugin type for which the config was set.
@@ -14,21 +13,20 @@ const OCR3BASE_TRANSMITTED: int = "OCR3Base_Transmitted".crc32();
 /// @param transmitters ith element is address ith oracle uses to transmit a report via the transmit method.
 /// @param F maximum number of faulty/dishonest oracles the protocol can tolerate while still working correctly.
 struct OCR3Base_ConfigSet {
-    ocrPluginType: uint16;
-    configDigest: uint256;
-    signers: SnakedCell<uint256>;
-    transmitters: SnakedCell<address>;
-    bigF: uint8;
+    ocrPluginType: uint16
+    configDigest: uint256
+    signers: SnakedCell<uint256>
+    transmitters: SnakedCell<address>
+    bigF: uint8
 }
-
 
 /// @notice Event, optionally emitted to indicate the latest configDigest and sequence number
 /// for which a report was successfully transmitted. Alternatively, the contract may
 /// use latestConfigDigestAndEpoch with scanLogs set to false.
 struct OCR3Base_Transmitted {
-   ocrPluginType: uint16;
-   configDigest: uint256;
-   sequenceNumber: uint64
+    ocrPluginType: uint16
+    configDigest: uint256
+    sequenceNumber: uint64
 }
 
 /// @notice Sets offchain reporting protocol configuration incl. participating oracles.
@@ -40,89 +38,88 @@ struct OCR3Base_Transmitted {
 /// && len(transmitters) <= len(signers) [if sig verification is enabled].
 // 0x2B78359F = crc32('OCR3Base_SetOCR3Config')
 struct (0x2B78359F) OCR3Base_SetOCR3Config {
-    queryId: uint64;
-    configDigest: uint256;
-    ocrPluginType: uint16;
-    bigF: uint8;
-    isSignatureVerificationEnabled: bool;
-    signers: SnakedCell<uint256>;
-    transmitters: SnakedCell<address>;
+    queryId: uint64
+    configDigest: uint256
+    ocrPluginType: uint16
+    bigF: uint8
+    isSignatureVerificationEnabled: bool
+    signers: SnakedCell<uint256>
+    transmitters: SnakedCell<address>
 }
 
 struct OCR3Base {
-    chainId: uint8;
-    commit: Cell<OCRConfig>?;
-	execute: Cell<OCRConfig>?;
+    chainId: uint8
+    commit: Cell<OCRConfig>?
+    execute: Cell<OCRConfig>?
 }
 
 fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
-	if (ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
-		if (self.commit == null) {
-			return null;
-		}
-		return self.commit!.load();
-
-	} else if (ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
-		if (self.execute == null) {
-			return null;
-		}
-		return self.execute!.load();
-	} else {
-		throw MultiOCR3Base_Error.NonExistentOcrPluginType;
-	}
+    if (ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
+        if (self.commit == null) {
+            return null;
+        }
+        return self.commit!.load();
+    } else if (ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
+        if (self.execute == null) {
+            return null;
+        }
+        return self.execute!.load();
+    } else {
+        throw MultiOCR3Base_Error.NonExistentOcrPluginType;
+    }
 }
 
 fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
-	assert(msg.bigF > 0, MultiOCR3Base_Error.BigFMustBePositive);
+    assert(msg.bigF > 0, MultiOCR3Base_Error.BigFMustBePositive);
 
-	var ocrConfig = self.getConfig(msg.ocrPluginType);
-	if (ocrConfig == null) {
-		ocrConfig = newOCRConfig();
-	} 
-	ocrConfig = ocrConfig!;
+    var ocrConfig = self.getConfig(msg.ocrPluginType);
+    if (ocrConfig == null) {
+        ocrConfig = newOCRConfig();
+    }
+    ocrConfig = ocrConfig!;
 
-	// If F is 0, then the config is not yet set.
-	if (ocrConfig.configInfo.bigF == 0) {
-		ocrConfig.configInfo.isSignatureVerificationEnabled = msg.isSignatureVerificationEnabled;
-	} else {
-		assert(
-			ocrConfig.configInfo.isSignatureVerificationEnabled == msg.isSignatureVerificationEnabled,
-			MultiOCR3Base_Error.StaticConfigCannotBeChanged
-		);
-	}
-	val transmitters_length = countAddresses(msg.transmitters);
-	// val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
+    // If F is 0, then the config is not yet set.
+    if (ocrConfig.configInfo.bigF == 0) {
+        ocrConfig.configInfo.isSignatureVerificationEnabled = msg.isSignatureVerificationEnabled;
+    } else {
+        assert(ocrConfig.configInfo.isSignatureVerificationEnabled ==
+        msg.isSignatureVerificationEnabled, MultiOCR3Base_Error.StaticConfigCannotBeChanged);
+    }
+    val transmitters_length = countAddresses(msg.transmitters);
+    // val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
 
-	assert(transmitters_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManyTransmitters);
-	assert(transmitters_length > 0, MultiOCR3Base_Error.NoTransmitters);
-	
-	if (msg.isSignatureVerificationEnabled) {
-		val signers_length = msg.signers.iter().countBytes() / 32;
-		assert(signers_length > 0, MultiOCR3Base_Error.NoSigners);
-		assert(signers_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManySigners);
-		assert(signers_length > 3 * msg.bigF, MultiOCR3Base_Error.BigFTooHigh);
-		assert(signers_length >= transmitters_length, MultiOCR3Base_Error.TooManyTransmitters);
-		ocrConfig.configInfo.n = signers_length;
-		ocrConfig.assignSignerOracles(msg.signers);
-	}
-	ocrConfig.assignTransmitterOracles(msg.transmitters);
-	ocrConfig.configInfo.bigF = msg.bigF;
-	ocrConfig.configInfo.configDigest = msg.configDigest;
-	
-	if (msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
-		self.commit = ocrConfig.toCell();
-	} else if (msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
-		self.execute = ocrConfig.toCell();
-	}
+    assert(transmitters_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManyTransmitters);
+    assert(transmitters_length > 0, MultiOCR3Base_Error.NoTransmitters);
 
-	emit(OCR3BASE_CONFIG_SET_TOPIC, OCR3Base_ConfigSet {
-			ocrPluginType: msg.ocrPluginType,
-			configDigest: ocrConfig.configInfo.configDigest,
-			signers: msg.signers,
-			transmitters: msg.transmitters,
-			bigF: ocrConfig.configInfo.bigF
-		}
-	);
+    if (msg.isSignatureVerificationEnabled) {
+        val signers_length = msg.signers.iter().countBytes() / 32;
+        assert(signers_length > 0, MultiOCR3Base_Error.NoSigners);
+        assert(signers_length <= MAX_NUM_ORACLES, MultiOCR3Base_Error.TooManySigners);
+        assert(signers_length > 3 * msg.bigF, MultiOCR3Base_Error.BigFTooHigh);
+        assert(signers_length >= transmitters_length, MultiOCR3Base_Error.TooManyTransmitters);
+        ocrConfig.configInfo.n = signers_length;
+        ocrConfig.assignSignerOracles(msg.signers);
+    }
+    ocrConfig.assignTransmitterOracles(msg.transmitters);
+    ocrConfig.configInfo.bigF = msg.bigF;
+    ocrConfig.configInfo.configDigest = msg.configDigest;
+
+    if (msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
+        self.commit = ocrConfig.toCell();
+    } else if (msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
+        self.execute = ocrConfig.toCell();
+    }
+
+    emit(
+        OCR3BASE_CONFIG_SET_TOPIC,
+        OCR3Base_ConfigSet {
+            ocrPluginType: msg.ocrPluginType,
+            configDigest: ocrConfig.configInfo.configDigest,
+            signers: msg.signers,
+            transmitters: msg.transmitters,
+            bigF: ocrConfig.configInfo.bigF,
+        },
+    );
 }
 
 fun OCR3Base.transmit(
@@ -137,63 +134,72 @@ fun OCR3Base.transmit(
     assert(ocrConfig != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
     ocrConfig = ocrConfig!;
     val configInfo: ConfigInfo = ocrConfig.configInfo;
-    
+
     // EVM checks transaction data length here, it's probably too expensive to do this in TON 
-    
+
     assert(reportContext.configDigest == configInfo.configDigest, MultiOCR3Base_Error.ConfigDigestMismatch);
-    
+
     // EVM checks assert_chain_not_forked, this is not necessary in TON
-    
+
     val pluginTransmitters = ocrConfig.transmitters;
 
     assert(pluginTransmitters.get(transmitter).isFound, MultiOCR3Base_Error.UnauthorizedTransmitter);
 
     if (configInfo.isSignatureVerificationEnabled) {
-    	val expectedSignatures = configInfo.bigF + 1;
-		val signatures_length = signatures.iter().countBytes() / 96; //expensive
-    	assert(signatures_length == expectedSignatures, MultiOCR3Base_Error.WrongNumberOfSignatures);
-    	val hashedReport = self.hashReport(report, reportContext);
-    	val pluginSigners = ocrConfig.signers;
+        val expectedSignatures = configInfo.bigF + 1;
+        val signatures_length = signatures.iter().countBytes() / 96; //expensive
+        assert(signatures_length == expectedSignatures, MultiOCR3Base_Error.WrongNumberOfSignatures);
+        val hashedReport = self.hashReport(report, reportContext);
+        val pluginSigners = ocrConfig.signers;
 
-    	self.verifySignature(pluginSigners, hashedReport, signatures);
+        self.verifySignature(pluginSigners, hashedReport, signatures);
     }
 
-    emit(OCR3BASE_TRANSMITTED, OCR3Base_Transmitted {
-	    ocrPluginType,
-	    configDigest: reportContext.configDigest,
-	    sequenceNumber: reportContext.sequenceBytes
-    });
+    emit(
+        OCR3BASE_TRANSMITTED,
+        OCR3Base_Transmitted {
+            ocrPluginType,
+            configDigest: reportContext.configDigest,
+            sequenceNumber: reportContext.sequenceBytes,
+        },
+    );
 }
 
 fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
-	var data = beginCell()
-		.storeRef(report)
-		.storeUint(reportContext.configDigest, 256)
-		.storeUint(0, 192) // Padding to 256 bits
-		.storeUint(reportContext.sequenceBytes, 64)
-		.endCell();
-	return data.hash();
+    var data = beginCell()
+        .storeRef(report)
+        .storeUint(reportContext.configDigest, 256)
+        .storeUint(0, 192) // Padding to 256 bits
+        .storeUint(reportContext.sequenceBytes, 64)
+        .endCell();
+    return data.hash();
 }
 
 fun OCR3Base.verifySignature(
-	self,
-	signers: map<uint256, uint8>, // <signer -> index>
-	hashedReport: uint256,
-	signatures: SnakedCell<SignatureEd25519>
+    self,
+    signers: map<uint256, uint8>, // <signer -> index>
+    hashedReport: uint256,
+    signatures: SnakedCell<SignatureEd25519>,
 ) {
-	var seen = Bitmap256.new();
-	var signaturesIt = signatures.iter(); 
-	while (!signaturesIt.empty()) {
-		val signature = signaturesIt.next();
-		val signer = signature.signer;
+    var seen = Bitmap256.new();
+    var signaturesIt = signatures.iter();
+    while (!signaturesIt.empty()) {
+        val signature = signaturesIt.next();
+        val signer = signature.signer;
 
-		val entry = signers.get(signer);
-		val authorized= entry.isFound;
-		assert(authorized, MultiOCR3Base_Error.UnauthorizedSigner);
-		val signerIndex = entry.loadValue();
-		assert(isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer), MultiOCR3Base_Error.InvalidSignature);
+        val entry = signers.get(signer);
+        val authorized = entry.isFound;
+        assert(authorized, MultiOCR3Base_Error.UnauthorizedSigner);
+        val signerIndex = entry.loadValue();
+        assert(isSignatureValid(
+            hashedReport,
+            signature.toCell().beginParse().skipBits(256),
+            signer,
+        ), MultiOCR3Base_Error.InvalidSignature);
 
-		assert(!seen.has(signerIndex!), MultiOCR3Base_Error.NonUniqueSignatures);
-		seen.set(signerIndex!);
-	}
+        assert(!seen.has(
+            signerIndex!,
+        ), MultiOCR3Base_Error.NonUniqueSignatures);
+        seen.set(signerIndex!);
+    }
 }

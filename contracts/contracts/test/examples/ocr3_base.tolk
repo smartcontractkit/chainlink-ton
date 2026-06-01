@@ -1,11 +1,11 @@
-import "./../../lib/ocr/multi_ocr3_base.tolk";
-import "./../../lib/ocr/types.tolk";
-import "./../../lib/utils.tolk";
-import "../../lib/ocr/errors";
+import "./../../lib/utils.tolk"
+import "./../../lib/ocr/multi_ocr3_base.tolk"
+import "./../../lib/ocr/types.tolk"
+import "../../lib/ocr/errors"
 
 struct OCR3BaseExampleContract {
-    contractId: uint64;
-    ocr3Base: OCR3Base;
+    contractId: uint64
+    ocr3Base: OCR3Base
 }
 
 fun OCR3BaseExampleContract.load() {
@@ -17,43 +17,45 @@ fun OCR3BaseExampleContract.store(self) {
 }
 
 struct (0x00000002) Transmit {
-    ocrPluginType: uint16,
-    reportContext: ReportContext,
-    report: cell,
-    signatures: cell, //Vector<SignatureEd25519>
+    ocrPluginType: uint16
+    reportContext: ReportContext
+    report: cell
+    signatures: cell //Vector<SignatureEd25519>
 }
 
 // Support the SetOCR3Config message from multi_ocr3_base.tolk
-type IncomingMessage = Transmit | OCR3Base_SetOCR3Config;
+type IncomingMessage = Transmit | OCR3Base_SetOCR3Config
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy IncomingMessage.fromSlice(in.body);
 
     match (msg) {
         Transmit => {
-        //Using the transmit function validates signatures and emits an event
+            //Using the transmit function validates signatures and emits an event
             var storage = lazy OCR3BaseExampleContract.load();
             val sender = in.senderAddress;
-            storage.ocr3Base.transmit(
-                sender,
-                msg.ocrPluginType,
-                msg.reportContext,
-                msg.report,
-                msg.signatures
-            );
-        },
+            storage
+                .ocr3Base
+                .transmit(
+                    sender,
+                    msg.ocrPluginType,
+                    msg.reportContext,
+                    msg.report,
+                    msg.signatures,
+                );
+        }
         //The SetOCR3Config message configures authorized signers and transmitters
         OCR3Base_SetOCR3Config => {
             // On a real contract you would invoke requireOwner here
             var storage = lazy OCR3BaseExampleContract.load();
             storage.ocr3Base.setOcr3Config(msg);
             storage.store();
-        },
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
-        }        
-     }
+            assert (in.body.isEmpty()) throw 0xFFFF;
+        }
+    }
 }
 
 get fun ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
@@ -76,8 +78,7 @@ get fun ocr3Transmitters(ocrPluginType: uint16): lisp_list<address> {
     val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, MultiOCR3Base_Error.NonExistentOcrPluginType);
-    var d  = config!.transmitters;
+    var d = config!.transmitters;
 
     return keysLispList(d);
 }
-
