@@ -12,4 +12,5 @@ enum Router_Error {
     MissingTokenAmounts
     NoMultiTokenTransfers
     InsufficientFee
+    TokenTransferNotThroughNotification
 }

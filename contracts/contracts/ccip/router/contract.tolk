@@ -139,6 +139,29 @@ fun onInternalMessage(in: InMessage) {
 
             onSendNACK(msg)
         }
+        // Sender must be a Jetton Wallet owned by the Router
+        Common_JettonTransferNotification => {
+            //TODO: Validate sender is owned jetton transfer
+
+            // TODO: catch errors, if different message type than CCIPSend
+            val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
+
+            var tokenAmounts = sendMsg.tokenAmounts.iter();
+            assert (!tokenAmounts.empty()) throw Router_Error.MissingTokenAmounts;
+
+            val transferedJetton = tokenAmounts.next();
+            assert (transferedJetton.amount == transferNotification.amount) throw 5; // TODO: if transfered token is link, extract fee before this check
+            assert (tokenAmounts.empty()) throw Router_Error.NoMultiTokenTransfers;
+
+            val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Router_Error.DestChainNotEnabled as int);
+            val onRampSend = createMessage({
+                bounce: true,
+                value: 0,
+                dest: onRamp,
+                body: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender, value: transferNotification.amount } },
+            });
+            onRampSend.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
         else => {
             // attempt to handle Ownable messages
             var st = lazy Storage.load();
@@ -465,6 +488,9 @@ fun onCCIPSend(msg: Router_CCIPSend, sender: address, value: coins) {
     if (msg.feeToken == null) {
         msg.feeToken = st.wrappedNative
     }
+
+    // Token transfer messages can only come in through jetton transfer notifications
+    assert(msg.tokenAmounts.empty()) throw Router_Error.TokenTransferNotThroughNotification; //TBD shuold this be sendMessageRejected instead of throw?
 
     val onRampResult = st.onRamps.get(msg.destChainSelector);
     if (!onRampResult.isFound) {

@@ -26,6 +26,7 @@ type Router_InMsg =
     | Router_MessageSent
     | Router_MessageRejected
     | Router_RMNOwnableMessage
+    | Common_JettonTransferNotification
     ;
 
 type Router_BouncedMessage = 

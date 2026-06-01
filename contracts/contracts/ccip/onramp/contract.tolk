@@ -240,6 +240,14 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
 
     val config = st.config.load();
 
+    var tokenRegistry: address? = null;
+
+    val msg = payload.msg.load();
+    var tokenAmounts = msg.tokenAmounts.iter();
+    if (!tokenAmounts.empty()) {
+        tokenRegistry = calculateTokenRegistryAddress(st, tokenAmounts.next().token);
+    }
+
     val executorId = generateRandomSendExecutorId();
     val executeMsg = createMessage({
         bounce: true,
@@ -259,6 +267,7 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
                     onrampSend: payload,
                     config: CCIPSendExecutor_Config {
                         feeQuoter: config.feeQuoter,
+                        tokenRegistry,
                     }.toCell(),
                 }.toCell(),
             },
@@ -268,6 +277,11 @@ fun onSend(st: OnRamp_Storage, destChainConfig: OnRamp_DestChainConfig, payload:
     executeMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
     st.store();
+}
+
+fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
+    // TODO: calculate token registry address
+    return createAddressNone()
 }
 
 /*
