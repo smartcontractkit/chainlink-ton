@@ -57,7 +57,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     match (msg) {
         FeeQuoter_GetValidatedFee<RemainingBitsAndRefs> => {
             val this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce as int);
+            this.exitWithError(CCIPSendExecutor_Error.FeeQuoterBounce);
         }
     }
 }
@@ -103,7 +103,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<RemainingBitsAndRefs>) {
     if (msg.fee.feeTokenAmount + Router_Costs.CCIPSend() > self.onrampSend.metadata.value) {
-        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds as int);
+        self.exitWithError(CCIPSendExecutor_Error.InsufficientFunds);
         return;
     }
     setGasLimitToMaximum();

@@ -44,10 +44,10 @@ fun onInternalMessage(in: InMessage) {
             // Standard way for a receiver to be implemented:
 
             // 1. Check that enough value is received to process this message (you should benchmark accordingly)
-            assert( in.valueCoins >= ton("0.03") ) throw (Receiver_Error.LowValue as int);
+            assert( in.valueCoins >= ton("0.03") ) throw (Receiver_Error.LowValue);
 
             // 2. Check CCIPReceive only comes from router
-            assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized as int);
+            assert( in.senderAddress == st.authorizedCaller) throw (Receiver_Error.Unauthorized);
 
             // 3. Process the message according to your product logic
             match (st.behavior) {

@@ -517,7 +517,7 @@ fun onCommit(msg: OffRamp_Commit, sender: address, value: coins) {
     if (root != null) {
         // validate lane is enabled and not cursed
 
-        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
+        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled);
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
         assert(!st.cursedSubjects.isCursed(root.sourceChainSelector as uint128), Error.SubjectCursed);
 
@@ -843,7 +843,7 @@ Retrieves the Router address associated with a given sourceChainSelector.
 Throws an error if the source chain is not enabled in the stored configs.
 */
 fun getRouterFromSelector(st: Storage, sourceChainSelector: uint64): address {
-    val sourceChainConfig = st.sourceChainConfigs.mustGet(sourceChainSelector, Error.SourceChainNotEnabled as int);
+    val sourceChainConfig = st.sourceChainConfigs.mustGet(sourceChainSelector, Error.SourceChainNotEnabled);
     return sourceChainConfig.router;
 }
 
@@ -967,7 +967,7 @@ get fun config(): Config {
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     val st = lazy Storage.load();
-    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled as int);
+    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled);
 }
 
 get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {

@@ -255,8 +255,8 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     assert(destChainConfig.config.isEnabled, FeeQuoter_Error.DestChainNotEnabled);
     assert(msg.feeToken != null, FeeQuoter_Error.FeeTokenNotSupported);
     val feeToken = msg.feeToken!;
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
-    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
+    val feeTokenPrice = st.usdPerToken.mustGet(feeToken, FeeQuoter_Error.FeeTokenNotSupported);
 
     val it = (msg.data as SnakedCell<uint8>).iter();
     val (msgDataLen, errorCode) = it.countBytesSafe();
@@ -278,7 +278,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     val (executionGasPrice: uint112, dataAvailabilityGasPrice: uint112) = destChainConfig.getValidatedGasPrice();
 
     val tokensIter = msg.tokenAmounts.iter();
-    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow as int);
+    val premiumFeeUsdWei = mustProd(destChainConfig.config.networkFeeUsdCents, VAL_1E16, FeeQuoter_Error.PremiumFeeOverflow);
     assert (tokensIter.empty()) throw FeeQuoter_Error.UnsupportedNumberOfTokens;
 
     val dataAvailabilityCost = _dataAvailabilityCost(
@@ -290,21 +290,21 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     );
 
     val calldataLen = msgDataLen; // + token transfer overheads, not supported in TON yet
-    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow as int);
+    var calldataGas = mustProd(calldataLen, destChainConfig.config.destGasPerPayloadByteBase, FeeQuoter_Error.ExecutionCostOverflow);
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold;
     if (calldataLen > calldataThreshold) {
-        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow as int);
+        val baseCalldataGas = mustProd(destChainConfig.config.destGasPerPayloadByteBase, calldataThreshold, FeeQuoter_Error.ExecutionCostOverflow);
         val extraBytes = calldataLen - calldataThreshold;
-        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow as int);
-        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
+        val extraCalldataGas = mustProd(extraBytes, destChainConfig.config.destGasPerPayloadByteHigh, FeeQuoter_Error.ExecutionCostOverflow);
+        calldataGas = mustAdd(baseCalldataGas, extraCalldataGas, FeeQuoter_Error.ExecutionCostOverflow);
     }
 
-    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow as int), calldataGas, FeeQuoter_Error.ExecutionCostOverflow as int);
+    val executionGas = mustAdd(mustAdd(gasLimit, destChainConfig.config.destGasOverhead, FeeQuoter_Error.ExecutionCostOverflow), calldataGas, FeeQuoter_Error.ExecutionCostOverflow);
 
-    val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow as int), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow as int);
+    val executionCost = mustProd(mustProd(executionGasPrice, executionGas, FeeQuoter_Error.ExecutionCostOverflow), destChainConfig.config.gasMultiplierWeiPerEth, FeeQuoter_Error.ExecutionCostOverflow);
 
-    val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow as int);
-    val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow as int), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow as int);
+    val premiumFee = mustProd(premiumFeeUsdWei, premiumMultiplier, FeeQuoter_Error.PremiumFeeOverflow);
+    val feeTokenValue = mustAdd(mustAdd(premiumFee, executionCost, FeeQuoter_Error.FeeCalculationOverflow), dataAvailabilityCost, FeeQuoter_Error.FeeCalculationOverflow);
 
     // Check for division by zero (zero token prices)
     assert(feeTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
@@ -314,7 +314,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
     val feeValueJuels = calculateFeeValueJuels(st, feeToken, feeTokenValue, feeTokenAmount);
 
     return Fee {
-        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow as int),
+        feeTokenAmount: mustCastToCoin(feeTokenAmount, FeeQuoter_Error.FeeOverflow),
         feeValueJuels: feeValueJuels as uint96, // safe because already checked against maxFeeJuelsPerMsg
     };
 }
@@ -322,7 +322,7 @@ fun calculateValidatedFee(msg: Router_CCIPSend): Fee {
 fun calculateFeeValueJuels(st: Storage, feeToken: address, feeTokenValue: coins, feeTokenAmount: coins): coins {
     var feeValueJuels = feeTokenAmount;
     if (feeToken != st.linkToken) {
-        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported as int);
+        val linkTokenPrice = st.usdPerToken.mustGet(st.linkToken, FeeQuoter_Error.TokenNotSupported);
         // Check for division by zero (zero token prices)
         assert(linkTokenPrice.value > 0, FeeQuoter_Error.TokenPriceTooLow);
         // convert from USD to juels
@@ -353,14 +353,14 @@ fun _dataAvailabilityCost(
     // dest_data_availability_overhead_gas is a separate config value for flexibility to be updated
     // independently of message codestChainConfig. Its value is determined by CCIP lane implementation, e.g.
     // the overhead data posted for OCR.
-    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daLengthCost = mustProd(dataAvailabilityLengthBytes, destChainConfig.config.destGasPerDataAvailabilityByte, FeeQuoter_Error.DataAvailabilityCostOverflow);
+    val dataAvailabilityGas = mustAdd(daLengthCost, destChainConfig.config.destDataAvailabilityOverheadGas, FeeQuoter_Error.DataAvailabilityCostOverflow);
 
     // data_availability_gas_price is in 18 decimals, dest_data_availability_multiplier_bps is in 4 decimals
     // We pad 14 decimals to bring the result to 36 decimals, in line with token bps and execution fee.
-    val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
-    return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow as int);
+    val daPrice = mustProd(dataAvailabilityGasPrice, dataAvailabilityGas, FeeQuoter_Error.DataAvailabilityCostOverflow);
+    val daWithMultiplier = mustProd(daPrice, destChainConfig.config.destDataAvailabilityMultiplierBps, FeeQuoter_Error.DataAvailabilityCostOverflow);
+    return mustProd(daWithMultiplier, VAL_1E14, FeeQuoter_Error.DataAvailabilityCostOverflow);
 }
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend, msgDataLen: uint256): int {
@@ -467,7 +467,7 @@ fun _parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): G
 
 fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV1 {
     val extra = SVMExtraArgsV1.fromCell(extraArgs, {
-        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
+        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
@@ -477,7 +477,7 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SVMExtraArgsV
 
 fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV1 {
     val extra = SuiExtraArgsV1.fromCell(extraArgs, {
-        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData as int,
+        throwIfOpcodeDoesNotMatch: FeeQuoter_Error.InvalidExtraArgsData,
     });
     assert (extra.gasLimit <= maxPerMsgGasLimit) throw FeeQuoter_Error.GasLimitTooHigh;
     // Out of order is always enforced because we don't do ordering on non-EVMs
@@ -487,15 +487,15 @@ fun parseSuiExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32): SuiExtraArgsV
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
     if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress as int);
+        return receiver.validateEVMAddress(FeeQuoter_Error.InvalidEVMReceiverAddress);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
         // is non-zero, the address must not be 0x0.
-        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
-        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE, FeeQuoter_Error.Invalid32ByteReceiverAddress);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress as int);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? SUI_PRECOMPILE_SPACE : 0, FeeQuoter_Error.Invalid32ByteReceiverAddress);
     } else {
         throw FeeQuoter_Error.UnsupportedChainFamilySelector;
     }
@@ -590,7 +590,7 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 
 get fun premiumMultiplierWeiPerEth(token: address): uint256 {
     val st = lazy Storage.load();
-    val v = st.premiumMultiplierWeiPerEth.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val v = st.premiumMultiplierWeiPerEth.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported);
     return v as uint256;
 }
 
@@ -606,13 +606,13 @@ get fun tokenTransferFeeConfig(
     token: address,
 ): TokenTransferFeeConfig {
     val st = lazy Storage.load();
-    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
-    return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported as int);
+    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
+    return destChainConfig.tokenTransferFeeConfigs.mustGet(token, FeeQuoter_Error.FeeTokenNotSupported);
 }
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    return st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
 }
 
 get fun staticConfig(): (uint96, address, uint32) {
@@ -629,7 +629,7 @@ get fun dataAvailabilityCost(
 ): uint256 {
     val st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled as int);
+    val destChainConfig = st.destChainConfigs.mustGet(destChainSelector, FeeQuoter_Error.DestChainNotEnabled);
     return _dataAvailabilityCost(
         destChainConfig,
         dataAvailabilityGasPrice,
