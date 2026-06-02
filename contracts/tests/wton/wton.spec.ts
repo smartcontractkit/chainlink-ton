@@ -9,10 +9,7 @@ import {
   builder as minterBuilder,
 } from '../../wrappers/jetton/JettonMinter'
 import { JettonErrorCodes } from '../../wrappers/jetton/constants'
-import {
-  JettonWallet,
-  builder as walletBuilder,
-} from '../../wrappers/jetton/JettonWallet'
+import { JettonWallet, builder as walletBuilder } from '../../wrappers/jetton/JettonWallet'
 import {
   ERROR_INVALID_EXCESSES_DESTINATION,
   ERROR_INVALID_RECIPIENT,

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-tolk 1.2
+tolk 1.4.1
 
 import "@stdlib/gas-payments"
 import "../lib/jetton/errors"
@@ -8,12 +8,14 @@ import "../lib/jetton/storage"
 import "../lib/jetton/messages"
 import "fees-management"
 
-// TODO: update to 1.4
-// contract JettonWallet {
-//     author: "Chainlink Labs"
-//     incomingMessages: AllowedMessageToWallet
-//     storage: WalletStorage
-// }
+contract JettonWallet {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.1"
+    description: "link.chain.ton.wton.JettonWallet"
+
+    storage: WalletStorage
+    incomingMessages: AllowedMessageToWallet
+}
 
 // Lets the wallet owner withdraw any TON surplus sitting above the strict `jettonBalance + storage_fee`
 struct (0xf2ff646f) AskToWithdrawExcess {
@@ -214,7 +216,7 @@ struct JettonWalletDataReply {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.wton.JettonWallet", "0.0.1");
+    return ("link.chain.ton.wton.JettonWallet".literalSlice(), "0.0.1".literalSlice());
 }
 
 get fun get_wallet_data(): JettonWalletDataReply {

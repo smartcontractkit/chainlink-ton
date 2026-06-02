@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: MIT
-tolk 1.2
+tolk 1.4.1
 
-// TODO: update to 1.4
-// import "@stdlib/strings"
+import "@stdlib/strings"
+import "@stdlib/gas-payments"
 import "../lib/jetton/errors"
 import "../lib/jetton/jetton-utils"
 import "../lib/jetton/storage"
 import "../lib/jetton/messages"
 import "fees-management"
 
-// TODO: update to 1.4
-// contract JettonMinter {
-//     author: "Chainlink Labs"
-//     incomingMessages: AllowedMessageToMinter
-//     storage: MinterStorage
-// }
+contract JettonMinter {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.1"
+    description: "link.chain.ton.wton.JettonMinter"
+
+    storage: MinterStorage
+    incomingMessages: AllowedMessageToMinter
+}
 
 type AllowedMessageToMinter =
     | MintNewJettons
@@ -184,34 +186,28 @@ struct JettonDataReply {
     jettonWalletCode: cell
 }
 
-// TODO: update to 1.4
 struct (0x00) OnchainMetadataReply {
-    contentDict: map<uint256, Cell<SnakeDataReply>>
-}
-
-struct (0x00) SnakeDataReply {
-    string: SnakeString
+    contentDict: map<uint256, string_prefixed0x>
 }
 
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.wton.JettonMinter", "0.0.1");
+    return ("link.chain.ton.wton.JettonMinter".literalSlice(), "0.0.1".literalSlice());
 }
 
-// TODO: update to 1.4
 get fun get_jetton_data(): JettonDataReply {
     val storage = lazy MinterStorage.load();
     var metadata: OnchainMetadataReply = {
-        contentDict: createEmptyMap()
+        contentDict: []
     };
-    metadata.contentDict.set(stringSha256("uri"), SnakeDataReply{string: storage.metadataUri.load()}.toCell());
-    metadata.contentDict.set(stringSha256("decimals"), SnakeDataReply{string: "9"}.toCell());
+    metadata.contentDict.set("uri".sha256(), storage.metadataUri.prefixWith00());
+    metadata.contentDict.set("decimals".sha256(), "9".prefixWith00());
 
     return {
         totalSupply: storage.totalSupply,
         mintable: true,
-        adminAddress: null, // wTON has no admin
+        adminAddress: storage.adminAddress,
         jettonContent: metadata.toCell(),
         jettonWalletCode: storage.jettonWalletCode,
     }

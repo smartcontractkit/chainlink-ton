@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-// Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/messages.tolk
+// Imported from https://github.com/ton-blockchain/tolk-bench/blob/57e1009743bfc19748caa95d76180d9e9793e4c5/contracts_Tolk/03_notcoin/messages.tolk
+
 import "storage"
 
 type ForwardPayloadRemainder = RemainingBitsAndRefs
@@ -102,8 +103,7 @@ struct (0x2508d66a) UpgradeMinterCode {
 // nolint:opcode
 struct (0xcb862902) ChangeMinterMetadataUri {
     queryId: uint64
-    // TODO: update to 1.4
-    newMetadataUri: SnakeString
+    newMetadataUri: RemainingBitsAndRefs   // by standard, it's "inlined snake string" (but not in a ref, that's why not `string`)
 }
 
 // nolint:opcode
@@ -117,6 +117,6 @@ fun ForwardPayloadRemainder.checkIsCorrectTLBEither(self) {
     var mutableCopy = self;
     if (mutableCopy.loadMaybeRef() != null) {
         // throw "cell underflow" if there is data besides a ref
-        mutableCopy.assertEnd();
+        mutableCopy.assertEnd()
     }
 }
