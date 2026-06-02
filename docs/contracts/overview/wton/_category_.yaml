@@ -1,0 +1,7 @@
+position: 6
+label: wTON
+collapsible: true
+collapsed: true
+link:
+  type: doc
+  id: contracts-overview-wton-index
