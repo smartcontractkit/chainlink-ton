@@ -17,7 +17,6 @@ import {
 } from '@ton/core'
 import '@ton/test-utils'
 import * as withdrawable from '../../../wrappers/libraries/funding/Withdrawable'
-import { sleep } from '@ton/blueprint'
 import { ContractCoverageConfig, generateCoverageArtifacts } from '../../coverage/coverage'
 
 /**

@@ -13,7 +13,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, errorCode, facilityId } from '../utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 import { keccak256 } from '@ethersproject/keccak256'
 import { asSnakedCell, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
@@ -824,7 +824,7 @@ export class ContractClient implements Contract {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('mcms.RBACTimelock')
+    return contractCode.ccip.local('mcms.RBACTimelock')
   }
 
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {

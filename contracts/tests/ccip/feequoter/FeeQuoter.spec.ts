@@ -1,4 +1,3 @@
-import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
@@ -19,7 +18,7 @@ import { FEE_QUOTER_SUPPORTED_PREV_VERSIONS } from '../../../wrappers/ccip/FeeQu
 
 describe('FeeQuoter - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
-    getCode: () => compile('FeeQuoter'),
+    getCode: () => contractCode.ccip.local('FeeQuoter'),
     ContractConstructor: fq.FeeQuoter,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),

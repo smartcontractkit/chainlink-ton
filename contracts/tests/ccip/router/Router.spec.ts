@@ -1,10 +1,10 @@
-import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 import { crc32 } from 'zlib'
 import * as coverage from '../../coverage/coverage'
 import { errorCode, facilityId } from '../../../wrappers/utils'
+import { contractCode } from '../../../wrappers/codeLoader'
 
 import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
@@ -32,7 +32,7 @@ describe('rt.Router - TypeAndVersion Tests', () => {
 
 describe('Router - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
-    getCode: () => compile('Router'),
+    getCode: () => contractCode.ccip.local('Router'),
     ContractConstructor: rt.Router,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployRouterContract,

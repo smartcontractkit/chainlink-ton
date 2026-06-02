@@ -4,7 +4,7 @@ import { sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
 
 import { crc32 } from 'zlib'
-import { loadContractCode } from '../../../wrappers/codeLoader'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { asSnakeDataUint } from '../../../src/utils'
 import { testVectors } from './TestVectors'
 import { keccak256 } from '@ethersproject/keccak256'
@@ -33,7 +33,7 @@ describe('MerkleMultiProofTests', () => {
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
-    let code = await loadContractCode('examples.MerkleProof')
+    let code = await contractCode.ccip.local('examples.MerkleProof')
     let data: MerkleMultiProofCalculatorStorage = {
       id: 1,
       root: 0n, // Initial root, will be updated on deploy

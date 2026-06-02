@@ -15,7 +15,7 @@ import {
   TupleItem,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
-import { contractCode, loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
 
@@ -707,7 +707,7 @@ export class OffRamp
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode(ARTIFACT_NAME)
+    return contractCode.ccip.local(ARTIFACT_NAME)
   }
 
   async sendCommit(

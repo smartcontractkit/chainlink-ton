@@ -13,7 +13,7 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
@@ -169,6 +169,6 @@ export class MerkleRoot implements typeAndVersion.Interface, Contract {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('MerkleRoot')
+    return contractCode.ccip.local('MerkleRoot')
   }
 }

@@ -1,4 +1,7 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Cell, Dictionary, toNano } from '@ton/core'
+
+import { contractCode } from '../../../wrappers/codeLoader'
 import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../src/utils'
 import {
   createTimestampedPriceValue,
@@ -6,8 +9,6 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../../wrappers/ccip/FeeQuoter'
-import { Cell, Dictionary, toNano } from '@ton/core'
-import { loadContractCode } from '../../../wrappers/codeLoader'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 
@@ -17,7 +18,7 @@ export const setupTestFeeQuoter = async (
   code?: Cell,
 ): Promise<SandboxContract<FeeQuoter>> => {
   if (!code) {
-    code = await loadContractCode('FeeQuoter')
+    code = await contractCode.ccip.local('FeeQuoter')
   }
 
   let data: FeeQuoterStorage = {

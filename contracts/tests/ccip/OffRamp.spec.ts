@@ -1,6 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, contractAddress, Dictionary, StateInit, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
 import { crc32 } from 'zlib'
@@ -157,7 +156,7 @@ describe('OffRamp - TypeAndVersion Tests', () => {
 
 describe('OffRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
-    getCode: () => compile('OffRamp'),
+    getCode: () => contractCode.ccip.local('OffRamp'),
     ContractConstructor: of.OffRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     deployContract: deployOffRampContract,
@@ -612,7 +611,7 @@ describe('OffRamp - Unit Tests', () => {
     // setup router
     //
     {
-      const code = await compile('Router')
+      const code = await contractCode.ccip.local('Router')
       let data: rt.Storage = {
         id: generateRandomContractId(),
         ownable: {
@@ -655,7 +654,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Deploy test receiver
     {
-      let code = await compile('ccip.test.receiver')
+      let code = await contractCode.ccip.local('ccip.test.receiver')
       receiver = blockchain.openContract(
         tr.Receiver.createFromConfig(
           {
@@ -1781,7 +1780,7 @@ describe('OffRamp - Unit Tests', () => {
 
   it('Test receiver rejects message from wrong offRamp and emits ExecutionStateChanged: Failure', async () => {
     // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
-    let code = await compile('ccip.test.receiver')
+    let code = await contractCode.ccip.local('ccip.test.receiver')
     const wrongRouterAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
       tr.Receiver.createFromConfig(

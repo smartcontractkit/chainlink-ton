@@ -20,7 +20,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec, StackCodec } from '../utils'
 import { asSnakedCell } from '../../src/utils'
-import { contractCode, loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 
 import { Maybe } from '@ton/core/dist/utils/maybe'
 
@@ -679,7 +679,7 @@ export class FeeQuoter
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode(ARTIFACT_NAME)
+    return contractCode.ccip.local(ARTIFACT_NAME)
   }
 
   async sendUpdateDestChainConfigs(

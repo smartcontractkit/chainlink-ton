@@ -22,7 +22,7 @@ import { asSnakedCell, fromSnakeData } from '../../src/utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
-import { contractCode, loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 import * as fq from './FeeQuoter'
 
 export const ARTIFACT_NAME = 'OnRamp'
@@ -795,7 +795,7 @@ export class OnRamp implements Contract, ownable2step.ContractClient {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode(ARTIFACT_NAME)
+    return contractCode.ccip.local(ARTIFACT_NAME)
   }
 
   async sendSetDynamicConfig(

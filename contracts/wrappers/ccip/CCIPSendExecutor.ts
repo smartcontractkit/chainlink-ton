@@ -13,7 +13,7 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as or from './OnRamp'
@@ -295,6 +295,6 @@ export class ContractClient implements typeAndVersion.Interface, Contract {
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('CCIPSendExecutor')
+    return contractCode.ccip.local('CCIPSendExecutor')
   }
 }

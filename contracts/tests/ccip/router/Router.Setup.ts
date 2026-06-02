@@ -1,4 +1,3 @@
-import { compile } from '@ton/blueprint'
 import { Dictionary, beginCell, toNano, Cell, Address } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 
@@ -8,12 +7,12 @@ import { generateRandomContractId, LINK_TOKEN, WRAPPED_NATIVE } from '../../../s
 import * as Decimals from '../../lib/pricing/Decimals'
 import { ContractCoverageConfig } from '../../coverage/coverage'
 
+import { contractCode } from '../../../wrappers/codeLoader'
 import * as fq from '../../../wrappers/ccip/FeeQuoter'
 import * as or from '../../../wrappers/ccip/OnRamp'
 import * as of from '../../../wrappers/ccip/OffRamp'
 import * as rt from '../../../wrappers/ccip/Router'
 import * as sendExecutor from '../../../wrappers/ccip/CCIPSendExecutor'
-import { loadContractCode } from '../../../wrappers/codeLoader'
 
 type RouterSetupOptionsCommon = {
   deployer?: SandboxContract<TreasuryContract>
@@ -69,7 +68,7 @@ export async function setup<TOverrides extends RouterSetupOverrides = {}>(
   const deployer = opts.deployer ?? (await blockchain.treasury('deployer'))
   const sender = opts.sender ?? (await blockchain.treasury('sender'))
   const receiver = opts.receiver ?? (await blockchain.treasury('receiver'))
-  let merkleRootCodeRaw = await compile('MerkleRoot')
+  let merkleRootCodeRaw = await contractCode.ccip.local('MerkleRoot')
 
   // Populate the emulator library code
   // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
@@ -121,7 +120,7 @@ async function deployRouterInstance(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
 ) {
-  const routerCode = await compile('Router')
+  const routerCode = await contractCode.ccip.local('Router')
   const data: rt.Storage = {
     id: generateRandomContractId(),
     ownable: {
@@ -147,7 +146,7 @@ async function deployFeeQuoterInstance(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
 ) {
-  const code = await compile('FeeQuoter')
+  const code = await contractCode.ccip.local('FeeQuoter')
   const data: fq.FeeQuoterStorage = {
     id: generateRandomContractId(),
     ownable: {
@@ -264,7 +263,7 @@ async function deployOnRampInstance(
   router: Address,
   feeQuoter: Address,
 ) {
-  const code = await compile('OnRamp')
+  const code = await contractCode.ccip.local('OnRamp')
   const data: or.OnRampStorage = {
     id: generateRandomContractId(),
     ownable: {
@@ -280,8 +279,8 @@ async function deployOnRampInstance(
     },
     destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
     executor: {
-      deployableCode: await loadContractCode('Deployable'),
-      executorCode: await compile('CCIPSendExecutor'),
+      deployableCode: await contractCode.ccip.local('Deployable'),
+      executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
     },
   }
 
@@ -338,7 +337,7 @@ async function deployOffRampInstance(
   router: Address,
   feeQuoter: Address,
 ) {
-  const code = await compile('OffRamp')
+  const code = await contractCode.ccip.local('OffRamp')
   const data: of.OffRampStorage = {
     id: generateRandomContractId(),
     ownable: {
@@ -347,9 +346,9 @@ async function deployOffRampInstance(
     },
     chainSelector: CHAINSEL_TON,
     deployables: {
-      deployerCode: await loadContractCode('Deployable'),
-      merkleRootCode: await compile('MerkleRoot'),
-      receiveExecutorCode: await compile('ReceiveExecutor'),
+      deployerCode: await contractCode.ccip.local('Deployable'),
+      merkleRootCode: await contractCode.ccip.local('MerkleRoot'),
+      receiveExecutorCode: await contractCode.ccip.local('ReceiveExecutor'),
     },
     feeQuoter,
     router,

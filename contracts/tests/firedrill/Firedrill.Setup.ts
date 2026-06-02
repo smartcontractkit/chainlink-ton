@@ -1,8 +1,8 @@
 import { Address, beginCell, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { randomAddress } from '@ton/test-utils'
-import { compile } from '@ton/blueprint'
 
+import { contractCode } from '../../wrappers/codeLoader'
 import { FiredrillOnRamp } from '../../wrappers/firedrill/FiredrillOnRamp'
 import { FiredrillOffRamp } from '../../wrappers/firedrill/FiredrillOffRamp'
 import { FiredrillEntrypoint } from '../../wrappers/firedrill/FiredrillEntrypoint'
@@ -21,7 +21,7 @@ export async function deployFiredrillOnRamp(
     chainSelector?: bigint
   },
 ) {
-  const code = await compile('firedrill.onramp')
+  const code = await contractCode.ccip.local('firedrill.onramp')
   const config = {
     id: generateRandomContractId(),
     controlAddress: opts?.controlAddress ?? owner.address,
@@ -44,7 +44,7 @@ export async function deployFiredrillOffRamp(
     onRampAddress?: CrossChainAddress
   },
 ) {
-  const code = await compile('firedrill.offramp')
+  const code = await contractCode.ccip.local('firedrill.offramp')
   const config = {
     id: generateRandomContractId(),
     controlAddress: opts?.controlAddress ?? owner.address,
@@ -66,7 +66,7 @@ export async function deployFiredrillEntrypoint(
     tokenAddress?: Address
   },
 ) {
-  const code = await compile('firedrill.entrypoint')
+  const code = await contractCode.ccip.local('firedrill.entrypoint')
   const config = {
     id: generateRandomContractId(),
     ownable: {

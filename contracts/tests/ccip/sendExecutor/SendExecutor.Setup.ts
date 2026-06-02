@@ -1,19 +1,18 @@
-import { compile } from '@ton/blueprint'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { beginCell, toNano } from '@ton/core'
 
 import { generateRandomContractId } from '../../../src/utils'
 import * as NameSpace from '../../../wrappers/ccip/NameSpace'
 
+import { contractCode } from '../../../wrappers/codeLoader'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import * as dep from '../../../wrappers/libraries/Deployable'
-import { loadContractCode } from '../../../wrappers/codeLoader'
 
 export async function setup(
   blockchain: Blockchain,
   deployer: SandboxContract<TreasuryContract>,
 ): Promise<SandboxContract<dep.ContractClient>> {
-  let code = await loadContractCode('Deployable')
+  let code = await contractCode.ccip.local('Deployable')
 
   let data: dep.DeployableStorage = {
     owner: deployer.address,
@@ -36,7 +35,7 @@ export async function sendDeployOnBlockchain(
 ) {
   const initialize: dep.Initialize = {
     stateInit: {
-      code: await compile('CCIPSendExecutor'),
+      code: await contractCode.ccip.local('CCIPSendExecutor'),
       data: sx.builder.data.contractInitData
         .encode({
           onramp: onRampMock.address,

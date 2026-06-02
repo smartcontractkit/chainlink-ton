@@ -1,7 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { compile } from '@ton/blueprint'
 import { KeyPair } from '@ton/crypto'
 import { crc32 } from 'zlib'
 
@@ -14,6 +13,7 @@ import {
 } from '../../../src/utils'
 import { assertLog } from '../../Logs'
 import { expectEqualsConfig } from './Helpers'
+import { contractCode } from '../../../wrappers/codeLoader'
 import { facilityId } from '../../../wrappers/utils'
 
 import * as multiOCR3Base from '../../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -47,7 +47,7 @@ describe('OCR3Base Tests', () => {
   })
 
   beforeAll(async () => {
-    code = await compile('examples.OCR3Base')
+    code = await contractCode.ccip.local('examples.OCR3Base')
     blockchain = await Blockchain.create()
 
     deployer = await blockchain.treasury('deployer')

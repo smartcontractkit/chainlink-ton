@@ -1,11 +1,11 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
 import { generateRandomContractId } from '../../src/utils'
 import { facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
+import { contractCode } from '../../wrappers/codeLoader'
 
 import * as r from '../../wrappers/libraries/Receiver'
 import * as tr from '../../wrappers/examples/Receiver'
@@ -107,7 +107,7 @@ describe('Receiver', () => {
   beforeEach(async () => {
     // setup offramp
     {
-      let code = await compile('ccip.test.receiver')
+      let code = await contractCode.ccip.local('ccip.test.receiver')
 
       // Use a library reference
       let data: tr.Storage = {

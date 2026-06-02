@@ -1,12 +1,11 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, toNano, beginCell, Dictionary, Address, CommonMessageInfoInternal } from '@ton/core'
-import { compile } from '@ton/blueprint'
+import { Cell, toNano, beginCell, Dictionary, Address } from '@ton/core'
 
 import { generateRandomContractId, WRAPPED_NATIVE } from '../../../src/utils'
-import { crc32 } from 'zlib'
 
+import { contractCode } from '../../../wrappers/codeLoader'
 import * as feeQuoter from '../../../wrappers/ccip/FeeQuoter'
 import * as counter from '../../../wrappers/examples/Counter'
 import * as decimals from '../../lib/pricing/Decimals'
@@ -14,7 +13,6 @@ import * as rt from '../../../wrappers/ccip/Router'
 import * as sx from '../../../wrappers/ccip/CCIPSendExecutor'
 import { verifyBodyMessage } from '../../utils/verifyMessageBody'
 import {
-  CHAIN_FAMILY_SELECTOR_EVM,
   CHAIN_FAMILY_SELECTOR_SVM,
   CHAIN_FAMILY_SELECTOR_SUI,
   CHAIN_FAMILY_SELECTOR_APTOS,
@@ -176,7 +174,7 @@ export class FeeQuoterSetup {
   static async compileContracts(): Promise<TestCode> {
     return {
       feeQuoter: await feeQuoter.FeeQuoter.code(),
-      counter: await compile('examples.Counter'),
+      counter: await contractCode.ccip.local('examples.Counter'),
     }
   }
 

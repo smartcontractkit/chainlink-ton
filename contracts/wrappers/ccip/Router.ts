@@ -16,7 +16,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
 import { asSnakedCell, asSnakeDataUint, fromSnakeData } from '../../src/utils'
-import { contractCode, loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
@@ -266,7 +266,7 @@ export class Router
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode(ARTIFACT_NAME)
+    return contractCode.ccip.local(ARTIFACT_NAME)
   }
 
   async sendApplyRampUpdatesSetRamps(

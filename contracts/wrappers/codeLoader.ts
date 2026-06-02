@@ -102,17 +102,6 @@ export const contractCode = {
   },
 }
 
-// Kept for backwards compatibility
-// Used to load built contracts
-export async function loadContractCode(contractName: string): Promise<Cell> {
-  const loader = createContractCodeLoader({
-    buildDirectory: BUILD_ROOT,
-    compileIfMissing: true,
-    cache: codeCache,
-  })
-  return loader(contractName)
-}
-
 async function getCode(
   cache: Map<string, Cell>,
   buildDirectory: string,

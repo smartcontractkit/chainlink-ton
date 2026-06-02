@@ -13,7 +13,7 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
-import { contractCode, loadContractCode } from '../codeLoader'
+import { contractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as receiver from '../libraries/Receiver'
@@ -166,7 +166,7 @@ export class Receiver implements Contract, receiver.Receiver, upgradeable.Interf
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode(ARTIFACT_NAME)
+    return contractCode.ccip.local(ARTIFACT_NAME)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

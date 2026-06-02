@@ -1,8 +1,8 @@
 import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
-import { compile } from '@ton/blueprint'
 
+import { contractCode } from '../../../wrappers/codeLoader'
 import * as ownable2Step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as counter from '../../../wrappers/examples/Counter'
 import { facilityId } from '../../../wrappers/utils'
@@ -30,7 +30,7 @@ describe('Ownable2Step Counter', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
 
-    let code = await compile('examples.Counter')
+    let code = await contractCode.ccip.local('examples.Counter')
     let data: counter.ContractData = {
       id: 1,
       value: 14,

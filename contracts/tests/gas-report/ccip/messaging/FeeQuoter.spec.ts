@@ -10,7 +10,6 @@ import {
   BlockchainTransaction,
 } from '@ton/sandbox'
 import { toNano, Cell, Dictionary, Address, beginCell } from '@ton/core'
-import { compile } from '@ton/blueprint'
 import * as rt from '../../../../wrappers/ccip/Router'
 import * as or from '../../../../wrappers/ccip/OnRamp'
 import * as fq from '../../../../wrappers/ccip/FeeQuoter'
@@ -22,9 +21,8 @@ import { createMaxPayload, createExtraArgs, MAX_DATA_PAYLOAD_SIZE, createPayload
 import { analyzeSnapshot, printFlowAnalysis, formatRow } from '../../utils'
 import * as path from 'path'
 import * as fs from 'fs'
-import { ContractClient as Ownable } from '../../../../wrappers/libraries/access/Ownable2Step'
 import { opMapFunc } from './opMapFunc'
-import { loadContractCode } from '../../../../wrappers/codeLoader'
+import { contractCode } from '../../../../wrappers/codeLoader'
 
 const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
@@ -98,7 +96,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     })
 
     // Deploy Router
-    const routerCode = await compile('Router')
+    const routerCode = await contractCode.ccip.local('Router')
     const routerData: rt.Storage = {
       id: 0n,
       ownable: {
@@ -113,7 +111,7 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
     await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
 
     // Deploy OnRamp
-    const code = await compile('OnRamp')
+    const code = await contractCode.ccip.local('OnRamp')
     const onRampData: or.OnRampStorage = {
       id: 0n,
       ownable: {
@@ -129,8 +127,8 @@ describe('CCIP FeeQuoter Gas Estimation', () => {
       },
       destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       executor: {
-        executorCode: await compile('CCIPSendExecutor'),
-        deployableCode: await loadContractCode('Deployable'),
+        executorCode: await contractCode.ccip.local('CCIPSendExecutor'),
+        deployableCode: await contractCode.ccip.local('Deployable'),
       },
     }
     onRamp = blockchain.openContract(or.OnRamp.createFromConfig(onRampData, code))

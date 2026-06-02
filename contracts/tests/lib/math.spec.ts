@@ -3,7 +3,7 @@ import '@ton/test-utils'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
 import { math } from '../../wrappers/test/lib'
-import { loadContractCode } from '../../wrappers/codeLoader'
+import { contractCode } from '../../wrappers/codeLoader'
 
 describe('math', () => {
   let blockchain: Blockchain
@@ -14,7 +14,7 @@ describe('math', () => {
 
   beforeAll(async () => {
     code = {
-      math: await loadContractCode('tests.lib.math'),
+      math: await contractCode.ccip.local('tests.lib.math'),
     }
   }, 10_000)
 
