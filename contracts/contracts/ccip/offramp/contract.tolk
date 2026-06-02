@@ -881,11 +881,11 @@ fun getReceiverExecutorDeployAddress(st: Storage, execId: ReceiveExecutorId): Au
 }
 
 /*
-Verifies that the caller corresponds to a receiver exector contract
+Verifies that the caller corresponds to a receiver executor contract
 */
 fun assertSenderIsReceiverExecutor(st: Storage, execId: ReceiveExecutorId, sender: address) {
     val expectedAddress: AutoDeployAddress = getReceiverExecutorDeployAddress(st, execId);
-    assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
+    assert(expectedAddress.calculateAddress() == sender) throw Error.MessageNotFromOwnedContract;
 }
 
 /*
@@ -909,7 +909,7 @@ Verifies that the caller corresponds to a merkle root contract
 */
 fun assertSenderIsMerkleRoot(st: Storage, merkleRoot: MerkleRootId, sender: address) {
     val expectedAddress: AutoDeployAddress = getMerkleRootDeployAddress(st, merkleRoot);
-    assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
+    assert(expectedAddress.calculateAddress() == sender) throw Error.MessageNotFromOwnedContract;
 }
 
 /*
