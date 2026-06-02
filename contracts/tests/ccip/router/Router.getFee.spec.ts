@@ -158,7 +158,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsOrRef.fromSlice(
+        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
           x.beginParse(),
         )
         return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
@@ -226,7 +226,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsOrRef.fromSlice(
+        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
           x.beginParse(),
         )
         return decoded.error === BigInt(rt.Router.Errors['Router_Error.DestChainNotEnabled'])
@@ -261,7 +261,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidated.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidated_RemainingBitsOrRef.fromSlice(x.beginParse())
+        const decoded = rt.Router_MessageValidated_RemainingBitsAndRefs.fromSlice(x.beginParse())
         return (
           decoded.fee === toNano('0.5') &&
           decoded.msg.ref.queryID === 1n &&
@@ -325,7 +325,7 @@ describe('Router', () => {
       op: rt.Router_MessageValidationFailed.PREFIX,
       body(x) {
         if (!x) return false
-        const decoded = rt.Router_MessageValidationFailed_RemainingBitsOrRef.fromSlice(
+        const decoded = rt.Router_MessageValidationFailed_RemainingBitsAndRefs.fromSlice(
           x.beginParse(),
         )
         return (

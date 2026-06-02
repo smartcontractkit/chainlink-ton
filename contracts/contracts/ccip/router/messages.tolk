@@ -131,23 +131,23 @@ struct Router_GetValidatedFeeContext {
 // --- Outgoing messages ---
 
 /// Alias for ABIgen to generate codec
-type Router_MessageValidated_RemainingBitsOrRef = Router_MessageValidated<RemainingBitsOrRef<RemainingBitsAndRefs>>
+type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
 
 // crc32('Router_MessageValidated')
 struct (0x9e2155ec) Router_MessageValidated<T> {
     fee: coins
     msg: Cell<Router_CCIPSend>
-    context: T
+    context: RemainingBitsOrRef<T>
 }
 
 /// Alias for ABIgen to generate codec
-type Router_MessageValidationFailed_RemainingBitsOrRef = Router_MessageValidationFailed<RemainingBitsOrRef<RemainingBitsAndRefs>>
+type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
 
 // crc32('Router_MessageValidationFailed')
 struct (0xec23c562) Router_MessageValidationFailed<T> {
     error: uint256,
     msg: Cell<Router_CCIPSend>,
-    context: T
+    context: RemainingBitsOrRef<T>
 }
 
 // Costs associated with Router operations

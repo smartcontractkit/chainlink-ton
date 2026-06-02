@@ -32,7 +32,7 @@ contract Router {
 
     storage: Storage
     incomingMessages: Router_InMsg
-    forceAbiExport: (Router_MessageValidationFailed_RemainingBitsOrRef, Router_MessageValidated_RemainingBitsOrRef)
+    forceAbiExport: (Router_MessageValidationFailed_RemainingBitsAndRefs, Router_MessageValidated_RemainingBitsAndRefs)
 }
 
 fun requireSupportedVersion(version: slice) {
@@ -453,7 +453,7 @@ fun onMessageValidationFailedFromOnRamp(msg: OnRamp_MessageValidationFailed<Rout
     sendMessageValidationFailed(userAddress, msg.error, msg.msg, msg.context.userContext);
 }
 
-fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: RemainingBitsOrRef<RemainingBitsAndRefs>) {
+fun sendMessageValidationFailed(userAddress: address, error: uint256, msg: Cell<Router_CCIPSend>, userContext: RemainingBitsAndRefs) {
     val replyMsg = createMessage({
         bounce: true,
         value: 0,

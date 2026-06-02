@@ -1846,12 +1846,12 @@ export const Router_GetValidatedFeeContext = {
 }
 
 /**
- > type Router_MessageValidated_RemainingBitsOrRef = Router_MessageValidated<RemainingBitsOrRef<RemainingBitsAndRefs>>
+ > type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
  */
-export type Router_MessageValidated_RemainingBitsOrRef = Router_MessageValidated<RemainingBitsOrRef<RemainingBitsAndRefs>>
+export type Router_MessageValidated_RemainingBitsAndRefs = Router_MessageValidated<RemainingBitsAndRefs>
 
-export const Router_MessageValidated_RemainingBitsOrRef = {
-    fromSlice(s: c.Slice): Router_MessageValidated_RemainingBitsOrRef {
+export const Router_MessageValidated_RemainingBitsAndRefs = {
+    fromSlice(s: c.Slice): Router_MessageValidated_RemainingBitsAndRefs {
         return (() => {
             loadAndCheckPrefix32(s, 0x9e2155ec, 'Router_MessageValidated');
             return {
@@ -1862,14 +1862,14 @@ export const Router_MessageValidated_RemainingBitsOrRef = {
             }
         })();
     },
-    store(self: Router_MessageValidated_RemainingBitsOrRef, b: c.Builder): void {
+    store(self: Router_MessageValidated_RemainingBitsAndRefs, b: c.Builder): void {
         b.storeUint(0x9e2155ec, 32);
         b.storeCoins(self.fee);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidated_RemainingBitsOrRef): c.Cell {
-        return makeCellFrom<Router_MessageValidated_RemainingBitsOrRef>(self, Router_MessageValidated_RemainingBitsOrRef.store);
+    toCell(self: Router_MessageValidated_RemainingBitsAndRefs): c.Cell {
+        return makeCellFrom<Router_MessageValidated_RemainingBitsAndRefs>(self, Router_MessageValidated_RemainingBitsAndRefs.store);
     }
 }
 
@@ -1877,14 +1877,14 @@ export const Router_MessageValidated_RemainingBitsOrRef = {
  > struct (0x9e2155ec) Router_MessageValidated<T> {
  >     fee: coins
  >     msg: Cell<Router_CCIPSend>
- >     context: T
+ >     context: RemainingBitsOrRef<T>
  > }
  */
 export interface Router_MessageValidated<T> {
     readonly $: 'Router_MessageValidated'
     fee: coins
     msg: CellRef<Router_CCIPSend>
-    context: T
+    context: RemainingBitsOrRef<T>
 }
 
 export const Router_MessageValidated = {
@@ -1893,7 +1893,7 @@ export const Router_MessageValidated = {
     create<T>(args: {
         fee: coins
         msg: CellRef<Router_CCIPSend>
-        context: T
+        context: RemainingBitsOrRef<T>
     }): Router_MessageValidated<T> {
         return {
             $: 'Router_MessageValidated',
@@ -1903,12 +1903,12 @@ export const Router_MessageValidated = {
 }
 
 /**
- > type Router_MessageValidationFailed_RemainingBitsOrRef = Router_MessageValidationFailed<RemainingBitsOrRef<RemainingBitsAndRefs>>
+ > type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
  */
-export type Router_MessageValidationFailed_RemainingBitsOrRef = Router_MessageValidationFailed<RemainingBitsOrRef<RemainingBitsAndRefs>>
+export type Router_MessageValidationFailed_RemainingBitsAndRefs = Router_MessageValidationFailed<RemainingBitsAndRefs>
 
-export const Router_MessageValidationFailed_RemainingBitsOrRef = {
-    fromSlice(s: c.Slice): Router_MessageValidationFailed_RemainingBitsOrRef {
+export const Router_MessageValidationFailed_RemainingBitsAndRefs = {
+    fromSlice(s: c.Slice): Router_MessageValidationFailed_RemainingBitsAndRefs {
         return (() => {
             loadAndCheckPrefix32(s, 0xec23c562, 'Router_MessageValidationFailed');
             return {
@@ -1919,14 +1919,14 @@ export const Router_MessageValidationFailed_RemainingBitsOrRef = {
             }
         })();
     },
-    store(self: Router_MessageValidationFailed_RemainingBitsOrRef, b: c.Builder): void {
+    store(self: Router_MessageValidationFailed_RemainingBitsAndRefs, b: c.Builder): void {
         b.storeUint(0xec23c562, 32);
         b.storeUint(self.error, 256);
         storeCellRef<Router_CCIPSend>(self.msg, b, Router_CCIPSend.store);
         storeTolkRemaining(self.context, b);
     },
-    toCell(self: Router_MessageValidationFailed_RemainingBitsOrRef): c.Cell {
-        return makeCellFrom<Router_MessageValidationFailed_RemainingBitsOrRef>(self, Router_MessageValidationFailed_RemainingBitsOrRef.store);
+    toCell(self: Router_MessageValidationFailed_RemainingBitsAndRefs): c.Cell {
+        return makeCellFrom<Router_MessageValidationFailed_RemainingBitsAndRefs>(self, Router_MessageValidationFailed_RemainingBitsAndRefs.store);
     }
 }
 
@@ -1934,14 +1934,14 @@ export const Router_MessageValidationFailed_RemainingBitsOrRef = {
  > struct (0xec23c562) Router_MessageValidationFailed<T> {
  >     error: uint256
  >     msg: Cell<Router_CCIPSend>
- >     context: T
+ >     context: RemainingBitsOrRef<T>
  > }
  */
 export interface Router_MessageValidationFailed<T> {
     readonly $: 'Router_MessageValidationFailed'
     error: uint256
     msg: CellRef<Router_CCIPSend>
-    context: T
+    context: RemainingBitsOrRef<T>
 }
 
 export const Router_MessageValidationFailed = {
@@ -1950,7 +1950,7 @@ export const Router_MessageValidationFailed = {
     create<T>(args: {
         error: uint256
         msg: CellRef<Router_CCIPSend>
-        context: T
+        context: RemainingBitsOrRef<T>
     }): Router_MessageValidationFailed<T> {
         return {
             $: 'Router_MessageValidationFailed',
