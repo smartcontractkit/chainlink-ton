@@ -4,7 +4,7 @@ import "../../../lib/access/ownable_2step";
 import "../../../lib/funding/withdrawable";
 
 const WithdrawableWallet_FACILITY_NAME = "link.chain.ton.examples.funding.WithdrawableWallet";
-const CONTRACT_VERSION = "1.0.1";
+const CONTRACT_VERSION = "1.0.1".literalSlice();
 
 struct Storage {
     id: uint32;
@@ -60,15 +60,15 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.examples.funding.WithdrawableWallet", CONTRACT_VERSION);
+    return ("link.chain.ton.examples.funding.WithdrawableWallet".literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("link.chain.ton.examples.funding.WithdrawableWallet"));
+    return getFacilityId("link.chain.ton.examples.funding.WithdrawableWallet".crc32());
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.examples.funding.WithdrawableWallet"), local);
+    return getErrorCode("link.chain.ton.examples.funding.WithdrawableWallet".crc32(), local);
 }
 
 get fun reserve(): coins {

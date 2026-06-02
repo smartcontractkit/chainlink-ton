@@ -16,8 +16,23 @@ import "../../lib/math";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "1.6.2";
+tolk 1.4.1
+
+contract FeeQuoter {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.3"
+    description: "link.chain.ton.ccip.FeeQuoter"
+
+    storage: Storage
+    incomingMessages: FeeQuoter_InMessage
+}
+
+const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("1");
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -159,7 +174,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: SnakedCell<FeeQuoter_Upd
                     dataAvailabilityGasPrice: 0,
                     timestamp: 0,
                 }.toCell(),
-                tokenTransferFeeConfigs: createEmptyMap()
+                tokenTransferFeeConfigs: []
             })
         }
     }
@@ -360,8 +375,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_TVM) {
-        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
-        val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
+        val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit);
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
@@ -427,8 +441,12 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int?{
-    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): int {
+    val gasLimit = parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit).gasLimit;
+    if (gasLimit != null) {
+        return gasLimit as int
+    }
+    return 0;
 }
 
 fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32): GenericExtraArgsV2 {
@@ -543,23 +561,22 @@ get fun tokenPrice(token: address): TimestampedPrice {
     return entry.loadValue();
 }
 
-// vec<TimestampedPrice>
-get fun tokenPrices(tokens: tuple): tuple {
+get fun tokenPrices(tokens: array<address>): array<Cell<TimestampedPrice>?> {
     val st = lazy Storage.load();
-    var list: tuple = createEmptyTuple();
-    var iter = TupleIterator<address>.new(tokens);
+    var prices: array<Cell<TimestampedPrice>?> = [];
+    var tokenIterator = ArrayIterator<address>.new(tokens);
 
-    while(!iter.empty()) {
-        val token = iter.next();
+    while(!tokenIterator.empty()) {
+        val token = tokenIterator.next();
         val entry = st.usdPerToken.get(token);
         // NOTE: Need to skip missing items as nil entries rather than fail the query
         if (entry.isFound) {
-            list.push(entry.loadValue().toCell());
+            prices.push(entry.loadValue().toCell());
         } else {
-            list.push(null);
+            prices.push(null);
         }
     }
-    return list;
+    return prices;
 }
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
@@ -580,7 +597,7 @@ get fun premiumMultiplierWeiPerEth(token: address): uint256 {
 }
 
 // vec<address>
-get fun feeTokens(): tuple? {
+get fun feeTokens(): lisp_list<address> {
     val st = lazy Storage.load();
     var feeTokens = st.premiumMultiplierWeiPerEth;
     return keysLispList(feeTokens);
@@ -637,7 +654,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (FeeQuoter_FACILITY_NAME, CONTRACT_VERSION);
+    return (FeeQuoter_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -645,10 +662,10 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.FeeQuoter"), local);
+    return getErrorCode(FeeQuoter_FACILITY_NAME.crc32(), local);
 }
 
-get fun destChainSelectors(): tuple? {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
@@ -665,14 +682,6 @@ fun migrate(storage: cell, version: slice): cell {
     var st = Storage.fromCell(storage);
     st.tokenPriceStalenessThreshold = NEW_THRESHOLD;
     return st.toCell();
-}
-
-fun requireSupportedVersion(version: slice) {
-    assert (
-        version.bitsEqual("1.6.0")
-        || version.bitsEqual("1.6.1")
-    ) 
-    throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)

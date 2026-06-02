@@ -1,4 +1,15 @@
-tolk 1.2
+tolk 1.4.1
+
+contract FiredrillOffRamp {
+	author: "SmartContract Chainlink Limited SEZC"
+
+	version: "1.6.0"
+
+	description: "link.chain.ton.ccip.firedrill.firedrillOffRamp"
+
+	storage: FiredrillOffRamp_Storage
+	incomingMessages: FiredrillOffRamp_InMessage
+}
 
 import "../lib/utils.tolk"
 import "../ccip/offramp/events.tolk"
@@ -119,17 +130,17 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
 	};
 }
 
-get fun sourceChainSelectors(): tuple? {
+get fun sourceChainSelectors(): array<uint64> {
     val st = lazy FiredrillOffRamp_Storage.load();
-    var res = createEmptyTuple();
+    var res: array<uint64> = [];
     res.push(st.chainSelector);
-    return res ;
+    return res;
 }
 
-get fun cursedSubjects(): tuple? {
-	return null;
+get fun cursedSubjects(): lisp_list<uint128> {
+	return [];
 }
 
 get fun typeAndVersion(): (slice, slice) {
-	return ("link.chain.ton.ccip.firedrill.firedrillOffRamp", "1.6.0")
+	return ("link.chain.ton.ccip.firedrill.firedrillOffRamp".literalSlice(), "1.6.0".literalSlice());
 }

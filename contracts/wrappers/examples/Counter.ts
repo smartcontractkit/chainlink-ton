@@ -16,6 +16,8 @@ import { CellCodec } from '../utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 
+export const CONTRACT_VERSION = '1.1.3'
+
 /// @dev Message to set the counter value.
 export type SetCount = {
   // Query ID of the change request.

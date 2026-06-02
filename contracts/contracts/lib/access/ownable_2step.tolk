@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 import "./../utils.tolk";
 
-const Ownable2Step_FACILITY_ID = 498;  // (crc32(<facility>) % 640) + 10
+const Ownable2Step_FACILITY_NAME = "link.chain.ton.lib.access.Ownable2Step";
+const Ownable2Step_FACILITY_ID = Ownable2Step_FACILITY_NAME.crc32() % 640 + 10;  // 498
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
 const Ownable2Step_ERROR_CODE = Ownable2Step_FACILITY_ID * 100;
 
 // Exit codes

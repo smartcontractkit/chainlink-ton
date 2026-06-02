@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.2
-
 import "../../lib/access/ownable_2step";
 import "../../lib/utils";
 import "../../lib/versioning/upgradeable"
@@ -22,7 +20,22 @@ import "storage"
 import "errors"
 import "messages"
 
-const CONTRACT_VERSION = "1.6.0";
+tolk 1.4.1
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
+
+contract OnRamp {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.OnRamp"
+
+    storage: OnRamp_Storage
+    incomingMessages: OnRamp_InMessage
+}
+
+fun requireSupportedVersion(version: slice) {
+    assert (version.bitsEqual("1.6.0".literalSlice())) throw Upgradeable_Error.VersionMismatch;
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -312,7 +325,7 @@ fun onExecutorFinishedSuccessfully(st: OnRamp_Storage, msg: OnRamp_ExecutorFinis
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = beginCell()
-        .storeUint(stringSha256("TVM2AnyMessageHashV1"), 256)
+        .storeUint("TVM2AnyMessageHashV1".sha256(), 256)
         .storeUint(st.chainSelector, 64)
         .storeUint(ccipsend.destChainSelector, 64)
         .storeAddress(contract.getAddress())
@@ -406,7 +419,7 @@ fun onApplyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: SnakedCell
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
-                allowedSenders: createEmptyMap(),
+                allowedSenders: [],
             };
             st.destChainConfigs.set(update.destChainSelector, config);
             emit(DEST_CHAIN_SELECTOR_ADDED_TOPIC, DestChainSelectorAdded {
@@ -512,7 +525,7 @@ get fun feeQuoter(destChainSelector: int): address {
 }
 
 // vec<address>
-get fun allowedSendersList(destChainSelector: uint64): tuple? {
+get fun allowedSendersList(destChainSelector: uint64): lisp_list<address> {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
@@ -520,7 +533,7 @@ get fun allowedSendersList(destChainSelector: uint64): tuple? {
     return keysLispList(allowedSenders);
 }
 
-get fun destChainSelectors(): tuple? {
+get fun destChainSelectors(): lisp_list<uint64> {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
@@ -549,7 +562,7 @@ get fun sendExecutorCodeHash(): uint256 {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OnRamp_FACILITY_NAME, CONTRACT_VERSION);
+    return (OnRamp_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -557,7 +570,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.OnRamp"), local);
+    return getErrorCode(OnRamp_FACILITY_NAME.crc32(), local);
 }
 
 get fun reserve(): coins {
@@ -567,7 +580,10 @@ get fun reserve(): coins {
 }
 
 @method_id(1000)
-fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+fun migrate(storage: cell, version: slice): cell {
+    requireSupportedVersion(version);
+    return storage;
+}
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

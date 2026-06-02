@@ -11,10 +11,21 @@ import "errors"
 import "storage"
 import "types"
 
+tolk 1.4.1
+
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
-const CONTRACT_VERSION = "1.6.0";
+const CONTRACT_VERSION = "1.6.1".literalSlice();
+
+contract MerkleRoot {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.MerkleRoot"
+
+    storage: MerkleRoot_Storage
+    incomingMessages: MerkleRoot_InMessage
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -113,7 +124,7 @@ fun onInitExecute(mutate st: MerkleRoot_Storage, msg: MerkleRoot_Validate) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (MerkleRoot_FACILITY_NAME, CONTRACT_VERSION);
+    return (MerkleRoot_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -121,5 +132,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.MerkleRoot"), local);
+    return getErrorCode(MerkleRoot_FACILITY_NAME.crc32(), local);
 }

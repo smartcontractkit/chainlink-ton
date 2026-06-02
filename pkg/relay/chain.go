@@ -87,7 +87,7 @@ type chain struct {
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
-	pool        *liteclient.ConnectionPool
+	pools       map[int]*liteclient.ConnectionPool
 }
 
 func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
@@ -112,6 +112,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		lggr:        logger.Named(lggr, "Chain"),
 		ds:          ds,
 		clientCache: make(map[int]*cachedClient),
+		pools:       make(map[int]*liteclient.ConnectionPool),
 	}
 
 	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
@@ -214,11 +215,14 @@ func (c *chain) Close() error {
 		err := services.CloseAll(c.txm, c.lp, c.bm)
 
 		c.cacheMu.Lock()
-		if c.pool != nil {
-			c.pool.Stop()
-			c.pool = nil
-		}
+		poolsToBeClosed := c.pools
+		c.pools = make(map[int]*liteclient.ConnectionPool)
 		c.cacheMu.Unlock()
+		for _, pool := range poolsToBeClosed {
+			if pool != nil {
+				pool.Stop()
+			}
+		}
 
 		return err
 	})
@@ -455,10 +459,10 @@ func (c *chain) GetSignerWallet(ctx context.Context, client ton.APIClientWrapped
 // Caller must NOT hold cacheMu — this method locks it internally.
 func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient.ConnectionPool, error) {
 	c.cacheMu.RLock()
-	pool := c.pool
+	cachedPool := c.pools[nodeIndex]
 	c.cacheMu.RUnlock()
-	if pool != nil {
-		return pool, nil
+	if cachedPool != nil {
+		return cachedPool, nil
 	}
 
 	liteServerURL := c.cfg.Nodes[nodeIndex].URL.String()
@@ -468,14 +472,17 @@ func (c *chain) getOrCreatePool(ctx context.Context, nodeIndex int) (*liteclient
 	}
 
 	c.cacheMu.Lock()
+
 	// Double-check: another goroutine may have created it
-	if c.pool != nil {
+	cachedPool = c.pools[nodeIndex]
+	if cachedPool != nil {
 		c.cacheMu.Unlock()
 		pool.Stop() // discard the one we just made
-		return c.pool, nil
+		return cachedPool, nil
 	}
-	c.pool = pool
-	c.cacheMu.Unlock()
+	defer c.cacheMu.Unlock()
+
+	c.pools[nodeIndex] = pool
 
 	return pool, nil
 }

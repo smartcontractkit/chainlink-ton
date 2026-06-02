@@ -3,14 +3,15 @@ import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
 const Utils_FACILITY_NAME = "link.chain.ton.lib.Utils";
-const Utils_FACILITY_ID = 135;  // (crc32(<facility>) % 640) + 10
+const Utils_FACILITY_ID = Utils_FACILITY_NAME.crc32() % 640 + 10; // 135
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 enum Utils_Error {
     InvalidData = Utils_FACILITY_ID * 100
     BitmapOutOfBounds
 }
 
-/// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("link.chain.ton.mcms.Timelock")).
+/// Returns the facility ID for the given CRC32 key (e.g. "link.chain.ton.mcms.Timelock".crc32()).
 /// Returns a value in range 10..649 (640 values).
 fun getFacilityId(crc32Key: int): uint16 {
     return (crc32Key % 640) + 10;
@@ -167,31 +168,31 @@ fun Iterator<T>.size(self, elemSize: int): int {
 // https://github.com/ton-org/ton-core/blob/213fed91d6f63d978c27588509e15ab53c8bafdb/src/dict/Dictionary.ts#L425
 const ADDR_KEY_LEN = 267;
 
-struct TupleIterator<T> {
+struct ArrayIterator<T> {
     pos: int = 0;
     len: int; // TLEN is 26 gas, we cache the value for minimal savings
-    data: tuple;
+    data: array<T>;
 }
 
 @inline
-fun TupleIterator<T>.new(data: tuple) {
-    return TupleIterator<T> { data, len: data.size() };
+fun ArrayIterator<T>.new(data: array<T>) {
+    return ArrayIterator<T> { data, len: data.size() };
 }
 
 @inline
-fun TupleIterator<T>.empty(self): bool {
+fun ArrayIterator<T>.empty(self): bool {
     return self.pos >= self.len
 }
 
 @inline
-fun TupleIterator<T>.next(mutate self): T {
+fun ArrayIterator<T>.next(mutate self): T {
     var offset = self.pos;
     self.pos += 1;
-    return self.data.get<T>(offset);
+    return self.data.get(offset);
 }
 
 @inline
-fun TupleIterator<T>.size(self, elemSize: int): int {
+fun ArrayIterator<T>.size(self, elemSize: int): int {
     // elemSize is ignored since we know exact size,
     // param is there for interface compatibility
     return self.len;
@@ -228,15 +229,15 @@ fun countAddresses(data: cell): int {
 }
 
 // Returns a lisp-list with the keys of the map
-fun keysLispList<K, V>(dict: map<K, V>): tuple? {
-    var list: tuple? = null;
+fun keysLispList<K, V>(dict: map<K, V>): lisp_list<K> {
+    var lisplist: lisp_list<K> = [];
     var entry = dict.findFirst();
     while (entry.isFound) {
         var key = entry.getKey();
-        list = listPrepend(key, list);
+        lisplist.prependHead(key);
         entry = dict.iterateNext(entry);
     } ;
-    return list;
+    return lisplist;
 }
 
 // This type works as a wrapper for RemainingBitsAndRefs that implements
@@ -245,25 +246,27 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple? {
 // space.
 type RemainingBitsOrRef<T> = T;
 
-fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
-    val serialized = (self as T).toCell();
-    val nBits = serialized.remainingBitsCount();
-    if (b.remainingSpace() < nBits + 1) {
-        // not enough space, create a new cell
-        b.storeBit(1);
-        b.storeRef(serialized);
-    } else {
-        b.storeBit(0);
-        b.storeSlice(serialized.beginParse());
-    }
-}
+// TODO investigate why this was being ignored in 1.2
 
-fun RemainingBitsOrRef<T>.unpackFromSlice(mutate s: slice): RemainingBitsOrRef<T> {
-    val isRef = s.loadBit();
-    if (isRef) {
-        val c = s.loadRef();
-        return T.fromCell(c) as RemainingBitsOrRef<T>;
-    } else {
-        return T.fromSlice(s) as RemainingBitsOrRef<T>;
-    }
-}
+// fun RemainingBitsOrRef<T>.packToBuilder(self, mutate b: builder): void {
+//     val serialized = (self as T).toCell();
+//     val (nBits, _) = serialized.beginParse().remainingBitsAndRefsCount();
+//     if (b.remainingSpace() < nBits + 1) {
+//         // not enough space, create a new cell
+//         b.storeBool(true);
+//         b.storeRef(serialized);
+//     } else {
+//         b.storeBool(false);
+//         b.storeSlice(serialized.beginParse());
+//     }
+// }
+
+// fun RemainingBitsOrRef<T>.unpackFromSlice(mutate s: slice): RemainingBitsOrRef<T> {
+//     val isRef = s.loadBool();
+//     if (isRef) {
+//         val c = s.loadRef();
+//         return T.fromCell(c) as RemainingBitsOrRef<T>;
+//     } else {
+//         return T.fromSlice(s) as RemainingBitsOrRef<T>;
+//     }
+// }

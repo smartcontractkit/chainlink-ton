@@ -436,8 +436,9 @@ async function configureRouterWithOnRamp(
 export async function deployRouterContract(
   blockchain: Blockchain,
   owner: SandboxContract<TreasuryContract>,
+  codeOverride?: Cell,
 ) {
-  const code = await rt.Router.code()
+  const code = codeOverride ?? (await rt.Router.code())
   let data: rt.Storage = {
     id: generateRandomContractId(),
     ownable: {

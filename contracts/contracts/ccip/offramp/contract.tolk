@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 import "../../lib/versioning/upgradeable"
 import "../../lib/deployable/types"
+import "../../lib/deployable/namespace"
 import "../../lib/access/ownable_2step.tolk"
 import "../../lib/funding/withdrawable.tolk"
 import "../../lib/crypto/merkle_multi_proof.tolk"
@@ -8,7 +9,7 @@ import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
 import "../../lib/receiver/types"
-import "../../lib/deployable/namespace"
+import "../rmn_remote/lib.tolk"
 
 import "../common/types.tolk"
 
@@ -25,7 +26,19 @@ import "types"
 import "storage"
 import "events"
 
-const CONTRACT_VERSION = "1.6.2";
+tolk 1.4.1
+
+contract OffRamp {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.3"
+    description: "link.chain.ton.ccip.OffRamp"
+
+    storage: Storage
+    incomingMessages: OffRamp_InMessage
+}
+
+
+const CONTRACT_VERSION = "1.6.3".literalSlice();
 const RESERVE = ton("5");
 const MIN_GASLIMIT = ton("0.025");
 
@@ -242,11 +255,7 @@ fun migrate(storage: cell, version: slice): cell {
 }
 
 fun requireSupportedVersion(version: slice) {
-    assert (
-        version.bitsEqual("1.6.0")
-        || version.bitsEqual("1.6.1")
-    ) 
-    throw Upgradeable_Error.VersionMismatch;
+    assert (version.bitsEqual("1.6.2".literalSlice())) throw Upgradeable_Error.VersionMismatch;
 }
 
 @method_id(1001)
@@ -691,10 +700,10 @@ fun onExecuteSingleReport(report: ExecutionReport, gasOverride: coins?, value: c
     // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
     assert(message.header.sourceChainSelector == report.sourceChainSelector, Error.SourceChainSelectorMismatch);
 
-    var leafTuple: tuple = createEmptyTuple();
-    leafTuple.push(message.generateMessageId(metadataHash));
+    var leaves: array<uint256> = [];
+    leaves.push(message.generateMessageId(metadataHash));
 
-    val root = merkleRoot(TupleIterator<uint256>.new(leafTuple), report.proofs.iter(), report.proofFlagBits);
+    val root = merkleRoot(ArrayIterator<uint256>.new(leaves), report.proofs.iter(), report.proofFlagBits);
 
     // send message to MerkleRoot (execute)
     val executeMsg = createMessage({
@@ -936,7 +945,7 @@ get fun latestPriceSequenceNumber(): uint64 {
     return st.latestPriceSequenceNumber
 }
 
-get fun sourceChainSelectors(): tuple? {
+get fun sourceChainSelectors(): lisp_list<uint64> {
     val st = lazy Storage.load();
     var d = st.sourceChainConfigs;
     return keysLispList(d)!;
@@ -971,7 +980,7 @@ get fun verifyNotCursed(subject: uint128): bool {
     return !st.cursedSubjects.isCursed(subject);
 }
 
-get fun cursedSubjects(): tuple? {
+get fun cursedSubjects(): lisp_list<uint128> {
     val st = lazy Storage.load();
     return keysLispList(st.cursedSubjects.data)!;
 }
@@ -1005,7 +1014,7 @@ get fun pendingOwner(): address? {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (OffRamp_FACILITY_NAME, CONTRACT_VERSION);
+    return (OffRamp_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -1013,7 +1022,7 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.OffRamp"), local);
+    return getErrorCode(OffRamp_FACILITY_NAME.crc32(), local);
 }
 
 get fun reserve(): coins {

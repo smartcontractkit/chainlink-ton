@@ -1,10 +1,24 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.2
+tolk 1.4.1
 
 import "../lib/utils";
 import "../lib/access/access_control";
 
-const CONTRACT_VERSION = "0.0.3";
+const Timelock_FACILITY_NAME = "link.chain.ton.mcms.Timelock";
+const Timelock_FACILITY_ID = Timelock_FACILITY_NAME.crc32() % 640 + 10;  // 606
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const Timelock_ERROR_CODE = Timelock_FACILITY_ID * 100;
+const CONTRACT_VERSION = "0.0.4".literalSlice();
+
+contract Timelock {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.4"
+    description: "link.chain.ton.mcms.Timelock"
+
+    storage: Timelock_Data
+    incomingMessages: Timelock_InMessage
+}
 
 /**
  * Contract module which acts as a timelocked controller with role-based
@@ -551,10 +565,10 @@ struct Timelock_Hooks<T> {
 
 // --- Constants ---
 
-const TOPIC_BYPASSER_CALL_EXECUTED = stringCrc32("Timelock_BypasserCallExecuted");
-const TOPIC_CALL_SCHEDULED = stringCrc32("Timelock_CallScheduled");
-const TOPIC_CALL_EXECUTED = stringCrc32("Timelock_CallExecuted");
-const TOPIC_BOUNCE_HANDLED = stringCrc32("Timelock_BounceHandled");
+const TOPIC_BYPASSER_CALL_EXECUTED = "Timelock_BypasserCallExecuted".crc32();
+const TOPIC_CALL_SCHEDULED = "Timelock_CallScheduled".crc32();
+const TOPIC_CALL_EXECUTED = "Timelock_CallExecuted".crc32();
+const TOPIC_BOUNCE_HANDLED = "Timelock_BounceHandled".crc32();
 
 /// Notice: role constants are kept as original Ethereum implementation (keccak256)
 const ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;     // keccak256('ADMIN_ROLE')
@@ -575,7 +589,7 @@ const DEFAULT_FINALIZATION_TIMEOUT = 10; // in seconds
 /// Error codes used by the Timelock contract.
 enum Timelock_Error {
     /// Thrown when trying to schedule an operation which contains a blocked function selector.
-    SelectorIsBlocked = 60600 // Timelock<T>.errorCode(0)
+    SelectorIsBlocked = Timelock_ERROR_CODE, // 60600
 
     /// Thrown when trying to execute an operation which is not ready yet.
     OperationNotReady
@@ -621,7 +635,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 60600
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.mcms.Timelock"), local);
+    return getErrorCode(Timelock_FACILITY_NAME.crc32(), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.
@@ -774,7 +788,7 @@ fun Timelock<T>.init(
         validAfter: blockchain.now(),
         opFinalizationTimeout,
         opPendingId: 0,
-        opPendingCalls: createEmptyMap()
+        opPendingCalls: []
     };
 
     // Reply back to sender
@@ -979,7 +993,7 @@ fun Timelock<T>.getCallFingerprint(self, target: address, truncatedBody: uint256
 
 /// Resets the pending operation tracking info.
 fun Timelock<T>.resetPendingOpTracking(mutate self): void {
-    self.data.opPendingInfo.opPendingCalls = createEmptyMap();
+    self.data.opPendingInfo.opPendingCalls = [];
     self.data.opPendingInfo.opPendingId = 0;
 }
 
@@ -1542,7 +1556,7 @@ fun Timelock_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.mcms.Timelock", CONTRACT_VERSION);
+    return (Timelock_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 /// @see <Timelock<T>.getId>

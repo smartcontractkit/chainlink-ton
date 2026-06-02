@@ -18,8 +18,8 @@ struct OCRConfig {
 fun newOCRConfig(): OCRConfig {
 	return OCRConfig {
 		configInfo: ConfigInfo{},
-		signers: createEmptyMap(),
-		transmitters: createEmptyMap()
+		signers: [],
+		transmitters: []
 	}
 }
 

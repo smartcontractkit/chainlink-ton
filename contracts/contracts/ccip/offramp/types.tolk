@@ -5,7 +5,8 @@ import "../../lib/utils"
 import "../../lib/deployable/types"
 
 const OffRamp_FACILITY_NAME = "link.chain.ton.ccip.OffRamp";
-const OffRamp_FACILITY_ID = 221;  // (crc32(<facility>) % 640) + 10
+const OffRamp_FACILITY_ID = OffRamp_FACILITY_NAME.crc32() % 640 + 10;  // 221
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
@@ -22,7 +23,7 @@ struct CommitReport {
 }
 
 struct MessageMetadata {
-    _header: uint256 = stringSha256("Any2TVMMessageHashV1");
+    _header: uint256 = "Any2TVMMessageHashV1".sha256();
     sourceChainSelector: uint64;
     destChainSelector: uint64;
     onRamp: Cell<CrossChainAddress>;

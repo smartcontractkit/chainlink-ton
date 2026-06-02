@@ -13,7 +13,7 @@ import {
 
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode, loadContractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as receiver from '../libraries/Receiver'
@@ -23,7 +23,12 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 export const FACILITY_NAME = 'link.chain.ton.ccip.test.Receiver'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
 export const ERROR_CODE = errorCode(crc32(FACILITY_NAME))
-export const CONTRACT_VERSION = '1.6.0'
+export const CONTRACT_VERSION = '1.6.1'
+
+export const ARTIFACT_NAME = 'ccip.test.receiver'
+export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
+  '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
+}
 
 enum TestReceiverError {
   Rejected = 19100, // Facility ID * 100
@@ -161,7 +166,7 @@ export class Receiver implements Contract, receiver.Receiver, upgradeable.Interf
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('ccip.test.receiver')
+    return loadContractCode(ARTIFACT_NAME)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

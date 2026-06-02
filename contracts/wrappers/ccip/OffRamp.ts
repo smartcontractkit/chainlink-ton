@@ -15,7 +15,7 @@ import {
   TupleItem,
 } from '@ton/core'
 import { Maybe } from '@ton/core/dist/utils/maybe'
-import { loadContractCode } from '../codeLoader'
+import { contractCode, loadContractCode } from '../codeLoader'
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
 
@@ -41,8 +41,11 @@ export const opcodes = {
   },
 }
 
-export const OFFRAMP_SUPPORTED_PREV_VERSIONS = ['1.6.0', '1.6.1'] as const
-export const OFFRAMP_CONTRACT_VERSION = '1.6.2'
+export const ARTIFACT_NAME = 'OffRamp'
+export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
+  '1.6.2': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME),
+}
+export const OFFRAMP_CONTRACT_VERSION = '1.6.3'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.OffRamp'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
@@ -704,7 +707,7 @@ export class OffRamp
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('OffRamp')
+    return loadContractCode(ARTIFACT_NAME)
   }
 
   async sendCommit(

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-tolk 1.2
+tolk 1.4.1
 
 import "@stdlib/common.tolk"
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 
-const CONTRACT_VERSION = "1.1.2";
+const CONTRACT_VERSION = "1.1.3".literalSlice();
 
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
@@ -71,7 +71,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body); // 63 error code is thrown if the message opcode is unknown
     match (msg) {
         SetCount => {
-            /// Instructs the contract to set the counter.
+            // Instructs the contract to set the counter.
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.value = msg.newCount;
@@ -94,7 +94,7 @@ fun onInternalMessage(in: InMessage) {
             reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         IncreaseCount => {
-            /// Instructs the contract to increase the counter.
+            // Instructs the contract to increase the counter.
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.value = st.value + 1;
@@ -157,5 +157,5 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.examples.Counter", CONTRACT_VERSION)
+    return ("link.chain.ton.examples.Counter".literalSlice(), CONTRACT_VERSION)
 }

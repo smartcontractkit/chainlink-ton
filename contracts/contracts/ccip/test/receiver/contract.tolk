@@ -17,7 +17,18 @@ import "../../../lib/versioning/upgradeable"
 
 import "../../router/messages"
 
-const CONTRACT_VERSION = "1.6.0";
+tolk 1.4.1
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
+
+contract TestReceiver {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.test.Receiver"
+
+    storage: Storage
+    incomingMessages: TestReceiver_InMessage
+}
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
@@ -126,7 +137,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade) {
 
 @method_id(1000)
 fun migrate(storage: cell, version: slice): cell { 
-    assert(version.bitsEqual(CONTRACT_VERSION), Upgradeable_Error.VersionMismatch);
+    assert(version.bitsEqual("1.6.0".literalSlice()), Upgradeable_Error.VersionMismatch);
     return storage;
 }
 
@@ -149,7 +160,7 @@ get fun getBehavior(): int {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (TestReceiver_FACILITY_NAME, CONTRACT_VERSION);
+    return (TestReceiver_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -157,5 +168,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.test.Receiver"), local);
+    return getErrorCode(TestReceiver_FACILITY_NAME.crc32(), local);
 }

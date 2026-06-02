@@ -11,7 +11,19 @@ import "../router/messages"
 import "../fee_quoter/types"
 import "@stdlib/gas-payments"
 
-const CONTRACT_VERSION = "1.6.0";
+tolk 1.4.1
+
+const CONTRACT_VERSION = "1.6.1".literalSlice();
+
+contract CCIPSendExecutor {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.1"
+    description: "link.chain.ton.ccip.CCIPSendExecutor"
+
+    storage: CCIPSendExecutor_Data
+    storageAtDeployment: CCIPSendExecutor_InitialData
+    incomingMessages: CCIPSendExecutor_InMessage
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -153,7 +165,7 @@ fun CCIPSendExecutor<T>.exitWithError(self, error: uint256) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (CCIPSendExecutor_FACILITY_NAME, CONTRACT_VERSION);
+    return (CCIPSendExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -161,5 +173,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.CCIPSendExecutor"), local);
+    return getErrorCode(CCIPSendExecutor_FACILITY_NAME.crc32(), local);
 }

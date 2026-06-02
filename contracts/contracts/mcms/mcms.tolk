@@ -1,12 +1,26 @@
 // SPDX-License-Identifier: BUSL-1.1
-tolk 1.2
+tolk 1.4.1
 
 import "../lib/utils";
 import "../lib/secp256k1";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
-const CONTRACT_VERSION = "0.0.4";
+const MCMS_FACILITY_NAME = "link.chain.ton.mcms.MCMS";
+const MCMS_FACILITY_ID = MCMS_FACILITY_NAME.crc32() % 640 + 10;  // 104
+// NOTE: inlined getFacilityId because compiler doesn't allow custom compile time functions
+
+const MCMS_ERROR_CODE = MCMS_FACILITY_ID * 100;
+const CONTRACT_VERSION = "0.0.5".literalSlice();
+
+contract MCMS {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "0.0.5"
+    description: "link.chain.ton.mcms.MCMS"
+
+    storage: MCMS_Data
+    incomingMessages: MCMS_InMessage
+}
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
@@ -389,18 +403,18 @@ struct MCMS_Hooks<T> {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP =
-    stringSha256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON");
+    "MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON".sha256();
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
-    stringSha256("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON");
+    "MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON".sha256();
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
 
-const TOPIC_BOUNCE_HANDLED = stringCrc32("MCMS_BounceHandled");
+const TOPIC_BOUNCE_HANDLED = "MCMS_BounceHandled".crc32();
 
 // --- Constants - storage ---
 
@@ -410,7 +424,7 @@ const MIN_TON_TO_RESERVE: int = ton("0.05");
 /// Error codes used by the Timelock contract.
 enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-    OutOfBoundsNumSigners = 10400 // MCMS<T>.errorCode(0)
+    OutOfBoundsNumSigners = MCMS_ERROR_CODE // 10400
 
     /// Thrown when signerAddresses and signerGroups have different lengths.
     SignerGroupsLengthMismatch
@@ -679,7 +693,7 @@ struct RootDescriptor {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 10400
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.mcms.MCMS"), local);
+    return getErrorCode(MCMS_FACILITY_NAME.crc32(), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.
@@ -765,7 +779,7 @@ fun MCMS<T>.setRoot(
         var signer: Signer;
         var prevSigner: uint256 = 0; // start with zero address
         var ss = signatures.iter();
-        var groupVoteCounts: map<uint8, uint8> = createEmptyMap(); // number of votes per group, map<uint8, uint8> (indexed)
+        var groupVoteCounts: map<uint8, uint8> = []; // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
             val signerAddress = evm_ecrecoverFrom(signedHash, s.toCell().beginParse());
@@ -1098,7 +1112,7 @@ fun MCMS<T>.setConfig(
     {
         // Validate group structure
         // counts the number of children of each group
-        var groupChildrenCounts: map<uint8, uint8> = createEmptyMap();
+        var groupChildrenCounts: map<uint8, uint8> = [];
         // first, we count the signers as children
         while (!signerGroupIterator.empty()) {
             var g = signerGroupIterator.next();
@@ -1189,7 +1203,7 @@ fun MCMS<T>.setConfig(
         self.data.signers.delete(s.address);
         oldSigner = config.signers.findFirst();
     }
-    config.signers = createEmptyMap(); // reset signers
+    config.signers = []; // reset signers
 
     config.groupQuorums = groupQuorums;
     config.groupParents = groupParents;
@@ -1423,7 +1437,7 @@ fun MCMS<T>.cleanExpiredRoots(
         val rd = rootsIter.next();
         assert(rd.validUntil < blockchain.now()) throw MCMS_Error.RootNotExpired;
 
-        /// Construct the ID (hash) of the root
+        // Construct the ID (hash) of the root
         val signedHash = self._hashRoot(rd.root, rd.validUntil);
         self.data.seenSignedHashes.delete(signedHash);
     }
@@ -1463,7 +1477,7 @@ fun MCMS<T>._hashRoot(self, root: uint256, validUntil: uint64): uint256 {
 
     // EIP191 Signed Message Hash wrapping
     // Format: "\x19Ethereum Signed Message:\n32" + messageHash
-    val eip191Prefix = stringHexToSlice("19457468657265756d205369676e6564204d6573736167653a0a3332");
+    val eip191Prefix = "19457468657265756d205369676e6564204d6573736167653a0a3332". hexToSlice();
     val eip191Data = beginCell()
         .storeSlice(eip191Prefix)
         .storeUint(_hash, 256);
@@ -1696,7 +1710,7 @@ fun MCMS_Costs.submitErrorReport(): int {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("link.chain.ton.mcms.MCMS", CONTRACT_VERSION);
+    return (MCMS_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 /// @see <MCMS<T>.getId>

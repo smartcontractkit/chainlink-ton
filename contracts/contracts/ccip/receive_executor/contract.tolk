@@ -7,7 +7,18 @@ import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "1.6.1";
+tolk 1.4.1
+
+const CONTRACT_VERSION = "1.6.2".literalSlice();
+
+contract ReceiveExecutor {
+    author: "SmartContract Chainlink Limited SEZC"
+    version: "1.6.2"
+    description: "link.chain.ton.ccip.ReceiveExecutor"
+
+    storage: ReceiveExecutor_Storage
+    incomingMessages: ReceiveExecutor_InMessage
+}
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy ReceiveExecutor_InMessage.fromSlice(in.body);
@@ -109,7 +120,7 @@ fun onCCIPReceiveBounced(mutate st: ReceiveExecutor_Storage, msg: ReceiveExecuto
 }
 
 get fun typeAndVersion(): (slice, slice) {
-    return (ReceiveExecutor_FACILITY_NAME, CONTRACT_VERSION);
+    return (ReceiveExecutor_FACILITY_NAME.literalSlice(), CONTRACT_VERSION);
 }
 
 get fun facilityId(): uint16  {
@@ -117,5 +128,5 @@ get fun facilityId(): uint16  {
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("link.chain.ton.ccip.ReceiveExecutor"), local);
+    return getErrorCode(ReceiveExecutor_FACILITY_NAME.crc32(), local);
 }

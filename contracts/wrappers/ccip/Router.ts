@@ -16,7 +16,7 @@ import {
 import { crc32 } from 'zlib'
 import { errorCode, facilityId, CellCodec } from '../utils'
 import { asSnakedCell, asSnakeDataUint, fromSnakeData } from '../../src/utils'
-import { loadContractCode } from '../codeLoader'
+import { contractCode, loadContractCode } from '../codeLoader'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
@@ -26,7 +26,12 @@ import * as or from '../ccip/OnRamp'
 import * as of from './OffRamp'
 import { Maybe } from '@ton/core/dist/utils/maybe'
 
-export const ROUTER_CONTRACT_VERSION = '1.6.0'
+export const ARTIFACT_NAME = 'Router'
+
+export const SUPPORTED_PREV_VERSIONS: Record<string, () => Promise<Cell>> = {
+  '1.6.0': () => contractCode.ccip.release_1_6_2(ARTIFACT_NAME), // Last bundle with version 1.6.0
+}
+export const ROUTER_CONTRACT_VERSION = '1.6.1'
 
 export const FACILITY_NAME = 'link.chain.ton.ccip.Router'
 export const FACILITY_ID = facilityId(crc32(FACILITY_NAME))
@@ -261,7 +266,7 @@ export class Router
   }
 
   static code(): Promise<Cell> {
-    return loadContractCode('Router')
+    return loadContractCode(ARTIFACT_NAME)
   }
 
   async sendApplyRampUpdatesSetRamps(
