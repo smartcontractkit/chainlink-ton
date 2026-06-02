@@ -775,7 +775,6 @@ fun MCMS<T>.setRoot(
     }
 
     {
-        var i = 0;
         var signer: Signer;
         var prevSigner: uint256 = 0; // start with zero address
         var ss = signatures.iter();
