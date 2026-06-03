@@ -11,9 +11,6 @@
     "ci:changeset:publish": "yarn changeset publish",
     "ci:changeset:version": "yarn changeset version"
   },
-  "resolutions": {
-    "axios": "v1.16.1"
-  },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/smartcontractkit/chainlink-ton.git"
@@ -28,5 +25,13 @@
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "~2.29.2",
     "semver": "^7.7.1"
+  },
+  "resolutions": {
+    "axios": "v1.16.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "v1.16.1"
+    }
   }
 }

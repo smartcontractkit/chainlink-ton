@@ -29,9 +29,6 @@
     "ccip-gas-report": "blueprint test --gas-report -- --config ccip-gas-report.config.ts",
     "get-key-pair": "ts-node scripts/getKeyPair.ts"
   },
-  "resolutions": {
-    "axios": "v1.16.1"
-  },
   "dependencies": {
     "@ethersproject/keccak256": "^5.8.0",
     "ethers": "^6.15.0"
@@ -56,5 +53,13 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "zlib": "^1.0.5"
+  },
+  "resolutions": {
+    "axios": "v1.16.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "v1.16.1"
+    }
   }
 }
