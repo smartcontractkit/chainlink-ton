@@ -30,6 +30,19 @@
       };
     });
 
+    acton = pkgs.callPackage ./acton.nix {inherit pkgs;};
+
+    abigen = pkgs.writeShellApplication {
+      name = "abigen";
+      runtimeInputs = [
+        acton
+        pkgs.python3
+      ];
+      text = ''
+        exec python3 ${./scripts/abigen.py} "$@"
+      '';
+    };
+
     # Chainlink contract pkgs
     contracts = pkgs.stdenv.mkDerivation (finalAttrs: {
       inherit (package-info) version;
@@ -160,6 +173,8 @@ in {
       contracts_1_6_1 = packages.contracts_1_6_1;
       contracts_1_6_2 = packages.contracts_1_6_2;
       jetton-contracts = packages.contracts-jetton-func;
+      acton = packages.acton;
+      abigen = packages.abigen;
       inherit oplint;
     };
   };
