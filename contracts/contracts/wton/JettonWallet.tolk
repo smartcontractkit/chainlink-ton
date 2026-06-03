@@ -44,9 +44,7 @@ fun requiredWalletReserve(backedTonAmount: coins) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    in.bouncedBody.skipBouncedPrefix();
-
-    val msg = lazy BounceOpToHandle.fromSlice(in.bouncedBody);
+    val msg = lazy BounceOpToHandle.fromSlice(in.bouncedBody.skipBouncedPrefix());
     val restoreAmount = match (msg) {
         InternalTransferStep => msg.jettonAmount,       // safe to fetch jettonAmount, because
         BurnNotificationForMinter => msg.jettonAmount,  // it's in the beginning of a message

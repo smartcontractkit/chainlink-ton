@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/messages.tolk
+// Imported from https://github.com/ton-blockchain/tolk-bench/blob/0f416ca611fbfa25e736973d01e5fb70af485468/contracts_Tolk/03_notcoin/fees-management.tolk
 import "@stdlib/gas-payments"
 import "../lib/jetton/errors"
 
@@ -50,7 +50,7 @@ fun forwardInitStateOverhead() {
 }
 
 fun checkAmountIsEnoughToTransfer(msgValue: int, forwardTonAmount: int, fwdFee: int) {
-    var fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper that first
+    var fwdCount = forwardTonAmount != 0 ? 2 : 1; // second sending (forward) will be cheaper than first
 
     var jettonWalletGasConsumption = getPrecompiledGasConsumption();
     var sendTransferGasConsumption = (jettonWalletGasConsumption == null) ? GAS_CONSUMPTION_JettonTransfer : jettonWalletGasConsumption;
