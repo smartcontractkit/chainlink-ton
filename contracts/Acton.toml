@@ -53,13 +53,13 @@ depends = []
 [contracts.Timelock]
 display-name = "link.chain.ton.mcms.Timelock"
 src = "contracts/mcms/rbac_timelock.tolk"
-domain = "ccip"
+domain = "mcms"
 depends = []
 
 [contracts.MCMS]
 display-name = "link.chain.ton.mcms.MCMS"
 src = "contracts/mcms/mcms.tolk"
-domain = "ccip"
+domain = "mcms"
 depends = []
 
 # fmt is not very mature yet
