@@ -65,7 +65,7 @@ depends = []
 # fmt is not very mature yet
 [fmt]
 width = 100
-ignore = ["*"]
+ignore = []
 
 [lint.rules]
 compiler-error = "warn" # C001 - Reports compiler and parse errors.
