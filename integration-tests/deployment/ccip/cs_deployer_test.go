@@ -255,7 +255,7 @@ func TestDeployContractsAndSetOCR3ConfigWithDeployerAPI(t *testing.T) {
 		p2pKeys[i] = key
 		testP2PIDs[i] = key.PeerID()
 
-		for j := 0; j < i; j++ {
+		for j := range i {
 			require.NotEqual(t, testP2PIDs[i], testP2PIDs[j], "P2P keys must be unique, but node %d and %d have the same peer ID", i, j)
 		}
 	}
