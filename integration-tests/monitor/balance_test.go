@@ -76,7 +76,7 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	numTxs := 10
 	transferAmount := tlb.MustFromTON("5.0")
 	totalTransferred := float64(numTxs) * 5.0
-	for i := 0; i < numTxs; i++ {
+	for i := range numTxs {
 		lggr.Infow("Sending transaction", "index", i+1, "from", senderAddr.String(), "to", recipientAddr.String(), "amount", "5 TON")
 		var transfer *wallet.Message
 		transfer, err = tonChain.Wallet.BuildTransfer(recipientAddr, transferAmount, false, "test transfer")
