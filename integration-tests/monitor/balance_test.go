@@ -30,12 +30,11 @@ func TestBalanceMonitor_DirectClient(t *testing.T) {
 	tonChain, err := test_utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
 	require.NoError(t, err)
 
-	balanceClient := monitor.NewBalanceClient(tonChain.Client)
 	walletAddr := tonChain.Wallet.WalletAddress().String()
 	lggr.Infow("Testing balance for wallet", "address", walletAddr)
 
 	// Get the current balance
-	bal, err := balanceClient.GetAccountBalance(walletAddr)
+	bal, err := monitor.GetAccountBalance(tonChain.Client, walletAddr)
 	require.NoError(t, err)
 
 	lggr.Infow("Wallet balance fetched successfully", "address", walletAddr, "balance", bal, "unit", "TON")
@@ -51,11 +50,9 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	tonChain, err := test_utils.StartChain(t, chainsel.TON_LOCALNET.Selector, &setupOnce)
 	require.NoError(t, err)
 
-	balanceClient := monitor.NewBalanceClient(tonChain.Client)
-
 	// Wallet 1: sender, funded with 1000 TON by test_utils.StartChain
 	senderAddr := tonChain.Wallet.WalletAddress()
-	senderInitialBalance, err := balanceClient.GetAccountBalance(senderAddr.String())
+	senderInitialBalance, err := monitor.GetAccountBalance(tonChain.Client, senderAddr.String())
 	require.NoError(t, err)
 	require.InDelta(t, 1000.0, senderInitialBalance, 0.1, "Sender initial balance should be 1000 TON")
 	lggr.Infow("Sender initial balance", "address", senderAddr.String(), "balance", senderInitialBalance, "unit", "TON")
@@ -66,7 +63,7 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	recipientAddr := recipientWallet.WalletAddress()
 
 	// Confirm recipient starts with 0 TON
-	recipientInitialBalance, err := balanceClient.GetAccountBalance(recipientAddr.String())
+	recipientInitialBalance, err := monitor.GetAccountBalance(tonChain.Client, recipientAddr.String())
 	require.NoError(t, err)
 	require.InDelta(t, 0.0, recipientInitialBalance, 0.01)
 	lggr.Infow("Recipient initial balance", "address", recipientAddr.String(), "balance", recipientInitialBalance, "unit", "TON")
@@ -86,11 +83,11 @@ func TestBalanceMonitor_BalanceChanges(t *testing.T) {
 	}
 
 	// Check final balances
-	senderFinalBalance, err := balanceClient.GetAccountBalance(senderAddr.String())
+	senderFinalBalance, err := monitor.GetAccountBalance(tonChain.Client, senderAddr.String())
 	require.NoError(t, err)
 	lggr.Infow("Sender final balance", "address", senderAddr.String(), "balance", senderFinalBalance, "unit", "TON")
 
-	recipientFinalBalance, err := balanceClient.GetAccountBalance(recipientAddr.String())
+	recipientFinalBalance, err := monitor.GetAccountBalance(tonChain.Client, recipientAddr.String())
 	require.NoError(t, err)
 	lggr.Infow("Recipient final balance", "address", recipientAddr.String(), "balance", recipientFinalBalance, "unit", "TON")
 

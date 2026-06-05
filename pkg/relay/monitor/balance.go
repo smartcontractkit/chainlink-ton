@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
@@ -13,8 +14,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/monitoring/balance"
+	"github.com/smartcontractkit/chainlink-common/pkg/timeutil"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
+	"github.com/smartcontractkit/chainlink-framework/metrics"
 
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 )
@@ -29,44 +33,146 @@ type BalanceMonitorOpts struct {
 	NewClient func(context.Context) (ton.APIClientWrapped, error)
 }
 
+// TODO: Add TON to metrics
+const TON = "TON"
+
 // NewBalanceMonitor returns a balance monitoring services.Service which reports balance of all Keystore accounts.
 func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
-	return balance.NewGenericBalanceMonitor(balance.GenericBalanceMonitorOpts{
-		ChainInfo:           opts.ChainInfo,
-		ChainNativeCurrency: "TON",
+	balanceMetrics, err := metrics.NewGenericBalanceMetrics(TON, opts.ChainInfo.ChainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create balance metrics: %w", err)
+	}
+	oldBalanceMetrics, err := balance.NewGaugeAccBalance(TON)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create old balance metrics: %w", err)
+	}
+	return &balanceMonitor{
+		ChainID:             opts.ChainInfo.ChainID,
+		ChainNativeCurrency: TON,
 
 		Config:   opts.Config,
 		Logger:   opts.Logger,
 		Keystore: opts.Keystore,
-		NewGenericBalanceClient: func() (balance.GenericBalanceClient, error) {
+
+		ChainInfo:         opts.ChainInfo,
+		OldBalanceMetrics: oldBalanceMetrics,
+
+		BalanceMetrics: balanceMetrics,
+		NewClient: func() (ton.APIClientWrapped, error) {
 			client, err := opts.NewClient(context.Background())
 			if err != nil {
 				return nil, fmt.Errorf("failed to get new client: %w", err)
 			}
-			return balanceClient{client}, nil
+			return client, nil
 		},
-		KeyToAccountMapper: func(ctx context.Context, pk string) (string, error) {
-			// We need to convert the TON hex-encoded ed25519 public key to a wallet address
-			return hexPublicKeyToWalletAddress(pk)
-		},
+		Stop: make(chan struct{}),
+		Done: make(chan struct{}),
+	}, nil
+
+}
+
+type balanceMonitor struct {
+	services.StateMachine
+	ChainID             string
+	ChainNativeCurrency string
+	Config              balance.GenericBalanceConfig
+	Logger              logger.Logger
+	Keystore            core.Keystore
+
+	// Deprecated: OldBalanceMetrics is the old gauge metric for account balance, which is being replaced by BalanceMetrics. It will be removed in a future release after ensuring all metrics are migrated and stable.
+	ChainInfo         balance.ChainInfo // Only used for OldBalanceMetrics
+	OldBalanceMetrics *balance.GaugeAccBalance
+
+	/// BalanceMetrics uses chainlink-framework and is meant to replace the old GenericBalanceMonitor.
+
+	BalanceMetrics metrics.GenericBalanceMetrics
+	NewClient      func() (ton.APIClientWrapped, error)
+
+	Stop services.StopChan
+	Done chan struct{}
+}
+
+var _ services.Service = (*balanceMonitor)(nil)
+
+func (b *balanceMonitor) Name() string {
+	return b.Logger.Name()
+}
+
+func (b *balanceMonitor) Start(context.Context) error {
+	return b.StartOnce("BalanceMonitor", func() error {
+		go b.monitor()
+		return nil
 	})
 }
 
-// TON balance reader client implementation
-type balanceClient struct {
-	client ton.APIClientWrapped
+func (b *balanceMonitor) Close() error {
+	return b.StopOnce("BalanceMonitor", func() error {
+		close(b.Stop)
+		<-b.Done
+		return nil
+	})
 }
 
-// NewBalanceClient creates a balance client for testing purposes.
-func NewBalanceClient(client ton.APIClientWrapped) balance.GenericBalanceClient {
-	return balanceClient{client: client}
+func (b *balanceMonitor) HealthReport() map[string]error {
+	return map[string]error{b.Name(): b.Healthy()}
+}
+
+func (b *balanceMonitor) monitor() {
+	defer close(b.Done)
+	ctx, cancel := b.Stop.NewCtx()
+	defer cancel()
+
+	ticker := timeutil.NewTicker(func() time.Duration { return b.Config.BalancePollPeriod.Duration() })
+	defer ticker.Stop()
+	for {
+		select {
+		case <-b.Stop:
+			return
+		case <-ticker.C:
+			b.updateBalances(ctx)
+			ticker.Reset()
+		}
+	}
+}
+
+func (b *balanceMonitor) updateBalances(ctx context.Context) {
+	ctx, cancel := b.Stop.Ctx(ctx)
+	defer cancel()
+
+	addrs, err := b.Keystore.Accounts(ctx)
+	if err != nil {
+		b.Logger.Errorw("Failed to get keys", "err", err)
+		return
+	}
+	if len(addrs) == 0 {
+		return
+	}
+	client, err := b.NewClient()
+	if err != nil {
+		b.Logger.Errorw("Failed to create client", "err", err)
+		return
+	}
+	for _, addr := range addrs {
+		// Check for shutdown signal, since Balance blocks and may be slow.
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		tons, err := GetAccountBalance(client, addr)
+		if err != nil {
+			b.Logger.Errorw("Failed to get balance", "account", addr, "err", err)
+			continue
+		}
+		b.SendMetric(ctx, addr, tons)
+	}
 }
 
 // GetAccountBalance returns the account balance of addrString in TON.
-func (c balanceClient) GetAccountBalance(addrString string) (float64, error) {
+func GetAccountBalance(client ton.APIClientWrapped, addrString string) (float64, error) {
 	ctx := context.Background()
 
-	block, err := c.client.CurrentMasterchainInfo(ctx)
+	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return -1, fmt.Errorf("failed to get masterchain info: %w", err)
 	}
@@ -76,7 +182,7 @@ func (c balanceClient) GetAccountBalance(addrString string) (float64, error) {
 		return -1, fmt.Errorf("failed to parse address [%s]: %w", addrString, err)
 	}
 
-	acc, err := c.client.GetAccount(ctx, block, addr)
+	acc, err := client.GetAccount(ctx, block, addr)
 	if err != nil {
 		return -1, fmt.Errorf("failed to get account: %w", err)
 	}
@@ -129,4 +235,12 @@ func hexPublicKeyToWalletAddress(hexPubKey string) (string, error) {
 	}
 
 	return addr.String(), nil
+}
+
+func (b *balanceMonitor) SendMetric(ctx context.Context, account string, balance float64) {
+	b.Logger.Infow("Account balance updated", "unit", b.ChainNativeCurrency, "account", account, "balance", balance)
+	b.BalanceMetrics.RecordNodeBalance(ctx, account, balance)
+
+	// TODO remove after migration to new metrics is complete and stable
+	b.OldBalanceMetrics.Record(ctx, balance, account, b.ChainInfo)
 }
