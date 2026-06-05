@@ -425,7 +425,7 @@ func TestBOCHeaderVariability(t *testing.T) {
 				cells := make([]*cell.Cell, 0, 300)
 
 				// Create 300 unique leaf cells
-				for i := 0; i < 300; i++ {
+				for i := range 300 {
 					cells = append(cells, cell.BeginCell().
 						MustStoreUInt(uint64(i*1000+i), 32).
 						MustStoreUInt(uint64(i*2), 16).

@@ -342,7 +342,7 @@ func (p *queryParser) buildBitConditionSQL(offset, size uint64, condition query.
 	} else {
 		// Multi-bit: Value is a byte array, convert to bit string
 		bitString := p.bytesToBitString(condition.Value, size)
-		for i := uint64(0); i < size; i++ {
+		for i := range size {
 			adjustedBit := (offset + i) + uint64(boc.CellDescriptorSize*8)
 			pgBit := convertToPostgresBitOffset(adjustedBit)
 			expectedBit := bitString[i] - '0' // Convert '0' or '1' char to 0 or 1 int

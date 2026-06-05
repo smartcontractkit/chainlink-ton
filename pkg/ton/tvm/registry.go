@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
@@ -67,9 +68,7 @@ type ContractTLBRegistry map[FullyQualifiedName]TLBMap
 func (r ContractTLBRegistry) Snapshot() TLBMap {
 	combined := make(TLBMap)
 	for _, tlbMap := range r {
-		for opcode, typ := range tlbMap {
-			combined[opcode] = typ
-		}
+		maps.Copy(combined, tlbMap)
 	}
 	return combined
 }

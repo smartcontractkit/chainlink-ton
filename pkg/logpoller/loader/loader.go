@@ -265,7 +265,7 @@ func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *addre
 		// We don't use tx.PrevTxHash directly for the first iteration because there's no previous
 		// transaction we've processed yet - we need the txHash parameter from our cursor.
 		// After the first iteration, txHash gets updated to tx.PrevTxHash for the next comparison.
-		for i := 0; i < len(txList); i++ {
+		for i := range txList {
 			loader := txList[i].BeginParse()
 
 			var tx tlb.Transaction

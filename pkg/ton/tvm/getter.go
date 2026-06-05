@@ -111,7 +111,7 @@ func encodeArgsDefault(input any) ([]any, error) {
 		return []any{value.Interface()}, nil
 	case reflect.Struct:
 		// Check for NoArgs type
-		if value.Type() == reflect.TypeOf(NoArgs{}) {
+		if value.Type() == reflect.TypeFor[NoArgs]() {
 			return []any{}, nil
 		}
 		// Expand exported fields, skipping those with `tvm:"-"` tag
@@ -135,7 +135,7 @@ func encodeArgsDefault(input any) ([]any, error) {
 		// Otherwise, expand elements
 		length := value.Len()
 		params := make([]any, length)
-		for i := 0; i < length; i++ {
+		for i := range length {
 			params[i] = value.Index(i).Interface()
 		}
 		return params, nil

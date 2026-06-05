@@ -23,7 +23,7 @@ func ExtractMagic(rt reflect.Type) (uint64, error) {
 		return 0, fmt.Errorf("type %s has no fields", rt.Name())
 	}
 
-	if rt.Field(0).Type != reflect.TypeOf(tlb.Magic{}) {
+	if rt.Field(0).Type != reflect.TypeFor[tlb.Magic]() {
 		return 0, fmt.Errorf("first field of %s is not of type Magic", rt.Name())
 	}
 
