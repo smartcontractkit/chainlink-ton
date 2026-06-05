@@ -122,14 +122,11 @@ func updateRouterOfframps(routerAddr *address.Address, offRampAdds map[string][]
 	}
 
 	// Zip: pair one add with one remove per message where possible.
-	n := len(adds)
-	if len(removes) > n {
-		n = len(removes)
-	}
+	n := max(len(removes), len(adds))
 
 	msgs := make([]tlb.InternalMessage, 0, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		var input router.ApplyRampUpdates
 
 		if i < len(adds) {

@@ -429,7 +429,7 @@ func validateSubjectFormat(subject api.Subject) error {
 	}
 
 	// For regular chain selectors, first 8 bytes should be 0, TODO double check this
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		if subject[i] != 0 {
 			return fmt.Errorf("invalid subject format for TON: expected big-endian encoding with zeros in first 8 bytes, got subject=%v", subject)
 		}

@@ -262,6 +262,5 @@ func (e *dependencyEntry) resolve(provider *DependencyProvider) (any, error) {
 }
 
 func typeKey[T any]() reflect.Type {
-	var zero T
-	return reflect.TypeOf(&zero).Elem()
+	return reflect.TypeFor[T]()
 }
