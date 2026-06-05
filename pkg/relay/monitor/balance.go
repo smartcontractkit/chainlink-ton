@@ -68,7 +68,6 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 		Stop: make(chan struct{}),
 		Done: make(chan struct{}),
 	}, nil
-
 }
 
 type balanceMonitor struct {
