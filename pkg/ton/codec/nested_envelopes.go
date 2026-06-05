@@ -58,7 +58,6 @@ func loadNestedEnvelopesValue(v reflect.Value, registry tvm.ContractTLBRegistry,
 		return loadNestedEnvelopesValue(v.Elem(), registry, visited)
 	case reflect.Struct:
 		for _, field := range v.Fields() {
-			field := field
 			//nolint:staticcheck // skip De Morgan's law
 			if !field.CanInterface() && !(field.CanAddr() && field.Addr().CanInterface()) {
 				continue

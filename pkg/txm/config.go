@@ -43,11 +43,6 @@ var DefaultConfigSet = Config{
 	EnableTraceLogging: new(true),
 }
 
-//go:fix inline
-func ptr[T any](v T) *T {
-	return new(v)
-}
-
 func (c *Config) ApplyDefaults() {
 	if c.BroadcastChanSize == 0 {
 		c.BroadcastChanSize = DefaultConfigSet.BroadcastChanSize
