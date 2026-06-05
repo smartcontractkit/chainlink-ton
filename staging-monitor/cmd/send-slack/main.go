@@ -75,7 +75,7 @@ func sendSlackNoti(ctx context.Context, resultFile, webhookURL string, environme
 		statusIcon = ":x: Failure"
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"status":         statusIcon,
 		"test_case":      result.Case,
 		"src_router":     result.Router,
