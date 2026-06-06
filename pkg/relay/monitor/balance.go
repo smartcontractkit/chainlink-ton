@@ -238,7 +238,7 @@ func hexPublicKeyToWalletAddress(hexPubKey string) (string, error) {
 }
 
 func (b *balanceMonitor) SendMetric(ctx context.Context, account string, balance float64) {
-	b.Logger.Infow("Account balance updated", "unit", b.ChainNativeCurrency, "account", account, "balance", balance)
+	b.Logger.Debugw("Account balance updated", "unit", b.ChainNativeCurrency, "account", account, "balance", balance)
 	b.BalanceMetrics.RecordNodeBalance(ctx, account, balance)
 
 	// TODO remove after migration to new metrics is complete and stable
