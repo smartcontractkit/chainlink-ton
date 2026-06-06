@@ -138,12 +138,12 @@ func (b *balanceMonitor) updateBalances(ctx context.Context) {
 	ctx, cancel := b.Stop.Ctx(ctx)
 	defer cancel()
 
-	addrs, err := b.Keystore.Accounts(ctx)
+	pks, err := b.Keystore.Accounts(ctx)
 	if err != nil {
 		b.Logger.Errorw("Failed to get keys", "err", err)
 		return
 	}
-	if len(addrs) == 0 {
+	if len(pks) == 0 {
 		return
 	}
 	client, err := b.NewClient(ctx)
@@ -151,7 +151,12 @@ func (b *balanceMonitor) updateBalances(ctx context.Context) {
 		b.Logger.Errorw("Failed to create client", "err", err)
 		return
 	}
-	for _, addr := range addrs {
+	for _, pk := range pks {
+		addr, err := hexPublicKeyToWalletAddress(pk)
+		if err != nil {
+			b.Logger.Errorw("Failed to derive wallet address from public key", "err", err, "publicKey", pk)
+			continue
+		}
 		// Check for shutdown signal, since Balance blocks and may be slow.
 		select {
 		case <-ctx.Done():
