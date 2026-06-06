@@ -65,7 +65,7 @@ func NewBalanceMonitor(opts BalanceMonitorOpts) (services.Service, error) {
 			}
 			return client, nil
 		},
-		Stop: make(chan struct{}),
+		Stop: make(services.StopChan),
 		Done: make(chan struct{}),
 	}, nil
 }
