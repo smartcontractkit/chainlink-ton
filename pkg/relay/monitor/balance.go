@@ -158,7 +158,7 @@ func (b *balanceMonitor) updateBalances(ctx context.Context) {
 			return
 		default:
 		}
-		tons, err := GetAccountBalance(client, addr)
+		tons, err := GetAccountBalance(ctx, client, addr)
 		if err != nil {
 			b.Logger.Errorw("Failed to get balance", "account", addr, "err", err)
 			continue
@@ -168,8 +168,9 @@ func (b *balanceMonitor) updateBalances(ctx context.Context) {
 }
 
 // GetAccountBalance returns the account balance of addrString in TON.
-func GetAccountBalance(client ton.APIClientWrapped, addrString string) (float64, error) {
-	ctx := context.Background()
+func GetAccountBalance(ctx context.Context, client ton.APIClientWrapped, addrString string) (float64, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
 
 	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
